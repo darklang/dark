@@ -864,6 +864,7 @@ and msg =
   | TraceMouseLeave of tlid * traceID * mouseEvent
   | TriggerCron of tlid
   | CreateRouteHandler of string option
+  | ToggleSideBar
   | CreateFunction
   | ExtractFunction
   | CreateType
@@ -1177,7 +1178,8 @@ and model =
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
-  ; browserId : string }
+  ; browserId : string
+  ; sidebarOpen : bool }
 
 (* Values that we serialize *)
 and serializableEditor =
