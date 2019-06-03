@@ -710,6 +710,31 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EPartial (gid (), str), String.length str)
 
 
+let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
+  match entry with
+  | FACPattern p ->
+    ( match p with
+    | FPConstructor (_, _, var, _)
+    | FPVariable (_, _, var)
+    | FPString (_, _, var) ->
+        (p, String.length var + 1)
+    | FPInteger (_, _, var) ->
+        (p, String.length (string_of_int var) + 1)
+    | FPBool (_, _, var) ->
+        (p, String.length (string_of_bool var) + 1)
+    | FPFloat (_, _, var, var') ->
+        (p, String.length var + String.length var' + 1)
+    | FPNull _ ->
+        (p, 4)
+    | FPBlank _ ->
+        (p, 1)
+    | FPOldPattern (id, _) ->
+        (FPString (id, gid (), "TODO: oldPattern"), 0) )
+  | _ ->
+      fail
+        "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+
+
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
@@ -1699,10 +1724,21 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, acOffset = acToExpr entry in
-      let id = Token.tid ti.token in
-      let newAST = replaceExpr ~newExpr id ast in
-      let tokens = toTokens s newAST in
+      let newAST, acOffset =
+        match entry with
+        | FACPattern _ ->
+            let newPat, acOffset = acToPattern entry in
+            let newAST =
+              replacePattern ~newPat (pid newPat) (pmid newPat) ast
+            in
+            (newAST, acOffset)
+        | _ ->
+            let newExpr, acOffset = acToExpr entry in
+            let id = Token.tid ti.token in
+            let newAST = replaceExpr ~newExpr id ast in
+            (newAST, acOffset)
+      in
+      let tokens = toTokens s ast in
       let offset = getNextBlank s.newPos tokens in
       let newPos =
         match key with

@@ -1071,6 +1071,7 @@ and fluidAutocompleteItem =
   | FACVariable of varName
   | FACLiteral of literal
   | FACKeyword of keyword
+  | FACPattern of fluidPattern
 
 and fluidAutocompleteState =
   { (* ------------------------------- *)

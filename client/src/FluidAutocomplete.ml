@@ -73,6 +73,24 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match" )
+  | FACPattern p ->
+    ( match p with
+    | FPVariable (_, _, name) | FPConstructor (_, _, name, _) ->
+        name
+    | FPInteger (_, _, v) ->
+        string_of_int v
+    | FPBool (_, _, v) ->
+        string_of_bool v
+    | FPString (_, _, v) ->
+        v
+    | FPFloat (_, _, v, v') ->
+        v ^ "." ^ v'
+    | FPNull _ ->
+        "null"
+    | FPBlank _ ->
+        "_"
+    | FPOldPattern _ ->
+        "TODO: oldPattern" )
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -85,9 +103,10 @@ let asTypeString (item : autocompleteItem) : string =
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
-  | FACVariable _ ->
+  | FACVariable _ | FACPattern (FPVariable _) ->
       "variable"
-  | FACConstructorName (name, _) ->
+  | FACConstructorName (name, _) | FACPattern (FPConstructor (_, _, name, _))
+    ->
       if name = "Just"
       then "(any) -> option"
       else if name = "Nothing"
@@ -104,8 +123,22 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.tipe2str
       in
       tipe ^ " literal"
+  | FACPattern (FPString _) ->
+      "string literal"
+  | FACPattern (FPInteger _) ->
+      "integer literal"
+  | FACPattern (FPBool _) ->
+      "boolean literal"
+  | FACPattern (FPFloat _) ->
+      "float literal"
   | FACKeyword _ ->
       "keyword"
+  | FACPattern (FPNull _) ->
+      "null"
+  | FACPattern (FPBlank _) ->
+      "_"
+  | FACPattern (FPOldPattern _) ->
+      "TODO: oldPattern"
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -325,9 +358,9 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (*   | Pattern -> *)
     (*     ( match dval with *)
     (*     | Some dv when RT.typeOf dv = TResult -> *)
-    (*         [ACConstructorName "Ok"; ACConstructorName "Error"] *)
+    (*         [FACConstructorName "Ok"; FACConstructorName "Error"] *)
     (*     | Some dv when RT.typeOf dv = TOption -> *)
-    (*         [ACConstructorName "Just"; ACConstructorName "Nothing"] *)
+    (*         [FACConstructorName "Just"; FACConstructorName "Nothing"] *)
     (*     | _ -> *)
     (*         constructors ) *)
     (*   | _ -> *)
@@ -504,7 +537,7 @@ let selectUp (a : autocomplete) : autocomplete =
       a
 
 
-let documentationForItem (aci : autocompleteItem) : string option =
+let rec documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | FACFunction f ->
       let desc =
@@ -542,3 +575,24 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | FACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+  | FACPattern p ->
+    ( match p with
+    | FPConstructor (_, _, name, args) ->
+        documentationForItem (FACConstructorName (name, List.length args))
+    | FPVariable (_, _, name) ->
+        documentationForItem (FACVariable name)
+    | FPInteger (_, _, var) ->
+        documentationForItem (FACLiteral (string_of_int var))
+    | FPBool (_, _, var) ->
+        documentationForItem (FACLiteral (string_of_bool var))
+    | FPString (_, _, var) ->
+        documentationForItem (FACLiteral var)
+    | FPFloat (_, _, var, var') ->
+        let var = var ^ "." ^ var' in
+        documentationForItem (FACLiteral var)
+    | FPNull _ ->
+        Some "A 'null' literal"
+    | FPBlank _ ->
+        Some "A Blank allows you to match any value"
+    | FPOldPattern _ ->
+        Some "TODO: oldPattern" )
