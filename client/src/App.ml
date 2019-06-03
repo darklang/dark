@@ -1465,6 +1465,8 @@ let update_ (msg : msg) (m : model) : modification =
               ( if shouldOpen
               then StrSet.add ~value:key m.routingTableOpenDetails
               else StrSet.remove ~value:key m.routingTableOpenDetails ) } )
+  | ToggleSideBar ->
+      TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler space ->
       let center = findCenter m in
       let action =
