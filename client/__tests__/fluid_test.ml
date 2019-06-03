@@ -1030,6 +1030,24 @@ let () =
             |> (fun (ast, s) -> updateKey K.Down ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144 ) ;
+      test "clicking away from autocomplete commits" (fun () ->
+          expect
+            (let ast =
+               ELet (gid (), gid (), "var", EPartial (gid (), "false"), blank)
+             in
+             moveTo 14 s
+             |> (fun s ->
+                  let tl = tl ast in
+                  let m = {m with toplevels = [tl]} in
+                  updateAutocomplete m tl.id ast s )
+             |> (fun s -> updateMouseClick 0 ast s)
+             |> fun (ast, s) ->
+             match ast with
+             | ELet (_, _, _, EBool (_, false), _) ->
+                 "success"
+             | _ ->
+                 eToStructure s ast)
+          |> toEqual "success" ) ;
       () ) ;
   describe "Tabs" (fun () ->
       t

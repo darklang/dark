@@ -622,6 +622,14 @@ let eToString (s : state) (e : ast) : string =
   |> String.join ~sep:""
 
 
+let eToStructure (s : state) (e : fluidExpr) : string =
+  e
+  |> toTokens s
+  |> List.map ~f:(fun ti ->
+         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+  |> String.join ~sep:""
+
+
 (* -------------------- *)
 (* Patterns *)
 (* -------------------- *)
@@ -1720,6 +1728,21 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (newAST, newState)
 
 
+let acMaybeCommit (newPos : int) (ast : ast) (s : state) : ast * state =
+  match s.ac.query with
+  | Some (_, ti) ->
+      let highlightedText =
+        s.ac |> AC.highlighted |> Option.map ~f:AC.asName
+      in
+      let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
+      if (not isInside) && Some (Token.toText ti.token) = highlightedText
+      then acEnter ti ast s K.Enter
+      else (ast, s)
+  | None ->
+      Js.log "no query" ;
+      (ast, s)
+
+
 let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction "acCompleteField" s in
   match AC.highlighted s.ac with
@@ -2392,6 +2415,19 @@ let updateAutocomplete m tlid ast s : fluidState =
       s
 
 
+let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let lastPos =
+    toTokens s ast
+    |> List.last
+    |> Option.map ~f:(fun ti -> ti.endPos)
+    |> Option.withDefault ~default:0
+  in
+  let newPos = if newPos > lastPos then lastPos else newPos in
+  let newAST, newState = acMaybeCommit newPos ast s in
+  (newAST, setPosition newState newPos)
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -2402,14 +2438,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     | FluidMouseClick ->
       ( match getCursorPosition () with
       | Some newPos ->
-          let lastPos =
-            toTokens s ast
-            |> List.last
-            |> Option.map ~f:(fun ti -> ti.endPos)
-            |> Option.withDefault ~default:0
-          in
-          let newPos = if newPos > lastPos then lastPos else newPos in
-          (ast, setPosition s newPos)
+          updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
     | FluidKeyPress {key} ->
