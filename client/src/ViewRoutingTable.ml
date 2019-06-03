@@ -371,11 +371,15 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | _ ->
         []
   in
+  let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
     match e.minusButton with
     | Some msg ->
-        [buttonLink ~key:("entry-" ^ showTLID e.tlid) (fontAwesome "times") msg]
+        [ buttonLink
+            ~key:("entry-" ^ showTLID e.tlid)
+            (fontAwesome "times-circle")
+            msg ]
     | None ->
         iconspacer
   in
@@ -386,13 +390,17 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | None ->
         iconspacer
   in
+  let delete = Html.div [Html.class' "delete"] minuslink in
+  let main = Html.span [Html.class' "name"] mainlink in
   let auxViews =
-    Html.div [Html.class' "aux"] (verb @ ext @ minuslink @ pluslink)
+    Html.div
+      [Html.classList [("aux", true); (httpMethod, true)]]
+      (ext @ verb @ pluslink)
   in
   let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
-    [Html.span [Html.class' "name"] mainlink; auxViews]
+    [delete; main; auxViews]
 
 
 let deploy2html (d : staticDeploy) : msg Html.html =
@@ -511,15 +519,15 @@ let toggleSidebar (m : model) : msg Html.html =
     then fontAwesome "chevron-left"
     else fontAwesome "chevron-right"
   in
-  let toggleBtn = Html.a [event; Html.class' "button-link"] [button] in
+  let toggleBtn = Html.a [Html.class' "button-link"] [button] in
   let toggleSide =
     Html.div
-      [Html.class' "toggle-container"]
+      [event; Html.class' "toggle-container"]
       [ Html.p [] [Html.text "Collapse sidebar"]
       ; Html.div
           [ Html.classList
               [("toggle-button", true); ("closed", not m.sidebarOpen)] ]
-          [toggleBtn] ]
+          [toggleBtn; toggleBtn] ]
   in
   toggleSide
 

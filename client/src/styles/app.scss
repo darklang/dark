@@ -644,7 +644,7 @@ body #app * {
 
 .viewing-table {
     background-color: $black2;
-    padding: 8px;
+    padding: 8px 0px;
     height: 100%;
     position: relative;
     width: max-content;
@@ -653,12 +653,16 @@ body #app * {
     min-width: 320px;
     box-sizing: border-box;
 
+    &::-webkit-scrollbar {
+      width: 0px;  /* Remove scrollbar space */
+    }
+
     &.isClosed{
-      width: 25px;
+      width: 35px;
       min-width: initial;
-      &::-webkit-scrollbar {
-        width: 0px;  /* Remove scrollbar space */
-        background: transparent;  /* Optional: just make scrollbar invisible */
+      
+      .toggle-container p{
+        display: none
       }
     }
     
@@ -670,20 +674,28 @@ body #app * {
       display: flex;
       align-items: center;
       justify-content: flex-end;
+      margin: 5px 0px;
       .toggle-button{
-        margin: 10px;
+        display: flex;
+        .button-link:nth-child(2){
+          margin-left: -5px; 
+        }
+        .fa{
+          font-size: 25px;
+        }
         &.closed {
           margin: 0px;
-          margin-left: 10px;
+          margin-right: 10px;
         }
+      }
+      p{
+        margin: 0px 10px;
       }
     }
     .routing-section {
-        &.empty .header {
-            &::before {
-                content: "- ";
-                font-weight: bold;
-            }
+      margin: 10px 0px;
+        summary::-webkit-details-marker {
+          display: none;
         }
 
         &.deleted>.routing-section {
@@ -695,9 +707,10 @@ body #app * {
         }
 
         .header {
-            width: 100%;
-            color: lighten($yellow, 15%);
+            padding: 0px 5px 0px 10px;   
 
+            color: lighten($yellow, 15%);
+            background: $grey2;
             .title {
                 margin-right: 5px;
                 padding-bottom: 6px;
@@ -710,6 +723,7 @@ body #app * {
             .verb-link,
             .button-link {
                 float: right;
+                color: lighten($yellow, 15%);
             }
         }
 
@@ -734,33 +748,57 @@ body #app * {
         }
 
         .simple-route.handler {
-            display: block;
-            width: calc(#{"100% - 2px"});
-            padding: 2px 0;
-
-            &:hover {
-                background-color: $black1;
+          display: flex;
+          width: 100%;
+          margin: 5px 0px;
+          .name{
+            color: $white3;
+            width: 70%;
+            .default-link{
+              display: block;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              overflow: hidden;
             }
-
-            &.selected a {
-                color: saturate($yellow, 10%) !important;
+          }
+          .delete{
+            display: flex;
+            width: 10%;
+            align-items: center;
+            justify-content: center;
+            .button-link{
+              color: $grey2;
             }
-
-            .name {
-                color: $white3;
+          }
+          .aux{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20%;
+            overflow: hidden; 
+            .verb{
+              font-size: 14px;
+            }  
+            .no-ext{
+              margin-left: 16px;
+            } 
+            &.GET a{
+              color: $green;
+            }   
+            &.POST a{
+              color: $blue;
             }
-
-            .aux {
-                float: right;
+            &.DELETE a{
+              color: $red;
             }
-
-            .icon-spacer {
-                display: inline-block;
-                width: 16px;
-                margin: 0 2px;
+            &.PUT a{
+              color: $orange;
             }
+            &.PATCH a{
+              color: $purple;
+            }
+          }
         }
-
     }
 
     .routing-section.http .simple-route.handler,
@@ -783,14 +821,14 @@ body #app * {
             }
 
             &.no-ext {
-                margin-right: 20px;
+                // margin-left: 20px;
             }
         }
 
         .external {
             font-size: 12px;
-            position: relative;
-            top: -2px;
+            // position: relative;
+            // top: -2px;
         }
 
     }
