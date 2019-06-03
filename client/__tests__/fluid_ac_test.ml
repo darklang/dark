@@ -264,7 +264,7 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
 
 let () =
   describe "autocomplete" (fun () ->
-      (*
+      (* TODO: not yet working in fluid
       describe "generation" (fun () ->
           test
             "invalidated cursor state/acFor still produces a valid autocomplete"
@@ -489,7 +489,8 @@ let () =
                    |> setQuery m "event"
                    |> itemPresent (FACVariable "event") ])
               |> toEqual [true; true] ) ;
-          (*test "functions have DB names in the autocomplete" (fun () ->
+          (* TODO: not yet working in fluid
+           * test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = EBlank blankid in
               let fntlid = TLID "fn123" in
@@ -533,7 +534,7 @@ let () =
             ; FACConstructorName ("Ok", 1)
             ; FACConstructorName ("Error", 1) ]
           in
-          (*
+          (* TODO: not yet working in fluid
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
               let param1id = ID "123" in
               let expr =
@@ -561,6 +562,8 @@ let () =
                 && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
                 )
               |> toEqual true ) ;
+              *)
+          (* TODO: not yet working in fluid
           test "Only Ok and Error are allowed in Result-blank" (fun () ->
               let param1id = ID "123" in
               let expr =
