@@ -171,6 +171,13 @@ let () =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
   in
   let m = Defaults.defaultModel in
+  let fnParam (name : string) (t : tipe) (opt : bool) : Types.parameter =
+    { paramName = name
+    ; paramTipe = t
+    ; paramBlock_args = []
+    ; paramOptional = opt
+    ; paramDescription = "" }
+  in
   let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
       string * int =
     (* we wrap it so that there's something before and after the expr (esp
@@ -181,6 +188,25 @@ let () =
       if wrap
       then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
+    in
+    (* manually include BinOp functions for testing autocomplete *)
+    let m =
+      { m with
+        builtInFunctions =
+          [ { fnName = "<"
+            ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+            ; fnReturnTipe = TBool
+            ; fnDescription = "Returns true if a is less than b"
+            ; fnPreviewExecutionSafe = true
+            ; fnDeprecated = false
+            ; fnInfix = true }
+          ; { fnName = "=="
+            ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+            ; fnReturnTipe = TBool
+            ; fnDescription = "Returns true if the two value are equal"
+            ; fnPreviewExecutionSafe = true
+            ; fnDeprecated = false
+            ; fnInfix = true } ] }
     in
     let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
@@ -544,12 +570,12 @@ let () =
         "move back over match"
         emptyMatch
         (press K.Left 6)
-        ("match ___\n  ___ -> ___", 0) ;
+        ("match ___\n  *** -> ___", 0) ;
       t
         "move forward over match"
         emptyMatch
         (press K.Right 0)
-        ("match ___\n  ___ -> ___", 6) ;
+        ("match ___\n  *** -> ___", 6) ;
       t "backspace over empty match" emptyMatch (backspace 6) ("___", 0) ;
       t
         "backspace over empty match with 2 patterns"
@@ -852,6 +878,16 @@ let () =
         aBinOp
         (presses [K.Letter 'r'; K.Tab] 0)
         ("request == ___", 11) ;
+      t
+        "autocomplete bin-op moves to start of first blank"
+        (EBlank (gid ()))
+        (presses [K.Letter '='; K.Enter] 0)
+        ("___ == ___", 0) ;
+      t
+        "autocomplete bin-op moves to start of first blank 2"
+        emptyLet
+        (presses [K.Letter '<'; K.Enter] 10)
+        ("let *** = ___ < ___\n5", 10) ;
       t
         "variable moves to right place"
         (EPartial (gid (), "req"))
