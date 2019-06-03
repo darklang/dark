@@ -1253,6 +1253,46 @@ body #app * {
 // Fluid
 //*************
 
+
+.fluid-variant {
+    .live-values {
+        display: none;
+        position: absolute;
+        right: calc(#{"100% + 30px"});
+        font-style: normal;
+
+        padding: 4px;
+        width: max-content;
+        max-width: 250px;
+
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+        font-size: $code-font-size * 0.85;
+        color: $grey3;
+
+        background-color: $black2;
+        outline: 0.4px $grey2 dotted;
+
+        &.show {
+            display: block;
+        }
+
+        .copy-value {
+            position: absolute;
+            top: -4px;
+            right: -8px;
+
+            opacity: 0.7;
+
+            &:hover {
+                opacity: 0.85;
+            }
+        }
+
+    }
+}
+
 #fluid-status {
     position: absolute;
     top: 0px;
@@ -1438,39 +1478,6 @@ since they are essentially both commands just acting upon different things. */
                     font-family: monospace;
                     color: darken($dropdown-foreground, 15%);
                 }
-            }
-        }
-    }
-
-    .live-value {
-        display: block;
-        position: absolute;
-        right: calc(#{"100% + 30px"});
-        font-style: normal;
-
-
-        padding: 4px;
-        width: max-content;
-        max-width: 250px;
-
-        white-space: pre-wrap;
-        word-break: break-all;
-        word-wrap: break-word;
-        font-size: $code-font-size * 0.85;
-        color: $grey3;
-
-        background-color: $black2;
-        outline: 0.4px $grey2 dotted;
-
-        .copy-value {
-            position: absolute;
-            top: -4px;
-            right: -8px;
-
-            opacity: 0.7;
-
-            &:hover {
-                opacity: 0.85;
             }
         }
     }
