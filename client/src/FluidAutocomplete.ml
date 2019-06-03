@@ -453,7 +453,7 @@ let refilter
 
 let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
     autocomplete =
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let queryString = toQueryString ti in
   let dval = dvalForTarget m tl ti in
   let query = (tl, ti, dval, queryString) in

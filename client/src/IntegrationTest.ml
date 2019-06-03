@@ -135,7 +135,7 @@ let left_right_works (m : model) : testResult =
   ignore (onlyHandler m) ;
   match m.cursorState with
   | Selecting (tlid, Some id) ->
-      let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
+      let pd = TL.getExn m tlid |> fun tl -> TL.find tl id in
       ( match pd with
       | Some (PEventSpace _) ->
           pass
@@ -226,7 +226,7 @@ let ellen_hello_world_demo (m : model) : testResult =
 let editing_does_not_deselect (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (tlid, id)) ->
-      let pd = TL.getTL m tlid |> fun tl -> TL.find tl id in
+      let pd = TL.getExn m tlid |> fun tl -> TL.find tl id in
       ( match pd with
       | Some (PExpr (F (_, Value "\"hello zane\""))) ->
           pass
@@ -628,7 +628,7 @@ let object_literals_work (m : model) : testResult =
         ; (F (_, "k3"), F (_, Value "3"))
         ; (F (_, "k4"), Blank _)
         ; (Blank _, Blank _) ] ) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let target = TL.findExn tl id in
       ( match target with
       | PEventName _ ->
@@ -773,7 +773,7 @@ let return_to_architecture_on_deselect (m : model) : testResult =
 
 let fn_page_returns_to_lastpos (m : model) : testResult =
   let tlid = TLID "123" in
-  let tl = TL.getTL m tlid in
+  let tl = TL.getExn m tlid in
   let centerPos = Viewport.centerCanvasOn tl m.canvasProps in
   if m.canvasProps.offset = centerPos
   then pass

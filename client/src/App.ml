@@ -83,7 +83,7 @@ let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let predPd = Option.andThen ~f:(TL.find tl) pred in
       let next = TL.getNextBlank tl predPd in
       ( match next with
@@ -92,7 +92,7 @@ let processFocus (m : model) (focus : focus) : modification =
       | None ->
           Select (tlid, pred) )
   | FocusExact (tlid, id) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       if P.isBlank pd || P.toContent pd = Some ""
       then Enter (Filling (tlid, id))
@@ -486,7 +486,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
-        (Page.setPage m m.currentPage page, Cmd.none)
+        let pagePresent =
+          match Page.tlidOf page with
+          | None ->
+              true
+          | Some tlid ->
+              TL.get m tlid <> None
+        in
+        if pagePresent
+        then (Page.setPage m m.currentPage page, Cmd.none)
+        else
+          ( Page.setPage m m.currentPage Architecture
+          , Url.updateUrl Architecture )
     | Select (tlid, p) ->
         let cursorState =
           if p = None && VariantTesting.isFluid m.tests
@@ -496,7 +507,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, hashcmd =
           if tlidOf m.cursorState <> Some tlid
           then
-            let tl = TL.getTL m tlid in
+            let tl = TL.getExn m tlid in
             let page = TL.asPage tl false in
             let m = Page.setPage m m.currentPage page in
             (m, Url.updateUrl page)
@@ -540,7 +551,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               None
           | Filling (tlid, id) ->
-              let tl = TL.getTL m tlid in
+              let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
@@ -554,7 +565,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               None
           | Filling (tlid, id) ->
-              let tl = TL.getTL m tlid in
+              let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
               Some (tlid, pd)
         in
@@ -583,7 +594,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               if updateCurrent
               then m2
               else
-                let tl = TL.getTL m tlid in
+                let tl = TL.getExn m tlid in
                 ( match tl.data with
                 | TLDB _ ->
                     TL.upsert m2 tl
@@ -715,7 +726,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               if updateCurrent
               then m2
               else
-                let tl = TL.getTL m tlid in
+                let tl = TL.getExn m tlid in
                 ( match tl.data with
                 | TLFunc f ->
                     Functions.upsert m2 f
@@ -746,7 +757,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               if updateCurrent
               then m2
               else
-                let tl = TL.getTL m tlid in
+                let tl = TL.getExn m tlid in
                 ( match tl.data with
                 | TLTipe t ->
                     UserTypes.upsert m2 t
@@ -865,7 +876,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             canvasProps =
               { m.canvasProps with
                 offset =
-                  Viewport.centerCanvasOn (TL.getTL m tlid) m.canvasProps
+                  Viewport.centerCanvasOn (TL.getExn m tlid) m.canvasProps
               ; panAnimation = true } }
         , Cmd.none )
     | TriggerCronRPC tlid ->
@@ -895,7 +906,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
     | FluidCommandsFor (tlid, id) ->
-        let cp = FluidCommands.commandsFor (TL.getTL m tlid) id in
+        let cp = FluidCommands.commandsFor (TL.getExn m tlid) id in
         ( {m with fluidState = {m.fluidState with cp}}
         , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
@@ -1003,7 +1014,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelMouseDown (targetTLID, event) ->
       if event.button = Defaults.leftButton
       then
-        let tl = TL.getTL m targetTLID in
+        let tl = TL.getExn m targetTLID in
         match tl.data with
         | TLFunc _ | TLTipe _ ->
             NoChange
@@ -1017,7 +1028,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
             if hasMoved
             then
-              let tl = TL.getTL m draggingTLID in
+              let tl = TL.getExn m draggingTLID in
               (* We've been updating tl.pos as mouse moves, *)
               (* now want to report last pos to server *)
               (* the SetCursorState here isn't always necessary *)
@@ -1033,10 +1044,10 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
-  | BlankOrClick (targetTLID, targetID, _) ->
+  | BlankOrClick (targetExnID, targetID, _) ->
     ( match m.cursorState with
     | Deselected ->
-        Select (targetTLID, Some targetID)
+        Select (targetExnID, Some targetID)
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Entering cursor ->
@@ -1044,16 +1055,18 @@ let update_ (msg : msg) (m : model) : modification =
       | Filling (_, fillingID) ->
           if fillingID = targetID
           then NoChange
-          else Select (targetTLID, Some targetID)
+          else Select (targetExnID, Some targetID)
       | _ ->
-          Select (targetTLID, Some targetID) )
+          Select (targetExnID, Some targetID) )
     | Selecting (_, _) ->
-        Select (targetTLID, Some targetID)
+        Select (targetExnID, Some targetID)
     | SelectingCommand (_, scID) ->
-        if scID = targetID then NoChange else Select (targetTLID, Some targetID)
+        if scID = targetID
+        then NoChange
+        else Select (targetExnID, Some targetID)
     | FluidEntering _ ->
-        Select (targetTLID, Some targetID) )
-  | BlankOrDoubleClick (targetTLID, targetID, event) ->
+        Select (targetExnID, Some targetID) )
+  | BlankOrDoubleClick (targetExnID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
       let offset =
@@ -1071,24 +1084,24 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             None
       in
-      Selection.dblclick m targetTLID targetID offset
+      Selection.dblclick m targetExnID targetID offset
   | ToplevelDoubleClick tlid ->
       CenterCanvasOn tlid
-  | ToplevelClick (targetTLID, _) ->
+  | ToplevelClick (targetExnID, _) ->
       let click =
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
             SetCursorState origCursorState
         | Selecting (_, _) ->
-            Select (targetTLID, None)
+            Select (targetExnID, None)
         | SelectingCommand (_, _) ->
-            Select (targetTLID, None)
+            Select (targetExnID, None)
         | Deselected ->
-            Select (targetTLID, None)
+            Select (targetExnID, None)
         | Entering _ ->
-            Select (targetTLID, None)
+            Select (targetExnID, None)
         | FluidEntering _ ->
-            Select (targetTLID, None)
+            Select (targetExnID, None)
       in
       let fluid =
         if VariantTesting.isFluid m.tests
@@ -1109,7 +1122,7 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         SetCursor (tlid, traceID) )
   | StartMigration tlid ->
-      let mdb = tlid |> TL.getTL m |> TL.asDB in
+      let mdb = tlid |> TL.getExn m |> TL.asDB in
       ( match mdb with
       | Some db ->
           DB.startMigration tlid db.cols
@@ -1118,7 +1131,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
-      let mdb = tlid |> TL.getTL m |> TL.asDB in
+      let mdb = tlid |> TL.getExn m |> TL.asDB in
       ( match mdb with
       | Some db ->
           if DB.isMigrationCol db nameId
@@ -1141,7 +1154,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ExtractFunction ->
     ( match m.cursorState with
     | Selecting (tlid, mId) ->
-        let tl = TL.getTL m tlid in
+        let tl = TL.getExn m tlid in
         ( match mId with
         | None ->
             NoChange
@@ -1158,7 +1171,7 @@ let update_ (msg : msg) (m : model) : modification =
       let replacement = UserTypes.removeField tipe field in
       RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
   | ToplevelDelete tlid ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusSame)]
   | ToplevelDeleteForever tlid ->
       Many
@@ -1377,7 +1390,7 @@ let update_ (msg : msg) (m : model) : modification =
           {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
           )
   | LocationChange loc ->
-      Url.changeLocation m loc
+      Url.changeLocation loc
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->

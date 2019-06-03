@@ -29,7 +29,7 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
   | Entering (Creating _) ->
       not intOrString
   | Entering (Filling (tlid, id)) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString
   | _ ->
@@ -44,7 +44,7 @@ let undo_redo (m : model) (redo : bool) : modification =
         then RPC ([RedoTL tlid], FocusSame)
         else RPC ([UndoTL tlid], FocusSame)
       in
-      ( match TL.getTL m tlid |> TL.asDB with
+      ( match TL.getExn m tlid |> TL.asDB with
       | Some _ ->
           (* We could do it on the server but it's really hard
                  atm. To do it on the server, efficiently, we'd create
@@ -70,7 +70,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->
-        let tl = TL.getTL m tlid in
+        let tl = TL.getExn m tlid in
         ( match event.keyCode with
         | Key.Delete ->
             Selection.delete m tlid mId
@@ -354,7 +354,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         then
           match cursor with
           | Filling (tlid, _) ->
-              let tl = TL.getTL m tlid in
+              let tl = TL.getExn m tlid in
               ( match tl.data with
               | TLTipe _ ->
                   NoChange
@@ -374,7 +374,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 NoChange
             | Filling (tlid, id) ->
-                let tl = TL.getTL m tlid in
+                let tl = TL.getExn m tlid in
                 let pd = TL.findExn tl id in
                 Refactor.toggleOnRail m tl pd )
           | _ ->
@@ -438,7 +438,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
-                let tl = TL.getTL m tlid in
+                let tl = TL.getExn m tlid in
                 ( match tl.data with
                 | TLHandler h ->
                     let replacement = AST.closeBlanks h.ast in
