@@ -1696,22 +1696,29 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
-      let offset = getNextBlank s.newPos tokens in
       let newState =
-        match key with
-        | K.Tab ->
-            moveTo offset (acClear s)
-        | K.Enter ->
-            moveTo (ti.startPos + length) (acClear s)
-        | K.Space ->
-            let newPos =
-              if offset > ti.startPos + length + 1
-              then ti.startPos + length + 1
-              else offset
-            in
-            moveTo newPos (acClear s)
+        match newExpr with
+        (* BinOps show up as FnCalls in fluid *)
+        | EFnCall (_, name, _, _)
+          when ["=="; "<"; ">"; "<="; ">="; "&&"; "||"]
+               |> List.member ~value:name ->
+            moveTo ti.startPos (acClear s)
         | _ ->
-            s
+            let offset = getNextBlank s.newPos tokens in
+            ( match key with
+            | K.Tab ->
+                moveTo offset (acClear s)
+            | K.Enter ->
+                moveTo (ti.startPos + length) (acClear s)
+            | K.Space ->
+                let newPos =
+                  if offset > ti.startPos + length + 1
+                  then ti.startPos + length + 1
+                  else offset
+                in
+                moveTo newPos (acClear s)
+            | _ ->
+                s )
       in
       (newAST, newState)
 
