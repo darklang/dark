@@ -8,7 +8,7 @@ let executeCommand
     : modification =
   match highlighted with
   | Some (ACCommand command) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       command.action m tl pd
   | _ ->

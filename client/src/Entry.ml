@@ -380,7 +380,7 @@ let submitACItem
   | Creating _ ->
       NoChange
   | Filling (tlid, id) ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       let result = validate tl pd stringValue in
       if result <> None

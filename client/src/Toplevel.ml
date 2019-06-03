@@ -512,7 +512,9 @@ let get (m : model) (id : tlid) : toplevel option =
   List.find ~f:(fun tl -> tl.id = id) tls
 
 
-let getTL (m : model) (id : tlid) : toplevel = get m id |> deOption "getTL"
+let getExn (m : model) (id : tlid) : toplevel =
+  get m id |> deOption "TL.getExn"
+
 
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
