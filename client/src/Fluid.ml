@@ -674,7 +674,14 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         else Types.NoRail
       in
       let args = List.initialize count (fun _ -> EBlank (gid ())) in
-      (EFnCall (gid (), name, args, r), String.length name + 1)
+      if List.member ~value:name ["=="; "<"; ">"; "<="; ">="; "&&"; "||"]
+      then
+        match args with
+        | [lhs; rhs] ->
+            (EBinOp (gid (), name, lhs, rhs, r), 0)
+        | _ ->
+            fail "BinOp doesn't have 2 args"
+      else (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -1692,33 +1699,26 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, length = acToExpr entry in
+      let newExpr, acMoveTo = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
+      let offset = getNextBlank s.newPos tokens in
       let newState =
-        match newExpr with
-        (* BinOps show up as FnCalls in fluid *)
-        | EFnCall (_, name, _, _)
-          when ["=="; "<"; ">"; "<="; ">="; "&&"; "||"]
-               |> List.member ~value:name ->
-            moveTo ti.startPos (acClear s)
+        match key with
+        | K.Tab ->
+            moveTo offset (acClear s)
+        | K.Enter ->
+            moveTo (ti.startPos + acMoveTo) (acClear s)
+        | K.Space ->
+            let newPos =
+              if offset > ti.startPos + acMoveTo + 1
+              then ti.startPos + acMoveTo + 1
+              else offset
+            in
+            moveTo newPos (acClear s)
         | _ ->
-            let offset = getNextBlank s.newPos tokens in
-            ( match key with
-            | K.Tab ->
-                moveTo offset (acClear s)
-            | K.Enter ->
-                moveTo (ti.startPos + length) (acClear s)
-            | K.Space ->
-                let newPos =
-                  if offset > ti.startPos + length + 1
-                  then ti.startPos + length + 1
-                  else offset
-                in
-                moveTo newPos (acClear s)
-            | _ ->
-                s )
+            s
       in
       (newAST, newState)
 

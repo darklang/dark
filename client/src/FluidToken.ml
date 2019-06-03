@@ -202,7 +202,7 @@ let toText (t : token) : string =
 
 let toTestText (t : token) : string =
   match t with
-  | TPatternBlank _ | TBlank _ ->
+  | TPlaceholder _ | TBlank _ ->
       "___"
   | _ ->
       if isBlank t then "***" else toText t
