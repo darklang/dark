@@ -474,12 +474,14 @@ and viewNExpr
 let view (vs : viewState) (e : expr) =
   if VariantTesting.isFluid vs.testVariants
   then
-    Fluid.viewAST
-      ~tlid:vs.tlid
-      ~currentResults:vs.currentResults
-      ~state:vs.fluidState
-      (Fluid.fromExpr vs.fluidState e)
-  else [Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]]
+    Html.div
+      [Html.class' "fluid-ast"]
+      (Fluid.viewAST
+         ~tlid:vs.tlid
+         ~currentResults:vs.currentResults
+         ~state:vs.fluidState
+         (Fluid.fromExpr vs.fluidState e))
+  else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
 
 
 let externalLink
@@ -621,10 +623,9 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
   let ast =
     Html.div
       attrs
-      ( view vs h.ast
-      @ [ Html.div
-            [Html.classList [("rop-rail", true); ("active", showRail)]]
-            [] ] )
+      [ view vs h.ast
+      ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
+      ]
   in
   let header =
     Html.div [Html.class' "spec-header"] (viewEventSpec vs h.spec)
