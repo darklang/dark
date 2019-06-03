@@ -674,7 +674,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         else Types.NoRail
       in
       let args = List.initialize count (fun _ -> EBlank (gid ())) in
-      if List.member ~value:name ["=="; "<"; ">"; "<="; ">="; "&&"; "||"]
+      if fn.fnInfix
       then
         match args with
         | [lhs; rhs] ->
@@ -1704,22 +1704,20 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
       let offset = getNextBlank s.newPos tokens in
-      let newState =
-        match key with
-        | K.Tab ->
-            moveTo offset (acClear s)
-        | K.Enter ->
-            moveTo (ti.startPos + acMoveTo) (acClear s)
-        | K.Space ->
-            let newPos =
-              if offset > ti.startPos + acMoveTo + 1
-              then ti.startPos + acMoveTo + 1
-              else offset
-            in
-            moveTo newPos (acClear s)
+      let newPos =
+        match (key, newExpr) with
+        | _, EBinOp _ ->
+            ti.startPos + acMoveTo
+        | K.Tab, _ ->
+            offset
+        | K.Enter, _ ->
+            ti.startPos + acMoveTo
+        | K.Space, _ ->
+            min offset (ti.startPos + acMoveTo + 1)
         | _ ->
-            s
+            s.newPos
       in
+      let newState = moveTo newPos (acClear s) in
       (newAST, newState)
 
 
