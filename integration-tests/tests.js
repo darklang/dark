@@ -921,6 +921,9 @@ test('select_route', async t => {
   const categoryHeader = 'summary.header';
   const httpVerbLink = 'a.verb.verb-link';
   const toplevelElement = '.node .sidebar-box';
+  const sidebarController =  '.toggle-button .button-link'
+
+  await t.click(Selector(sidebarController));
 
   await t.click(Selector(categoryHeader));
 
