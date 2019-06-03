@@ -1699,7 +1699,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, acMoveTo = acToExpr entry in
+      let newExpr, acOffset = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
@@ -1707,13 +1707,14 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let newPos =
         match (key, newExpr) with
         | _, EBinOp _ ->
-            ti.startPos + acMoveTo
+            ti.startPos + acOffset
         | K.Tab, _ ->
             offset
         | K.Enter, _ ->
-            ti.startPos + acMoveTo
+            ti.startPos + acOffset
         | K.Space, _ ->
-            min offset (ti.startPos + acMoveTo + 1)
+            (* if new position is after next blank, stay in next blank *)
+            min offset (ti.startPos + acOffset + 1)
         | _ ->
             s.newPos
       in
