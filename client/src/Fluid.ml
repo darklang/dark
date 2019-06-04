@@ -1738,7 +1738,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newAST = replaceExpr ~newExpr id ast in
             (newAST, acOffset)
       in
-      let tokens = toTokens s ast in
+      let tokens = toTokens s newAST in
       let offset = getNextBlank s.newPos tokens in
       let newPos =
         match key with
