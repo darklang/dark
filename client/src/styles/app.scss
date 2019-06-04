@@ -1,41 +1,11 @@
+@import 'sidebar';
+@import 'variables';
+
 html {
     height: 100%;
 }
 
 /* From "default dark" in https://chriskempson.github.io/base16/ */
-$black1: #181818; // toplevel bg
-$black2: #282828; // sidebar bg, entrybox bg, debugging buttons
-$grey1 : #383838; // hovered AST bg
-$grey2 : #585858; // placeholder text
-$grey3 : #b8b8b8;
-$white3: #d8d8d8; // link color
-$white2: #e8e8e8;
-$white1: #f8f8f8; // active link
-$red : #ab4642; // error
-$orange: #dc9656; // routing, lambda functions
-$yellow: #f7ca88; // routing table, database migration
-$green : #a1b56c; // executable buttons, feature flag icons
-$cyan : #86c1b9;
-$blue : #7cafc2; // pipe
-$purple: #ba8baf; // variation used in strings
-$brown : #a16946;
-$darkblue: #2B466F;
-$vagueblue: #182635;
-
-$hovercolor: lighten($darkblue, 10%);
-$autocomplete-highlight-color: $darkblue;
-$selected-blankor-background: $darkblue;
-
-$selected-toplevel-border: $darkblue;
-$selected-toplevel-background: lighten($black1, 5%);
-
-$top-border: lighten($black1, 5%) 2px dotted;
-$blank-underline: 1px dashed $grey2;
-$code-font-size: 13.3333px;
-$string-color: lighten($purple, 10%);
-
-$toplevel-min-width: 360px;
-$ridiculously-large : 2000%;
 
 //*************
 // AST macros
@@ -117,56 +87,11 @@ $ridiculously-large : 2000%;
     background-color: $grey1;
 }
 
-@mixin default() {
-    margin: 0;
-    padding: 0;
-    background-color: $black2;
-    color: $grey3;
-}
-
-@keyframes showErrorPanel {
-    from {
-        bottom: -70px;
-    }
-
-    to {
-        bottom: 0;
-    }
-}
-
-@keyframes hideErrorPanel {
-    from {
-        bottom: 0;
-    }
-
-    to {
-        bottom: 70px;
-    }
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
 body {
     @include default;
     height: 100%;
 }
 
-@mixin default-link {
-    text-decoration: none;
-
-    &:link,
-    &:visited {
-        color: $white1;
-    }
-
-    &:hover,
-    &:active {
-        color: $yellow;
-    }
-}
 
 .default-link {
     @include default-link;
@@ -629,6 +554,7 @@ body #app * {
     }
 }
 
+<<<<<<< HEAD
 //*************
 // Routing table
 //*************
@@ -905,6 +831,8 @@ body #app * {
 
     
 }
+=======
+>>>>>>> seperate style files and show icons on sidebar collapse
 
 //*************
 // DB

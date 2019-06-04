@@ -1,0 +1,289 @@
+@import 'variables';
+
+$sidebarClosedWidth: 55px;
+$sidebarFullWidth: 320px;
+
+#sidebar-left {
+  width: max-content;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+
+.viewing-table {
+  $toggleSpace: 60px;
+
+  background-color: $black2;
+  padding: 8px 0px;
+  height: 100%;
+  position: relative;
+  width: $sidebarFullWidth;
+  box-sizing: border-box;
+  padding: 5px;
+
+  &::-webkit-scrollbar {
+    width: 0px;  /* Remove scrollbar space */
+  }
+
+  &.isClosed{
+    width: $sidebarClosedWidth;
+    min-width: initial;
+    .toggle-container{
+      justify-content: center;
+      &:last-child{
+        display: flex; 
+      }
+      p{
+        display: none
+      }
+    }
+  }
+  
+  .routes{
+    display: flex;
+    flex-direction: column;
+    height: calc(#{"100% - 60px"});
+    overflow-y: scroll;
+    
+    &.routings{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;      
+    }
+    
+    .collapsed{
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 10px 0px;
+      color: #585858;
+      width: 90%;
+
+      .header-icon{
+        display: flex;
+        fill: $white1;
+
+        &.empty{
+          fill: $grey2;
+        }
+      }
+    }
+  }
+  
+  .toggle-container {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 5px;
+    color: $grey2;
+
+    .toggle-button{
+      display: flex;
+      .button-link:nth-child(2){
+        margin-left: -5px; 
+      }
+      .fa{
+        font-size: 25px;
+      }
+    }
+    p{
+      margin: 0px 10px;
+    }
+    &:last-child{
+      display: none;
+    }
+  }
+
+  .routing-section {
+    margin: 5px 5px 10px 5px;
+    &:first-child{
+      margin-top: 0px;
+    }
+    summary::-webkit-details-marker {
+      display: none;
+    }
+    &.deleted>.routing-section {
+        margin-left: 10px;
+    }
+
+    &.deleted.empty div {
+        display: none;
+    }
+    .header {
+      padding: 2px 5px 2px 10px;
+      color: #fcead0;
+      background: #585858;
+      display: flex;
+      align-items: center;
+      flex-direction: row;
+      justify-content: space-between;
+      
+      .title{
+        display: flex;
+      }
+
+      .count {
+          font-weight: bold;
+      }
+
+      .verb-link,
+      .button-link {
+          float: right;
+          color: lighten($yellow, 15%);
+      }
+
+      .header-icon{
+        height: 20px;
+        width: 20px;
+        margin-right: 5px;
+        svg {
+          fill: lighten($yellow, 15%);
+        }
+      }
+    }
+
+    .button-link,
+    .external {
+        @include default-link;
+
+        display: inline-block;
+        width: 16px;
+        margin: 0 2px;
+        cursor: pointer;
+        color: $grey3;
+
+        &:link,
+        &:visited {
+            color: $grey3;
+        }
+
+        &:hover {
+            color: $yellow;
+        }
+    }
+
+    .simple-route.handler {
+      display: flex;
+      width: 100%;
+      margin: 5px 0px;
+      .name{
+        color: $white3;
+        width: 70%;
+        display: block;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .delete{
+        display: flex;
+        width: 10%;
+        align-items: center;
+        justify-content: center;
+        .button-link{
+          color: $grey2;
+        }
+      }
+      .aux{
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        width: 20%;
+        overflow: hidden; 
+        .verb{
+          font-size: 14px;
+          width: 10%;
+        }  
+        .no-ext{
+          margin-left: 16px;
+        } 
+        &.GET a, &.GET span{
+          color: $green;    
+        }   
+        &.POST a, &.POST span{
+          color: $blue;
+        }
+        &.DELETE a, &.DELETE span{
+          color: $red;
+        }
+        &.PUT a, &.PUT span{
+          color: $orange;
+        }
+        &.PATCH a, &.PATCH span{
+          color: $purple;
+        }
+      }
+    }
+  }
+
+  .routing-section.http .simple-route.handler,
+  .routing-section.fof .simple-route.handler,
+  .routing-section.deleted-http .simple-route.handler {
+
+      .verb {
+          width: 60px;
+          color: $grey3;
+          display: inline-block;
+          text-align: right;
+          margin-right: 4px;
+          vertical-align: middle;
+          &:not(.no-ext){
+            width: 30px;
+          }
+          &.verb-link {
+              text-decoration: none;
+          }
+
+          &:hover {
+              color: $yellow;
+          }
+      }
+
+      .external {
+          font-size: 12px;
+          // position: relative;
+          // top: -2px;
+      }
+
+  }
+
+  .default-link.unused {
+      color: $grey2;
+  }
+}
+
+.routing-section.deploys{
+  color: $grey3;
+  .header{
+    color: lighten($yellow, 15%);
+    width: fit-content;
+    border-bottom: 1px solid;
+    padding-left: 0px; 
+    margin: 0px 5px 0px 10px;  
+    background: none
+  }
+  .datetime,
+  .hash {
+      margin-right: 2ch;
+  }
+
+  a.hash {
+      color: $grey3;
+
+      &:hover {
+          color: $yellow;
+      }
+  }
+
+  .status {
+      color: $white1;
+
+      &.success {
+          color: $green;
+      }
+  }
+}
