@@ -884,7 +884,7 @@ let () =
         (presses [K.Letter '='; K.Enter] 0)
         ("___ == ___", 0) ;
       t
-        "autocomplete tab on bin-op moves to start of first blank"
+        "autocomplete tab on bin-op moves to start of second blank"
         (EBlank (gid ()))
         (presses [K.Letter '='; K.Tab] 0)
         ("___ == ___", 13) ;
@@ -901,7 +901,7 @@ let () =
         (presses [K.Letter '<'; K.Enter] 10)
         ("let *** = ___ < ___\n5", 10) ;
       t
-        "autocomplete tab on bin-op moves to start of first blank 2"
+        "autocomplete tab on bin-op moves to start of second blank 2"
         emptyLet
         (presses [K.Letter '<'; K.Tab] 10)
         ("let *** = ___ < ___\n5", 22) ;
