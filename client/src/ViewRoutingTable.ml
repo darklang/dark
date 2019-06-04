@@ -40,6 +40,22 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
   Html.a [event; Html.class' "button-link"] [content]
 
 
+let categoryIcon (name : string) : msg Html.html list =
+  match name with
+  | "http" ->
+      [ViewUtils.svgIconHTTP]
+  | "dbs" ->
+      [ViewUtils.svgIconDB]
+  | "fns" ->
+      [ViewUtils.svgIconFunction]
+  | "deleted" ->
+      [ViewUtils.svgIconDeleted]
+  | "static" ->
+      [ViewUtils.svgIconStatic]
+  | _ ->
+      []
+
+
 let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
@@ -121,7 +137,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           ; plusButton = None } )
   in
   { count = List.length dbs
-  ; name = "DBs"
+  ; name = "Databases"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; entries }
@@ -369,7 +385,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | None, Some v ->
         [Html.span [Html.class' ("verb" ^ noExt)] [Html.text v]]
     | _ ->
-        []
+        [Html.span [Html.class' ("verb" ^ noExt)] []]
   in
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
@@ -425,9 +441,12 @@ let deploy2html (d : staticDeploy) : msg Html.html =
 
 (* Category Views *)
 
-let categoryTitle (name : string) (count : int) : msg Html.html list =
+let categoryTitle (name : string) (count : int) (classname : string) :
+    msg Html.html list =
+  let icon = Html.div [Html.class' "header-icon"] (categoryIcon classname) in
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  [ text "title" name
+  [ icon
+  ; text "title" name
   ; text "parens" "("
   ; text "count" (count |> string_of_int)
   ; text "parens" ")" ]
@@ -455,7 +474,7 @@ let deployStats2html (m : model) : msg Html.html =
     categoryOpenCloseHelpers m "deploys" count
   in
   let header =
-    let title = categoryTitle "Static Assets" count in
+    let title = categoryTitle "Static Assets" count "static" in
     let deployLatest =
       if count <> 0
       then entries |> List.take ~count:1 |> List.map ~f:deploy2html
@@ -486,7 +505,9 @@ and category2html (m : model) (c : category) : msg Html.html =
     categoryOpenCloseHelpers m c.classname c.count
   in
   let header =
-    let title = categoryTitle c.name c.count in
+    let title =
+      Html.div [Html.class' "title"] (categoryTitle c.name c.count c.classname)
+    in
     let plusButton =
       match c.plusButton with
       | Some msg ->
@@ -497,7 +518,7 @@ and category2html (m : model) (c : category) : msg Html.html =
       | None ->
           []
     in
-    Html.summary [Html.class' "header"; openEventHandler] (title @ plusButton)
+    Html.summary [Html.class' "header"; openEventHandler] (title :: plusButton)
   in
   let routes = List.map ~f:(item2html m) c.entries in
   let classes =
