@@ -1705,14 +1705,12 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let tokens = toTokens s newAST in
       let offset = getNextBlank s.newPos tokens in
       let newPos =
-        match (key, newExpr) with
-        | _, EBinOp _ ->
-            ti.startPos + acOffset
-        | K.Tab, _ ->
+        match key with
+        | K.Tab ->
             offset
-        | K.Enter, _ ->
+        | K.Enter ->
             ti.startPos + acOffset
-        | K.Space, _ ->
+        | K.Space ->
             (* if new position is after next blank, stay in next blank *)
             min offset (ti.startPos + acOffset + 1)
         | _ ->
