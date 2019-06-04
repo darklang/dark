@@ -48,6 +48,7 @@ let htmlObject (src : string) =
 
 
 let categoryIcon (name : string) : msg Html.html list =
+  Debug.loG "categoryIcon" name ;
   match name with
   | "http" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
@@ -554,8 +555,6 @@ and category2html (m : model) (c : category) : msg Html.html =
 
 
 let closedCategory2html (m : model) (c : category) : msg Html.html =
-  Debug.loG "M" m ;
-  (* Expecting model for hover functionality *)
   let plusButton =
     match c.plusButton with
     | Some msg ->
@@ -582,6 +581,7 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
       (categoryIcon c.classname)
   in
   Html.div [Html.class' "collapsed"] (count @ (icon :: plusButton))
+
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
