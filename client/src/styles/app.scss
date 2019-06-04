@@ -214,6 +214,8 @@ body #app * {
 
     .node {
         position: absolute;
+        display: flex;
+        align-items: flex-start;
     }
 }
 
@@ -2086,12 +2088,6 @@ padding: 8px;
 // This creates an ancestor for the absolutely positioned elements around a handler to be positioned agains
 //
 
-.sidebar-box {
-    position: relative;
-    display: flex;
-    align-items: flex-start;
-}
-
 .documentation-box {
     position: absolute;
     bottom: calc(#{"100% + 2px"});
@@ -2488,7 +2484,7 @@ $icon-spacing: 6px;
     z-index: 30;
 }
 
-.sidebar-box {
+.node {
     z-index: 20;
 
     &.dragging {
