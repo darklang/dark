@@ -19,13 +19,21 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some StubVariant
     | "fluidv2" ->
         Some FluidVariant
+    | "sidebarv2" ->
+        Some SidebarVariant
     | _ ->
         None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with StubVariant -> "stub" | FluidVariant -> "fluid"
+    match vt with
+    | StubVariant ->
+        "stub"
+    | FluidVariant ->
+        "fluid"
+    | SidebarVariant ->
+        "sidebar"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)

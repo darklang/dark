@@ -635,8 +635,7 @@ body #app * {
 
 #sidebar-left {
     width: max-content;
-    max-height: calc(#{"100% - 50px"});
-    overflow-y: scroll;
+    height: 100%;
     position: fixed;
     top: 0;
     left: 0;
@@ -646,12 +645,39 @@ body #app * {
 .viewing-table {
     background-color: $black2;
     padding: 8px;
+    height: 100%;
     position: relative;
     width: max-content;
     overflow: visible;
+    overflow-y: scroll;
     min-width: 320px;
     box-sizing: border-box;
 
+    &.isClosed{
+      width: 25px;
+      min-width: initial;
+      &::-webkit-scrollbar {
+        width: 0px;  /* Remove scrollbar space */
+        background: transparent;  /* Optional: just make scrollbar invisible */
+      }
+    }
+    
+    .routings{
+      display: none;
+    }
+    .toggle-container {
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      .toggle-button{
+        margin: 10px;
+        &.closed {
+          margin: 0px;
+          margin-left: 10px;
+        }
+      }
+    }
     .routing-section {
         &.empty .header {
             &::before {

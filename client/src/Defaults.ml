@@ -120,4 +120,5 @@ let defaultModel : model =
   ; fluidState = defaultFluidState
   ; dbStats = StrDict.empty
   ; avatarsList = []
-  ; browserId = "" }
+  ; browserId = ""
+  ; sidebarOpen = false }

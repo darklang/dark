@@ -501,6 +501,29 @@ and category2html (m : model) (c : category) : msg Html.html =
     (header :: routes)
 
 
+let toggleSidebar (m : model) : msg Html.html =
+  let event =
+    ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
+        ToggleSideBar )
+  in
+  let button =
+    if m.sidebarOpen
+    then fontAwesome "chevron-left"
+    else fontAwesome "chevron-right"
+  in
+  let toggleBtn = Html.a [event; Html.class' "button-link"] [button] in
+  let toggleSide =
+    Html.div
+      [Html.class' "toggle-container"]
+      [ Html.p [] [Html.text "Collapse sidebar"]
+      ; Html.div
+          [ Html.classList
+              [("toggle-button", true); ("closed", not m.sidebarOpen)] ]
+          [toggleBtn] ]
+  in
+  toggleSide
+
+
 let viewRoutingTable_ (m : model) : msg Html.html =
   let tls = m.toplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
   let ufns =
@@ -515,6 +538,9 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     |> List.sortBy ~f:(fun t ->
            t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
   in
+  let isClosed : bool =
+    VariantTesting.variantIsActive m SidebarVariant && not m.sidebarOpen
+  in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
@@ -524,15 +550,23 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
+  let sidebarBtns =
+    if VariantTesting.variantIsActive m SidebarVariant
+    then [toggleSidebar m]
+    else []
+  in
   let html =
     Html.div
-      [ Html.class' "viewing-table"
+      [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
       ; nothingMouseEvent "mouseup"
       ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      (List.map ~f:(category2html m) cats @ [deployStats2html m])
+      ( sidebarBtns
+      @ [ Html.div
+            [Html.classList [("routings", isClosed)]]
+            (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
 
@@ -541,6 +575,7 @@ let rtCacheKey m =
   ( m.toplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
   , m.userFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
   , m.f404s
+  , m.sidebarOpen
   , m.deletedToplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
   , m.deletedUserFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
   , m.routingTableOpenDetails
