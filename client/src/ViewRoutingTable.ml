@@ -521,7 +521,7 @@ and category2html (m : model) (c : category) : msg Html.html =
           []
     in
     Html.summary
-      [openEventHandler]
+      [Html.class' "headerSummary"; openEventHandler]
       [Html.div [Html.class' "header"] (title :: plusButton)]
   in
   let routes = List.map ~f:(item2html m) c.entries in
@@ -596,10 +596,10 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      [ toggleSidebar m
-      ; Html.div
-          [Html.classList [("routings", isClosed); ("routes", true)]]
-          (List.map ~f:(category2html m) cats @ [deployStats2html m]) ]
+      ( sidebarBtns
+      @ [ Html.div
+            [Html.classList [("routings", isClosed); ("routes", true)]]
+            (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
 
