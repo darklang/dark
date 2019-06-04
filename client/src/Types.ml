@@ -904,6 +904,7 @@ and msg =
 and variantTest =
   | StubVariant
   | FluidVariant
+  | SidebarVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
