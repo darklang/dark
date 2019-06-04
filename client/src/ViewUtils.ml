@@ -205,13 +205,13 @@ let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
-let placeHtml (pos : pos) (html : msg Html.html) : msg Html.html =
+let placeHtml (pos : pos) (classes: 'a list) (html : msg Html.html list) : msg Html.html =
   Html.div
-    [ Html.class' "node"
+    [ Html.classList (("node", true) :: classes)
     ; Html.styles
         [ ("left", string_of_int pos.x ^ "px")
         ; ("top", string_of_int pos.y ^ "px") ] ]
-    [html]
+    html
 
 
 let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"

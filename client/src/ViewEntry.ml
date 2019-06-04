@@ -196,6 +196,6 @@ let viewEntry (m : model) : msg Html.html list =
           [Html.class' "omnibox"]
           [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
       in
-      [placeHtml pos html]
+      [placeHtml pos [] [html]]
   | _ ->
       []
