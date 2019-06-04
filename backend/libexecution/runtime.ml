@@ -12,7 +12,7 @@ let error
     ?(long = "")
     (short : string) =
   Exception.raise_
-    UserCode
+    Code
     ?bt
     ~actual:(Dval.to_developer_repr_v0 actual)
     ~result:(Dval.to_developer_repr_v0 result)
