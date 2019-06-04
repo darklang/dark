@@ -674,7 +674,14 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         else Types.NoRail
       in
       let args = List.initialize count (fun _ -> EBlank (gid ())) in
-      (EFnCall (gid (), name, args, r), String.length name + 1)
+      if fn.fnInfix
+      then
+        match args with
+        | [lhs; rhs] ->
+            (EBinOp (gid (), name, lhs, rhs, r), 0)
+        | _ ->
+            fail "BinOp doesn't have 2 args"
+      else (EFnCall (gid (), name, args, r), String.length name + 1)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -1692,27 +1699,24 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, length = acToExpr entry in
+      let newExpr, acOffset = acToExpr entry in
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
       let offset = getNextBlank s.newPos tokens in
-      let newState =
+      let newPos =
         match key with
         | K.Tab ->
-            moveTo offset (acClear s)
+            offset
         | K.Enter ->
-            moveTo (ti.startPos + length) (acClear s)
+            ti.startPos + acOffset
         | K.Space ->
-            let newPos =
-              if offset > ti.startPos + length + 1
-              then ti.startPos + length + 1
-              else offset
-            in
-            moveTo newPos (acClear s)
+            (* if new position is after next blank, stay in next blank *)
+            min offset (ti.startPos + acOffset + 1)
         | _ ->
-            s
+            s.newPos
       in
+      let newState = moveTo newPos (acClear s) in
       (newAST, newState)
 
 

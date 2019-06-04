@@ -98,7 +98,7 @@ let () =
     let key = K.fromChar char in
     process [key] pos pat
   in
-  let b = "___" in
+  let b = "***" in
   let t
       (name : string)
       (initial : fluidPattern)
