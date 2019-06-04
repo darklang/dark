@@ -1728,19 +1728,23 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       (newAST, newState)
 
 
-let acMaybeCommit (newPos : int) (ast : ast) (s : state) : ast * state =
+let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
+    : ast =
+  let highlightedText = s.ac |> AC.highlighted |> Option.map ~f:AC.asName in
+  let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
+  if (not isInside) && Some (Token.toText ti.token) = highlightedText
+  then
+    let newAST, _ = acEnter ti ast s K.Enter in
+    newAST
+  else ast
+
+
+let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
   match s.ac.query with
   | Some (_, ti) ->
-      let highlightedText =
-        s.ac |> AC.highlighted |> Option.map ~f:AC.asName
-      in
-      let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
-      if (not isInside) && Some (Token.toText ti.token) = highlightedText
-      then acEnter ti ast s K.Enter
-      else (ast, s)
+      commitIfValid newPos ti (ast, s)
   | None ->
-      Js.log "no query" ;
-      (ast, s)
+      ast
 
 
 let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
@@ -2389,7 +2393,19 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
-  (newAST, newState)
+  (* If we were on a partial and have moved off it, we may want to commit
+   * that partial. This is done here because the logic is different that
+   * clicking. *)
+  match (toTheLeft, toTheRight) with
+  | L (TPartial _, ti), _ | _, R (TPartial _, ti) ->
+      (* Use the old position and ac and token *)
+      let committedAST = commitIfValid newState.newPos ti (newAST, s) in
+      (* TODO: I tried redoing the action after it had been committed, but in
+       * the cases I tried it didn't have a better user experience. Might be
+       * edge cases I didn't consider though. *)
+      (committedAST, newState)
+  | _ ->
+      (newAST, newState)
 
 
 let updateAutocomplete m tlid ast s : fluidState =
@@ -2424,8 +2440,8 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     |> Option.withDefault ~default:0
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
-  let newAST, newState = acMaybeCommit newPos ast s in
-  (newAST, setPosition newState newPos)
+  let newAST = acMaybeCommit newPos ast s in
+  (newAST, setPosition s newPos)
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
