@@ -480,7 +480,9 @@ let deployStats2html (m : model) : msg Html.html =
       then entries |> List.take ~count:1 |> List.map ~f:deploy2html
       else []
     in
-    Html.summary [Html.class' "header"; openEventHandler] (title @ deployLatest)
+    Html.summary
+      [openEventHandler]
+      [Html.div [Html.class' "header"] (title @ deployLatest)]
   in
   let routes =
     if count > 1
@@ -518,7 +520,9 @@ and category2html (m : model) (c : category) : msg Html.html =
       | None ->
           []
     in
-    Html.summary [Html.class' "header"; openEventHandler] (title :: plusButton)
+    Html.summary
+      [openEventHandler]
+      [Html.div [Html.class' "header"] (title :: plusButton)]
   in
   let routes = List.map ~f:(item2html m) c.entries in
   let classes =
@@ -592,10 +596,10 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      ( sidebarBtns
-      @ [ Html.div
-            [Html.classList [("routings", isClosed)]]
-            (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
+      [ toggleSidebar m
+      ; Html.div
+          [Html.classList [("routings", isClosed); ("routes", true)]]
+          (List.map ~f:(category2html m) cats @ [deployStats2html m]) ]
   in
   Html.div [Html.id "sidebar-left"] [html]
 
