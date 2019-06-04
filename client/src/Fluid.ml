@@ -2523,25 +2523,6 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
-  match ti.token with
-  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-      Vdom.noNode
-  | _ ->
-      let id = Token.tid ti.token in
-      let liveValueString =
-        StrDict.get ~key:(deID id) currentResults.liveValues
-        |> Option.map ~f:Runtime.toRepr
-        |> Option.withDefault ~default:"<loading>"
-      in
-      Html.div
-        [ Html.class' "live-value"
-        ; Vdom.prop "contentEditable" "true"
-        ; Attrs.autofocus false
-        ; Attrs.spellcheck false ]
-        [Html.text liveValueString; viewCopyButton tlid liveValueString]
-
-
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
     let dv =
@@ -2567,9 +2548,8 @@ let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
+let toHtml ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
-  let displayedLv = ref false in
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2578,7 +2558,6 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
         then viewAutocomplete state.ac
         else Vdom.noNode
       in
-      let liveValue () = viewLiveValue ~tlid ~currentResults ti in
       let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
@@ -2589,24 +2568,50 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      let liveValue =
-        if state.newPos <= ti.endPos
-           && state.newPos >= ti.startPos
-           && not !displayedLv
-        then (
-          displayedLv := true ;
-          liveValue () )
-        else Vdom.noNode
-      in
-      [element [dropdown (); liveValue]; errorIndicator] )
+      [element [dropdown ()]; errorIndicator] )
   |> List.flatten
+
+
+let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
+  List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
+
+
+let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
+    Types.msg Html.html =
+  let liveValues, show, offset =
+    getTokenAt state.newPos tis
+    |> Option.andThen ~f:(fun ti ->
+           match ti.token with
+           | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+               None
+           | _ ->
+               let liveValuesOfToken =
+                 let id = Token.tid ti.token in
+                 let liveValueString =
+                   StrDict.get ~key:(deID id) currentResults.liveValues
+                   |> Option.map ~f:Runtime.toRepr
+                   |> Option.withDefault ~default:"<loading>"
+                 in
+                 [ Html.text liveValueString
+                 ; viewCopyButton tlid liveValueString ]
+               in
+               Some (liveValuesOfToken, true, ti.startRow) )
+    |> Option.withDefault ~default:([Vdom.noNode], false, 0)
+  in
+  let offset = float_of_int offset +. 1.5 in
+  Html.div
+    [ Html.classList [("live-values", true); ("show", show)]
+    ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
+    ; Attrs.autofocus false
+    ; Attrs.spellcheck false ]
+    liveValues
 
 
 let viewAST
     ~(tlid : tlid)
     ~(currentResults : analysisResults)
     ~(state : state)
-    (ast : ast) : Types.msg Html.html =
+    (ast : ast) : Types.msg Html.html list =
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
@@ -2620,15 +2625,15 @@ let viewAST
       decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
-  Html.div
-    [ Attrs.id editorID
-    ; Vdom.prop "contentEditable" "true"
-    ; Attrs.autofocus true
-    ; Attrs.spellcheck false
-    ; event ~key:eventKey "keydown"
-    (* ; event ~key:"keyup" "keyup" *)
-     ]
-    (ast |> toTokens state |> toHtml ~tlid ~currentResults ~state)
+  let tokenInfos = ast |> toTokens state in
+  [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
+  ; Html.div
+      [ Attrs.id editorID
+      ; Vdom.prop "contentEditable" "true"
+      ; Attrs.autofocus true
+      ; Attrs.spellcheck false
+      ; event ~key:eventKey "keydown" ]
+      (tokenInfos |> toHtml ~currentResults ~state) ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
