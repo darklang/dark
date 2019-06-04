@@ -59,6 +59,8 @@ let tl ast =
             ; modifier = Blank.newF "GET" } } }
 
 
+type testResult = (string * int) * bool
+
 let () =
   let aStr = EString (gid (), "some string") in
   let emptyStr = EString (gid (), "") in
@@ -170,16 +172,40 @@ let () =
   let aBlankField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
   in
-  let m = Defaults.defaultModel in
-  let fnParam (name : string) (t : tipe) (opt : bool) : Types.parameter =
-    { paramName = name
-    ; paramTipe = t
-    ; paramBlock_args = []
-    ; paramOptional = opt
-    ; paramDescription = "" }
+  let m =
+    let fnParam (name : string) (t : tipe) (opt : bool) : Types.parameter =
+      { paramName = name
+      ; paramTipe = t
+      ; paramBlock_args = []
+      ; paramOptional = opt
+      ; paramDescription = "" }
+    in
+    { Defaults.defaultModel with
+      builtInFunctions =
+        [ { fnName = "<"
+          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if a is less than b"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
+        ; { fnName = "=="
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if the two value are equal"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
+        ; { fnName = "Int::add"
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TInt
+          ; fnDescription = "Add two ints"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false } ] }
   in
   let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
-      string * int =
+      testResult =
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
@@ -188,25 +214,6 @@ let () =
       if wrap
       then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
       else ast
-    in
-    (* manually include BinOp functions for testing autocomplete *)
-    let m =
-      { m with
-        builtInFunctions =
-          [ { fnName = "<"
-            ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-            ; fnReturnTipe = TBool
-            ; fnDescription = "Returns true if a is less than b"
-            ; fnPreviewExecutionSafe = true
-            ; fnDeprecated = false
-            ; fnInfix = true }
-          ; { fnName = "=="
-            ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-            ; fnReturnTipe = TBool
-            ; fnDescription = "Returns true if the two value are equal"
-            ; fnPreviewExecutionSafe = true
-            ; fnDeprecated = false
-            ; fnInfix = true } ] }
     in
     let extra = if wrap then 14 else 0 in
     let pos = pos + extra in
@@ -239,33 +246,35 @@ let () =
       | expr ->
           impossible ("not wrapped and not a let: " ^ eToString s expr)
     in
-    (eToString s result, max 0 (newState.newPos - extra))
+    let partialsFound =
+      List.any (toTokens newState result) ~f:(fun ti ->
+          match ti.token with TPartial _ -> true | _ -> false )
+    in
+    ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
   in
-  let render (expr : fluidExpr) : string * int =
-    process ~wrap:true [] 0 expr
-  in
-  let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
+  let render (expr : fluidExpr) : testResult = process ~wrap:true [] 0 expr in
+  let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
     process ~wrap [K.Delete] pos expr
   in
-  let backspace ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
+  let backspace ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
     process ~wrap [K.Backspace] pos expr
   in
-  let tab ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
+  let tab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
     process ~wrap [K.Tab] pos expr
   in
-  let shiftTab ?(wrap = true) (pos : int) (expr : fluidExpr) : string * int =
+  let shiftTab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
     process ~wrap [K.ShiftTab] pos expr
   in
   let press ?(wrap = true) (key : K.key) (pos : int) (expr : fluidExpr) :
-      string * int =
+      testResult =
     process ~wrap [key] pos expr
   in
   let presses ?(wrap = true) (keys : K.key list) (pos : int) (expr : fluidExpr)
-      : string * int =
+      : testResult =
     process ~wrap keys pos expr
   in
   let insert ?(wrap = true) (char : char) (pos : int) (expr : fluidExpr) :
-      string * int =
+      testResult =
     let key = K.fromChar char in
     process ~wrap [key] pos expr
   in
@@ -273,7 +282,7 @@ let () =
   let t
       (name : string)
       (initial : fluidExpr)
-      (fn : fluidExpr -> string * int)
+      (fn : fluidExpr -> testResult)
       (expected : string * int) =
     test
       ( name
@@ -281,7 +290,20 @@ let () =
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual expected)
+      (fun () -> expect (fn initial) |> toEqual (expected, false))
+  in
+  let tp
+      (name : string)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> testResult)
+      (expected : string * int) =
+    test
+      ( name
+      ^ " - `"
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ "`" )
+      (fun () -> expect (fn initial) |> toEqual (expected, true))
   in
   describe "Strings" (fun () ->
       t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
@@ -382,35 +404,35 @@ let () =
       t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       () ) ;
   describe "Bools" (fun () ->
-      t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      t "delete start of true" trueBool (delete 0) ("rue", 0) ;
+      tp "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
+      tp "delete start of true" trueBool (delete 0) ("rue", 0) ;
       t "backspace start of true" trueBool (backspace 0) ("true", 0) ;
-      t "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
+      tp "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
       t "delete end of true" trueBool (delete 4) ("true", 4) ;
-      t "backspace end of true" trueBool (backspace 4) ("tru", 3) ;
-      t "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      t "delete middle of true" trueBool (delete 2) ("tre", 2) ;
-      t "backspace middle of true" trueBool (backspace 2) ("tue", 1) ;
-      t "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
-      t "delete start of false" falseBool (delete 0) ("alse", 0) ;
+      tp "backspace end of true" trueBool (backspace 4) ("tru", 3) ;
+      tp "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
+      tp "delete middle of true" trueBool (delete 2) ("tre", 2) ;
+      tp "backspace middle of true" trueBool (backspace 2) ("tue", 1) ;
+      tp "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
+      tp "delete start of false" falseBool (delete 0) ("alse", 0) ;
       t "backspace start of false" falseBool (backspace 0) ("false", 0) ;
-      t "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
+      tp "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
       t "delete end of false" falseBool (delete 5) ("false", 5) ;
-      t "backspace end of false" falseBool (backspace 5) ("fals", 4) ;
-      t "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
-      t "delete middle of false" falseBool (delete 2) ("fase", 2) ;
-      t "backspace middle of false" falseBool (backspace 2) ("flse", 1) ;
+      tp "backspace end of false" falseBool (backspace 5) ("fals", 4) ;
+      tp "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
+      tp "delete middle of false" falseBool (delete 2) ("fase", 2) ;
+      tp "backspace middle of false" falseBool (backspace 2) ("flse", 1) ;
       () ) ;
   describe "Nulls" (fun () ->
-      t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
-      t "delete start of null" aNull (delete 0) ("ull", 0) ;
+      tp "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
+      tp "delete start of null" aNull (delete 0) ("ull", 0) ;
       t "backspace start of null" aNull (backspace 0) ("null", 0) ;
-      t "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
+      tp "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
       t "delete end of null" aNull (delete 4) ("null", 4) ;
-      t "backspace end of null" aNull (backspace 4) ("nul", 3) ;
-      t "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
-      t "delete middle of null" aNull (delete 2) ("nul", 2) ;
-      t "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
+      tp "backspace end of null" aNull (backspace 4) ("nul", 3) ;
+      tp "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
+      tp "delete middle of null" aNull (delete 2) ("nul", 2) ;
+      tp "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
@@ -424,7 +446,7 @@ let () =
       t "delete int->blank " five (delete 0) (b, 0) ;
       t "backspace int->blank " five (backspace 1) (b, 0) ;
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
-      t "insert partial" blank (insert 't' 0) ("t", 1) ;
+      tp "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -437,7 +459,7 @@ let () =
       t "delete fieldname" aShortField (delete 4) ("obj.***", 4) ;
       t "backspace fieldname" aShortField (backspace 5) ("obj.***", 4) ;
       t "insert end of fieldname" aField (insert 'c' 9) ("obj.fieldc", 10) ;
-      t "insert end of varname" aField (insert 'c' 3) ("objc.field", 4) ;
+      tp "insert end of varname" aField (insert 'c' 3) ("objc.field", 4) ;
       t "insert start of fieldname" aField (insert 'c' 4) ("obj.cfield", 5) ;
       t "insert blank fieldname" aBlankField (insert 'c' 4) ("obj.c", 5) ;
       t "delete fieldop with name" aShortField (delete 3) ("obj", 3) ;
@@ -555,15 +577,15 @@ let () =
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
       (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
-      t "delete middle of variable" aVar (delete 5) ("variale", 5) ;
-      t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
+      tp "delete middle of variable" aVar (delete 5) ("variale", 5) ;
+      tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
       t "delete variable" aShortVar (delete 0) (b, 0) ;
-      t "delete long variable" aVar (delete 0) ("ariable", 0) ;
-      t "delete mid variable" aVar (delete 6) ("variabe", 6) ;
+      tp "delete long variable" aVar (delete 0) ("ariable", 0) ;
+      tp "delete mid variable" aVar (delete 6) ("variabe", 6) ;
       t "backspace variable" aShortVar (backspace 1) (b, 0) ;
-      t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
-      t "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      tp "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
+      tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
       () ) ;
   describe "Match" (fun () ->
       t
@@ -1030,6 +1052,39 @@ let () =
             |> (fun (ast, s) -> updateKey K.Down ast s)
             |> fun (_, s) -> s.newPos )
           |> toEqual 144 ) ;
+      test "clicking away from autocomplete commits" (fun () ->
+          expect
+            (let ast =
+               ELet (gid (), gid (), "var", EPartial (gid (), "false"), blank)
+             in
+             moveTo 14 s
+             |> (fun s ->
+                  let tl = tl ast in
+                  let m = {m with toplevels = [tl]} in
+                  updateAutocomplete m tl.id ast s )
+             |> (fun s -> updateMouseClick 0 ast s)
+             |> fun (ast, s) ->
+             match ast with
+             | ELet (_, _, _, EBool (_, false), _) ->
+                 "success"
+             | _ ->
+                 eToStructure s ast)
+          |> toEqual "success" ) ;
+      t
+        "moving right off a function autocompletes it anyway"
+        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add"), blank))
+        (press ~wrap:false K.Right 16)
+        ("let x = Int::add ___ ___\n___", 17) ;
+      t
+        "moving left off a function autocompletes it anyway"
+        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add"), blank))
+        (press ~wrap:false K.Left 8)
+        ("let x = Int::add ___ ___\n___", 7) ;
+      t
+        "pressing + commits the partial"
+        (ELet (gid (), gid (), "x", blank, EVariable (gid (), "x")))
+        (press ~wrap:false K.Plus 13)
+        ("let x = ___\nx + ___", 16) ;
       () ) ;
   describe "Tabs" (fun () ->
       t
