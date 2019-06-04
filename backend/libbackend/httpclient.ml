@@ -200,7 +200,7 @@ let http_call_with_code
         ; ("curl_code", string_of_int code)
         ; ("response", Buffer.contents responsebuf) ]
       in
-      Exception.user ~info ("Bad HTTP request: " ^ Curl.strerror curl_code)
+      Exception.code ~info ("Bad HTTP request: " ^ Curl.strerror curl_code)
   in
   (body, code, !result_headers, error)
 
@@ -222,7 +222,7 @@ let http_call
       ; ("error", error)
       ; ("response", resp_body) ]
     in
-    Exception.user
+    Exception.code
       ~info
       ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
   else (resp_body, resp_headers)

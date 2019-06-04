@@ -23,18 +23,6 @@ let reraise e =
   Caml.Printexc.raise_with_backtrace e bt
 
 
-let reraise_as_pageable e =
-  let bt = get_backtrace () in
-  let wrapped_e =
-    match e with
-    | Libcommon.Pageable.PageableExn _ ->
-        e
-    | _ ->
-        Libcommon.Pageable.PageableExn e
-  in
-  Caml.Printexc.raise_with_backtrace wrapped_e bt
-
-
 type captured = backtrace * exn
 
 (* -------------------- *)
@@ -47,39 +35,46 @@ let exception_info_to_yojson info =
 
 
 type exception_tipe =
-  | DarkServer
-  (* error while talking to the server *)
+  (* Error in the dark system, including server code, or errors caused by
+   * the client talking to the server incorrectly. *)
+  | DarkInternal
+  (* Error in User_db handling *)
   | DarkStorage
-  (* error in User_db handling *)
+  (* Error made by user, client-side. Does not include errors where the
+   * client is broken and is communicating with the server incorrectly. *)
   | DarkClient
-  (* Error made by client *)
-  | UserCode
+  (* Error made by Dark code written by the user, which may be running in
+   * production or in the client. An example is calling a function with the
+   * wrong parameter types. *)
+  | Code
+  (* Error made by an enduser in how they talk to the system, such as
+   * calling with invalid JSON. *)
   | EndUser
 [@@deriving show, eq]
 
 let exception_tipe_to_yojson t =
   match t with
-  | DarkServer ->
+  | DarkInternal ->
       `String "server"
   | DarkStorage ->
       `String "storage"
   | DarkClient ->
       `String "client"
-  | UserCode ->
-      `String "userCode"
+  | Code ->
+      `String "code"
   | EndUser ->
       `String "endUser"
 
 
 let should_log (et : exception_tipe) : bool =
   match et with
-  | DarkServer ->
+  | DarkInternal ->
       true
   | DarkStorage ->
       true
   | DarkClient ->
       true
-  | UserCode ->
+  | Code ->
       false
   | EndUser ->
       false
@@ -108,6 +103,22 @@ let rec to_string exc =
       e |> exception_data_to_yojson |> Yojson.Safe.pretty_to_string
   | e ->
       Exn.to_string e
+
+
+let reraise_as_pageable e =
+  let bt = get_backtrace () in
+  let wrapped_e =
+    match e with
+    | Libcommon.Pageable.PageableExn _ ->
+        e
+    | DarkException de
+      when de.tipe = DarkClient || de.tipe = Code || de.tipe = EndUser ->
+        (* Allow things that are not our fault to go through without paging *)
+        e
+    | _ ->
+        Libcommon.Pageable.PageableExn e
+  in
+  Caml.Printexc.raise_with_backtrace wrapped_e bt
 
 
 let raise_
@@ -141,11 +152,11 @@ let raise_
       Caml.Printexc.raise_with_backtrace (DarkException e) bt
 
 
-let internal = raise_ DarkServer
+let internal = raise_ DarkInternal
 
 let client = raise_ DarkClient
 
-let user = raise_ UserCode
+let code = raise_ Code
 
 let storage = raise_ DarkStorage
 

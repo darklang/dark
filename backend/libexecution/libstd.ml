@@ -674,7 +674,7 @@ let fns : Lib.shortfn list =
     ; r = TStr
     ; d =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::foreach_v1"]
@@ -726,7 +726,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TList
     ; d = "Returns the list of characters (byte, not EGC) in the string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::toList_v1"]
@@ -769,7 +769,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DInt (int_of_string utf8) with e ->
-                  Exception.user
+                  Exception.code
                     ~actual:utf8
                     ~expected:"\\d+"
                     "Expected a string with only numbers" )
@@ -805,7 +805,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DFloat (float_of_string utf8) with e ->
-                  Exception.user
+                  Exception.code
                     ~actual:utf8
                     "Expected a string representation of an IEEE float" )
           | args ->
@@ -1000,7 +1000,7 @@ let fns : Lib.shortfn list =
                     | DStr st ->
                         st
                     | _ ->
-                        Exception.user "Expected string" )
+                        Exception.code "Expected string" )
                   l
               in
               DStr (Unicode_string.concat ~sep s)
@@ -1013,7 +1013,7 @@ let fns : Lib.shortfn list =
     ; p = [par "l" TList]
     ; r = TStr
     ; d = "Returns the list of characters as a string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::fromList_v1"]
@@ -1042,7 +1042,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Converts a char to a string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::fromChar_v1"]
@@ -1165,7 +1165,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt l] ->
               if l < 0
-              then Exception.user "l should be a positive integer"
+              then Exception.code "l should be a positive integer"
               else Dval.dstr_of_string_exn (Util.random_string l)
           | args ->
               fail args)
@@ -1219,7 +1219,7 @@ let fns : Lib.shortfn list =
             | Some id ->
                 DUuid id
             | None ->
-                Exception.user
+                Exception.code
                   "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             )
           | args ->
@@ -1756,7 +1756,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TInt
     ; d = "Return `c`'s ASCII code"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
@@ -1764,7 +1764,7 @@ let fns : Lib.shortfn list =
     ; p = [par "i" TInt]
     ; r = TCharacter
     ; d = "convert an int to an ASCII character"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toLowercase"]
@@ -1772,7 +1772,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the lowercase value of `c`"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toUppercase"]
@@ -1780,7 +1780,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the uppercase value of `c`"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Uuid::generate"]
