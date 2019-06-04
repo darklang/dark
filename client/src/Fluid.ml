@@ -2574,25 +2574,25 @@ let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
 
 let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     Types.msg Html.html =
-  let renderLvOfToken ti =
-    let id = Token.tid ti.token in
-    let liveValueString =
-      StrDict.get ~key:(deID id) currentResults.liveValues
-      |> Option.map ~f:Runtime.toRepr
-      |> Option.withDefault ~default:"<loading>"
-    in
-    [Html.text liveValueString; viewCopyButton tlid liveValueString]
-  in
-  let lv, show, offset =
-    match getTokenAt state.newPos tis with
-    | Some ti ->
-      ( match ti.token with
-      | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-          ([Vdom.noNode], false, 0)
-      | _ ->
-          (renderLvOfToken ti, true, ti.startRow) )
-    | None ->
-        ([Vdom.noNode], false, 0)
+  let liveValues, show, offset =
+    getTokenAt state.newPos tis
+    |> Option.andThen ~f:(fun ti ->
+           match ti.token with
+           | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+               None
+           | _ ->
+               let liveValuesOfToken =
+                 let id = Token.tid ti.token in
+                 let liveValueString =
+                   StrDict.get ~key:(deID id) currentResults.liveValues
+                   |> Option.map ~f:Runtime.toRepr
+                   |> Option.withDefault ~default:"<loading>"
+                 in
+                 [ Html.text liveValueString
+                 ; viewCopyButton tlid liveValueString ]
+               in
+               Some (liveValuesOfToken, true, ti.startRow) )
+    |> Option.withDefault ~default:([Vdom.noNode], false, 0)
   in
   let offset = float_of_int offset +. 1.5 in
   Html.div
@@ -2600,7 +2600,7 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
     ; Attrs.autofocus false
     ; Attrs.spellcheck false ]
-    lv
+    liveValues
 
 
 let viewAST
@@ -2622,19 +2622,14 @@ let viewAST
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in
-  let liveValues = tokenInfos |> viewLiveValue ~tlid ~currentResults ~state in
-  let fluidEditor =
-    Html.div
+  [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
+  ; Html.div
       [ Attrs.id editorID
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
-      ; event ~key:eventKey "keydown"
-      (* ; event ~key:"keyup" "keyup" *)
-       ]
-      (tokenInfos |> toHtml ~currentResults ~state)
-  in
-  [liveValues; fluidEditor]
+      ; event ~key:eventKey "keydown" ]
+      (tokenInfos |> toHtml ~currentResults ~state) ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
