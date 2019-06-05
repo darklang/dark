@@ -581,7 +581,10 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
       (categoryIcon c.classname)
   in
   Html.div [Html.class' "collapsed"] (count @ (icon :: plusButton))
+<<<<<<< HEAD
 
+=======
+>>>>>>> Add count and fix how icons are loaded
 
 
 let closedDeployStats2html (m : model) : msg Html.html =

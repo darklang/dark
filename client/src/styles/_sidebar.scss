@@ -4,7 +4,7 @@ $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
 $yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%) contrast(0.7);
 $greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
-$countBoxSize: 15px;
+$countBoxSize: 18px;
 
 #sidebar-left {
   width: max-content;
@@ -69,22 +69,23 @@ $countBoxSize: 15px;
       .count{
         height: $itemHeight;
         display: flex;
-        width: 80%;
+        width: 85%;
         position: absolute;
         color: $white1;
         z-index: 2;
-        margin-top: -8px;
+        margin-top: -5px;
         .count-box{
-          display: flex;
-          align-items: center;
-          justify-content: center;
           height: $countBoxSize;
           width: $countBoxSize;
           background: $green;
           border-radius: 2px;
+          margin-left: 5px;
           p{
             font-size: 10px;
             margin: 0px;
+            padding: 2px;
+            text-align: center;
+            vertical-align: middle;
           }
         }
       }
