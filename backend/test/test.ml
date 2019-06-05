@@ -2559,6 +2559,25 @@ let t_canvas_verification_undo_rename_duped_name () =
   AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
 
 
+let t_special_case_accounts_work () =
+  AT.check
+    AT.bool
+    "lee is allowed"
+    true
+    (Account.can_edit_canvas ~auth_domain:"rootvc" ~username:"lee") ;
+  AT.check
+    AT.bool
+    "donkey isn't allowed"
+    false
+    (Account.can_edit_canvas ~auth_domain:"rootvc" ~username:"donkey") ;
+  AT.check
+    AT.bool
+    "only goes one way"
+    false
+    (Account.can_edit_canvas ~auth_domain:"lee" ~username:"rootvc") ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2798,7 +2817,8 @@ let suite =
     , t_canvas_verification_no_error )
   ; ( "Canvas verification catches inconsistency post undo"
     , `Quick
-    , t_canvas_verification_undo_rename_duped_name ) ]
+    , t_canvas_verification_undo_rename_duped_name )
+  ; ("Special case accounts work", `Quick, t_special_case_accounts_work) ]
 
 
 let () =

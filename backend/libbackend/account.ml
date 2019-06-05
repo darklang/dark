@@ -152,14 +152,15 @@ let valid_user ~(username : username) ~(password : string) : bool =
 
 let can_access_operations ~(username : username) : bool = is_admin ~username
 
-(* This is its own function b/c ocamlformat doesn't want to let me put parens
- * around these conditions - `x || y || (z && w) || v` loses its parens *)
-(* A join table would be nice for this - "canvas x can be edited by these
- * accounts" - but this unblocks pixelkeet *)
+let special_cases =
+  [("pixelkeet", "laxels"); ("rootvc", "adam"); ("rootvc", "lee")]
+
+
 let special_cased_can_edit_canvas
     ~(auth_domain : string) ~(username : username) : bool =
-  String.Caseless.equal "pixelkeet" auth_domain
-  && String.Caseless.equal "laxels" username
+  Tablecloth.List.any special_cases ~f:(fun (dom, user) ->
+      String.Caseless.equal dom auth_domain
+      && String.Caseless.equal user username )
 
 
 let can_edit_canvas ~(auth_domain : string) ~(username : username) : bool =
