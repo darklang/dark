@@ -40,18 +40,25 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
   Html.a [event; Html.class' "button-link"] [content]
 
 
+let htmlObject (src : string) =
+  Html.node
+    "object"
+    [Vdom.attribute "" "data" src; Html.type' "image/svg+xml"]
+    []
+
+
 let categoryIcon (name : string) : msg Html.html list =
   match name with
   | "http" ->
-      [ViewUtils.svgIconHTTP]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
   | "dbs" ->
-      [ViewUtils.svgIconDB]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/db.svg")]
   | "fns" ->
-      [ViewUtils.svgIconFunction]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fn.svg")]
   | "deleted" ->
-      [ViewUtils.svgIconDeleted]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
   | "static" ->
-      [ViewUtils.svgIconStatic]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
   | _ ->
       []
 
