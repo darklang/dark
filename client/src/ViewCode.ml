@@ -534,7 +534,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       [Html.class' "modifier"]
       ((viewText EventModifier vs configs spec.modifier) :: (getBtn @ cronBtn))
     else Vdom.noNode
-  and lockBtn =
+  and btnLock =
     let isLocked = isLocked vs in
     ViewUtils.toggleIconButton
       ~name:"handler-lock"
@@ -543,8 +543,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
       ~active:isLocked
       ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-  and viewEventActions =
-    let expandCollapse =
+  and btnExpCollapse =
       let isExpand = isExpanded vs in
       let state = ViewUtils.getHandlerState vs in
       let expandFun _ =
@@ -567,8 +566,6 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
         ~msg:expandFun
         ~active:isExpand
         ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
-    in
-    expandCollapse
   in
   let specMods =
     match (spec.module_, spec.modifier) with
@@ -582,7 +579,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let classes = if specMods = "" then "spec-header" else ("spec-header " ^ specMods) in
   Html.div [Html.class' classes]
-    [lockBtn; viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
+    [btnLock; viewEventName; viewEventSpace; viewEventModifier; btnExpCollapse]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list

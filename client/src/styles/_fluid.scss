@@ -18,10 +18,9 @@
     
     font-style: normal;
     font-size: $code-font-size * 0.85;
-    color: $grey3;
+    color: $live-value-foreground;
 
-    background-color: $black2;
-    outline: 0.4px $grey2 dotted;
+    background-color: $live-value-background;
 
     &.show {
         display: block;
@@ -31,6 +30,7 @@
         position: absolute;
         top: -4px;
         right: -8px;
+        color: $white3;
 
         opacity: 0.7;
 
