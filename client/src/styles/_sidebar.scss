@@ -75,6 +75,9 @@ $countBoxSize: 18px;
         z-index: 2;
         margin-top: -5px;
         .count-box{
+          display: flex;
+          align-items: center;
+          justify-content: center;
           height: $countBoxSize;
           width: $countBoxSize;
           background: $green;
@@ -84,8 +87,6 @@ $countBoxSize: 18px;
             font-size: 10px;
             margin: 0px;
             padding: 2px;
-            text-align: center;
-            vertical-align: middle;
           }
         }
       }
