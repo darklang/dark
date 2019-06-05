@@ -338,32 +338,6 @@ body #app * {
     }
 }
 
-.use-wrapper {
-    background: transparent;
-    margin-left: 10px;
-
-    &.fade {
-        opacity: 0.3;
-    }
-
-    .usages,
-    .used-in {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-    }
-}
-
-.usages {
-    position: absolute;
-    //Change after avatars to shown, quick fix: left 100% - 50px
-    left: calc(#{"100% + 30px"});
-
-    display: flex;
-    flex-direction: column;
-
-}
-
 .avatar {
     padding: 2px 5px;
     width: 40px;
@@ -399,102 +373,6 @@ body #app * {
 
     .avatars-wrapper {
         display: flex;
-    }
-}
-
-.ref-block {
-    display: block;
-    box-sizing: content-box;
-
-    min-width: 120px;
-    width: max-content;
-
-    margin: 8px 0;
-    padding: 4px 8px;
-
-    border: $grey1 1px solid;
-    background-color: $black1;
-
-    color: $white1;
-    font-size: $code-font-size;
-
-    &:first-child {
-        margin-top: 0;
-        margin-bottom: 8px;
-    }
-
-    &:hover {
-        cursor: pointer;
-        color: $yellow;
-        border-color: $yellow;
-
-        .cols .col .name,
-        .cols .col .type {
-            color: $yellow;
-        }
-    }
-
-    &.db {
-        margin: 8px 0;
-
-        .dbtitle {
-            margin: 0 auto;
-            margin-bottom: 0;
-        }
-
-        .cols {
-            color: $grey3;
-        }
-    }
-
-    &.emit,
-    &.handler {
-        display: flex;
-        flex-direction: row;
-        border-bottom: 1px solid $orange;
-    }
-
-    .spec {
-        display: inline-block;
-
-        margin-left: 4ch;
-        padding-bottom: 2px;
-        padding-top: 0;
-        padding-left: 1ch;
-        padding-right: 1ch;
-
-        color: $orange;
-
-        &:first-child {
-            margin-left: 0;
-        }
-    }
-
-    .fnicon,
-    .fnname {
-        display: inline-block;
-    }
-
-    .fnname {
-        color: $white3;
-    }
-
-    .fnheader,
-    .fnparams {
-        display: block;
-        width: 100%;
-    }
-
-    .fnparam {
-        display: inline-block;
-        color: $grey2;
-        font-size: $code-font-size * 0.8;
-        margin: 0 12px;
-
-        .has-blanks {
-            color: lighten($red, 12%);
-            font-style: italic;
-        }
     }
 }
 
@@ -1042,21 +920,21 @@ body #app * {
     justify-content: space-between;
     flex-wrap: nowrap;
 
-    color: $grey3;
+    color: $queue-color;
     font-size: 8pt;
 
-    border-bottom: 1px solid $grey3;
+    border-bottom: 1px solid $queue-color;
     padding-bottom: 4px;
     padding-top: 4px;
     padding-left: 8px;
     padding-right: 16px;
 
-    @include handler-type(http-get, $green);
-    @include handler-type(http-post, $blue);
-    @include handler-type(http-put, $orange);
-    @include handler-type(http-delete, $pink);
-    @include handler-type(http-patch, $cyan);
-    @include handler-type(cron, $yellow);
+    @include handler-type(http-get, $http-get);
+    @include handler-type(http-post, $http-post);
+    @include handler-type(http-put, $http-put);
+    @include handler-type(http-delete, $http-delete);
+    @include handler-type(http-patch, $http-patch);
+    @include handler-type(cron, $cron-color);
 
     .name,
     .modifier,
@@ -2068,5 +1946,6 @@ $icon-spacing: 6px;
 }
 
 @import 'live-data';
+@import 'introspect';
 @import 'fluid';
 @import 'zindex';
