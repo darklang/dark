@@ -2,6 +2,9 @@
 
 $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
+$yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%) contrast(0.7);
+$greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
+$countBoxSize: 18px;
 
 #sidebar-left {
   width: max-content;
@@ -54,13 +57,38 @@ $sidebarFullWidth: 320px;
     }
     
     .collapsed{
-      height: 30px;
+      $itemHeight: 30px; 
+      height: $itemHeight;
       display: flex;
       align-items: center;
       justify-content: center;
       margin: 10px 0px;
       color: $grey2;
       width: 90%;
+
+      .count{
+        height: $itemHeight;
+        display: flex;
+        width: 85%;
+        position: absolute;
+        color: $white1;
+        z-index: 2;
+        margin-top: -5px;
+        .count-box{
+          height: $countBoxSize;
+          width: $countBoxSize;
+          background: $green;
+          border-radius: 2px;
+          margin-left: 5px;
+          p{
+            font-size: 10px;
+            margin: 0px;
+            padding: 2px;
+            text-align: center;
+            vertical-align: middle;
+          }
+        }
+      }
 
       .button-link{
         margin-top: 5px;
@@ -75,10 +103,14 @@ $sidebarFullWidth: 320px;
 
       .header-icon{
         display: flex;
-        fill: $grey3;
-
+        filter: $greyFilter;
+        object {
+          width: 100%;
+          height: 100%;
+        }
         &.empty{
-          fill: $grey2;
+          filter: none;
+          opacity: 0.2;
         }
       }
     }
@@ -94,11 +126,12 @@ $sidebarFullWidth: 320px;
 
     .toggle-button{
       display: flex;
-      .button-link:nth-child(2){
-        margin-left: -5px; 
-      }
+      
       .fa{
         font-size: 25px;
+        &:nth-child(2){
+          margin-left: -5px; 
+        }
       }
     }
     p{
@@ -126,34 +159,30 @@ $sidebarFullWidth: 320px;
     }
     .header {
       padding: 2px 5px 2px 10px;
-      color: #fcead0;
-      background: #585858;
       display: flex;
       align-items: center;
       flex-direction: row;
       justify-content: space-between;
-      
+      color: #fff;
+
       .title{
         display: flex;
-      }
-
-      .count {
+        filter: $yellowFilter;
+        .count {
           font-weight: bold;
+        }
       }
-
+    
       .verb-link,
       .button-link {
           float: right;
-          color: lighten($yellow, 15%);
+          color: $grey3;
       }
-
+      
       .header-icon{
         height: 20px;
         width: 20px;
         margin-right: 5px;
-        svg {
-          fill: lighten($yellow, 15%);
-        }
       }
     }
 
