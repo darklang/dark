@@ -5,20 +5,6 @@
     left: -20px;
     cursor: pointer;
 
-    .selected-value {
-        background: $black1;
-        color: $white3;
-        display: block;
-        font-size: 0.6333em;
-        max-width: 100%;
-        padding: 4px;
-
-        width: max-content;
-        word-break: break-all;
-        word-wrap: break-word;
-        white-space: pre-wrap;
-    }
-
     ul.request-cursor {
         float: none;
         margin-top: 10px;
@@ -50,7 +36,8 @@
                 top: 0;
 
                 height: max-content;
-                max-width: 250px;
+                width: max-content;
+                max-width: 300px;
                 padding: 8px;
 
                 background-color: $live-value-background;
@@ -58,6 +45,7 @@
                 color: $live-value-foreground;
                 font-size: 0.7rem;
                 overflow-wrap: break-word;
+                word-break: break-all;
                 word-wrap: break-word;
                 white-space: pre-wrap;
             }
