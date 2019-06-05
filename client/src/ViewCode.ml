@@ -517,7 +517,7 @@ let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
       [Vdom.noNode]
 
 
-let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
+let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
     viewText EventName vs configs spec.name
@@ -569,7 +569,19 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
       [Html.class' "actions"]
       (testGet @ cronTriggerButton vs spec @ [lock; expandCollapse])
   in
-  [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
+  let specMods =
+    match (spec.module_, spec.modifier) with
+    | (F (_, "HTTP"), F (_, "GET") ) -> "http-get"
+    | (F (_, "HTTP"), F (_, "POST") ) -> "http-post"
+    | (F (_, "HTTP"), F (_, "PUT") ) -> "http-put"
+    | (F (_, "HTTP"), F (_, "DELETE") ) -> "http-delete"
+    | (F (_, "HTTP"), F (_, "PATCH") ) -> "http-patch"
+    | (F (_, "CRON"), _) -> "cron"
+    | _ -> ""
+  in
+  let classes = if specMods = "" then "spec-header" else ("spec-header " ^ specMods) in
+  Html.div [Html.class' classes]
+    [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
@@ -627,7 +639,5 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in
-  let header =
-    Html.div [Html.class' "spec-header"] (viewEventSpec vs h.spec)
-  in
+  let header = (viewEventSpec vs h.spec) in
   [header; ast]
