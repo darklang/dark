@@ -1,0 +1,71 @@
+.toplevel .view-data {
+    position: absolute;
+    width: max-content;
+    top: 0;
+    left: -20px;
+    cursor: pointer;
+
+    .selected-value {
+        background: $black1;
+        color: $white3;
+        display: block;
+        font-size: 0.6333em;
+        max-width: 100%;
+        padding: 4px;
+
+        width: max-content;
+        word-break: break-all;
+        word-wrap: break-word;
+        white-space: pre-wrap;
+    }
+
+    ul.request-cursor {
+        float: none;
+        margin-top: 10px;
+
+        li {
+            float: none;
+            display: block;
+            font-size: 30px;
+            line-height: 15px;
+            color: $white3;
+
+            &.tipe-Error {
+                color: $red;
+            }
+
+            &.tipe-Incomplete {
+                color: $grey2;
+            }
+
+            &.mouseovered {
+                color: $live-value-foreground;
+            }
+
+            .data {
+                display: none;
+
+                position: absolute;
+                right: 30px;
+                top: 0;
+
+                height: max-content;
+                max-width: 250px;
+                padding: 8px;
+
+                background-color: $live-value-background;
+
+                color: $live-value-foreground;
+                font-size: 0.7rem;
+                overflow-wrap: break-word;
+                word-wrap: break-word;
+                white-space: pre-wrap;
+            }
+
+            &.mouseovered .data {
+                display: block;
+                z-index: 600;
+            }
+        }
+    }
+}

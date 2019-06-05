@@ -29,14 +29,12 @@ let viewInput
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
+  let viewData =
+    Html.div [Html.class' "data"] [Html.text (value ^ "\nMade at: " ^ timestamp ^ " ago") ]
+  in
   Html.li
-    ( [ Vdom.attribute
-          ""
-          "data-content"
-          (value ^ "\nMade at: " ^ timestamp ^ " ago") ]
-    @ [classes |> String.join ~sep:" " |> Html.class']
-    @ events )
-    [Html.text {js|•|js}]
+    ([classes |> String.join ~sep:" " |> Html.class'] @ events )
+    [Html.text {js|•|js}; viewData]
 
 
 let asValue (inputValue : inputValueDict) : string =

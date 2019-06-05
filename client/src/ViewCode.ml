@@ -525,22 +525,25 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     let configs = (enterable :: idConfigs) @ [wc "module"] in
     viewText EventSpace vs configs spec.module_
   and viewEventModifier =
+    let getBtn = externalLink spec vs.canvasName vs.userContentHost in
+    let cronBtn = cronTriggerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
-    then viewText EventModifier vs configs spec.modifier
-    else Html.div [] []
+    then 
+      Html.div
+      [Html.class' "modifier"]
+      ((viewText EventModifier vs configs spec.modifier) :: (getBtn @ cronBtn))
+    else Vdom.noNode
+  and lockBtn =
+    let isLocked = isLocked vs in
+    ViewUtils.toggleIconButton
+      ~name:"handler-lock"
+      ~activeIcon:"lock"
+      ~inactiveIcon:"unlock"
+      ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
+      ~active:isLocked
+      ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
   and viewEventActions =
-    let testGet = externalLink spec vs.canvasName vs.userContentHost in
-    let lock =
-      let isLocked = isLocked vs in
-      ViewUtils.toggleIconButton
-        ~name:"handler-lock"
-        ~activeIcon:"lock"
-        ~inactiveIcon:"lock-open"
-        ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
-        ~active:isLocked
-        ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-    in
     let expandCollapse =
       let isExpand = isExpanded vs in
       let state = ViewUtils.getHandlerState vs in
@@ -565,9 +568,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
         ~active:isExpand
         ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
     in
-    Html.div
-      [Html.class' "actions"]
-      (testGet @ cronTriggerButton vs spec @ [lock; expandCollapse])
+    expandCollapse
   in
   let specMods =
     match (spec.module_, spec.modifier) with
@@ -581,7 +582,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let classes = if specMods = "" then "spec-header" else ("spec-header " ^ specMods) in
   Html.div [Html.class' classes]
-    [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
+    [lockBtn; viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
