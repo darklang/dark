@@ -26,5 +26,5 @@ $vagueblue: #182635;
 $canvas-background: #484848;
 $toplevel-background: #262626;
 
-$live-value-foreground: darken($cyan, 20%);
+$live-value-foreground: lighten($cyan, 10%);
 $live-value-background: $grey1;

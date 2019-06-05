@@ -17,7 +17,10 @@ let viewInput
   let hoverClass = if isHover then ["mouseovered"] else [] in
   let tipeClassName = "tipe-" ^ Runtime.tipe2str tipe in
   let tipeClass = [tipeClassName] in
-  let classes = activeClass @ hoverClass @ tipeClass in
+  let classes =
+    activeClass @ hoverClass @ tipeClass
+    |> String.join ~sep:" "
+  in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
@@ -33,7 +36,7 @@ let viewInput
     Html.div [Html.class' "data"] [Html.text (value ^ "\nMade at: " ^ timestamp ^ " ago") ]
   in
   Html.li
-    ([classes |> String.join ~sep:" " |> Html.class'] @ events )
+    (Html.class' classes :: events )
     [Html.text {js|•|js}; viewData]
 
 
