@@ -903,36 +903,19 @@ let () =
       t
         "autocomplete enter on bin-op moves to start of first blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Enter] 0)
+        (presses [K.Equals; K.Enter] 0)
         ("___ == ___", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Tab] 0)
+        (presses [K.Equals; K.Tab] 0)
         ("___ == ___", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Space] 0)
+        (presses [K.Equals; K.Space] 0)
         ("___ == ___", 0) ;
-      *)
-      t
-        "autocomplete enter on bin-op moves to start of first blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Enter] 10)
-        ("let *** = ___ < ___\n5", 10) ;
-      t
-        "autocomplete tab on bin-op moves to start of second blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Tab] 10)
-        ("let *** = ___ < ___\n5", 22) ;
-      (* TODO: make autocomplete on space work consistently
-      t
-        "autocomplete space on bin-op moves to start of first blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Space] 10)
-        ("let *** = ___ < ___\n5", 10) ;
       *)
       t
         "variable moves to right place"
