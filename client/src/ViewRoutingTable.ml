@@ -560,12 +560,23 @@ and category2html (m : model) (c : category) : msg Html.html =
 
 let closedCategory2html (m : model) (c : category) : msg Html.html =
   Debug.loG "M" m ;
+  (* Expecting model for hover functionality *)
+  let plusButton =
+    match c.plusButton with
+    | Some msg ->
+        [ buttonLink
+            ~key:("plus-" ^ c.classname)
+            (fontAwesome "plus-circle")
+            msg ]
+    | None ->
+        []
+  in
   let icon =
     Html.div
       [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
       (categoryIcon c.classname)
   in
-  Html.div [Html.class' "collapsed"] [icon]
+  Html.div [Html.class' "collapsed"] (icon :: plusButton)
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
