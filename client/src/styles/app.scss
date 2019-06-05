@@ -336,112 +336,6 @@ body #app * {
             color: $grey3;
         }
     }
-
-    .view-data {
-        cursor: pointer;
-        bottom: 100%;
-        left: 0px;
-        position: absolute;
-        width: 100%;
-
-        .selected-value {
-            background: $black1;
-            color: magenta;
-            display: block;
-            font-size: 0.6333em;
-            max-width: 100%;
-            padding: 4px;
-
-            width: max-content;
-            word-break: break-all;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-        }
-
-        ul.request-cursor {
-            bottom: 1em;
-            float: left;
-            list-style-type: none;
-            max-height: calc(#{"1.5em + 1px"});
-            overflow: hidden;
-            width: 100%;
-
-            li {
-                float: left;
-
-                &.mouseovered {
-                    color: $orange;
-
-                    &:before {
-                        content: attr(data-content);
-                        background-color: $grey1;
-
-                        display: block;
-                        position: absolute;
-                        left: -4px;
-                        bottom: calc(#{"-100% + 37px"});
-
-                        height: auto;
-                        width: max-content;
-                        max-width: 100%;
-                        padding: 4px;
-
-                        font-size: 0.7em;
-                        white-space: pre-wrap;
-                        word-break: break-all;
-                        word-wrap: break-word;
-                    }
-                }
-
-                &.active {
-                    border-bottom: 1px solid $orange;
-                }
-
-                &.tipe-Error {
-                    color: $red;
-                }
-
-                &.tipe-Incomplete {
-                    color: $orange;
-                }
-            }
-        }
-    }
-}
-
-.page-handler .toplevel .view-data,
-.page-function .toplevel .view-data {
-    position: absolute;
-    width: max-content;
-    top: 0;
-    left: -20px;
-
-    ul.request-cursor {
-        float: none;
-        max-height: unset;
-        bottom: unset;
-
-        li {
-            float: none;
-            display: block;
-            line-height: 0.8rem;
-
-            &.mouseovered:before {
-                display: block;
-                position: absolute;
-                left: -260px;
-                top: 0;
-
-                height: max-content;
-                min-width: 250px;
-                width: 250px;
-
-                padding: 4px;
-
-                z-index: 600;
-            }
-        }
-    }
 }
 
 .use-wrapper {
@@ -1153,6 +1047,9 @@ body #app * {
 
     border-bottom: 1px solid $grey3;
     padding-bottom: 4px;
+    padding-top: 4px;
+    padding-left: 8px;
+    padding-right: 16px;
 
     @include handler-type(http-get, $green);
     @include handler-type(http-post, $blue);
@@ -1167,43 +1064,51 @@ body #app * {
         margin: 0;
     }
 
+    .modifier {
+        div.blankOr {
+            display: inline;
+        }
+
+        .external {
+            margin-left: 4px;
+            color: $green;
+        }
+
+        .cron-trigger {
+            display: inline;
+            margin-left: 4px;
+
+            &:hover {
+                cursor: pointer;
+                color: lighten($yellow, 10%);
+            }
+        }
+    }
+
     // remove dotted outline after clicking (source: reset-normalize)
     a:focus {
         outline: none;
     }
 
-    .actions {
-        display: inline;
-
-        a,
-        div {
-            display: inline;
-            margin-left: 1ch;
-        }
-
-        .cron-trigger {
-            &:hover {
-                cursor: pointer;
-                color: lighten($orange, 10%);
-            }
-        }
-    }
-
-    .external {
-        color: $orange;
-    }
-
     .handler-lock {
+        position: absolute;
+        left: -6px;
+        top: -6px;
         color: $white1;
+        font-size: 12px;
+        color: lighten($green, 15%);
 
         &.active {
-            color: $red;
+            color: lighten($red, 10%);
         }
     }
 
     .handler-expand {
+        position: absolute;
+        top: 0;
+        right: 4px;
         font-size: 16px;
-        color: $white1;
+        color: $grey2;
     }
 }
 
@@ -2163,5 +2068,6 @@ $icon-spacing: 6px;
 
 }
 
+@import 'live-data';
 @import 'fluid';
 @import 'zindex';
