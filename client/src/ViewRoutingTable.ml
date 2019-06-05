@@ -368,14 +368,16 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     Url.linkFor page classes [Html.text name]
   in
   let mainlink =
-    match e.destination with
-    | Some dest ->
-        let cl =
-          if e.uses = Some 0 then "default-link unused" else "default-link"
-        in
-        [destinationLink dest cl name]
-    | _ ->
-        [Html.text name]
+    Html.span
+      [Html.class' "name"]
+      ( match e.destination with
+      | Some dest ->
+          let cl =
+            if e.uses = Some 0 then "default-link unused" else "default-link"
+          in
+          [destinationLink dest cl name]
+      | _ ->
+          [Html.text name] )
   in
   let verb =
     let noExt = if List.isEmpty ext then " no-ext" else "" in
@@ -390,14 +392,16 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
-    match e.minusButton with
-    | Some msg ->
-        [ buttonLink
-            ~key:("entry-" ^ showTLID e.tlid)
-            (fontAwesome "times-circle")
-            msg ]
-    | None ->
-        iconspacer
+    Html.div
+      [Html.class' "delete"]
+      ( match e.minusButton with
+      | Some msg ->
+          [ buttonLink
+              ~key:("entry-" ^ showTLID e.tlid)
+              (fontAwesome "times-circle")
+              msg ]
+      | None ->
+          iconspacer )
   in
   let pluslink =
     match e.plusButton with
@@ -406,8 +410,6 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | None ->
         iconspacer
   in
-  let delete = Html.div [Html.class' "delete"] minuslink in
-  let main = Html.span [Html.class' "name"] mainlink in
   let auxViews =
     Html.div
       [Html.classList [("aux", true); (httpMethod, true)]]
@@ -416,7 +418,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
-    [delete; main; auxViews]
+    [minuslink; mainlink; auxViews]
 
 
 let deploy2html (d : staticDeploy) : msg Html.html =
@@ -442,14 +444,16 @@ let deploy2html (d : staticDeploy) : msg Html.html =
 (* Category Views *)
 
 let categoryTitle (name : string) (count : int) (classname : string) :
-    msg Html.html list =
+    msg Html.html =
   let icon = Html.div [Html.class' "header-icon"] (categoryIcon classname) in
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  [ icon
-  ; text "title" name
-  ; text "parens" "("
-  ; text "count" (count |> string_of_int)
-  ; text "parens" ")" ]
+  Html.div
+    [Html.class' "title"]
+    [ icon
+    ; text "title" name
+    ; text "parens" "("
+    ; text "count" (count |> string_of_int)
+    ; text "parens" ")" ]
 
 
 let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
@@ -482,7 +486,7 @@ let deployStats2html (m : model) : msg Html.html =
     in
     Html.summary
       [openEventHandler]
-      [Html.div [Html.class' "header"] (title @ deployLatest)]
+      [Html.div [Html.class' "header"] (title :: deployLatest)]
   in
   let routes =
     if count > 1
@@ -507,9 +511,7 @@ and category2html (m : model) (c : category) : msg Html.html =
     categoryOpenCloseHelpers m c.classname c.count
   in
   let header =
-    let title =
-      Html.div [Html.class' "title"] (categoryTitle c.name c.count c.classname)
-    in
+    let title = categoryTitle c.name c.count c.classname in
     let plusButton =
       match c.plusButton with
       | Some msg ->
@@ -544,7 +546,7 @@ let toggleSidebar (m : model) : msg Html.html =
     then fontAwesome "chevron-left"
     else fontAwesome "chevron-right"
   in
-  let toggleBtn = Html.a [Html.class' "button-link"] [button] in
+  let toggleBtn = Html.a [Html.class' "button-link"] [button; button] in
   let toggleSide =
     Html.div
       [event; Html.class' "toggle-container"]
@@ -552,7 +554,7 @@ let toggleSidebar (m : model) : msg Html.html =
       ; Html.div
           [ Html.classList
               [("toggle-button", true); ("closed", not m.sidebarOpen)] ]
-          [toggleBtn; toggleBtn] ]
+          [toggleBtn] ]
   in
   toggleSide
 
