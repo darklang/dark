@@ -586,6 +586,11 @@ let () =
       t "backspace variable" aShortVar (backspace 1) (b, 0) ;
       tp "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      t
+        "variable doesn't override if"
+        (ELet (gid (), gid (), "i", blank, EPartial (gid (), "i")))
+        (presses ~wrap:false [K.Letter 'f'; K.Enter] 13)
+        ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
   describe "Match" (fun () ->
       t
