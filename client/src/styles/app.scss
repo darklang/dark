@@ -710,8 +710,10 @@ body #app * {
           display: none;
       }
       .header {
+        $filter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%) contrast(0.7);
+
         padding: 2px 5px 2px 10px;
-        color: #fcead0;
+        color: #fff;
         background: #585858;
         display: flex;
         align-items: center;
@@ -720,25 +722,27 @@ body #app * {
         
         .title{
           display: flex;
+          filter: $filter;
+          .count {
+            font-weight: bold;
+          }
         }
 
-        .count {
-            font-weight: bold;
-        }
+        
 
         .verb-link,
         .button-link {
             float: right;
-            color: lighten($yellow, 15%);
+            color: white;
+            filter: $filter;
+
         }
 
         .header-icon{
           height: 20px;
           width: 20px;
           margin-right: 5px;
-          svg {
-            fill: lighten($yellow, 15%);
-          }
+          
         }
       }
 
