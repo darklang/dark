@@ -59,19 +59,15 @@ let categoryIcon (name : string) : msg Html.html list =
   | "deleted" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
   | "static" ->
-<<<<<<< HEAD
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
-=======
-      [ViewUtils.svgIconStatic]
   | "types" ->
-      [ViewUtils.svgIconTypes]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
   | "cron" ->
-      [ViewUtils.svgIconCron]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
   | "Undefined" ->
-      [ViewUtils.svgIconUndefined]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
   | "fof" ->
-      [ViewUtils.svgIconFof]
->>>>>>> seperate style files and show icons on sidebar collapse
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
   | _ ->
       []
 
@@ -571,12 +567,22 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     | None ->
         []
   in
+  let count =
+    if c.count = 0
+    then []
+    else
+      [ Html.div
+          [Html.class' "count"]
+          [ Html.div
+              [Html.class' "count-box"]
+              [Html.p [] [Html.text (c.count |> string_of_int)]] ] ]
+  in
   let icon =
     Html.div
       [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
       (categoryIcon c.classname)
   in
-  Html.div [Html.class' "collapsed"] (icon :: plusButton)
+  Html.div [Html.class' "collapsed"] (count @ (icon :: plusButton))
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
