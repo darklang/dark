@@ -2,32 +2,11 @@ html {
     height: 100%;
 }
 
-/* From "default dark" in https://chriskempson.github.io/base16/ */
-$black1: #181818; // toplevel bg
-$black2: #282828; // sidebar bg, entrybox bg, debugging buttons
-$grey1 : #383838; // hovered AST bg
-$grey2 : #585858; // placeholder text
-$grey3 : #b8b8b8;
-$white3: #d8d8d8; // link color
-$white2: #e8e8e8;
-$white1: #f8f8f8; // active link
-$red : #ab4642; // error
-$orange: #dc9656; // routing, lambda functions
-$yellow: #f7ca88; // routing table, database migration
-$green : #a1b56c; // executable buttons, feature flag icons
-$cyan : #86c1b9;
-$blue : #7cafc2; // pipe
-$purple: #ba8baf; // variation used in strings
-$brown : #a16946;
-$darkblue: #2B466F;
-$vagueblue: #182635;
+@import "colors";
 
 $hovercolor: lighten($darkblue, 10%);
 $autocomplete-highlight-color: $darkblue;
 $selected-blankor-background: $darkblue;
-
-$selected-toplevel-border: $darkblue;
-$selected-toplevel-background: lighten($black1, 5%);
 
 $top-border: lighten($black1, 5%) 2px dotted;
 $blank-underline: 1px dashed $grey2;
@@ -173,7 +152,7 @@ body {
 }
 
 #app {
-    background: $black1;
+    background: $canvas-background;
     width: 100%;
     height: 100vh;
     overflow: hidden;
@@ -289,7 +268,7 @@ body #app * {
     height: 2 * $ridiculously-large;
     width: 2 * $ridiculously-large;
     overflow: visible;
-    background-color: rgba(13, 13, 13, 0.6);
+    background-color: rgba(72, 72, 72, 0.75);
 
     &.show {
         display: block;
@@ -307,13 +286,7 @@ body #app * {
     width: max-content;
     min-width: $toplevel-min-width;
     padding: 4px;
-    border: $top-border;
-    background: $black1;
-
-    &.selected {
-        background-color: $selected-toplevel-background;
-        outline: 2px $selected-toplevel-border solid;
-    }
+    background: $toplevel-background;
 
     .mouseovered-selectable {
         outline: 0.5px dotted lighten($darkblue, 35%);
@@ -1162,17 +1135,31 @@ body #app * {
 // Handler
 //*************
 
+@mixin handler-type($name, $color) {
+    &.#{$name} {
+        color: $color;
+        border-bottom-color: $color;
+    }
+}
+
 .toplevel .spec-header {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
     flex-wrap: nowrap;
 
-    color: $orange;
+    color: $grey3;
     font-size: 8pt;
 
-    border-bottom: 1px solid $orange;
+    border-bottom: 1px solid $grey3;
     padding-bottom: 4px;
+
+    @include handler-type(http-get, $green);
+    @include handler-type(http-post, $blue);
+    @include handler-type(http-put, $orange);
+    @include handler-type(http-delete, $pink);
+    @include handler-type(http-patch, $cyan);
+    @include handler-type(cron, $yellow);
 
     .name,
     .modifier,
@@ -1276,257 +1263,6 @@ body #app * {
         }
     }
 }
-
-//*************
-// Fluid
-//*************
-
-
-.fluid-variant .live-values {
-    display: none;
-    position: absolute;
-    right: calc(#{"100% + 30px"});
-
-    padding: 4px;
-    width: max-content;
-    max-width: 250px;
-
-    white-space: pre-wrap;
-    word-break: break-all;
-    word-wrap: break-word;
-    
-    font-style: normal;
-    font-size: $code-font-size * 0.85;
-    color: $grey3;
-
-    background-color: $black2;
-    outline: 0.4px $grey2 dotted;
-
-    &.show {
-        display: block;
-    }
-
-    .copy-value {
-        position: absolute;
-        top: -4px;
-        right: -8px;
-
-        opacity: 0.7;
-
-        &:hover {
-            opacity: 0.85;
-        }
-    }
-}
-
-#fluid-status {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    width: 30ch;
-    z-index: 10000;
-    font-size: 10pt;
-    background: white;
-    color: black;
-}
-
-#fluid-editor {
-    /* Colors from tomorrow night:
-https://github.com/chriskempson/tomorrow-theme */
-    $black: #1d1f21;
-    $background: transparent;
-    $selected-background: #2d2d2d;
-    $blanks: lighten($black1, 8%);
-    $currentline: $grey1;
-    $selection: $grey3;
-    $foreground: $white2;
-    $comment: $grey3;
-
-    $dropdown-background: lighten($selected-background, 10%);
-    $dropdown-selected-background: lighten($selected-background, 20%);
-    $dropdown-foreground: lighten($foreground, 10%);
-    $dropdown-selected-foreground: $foreground;
-
-    background-color: $background;
-
-    .selected {
-        background-color: $selected-background;
-    }
-
-    color: $foreground;
-    caret-color: $foreground;
-    font-size: 13.33px;
-    max-width: 200ch;
-
-    &:focus {
-        outline-width: 0;
-    }
-
-    padding: 0.5ch;
-
-    font-family: monaco,
-    monospace;
-
-    .fluid-newline {
-        display: block;
-    }
-
-    .fluid-indent {
-        white-space: pre;
-    }
-
-    .fluid-string {
-        white-space: pre;
-        color: $string-color;
-    }
-
-    .fluid-sep,
-    .fluid-blank {
-        // The cursor disappears when the element it should appear in has no size. To
-        // make it have size, we need all of this.
-        // https://stackoverflow.com/questions/25897883/
-        display: inline-block;
-        white-space: pre;
-        margin-left: 1px;
-    }
-
-    // Part of the same problem, making space for it.
-    .fluid-lambda-keyword {
-        margin-right: 0.11px;
-    }
-
-    .fluid-lambda-symbol,
-    .fluid-lambda-var,
-    .fluid-lambda-arrow {
-        color: $orange;
-    }
-
-    .fluid-blank {
-        background-color: $blanks;
-    }
-
-    .fluid-placeholder {
-        background-color: $blanks;
-        color: $grey3;
-    }
-
-    .fluid-empty {
-        color: $green;
-        background-color: $blanks;
-    }
-
-    .fluid-keyword {
-        color: $green;
-    }
-
-    .fluid-fn-name {
-        color: $white2;
-    }
-
-    .fluid-partial {
-        color: $red;
-    }
-
-    // <Position autocomplete as a dropdown>
-    .fluid-entry {
-        position: relative;
-        // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
-    }
-
-    .fluid-thread-pipe {
-        color: $blue;
-        font-size: 10px;
-        top: -1px;
-    }
-
-    /* Will style more later. Cmd palette should look like a smaller version of omnibox
-since they are essentially both commands just acting upon different things. */
-    .command-palette {
-        background-color: $dropdown-background;
-        border-radius: 2px;
-        position: absolute;
-        left: 0;
-        width: max-content;
-        box-shadow: 1px 1px 1px black;
-        display: flex;
-        flex-direction: column;
-        flex-wrap: nowrap;
-        align-items: stretch;
-        z-index: 1000;
-
-        #cmd-filter {
-            background: transparent;
-            color: $dropdown-foreground;
-            margin-top: 2px;
-            margin-left: 1ch;
-        }
-
-        #fluid-dropdown {
-            position: relative;
-            left: 0;
-            background-color: transparent;
-            box-shadow: 0 0 0 transparent;
-        }
-    }
-
-    #fluid-dropdown {
-        background-color: $dropdown-background;
-        color: $dropdown-foreground;
-        z-index: 1000;
-        position: absolute;
-        left: -1ch;
-        box-shadow: 1px 1px 1px black;
-        width: max-content;
-        max-height: 100px;
-        overflow-y: scroll;
-        padding: 0;
-
-
-        ul {
-            margin: 0;
-            padding-inline-start: 0;
-            color: $dropdown-selected-foreground;
-
-            .fluid-selected {
-                background-color: $dropdown-selected-background;
-                color: darken(white, 5%);
-            }
-
-            li {
-                list-style-type: none; // remove bullet points
-                padding: 0 1ch;
-                height: 16px;
-
-                .types {
-                    float: right;
-                    margin-left: 4ch;
-                    text-transform: lowercase;
-                    font-family: monospace;
-                    color: darken($dropdown-foreground, 15%);
-                }
-            }
-        }
-    }
-
-    .error-indicator {
-        position: absolute;
-        left: calc(100% - 18px);
-    }
-
-    .error-icon {
-        display: block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        border: 1px solid #6b6b6b;
-        background-color: transparent;
-    }
-
-    .error-icon[data-sent-to-rail="true"] {
-        background-color: #6b6b6b;
-    }
-}
-
 
 //*************
 // AST
@@ -1819,7 +1555,7 @@ since they are essentially both commands just acting upon different things. */
         margin-top: -12px;
 
         #search-container {
-            background: $selected-toplevel-background;
+            background: $black2;
             border: 0;
             margin: 0;
             padding: 0;
@@ -2427,107 +2163,5 @@ $icon-spacing: 6px;
 
 }
 
-// ---------------------------
-// Z-Index
-// ---------------------------
-// [spec](https://trello.com/c/EDCiXGjq/732-z-indexing-part-2)
-// - buttons => 70
-// - entry box => 60
-// - routing table => 55
-// - dragging node => 50
-// - selected node => 40
-// - unselected node => 20
-
-#buttons {
-    z-index: 70;
-}
-
-.error-panel {
-    z-index: 60;
-}
-
-#sidebar-left {
-    z-index: 55;
-}
-
-#canvas.page-handler,
-#canvas.page-function {
-    left: 320px;
-}
-
-.entry {
-    form {
-        #search-container {
-            #entry-box {
-                min-width: 1px;
-                z-index: 60;
-            }
-        }
-    }
-}
-
-.omnibox .entry {
-
-    #search-container,
-    #autocomplete-holder {
-        z-index: 100;
-    }
-}
-
-.string-entry {
-    #entry-box {
-        z-index: 60;
-    }
-}
-
-.overlay {
-    z-index: 30;
-}
-
-.node {
-    z-index: 20;
-
-    &.dragging {
-        z-index: 50;
-    }
-
-    &.selected {
-        z-index: 40;
-    }
-}
-
-.tlref {
-    z-index: 40;
-}
-
-#debug {
-    min-height: 20px;
-    z-index: 100;
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    max-height: 500px;
-    max-width: 500px;
-    overflow: scroll;
-
-    nav {
-        max-width: 50%;
-
-        .history {
-            span {
-                &.details {
-                    width: 25px;
-                }
-
-                &.message {
-                    width: calc(#{"100% - 75px"});
-                }
-
-                &.index {
-                    width: 30px;
-                    clear: both;
-                }
-            }
-        }
-    }
-}
+@import 'fluid';
+@import 'zindex';

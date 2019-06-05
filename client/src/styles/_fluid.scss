@@ -1,0 +1,249 @@
+//*************
+// Fluid
+//*************
+
+
+.fluid-variant .live-values {
+    display: none;
+    position: absolute;
+    right: calc(#{"100% + 30px"});
+
+    padding: 4px;
+    width: max-content;
+    max-width: 250px;
+
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+    
+    font-style: normal;
+    font-size: $code-font-size * 0.85;
+    color: $grey3;
+
+    background-color: $black2;
+    outline: 0.4px $grey2 dotted;
+
+    &.show {
+        display: block;
+    }
+
+    .copy-value {
+        position: absolute;
+        top: -4px;
+        right: -8px;
+
+        opacity: 0.7;
+
+        &:hover {
+            opacity: 0.85;
+        }
+    }
+}
+
+#fluid-status {
+    position: absolute;
+    top: 0px;
+    right: 0px;
+    width: 30ch;
+    z-index: 10000;
+    font-size: 10pt;
+    background: white;
+    color: black;
+}
+
+#fluid-editor {
+    /* Colors from tomorrow night:
+https://github.com/chriskempson/tomorrow-theme */
+    $black: #1d1f21;
+    $background: transparent;
+    $selected-background: #2d2d2d;
+    $blanks: lighten($black1, 8%);
+    $currentline: $grey1;
+    $selection: $grey3;
+    $foreground: $white2;
+    $comment: $grey3;
+
+    $dropdown-background: lighten($selected-background, 10%);
+    $dropdown-selected-background: lighten($selected-background, 20%);
+    $dropdown-foreground: lighten($foreground, 10%);
+    $dropdown-selected-foreground: $foreground;
+
+    background-color: $background;
+
+    .selected {
+        background-color: $selected-background;
+    }
+
+    color: $foreground;
+    caret-color: $foreground;
+    font-size: 13.33px;
+    max-width: 200ch;
+
+    &:focus {
+        outline-width: 0;
+    }
+
+    padding: 0.5ch;
+
+    font-family: monaco,
+    monospace;
+
+    .fluid-newline {
+        display: block;
+    }
+
+    .fluid-indent {
+        white-space: pre;
+    }
+
+    .fluid-string {
+        white-space: pre;
+        color: $string-color;
+    }
+
+    .fluid-sep,
+    .fluid-blank {
+        // The cursor disappears when the element it should appear in has no size. To
+        // make it have size, we need all of this.
+        // https://stackoverflow.com/questions/25897883/
+        display: inline-block;
+        white-space: pre;
+        margin-left: 1px;
+    }
+
+    // Part of the same problem, making space for it.
+    .fluid-lambda-keyword {
+        margin-right: 0.11px;
+    }
+
+    .fluid-lambda-symbol,
+    .fluid-lambda-var,
+    .fluid-lambda-arrow {
+        color: $orange;
+    }
+
+    .fluid-blank {
+        background-color: $blanks;
+    }
+
+    .fluid-placeholder {
+        background-color: $blanks;
+        color: $grey3;
+    }
+
+    .fluid-empty {
+        color: $green;
+        background-color: $blanks;
+    }
+
+    .fluid-keyword {
+        color: $green;
+    }
+
+    .fluid-fn-name {
+        color: $white2;
+    }
+
+    .fluid-partial {
+        color: $red;
+    }
+
+    // <Position autocomplete as a dropdown>
+    .fluid-entry {
+        position: relative;
+        // removing position realtive. Removing background color. Something with z-index; Opacity too. Inline-block seems to work.
+    }
+
+    .fluid-thread-pipe {
+        color: $blue;
+        font-size: 10px;
+        top: -1px;
+    }
+
+    /* Will style more later. Cmd palette should look like a smaller version of omnibox
+since they are essentially both commands just acting upon different things. */
+    .command-palette {
+        background-color: $dropdown-background;
+        border-radius: 2px;
+        position: absolute;
+        left: 0;
+        width: max-content;
+        box-shadow: 1px 1px 1px black;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        z-index: 1000;
+
+        #cmd-filter {
+            background: transparent;
+            color: $dropdown-foreground;
+            margin-top: 2px;
+            margin-left: 1ch;
+        }
+
+        #fluid-dropdown {
+            position: relative;
+            left: 0;
+            background-color: transparent;
+            box-shadow: 0 0 0 transparent;
+        }
+    }
+
+    #fluid-dropdown {
+        background-color: $dropdown-background;
+        color: $dropdown-foreground;
+        z-index: 1000;
+        position: absolute;
+        left: -1ch;
+        box-shadow: 1px 1px 1px black;
+        width: max-content;
+        max-height: 100px;
+        overflow-y: scroll;
+        padding: 0;
+
+
+        ul {
+            margin: 0;
+            padding-inline-start: 0;
+            color: $dropdown-selected-foreground;
+
+            .fluid-selected {
+                background-color: $dropdown-selected-background;
+                color: darken(white, 5%);
+            }
+
+            li {
+                list-style-type: none; // remove bullet points
+                padding: 0 1ch;
+                height: 16px;
+
+                .types {
+                    float: right;
+                    margin-left: 4ch;
+                    text-transform: lowercase;
+                    font-family: monospace;
+                    color: darken($dropdown-foreground, 15%);
+                }
+            }
+        }
+    }
+
+    .error-indicator {
+        position: absolute;
+        left: calc(100% - 18px);
+    }
+
+    .error-icon {
+        display: block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 1px solid #6b6b6b;
+        background-color: transparent;
+    }
+
+    .error-icon[data-sent-to-rail="true"] {
+        background-color: #6b6b6b;
+    }
+}

@@ -1,0 +1,104 @@
+// ---------------------------
+// Z-Index
+// ---------------------------
+// [spec](https://trello.com/c/EDCiXGjq/732-z-indexing-part-2)
+// - buttons => 70
+// - entry box => 60
+// - routing table => 55
+// - dragging node => 50
+// - selected node => 40
+// - unselected node => 20
+
+#buttons {
+    z-index: 70;
+}
+
+.error-panel {
+    z-index: 60;
+}
+
+#sidebar-left {
+    z-index: 55;
+}
+
+#canvas.page-handler,
+#canvas.page-function {
+    left: 320px;
+}
+
+.entry {
+    form {
+        #search-container {
+            #entry-box {
+                min-width: 1px;
+                z-index: 60;
+            }
+        }
+    }
+}
+
+.omnibox .entry {
+
+    #search-container,
+    #autocomplete-holder {
+        z-index: 100;
+    }
+}
+
+.string-entry {
+    #entry-box {
+        z-index: 60;
+    }
+}
+
+.overlay {
+    z-index: 30;
+}
+
+.node {
+    z-index: 20;
+
+    &.dragging {
+        z-index: 50;
+    }
+
+    &.selected {
+        z-index: 40;
+    }
+}
+
+.tlref {
+    z-index: 40;
+}
+
+#debug {
+    min-height: 20px;
+    z-index: 100;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    max-height: 500px;
+    max-width: 500px;
+    overflow: scroll;
+
+    nav {
+        max-width: 50%;
+
+        .history {
+            span {
+                &.details {
+                    width: 25px;
+                }
+
+                &.message {
+                    width: calc(#{"100% - 75px"});
+                }
+
+                &.index {
+                    width: 30px;
+                    clear: both;
+                }
+            }
+        }
+    }
+}
