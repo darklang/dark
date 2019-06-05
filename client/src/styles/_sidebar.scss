@@ -14,7 +14,6 @@ $sidebarFullWidth: 320px;
 
 .viewing-table {
   $toggleSpace: 60px;
-
   background-color: $black2;
   padding: 8px 0px;
   height: 100%;
@@ -60,12 +59,23 @@ $sidebarFullWidth: 320px;
       align-items: center;
       justify-content: center;
       margin: 10px 0px;
-      color: #585858;
+      color: $grey2;
       width: 90%;
+
+      .button-link{
+        margin-top: 5px;
+        display: flex;
+        justify-content: flex-end;
+        width: 85%;
+        align-self: flex-end;
+        position: absolute;
+        color: $white1;
+        font-size: 15px;
+      }
 
       .header-icon{
         display: flex;
-        fill: $white1;
+        fill: $grey3;
 
         &.empty{
           fill: $grey2;
