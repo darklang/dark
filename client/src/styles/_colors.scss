@@ -28,3 +28,13 @@ $toplevel-background: #262626;
 
 $live-value-foreground: lighten($cyan, 10%);
 $live-value-background: $grey1;
+
+$http-get: $green;
+$http-post: $blue;
+$http-put: $orange;
+$http-patch: $cyan;
+$http-delete: lighten($red, 15%);
+$cron-color: $yellow;
+$queue-color: $grey3;
+
+$hover-foreground: darken($blue, 10%);
