@@ -680,15 +680,16 @@ body #app * {
       margin-bottom: 5px;
       color: $grey2;
 
-      .toggle-button{
+      .button-link{
         display: flex;
-        .button-link:nth-child(2){
+        .fa:nth-child(2){
           margin-left: -5px; 
         }
-        .fa{
-          font-size: 25px;
-        }
       }
+      .fa{
+        font-size: 25px;
+      }
+      
       p{
         margin: 0px 10px;
       }
