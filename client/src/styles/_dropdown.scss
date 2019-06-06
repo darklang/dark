@@ -1,4 +1,5 @@
 $highlight-color: saturate(darken($blue, 20%), 10%);
+$autocomplete-padding: ($spacing-medium/2);
 
 .entry {
     // headers need to be relative to position them. We need to be above
@@ -70,9 +71,12 @@ $highlight-color: saturate(darken($blue, 20%), 10%);
         text-align: initial;
         width: $toplevel-min-width - 10px;
         z-index: 1;
+        background: $black3;
+        @include border-radius-bottom($autocomplete-padding); 
 
         .autocomplete-item {
-            background: $black2;
+            padding: 0 $autocomplete-padding;
+            background: transparent;
 
             .atom {
                 margin-left: 0;
@@ -83,7 +87,6 @@ $highlight-color: saturate(darken($blue, 20%), 10%);
             }
 
             &.invalid {
-                background: $black3;
                 color: $grey3;
 
                 &.highlighted {
@@ -125,9 +128,8 @@ $highlight-color: saturate(darken($blue, 20%), 10%);
     .entry form #search-container {
         min-width: $box-width;
         background-color: $black3;
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
         padding: 0 $left-margin;
+        @include border-radius-top(6px);
 
         #fluidWidthSpan {
             width: 100%;
@@ -148,18 +150,23 @@ $highlight-color: saturate(darken($blue, 20%), 10%);
         }
     }
 
-ul#autocomplete-holder {
+    ul#autocomplete-holder {
         width: 100%;
         background-color: $black2;
-        box-shadow: 1px 3px 5px 0 #000;
         overflow-y: visible;
         list-style-type: none;
-        border-bottom-left-radius: 4px;
-        border-bottom-right-radius: 4px;
+        @include border-radius-bottom(6px); 
 
         li {
             font-size: $code-font-size;
             padding: 2px $left-margin;
         }
+    }
+}
+
+.selecting-command {
+    ul#autocomplete-holder {
+        @include border-radius-top(4px);
+        @include border-radius-bottom(4px);
     }
 }

@@ -61,6 +61,16 @@
     }
 }
 
+@mixin border-radius-bottom ($radius) {
+    border-bottom-left-radius: $radius;
+    border-bottom-right-radius: $radius;
+}
+
+@mixin border-radius-top ($radius) {
+    border-top-left-radius: $radius;
+    border-top-right-radius: $radius;
+}
+
 /* Body */
 
 html {
@@ -74,7 +84,7 @@ html {
 
 ::-webkit-scrollbar-thumb {
     border-radius: 7px;
-    background-color: $black3;
+    background-color: $grey2;
 }
 
 body {
