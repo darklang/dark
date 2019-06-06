@@ -1,5 +1,5 @@
 $vertical-spacing: 20px;
-$horizontal-padding: 8px;
+$horizontal-padding: $spacing-medium;
 $icon-spacing: 6px;
 
 .expr-label {
@@ -11,13 +11,13 @@ $icon-spacing: 6px;
 .flagged {
     .fa-flag {
         color: $red;
-        font-size: 8px;
+        font-size: $spacing-medium;
     }
 
     .feature-flag {
         position: absolute;
         left: calc(#{"100% - 32px"});
-        margin-top: -8px;
+        margin-top: -$spacing-medium;
         border-style: solid;
         border-color: $black2;
         border-width: 0;

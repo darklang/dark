@@ -7,14 +7,14 @@
     padding: 4px;
 
     .specialButton {
-        margin-right: 8px;
+        margin-right: $spacing-medium;
         padding: 4px;
         color: $orange;
 
         &:hover,
         &:active {
             color: $green;
-            background-color: $grey1;
+            background-color: $black3;
         }
 
         &#integrationTestSignal {
@@ -28,7 +28,7 @@
 
     .status {
         float: right;
-        margin-right: 8px;
+        margin-right: $spacing-medium;
 
         &.error {
             color: lighten($red, 20%);

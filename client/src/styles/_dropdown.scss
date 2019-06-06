@@ -1,9 +1,11 @@
+$highlight-color: saturate(darken($blue, 20%), 10%);
+
 .entry {
     // headers need to be relative to position them. We need to be above
     // the headers, and position:relative allows us to do it.
     cursor: default;
     background: $black2;
-    color: $white3;
+    color: $white1;
     margin-left: 4px;
     margin-right: 4px;
     width: auto;
@@ -77,15 +79,15 @@
             }
 
             &.highlighted {
-                background: $autocomplete-highlight-color;
+                background: $highlight-color;
             }
 
             &.invalid {
-                background: $grey1;
+                background: $black3;
                 color: $grey3;
 
                 &.highlighted {
-                    background: lighten($darkblue, 50%);
+                    background: lighten($highlight-color, 50%);
                     color: black;
 
                     .moduleseparator {
@@ -122,7 +124,7 @@
 
     .entry form #search-container {
         min-width: $box-width;
-        background-color: $grey1;
+        background-color: $black3;
         border-top-left-radius: 4px;
         border-top-right-radius: 4px;
         padding: 0 $left-margin;
@@ -135,7 +137,7 @@
             &:before {
                 display: inline-block;
                 margin-left: -0.85 * $left-margin;
-                margin-top: -8px;
+                margin-top: -$spacing-medium;
 
                 content: "\f002";
                 font-family: "Font Awesome 5 Free";

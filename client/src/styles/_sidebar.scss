@@ -13,7 +13,7 @@
 
 .viewing-table {
     background-color: $black2;
-    padding: 8px;
+    padding: $spacing-medium;
     height: 100%;
     position: relative;
     width: max-content;
@@ -116,7 +116,7 @@
             }
 
             .name {
-                color: $white3;
+                color: $white1;
             }
 
             .aux {
