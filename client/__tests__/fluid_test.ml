@@ -586,6 +586,11 @@ let () =
       t "backspace variable" aShortVar (backspace 1) (b, 0) ;
       tp "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      t
+        "variable doesn't override if"
+        (ELet (gid (), gid (), "i", blank, EPartial (gid (), "i")))
+        (presses ~wrap:false [K.Letter 'f'; K.Enter] 13)
+        ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
   describe "Match" (fun () ->
       t
@@ -903,36 +908,19 @@ let () =
       t
         "autocomplete enter on bin-op moves to start of first blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Enter] 0)
+        (presses [K.Equals; K.Enter] 0)
         ("___ == ___", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Tab] 0)
+        (presses [K.Equals; K.Tab] 0)
         ("___ == ___", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
         (EBlank (gid ()))
-        (presses [K.Letter '='; K.Space] 0)
+        (presses [K.Equals; K.Space] 0)
         ("___ == ___", 0) ;
-      *)
-      t
-        "autocomplete enter on bin-op moves to start of first blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Enter] 10)
-        ("let *** = ___ < ___\n5", 10) ;
-      t
-        "autocomplete tab on bin-op moves to start of second blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Tab] 10)
-        ("let *** = ___ < ___\n5", 22) ;
-      (* TODO: make autocomplete on space work consistently
-      t
-        "autocomplete space on bin-op moves to start of first blank 2"
-        emptyLet
-        (presses [K.Letter '<'; K.Space] 10)
-        ("let *** = ___ < ___\n5", 10) ;
       *)
       t
         "variable moves to right place"
