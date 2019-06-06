@@ -957,11 +957,9 @@ test('select_route', async t => {
 
 test('function_analysis_works', async t => {
   await t
-    .click(Selector('.fnname'))
-    .click(Selector('.fa-edit'))
-    .click(Selector('.fncall'));
-
-  await t
+    .navigateTo('#fn=1039370895')
+    .expect(available('.user-fn-toplevel')).ok({ timeout : 1000 })
+    .click(Selector('.user-fn-toplevel .ast > div'))
     .expect(Selector('.selected .live-value').textContent)
     .eql("10", { timeout : 5000 });
 
