@@ -4,7 +4,8 @@ open Types
 module Hash = Sodium.Password_hash.Bytes
 
 let banned_usernames : string list =
-  (* from https://ldpreload.com/blog/names-to-reserve *)
+  (* originally from https://ldpreload.com/blog/names-to-reserve *)
+  (* we allow www, because we have a canvas there *)
   [ "abuse"
   ; "admin"
   ; "administrator"
@@ -43,8 +44,7 @@ let banned_usernames : string list =
   ; "usenet"
   ; "uucp"
   ; "webmaster"
-  ; "wpad"
-  ; "www" ]
+  ; "wpad" ]
   @ (* original to us *)
     ["billing"]
 
