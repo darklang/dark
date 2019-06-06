@@ -59,6 +59,14 @@ let categoryIcon (name : string) : msg Html.html list =
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
   | "static" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
+  | "types" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
+  | "cron" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
+  | "Undefined" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+  | "fof" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
   | _ ->
       []
 
@@ -545,6 +553,48 @@ and category2html (m : model) (c : category) : msg Html.html =
     (header :: routes)
 
 
+let closedCategory2html (m : model) (c : category) : msg Html.html =
+  Debug.loG "M" m ;
+  (* Expecting model for hover functionality *)
+  let plusButton =
+    match c.plusButton with
+    | Some msg ->
+        [ buttonLink
+            ~key:("plus-" ^ c.classname)
+            (fontAwesome "plus-circle")
+            msg ]
+    | None ->
+        []
+  in
+  let count =
+    if c.count = 0
+    then []
+    else
+      [ Html.div
+          [Html.class' "count"]
+          [ Html.div
+              [Html.class' "count-box"]
+              [Html.p [] [Html.text (c.count |> string_of_int)]] ] ]
+  in
+  let icon =
+    Html.div
+      [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
+      (categoryIcon c.classname)
+  in
+  Html.div [Html.class' "collapsed"] (count @ (icon :: plusButton))
+
+
+let closedDeployStats2html (m : model) : msg Html.html =
+  let entries = m.staticDeploys in
+  let count = List.length entries in
+  let icon =
+    Html.div
+      [Html.classList [("header-icon", true); ("empty", count = 0)]]
+      (categoryIcon "static")
+  in
+  Html.div [Html.class' "collapsed"] [icon]
+
+
 let toggleSidebar (m : model) : msg Html.html =
   let event =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
@@ -599,6 +649,12 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     then [toggleSidebar m]
     else []
   in
+  let showCategories =
+    if isClosed then closedCategory2html else category2html
+  in
+  let showDeployStats =
+    if isClosed then closedDeployStats2html else deployStats2html
+  in
   let html =
     Html.div
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
@@ -610,7 +666,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
       ( sidebarBtns
       @ [ Html.div
             [Html.classList [("routings", isClosed); ("routes", true)]]
-            (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
+            (List.map ~f:(showCategories m) cats @ [showDeployStats m]) ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
 
