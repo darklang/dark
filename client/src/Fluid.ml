@@ -1630,8 +1630,7 @@ let moveTo (newPos : int) (s : state) : state =
 
 let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
   tokens
-  |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
-  |> List.find ~f:(fun ti -> ti.startPos > pos)
+  |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextBlank 0 tokens )
 
@@ -1652,9 +1651,8 @@ let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
 
 let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
   tokens
-  |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
-  |> List.reverse
-  |> List.find ~f:(fun ti -> ti.endPos < pos)
+  |> List.filter ~f:(fun ti -> Token.isBlank ti.token && ti.endPos < pos)
+  |> List.last
   |> Option.orElseLazy (fun () ->
          let lastPos =
            List.last tokens
