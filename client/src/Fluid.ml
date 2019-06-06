@@ -2302,21 +2302,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acCompleteField ti ast s
     (* Tab to next blank *)
-    | K.Tab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
+    | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
-    | K.Tab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
-    | K.ShiftTab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
+    | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
