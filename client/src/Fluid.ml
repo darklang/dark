@@ -1723,16 +1723,19 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
       let id = Token.tid ti.token in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
-      let offset = getNextBlank s.newPos tokens in
+      let nextBlank = getNextBlankPos s.newPos tokens in
+      let prevBlank = getPrevBlankPos s.newPos tokens in
       let newPos =
         match key with
         | K.Tab ->
-            offset
+            nextBlank
+        | K.ShiftTab ->
+            prevBlank
         | K.Enter ->
             ti.startPos + acOffset
         | K.Space ->
             (* if new position is after next blank, stay in next blank *)
-            min offset (ti.startPos + acOffset + 1)
+            min nextBlank (ti.startPos + acOffset + 1)
         | _ ->
             s.newPos
       in
@@ -2289,7 +2292,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Space, L (TPartial (_, _), ti), _
     | K.Space, _, R (TPartial (_, _), ti)
     | K.Tab, L (TPartial (_, _), ti), _
-    | K.Tab, _, R (TPartial (_, _), ti) ->
+    | K.Tab, _, R (TPartial (_, _), ti)
+    | K.ShiftTab, L (TPartial (_, _), ti), _
+    | K.ShiftTab, _, R (TPartial (_, _), ti) ->
         acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
