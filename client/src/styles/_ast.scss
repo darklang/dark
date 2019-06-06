@@ -49,6 +49,7 @@
     min-width: $toplevel-min-width;
     padding: 4px;
     background: $toplevel-background;
+    box-shadow: 1px 2px 2px 1px $black1;
 
     .mouseovered-selectable {
         background-color: $hover-background;
