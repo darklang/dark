@@ -30,6 +30,14 @@ module Option = struct
 
   let valueExn (value : 'a option) : 'a =
     match value with Some v -> v | None -> raise Not_found
+
+
+  let orLazy (v : 'a option) (v2 : unit -> 'a option) : 'a option =
+    match v with Some v -> Some v | None -> v2 ()
+
+
+  let orElseLazy (v : unit -> 'a option) (v2 : 'a option) : 'a option =
+    match v2 with Some v2 -> Some v2 | None -> v ()
 end
 
 module List = struct
