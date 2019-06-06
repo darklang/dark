@@ -638,6 +638,7 @@ test('nochange_for_failed_paste', async t => {
 });
 */
 
+/* Disable for now, will bring back as command palette fn
 test('feature_flag_works', async t => {
   await t
     // Create an empty let
@@ -709,7 +710,7 @@ test('feature_flag_in_function', async t => {
     .click(".return-to-canvas")
     .expect(available(".tl-180770093")).ok()
 });
-
+*/
 test('simple_tab_ordering', async t => {
   await t
     .pressKey("enter")
