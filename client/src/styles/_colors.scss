@@ -22,6 +22,14 @@ $brown : #a16946;
 $darkblue: #2B466F;
 $vagueblue: #182635;
 
+/* Old Variables */
+$hovercolor: lighten($darkblue, 10%);
+$autocomplete-highlight-color: $darkblue;
+$selected-blankor-background: $darkblue;
+
+$top-border: lighten($black1, 5%) 2px dotted;
+$blank-underline: 1px dashed $grey2;
+
 /* Semantic Variables */
 $canvas-background: #484848;
 $toplevel-background: #262626;
