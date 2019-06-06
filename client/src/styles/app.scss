@@ -48,7 +48,7 @@ $ridiculously-large : 2000%;
     color: $grey2;
     font-style: italic;
     font-size: 8pt;
-    text-align: center;
+    text-align: left;
     padding-left: 1ch;
     padding-right: 1ch;
     margin-left: 4px;
@@ -289,7 +289,7 @@ body #app * {
     background: $toplevel-background;
 
     .mouseovered-selectable {
-        outline: 0.5px dotted lighten($darkblue, 35%);
+        background-color: $hover-background;
         transition-delay: 0.4s;
 
         &.blank {
@@ -325,7 +325,7 @@ body #app * {
     }
 
     .blankOr.selected {
-        background-color: $selected-blankor-background;
+        background-color: $selected-background;
         color: $white2;
 
         &.tstr {
@@ -575,199 +575,6 @@ body #app * {
     }
 }
 
-//*************
-// DB
-//*************
-.db {
-    margin: 10px;
-    display: flex;
-    flex-direction: column;
-
-    .delete-col {
-        color: $grey2;
-
-        .fa {
-            &:hover {
-                color: $white1;
-                cursor: pointer;
-            }
-        }
-    }
-
-    &.dbdata {
-        display: block;
-        position: absolute;
-        right: calc(#{"100% + 30px"});
-        font-style: normal;
-
-
-        padding: 4px;
-        width: max-content;
-        max-width: 250px;
-
-        white-space: pre-wrap;
-        word-break: break-all;
-        word-wrap: break-word;
-        font-size: $code-font-size * 0.85;
-        color: $grey3;
-
-        background-color: $black2;
-        outline: 0.4px $grey2 dotted;
-
-    }
-
-    &.migration-view {
-        position: absolute;
-        top: -12px;
-        left: calc(#{"100% + 20px"});
-        min-width: $toplevel-min-width;
-        padding: 24px;
-        border: $top-border;
-        border-color: $yellow;
-        border-width: 1px;
-        background-color: $black1;
-
-        .dbtitle {
-            .version {
-                color: $yellow;
-            }
-        }
-
-        .col {
-
-            &.roll-fn {
-                margin-top: 12px;
-                flex-direction: column;
-
-                .fn-title {
-                    font-size: 0.8rem;
-
-                    .varname {
-                        color: $grey2;
-                    }
-                }
-            }
-
-            &.actions {
-                margin-top: 25px;
-                flex-wrap: nowrap;
-                justify-content: space-around;
-
-                button {
-                    padding: 8px;
-                    font-size: 10px;
-                    background-color: $grey1;
-                    color: $yellow;
-                    border: 1px solid $yellow;
-                    text-transform: uppercase;
-
-                    &:disabled {
-                        color: $grey2;
-                        border-color: $grey2;
-                    }
-                }
-            }
-
-            &.err {
-                margin-top: 25px;
-                font-size: 10px;
-                color: lighten($red, 15%);
-                font-style: italic;
-            }
-        }
-
-
-    }
-
-    .fa-lock,
-    .fa-unlock {
-        position: fixed;
-        margin-left: -20px;
-        margin-top: -22px;
-
-        &.fa-lock {
-            color: $red;
-
-            &:hover {
-                color: $grey3;
-            }
-        }
-
-        &.fa-unlock {
-            color: $green;
-        }
-    }
-
-
-    .dbtitle {
-        background-image: url('/_db.png');
-        background-position: left center;
-        background-repeat: no-repeat;
-        padding-left: 20px;
-        /* Adjust according to image size to push text across. */
-        margin-bottom: 10px;
-        margin: 0 auto;
-
-        /* center the db name */
-        &::before {
-            content: "DB: ";
-            font-weight: bold;
-            font-size: 110%;
-        }
-
-        .dbname {
-            display: inline-block;
-        }
-    }
-
-    .col {
-        display: flex;
-        flex-direction: row;
-        margin-bottom: 4px;
-        margin-top: 4px;
-        text-align: left;
-
-        .name,
-        .type {
-            flex: 1;
-            font-size: 10px;
-            height: 15px;
-            margin-left: 4px;
-            margin-right: 4px;
-            padding-left: 1ch;
-            padding-right: 1ch;
-
-            #search-container {
-                font-size: 10px;
-                height: 10px;
-                margin-bottom: -1px;
-                margin-left: -6px;
-                min-width: calc(#{"100% + 12px"});
-                padding-bottom: 5px;
-            }
-
-            &.blank {
-                height: 15px;
-            }
-
-            .entry {
-                background: transparent;
-                // Don't center text-entry, it makes everything weird
-                text-align: left;
-            }
-        }
-
-        .migration-view {
-            position: absolute;
-            width: max-content;
-            left: calc(#{"100% + 6px"});
-            @include default;
-        }
-
-
-    }
-}
-
 .user-type {
     margin: 10px;
     display: flex;
@@ -943,7 +750,7 @@ body #app * {
     }
 
     .modifier {
-        div.blankOr {
+        div.blankOr, div.blank {
             display: inline;
         }
 
@@ -970,14 +777,14 @@ body #app * {
 
     .handler-lock {
         position: absolute;
-        left: -6px;
-        top: -6px;
+        left: -2px;
+        top: -8px;
         color: $white1;
         font-size: 12px;
-        color: lighten($green, 15%);
+        color: $unlock-color;
 
         &.active {
-            color: lighten($red, 10%);
+            color: $lock-color;
         }
     }
 
@@ -1310,116 +1117,6 @@ body #app * {
     display: block;
 }
 
-
-.entry {
-    // headers need to be relative to position them. We need to be above
-    // the headers, and position:relative allows us to do it.
-    cursor: default;
-    background: $black2;
-    color: $white3;
-    margin-left: 4px;
-    margin-right: 4px;
-    width: auto;
-
-    /* width: 96px; // keeps autocomplete appearing when Creating */
-    .types {
-        float: right;
-        text-transform: lowercase;
-        font-family: monospace;
-        font-size: 80%;
-    }
-
-    form {
-        // makes the form takes up no space in the DOM, meaning we don't
-        // expand the top-level
-        position: absolute;
-
-        // account for the space of both input boxes
-        margin-top: -12px;
-
-        #search-container {
-            background: $black2;
-            border: 0;
-            margin: 0;
-            padding: 0;
-            position: relative;
-
-            #entry-box {
-                // as much like the blank box as possible
-                background: transparent;
-                color: transparent;
-                caret-color: $grey3;
-                position: relative;
-                text-align: left;
-                vertical-align: baseline;
-                width: 100%;
-            }
-
-            #suggestionBox {
-                color: rgb(84, 84, 84);
-                left: 0;
-                position: absolute;
-                top: 0;
-                width: 100%;
-            }
-
-            #fluidWidthSpan {
-                color: $grey3;
-                left: 0;
-                position: absolute;
-                top: 0;
-                width: 100%;
-            }
-        }
-    }
-
-    #autocomplete-holder {
-        font-size: 11.3px;
-        max-height: 90px;
-        overflow-y: scroll;
-        position: absolute;
-        text-align: initial;
-        width: $toplevel-min-width - 10px;
-        z-index: 1;
-
-        .autocomplete-item {
-            background: $black2;
-
-            .atom {
-                margin-left: 0;
-            }
-
-            &.highlighted {
-                background: $autocomplete-highlight-color;
-            }
-
-            &.invalid {
-                background: $grey1;
-                color: $grey3;
-
-                &.highlighted {
-                    background: lighten($darkblue, 50%);
-                    color: black;
-
-                    .moduleseparator {
-                        color: black;
-                    }
-                }
-
-                .name,
-                .types,
-                .module,
-                .moduleseparator {
-                    text-decoration: line-through solid;
-                }
-
-                .moduleseparator {
-                    color: $grey3;
-                }
-            }
-        }
-    }
-}
 
 .versioned-function {
     display: inline-block;
@@ -1945,7 +1642,9 @@ $icon-spacing: 6px;
 
 }
 
-@import 'live-data';
+@import 'dropdowns';
+@import 'db';
 @import 'introspect';
+@import 'live-data';
 @import 'fluid';
 @import 'zindex';
