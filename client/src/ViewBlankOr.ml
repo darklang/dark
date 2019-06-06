@@ -221,11 +221,6 @@ let div
     | None ->
         if showFeatureFlag then [viewCreateFn] else [Vdom.noNode]
   in
-  let rightSideHtml =
-    if selected
-    then [Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)]
-    else []
-  in
   let leftSideHtml = liveValueHtml @ showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
@@ -237,7 +232,7 @@ let div
      * to be re-used for a different blank_or *)
     ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
     attrs
-    (leftSideHtml @ content @ rightSideHtml)
+    (leftSideHtml @ content)
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
