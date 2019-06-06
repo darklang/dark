@@ -3,6 +3,52 @@ open Libexecution
 open Types
 module Hash = Sodium.Password_hash.Bytes
 
+let banned_usernames : string list =
+  (* from https://ldpreload.com/blog/names-to-reserve *)
+  [ "abuse"
+  ; "admin"
+  ; "administrator"
+  ; "autoconfig"
+  ; "broadcasthost"
+  ; "ftp"
+  ; "hostmaster"
+  ; "imap"
+  ; "info"
+  ; "is"
+  ; "isatap"
+  ; "it"
+  ; "localdomain"
+  ; "localhost"
+  ; "mail"
+  ; "mailer-daemon"
+  ; "marketing"
+  ; "mis"
+  ; "news"
+  ; "nobody"
+  ; "noc"
+  ; "noreply"
+  ; "no-reply"
+  ; "pop"
+  ; "pop3"
+  ; "postmaster"
+  ; "root"
+  ; "sales"
+  ; "security"
+  ; "smtp"
+  ; "ssladmin"
+  ; "ssladministrator"
+  ; "sslwebmaster"
+  ; "support"
+  ; "sysadmin"
+  ; "usenet"
+  ; "uucp"
+  ; "webmaster"
+  ; "wpad"
+  ; "www" ]
+  @ (* original to us *)
+    ["billing"]
+
+
 type username = string [@@deriving yojson]
 
 type account =
@@ -189,14 +235,18 @@ let hash_password password =
 
 
 let owner ~(auth_domain : string) : Uuidm.t option =
-  Db.fetch_one_option
-    ~name:"owner"
-    ~subject:auth_domain
-    "SELECT id from accounts
+  let auth_domain = String.lowercase auth_domain in
+  if List.mem banned_usernames auth_domain ~equal:( = )
+  then None
+  else
+    Db.fetch_one_option
+      ~name:"owner"
+      ~subject:auth_domain
+      "SELECT id from accounts
      WHERE accounts.username = $1"
-    ~params:[String (String.lowercase auth_domain)]
-  |> Option.map ~f:List.hd_exn
-  |> Option.bind ~f:Uuidm.of_string
+      ~params:[String auth_domain]
+    |> Option.map ~f:List.hd_exn
+    |> Option.bind ~f:Uuidm.of_string
 
 
 let auth_domain_for host : string =
@@ -336,10 +386,24 @@ let upsert_useful_canvases () : unit =
     ; name = "Korede" }
 
 
+let upsert_banned_accounts () : unit =
+  ignore
+    ( banned_usernames
+    |> List.map ~f:(fun username ->
+           upsert_account
+             { username
+             ; password =
+                 "" (* empty string isn't a valid hash, so can't login *)
+             ; email = "ops@darklang.com"
+             ; name = "Disallowed account" } ) ) ;
+  ()
+
+
 let init () : unit =
   if Config.create_accounts
   then (
     init_testing () ;
+    upsert_banned_accounts () ;
     upsert_admins () ;
     upsert_useful_canvases () ;
     () )
