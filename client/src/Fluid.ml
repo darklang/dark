@@ -2514,9 +2514,18 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             if ast <> newAST
             then
               let asExpr = toExpr newAST in
+              let requestAnalysis =
+                match Analysis.cursor m tl.id with
+                | Some traceID ->
+                    let m = TL.withAST m tl.id asExpr in
+                    MakeCmd (Analysis.requestAnalysis m tl.id traceID)
+                | None ->
+                    NoChange
+              in
               Many
                 [ Types.TweakModel (fun m -> TL.withAST m tl.id asExpr)
-                ; Toplevel.setSelectedAST m asExpr ]
+                ; Toplevel.setSelectedAST m asExpr
+                ; requestAnalysis ]
             else Types.NoChange
           in
           Types.Many
