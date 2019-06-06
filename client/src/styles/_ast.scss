@@ -1,0 +1,341 @@
+.blank-box-style {
+    height: 15px;
+    background-color: darken($toplevel-background, 20%);
+    padding-left: 1ch;
+    padding-right: 1ch;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.blank-text-style {
+    color: $grey2;
+    font-style: italic;
+    font-size: 8pt;
+    text-align: left;
+}
+
+@mixin precedence($depth) {
+    .precedence-#{$depth} {
+
+        &:not(.mouseovered),
+        &:not(.mouseovered) .entry form #search-container #suggestionBox,
+        &:not(.mouseovered) .string-entry {
+            background-color: fade($grey2, 5% + ($depth * 5%));
+        }
+
+        &.selected {
+            background-color: fade($selected-blankor-background, 70% + ($depth * 5%));
+        }
+    }
+}
+
+//*************
+// AST
+//*************
+.highlighted-indent {
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid $orange;
+}
+
+.ast {
+    font-size: 10pt;
+    padding-right: 8px;
+    padding-left: 8px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    white-space: pre;
+    width: max-content;
+    display: block;
+
+    div {
+        display: inline;
+        vertical-align: top;
+    }
+
+    .value-error {
+        background-color: fadeout(red, 70%);
+    }
+
+    .letexpr>.letbody {
+        display: block;
+    }
+
+    .lambdaexpr {
+        @extend .highlighted-indent;
+        display: block;
+    }
+
+    .lambdabinding,
+    .arrow {
+        color: $orange;
+    }
+
+    .value.tstr {
+        @include string-style;
+        border: 0;
+        font-size: $code-font-size;
+        margin: 0;
+
+        .quote {
+            display: inline-block;
+        }
+    }
+
+    .quote {
+        @include string-style;
+        display: none;
+
+        &.quote-start {
+            left: 0;
+            top: 0;
+
+            &:before {
+                content: "\201C";
+            }
+        }
+
+        &.quote-end {
+            bottom: 0;
+            right: 0;
+
+            &:before {
+                content: "\201D";
+            }
+        }
+    }
+
+    .related-change {
+        color: $yellow;
+    }
+
+    .lambdabody {
+        display: block;
+    }
+
+    .ifbody, .elsebody, .objectpair, .matchcase {
+        display: block;
+        @include indent;
+    }
+
+    .objectkey {
+        .entry {
+            // this is awful -- but we need to remove the margin being added to .entry
+            // we should re-organize who adds/removes margins
+            margin-left: 0px;
+            margin-right: 0px;
+        }
+    }
+
+    .atom {
+        margin-left: 4px;
+        margin-right: 4px;
+    }
+
+    .constructorname {
+        margin-right: 4px;
+    }
+
+    .atom.fieldaccessop {
+        margin-left: -4px;
+        margin-right: 0px;
+    }
+
+    .atom.constructor-pattern {
+        margin-left: 0px;
+    }
+
+    .atom.fieldname {
+        margin-left: 0px;
+    }
+
+    .moduleseparator {
+        color: $green;
+    }
+
+    .keyword,
+    .emit {
+        color: $green;
+    }
+
+    .fncall {
+
+        &.prefix>.arg-on-new-line {
+
+            display: block;
+            box-sizing: border-box;
+            margin-left: 2ch;
+        }
+
+        .arg-on-new-line {
+
+            &.blank>.param-name {
+                font-style: normal;
+            }
+
+            &>.param-name {
+                width: auto;
+                position: absolute;
+                color: $grey2;
+                font-size: 0.85rem;
+            }
+
+        }
+
+        .tstr {
+            margin-left: 2px;
+        }
+
+        .execution-button {
+            position: absolute;
+            font-size: 55%;
+            margin-left: -3px;
+            transition: color linear 0.1s;
+
+            &:hover {
+                font-size: 75%;
+                font-weight: strong;
+                margin-top: -2px;
+                cursor: pointer;
+            }
+
+            &.execution-button-unsafe {
+                color: $red;
+            }
+
+            &.execution-button-unavailable {
+                color: grey;
+            }
+
+            &.execution-button-needed {
+                color: green;
+            }
+
+            &.execution-button-repeat {
+                color: green;
+            }
+
+            &.is-executing {
+                color: white;
+                transition: none;
+
+                i {
+                    animation: spin 0.75s infinite linear;
+                }
+            }
+        }
+    }
+
+    @include precedence(1);
+    @include precedence(2);
+    @include precedence(3);
+    @include precedence(4);
+    @include precedence(5);
+    @include precedence(6);
+
+    .threadexpr {
+
+        .threadmember {
+            display: block;
+
+            &:first-child>.thread.pipe {
+                display: none;
+            }
+
+            .thread.pipe {
+                margin-top: 1px;
+                margin-right: 0px;
+                font-size: 70%;
+                color: $blue;
+            }
+        }
+    }
+}
+
+.live-value {
+    display: none;
+}
+
+.ast div {
+
+    .live-value {
+        display: none;
+    }
+
+    &.display-livevalue.selected .live-value {
+        display: block;
+        position: absolute;
+        right: calc(#{"100% + 30px"});
+        font-style: normal;
+
+
+        padding: 4px;
+        width: max-content;
+        max-width: 250px;
+
+        white-space: pre-wrap;
+        word-break: break-all;
+        word-wrap: break-word;
+        font-size: $code-font-size * 0.85;
+        color: $live-value-foreground;
+
+        background-color: $live-value-background;
+
+        .copy-value {
+            position: absolute;
+            top: -4px;
+            right: -8px;
+            color: $white3;
+            opacity: 0.7;
+
+            &:hover {
+                opacity: 0.85;
+            }
+        }
+    }
+}
+
+/********************
+* Entry box
+********************/
+
+// TODO: figure out proper entry box positioning
+// -- this is a demo hack
+.spec-header .entry form {
+    margin-top: 0px;
+    position: relative;
+}
+
+.db .entry form {
+    position: relative;
+    margin-top: 0px;
+}
+
+.ast .entry form {
+    position: relative;
+    margin-top: 0px;
+}
+
+.selecting-command .entry {
+    margin-top: 4px;
+    display: block;
+}
+
+
+.versioned-function {
+    display: inline-block;
+    vertical-align: baseline;
+
+    .version {
+        font-size: 0.6rem;
+        margin-right: -2px;
+    }
+}
+
+.letvarname,
+.fieldname {
+    &>.entry {
+        margin-left: 0;
+        margin-right: 0;
+    }
+}

@@ -1,0 +1,387 @@
+/* Mixins */
+
+.default {
+    margin: 0;
+    padding: 0;
+    background-color: $black2;
+    color: $grey3;
+}
+
+.default-link {
+    text-decoration: none;
+
+    &:link,
+    &:visited {
+        color: $white1;
+    }
+
+    &:hover,
+    &:active {
+        color: $yellow;
+    }
+}
+
+.parameter-btn {
+    font-size: 75%;
+
+    &.allowed {
+        &:hover {
+            color: $green;
+            cursor: pointer;
+        }
+    }
+
+    &.disallowed {
+        color: lighten($grey1, 20%);
+
+        &:hover {
+            &:after {
+                content: attr(title);
+                position: absolute;
+                left: calc(100% + 10px);
+                color: $red;
+                width: max-content;
+            }
+        }
+    }
+
+    &.info {
+        color: lighten($grey1, 20%);
+
+        &:hover {
+            &:after {
+                content: attr(title);
+                position: absolute;
+                left: 0;
+                top: -20px;
+                color: $blue;
+                width: max-content;
+            }
+        }
+    }
+}
+
+/* Body */
+
+html {
+    height: 100%;
+}
+
+::-webkit-scrollbar {
+    -webkit-appearance: none;
+    width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 7px;
+    background-color: $grey1;
+}
+
+body {
+    @extend .default;
+    height: 100%;
+}
+
+#app {
+    background: $canvas-background;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    -webkit-touch-callout: none;
+    /* iOS Safari */
+    -webkit-user-select: none;
+    /* Safari */
+    -khtml-user-select: none;
+    /* Konqueror HTML */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* Internet Explorer/Edge */
+    user-select: none;
+    /* Non-prefixed version, currently
+                                supported by Chrome and Opera */
+}
+
+body #app * {
+    &:not(.fa) {
+        // skip fontawesome
+        font-family: 'Fira Code', monospace;
+    }
+}
+
+#canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    min-height: 100%;
+    min-width: 100%;
+    overflow: visible;
+
+    .node {
+        position: absolute;
+        display: flex;
+        align-items: flex-start;
+    }
+}
+
+.overlay {
+    position: fixed;
+    top: -1 * $ridiculously-large;
+    left: -1 * $ridiculously-large;
+    display: none;
+    height: 2 * $ridiculously-large;
+    width: 2 * $ridiculously-large;
+    overflow: visible;
+    background-color: rgba(72, 72, 72, 0.75);
+
+    &.show {
+        display: block;
+    }
+}
+
+/* Toplevel */
+.toplevel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: max-content;
+    min-width: $toplevel-min-width;
+    padding: 4px;
+    background: $toplevel-background;
+
+    .mouseovered-selectable {
+        background-color: $hover-background;
+        transition-delay: 0.4s;
+
+        &.blank {
+            color: $white2;
+            transition-delay: 0.4s;
+        }
+    }
+
+    .mouseovered-enterable {
+        cursor: text;
+    }
+
+    .commandTarget {
+        @extend .selected;
+    }
+
+    .blank {
+        @extend .blank-box-style;
+        @extend .blank-text-style;
+        min-width: 8ch;
+
+        &.arg-on-new-line {
+            padding-left: 0ch;
+            margin-left: 0px;
+            text-align: start;
+            font-size: $code-font-size;
+
+            .blank-entry {
+                @extend .blank-text-style;
+                width: 100%;
+            }
+        }
+    }
+
+    .blankOr.selected {
+        background-color: $selected-background;
+        color: $white2;
+
+        &.tstr {
+            color: $string-color;
+        }
+
+        &.blank {
+            color: $grey3;
+        }
+    }
+}
+
+.avatar {
+    padding: 2px 5px;
+    width: 40px;
+    height: 40px;
+
+    &.inactive {
+        opacity: 0.5;
+    }
+}
+
+.avatars {
+    display: flex;
+    flex-direction: column;
+}
+
+.all-avatars {
+    max-height: calc(100% - 50px);
+    overflow-y: scroll;
+    position: fixed;
+    top: 0;
+    right: 0;
+    background-color: $black2;
+    margin: 0px 5px;
+    padding: 5px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    p {
+        text-align: center;
+        margin: 5px 0px;
+    }
+
+    .avatars-wrapper {
+        display: flex;
+    }
+}
+
+//*************
+// Handler
+//*************
+
+@mixin handler-type($name, $color) {
+    &.#{$name} {
+        color: $color;
+        border-bottom-color: $color;
+    }
+}
+
+.toplevel .spec-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+
+    color: $queue-color;
+    font-size: 8pt;
+
+    border-bottom: 1px solid $queue-color;
+    padding-bottom: 4px;
+    padding-top: 4px;
+    padding-left: 8px;
+    padding-right: 16px;
+
+    @include handler-type(http-get, $http-get);
+    @include handler-type(http-post, $http-post);
+    @include handler-type(http-put, $http-put);
+    @include handler-type(http-delete, $http-delete);
+    @include handler-type(http-patch, $http-patch);
+    @include handler-type(cron, $cron-color);
+
+    .name,
+    .modifier,
+    .module {
+        margin: 0;
+    }
+
+    .modifier {
+        div.blankOr, div.blank {
+            display: inline;
+        }
+
+        .external {
+            margin-left: 4px;
+            color: $green;
+        }
+
+        .cron-trigger {
+            display: inline;
+            margin-left: 4px;
+
+            &:hover {
+                cursor: pointer;
+                color: lighten($yellow, 10%);
+            }
+        }
+    }
+
+    // remove dotted outline after clicking (source: reset-normalize)
+    a:focus {
+        outline: none;
+    }
+
+    .handler-lock {
+        position: absolute;
+        left: -2px;
+        top: -8px;
+        color: $white1;
+        font-size: 12px;
+        color: $unlock-color;
+
+        &.active {
+            color: $lock-color;
+        }
+    }
+
+    .handler-expand {
+        position: absolute;
+        top: 0;
+        right: 4px;
+        font-size: 16px;
+        color: $grey2;
+    }
+}
+
+.handler-body {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: 0.2s height ease, 0.1s opacity linear 0s;
+
+    &.expand {
+        height: auto;
+        opacity: 1;
+        overflow: visible;
+        transition: 0.2s height ease, 0.1s opacity linear 0.18s;
+    }
+
+    .ast,
+    .rop-rail {
+        display: inline-block;
+        vertical-align: top;
+    }
+
+    .rop-rail {
+        border-left: 1px dotted lighten($grey1, 20%);
+        display: none;
+        margin: 0;
+
+        &.active {
+            display: inline-block;
+            margin-left: 15px;
+            margin-right: 15px;
+            margin-top: 8px;
+        }
+    }
+
+    .ast .error-indicator {
+        position: absolute;
+        left: calc(#{"100% - 18px"});
+    }
+
+    .fncall {
+        .error-icon {
+            display: block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid lighten($grey1, 20%);
+            background-color: transparent;
+        }
+
+        &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+            background-color: lighten($grey1, 20%);
+        }
+    }
+}
