@@ -48,7 +48,6 @@ let htmlObject (src : string) =
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  Debug.loG "categoryIcon" name ;
   match name with
   | "http" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
