@@ -529,13 +529,15 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     let cronBtn = cronTriggerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
-    then 
+    then
       match spec.modifier with
       | F _ ->
-        Html.div
-        [Html.class' "modifier"]
-        ((viewText EventModifier vs configs spec.modifier) :: (getBtn @ cronBtn))
-      | _ -> viewText EventModifier vs configs spec.modifier
+          Html.div
+            [Html.class' "modifier"]
+            ( viewText EventModifier vs configs spec.modifier
+            :: (getBtn @ cronBtn) )
+      | _ ->
+          viewText EventModifier vs configs spec.modifier
     else Vdom.noNode
   and btnLock =
     let isLocked = isLocked vs in
@@ -547,41 +549,51 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~active:isLocked
       ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
   and btnExpCollapse =
-      let isExpand = isExpanded vs in
-      let state = ViewUtils.getHandlerState vs in
-      let expandFun _ =
-        match state with
-        | HandlerExpanding ->
-            IgnoreMsg
-        | HandlerExpanded ->
-            UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
-        | HandlerPrepCollapse ->
-            IgnoreMsg
-        | HandlerCollapsing ->
-            IgnoreMsg
-        | HandlerCollapsed ->
-            UpdateHandlerState (vs.tlid, HandlerExpanding)
-      in
-      ViewUtils.toggleIconButton
-        ~name:"handler-expand"
-        ~activeIcon:"caret-up"
-        ~inactiveIcon:"caret-down"
-        ~msg:expandFun
-        ~active:isExpand
-        ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
+    let isExpand = isExpanded vs in
+    let state = ViewUtils.getHandlerState vs in
+    let expandFun _ =
+      match state with
+      | HandlerExpanding ->
+          IgnoreMsg
+      | HandlerExpanded ->
+          UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
+      | HandlerPrepCollapse ->
+          IgnoreMsg
+      | HandlerCollapsing ->
+          IgnoreMsg
+      | HandlerCollapsed ->
+          UpdateHandlerState (vs.tlid, HandlerExpanding)
+    in
+    ViewUtils.toggleIconButton
+      ~name:"handler-expand"
+      ~activeIcon:"caret-up"
+      ~inactiveIcon:"caret-down"
+      ~msg:expandFun
+      ~active:isExpand
+      ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
   in
   let specMods =
     match (spec.module_, spec.modifier) with
-    | (F (_, "HTTP"), F (_, "GET") ) -> "http-get"
-    | (F (_, "HTTP"), F (_, "POST") ) -> "http-post"
-    | (F (_, "HTTP"), F (_, "PUT") ) -> "http-put"
-    | (F (_, "HTTP"), F (_, "DELETE") ) -> "http-delete"
-    | (F (_, "HTTP"), F (_, "PATCH") ) -> "http-patch"
-    | (F (_, "CRON"), _) -> "cron"
-    | _ -> ""
+    | F (_, "HTTP"), F (_, "GET") ->
+        "http-get"
+    | F (_, "HTTP"), F (_, "POST") ->
+        "http-post"
+    | F (_, "HTTP"), F (_, "PUT") ->
+        "http-put"
+    | F (_, "HTTP"), F (_, "DELETE") ->
+        "http-delete"
+    | F (_, "HTTP"), F (_, "PATCH") ->
+        "http-patch"
+    | F (_, "CRON"), _ ->
+        "cron"
+    | _ ->
+        ""
   in
-  let classes = if specMods = "" then "spec-header" else ("spec-header " ^ specMods) in
-  Html.div [Html.class' classes]
+  let classes =
+    if specMods = "" then "spec-header" else "spec-header " ^ specMods
+  in
+  Html.div
+    [Html.class' classes]
     [btnLock; viewEventName; viewEventSpace; viewEventModifier; btnExpCollapse]
 
 
@@ -640,5 +652,5 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in
-  let header = (viewEventSpec vs h.spec) in
+  let header = viewEventSpec vs h.spec in
   [header; ast]

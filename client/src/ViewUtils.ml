@@ -205,7 +205,8 @@ let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
-let placeHtml (pos : pos) (classes: 'a list) (html : msg Html.html list) : msg Html.html =
+let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) :
+    msg Html.html =
   Html.div
     [ Html.classList (("node", true) :: classes)
     ; Html.styles
