@@ -162,7 +162,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     List.any ~f:(fun x -> match x with PFFMsg _ -> true | _ -> false) allData
   in
   let html =
-      [ Html.div (Html.class' class_ :: events) (body @ data @ top)
+      [ Html.div (Html.class' class_ :: events) (top @ body @ data)
       ; avatars
       ; Html.div
           [Html.classList [("use-wrapper", true); ("fade", hasFf)]]

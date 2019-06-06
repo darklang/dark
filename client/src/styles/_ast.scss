@@ -1,19 +1,3 @@
-.blank-box-style {
-    height: 15px;
-    background-color: darken($toplevel-background, 20%);
-    padding-left: 1ch;
-    padding-right: 1ch;
-    margin-left: 4px;
-    margin-right: 4px;
-}
-
-.blank-text-style {
-    color: $grey2;
-    font-style: italic;
-    font-size: 8pt;
-    text-align: left;
-}
-
 @mixin precedence($depth) {
     .precedence-#{$depth} {
 
@@ -29,14 +13,236 @@
     }
 }
 
-//*************
-// AST
-//*************
+@mixin handler-type($name, $color) {
+    &.#{$name} {
+        color: $color;
+        border-bottom-color: $color;
+    }
+}
+
 .highlighted-indent {
     margin-left: 8px;
     padding-left: 8px;
     border-left: 1px solid $orange;
 }
+
+.blank-box-style {
+    height: 15px;
+    border-bottom: 1px dashed $grey2;
+    padding-left: 1ch;
+    padding-right: 1ch;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.blank-text-style {
+    color: $grey2;
+    font-style: italic;
+    font-size: 8pt;
+    text-align: left;
+}
+
+/* Toplevel */
+.toplevel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    width: max-content;
+    min-width: $toplevel-min-width;
+    padding: 4px;
+    background: $toplevel-background;
+
+    .mouseovered-selectable {
+        background-color: $hover-background;
+        transition-delay: 0.4s;
+
+        &.blank {
+            color: $white2;
+            transition-delay: 0.4s;
+        }
+    }
+
+    .mouseovered-enterable {
+        cursor: text;
+    }
+
+    .commandTarget {
+        @extend .selected;
+    }
+
+    .blank {
+        @extend .blank-box-style;
+        @extend .blank-text-style;
+        min-width: 8ch;
+
+        &.arg-on-new-line {
+            padding-left: 0ch;
+            margin-left: 0px;
+            text-align: start;
+            font-size: $code-font-size;
+
+            .blank-entry {
+                @extend .blank-text-style;
+                width: 100%;
+            }
+        }
+    }
+
+    .blankOr.selected {
+        background-color: $selected-background;
+        color: $white2;
+
+        &.tstr {
+            color: $string-color;
+        }
+
+        &.blank {
+            color: $grey3;
+        }
+    }
+}
+
+//*************
+// Handler
+//*************
+
+.toplevel .spec-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+
+    color: $queue-color;
+    font-size: 8pt;
+
+    border-bottom: 1px solid $queue-color;
+    padding-bottom: 4px;
+    padding-top: 4px;
+    padding-left: 8px;
+    padding-right: 16px;
+
+    @include handler-type(http-get, $http-get);
+    @include handler-type(http-post, $http-post);
+    @include handler-type(http-put, $http-put);
+    @include handler-type(http-delete, $http-delete);
+    @include handler-type(http-patch, $http-patch);
+    @include handler-type(cron, $cron-color);
+
+    .name,
+    .modifier,
+    .module {
+        margin: 0;
+    }
+
+    .modifier {
+        div.blankOr, div.blank {
+            display: inline;
+        }
+
+        .external {
+            margin-left: 4px;
+            color: $green;
+        }
+
+        .cron-trigger {
+            display: inline;
+            margin-left: 4px;
+
+            &:hover {
+                cursor: pointer;
+                color: lighten($yellow, 10%);
+            }
+        }
+    }
+
+    // remove dotted outline after clicking (source: reset-normalize)
+    a:focus {
+        outline: none;
+    }
+
+    .handler-lock {
+        position: absolute;
+        left: -2px;
+        top: -8px;
+        color: $white1;
+        font-size: 12px;
+        color: $unlock-color;
+
+        &.active {
+            color: $lock-color;
+        }
+    }
+
+    .handler-expand {
+        position: absolute;
+        top: 0;
+        right: 4px;
+        font-size: 16px;
+        color: $grey2;
+    }
+}
+
+.handler-body {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: 0.2s height ease, 0.1s opacity linear 0s;
+
+    &.expand {
+        height: auto;
+        opacity: 1;
+        overflow: visible;
+        transition: 0.2s height ease, 0.1s opacity linear 0.18s;
+    }
+
+    .ast,
+    .rop-rail {
+        display: inline-block;
+        vertical-align: top;
+    }
+
+    .rop-rail {
+        border-left: 1px dotted lighten($grey1, 20%);
+        display: none;
+        margin: 0;
+
+        &.active {
+            display: inline-block;
+            margin-left: 15px;
+            margin-right: 15px;
+            margin-top: 8px;
+        }
+    }
+
+    .ast .error-indicator {
+        position: absolute;
+        left: calc(#{"100% - 18px"});
+    }
+
+    .fncall {
+        .error-icon {
+            display: block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid lighten($grey1, 20%);
+            background-color: transparent;
+        }
+
+        &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+            background-color: lighten($grey1, 20%);
+        }
+    }
+}
+
+
+//*************
+// AST
+//*************
 
 .ast {
     font-size: 10pt;
@@ -49,8 +255,44 @@
     display: block;
 
     div {
-        display: inline;
+        display: inline-block;
         vertical-align: top;
+
+        .live-value {
+            display: none;
+        }
+    
+        &.display-livevalue.selected .live-value {
+            display: block;
+            position: absolute;
+            right: calc(#{"100% + 30px"});
+            font-style: normal;
+    
+    
+            padding: 4px;
+            width: max-content;
+            max-width: 250px;
+    
+            white-space: pre-wrap;
+            word-break: break-all;
+            word-wrap: break-word;
+            font-size: $code-font-size * 0.85;
+            color: $live-value-foreground;
+    
+            background-color: $live-value-background;
+    
+            .copy-value {
+                position: absolute;
+                top: -4px;
+                right: -8px;
+                color: $white3;
+                opacity: 0.7;
+    
+                &:hover {
+                    opacity: 0.85;
+                }
+            }
+        }
     }
 
     .value-error {
@@ -72,7 +314,7 @@
     }
 
     .value.tstr {
-        @include string-style;
+        @extend .string-style;
         border: 0;
         font-size: $code-font-size;
         margin: 0;
@@ -83,7 +325,7 @@
     }
 
     .quote {
-        @include string-style;
+        @extend .string-style;
         display: none;
 
         &.quote-start {
@@ -114,8 +356,8 @@
     }
 
     .ifbody, .elsebody, .objectpair, .matchcase {
+        @extend .indent;
         display: block;
-        @include indent;
     }
 
     .objectkey {
@@ -176,7 +418,7 @@
             &>.param-name {
                 width: auto;
                 position: absolute;
-                color: $grey2;
+                color: darken($grey3, 25%);
                 font-size: 0.85rem;
             }
 
@@ -254,45 +496,6 @@
 
 .live-value {
     display: none;
-}
-
-.ast div {
-
-    .live-value {
-        display: none;
-    }
-
-    &.display-livevalue.selected .live-value {
-        display: block;
-        position: absolute;
-        right: calc(#{"100% + 30px"});
-        font-style: normal;
-
-
-        padding: 4px;
-        width: max-content;
-        max-width: 250px;
-
-        white-space: pre-wrap;
-        word-break: break-all;
-        word-wrap: break-word;
-        font-size: $code-font-size * 0.85;
-        color: $live-value-foreground;
-
-        background-color: $live-value-background;
-
-        .copy-value {
-            position: absolute;
-            top: -4px;
-            right: -8px;
-            color: $white3;
-            opacity: 0.7;
-
-            &:hover {
-                opacity: 0.85;
-            }
-        }
-    }
 }
 
 /********************
