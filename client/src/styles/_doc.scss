@@ -1,10 +1,11 @@
 .documentation-box {
     position: absolute;
-    bottom: calc(#{"100% + 2px"});
+    bottom: 100%;
     left: 0;
     font-size: 11px;
     padding: 5px 10px;
-    background: darken($black2, 2%);
+    background: darken($canvas-background, 10%);
     color: $white3;
     width: calc(#{"100% - 20px"});
+    overflow-wrap: break-word;
 }

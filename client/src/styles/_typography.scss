@@ -1,11 +1,11 @@
 $code-font-size: 13.3333px;
 $string-color: lighten($purple, 10%);
 
-@mixin indent() {
+.indent {
     margin-left: 16px;
 }
 
-@mixin string-style {
+.string-style {
     color: $string-color;
     max-width: 120ch;
     min-height: 16px;
@@ -33,8 +33,8 @@ $string-color: lighten($purple, 10%);
     position: relative;
 
     &::before {
+        @extend .string-style;
         content: "“";
-        @include string-style;
         display: inline-block;
         left: 0;
         position: absolute;
@@ -43,8 +43,8 @@ $string-color: lighten($purple, 10%);
     }
 
     &::after {
+        @extend .string-style;
         content: "”";
-        @include string-style;
         bottom: 0;
         display: inline-block;
         position: absolute;
@@ -95,7 +95,7 @@ $string-color: lighten($purple, 10%);
     }
 
     #fluidWidthSpan {
-        @include string-style;
+        @extend .string-style;
         left: 0;
         margin: 0;
         padding: 0;
