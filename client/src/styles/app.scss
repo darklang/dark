@@ -647,7 +647,6 @@ body #app * {
     padding: 8px 0px;
     height: 100%;
     position: relative;
-    width: max-content;
     width: 320px;
     box-sizing: border-box;
     padding: 5px;
@@ -855,36 +854,56 @@ body #app * {
     }
 }
 
-.routing-section.deploys{
+.routing-section.deploys, .simple-route.deploy{
     color: $grey3;
     .header{
       color: lighten($yellow, 15%);
       width: fit-content;
-      border-bottom: 1px solid;
       padding-left: 0px; 
       margin: 0px 5px 0px 10px;  
-      background: none
+      background: none;
+      display: flex;
+      flex-direction: column;
     }
+    .title{
+      align-self: flex-start;
+      border-bottom: 1px solid;
+      .title{
+        border-bottom: none;
+      }
+    }
+
+    .deploy-status{
+      margin-top: 5px;
+      display: flex;
+     justify-content: space-between;
+      a.hash {
+          color: $grey3;
+
+          &:hover {
+              color: $yellow;
+          }
+      }
+
+      .status {
+          color: $white1;
+
+          &.success {
+              color: $green;
+          }
+      }
+    }
+    .datetime{
+       font-size: 12px;
+       margin-left: 5px;
+    }
+
     .datetime,
     .hash {
         margin-right: 2ch;
     }
 
-    a.hash {
-        color: $grey3;
-
-        &:hover {
-            color: $yellow;
-        }
-    }
-
-    .status {
-        color: $white1;
-
-        &.success {
-            color: $green;
-        }
-    }
+    
 }
 
 //*************
