@@ -59,4 +59,4 @@ let commands : command list =
   ; { commandName = "copy-to-feature-flag"
     ; action = FeatureFlags.wrap
     ; doc = "Clone expression as Case A in a feature flag"
-    ; shortcut = "" } ]
+    ; shortcut = "Alt-F" } ]
