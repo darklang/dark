@@ -4,7 +4,9 @@ $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
 $yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%) contrast(0.7);
 $greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
-$countBoxSize: 18px;
+$orangeFilter: invert(0.4) sepia(0.5) saturate(4) hue-rotate(0deg) brightness(1);
+
+$countBoxSize: 15px;
 
 #sidebar-left {
   width: max-content;
@@ -18,12 +20,12 @@ $countBoxSize: 18px;
 .viewing-table {
   $toggleSpace: 60px;
   background-color: $black2;
-  padding: 8px 0px;
+  // padding: 8px 0px;
   height: 100%;
   position: relative;
   width: $sidebarFullWidth;
   box-sizing: border-box;
-  padding: 5px;
+  padding: 5px 0px;
 
   &::-webkit-scrollbar {
     width: 0px;  /* Remove scrollbar space */
@@ -48,7 +50,7 @@ $countBoxSize: 18px;
     flex-direction: column;
     height: calc(#{"100% - 60px"});
     overflow-y: scroll;
-    
+    width: 100%;
     &.routings{
       display: flex;
       flex-direction: column;
@@ -62,56 +64,97 @@ $countBoxSize: 18px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 10px 0px;
+      margin: 10px 5px;
       color: $grey2;
-      width: 90%;
-
-      .count{
-        height: $itemHeight;
+      width: 100%;
+      .collapsed-icon{
         display: flex;
-        width: 85%;
-        position: absolute;
-        color: $white1;
-        z-index: 2;
-        margin-top: -5px;
-        .count-box{
-          height: $countBoxSize;
-          width: $countBoxSize;
-          background: $green;
-          border-radius: 2px;
-          margin-left: 5px;
-          p{
-            font-size: 10px;
-            margin: 0px;
-            padding: 2px;
-            text-align: center;
-            vertical-align: middle;
+        align-items: center;
+        justify-content: center;
+        margin: 10px 0px;
+        width: 80%;
+        height: 100%;
+        .count{
+          height: max-content;
+          display: flex;
+          left: 10%;
+          position: absolute;
+          color: $white1;
+          z-index: 2;
+          margin-top: -10px;
+          .count-box{
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: $countBoxSize;
+            width: $countBoxSize;
+            background: $green;
+            border-radius: 2px;
+            p{
+              font-size: 10px;
+              margin: 0px;
+            }
+          }
+        }
+        .button-link {
+          margin-top: 5px;
+          display: flex;
+          justify-content: flex-end;
+          width: 85%;
+          align-self: flex-end;
+          position: absolute;
+          color: $white1;
+  
+          font-size: 15px;
+          left: 10;
+          right: 0;
+          margin-right: 2px;
+        }
+        
+  
+        .header-icon{
+          display: flex;
+          filter: $greyFilter;
+          object {
+            width: 100%;
+            height: 100%;
+          }
+          &.empty{
+            filter: none;
+            opacity: 0.2;
+            &:hover{
+              filter:none;
+            }
+          }
+          
+          &:hover{
+            filter: $orangeFilter;
           }
         }
       }
+      
 
-      .button-link{
-        margin-top: 5px;
-        display: flex;
-        justify-content: flex-end;
-        width: 85%;
-        align-self: flex-end;
-        position: absolute;
-        color: $white1;
-        font-size: 15px;
+      
+      &:hover{
+        .hover{
+          max-height: 400px;
+          overflow-y: scroll;
+          display: flex;
+          flex-direction: column;
+          position: absolute;
+          background-color: $black2;
+          width: 300px;
+          padding: 10px;
+          left: $sidebarClosedWidth;
+          -webkit-transform: translate(0%, 40%);
+          -moz-transform: translate(0%, 40%);
+          -ms-transform: translate(0%, 40%);
+          -o-transform: translate(0%, 40%);
+          transform: translate(0%, 40%);
+        }
       }
-
-      .header-icon{
-        display: flex;
-        filter: $greyFilter;
-        object {
-          width: 100%;
-          height: 100%;
-        }
-        &.empty{
-          filter: none;
-          opacity: 0.2;
-        }
+      .hover{
+        display: none;
       }
     }
   }
@@ -141,7 +184,57 @@ $countBoxSize: 18px;
       display: none;
     }
   }
-
+  .simple-route.handler {
+    display: flex;
+    width: 100%;
+    margin: 5px 0px;
+    .name{
+      color: $white3;
+      width: 70%;
+      display: block;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .delete{
+      display: flex;
+      width: 10%;
+      align-items: center;
+      justify-content: center;
+      .button-link{
+        color: $grey2;
+      }
+    }
+    .aux{
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 20%;
+      overflow: hidden; 
+      .verb{
+        font-size: 14px;
+        // width: 10%;
+      }  
+      .no-ext{
+        margin-left: 16px;
+      } 
+      &.GET a, &.GET span{
+        color: $green;    
+      }   
+      &.POST a, &.POST span{
+        color: $blue;
+      }
+      &.DELETE a, &.DELETE span{
+        color: $red;
+      }
+      &.PUT a, &.PUT span{
+        color: $orange;
+      }
+      &.PATCH a, &.PATCH span{
+        color: $purple;
+      }
+    }
+  }
   .routing-section {
     margin: 5px 5px 10px 5px;
     &:first-child{
@@ -206,57 +299,6 @@ $countBoxSize: 18px;
         }
     }
 
-    .simple-route.handler {
-      display: flex;
-      width: 100%;
-      margin: 5px 0px;
-      .name{
-        color: $white3;
-        width: 70%;
-        display: block;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        overflow: hidden;
-      }
-      .delete{
-        display: flex;
-        width: 10%;
-        align-items: center;
-        justify-content: center;
-        .button-link{
-          color: $grey2;
-        }
-      }
-      .aux{
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        width: 20%;
-        overflow: hidden; 
-        .verb{
-          font-size: 14px;
-          width: 10%;
-        }  
-        .no-ext{
-          margin-left: 16px;
-        } 
-        &.GET a, &.GET span{
-          color: $green;    
-        }   
-        &.POST a, &.POST span{
-          color: $blue;
-        }
-        &.DELETE a, &.DELETE span{
-          color: $red;
-        }
-        &.PUT a, &.PUT span{
-          color: $orange;
-        }
-        &.PATCH a, &.PATCH span{
-          color: $purple;
-        }
-      }
-    }
   }
 
   .routing-section.http .simple-route.handler,
@@ -265,7 +307,6 @@ $countBoxSize: 18px;
 
       .verb {
           width: 60px;
-          color: $grey3;
           display: inline-block;
           text-align: right;
           margin-right: 4px;
@@ -284,8 +325,6 @@ $countBoxSize: 18px;
 
       .external {
           font-size: 12px;
-          // position: relative;
-          // top: -2px;
       }
 
   }

@@ -48,7 +48,6 @@ let htmlObject (src : string) =
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  Debug.loG "categoryIcon" name ;
   match name with
   | "http" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
@@ -575,27 +574,52 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
               [Html.class' "count-box"]
               [Html.p [] [Html.text (c.count |> string_of_int)]] ] ]
   in
+  let routes = List.map ~f:(item2html m) c.entries in
+  let hoverView =
+    if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
+  in
   let icon =
     Html.div
       [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
       (categoryIcon c.classname)
   in
-  Html.div [Html.class' "collapsed"] (count @ (icon :: plusButton))
-<<<<<<< HEAD
-
-=======
->>>>>>> Add count and fix how icons are loaded
+  Html.div
+    [Html.class' "collapsed"]
+    ( [Html.div [Html.class' "collapsed-icon"] (count @ (icon :: plusButton))]
+    @ hoverView )
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
   let entries = m.staticDeploys in
   let count = List.length entries in
+  let countView =
+    if count = 0
+    then []
+    else
+      [ Html.div
+          [Html.class' "count"]
+          [ Html.div
+              [Html.class' "count-box"]
+              [Html.p [] [Html.text (count |> string_of_int)]] ] ]
+  in
+  (*     then entries |> List.take ~count:1 |> List.map ~f:deploy2html
+ *)
+  let deployLatest =
+    if count <> 0
+    then entries |> List.take ~count:1 |> List.map ~f:deploy2html
+    else []
+  in
+  let hoverView =
+    if count = 0 then [] else [Html.div [Html.class' "hover"] deployLatest]
+  in
   let icon =
     Html.div
       [Html.classList [("header-icon", true); ("empty", count = 0)]]
       (categoryIcon "static")
   in
-  Html.div [Html.class' "collapsed"] [icon]
+  Html.div
+    [Html.class' "collapsed"]
+    ([Html.div [Html.class' "collapsed-icon"] (countView @ [icon])] @ hoverView)
 
 
 let toggleSidebar (m : model) : msg Html.html =
