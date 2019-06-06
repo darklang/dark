@@ -79,6 +79,9 @@ let () =
   let seventyEight = EInteger (gid (), 78) in
   let blank = EBlank (gid ()) in
   let aPartialVar = EPartial (gid (), "req") in
+  let completelyEmptyLet =
+    ELet (gid (), gid (), "", EBlank (gid ()), EBlank (gid ()))
+  in
   let emptyLet =
     ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
   in
@@ -1081,6 +1084,11 @@ let () =
         (tab 0)
         ("let *** = ___\n5", 4) ;
       t
+        "tab goes when on blank"
+        completelyEmptyLet
+        (tab ~wrap:false 10)
+        ("let *** = ___\n___", 14) ;
+      t
         "tab goes to second block in a let"
         emptyLet
         (tab 4)
@@ -1100,6 +1108,16 @@ let () =
         emptyLet
         (shiftTab 10)
         ("let *** = ___\n5", 4) ;
+      t
+        "shift tab completes autocomplete"
+        completelyEmptyLet
+        (presses ~wrap:false [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        ("let *** = ___\nif ___\nthen\n  ___\nelse\n  ___", 10) ;
+      t
+        "shift-tab goes when on blank"
+        completelyEmptyLet
+        (shiftTab 14)
+        ("let *** = ___\n___", 10) ;
       t
         "shift tab wraps from the start of a let"
         emptyLet
