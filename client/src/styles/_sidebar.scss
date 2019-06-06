@@ -151,6 +151,9 @@ $countBoxSize: 15px;
           -ms-transform: translate(0%, 40%);
           -o-transform: translate(0%, 40%);
           transform: translate(0%, 40%);
+          .header-icon{
+            display: none;
+          }
         }
       }
       .hover{
@@ -235,6 +238,13 @@ $countBoxSize: 15px;
       }
     }
   }
+
+  .deleted{
+    .header-icon{
+      display: none;
+    }
+  }
+
   .routing-section {
     margin: 5px 5px 10px 5px;
     &:first-child{
@@ -243,6 +253,7 @@ $countBoxSize: 15px;
     summary::-webkit-details-marker {
       display: none;
     }
+    
     &.deleted>.routing-section {
         margin-left: 10px;
     }
@@ -301,6 +312,7 @@ $countBoxSize: 15px;
 
   }
 
+  
   .routing-section.http .simple-route.handler,
   .routing-section.fof .simple-route.handler,
   .routing-section.deleted-http .simple-route.handler {
