@@ -530,9 +530,12 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
     then 
-      Html.div
-      [Html.class' "modifier"]
-      ((viewText EventModifier vs configs spec.modifier) :: (getBtn @ cronBtn))
+      match spec.modifier with
+      | F _ ->
+        Html.div
+        [Html.class' "modifier"]
+        ((viewText EventModifier vs configs spec.modifier) :: (getBtn @ cronBtn))
+      | _ -> viewText EventModifier vs configs spec.modifier
     else Vdom.noNode
   and btnLock =
     let isLocked = isLocked vs in

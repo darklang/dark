@@ -1,0 +1,109 @@
+.entry {
+    // headers need to be relative to position them. We need to be above
+    // the headers, and position:relative allows us to do it.
+    cursor: default;
+    background: $black2;
+    color: $white3;
+    margin-left: 4px;
+    margin-right: 4px;
+    width: auto;
+
+    /* width: 96px; // keeps autocomplete appearing when Creating */
+    .types {
+        float: right;
+        text-transform: lowercase;
+        font-family: monospace;
+        font-size: 80%;
+    }
+
+    form {
+        // makes the form takes up no space in the DOM, meaning we don't
+        // expand the top-level
+        position: absolute;
+
+        // account for the space of both input boxes
+        margin-top: -12px;
+
+        #search-container {
+            background: $black2;
+            border: 0;
+            margin: 0;
+            padding: 0;
+            position: relative;
+
+            #entry-box {
+                // as much like the blank box as possible
+                background: transparent;
+                color: transparent;
+                caret-color: $grey3;
+                position: relative;
+                text-align: left;
+                vertical-align: baseline;
+                width: 100%;
+            }
+
+            #suggestionBox {
+                color: rgb(84, 84, 84);
+                left: 0;
+                position: absolute;
+                top: 0;
+                width: 100%;
+            }
+
+            #fluidWidthSpan {
+                color: $grey3;
+                left: 0;
+                position: absolute;
+                top: 0;
+                width: 100%;
+            }
+        }
+    }
+
+    #autocomplete-holder {
+        font-size: 11.3px;
+        max-height: 90px;
+        overflow-y: scroll;
+        position: absolute;
+        text-align: initial;
+        width: $toplevel-min-width - 10px;
+        z-index: 1;
+
+        .autocomplete-item {
+            background: $black2;
+
+            .atom {
+                margin-left: 0;
+            }
+
+            &.highlighted {
+                background: $autocomplete-highlight-color;
+            }
+
+            &.invalid {
+                background: $grey1;
+                color: $grey3;
+
+                &.highlighted {
+                    background: lighten($darkblue, 50%);
+                    color: black;
+
+                    .moduleseparator {
+                        color: black;
+                    }
+                }
+
+                .name,
+                .types,
+                .module,
+                .moduleseparator {
+                    text-decoration: line-through solid;
+                }
+
+                .moduleseparator {
+                    color: $grey3;
+                }
+            }
+        }
+    }
+}

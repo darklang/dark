@@ -38,3 +38,8 @@ $cron-color: $yellow;
 $queue-color: $grey3;
 
 $hover-foreground: darken($blue, 10%);
+$selected-background: darken($toplevel-background, 20%);
+$hover-background: #1C2E4A;
+
+$unlock-color: lighten($green, 15%);
+$lock-color: lighten($red, 10%);
