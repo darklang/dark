@@ -24,16 +24,6 @@ type key =
   | Minus
   | Period
   | ForwardSlash
-  | Zero
-  | One
-  | Two
-  | Three
-  | Four
-  | Five
-  | Six
-  | Seven
-  | Eight
-  | Nine
   | Colon
   | SemiColon
   | LessThan
@@ -42,6 +32,7 @@ type key =
   | QuestionMark
   | At
   | Letter of char
+  | Number of char
   | LeftSquareBracket
   | RightSquareBracket
   | Backslash
@@ -141,25 +132,25 @@ let fromKeyboardCode (shift : bool) (code : int) : key =
   | 46 ->
       Delete
   | 48 ->
-      if shift then RightParens else Zero
+      if shift then RightParens else Number '0'
   | 49 ->
-      if shift then ExclamationMark else One
+      if shift then ExclamationMark else Number '1'
   | 50 ->
-      if shift then At else Two
+      if shift then At else Number '2'
   | 51 ->
-      if shift then Hash else Three
+      if shift then Hash else Number '3'
   | 52 ->
-      if shift then Dollar else Four
+      if shift then Dollar else Number '4'
   | 53 ->
-      if shift then Percent else Five
+      if shift then Percent else Number '5'
   | 54 ->
-      if shift then Caret else Six
+      if shift then Caret else Number '6'
   | 55 ->
-      if shift then Ampersand else Seven
+      if shift then Ampersand else Number '7'
   | 56 ->
-      if shift then Multiply else Eight
+      if shift then Multiply else Number '8'
   | 57 ->
-      if shift then LeftParens else Nine
+      if shift then LeftParens else Number '9'
   | 65 ->
       Letter (if shift then 'A' else 'a')
   | 66 ->
@@ -218,25 +209,25 @@ let fromKeyboardCode (shift : bool) (code : int) : key =
       Windows
   (* Number pad - just pretend it's the same, though no shift versions *)
   | 96 ->
-      Zero
+      Number '0'
   | 97 ->
-      One
+      Number '1'
   | 98 ->
-      Two
+      Number '2'
   | 99 ->
-      Three
+      Number '3'
   | 100 ->
-      Four
+      Number '4'
   | 101 ->
-      Five
+      Number '5'
   | 102 ->
-      Six
+      Number '6'
   | 103 ->
-      Seven
+      Number '7'
   | 104 ->
-      Eight
+      Number '8'
   | 105 ->
-      Nine
+      Number '9'
   | 106 ->
       Multiply
   | 107 ->
@@ -334,26 +325,6 @@ let toChar key : char option =
       Some '.'
   | ForwardSlash ->
       Some '/'
-  | Zero ->
-      Some '0'
-  | One ->
-      Some '1'
-  | Two ->
-      Some '2'
-  | Three ->
-      Some '3'
-  | Four ->
-      Some '4'
-  | Five ->
-      Some '5'
-  | Six ->
-      Some '6'
-  | Seven ->
-      Some '7'
-  | Eight ->
-      Some '8'
-  | Nine ->
-      Some '9'
   | Colon ->
       Some ':'
   | SemiColon ->
@@ -370,6 +341,8 @@ let toChar key : char option =
       Some '@'
   | Letter l ->
       Some l
+  | Number n ->
+      Some n
   | LeftSquareBracket ->
       Some '['
   | RightSquareBracket ->
@@ -390,7 +363,45 @@ let toChar key : char option =
       Some '}'
   | Tilde ->
       Some '~'
-  | _ ->
+  | Left
+  | Right
+  | Up
+  | Down
+  | Tab
+  | Alt
+  | ShiftTab
+  | Escape
+  | CapsLock
+  | Enter
+  | Backspace
+  | Delete
+  | PageUp
+  | PageDown
+  | End
+  | Home
+  | Insert
+  | PrintScreen
+  | PauseBreak
+  | Windows
+  | Command
+  | ChromeSearch
+  | NumLock
+  | ScrollLock
+  | F1
+  | F2
+  | F3
+  | F4
+  | F5
+  | F6
+  | F7
+  | F8
+  | F9
+  | F10
+  | F11
+  | F12
+  | Shift _
+  | Ctrl _
+  | Unknown _ ->
       None
 
 
@@ -428,26 +439,6 @@ let toName (key : key) : string =
       "Period"
   | ForwardSlash ->
       "ForwardSlash"
-  | Zero ->
-      "Zero"
-  | One ->
-      "One"
-  | Two ->
-      "Two"
-  | Three ->
-      "Three"
-  | Four ->
-      "Four"
-  | Five ->
-      "Five"
-  | Six ->
-      "Six"
-  | Seven ->
-      "Seven"
-  | Eight ->
-      "Eight"
-  | Nine ->
-      "Nine"
   | Colon ->
       "Colon"
   | SemiColon ->
@@ -464,6 +455,8 @@ let toName (key : key) : string =
       "At"
   | Letter l ->
       String.fromChar l
+  | Number n ->
+      String.fromChar n
   | LeftSquareBracket ->
       "LeftSquareBracket"
   | RightSquareBracket ->
@@ -598,26 +591,6 @@ let fromChar (char : char) : key =
       Period
   | '/' ->
       ForwardSlash
-  | '0' ->
-      Zero
-  | '1' ->
-      One
-  | '2' ->
-      Two
-  | '3' ->
-      Three
-  | '4' ->
-      Four
-  | '5' ->
-      Five
-  | '6' ->
-      Six
-  | '7' ->
-      Seven
-  | '8' ->
-      Eight
-  | '9' ->
-      Nine
   | ':' ->
       Colon
   | ';' ->
@@ -632,6 +605,8 @@ let fromChar (char : char) : key =
       QuestionMark
   | '@' ->
       At
+  | '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' ->
+      Number char
   | 'A'
   | 'B'
   | 'C'

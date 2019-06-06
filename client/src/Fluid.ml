@@ -2396,8 +2396,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
   (* If we were on a partial and have moved off it, we may want to commit
    * that partial. This is done here because the logic is different that
    * clicking. *)
-  match (toTheLeft, toTheRight) with
-  | L (TPartial _, ti), _ | _, R (TPartial _, ti) ->
+  match (key, toTheLeft, toTheRight) with
+  | K.Number _, _, _ | K.Letter _, _, _ ->
+      (newAST, newState)
+  | _, L (TPartial _, ti), _ | _, _, R (TPartial _, ti) ->
       (* Use the old position and ac and token *)
       let committedAST = commitIfValid newState.newPos ti (newAST, s) in
       (* TODO: I tried redoing the action after it had been committed, but in
