@@ -793,10 +793,10 @@ test('object_literals_work', async t => {
 })
 
 test('rename_function', async t => {
-  await t
-    .click(Selector('.fnname'))
-    .click(Selector('.fa-edit'))
-    .click(Selector('.fn-name-content'))
+  const fnNameBlankOr = '.fn-name-content'
+  await t.navigateTo('#fn=123')
+    .expect(available(fnNameBlankOr)).ok({ timeout : 1000 })
+    .click(Selector(fnNameBlankOr))
     .pressKey('backspace')
     .typeText('#entry-box', 'hello')
     .pressKey('enter')
