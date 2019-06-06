@@ -434,18 +434,20 @@ let deploy2html (d : staticDeploy) : msg Html.html =
   in
   Html.div
     [Html.class' "simple-route deploy"]
-    [ Html.span
-        [Html.class' "datetime"]
-        [Html.text (Js.Date.toUTCString d.lastUpdate)]
-    ; Html.a
-        [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
-        [Html.text d.deployHash]
+    [ Html.div
+        [Html.class' "deploy-status"]
+        [ Html.a
+            [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
+            [Html.text d.deployHash]
+        ; Html.span
+            [ Html.classList
+                [ ("status", true)
+                ; ( "success"
+                  , match d.status with Deployed -> true | _ -> false ) ] ]
+            [Html.text statusString] ]
     ; Html.span
-        [ Html.classList
-            [ ("status", true)
-            ; ("success", match d.status with Deployed -> true | _ -> false) ]
-        ]
-        [Html.text statusString] ]
+        [Html.class' "datetime"]
+        [Html.text (Js.Date.toUTCString d.lastUpdate)] ]
 
 
 (* Category Views *)
