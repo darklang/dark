@@ -56,7 +56,7 @@ let commands : command list =
     ; doc =
         "Switch between using the error rail, or handling this expression yourself"
     ; shortcut = "Alt-E" }
-  ; { commandName = "copy-to-feature-flag"
+  ; { commandName = "add-feature-flag"
     ; action = FeatureFlags.wrap
     ; doc = "Clone expression as Case A in a feature flag"
     ; shortcut = "Alt-F" } ]
