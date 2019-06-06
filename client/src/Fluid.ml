@@ -1628,41 +1628,53 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-let getNextBlank (pos : int) (tokens : tokenInfo list) : int =
-  let rec f pos tokens' =
-    match tokens' with
-    | [] ->
-        (* Wrap, unless we've already wrapped *)
-        if pos = -1 then 0 else f (-1) tokens
-    | ti :: rest ->
-        if Token.isBlank ti.token && ti.startPos > pos
-        then ti.startPos
-        else f pos rest
-  in
-  f pos tokens
+let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
+  |> List.find ~f:(fun ti -> ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextBlank 0 tokens )
 
 
-(* TODO: rewrite nextBlank like prevBlank *)
+let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getNextBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
   let tokens = toTokens s ast in
-  let newPos = getNextBlank pos tokens in
+  let newPos = getNextBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
+
+
+let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
+  |> List.reverse
+  |> List.find ~f:(fun ti -> ti.endPos < pos)
+  |> Option.orElseLazy (fun () ->
+         let lastPos =
+           List.last tokens
+           |> Option.map ~f:(fun ti -> ti.endPos)
+           |> Option.withDefault ~default:0
+         in
+         if pos = lastPos then None else getPrevBlank lastPos tokens )
+
+
+let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getPrevBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
 
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens =
-    toTokens s ast |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
-  in
-  let rec getPrevBlank pos' tokens' =
-    match tokens' with
-    | [] ->
-      (match List.last tokens with None -> 0 | Some ti -> ti.startPos)
-    | ti :: rest ->
-        if ti.endPos < pos' then ti.startPos else getPrevBlank pos' rest
-  in
-  let newPos = getPrevBlank pos (List.reverse tokens) in
+  let tokens = toTokens s ast in
+  let newPos = getPrevBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
 
@@ -2277,13 +2289,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Space, L (TPartial (_, _), ti), _
     | K.Space, _, R (TPartial (_, _), ti)
     | K.Tab, L (TPartial (_, _), ti), _
-    | K.Tab, _, R (TPartial (_, _), ti)
-    | K.Enter, L (TBlank _, ti), _
-    | K.Enter, _, R (TBlank _, ti)
-    | K.Space, L (TBlank _, ti), _
-    | K.Space, _, R (TBlank _, ti)
-    | K.Tab, L (TBlank _, ti), _
-    | K.Tab, _, R (TBlank _, ti) ->
+    | K.Tab, _, R (TPartial (_, _), ti) ->
         acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
