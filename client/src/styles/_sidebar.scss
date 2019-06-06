@@ -294,34 +294,52 @@ $countBoxSize: 15px;
   }
 }
 
-.routing-section.deploys{
+.routing-section.deploys, .simple-route.deploy{
   color: $grey3;
-  .header{
-    color: lighten($yellow, 15%);
-    width: fit-content;
-    border-bottom: 1px solid;
-    padding-left: 0px; 
-    margin: 0px 5px 0px 10px;  
-    background: none
-  }
-  .datetime,
-  .hash {
-      margin-right: 2ch;
-  }
-
-  a.hash {
-      color: $grey3;
-
-      &:hover {
-          color: $yellow;
+    .header{
+      color: lighten($yellow, 15%);
+      width: fit-content;
+      padding-left: 0px; 
+      margin: 0px 5px 0px 10px;  
+      background: none;
+      display: flex;
+      flex-direction: column;
+    }
+    .title{
+      align-self: flex-start;
+      border-bottom: 1px solid;
+      .title{
+        border-bottom: none;
       }
-  }
+    }
 
-  .status {
-      color: $white1;
+    .deploy-status{
+      margin-top: 5px;
+      display: flex;
+     justify-content: space-between;
+      a.hash {
+          color: $grey3;
 
-      &.success {
-          color: $green;
+          &:hover {
+              color: $yellow;
+          }
       }
-  }
+
+      .status {
+          color: $white1;
+
+          &.success {
+              color: $green;
+          }
+      }
+    }
+    .datetime{
+       font-size: 12px;
+       margin-left: 5px;
+    }
+
+    .datetime,
+    .hash {
+        margin-right: 2ch;
+    }
 }
