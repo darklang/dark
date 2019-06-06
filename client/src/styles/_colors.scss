@@ -1,5 +1,16 @@
+/* Color palette */
+
 $black1: #181818;
-$grey1 : #383838; 
+$black2: #282828;
+$black3: #383838;
+
+$grey1 : #484848;
+$grey2 : #585858;
+$grey3 : #b8b8b8;
+
+$white1: #d8d8d8;
+$white2: #e8e8e8;
+$white3: #f8f8f8;
 
 $red: #AB4642;
 $orange: #dc9656;
@@ -10,32 +21,13 @@ $blue : #7cafc2;
 $purple: #B18BBA;
 $pink: #D5839D;
 
-/* Maybe will be deprecated */
-$black2: #282828; // sidebar bg, entrybox bg, debugging buttons
-$grey2 : #585858; // placeholder text
-$grey3 : #b8b8b8;
-$white3: #d8d8d8; // link color
-$white2: #e8e8e8;
-$white1: #f8f8f8; // active link
-
-$brown : #a16946;
-$darkblue: #2B466F;
-$vagueblue: #182635;
-
-/* Old Variables */
-$hovercolor: lighten($darkblue, 10%);
-$autocomplete-highlight-color: $darkblue;
-$selected-blankor-background: $darkblue;
-
-$top-border: lighten($black1, 5%) 2px dotted;
-$blank-underline: 1px dashed $grey2;
 
 /* Semantic Variables */
-$canvas-background: #484848;
-$toplevel-background: #262626;
+$canvas-background: $grey1;
+$toplevel-background: $black2;
 
 $live-value-foreground: lighten($cyan, 10%);
-$live-value-background: $grey1;
+$live-value-background: $black3;
 
 $http-get: $green;
 $http-post: $blue;

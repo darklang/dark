@@ -8,7 +8,7 @@
         }
 
         &.selected {
-            background-color: fade($selected-blankor-background, 70% + ($depth * 5%));
+            background-color: $selected-background;
         }
     }
 }
@@ -21,8 +21,8 @@
 }
 
 .highlighted-indent {
-    margin-left: 8px;
-    padding-left: 8px;
+    margin-left: $spacing-medium;
+    padding-left: $spacing-medium;
     border-left: 1px solid $orange;
 }
 
@@ -31,14 +31,12 @@
     border-bottom: 1px dashed $grey2;
     padding-left: 1ch;
     padding-right: 1ch;
-    margin-left: 4px;
-    margin-right: 4px;
+    margin-left: $spacing-medium/2;
+    margin-right: $spacing-medium/2;
 }
 
 .blank-text-style {
-    color: $grey2;
-    font-style: italic;
-    font-size: 8pt;
+    @extend .placeholder;
     text-align: left;
 }
 
@@ -118,7 +116,7 @@
     border-bottom: 1px solid $queue-color;
     padding-bottom: 4px;
     padding-top: 4px;
-    padding-left: 8px;
+    padding-left: $spacing-medium;
     padding-right: 16px;
 
     @include handler-type(http-get, $http-get);
@@ -163,7 +161,7 @@
     .handler-lock {
         position: absolute;
         left: -2px;
-        top: -8px;
+        top: -$spacing-medium;
         color: $white1;
         font-size: 12px;
         color: $unlock-color;
@@ -206,7 +204,7 @@
     }
 
     .rop-rail {
-        border-left: 1px dotted lighten($grey1, 20%);
+        border-left: 1px dotted lighten($black3, 20%);
         display: none;
         margin: 0;
 
@@ -214,13 +212,13 @@
             display: inline-block;
             margin-left: 15px;
             margin-right: 15px;
-            margin-top: 8px;
+            margin-top: $spacing-medium;
         }
     }
 
     .ast .error-indicator {
         position: absolute;
-        left: calc(#{"100% - 18px"});
+        left: calc(#{"100% - 1$spacing-medium"});
     }
 
     .fncall {
@@ -229,12 +227,12 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            border: 1px solid lighten($grey1, 20%);
+            border: 1px solid lighten($black3, 20%);
             background-color: transparent;
         }
 
         &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
-            background-color: lighten($grey1, 20%);
+            background-color: lighten($black3, 20%);
         }
     }
 }
@@ -246,8 +244,8 @@
 
 .ast {
     font-size: 10pt;
-    padding-right: 8px;
-    padding-left: 8px;
+    padding-right: $spacing-medium;
+    padding-left: $spacing-medium;
     padding-top: 24px;
     padding-bottom: 24px;
     white-space: pre;
@@ -284,8 +282,8 @@
             .copy-value {
                 position: absolute;
                 top: -4px;
-                right: -8px;
-                color: $white3;
+                right: -$spacing-medium;
+                color: $white1;
                 opacity: 0.7;
     
                 &:hover {

@@ -47,7 +47,7 @@
         left: calc(#{"100% + 20px"});
         min-width: $toplevel-min-width;
         padding: 24px;
-        border: $top-border;
+        border: lighten($black1, 5%) 2px dotted;
         border-color: $yellow;
         border-width: 1px;
         background-color: $black1;
@@ -79,9 +79,9 @@
                 justify-content: space-around;
 
                 button {
-                    padding: 8px;
+                    padding: $spacing-medium;
                     font-size: 10px;
-                    background-color: $grey1;
+                    background-color: $black3;
                     color: $yellow;
                     border: 1px solid $yellow;
                     text-transform: uppercase;

@@ -1,6 +1,12 @@
 $code-font-size: 13.3333px;
 $string-color: lighten($purple, 10%);
 
+.placeholder {
+    color: $grey2;
+    font-style: italic;
+    font-size: 8pt;
+}
+
 .indent {
     margin-left: 16px;
 }

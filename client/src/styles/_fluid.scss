@@ -29,8 +29,8 @@
     .copy-value {
         position: absolute;
         top: -4px;
-        right: -8px;
-        color: $white3;
+        right: -$spacing-medium;
+        color: $white1;
 
         opacity: 0.7;
 
@@ -58,7 +58,7 @@ https://github.com/chriskempson/tomorrow-theme */
     $background: transparent;
     $selected-background: #2d2d2d;
     $blanks: lighten($black1, 8%);
-    $currentline: $grey1;
+    $currentline: $black3;
     $selection: $grey3;
     $foreground: $white2;
     $comment: $grey3;
@@ -231,7 +231,7 @@ since they are essentially both commands just acting upon different things. */
 
     .error-indicator {
         position: absolute;
-        left: calc(100% - 18px);
+        left: calc(100% - 1$spacing-medium);
     }
 
     .error-icon {

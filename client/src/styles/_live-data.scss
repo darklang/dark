@@ -14,7 +14,7 @@
             display: block;
             font-size: 30px;
             line-height: 15px;
-            color: $white3;
+            color: $white1;
 
             &.tipe-Error {
                 color: $red;
@@ -38,7 +38,7 @@
                 height: max-content;
                 width: max-content;
                 max-width: 300px;
-                padding: 8px;
+                padding: $spacing-medium;
 
                 background-color: $live-value-background;
 

@@ -31,8 +31,8 @@
     min-width: 120px;
     width: max-content;
 
-    margin: 8px 0;
-    padding: 4px 8px;
+    margin: $spacing-medium 0;
+    padding: 4px $spacing-medium;
 
     background-color: $live-value-background;
 
@@ -41,11 +41,11 @@
 
     &:first-child {
         margin-top: 0;
-        margin-bottom: 8px;
+        margin-bottom: $spacing-medium;
     }
 
     &.db {
-        margin: 8px 0;
+        margin: $spacing-medium 0;
 
         .dbtitle {
             margin: 0 auto;
@@ -94,7 +94,7 @@
     }
 
     .fnname {
-        color: $white3;
+        color: $white1;
     }
 
     .fnheader,
