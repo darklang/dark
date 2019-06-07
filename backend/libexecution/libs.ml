@@ -79,7 +79,6 @@ let init (replacements : fn_replacement list) : unit =
     @ Libtwilio.fns
     (* client-only *)
     @ Libstd.fns
-    @ Libstd2.fns
     @ Libhttp.fns
     @ Libdarkinternal.fns
     (* @ Libtwitter.fns  *)
