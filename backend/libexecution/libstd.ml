@@ -1835,6 +1835,9 @@ let fns : Lib.shortfn list =
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
+    (* ====================================== *)
+    (* UUIDs *)
+    (* ====================================== *)
   ; { pns = ["Uuid::generate"]
     ; ins = []
     ; p = []
