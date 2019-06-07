@@ -595,7 +595,7 @@ test("rename_db_type", async t => {
 // Testcafe doesn't actually generate ClipboardEvents for copy/paste
 // keystrokes. So I've disabled these tests for now.
 /*
-test('paste_right_number_of_blanks', async t => {
+test("paste_right_number_of_blanks", async t => {
   await t
     .click(Selector('.fnname').withText('-'))
     .pressKey("meta+c")
@@ -604,7 +604,7 @@ test('paste_right_number_of_blanks', async t => {
 });
 
 
-test('paste_keeps_focus', async t => {
+test("paste_keeps_focus", async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
@@ -622,7 +622,7 @@ test('paste_keeps_focus', async t => {
     .pressKey("meta+v")
 });
 
-test('nochange_for_failed_paste', async t => {
+test("nochange_for_failed_paste", async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
@@ -641,7 +641,7 @@ test('nochange_for_failed_paste', async t => {
 */
 
 /* Disable for now, will bring back as command palette fn
-test('feature_flag_works', async t => {
+test("feature_flag_works", async t => {
   await t
     // Create an empty let
     .pressKey("enter")
@@ -683,7 +683,7 @@ test('feature_flag_works', async t => {
 
 });
 
-test('feature_flag_in_function', async t => {
+test("feature_flag_in_function", async t => {
   await t
     // Go to function
     .click(".fun1")
