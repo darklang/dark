@@ -308,6 +308,11 @@ let () =
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
+          (* TODO: not yet working in fluid
+           test "Returning to empty unselects" (fun () ->
+              expect
+                (acFor m |> setQuery m "lis" |> setQuery m "" |> AC.highlighted)
+              |> toEqual None ) ; *)
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
@@ -390,6 +395,14 @@ let () =
                 |> AC.selectUp
                 |> fun x -> x.index )
               |> toEqual (Some 1) ) ;
+          (* TODO: not yet working in fluid
+          test "scrolling backward works if we haven't searched yet" (fun () ->
+              expect
+                ( acFor m
+                |> AC.selectUp
+                |> AC.selectUp
+                |> fun x -> x.index |> Option.withDefault ~default:0 )
+              |> toBeGreaterThan 15 ) ;*)
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
