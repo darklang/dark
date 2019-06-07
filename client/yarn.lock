@@ -1661,7 +1661,6 @@ bser@^2.0.0:
 
 bucklescript-tea@darklang/bucklescript-tea#master:
   version "0.11.1"
-  uid "4144d2543dffd3d090dd9c202d5c0aaa44ca0a66"
   resolved "https://codeload.github.com/darklang/bucklescript-tea/tar.gz/4144d2543dffd3d090dd9c202d5c0aaa44ca0a66"
 
 buffer-from@^1.0.0:
@@ -5046,6 +5045,11 @@ prelude-ls@~1.1.2:
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.1.2.tgz#21932a549f5e52ffd9a827f570e04be62a97da54"
   integrity sha1-IZMqVJ9eUv/ZqCf1cOBL5iqX2lQ=
+
+prettier@^1.18.0:
+  version "1.18.0"
+  resolved "https://registry.yarnpkg.com/prettier/-/prettier-1.18.0.tgz#d1701ca9b2941864b52f3262b35946d2c9cd88f0"
+  integrity sha512-YsdAD29M0+WY2xXZk3i0PA16olY9qZss+AuODxglXcJ+2ZBwFv+6k5tE8GS8/HKAthaajlS/WqhdgcjumOrPlg==
 
 pretty-format@^24.7.0:
   version "24.7.0"
