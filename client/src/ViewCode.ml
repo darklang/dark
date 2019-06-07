@@ -521,25 +521,26 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
     viewText EventName vs configs spec.name
-  and viewEventSpace =
+  in
+  let viewEventSpace =
     let configs = (enterable :: idConfigs) @ [wc "module"] in
     viewText EventSpace vs configs spec.module_
-  and viewEventModifier =
+  in
+  let viewEventModifier =
     let getBtn = externalLink spec vs.canvasName vs.userContentHost in
     let cronBtn = cronTriggerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
     then
+      let viewMod = viewText EventModifier vs configs spec.modifier in
       match spec.modifier with
       | F _ ->
-          Html.div
-            [Html.class' "modifier"]
-            ( viewText EventModifier vs configs spec.modifier
-            :: (getBtn @ cronBtn) )
+          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ cronBtn))
       | _ ->
-          viewText EventModifier vs configs spec.modifier
+          viewMod
     else Vdom.noNode
-  and btnLock =
+  in
+  let btnLock =
     let isLocked = isLocked vs in
     ViewUtils.toggleIconButton
       ~name:"handler-lock"
@@ -548,7 +549,8 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
       ~active:isLocked
       ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-  and btnExpCollapse =
+  in
+  let btnExpCollapse =
     let isExpand = isExpanded vs in
     let state = ViewUtils.getHandlerState vs in
     let expandFun _ =
@@ -572,25 +574,23 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~active:isExpand
       ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
   in
-  let specMods =
+  let baseClass = "spec-header" in
+  let classes =
     match (spec.module_, spec.modifier) with
     | F (_, "HTTP"), F (_, "GET") ->
-        "http-get"
+        baseClass ^ " http-get"
     | F (_, "HTTP"), F (_, "POST") ->
-        "http-post"
+        baseClass ^ " http-post"
     | F (_, "HTTP"), F (_, "PUT") ->
-        "http-put"
+        baseClass ^ " http-put"
     | F (_, "HTTP"), F (_, "DELETE") ->
-        "http-delete"
+        baseClass ^ " http-delete"
     | F (_, "HTTP"), F (_, "PATCH") ->
-        "http-patch"
+        baseClass ^ " http-patch"
     | F (_, "CRON"), _ ->
-        "cron"
+        baseClass ^ " cron"
     | _ ->
-        ""
-  in
-  let classes =
-    if specMods = "" then "spec-header" else "spec-header " ^ specMods
+        baseClass
   in
   Html.div
     [Html.class' classes]
