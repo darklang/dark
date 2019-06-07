@@ -82,18 +82,18 @@ let viewDBCol
     then
       if B.isF n || B.isF t
       then
-        [ Html.div
-            [ Html.class' "delete-col"
-            ; ViewUtils.eventNoPropagation
-                ~key:("dcidb-" ^ showTLID tlid ^ "-" ^ (n |> B.toID |> showID))
-                "click"
-                (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
-            [fontAwesome "minus-circle"] ]
-      else []
-    else []
+        Html.div
+          [ Html.class' "delete-col"
+          ; ViewUtils.eventNoPropagation
+              ~key:("dcidb-" ^ showTLID tlid ^ "-" ^ (n |> B.toID |> showID))
+              "click"
+              (fun _ -> DeleteColInDB (tlid, B.toID n)) ]
+          [fontAwesome "minus-circle"]
+      else Vdom.noNode
+    else Vdom.noNode
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
-  Html.div [Html.class' "col"] (row @ deleteButton)
+  Html.div [Html.class' "col"] (deleteButton :: row)
 
 
 let viewMigraFuncs

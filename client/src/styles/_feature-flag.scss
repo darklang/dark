@@ -1,0 +1,183 @@
+$vertical-spacing: 20px;
+$horizontal-padding: $spacing-medium;
+$icon-spacing: 6px;
+
+.expr-label {
+  color: $grey2;
+  font-style: italic;
+  font-size: 88%;
+}
+
+.flagged {
+  .fa-flag {
+    color: $red;
+    font-size: $spacing-medium;
+  }
+
+  .feature-flag {
+    position: absolute;
+    left: calc(#{"100% - 32px"});
+    margin-top: -$spacing-medium;
+    border-style: solid;
+    border-width: 0;
+    box-sizing: border-box;
+    z-index: 10;
+
+    i.fa {
+      color: $grey3;
+
+      &:hover {
+        color: $white1;
+      }
+    }
+
+    &.expand {
+      border-width: 1px;
+      left: calc(100% + 10px);
+      background-color: $toplevel-background;
+
+      .row {
+        display: block;
+      }
+
+      .row.expressions {
+        display: inline-flex;
+      }
+
+      .row.title-bar {
+        background-color: $black2;
+
+        .actions {
+          float: right;
+          margin-right: 0;
+        }
+      }
+
+    }
+
+    .row {
+      display: none;
+      margin-top: $vertical-spacing;
+      min-width: 100%;
+      width: auto;
+      padding: 0 $horizontal-padding;
+      box-sizing: border-box;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+    }
+
+    .title-bar {
+      display: block;
+      min-width: 150px;
+      width: 100%;
+      background-color: transparent;
+      padding: 4px $horizontal-padding;
+
+      .flag-name {
+        width: 60%;
+      }
+
+      .actions {
+        width: 30%;
+        float: left;
+        text-align: right;
+        margin-right: 2px;
+
+        i.fa {
+          margin-left: $icon-spacing;
+        }
+
+        i.fa.fa-flag {
+          font-size: 12px;
+        }
+      }
+    }
+
+    .condition {
+      .expr-label {
+        display: block;
+      }
+    }
+
+    .expressions {
+      min-width: 100%;
+      width: auto;
+      margin-bottom: $vertical-spacing;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-content: stretch;
+
+      .expr-label {
+        padding-left: 4px;
+      }
+
+      .cond-expr {
+        display: inline-block;
+        align-self: flex-start;
+        min-width: 200px;
+        width: max-content;
+        vertical-align: top;
+        box-sizing: border-box;
+
+        .icon {
+          margin-left: $icon-spacing;
+        }
+
+        .expr-block {
+          display: block;
+          width: auto;
+        }
+
+        &:first-child {
+          border-right: 2px $grey2 solid;
+          padding-right: 1ch;
+          margin-right: 1ch;
+        }
+      }
+    }
+  }
+
+  .end-ff {
+    position: absolute;
+    left: 165%;
+    margin-top: -9px;
+
+    &.pick-b {
+      color: $green;
+
+      &:hover {
+        color: lighten($green, 15%);
+        cursor: pointer;
+      }
+    }
+
+    &.pick-a {
+      color: $red;
+      margin-left: -20px;
+    }
+  }
+
+  .hidden {
+    background-color: blue;
+  }
+
+  .nested-flag {
+
+    left: 100%;
+    position: absolute;
+    width: 100%;
+
+    &.flag-left {
+      margin-top: -50px;
+    }
+
+    &.flag-right {
+      margin-top: 50px;
+    }
+  }
+
+}

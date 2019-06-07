@@ -1,0 +1,29 @@
+@keyframes showErrorPanel {
+  from {
+    bottom: -70px;
+  }
+
+  to {
+    bottom: 0;
+  }
+}
+
+@keyframes hideErrorPanel {
+  from {
+    bottom: 0;
+  }
+
+  to {
+    bottom: 70px;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

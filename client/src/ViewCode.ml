@@ -517,59 +517,84 @@ let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
       [Vdom.noNode]
 
 
-let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html list =
+let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
     viewText EventName vs configs spec.name
-  and viewEventSpace =
+  in
+  let viewEventSpace =
     let configs = (enterable :: idConfigs) @ [wc "module"] in
     viewText EventSpace vs configs spec.module_
-  and viewEventModifier =
+  in
+  let viewEventModifier =
+    let getBtn = externalLink spec vs.canvasName vs.userContentHost in
+    let cronBtn = cronTriggerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
-    then viewText EventModifier vs configs spec.modifier
-    else Html.div [] []
-  and viewEventActions =
-    let testGet = externalLink spec vs.canvasName vs.userContentHost in
-    let lock =
-      let isLocked = isLocked vs in
-      ViewUtils.toggleIconButton
-        ~name:"handler-lock"
-        ~activeIcon:"lock"
-        ~inactiveIcon:"lock-open"
-        ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
-        ~active:isLocked
-        ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-    in
-    let expandCollapse =
-      let isExpand = isExpanded vs in
-      let state = ViewUtils.getHandlerState vs in
-      let expandFun _ =
-        match state with
-        | HandlerExpanding ->
-            IgnoreMsg
-        | HandlerExpanded ->
-            UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
-        | HandlerPrepCollapse ->
-            IgnoreMsg
-        | HandlerCollapsing ->
-            IgnoreMsg
-        | HandlerCollapsed ->
-            UpdateHandlerState (vs.tlid, HandlerExpanding)
-      in
-      ViewUtils.toggleIconButton
-        ~name:"handler-expand"
-        ~activeIcon:"caret-up"
-        ~inactiveIcon:"caret-down"
-        ~msg:expandFun
-        ~active:isExpand
-        ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
-    in
-    Html.div
-      [Html.class' "actions"]
-      (testGet @ cronTriggerButton vs spec @ [lock; expandCollapse])
+    then
+      let viewMod = viewText EventModifier vs configs spec.modifier in
+      match spec.modifier with
+      | F _ ->
+          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ cronBtn))
+      | _ ->
+          viewMod
+    else Vdom.noNode
   in
-  [viewEventName; viewEventSpace; viewEventModifier; viewEventActions]
+  let btnLock =
+    let isLocked = isLocked vs in
+    ViewUtils.toggleIconButton
+      ~name:"handler-lock"
+      ~activeIcon:"lock"
+      ~inactiveIcon:"unlock"
+      ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
+      ~active:isLocked
+      ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
+  in
+  let btnExpCollapse =
+    let isExpand = isExpanded vs in
+    let state = ViewUtils.getHandlerState vs in
+    let expandFun _ =
+      match state with
+      | HandlerExpanding ->
+          IgnoreMsg
+      | HandlerExpanded ->
+          UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
+      | HandlerPrepCollapse ->
+          IgnoreMsg
+      | HandlerCollapsing ->
+          IgnoreMsg
+      | HandlerCollapsed ->
+          UpdateHandlerState (vs.tlid, HandlerExpanding)
+    in
+    ViewUtils.toggleIconButton
+      ~name:"handler-expand"
+      ~activeIcon:"caret-up"
+      ~inactiveIcon:"caret-down"
+      ~msg:expandFun
+      ~active:isExpand
+      ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
+  in
+  let baseClass = "spec-header" in
+  let classes =
+    match (spec.module_, spec.modifier) with
+    | F (_, "HTTP"), F (_, "GET") ->
+        baseClass ^ " http-get"
+    | F (_, "HTTP"), F (_, "POST") ->
+        baseClass ^ " http-post"
+    | F (_, "HTTP"), F (_, "PUT") ->
+        baseClass ^ " http-put"
+    | F (_, "HTTP"), F (_, "DELETE") ->
+        baseClass ^ " http-delete"
+    | F (_, "HTTP"), F (_, "PATCH") ->
+        baseClass ^ " http-patch"
+    | F (_, "CRON"), _ ->
+        baseClass ^ " cron"
+    | _ ->
+        baseClass
+  in
+  Html.div
+    [Html.class' classes]
+    [btnLock; viewEventName; viewEventSpace; viewEventModifier; btnExpCollapse]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
@@ -627,7 +652,5 @@ let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
       ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
       ]
   in
-  let header =
-    Html.div [Html.class' "spec-header"] (viewEventSpec vs h.spec)
-  in
+  let header = viewEventSpec vs h.spec in
   [header; ast]

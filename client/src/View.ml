@@ -71,7 +71,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       | _ ->
           false
     in
-    [("sidebar-box", true); ("selected", selected); ("dragging", dragging)]
+    [("selected", selected); ("dragging", dragging)]
   in
   let class_ =
     ["toplevel"; "tl-" ^ deTLID tl.id; (if selected then "selected" else "")]
@@ -162,16 +162,13 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     List.any ~f:(fun x -> match x with PFFMsg _ -> true | _ -> false) allData
   in
   let html =
-    Html.div
-      (* -- see comment in css *)
-      [Html.classList boxClasses]
-      [ Html.div (Html.class' class_ :: events) (body @ data @ top)
-      ; avatars
-      ; Html.div
-          [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-          [uses; refs] ]
+    [ Html.div (Html.class' class_ :: events) (top @ body @ data)
+    ; avatars
+    ; Html.div
+        [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
+        [uses; refs] ]
   in
-  ViewUtils.placeHtml pos html
+  ViewUtils.placeHtml pos boxClasses html
 
 
 let tlCacheKey (m : model) tl =
