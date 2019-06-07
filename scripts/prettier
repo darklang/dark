@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# A script to run prettier within the container
+set +x
+
+script=client/node_modules/.bin/prettier
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+"$DIR/run-in-docker" "$script" "${@}" <&0
