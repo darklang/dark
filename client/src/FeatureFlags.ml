@@ -23,22 +23,26 @@ let fromFlagged (pick : pick) (expr : expr) : expr =
       impossible ("cant convert flagged to flagged", expr)
 
 
+let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
+  let msgId = gid () in
+  let newPd = P.exprmap (toFlagged msgId) pd in
+  let newTL = TL.replace pd newPd tl in
+  let focus = FocusExact (tl.id, msgId) in
+  match newTL.data with
+  | TLHandler h ->
+      RPC ([SetHandler (tl.id, tl.pos, h)], focus)
+  | TLFunc f ->
+      RPC ([SetFunction f], focus)
+  | _ ->
+      NoChange
+
+
 let start (m : model) : modification =
   match unwrapCursorState m.cursorState with
   | Selecting (tlid, Some id) ->
       let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
-      let msgId = gid () in
-      let newPd = P.exprmap (toFlagged msgId) pd in
-      let newTL = TL.replace pd newPd tl in
-      let focus = FocusExact (tl.id, msgId) in
-      ( match newTL.data with
-      | TLHandler h ->
-          RPC ([SetHandler (tl.id, tl.pos, h)], focus)
-      | TLFunc f ->
-          RPC ([SetFunction f], focus)
-      | _ ->
-          NoChange )
+      wrap m tl pd
   | _ ->
       NoChange
 
