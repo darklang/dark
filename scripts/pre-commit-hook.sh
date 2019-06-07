@@ -7,13 +7,24 @@ set -euo pipefail
 # - cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
 # - chmod +x .git/hooks/pre-commit
 
-files=$(git diff --cached --name-only --diff-filter=ACM "*.ml" | tr '\n' ' ')
-[ -z "$files" ] && exit 0
+ocamlfiles=$(git diff --cached --name-only --diff-filter=ACM "*.ml" | tr '\n' ' ')
 
-# ocamlformat all staged files
-echo "$files" | xargs scripts/ocamlformat --inplace
+if [[ "$ocamlfiles" ]]; then
+  # format all staged files
+  echo "$ocamlfiles" | xargs -0L1 scripts/ocamlformat --inplace
+  # Add back the modified/formatted files to staging
+  echo "$ocamlfiles" | xargs -0L1 git add
+fi
 
-# Add back the modified/formatted files to staging
-echo "$files" | xargs git add
+jsfiles=$(git diff --cached --name-only --diff-filter=ACM "*.js" | tr '\n' ' ')
+htmlfiles=$(git diff --cached --name-only --diff-filter=ACM "*.html" | tr '\n' ' ')
+prettierfiles="${jsfiles} ${htmlfiles}"
+
+if [[ "$prettierfiles" ]]; then
+  # format all staged files
+  echo "$prettierfiles" | xargs -0L1 client/node_modules/.bin/prettier --write
+  # Add back the modified/formatted files to staging
+  echo "$prettierfiles" | xargs -0L1 git add
+fi
 
 exit 0
