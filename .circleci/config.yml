@@ -348,7 +348,7 @@ jobs:
           shell: bash
           command: |
             # get full list of tests
-            grep ^test integration-tests/tests.js | sed "s/.*'\(.*\)'.*/\1/" > rundir/all-tests
+            grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
             # split them using timing info
             TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
             # concat them into a pattern (note: $TESTS is deliberately unquoted)
