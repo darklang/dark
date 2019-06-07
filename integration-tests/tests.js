@@ -638,6 +638,7 @@ test('nochange_for_failed_paste', async t => {
 });
 */
 
+/* Disable for now, will bring back as command palette fn
 test('feature_flag_works', async t => {
   await t
     // Create an empty let
@@ -709,7 +710,7 @@ test('feature_flag_in_function', async t => {
     .click(".return-to-canvas")
     .expect(available(".tl-180770093")).ok()
 });
-
+*/
 test('simple_tab_ordering', async t => {
   await t
     .pressKey("enter")
@@ -792,10 +793,10 @@ test('object_literals_work', async t => {
 })
 
 test('rename_function', async t => {
-  await t
-    .click(Selector('.fnname'))
-    .click(Selector('.fa-edit'))
-    .click(Selector('.fn-name-content'))
+  const fnNameBlankOr = '.fn-name-content'
+  await t.navigateTo('#fn=123')
+    .expect(available(fnNameBlankOr)).ok({ timeout : 1000 })
+    .click(Selector(fnNameBlankOr))
     .pressKey('backspace')
     .typeText('#entry-box', 'hello')
     .pressKey('enter')
@@ -921,7 +922,7 @@ test('select_route', async t => {
   await t.navigateTo(`${BASE_URL}select_route?integration-test=true&sidebarv2=1`)
   const categoryHeader = 'summary.header';
   const httpVerbLink = 'a.verb.verb-link';
-  const toplevelElement = '.node .sidebar-box';
+  const toplevelElement = '.node .toplevel';
   const sidebarController =  '.toggle-button .button-link'
 
   await t.click(Selector(sidebarController));
@@ -956,11 +957,9 @@ test('select_route', async t => {
 
 test('function_analysis_works', async t => {
   await t
-    .click(Selector('.fnname'))
-    .click(Selector('.fa-edit'))
-    .click(Selector('.fncall'));
-
-  await t
+    .navigateTo('#fn=1039370895')
+    .expect(available('.user-fn-toplevel')).ok({ timeout : 1000 })
+    .click(Selector('.user-fn-toplevel .ast > div'))
     .expect(Selector('.selected .live-value').textContent)
     .eql("10", { timeout : 5000 });
 

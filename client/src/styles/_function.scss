@@ -1,0 +1,71 @@
+.user-fn {
+  margin: 10px;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  border-bottom: 1px solid $user-functions;
+  padding-bottom: 10px;
+
+  .ufn-name {
+    padding-bottom: 10px;
+
+    .entry {
+      form {
+        margin-top: 0;
+        position: relative;
+
+        #search-container {
+          min-width: 0;
+        }
+      }
+    }
+  }
+
+  .col {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 4px;
+    margin-top: 4px;
+    text-align: center;
+
+    .param-divider {
+      font-size: 10px;
+      height: 15px;
+    }
+
+    .name,
+    .type {
+      flex: 1;
+      font-size: 10px;
+      height: 15px;
+      margin-left: 4px;
+      margin-right: 4px;
+      padding-left: 1ch;
+      padding-right: 1ch;
+
+      #search-container {
+        font-size: 10px;
+        height: 10px;
+        margin-bottom: -1px;
+        margin-left: -6px;
+        min-width: calc(#{"100% + 12px"});
+        padding-bottom: 5px;
+      }
+
+      &.blank {
+        height: 15px;
+      }
+
+      .entry {
+        background: transparent;
+        // Don't center text-entry, it makes everything weird
+        text-align: left;
+
+        form {
+          margin-top: 0;
+          position: relative;
+        }
+      }
+    }
+  }
+}
