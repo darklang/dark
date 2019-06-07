@@ -495,7 +495,6 @@ let () =
                    |> itemPresent (FACVariable "event") ])
               |> toEqual [true; true] ) ;
           (* TODO: not yet working in fluid
-           * test "functions have DB names in the autocomplete" (fun () ->
           test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = EBlank blankid in
@@ -522,6 +521,31 @@ let () =
                 |> String.join ~sep:"; " ) ;
               expect (ac |> itemPresent (FACVariable "MyDB")) |> toEqual true
           ) ;*)
+          test "escape hides suggestions" (fun () ->
+              let ast = EBlank defaultID in
+              let m =
+                defaultModel
+                  ~cursorState:(fillingCS ())
+                  ~handlers:[aHandler ~expr:ast ()]
+                  ()
+              in
+              let newState =
+                [K.Letter 'r'; K.Escape]
+                |> List.foldl ~init:(ast, m.fluidState) ~f:(fun key (ast, s) ->
+                       updateMsg
+                         m
+                         defaultTLID
+                         ast
+                         (FluidKeyPress
+                            { key
+                            ; shiftKey = false
+                            ; altKey = false
+                            ; metaKey = false
+                            ; ctrlKey = false })
+                         s )
+                |> Tuple2.second
+              in
+              expect (newState.ac |> fun x -> x.index) |> toEqual None ) ;
           () ) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
