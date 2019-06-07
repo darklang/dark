@@ -950,33 +950,33 @@ let admin_ui_html
   in
   (* TODO: allow APPSUPPORT in here *)
   template
-  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ~username)
+  >|= Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
   >|= Util.string_replace
-        "{LIVERELOADJS}"
+        "{{LIVERELOADJS}}"
         ( if Config.browser_reload_enabled
         then
           "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
         else "" )
-  >|= Util.string_replace "{STATIC}" static_host
-  >|= Util.string_replace "{ROLLBARCONFIG}" rollbar_js
-  >|= Util.string_replace "{PUSHERCONFIG}" Config.pusher_js
-  >|= Util.string_replace "{USER_CONTENT_HOST}" Config.user_content_host
-  >|= Util.string_replace "{ENVIRONMENT_NAME}" Config.env_display_name
-  >|= Util.string_replace "{USERNAME}" username
+  >|= Util.string_replace "{{STATIC}}" static_host
+  >|= Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
+  >|= Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
+  >|= Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
+  >|= Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
+  >|= Util.string_replace "{{USERNAME}}" username
   >|= Util.string_replace
-        "{USER_ID}"
+        "{{USER_ID}}"
         ( username
         |> Account.id_of_username
         |> Option.value_exn
         |> Uuidm.to_string )
-  >|= Util.string_replace "{CANVAS_ID}" (Uuidm.to_string canvas_id)
+  >|= Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
   >|= Util.string_replace
-        "{APPSUPPORT}"
+        "{{APPSUPPORT}}"
         (File.readfile ~root:Webroot "appsupport.js")
-  >|= Util.string_replace "{STATIC}" static_host
+  >|= Util.string_replace "{{STATIC}}" static_host
   >|= (fun x ->
         if not hash_static_filenames
-        then Util.string_replace "{HASH_REPLACEMENTS}" "{}" x
+        then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
         else
           let etags_str = File.readfile ~root:Webroot "etags.json" in
           let etags_json = Yojson.Safe.from_string etags_str in
@@ -995,14 +995,14 @@ let admin_ui_html
                  (Util.string_replace file (hashed_filename file hash)) acc )
           |> fun instr ->
           Util.string_replace
-            "{HASH_REPLACEMENTS}"
+            "{{HASH_REPLACEMENTS}}"
             ( etag_assoc_list
             |> List.map ~f:(fun (k, v) ->
                    ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
             |> (fun x -> `Assoc x)
             |> Yojson.Safe.to_string )
             instr )
-  >|= Util.string_replace "{CSRF_TOKEN}" csrf_token
+  >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
 
 
 let save_test_handler ~(execution_id : Types.id) host =
