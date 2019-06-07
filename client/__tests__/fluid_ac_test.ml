@@ -539,59 +539,71 @@ let () =
               let param1id = ID "123" in
               let expr =
                 EFnCall
-                  ( gid ()
-                  , "Options::withDefault"
-                  , [EBlank param1id; EBlank (gid ())]
-                  , NoRail )
+                  (gid (), "Option::withDefault", [EBlank param1id], NoRail)
               in
+              let handler = aHandler ~expr () in
               let m =
-                defaultModel
-                  ~handlers:[aHandler ~expr ()]
-                  ~cursorState:(fillingCS ())
-                  ()
+                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
               let newM = {m with complete = fromFluidAC ac} in
-              let valid, _invalid =
-                AC.filter newM ac consFAC (defaultFullQuery m "")
+              let ti =
+                match toTokens newM.fluidState expr |> List.head with
+                | Some ti ->
+                    ti
+                | _ ->
+                    defaultTokenInfo
               in
+              let dv =
+                Analysis.getCurrentLiveValue
+                  newM
+                  handler.id
+                  (ti.token |> FluidToken.tid)
+              in
+              let fullQ = (handler, ti, dv, "") in
+              let valid, _invalid = AC.filter newM ac consFAC fullQ in
               expect
                 ( List.length valid = 2
                 && List.member ~value:(FACConstructorName ("Just", 1)) valid
                 && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
                 )
-              |> toEqual true ) ;
-              *)
+              |> toEqual true ) ; *)
           (* TODO: not yet working in fluid
-          test "Only Ok and Error are allowed in Result-blank" (fun () ->
+           * test "Only Ok and Error are allowed in Result-blank" (fun () ->
               let param1id = ID "123" in
               let expr =
                 EFnCall
-                  ( gid ()
-                  , "Result::catchError"
-                  , [EBlank param1id; EBlank (gid ())]
-                  , NoRail )
+                  (gid (), "Result::catchError", [EBlank param1id], NoRail)
               in
+              let handler = aHandler ~expr () in
               let m =
-                defaultModel
-                  ~handlers:[aHandler ~expr ()]
-                  ~cursorState:(fillingCS ())
-                  ()
+                defaultModel ~handlers:[handler] ~cursorState:(fillingCS ()) ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
               let newM = {m with complete = fromFluidAC ac} in
-              let valid, _invalid =
-                AC.filter newM ac consFAC (defaultFullQuery m "")
+              let ti =
+                match toTokens newM.fluidState expr |> List.head with
+                | Some ti ->
+                    ti
+                | _ ->
+                    defaultTokenInfo
               in
+              let dv =
+                Analysis.getCurrentLiveValue
+                  newM
+                  handler.id
+                  (ti.token |> FluidToken.tid)
+              in
+              let fullQ = (handler, ti, dv, "") in
+              let valid, _invalid = AC.filter newM ac consFAC fullQ in
               expect
                 ( List.length valid = 2
                 && List.member ~value:(FACConstructorName ("Ok", 1)) valid
                 && List.member ~value:(FACConstructorName ("Error", 1)) valid
                 )
-              |> toEqual true ) ;
-          *)
+              |> toEqual true ) ;*)
           test "Constructors are also available in Any blankOr" (fun () ->
               let m = enteringHandler () in
               let ac = acFor m in
