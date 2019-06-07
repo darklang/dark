@@ -1,65 +1,65 @@
 .user-type {
-    margin: 10px;
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+
+  .typetitle {
+    padding-bottom: 10px;
+    margin: 0 auto;
+
+    .entry {
+      form {
+        margin-top: 0;
+        position: relative;
+
+        #search-container {
+          min-width: 0;
+        }
+      }
+    }
+  }
+
+  .field {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    margin-bottom: 4px;
+    margin-top: 4px;
 
-    .typetitle {
-        padding-bottom: 10px;
-        margin: 0 auto;
+    .name,
+    .type {
+      flex: 1;
+      font-size: 10px;
+      height: 15px;
+      margin-left: 4px;
+      margin-right: 4px;
+      padding-left: 1ch;
+      padding-right: 1ch;
 
-        .entry {
-            form {
-                margin-top: 0;
-                position: relative;
+      &.blank {
+        height: 15px;
+      }
 
-                #search-container {
-                    min-width: 0;
-                }
-            }
+      #search-container {
+        font-size: 10px;
+        height: 10px;
+        margin-bottom: -1px;
+        margin-left: -6px;
+        min-width: calc(#{"100% + 12px"});
+        padding-bottom: 5px;
+      }
+
+      .entry {
+        background: transparent;
+
+        form {
+          margin-top: 0;
+          position: relative;
         }
+      }
     }
-
-    .field {
-        display: flex;
-        flex-direction: row;
-        margin-bottom: 4px;
-        margin-top: 4px;
-
-        .name,
-        .type {
-            flex: 1;
-            font-size: 10px;
-            height: 15px;
-            margin-left: 4px;
-            margin-right: 4px;
-            padding-left: 1ch;
-            padding-right: 1ch;
-
-            &.blank {
-                height: 15px;
-            }
-
-            #search-container {
-                font-size: 10px;
-                height: 10px;
-                margin-bottom: -1px;
-                margin-left: -6px;
-                min-width: calc(#{"100% + 12px"});
-                padding-bottom: 5px;
-            }
-
-            .entry {
-                background: transparent;
-
-                form {
-                    margin-top: 0;
-                    position: relative;
-                }
-            }
-        }
-    }
+  }
 }
 
 .field-btn {
-    @extend .parameter-btn;
+  @extend .parameter-btn;
 }

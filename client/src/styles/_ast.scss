@@ -1,104 +1,108 @@
+/* Syntax Colors */
+$lambda-color: $orange;
+$pipe-color: $blue;
+
 @mixin precedence($depth) {
-    .precedence-#{$depth} {
+  .precedence-#{$depth} {
 
-        &:not(.mouseovered),
-        &:not(.mouseovered) .entry form #search-container #suggestionBox,
-        &:not(.mouseovered) .string-entry {
-            background-color: fade($grey2, 5% + ($depth * 5%));
-        }
-
-        &.selected {
-            background-color: $selected-background;
-        }
+    &:not(.mouseovered),
+    &:not(.mouseovered) .entry form #search-container #suggestionBox,
+    &:not(.mouseovered) .string-entry {
+      background-color: fade($grey2, 5% + ($depth * 5%));
     }
+
+    &.selected {
+      background-color: $selected-background;
+    }
+  }
 }
 
 @mixin handler-type($name, $color) {
-    &.#{$name} {
-        color: $color;
-        border-bottom-color: $color;
-    }
+  &.#{$name} {
+    color: $color;
+    border-bottom-color: $color;
+  }
 }
 
 .highlighted-indent {
-    margin-left: $spacing-medium;
-    padding-left: $spacing-medium;
-    border-left: 1px solid $orange;
+  margin-left: $spacing-medium;
+  padding-left: $spacing-medium;
+  border-left: 1px solid $lambda-color;
 }
 
 .blank-box-style {
-    height: 15px;
-    border-bottom: 1px dashed $grey2;
-    padding-left: 1ch;
-    padding-right: 1ch;
-    margin-left: $spacing-medium/2;
-    margin-right: $spacing-medium/2;
+  height: 15px;
+  border-bottom: 1px dashed $grey2;
+  padding-left: 1ch;
+  padding-right: 1ch;
+  margin-left: $spacing-medium/2;
+  margin-right: $spacing-medium/2;
 }
 
 .blank-text-style {
-    @extend .placeholder;
-    text-align: left;
+  @extend .placeholder;
+  text-align: left;
 }
 
 /* Toplevel */
 .toplevel {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    width: max-content;
-    min-width: $toplevel-min-width;
-    padding: 4px;
-    background: $toplevel-background;
-    box-shadow: 1px 2px 2px 1px $black1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: max-content;
+  min-width: $toplevel-min-width;
+  padding: 4px;
+  background: $toplevel-background;
+  box-shadow: $toplevel-shadow;
 
-    .mouseovered-selectable {
-        background-color: $hover-background;
-        transition-delay: 0.4s;
+  .mouseovered-selectable {
+    background-color: $hover-background;
+    transition-delay: 0.4s;
 
-        &.blank {
-            color: $white2;
-            transition-delay: 0.4s;
-        }
+    &.blank {
+      color: $white2;
+      transition-delay: 0.4s;
     }
+  }
 
-    .mouseovered-enterable {
-        cursor: text;
-    }
+  .mouseovered-enterable {
+    cursor: text;
+  }
 
-    .commandTarget {
-        @extend .selected;
-    }
+  .commandTarget {
+    @extend .selected;
+  }
 
-    .blank {
-        @extend .blank-box-style;
+  .blank {
+    @extend .blank-box-style;
+    @extend .blank-text-style;
+    min-width: 8ch;
+
+    &.arg-on-new-line {
+      padding-left: 0ch;
+      margin-left: 0px;
+      text-align: start;
+      font-size: $code-font-size;
+
+      .blank-entry {
         @extend .blank-text-style;
-        min-width: 8ch;
+        width: 100%;
+      }
+    }
+  }
 
-        &.arg-on-new-line {
-            padding-left: 0ch;
-            margin-left: 0px;
-            text-align: start;
-            font-size: $code-font-size;
+  .blankOr.selected {
+    background-color: $selected-background;
+    color: $white2;
 
-            .blank-entry {
-                @extend .blank-text-style;
-                width: 100%;
-            }
-        }
+    &.tstr {
+      color: $string-color;
     }
 
-    .blankOr.selected {
-        background-color: $selected-background;
-        color: $white2;
-
-        &.tstr {
-            color: $string-color;
-        }
-
-        &.blank {
-            color: $grey3;
-        }
+    &.blank {
+      color: $grey3;
     }
+  }
 }
 
 //*************
@@ -106,136 +110,138 @@
 //*************
 
 .toplevel .spec-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    flex-wrap: nowrap;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: nowrap;
 
-    color: $queue-color;
-    font-size: 8pt;
+  color: $queue-color;
+  font-size: 8pt;
 
-    border-bottom: 1px solid $queue-color;
-    padding-bottom: 4px;
-    padding-top: 4px;
-    padding-left: $spacing-medium;
-    padding-right: 16px;
+  border-bottom: 1px solid $queue-color;
+  padding-bottom: 4px;
+  padding-top: 4px;
+  padding-left: $spacing-medium;
+  padding-right: 16px;
 
-    @include handler-type(http-get, $http-get);
-    @include handler-type(http-post, $http-post);
-    @include handler-type(http-put, $http-put);
-    @include handler-type(http-delete, $http-delete);
-    @include handler-type(http-patch, $http-patch);
-    @include handler-type(cron, $cron-color);
+  @include handler-type(http-get, $http-get);
+  @include handler-type(http-post, $http-post);
+  @include handler-type(http-put, $http-put);
+  @include handler-type(http-delete, $http-delete);
+  @include handler-type(http-patch, $http-patch);
+  @include handler-type(cron, $cron-color);
 
-    .name,
-    .modifier,
-    .module {
-        margin: 0;
+  .name,
+  .modifier,
+  .module {
+    margin: 0;
+  }
+
+  .modifier {
+
+    div.blankOr,
+    div.blank {
+      display: inline;
     }
 
-    .modifier {
-        div.blankOr, div.blank {
-            display: inline;
-        }
-
-        .external {
-            margin-left: 4px;
-            color: $green;
-        }
-
-        .cron-trigger {
-            display: inline;
-            margin-left: 4px;
-
-            &:hover {
-                cursor: pointer;
-                color: lighten($yellow, 10%);
-            }
-        }
+    .external {
+      margin-left: 4px;
+      color: $green;
     }
 
-    // remove dotted outline after clicking (source: reset-normalize)
-    a:focus {
-        outline: none;
-    }
+    .cron-trigger {
+      display: inline;
+      margin-left: 4px;
 
-    .handler-lock {
-        position: absolute;
-        left: -2px;
-        top: -$spacing-medium;
-        color: $white1;
-        font-size: 12px;
-        color: $unlock-color;
-
-        &.active {
-            color: $lock-color;
-        }
+      &:hover {
+        cursor: pointer;
+        color: lighten($cron-color, 10%);
+      }
     }
+  }
 
-    .handler-expand {
-        position: absolute;
-        top: 0;
-        right: 4px;
-        font-size: 16px;
-        color: $grey2;
+  // remove dotted outline after clicking (source: reset-normalize)
+  a:focus {
+    outline: none;
+  }
+
+  .handler-lock {
+    position: absolute;
+    left: -2px;
+    top: -$spacing-medium;
+    color: $white1;
+    font-size: 12px;
+    color: $unlock-color;
+
+    &.active {
+      color: $lock-color;
     }
+  }
+
+  .handler-expand {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    font-size: 16px;
+    color: $grey2;
+  }
 }
 
 .handler-body {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: stretch;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
 
-    height: 0;
-    opacity: 0;
-    overflow: hidden;
-    transition: 0.2s height ease, 0.1s opacity linear 0s;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: 0.2s height ease, 0.1s opacity linear 0s;
 
-    &.expand {
-        height: auto;
-        opacity: 1;
-        overflow: visible;
-        transition: 0.2s height ease, 0.1s opacity linear 0.18s;
+  &.expand {
+    height: auto;
+    opacity: 1;
+    overflow: visible;
+    transition: 0.2s height ease, 0.1s opacity linear 0.18s;
+  }
+
+  .ast,
+  .rop-rail {
+    display: inline-block;
+    vertical-align: top;
+  }
+
+  .rop-rail {
+    border-left: 1px dotted lighten($black3, 20%);
+    display: none;
+    margin: 0;
+
+    &.active {
+      display: inline-block;
+      margin-left: 15px;
+      margin-right: 15px;
+      margin-top: $spacing-medium;
+    }
+  }
+
+  .ast .error-indicator {
+    position: absolute;
+    left: calc(#{"100% - 1$spacing-medium"});
+  }
+
+  .fncall {
+    .error-icon {
+      display: block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid lighten($black3, 20%);
+      background-color: transparent;
     }
 
-    .ast,
-    .rop-rail {
-        display: inline-block;
-        vertical-align: top;
+    &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
+      background-color: lighten($black3, 20%);
     }
-
-    .rop-rail {
-        border-left: 1px dotted lighten($black3, 20%);
-        display: none;
-        margin: 0;
-
-        &.active {
-            display: inline-block;
-            margin-left: 15px;
-            margin-right: 15px;
-            margin-top: $spacing-medium;
-        }
-    }
-
-    .ast .error-indicator {
-        position: absolute;
-        left: calc(#{"100% - 1$spacing-medium"});
-    }
-
-    .fncall {
-        .error-icon {
-            display: block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            border: 1px solid lighten($black3, 20%);
-            background-color: transparent;
-        }
-
-        &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
-            background-color: lighten($black3, 20%);
-        }
-    }
+  }
 }
 
 
@@ -244,257 +250,260 @@
 //*************
 
 .ast {
-    font-size: 10pt;
-    padding-right: $spacing-medium;
-    padding-left: $spacing-medium;
-    padding-top: 24px;
-    padding-bottom: 24px;
-    white-space: pre;
-    width: max-content;
+  font-size: 10pt;
+  padding-right: $spacing-medium;
+  padding-left: $spacing-medium;
+  padding-top: 24px;
+  padding-bottom: 24px;
+  white-space: pre;
+  width: max-content;
+  display: block;
+
+  div {
+    display: inline-block;
+    vertical-align: top;
+
+    .live-value {
+      display: none;
+    }
+
+    &.display-livevalue.selected .live-value {
+      display: block;
+      position: absolute;
+      right: calc(#{"100% + 30px"});
+      font-style: normal;
+
+
+      padding: 4px;
+      width: max-content;
+      max-width: 250px;
+
+      white-space: pre-wrap;
+      word-break: break-all;
+      word-wrap: break-word;
+      font-size: $code-font-size * 0.85;
+      color: $live-value-foreground;
+
+      background-color: $live-value-background;
+
+      .copy-value {
+        position: absolute;
+        top: -4px;
+        right: -$spacing-medium;
+        color: $white1;
+        opacity: 0.7;
+
+        &:hover {
+          opacity: 0.85;
+        }
+      }
+    }
+  }
+
+  .value-error {
+    background-color: fadeout(red, 70%);
+  }
+
+  .letexpr>.letbody {
     display: block;
+  }
 
-    div {
-        display: inline-block;
-        vertical-align: top;
+  .lambdaexpr {
+    @extend .highlighted-indent;
+    display: block;
+  }
 
-        .live-value {
-            display: none;
-        }
-    
-        &.display-livevalue.selected .live-value {
-            display: block;
-            position: absolute;
-            right: calc(#{"100% + 30px"});
-            font-style: normal;
-    
-    
-            padding: 4px;
-            width: max-content;
-            max-width: 250px;
-    
-            white-space: pre-wrap;
-            word-break: break-all;
-            word-wrap: break-word;
-            font-size: $code-font-size * 0.85;
-            color: $live-value-foreground;
-    
-            background-color: $live-value-background;
-    
-            .copy-value {
-                position: absolute;
-                top: -4px;
-                right: -$spacing-medium;
-                color: $white1;
-                opacity: 0.7;
-    
-                &:hover {
-                    opacity: 0.85;
-                }
-            }
-        }
-    }
+  .lambdabinding,
+  .arrow {
+    color: $lambda-color;
+  }
 
-    .value-error {
-        background-color: fadeout(red, 70%);
-    }
-
-    .letexpr>.letbody {
-        display: block;
-    }
-
-    .lambdaexpr {
-        @extend .highlighted-indent;
-        display: block;
-    }
-
-    .lambdabinding,
-    .arrow {
-        color: $orange;
-    }
-
-    .value.tstr {
-        @extend .string-style;
-        border: 0;
-        font-size: $code-font-size;
-        margin: 0;
-
-        .quote {
-            display: inline-block;
-        }
-    }
+  .value.tstr {
+    @extend .string-style;
+    border: 0;
+    font-size: $code-font-size;
+    margin: 0;
 
     .quote {
-        @extend .string-style;
+      display: inline-block;
+    }
+  }
+
+  .quote {
+    @extend .string-style;
+    display: none;
+
+    &.quote-start {
+      left: 0;
+      top: 0;
+
+      &:before {
+        content: "\201C";
+      }
+    }
+
+    &.quote-end {
+      bottom: 0;
+      right: 0;
+
+      &:before {
+        content: "\201D";
+      }
+    }
+  }
+
+  .related-change {
+    color: $hover-foreground;
+  }
+
+  .lambdabody {
+    display: block;
+  }
+
+  .ifbody,
+  .elsebody,
+  .objectpair,
+  .matchcase {
+    @extend .indent;
+    display: block;
+  }
+
+  .objectkey {
+    .entry {
+      // this is awful -- but we need to remove the margin being added to .entry
+      // we should re-organize who adds/removes margins
+      margin-left: 0px;
+      margin-right: 0px;
+    }
+  }
+
+  .atom {
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+
+  .constructorname {
+    margin-right: 4px;
+  }
+
+  .atom.fieldaccessop {
+    margin-left: -4px;
+    margin-right: 0px;
+  }
+
+  .atom.constructor-pattern {
+    margin-left: 0px;
+  }
+
+  .atom.fieldname {
+    margin-left: 0px;
+  }
+
+  .moduleseparator {
+    color: $green;
+  }
+
+  .keyword,
+  .emit {
+    color: $green;
+  }
+
+  .fncall {
+
+    &.prefix>.arg-on-new-line {
+
+      display: block;
+      box-sizing: border-box;
+      margin-left: 2ch;
+    }
+
+    .arg-on-new-line {
+
+      &.blank>.param-name {
+        font-style: normal;
+      }
+
+      &>.param-name {
+        width: auto;
+        position: absolute;
+        color: darken($grey3, 25%);
+        font-size: 0.85rem;
+      }
+
+    }
+
+    .tstr {
+      margin-left: 2px;
+    }
+
+    .execution-button {
+      position: absolute;
+      font-size: 55%;
+      margin-left: -3px;
+      transition: color linear 0.1s;
+
+      &:hover {
+        font-size: 75%;
+        font-weight: strong;
+        margin-top: -2px;
+        cursor: pointer;
+      }
+
+      &.execution-button-unsafe {
+        color: $red;
+      }
+
+      &.execution-button-unavailable {
+        color: grey;
+      }
+
+      &.execution-button-needed {
+        color: green;
+      }
+
+      &.execution-button-repeat {
+        color: green;
+      }
+
+      &.is-executing {
+        color: white;
+        transition: none;
+
+        i {
+          animation: spin 0.75s infinite linear;
+        }
+      }
+    }
+  }
+
+  @include precedence(1);
+  @include precedence(2);
+  @include precedence(3);
+  @include precedence(4);
+  @include precedence(5);
+  @include precedence(6);
+
+  .threadexpr {
+
+    .threadmember {
+      display: block;
+
+      &:first-child>.thread.pipe {
         display: none;
+      }
 
-        &.quote-start {
-            left: 0;
-            top: 0;
-
-            &:before {
-                content: "\201C";
-            }
-        }
-
-        &.quote-end {
-            bottom: 0;
-            right: 0;
-
-            &:before {
-                content: "\201D";
-            }
-        }
-    }
-
-    .related-change {
-        color: $yellow;
-    }
-
-    .lambdabody {
-        display: block;
-    }
-
-    .ifbody, .elsebody, .objectpair, .matchcase {
-        @extend .indent;
-        display: block;
-    }
-
-    .objectkey {
-        .entry {
-            // this is awful -- but we need to remove the margin being added to .entry
-            // we should re-organize who adds/removes margins
-            margin-left: 0px;
-            margin-right: 0px;
-        }
-    }
-
-    .atom {
-        margin-left: 4px;
-        margin-right: 4px;
-    }
-
-    .constructorname {
-        margin-right: 4px;
-    }
-
-    .atom.fieldaccessop {
-        margin-left: -4px;
+      .thread.pipe {
+        margin-top: 1px;
         margin-right: 0px;
+        font-size: 70%;
+        color: $pipe-color;
+      }
     }
-
-    .atom.constructor-pattern {
-        margin-left: 0px;
-    }
-
-    .atom.fieldname {
-        margin-left: 0px;
-    }
-
-    .moduleseparator {
-        color: $green;
-    }
-
-    .keyword,
-    .emit {
-        color: $green;
-    }
-
-    .fncall {
-
-        &.prefix>.arg-on-new-line {
-
-            display: block;
-            box-sizing: border-box;
-            margin-left: 2ch;
-        }
-
-        .arg-on-new-line {
-
-            &.blank>.param-name {
-                font-style: normal;
-            }
-
-            &>.param-name {
-                width: auto;
-                position: absolute;
-                color: darken($grey3, 25%);
-                font-size: 0.85rem;
-            }
-
-        }
-
-        .tstr {
-            margin-left: 2px;
-        }
-
-        .execution-button {
-            position: absolute;
-            font-size: 55%;
-            margin-left: -3px;
-            transition: color linear 0.1s;
-
-            &:hover {
-                font-size: 75%;
-                font-weight: strong;
-                margin-top: -2px;
-                cursor: pointer;
-            }
-
-            &.execution-button-unsafe {
-                color: $red;
-            }
-
-            &.execution-button-unavailable {
-                color: grey;
-            }
-
-            &.execution-button-needed {
-                color: green;
-            }
-
-            &.execution-button-repeat {
-                color: green;
-            }
-
-            &.is-executing {
-                color: white;
-                transition: none;
-
-                i {
-                    animation: spin 0.75s infinite linear;
-                }
-            }
-        }
-    }
-
-    @include precedence(1);
-    @include precedence(2);
-    @include precedence(3);
-    @include precedence(4);
-    @include precedence(5);
-    @include precedence(6);
-
-    .threadexpr {
-
-        .threadmember {
-            display: block;
-
-            &:first-child>.thread.pipe {
-                display: none;
-            }
-
-            .thread.pipe {
-                margin-top: 1px;
-                margin-right: 0px;
-                font-size: 70%;
-                color: $blue;
-            }
-        }
-    }
+  }
 }
 
 .live-value {
-    display: none;
+  display: none;
 }
 
 /********************
@@ -504,40 +513,40 @@
 // TODO: figure out proper entry box positioning
 // -- this is a demo hack
 .spec-header .entry form {
-    margin-top: 0px;
-    position: relative;
+  margin-top: 0px;
+  position: relative;
 }
 
 .db .entry form {
-    position: relative;
-    margin-top: 0px;
+  position: relative;
+  margin-top: 0px;
 }
 
 .ast .entry form {
-    position: relative;
-    margin-top: 0px;
+  position: relative;
+  margin-top: 0px;
 }
 
 .selecting-command .entry {
-    margin-top: 4px;
-    display: block;
+  margin-top: 4px;
+  display: block;
 }
 
 
 .versioned-function {
-    display: inline-block;
-    vertical-align: baseline;
+  display: inline-block;
+  vertical-align: baseline;
 
-    .version {
-        font-size: 0.6rem;
-        margin-right: -2px;
-    }
+  .version {
+    font-size: 0.6rem;
+    margin-right: -2px;
+  }
 }
 
 .letvarname,
 .fieldname {
-    &>.entry {
-        margin-left: 0;
-        margin-right: 0;
-    }
+  &>.entry {
+    margin-left: 0;
+    margin-right: 0;
+  }
 }

@@ -3,196 +3,203 @@
 //*************
 
 #sidebar-left {
-    width: max-content;
-    height: 100%;
-    position: fixed;
-    top: 0;
-    left: 0;
+  width: max-content;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 
 .viewing-table {
-    background-color: $black2;
-    padding: $spacing-medium;
-    height: 100%;
-    position: relative;
-    width: max-content;
-    overflow: visible;
-    overflow-y: scroll;
-    min-width: 320px;
-    box-sizing: border-box;
+  background-color: $black2;
+  padding: $spacing-medium;
+  height: 100%;
+  position: relative;
+  width: max-content;
+  overflow: visible;
+  overflow-y: scroll;
+  min-width: 320px;
+  box-sizing: border-box;
 
-    &.isClosed{
-      width: 25px;
-      min-width: initial;
-      &::-webkit-scrollbar {
-        width: 0px;  /* Remove scrollbar space */
-        background: transparent;  /* Optional: just make scrollbar invisible */
+  &.isClosed {
+    width: 25px;
+    min-width: initial;
+
+    &::-webkit-scrollbar {
+      width: 0px;
+      /* Remove scrollbar space */
+      background: transparent;
+      /* Optional: just make scrollbar invisible */
+    }
+  }
+
+  .routings {
+    display: none;
+  }
+
+  .toggle-container {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+
+    .toggle-button {
+      margin: 10px;
+
+      &.closed {
+        margin: 0px;
+        margin-left: 10px;
       }
     }
-    
-    .routings{
+  }
+
+  .routing-section {
+    &.empty .header {
+      &::before {
+        content: "- ";
+        font-weight: bold;
+      }
+    }
+
+    &.deleted>.routing-section {
+      margin-left: 10px;
+    }
+
+    &.deleted.empty div {
       display: none;
     }
-    .toggle-container {
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      .toggle-button{
-        margin: 10px;
-        &.closed {
-          margin: 0px;
-          margin-left: 10px;
-        }
+
+    .header {
+      width: 100%;
+      color: lighten($yellow, 15%);
+
+      .title {
+        margin-right: 5px;
+        padding-bottom: 6px;
+      }
+
+      .count {
+        font-weight: bold;
+      }
+
+      .verb-link,
+      .button-link {
+        float: right;
       }
     }
-    .routing-section {
-        &.empty .header {
-            &::before {
-                content: "- ";
-                font-weight: bold;
-            }
-        }
 
-        &.deleted>.routing-section {
-            margin-left: 10px;
-        }
+    .button-link,
+    .external {
+      @extend .default-link;
 
-        &.deleted.empty div {
-            display: none;
-        }
+      display: inline-block;
+      width: 16px;
+      margin: 0 2px;
+      cursor: pointer;
+      color: $grey3;
 
-        .header {
-            width: 100%;
-            color: lighten($yellow, 15%);
+      &:link,
+      &:visited {
+        color: $grey3;
+      }
 
-            .title {
-                margin-right: 5px;
-                padding-bottom: 6px;
-            }
-
-            .count {
-                font-weight: bold;
-            }
-
-            .verb-link,
-            .button-link {
-                float: right;
-            }
-        }
-
-        .button-link,
-        .external {
-            @extend .default-link;
-
-            display: inline-block;
-            width: 16px;
-            margin: 0 2px;
-            cursor: pointer;
-            color: $grey3;
-
-            &:link,
-            &:visited {
-                color: $grey3;
-            }
-
-            &:hover {
-                color: $yellow;
-            }
-        }
-
-        .simple-route.handler {
-            display: block;
-            width: calc(#{"100% - 2px"});
-            padding: 2px 0;
-
-            &:hover {
-                background-color: $black1;
-            }
-
-            &.selected a {
-                color: saturate($yellow, 10%) !important;
-            }
-
-            .name {
-                color: $white1;
-            }
-
-            .aux {
-                float: right;
-            }
-
-            .icon-spacer {
-                display: inline-block;
-                width: 16px;
-                margin: 0 2px;
-            }
-        }
-
+      &:hover {
+        color: $yellow;
+      }
     }
 
-    .routing-section.http .simple-route.handler,
-    .routing-section.fof .simple-route.handler,
-    .routing-section.deleted-http .simple-route.handler {
+    .simple-route.handler {
+      display: block;
+      width: calc(#{"100% - 2px"});
+      padding: 2px 0;
 
-        .verb {
-            width: 60px;
-            color: $grey3;
-            display: inline-block;
-            text-align: right;
-            margin-right: 4px;
+      &:hover {
+        background-color: $black1;
+      }
 
-            &.verb-link {
-                text-decoration: none;
-            }
+      &.selected a {
+        color: saturate($yellow, 10%) !important;
+      }
 
-            &:hover {
-                color: $yellow;
-            }
+      .name {
+        color: $white1;
+      }
 
-            &.no-ext {
-                margin-right: 20px;
-            }
-        }
+      .aux {
+        float: right;
+      }
 
-        .external {
-            font-size: 12px;
-            position: relative;
-            top: -2px;
-        }
-
+      .icon-spacer {
+        display: inline-block;
+        width: 16px;
+        margin: 0 2px;
+      }
     }
 
-    .default-link.unused {
-        color: $grey2;
+  }
+
+  .routing-section.http .simple-route.handler,
+  .routing-section.fof .simple-route.handler,
+  .routing-section.deleted-http .simple-route.handler {
+
+    .verb {
+      width: 60px;
+      color: $grey3;
+      display: inline-block;
+      text-align: right;
+      margin-right: 4px;
+
+      &.verb-link {
+        text-decoration: none;
+      }
+
+      &:hover {
+        color: $yellow;
+      }
+
+      &.no-ext {
+        margin-right: 20px;
+      }
     }
+
+    .external {
+      font-size: 12px;
+      position: relative;
+      top: -2px;
+    }
+
+  }
+
+  .default-link.unused {
+    color: $grey2;
+  }
 }
 
 .routing-section.deploys .simple-route.deploy {
-    display: block;
-    margin-left: 16px;
+  display: block;
+  margin-left: 16px;
+  color: $grey3;
+  font-size: 0.8rem;
+
+  .datetime,
+  .hash {
+    margin-right: 2ch;
+  }
+
+  a.hash {
     color: $grey3;
-    font-size: 0.8rem;
 
-    .datetime,
-    .hash {
-        margin-right: 2ch;
+    &:hover {
+      color: $yellow;
     }
+  }
 
-    a.hash {
-        color: $grey3;
+  .status {
+    color: $white1;
 
-        &:hover {
-            color: $yellow;
-        }
+    &.success {
+      color: $green;
     }
-
-    .status {
-        color: $white1;
-
-        &.success {
-            color: $green;
-        }
-    }
+  }
 }
