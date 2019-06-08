@@ -496,6 +496,22 @@ let t_result_stdlibs_work () =
     "withDefault error"
     (exec_ast "(Result::withDefault (Error 'test') 5)")
     (DInt 5) ;
+  check_dval
+    "fromOption just"
+    (exec_ast "(Result::fromOption (Just 6) 'test')")
+    (DResult (ResOk (DInt 6))) ;
+  check_dval
+    "fromOption nothing"
+    (exec_ast "(Result::fromOption (Nothing) 'test')")
+    (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
+  check_dval
+    "toOption ok"
+    (exec_ast "(Result::toOption (Ok 6))")
+    (DOption (OptJust (DInt 6))) ;
+  check_dval
+    "toOption error"
+    (exec_ast "(Result::toOption (Error 'test'))")
+    (DOption OptNothing) ;
   ()
 
 
