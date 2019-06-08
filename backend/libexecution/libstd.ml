@@ -1924,7 +1924,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Result::withDefault"]
     ; ins = []
-    ; p = [par "option" TResult; par "default" TAny]
+    ; p = [par "result" TResult; par "default" TAny]
     ; r = TAny
     ; d =
         "Turn a result into a normal value, using `default` if the result is Error."
@@ -1933,6 +1933,43 @@ let fns : Lib.shortfn list =
           (function
           | _, [DResult o; default] ->
             (match o with ResOk dv -> dv | ResError _ -> default)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Result::fromOption"]
+    ; ins = []
+    ; p = [par "option" TOption; par "error" TStr]
+    ; r = TResult
+    ; d =
+        "Turn an option into a result, using `error` as the error message for Error."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DStr error] ->
+            ( match o with
+            | OptJust dv ->
+                DResult (ResOk dv)
+            | OptNothing ->
+                DResult (ResError (DStr error)) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Result::toOption"]
+    ; ins = []
+    ; p = [par "result" TResult]
+    ; r = TAny
+    ; d = "Turn a result into an option."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult o] ->
+            ( match o with
+            | ResOk dv ->
+                DOption (OptJust dv)
+            | ResError _ ->
+                DOption OptNothing )
           | args ->
               fail args)
     ; ps = true
