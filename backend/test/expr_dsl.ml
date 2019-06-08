@@ -29,6 +29,15 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
   (* fncall: (List::add 1 2) *)
   | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
       f (FnCall (fnname, List.map args ~f:ast_for_))
+  (* Constructors: (Just 2) *)
+  | Sexp.List [Sexp.Atom "Just"; arg] ->
+      f (Constructor (f "Just", [ast_for_ arg]))
+  | Sexp.List [Sexp.Atom "Nothing"] ->
+      f (Constructor (f "Nothing", []))
+  | Sexp.List [Sexp.Atom "Ok"; arg] ->
+      f (Constructor (f "Ok", [ast_for_ arg]))
+  | Sexp.List [Sexp.Atom "Error"; arg] ->
+      f (Constructor (f "Error", [ast_for_ arg]))
   (* blocks (\\x -> (List::head [])) *)
   | Sexp.List [Sexp.Atom var; Sexp.Atom "->"; body]
     when String.is_prefix ~prefix:"\\" var ->
@@ -77,10 +86,6 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
       f (ListLiteral [])
   | Sexp.Atom "{}" ->
       f (ObjectLiteral [])
-  | Sexp.Atom "nothing" ->
-      f (Constructor (f "Nothing", []))
-  | Sexp.Atom "ok" ->
-      f (Constructor (f "Ok", []))
   (* literals / variables *)
   | Sexp.Atom value ->
     ( match Dval.parse_literal value with
