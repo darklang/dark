@@ -476,6 +476,35 @@ let t_option_stdlibs_work () =
     "withDefault nothing"
     (exec_ast "(Option::withDefault (Nothing) 5)")
     (DInt 5) ;
+  check_dval
+    "andThen just,nothing"
+    (exec_ast "(Option::andThen (Just 5) (\\x -> (Nothing)))")
+    (DOption OptNothing) ;
+  check_dval
+    "andThen just,just"
+    (exec_ast "(Option::andThen (Just 5) (\\x -> (Just (+ 1 x))))")
+    (DOption (OptJust (DInt 6))) ;
+  check_dval
+    "andThen nothing,just"
+    (exec_ast "(Option::andThen (Nothing) (\\x -> (Just 5)))")
+    (DOption OptNothing) ;
+  check_dval
+    "andThen nothing,nothing"
+    (exec_ast "(Option::andThen (Nothing) (\\x -> (Nothing)))")
+    (DOption OptNothing) ;
+  AT.check
+    AT.bool
+    "andThen wrong type"
+    ( match
+        exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))"
+      with
+    | DError msg ->
+        Prelude.String.contains
+          ~substring:"Expected `f` to return an option"
+          msg
+    | _ ->
+        false )
+    true ;
   ()
 
 
