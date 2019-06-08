@@ -459,6 +459,20 @@ let t_stdlib_works () =
   ()
 
 
+let t_option_stdlibs_work () =
+  check_dval
+    "map just"
+    (exec_ast "(Option::map (Just 4) (\\x -> (Int::divide x 2)))")
+    (DOption (OptJust (DInt 2))) ;
+  check_dval
+    "map nothing"
+    (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
+    (DOption OptNothing) ;
+  ()
+
+
+let t_result_stdlibs_work () = t_option_stdlibs_work ()
+
 let t_multiple_copies_of_same_name () =
   check_dval
     "object field names"
@@ -1207,11 +1221,11 @@ let t_errorrail_userfn () =
 
 
 let t_nothing () =
-  check_dval "can specifiy nothing" (DOption OptNothing) (exec_ast "nothing") ;
+  check_dval "can specifiy nothing" (DOption OptNothing) (exec_ast "(Nothing)") ;
   check_dval
     "nothing works as expected"
     (DBool true)
-    (exec_ast "(== (List::head_v1 []) nothing)") ;
+    (exec_ast "(== (List::head_v1 []) (Nothing))") ;
   ()
 
 
@@ -2818,7 +2832,9 @@ let suite =
   ; ( "Canvas verification catches inconsistency post undo"
     , `Quick
     , t_canvas_verification_undo_rename_duped_name )
-  ; ("Special case accounts work", `Quick, t_special_case_accounts_work) ]
+  ; ("Special case accounts work", `Quick, t_special_case_accounts_work)
+  ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work) ]
 
 
 let () =

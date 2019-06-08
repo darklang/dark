@@ -1862,4 +1862,26 @@ let fns : Lib.shortfn list =
           (function
           | _, [DError err] -> Dval.dstr_of_string_exn err | args -> fail args)
     ; ps = true
+    ; dep = false }
+  ; (* ====================================== *)
+    (* Options *)
+    (* ====================================== *)
+    { pns = ["Option::map"]
+    ; ins = []
+    ; p = [par "option" TOption; par "f" TBlock]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+                DOption (OptJust (fn [dv]))
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
