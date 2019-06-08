@@ -1922,6 +1922,25 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Result::mapError"]
+    ; ins = []
+    ; p = [par "result" TResult; par "f" TBlock]
+    ; r = TAny
+    ; d =
+        "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult r; DBlock fn] ->
+            ( match r with
+            | ResOk _ ->
+                DResult r
+            | ResError err ->
+                DResult (ResError (fn [err])) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Result::withDefault"]
     ; ins = []
     ; p = [par "result" TResult; par "default" TAny]

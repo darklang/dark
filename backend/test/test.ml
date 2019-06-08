@@ -489,6 +489,15 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
     (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
   check_dval
+    "maperror ok"
+    (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (DInt 4))) ;
+  check_dval
+    "maperror error"
+    (exec_ast
+       "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
+    (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
+  check_dval
     "withDefault ok"
     (exec_ast "(Result::withDefault (Ok 6) 5)")
     (DInt 6) ;
