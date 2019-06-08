@@ -509,6 +509,7 @@ let t_option_stdlibs_work () =
 
 
 let t_result_stdlibs_work () =
+  let test_string = Dval.dstr_of_string_exn "test" in
   check_dval
     "map ok"
     (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
@@ -516,7 +517,7 @@ let t_result_stdlibs_work () =
   check_dval
     "map error"
     (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
-    (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
+    (DResult (ResError test_string)) ;
   check_dval
     "maperror ok"
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
@@ -541,7 +542,7 @@ let t_result_stdlibs_work () =
   check_dval
     "fromOption nothing"
     (exec_ast "(Result::fromOption (Nothing) 'test')")
-    (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
+    (DResult (ResError test_string)) ;
   check_dval
     "toOption ok"
     (exec_ast "(Result::toOption (Ok 6))")
@@ -550,6 +551,33 @@ let t_result_stdlibs_work () =
     "toOption error"
     (exec_ast "(Result::toOption (Error 'test'))")
     (DOption OptNothing) ;
+  check_dval
+    "andThen ok,error"
+    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen ok,ok"
+    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Ok (+ 1 x))))")
+    (DResult (ResOk (DInt 6))) ;
+  check_dval
+    "andThen error,ok"
+    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Ok 5)))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen error,error"
+    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  AT.check
+    AT.bool
+    "andThen wrong type"
+    ( match exec_ast "(Result::andThen (Ok 8) (\\x -> (Int::divide x 2)))" with
+    | DError msg ->
+        Prelude.String.contains
+          ~substring:"Expected `f` to return a result"
+          msg
+    | _ ->
+        false )
+    true ;
   ()
 
 

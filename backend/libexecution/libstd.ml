@@ -2018,4 +2018,45 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Result::andThen"]
+    ; ins = []
+    ; p = [par "result" TResult; par "f" TBlock]
+    ; r = TResult
+    ; d =
+        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
+    ; f =
+        InProcess
+          (function
+          | _, [DResult o; DBlock fn] ->
+            ( match o with
+            | ResOk dv ->
+              ( match fn [dv] with
+              | DResult result ->
+                  DResult result
+              | other ->
+                  RT.error
+                    ~actual:other
+                    ~expected:"a result"
+                    "Expected `f` to return a result" )
+            | ResError msg ->
+                DResult (ResError msg) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Option::withDefault"]
+    ; ins = []
+    ; p = [par "option" TOption; par "default" TAny]
+    ; r = TAny
+    ; d =
+        "Turn an option into a normal value, using `default` if the option is Nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; default] ->
+            (match o with OptJust dv -> dv | OptNothing -> default)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
