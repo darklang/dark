@@ -471,7 +471,17 @@ let t_option_stdlibs_work () =
   ()
 
 
-let t_result_stdlibs_work () = t_option_stdlibs_work ()
+let t_result_stdlibs_work () =
+  check_dval
+    "map ok"
+    (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (DInt 2))) ;
+  check_dval
+    "map error"
+    (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
+    (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
+  ()
+
 
 let t_multiple_copies_of_same_name () =
   check_dval

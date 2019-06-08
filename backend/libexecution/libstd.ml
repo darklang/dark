@@ -1884,4 +1884,26 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; (* ====================================== *)
+    (* Results *)
+    (* ====================================== *)
+    { pns = ["Result::map"]
+    ; ins = []
+    ; p = [par "result" TResult; par "f" TBlock]
+    ; r = TResult
+    ; d =
+        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult r; DBlock fn] ->
+            ( match r with
+            | ResOk dv ->
+                DResult (ResOk (fn [dv]))
+            | ResError _ ->
+                DResult r )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
