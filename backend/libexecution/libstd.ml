@@ -1885,6 +1885,32 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Option::andThen"]
+    ; ins = []
+    ; p = [par "option" TOption; par "f" TBlock]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+              ( match fn [dv] with
+              | DOption result ->
+                  DOption result
+              | other ->
+                  RT.error
+                    ~actual:other
+                    ~expected:"an option"
+                    "Expected `f` to return an option" )
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Option::withDefault"]
     ; ins = []
     ; p = [par "option" TOption; par "default" TAny]
