@@ -468,6 +468,14 @@ let t_option_stdlibs_work () =
     "map nothing"
     (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
     (DOption OptNothing) ;
+  check_dval
+    "withDefault just"
+    (exec_ast "(Option::withDefault (Just 6) 5)")
+    (DInt 6) ;
+  check_dval
+    "withDefault nothing"
+    (exec_ast "(Option::withDefault (Nothing) 5)")
+    (DInt 5) ;
   ()
 
 
@@ -480,6 +488,14 @@ let t_result_stdlibs_work () =
     "map error"
     (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
     (DResult (ResError (Dval.dstr_of_string_exn "test"))) ;
+  check_dval
+    "withDefault ok"
+    (exec_ast "(Result::withDefault (Ok 6) 5)")
+    (DInt 6) ;
+  check_dval
+    "withDefault error"
+    (exec_ast "(Result::withDefault (Error 'test') 5)")
+    (DInt 5) ;
   ()
 
 
