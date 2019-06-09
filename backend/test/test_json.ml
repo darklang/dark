@@ -51,31 +51,6 @@ let t_dval_yojson_roundtrips () =
   |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
-let t_uuid_db_roundtrip () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "Ids")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "uu")
-    ; Op.SetDBColType (dbid, coltypeid, "UUID") ]
-  in
-  let ast =
-    "(let i (Uuid::generate)
-               (let _ (DB::add_v0 (obj (uu i)) Ids)
-                 (let fetched (. (List::head (DB::getAll_v2 Ids)) uu)
-                   (i fetched))))"
-  in
-  AT.check
-    AT.int
-    "A generated UUID can round-trip from the DB"
-    0
-    ( match exec_handler ~ops ast with
-    | DList [p1; p2] ->
-        compare_dval p1 p2
-    | _ ->
-        1 )
-
-
 let t_result_to_response_works () =
   let req =
     Req.make
@@ -211,7 +186,6 @@ let suite =
     , `Quick
     , t_internal_roundtrippable_doesnt_care_about_order )
   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
-  ; ("UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip)
   ; ( "Dvals get converted to web responses correctly"
     , `Quick
     , t_result_to_response_works )
