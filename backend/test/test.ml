@@ -2705,65 +2705,109 @@ let t_special_case_accounts_work () =
 (* ------------------- *)
 
 let suite =
+  (* ------------------- *)
+  (* stdlib: Twitter *)
+  (* ------------------- *)
   [ ("hmac signing works", `Quick, t_hmac_signing)
+    (* ------------------- *)
+    (* canvas / ops *)
+    (* ------------------- *)
   ; ("undo", `Quick, t_undo)
   ; ("undo_fns", `Quick, t_undo_fns)
-  ; ("int_add_works", `Quick, t_int_add_works)
-  ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
-  ; ("stored_events", `Quick, t_stored_event_roundtrip)
-  ; ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
-  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
   ; ("db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip)
   ; ("http oplist roundtrip", `Quick, t_http_oplist_roundtrip)
-  ; ("derror roundtrip", `Quick, t_derror_roundtrip)
-  ; ("DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip)
-  ; ( "Good error when inserting badly"
+  ; ( "Can create new DB with Op CreateDBWithBlankOr"
     , `Quick
-    , t_inserting_object_to_missing_col_gives_good_error )
-  ; ("Stdlib fns work", `Quick, t_stdlib_works)
+    , t_db_create_with_orblank_name )
+  ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
+  ; ("set after delete doesn't crash", `Quick, set_after_delete)
+  ; ( "Canvas.load_for_context loads only that tlid and relevant context"
+    , `Quick
+    , t_load_for_context_only_loads_relevant_data )
+  ; ( "Canvas verification catches duplicate DB name via creation"
+    , `Quick
+    , t_canvas_verification_duplicate_creation )
+  ; ( "Canvas verification catches duplicate DB name via renaming"
+    , `Quick
+    , t_canvas_verification_duplicate_renaming )
+  ; ( "Canvas verification returns Ok if no error"
+    , `Quick
+    , t_canvas_verification_no_error )
+  ; ( "Canvas verification catches inconsistency post undo"
+    , `Quick
+    , t_canvas_verification_undo_rename_duped_name )
+    (* ------------------- *)
+    (* Basic language functionality *)
+    (* ------------------- *)
+  ; ("int_add_works", `Quick, t_int_add_works)
+  ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
   ; ( "Multiple copies of same name don't crash"
     , `Quick
     , t_multiple_copies_of_same_name )
   ; ("Feature flags work", `Quick, t_feature_flags_work)
-  ; ("Cron should run sanity", `Quick, t_cron_sanity)
-  ; ("Cron just ran", `Quick, t_cron_just_ran)
-  ; ("Test postgres escaping", `Quick, t_escape_pg_escaping)
-  ; ("Nulls allowed in DB", `Quick, t_nulls_allowed_in_db)
-  ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
-  ; ( "Parsing JSON to DVals doesn't care about key order"
-    , `Quick
-    , t_internal_roundtrippable_doesnt_care_about_order )
-  ; ( "End-user password hashing and checking works"
-    , `Quick
-    , t_password_hashing_and_checking_works )
-  ; ( "Password hashes can be stored in and retrieved from the DB"
-    , `Quick
-    , t_password_hash_db_roundtrip )
-  ; ( "Passwords serialize correctly and redact (or not) correctly"
-    , `Quick
-    , t_password_serialization )
+  ; ("Handling nothing in code works", `Quick, t_nothing)
   ; ("Incompletes propagate correctly", `Quick, t_incomplete_propagation)
-  ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
-  ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
-  ; ( "Account.authenticate_user works when it should"
-    , `Quick
-    , t_authenticate_user )
-  ; ("UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip)
-  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
-  ; ("Webserver.should_use_https works", `Quick, t_should_use_https)
-  ; ("Webserver.redirect_to works", `Quick, t_redirect_to)
   ; ("Errorrail simple", `Quick, t_errorrail_simple)
   ; ("Errorrail works in toplevel", `Quick, t_errorrail_toplevel)
   ; ("Errorrail works in user_function", `Quick, t_errorrail_userfn)
-  ; ("Handling nothing in code works", `Quick, t_nothing)
-  ; ( "authenticate_then_handle sets status codes and cookies correctly "
+  ; ( "Basic typechecking works in happy case"
     , `Quick
-    , t_authenticate_then_handle_code_and_cookie )
-  ; ( "check_csrf_then_handle checks CSRF authentication correctly  "
+    , t_basic_typecheck_works_happy )
+  ; ( "Basic typechecking works in unhappy case"
     , `Quick
-    , t_check_csrf_then_handle )
-  ; ("UI routes in admin_handler work ", `Quick, t_admin_handler_ui)
-  ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
+    , t_basic_typecheck_works_unhappy )
+  ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
+  ; ( "Error rail is propagated by functions"
+    , `Quick
+    , t_error_rail_is_propagated_by_functions )
+  ; ( "DarkInternal:: functions are internal"
+    , `Quick
+    , t_dark_internal_fns_are_internal )
+    (* ------------------- *)
+    (* Json parsing / roundtripping *)
+    (* ------------------- *)
+  ; ("derror roundtrip", `Quick, t_derror_roundtrip)
+  ; ( "Parsing JSON to DVals doesn't care about key order"
+    , `Quick
+    , t_internal_roundtrippable_doesnt_care_about_order )
+  ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
+  ; ("UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip)
+  ; ( "Dvals get converted to web responses correctly"
+    , `Quick
+    , t_result_to_response_works )
+  ; ( "New dval representations are the same as the old ones"
+    , `Quick
+    , t_old_new_dval_reprs )
+  ; ( "Date has correct formats in migration"
+    , `Quick
+    , date_migration_has_correct_formats )
+    (* stdlib: uuids *)
+  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
+    (* ------------------- *)
+    (* Analysis *)
+    (* ------------------- *)
+  ; ("stored_events", `Quick, t_stored_event_roundtrip)
+  ; ( "Trace data redacts passwords"
+    , `Quick
+    , t_trace_data_json_format_redacts_passwords )
+    (* ------------------- *)
+    (* event queue *)
+    (* ------------------- *)
+  ; ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
+    (* ------------------- *)
+    (* User DBs *)
+    (* ------------------- *)
+  ; ("DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip)
+  ; ( "Good error when inserting badly"
+    , `Quick
+    , t_inserting_object_to_missing_col_gives_good_error )
+  ; ("Nulls allowed in DB", `Quick, t_nulls_allowed_in_db)
+  ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
+    (* ------------------- *)
+    (* stdlib DBs *)
+    (* ------------------- *)
+  ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
+  ; ("DB::add works", `Quick, t_db_add_roundtrip)
   ; ("New query function works", `Quick, t_db_new_query_v2_works)
   ; ("DB::set_v1 upserts", `Quick, t_db_set_does_upsert)
   ; ("DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works)
@@ -2790,28 +2834,60 @@ let suite =
   ; ( "DB::queryOneWithKey returns Nothing if more than one found"
     , `Quick
     , t_db_queryOneWithKey_returns_nothing_multiple )
-  ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
-  ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
-  ; ("DB::add works", `Quick, t_db_add_roundtrip)
-  ; ( "DarkInternal:: functions are internal"
+    (* ------------------- *)
+    (* stdlib *)
+    (* ------------------- *)
+  ; ("Stdlib fns work", `Quick, t_stdlib_works)
+    (* ------------------- *)
+    (* cron *)
+    (* ------------------- *)
+  ; ("Cron should run sanity", `Quick, t_cron_sanity)
+  ; ("Cron just ran", `Quick, t_cron_just_ran)
+    (* ------------------- *)
+    (* general DB stuff *)
+    (* ------------------- *)
+  ; ("Test postgres escaping", `Quick, t_escape_pg_escaping)
+    (* ------------------- *)
+    (* passwords *)
+    (* ------------------- *)
+  ; ( "Password hashes can be stored in and retrieved from the DB"
     , `Quick
-    , t_dark_internal_fns_are_internal )
-  ; ( "Dval.dstr_of_string validates ASCII as UTF8"
+    , t_password_hash_db_roundtrip )
+  ; ( "Passwords serialize correctly and redact (or not) correctly"
     , `Quick
-    , t_ascii_string_literal_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates replacement character utf8 repr as UTF8"
+    , t_password_serialization )
+  ; ( "End-user password hashing and checking works"
     , `Quick
-    , t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates utf8 emoji repr as UTF8"
+    , t_password_hashing_and_checking_works )
+    (* ------------------- *)
+    (* stdlib: string *)
+    (* ------------------- *)
+  ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
+    (* ------------------- *)
+    (* stdlib: http client *)
+    (* ------------------- *)
+  ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
+    (* ------------------- *)
+    (* accounts / authentication / authorization *)
+    (* ------------------- *)
+  ; ( "Account.authenticate_user works when it should"
     , `Quick
-    , t_family_emoji_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string rejects UTF16 repr of emoji"
+    , t_authenticate_user )
+  ; ( "authenticate_then_handle sets status codes and cookies correctly "
     , `Quick
-    , t_family_emoji_utf16_byte_seq_fails_validation )
-  ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
+    , t_authenticate_then_handle_code_and_cookie )
+  ; ( "check_csrf_then_handle checks CSRF authentication correctly  "
     , `Quick
-    , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+    , t_check_csrf_then_handle )
+  ; ("UI routes in admin_handler work ", `Quick, t_admin_handler_ui)
+  ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
+  ; ("Special case accounts work", `Quick, t_special_case_accounts_work)
+    (* ------------------- *)
+    (* HTTP framework *)
+    (* ------------------- *)
+  ; ("Webserver.should_use_https works", `Quick, t_should_use_https)
+  ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
+  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
   ; ( "t_sanitize_uri_path_with_repeated_slashes"
     , `Quick
     , t_sanitize_uri_path_with_repeated_slashes )
@@ -2831,60 +2907,9 @@ let suite =
   ; ( "Route variables work with stored events and wildcards"
     , `Quick
     , t_route_variables_work_with_stored_events_and_wildcards )
-  ; ( "String::length_v2 returns the correct length for a string containing an emoji"
-    , `Quick
-    , t_string_length_v1_works_on_emoji )
-  ; ( "String::toUppercase_v1 works for ASCII range"
-    , `Quick
-    , t_string_uppercase_works_for_ascii_range )
-  ; ( "String::toLowercase_v1 works for ASCII range"
-    , `Quick
-    , t_string_lowercase_works_for_ascii_range )
-  ; ( "String::toUppercase_v1 works on mixed strings"
-    , `Quick
-    , t_string_uppercase_v1_works_on_mixed_strings )
-  ; ( "String::toUppercase_v1 works on non-ascii strings"
-    , `Quick
-    , t_string_uppercase_v1_works_on_non_ascii_strings )
-  ; ( "String split works on strings with emoji + ascii"
-    , `Quick
-    , t_string_split_works_for_emoji )
-  ; ( "Unicode_string.reverse works on strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_reverse_works_with_emojis )
-  ; ( "Unicode_string.length works for strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_length_works_with_emojis )
-  ; ( "Unicode_string.regex_replace_works_with_emojis"
-    , `Quick
-    , t_unicode_string_regex_replace_works_with_emojis )
-  ; ( "Can create new DB with Op CreateDBWithBlankOr"
-    , `Quick
-    , t_db_create_with_orblank_name )
-  ; ("Can rename DB with Op RenameDBname", `Quick, t_db_rename)
-  ; ( "Dvals get converted to web responses correctly"
-    , `Quick
-    , t_result_to_response_works )
-  ; ( "New dval representations are the same as the old ones"
-    , `Quick
-    , t_old_new_dval_reprs )
-  ; ( "Trace data redacts passwords"
-    , `Quick
-    , t_trace_data_json_format_redacts_passwords )
-  ; ( "Date has correct formats in migration"
-    , `Quick
-    , date_migration_has_correct_formats )
-  ; ( "Basic typechecking works in happy case"
-    , `Quick
-    , t_basic_typecheck_works_happy )
-  ; ( "Basic typechecking works in unhappy case"
-    , `Quick
-    , t_basic_typecheck_works_unhappy )
-  ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
     , t_http_oplist_loads_user_tipes )
-  ; ("set after delete doesn't crash", `Quick, set_after_delete)
   ; ("concrete is more specific than wild", `Quick, t_concrete_over_wild)
   ; ("wild is more specific than nothing", `Quick, t_wild_over_nothing)
   ; ("differing size wildcard routes", `Quick, t_differing_wildcards)
@@ -2919,30 +2944,60 @@ let suite =
   ; ( "path > route with root handler does not crash"
     , `Quick
     , t_path_gt_route_does_not_crash )
-  ; ( "Canvas.load_for_context loads only that tlid and relevant context"
-    , `Quick
-    , t_load_for_context_only_loads_relevant_data )
-  ; ( "Error rail is propagated by functions"
-    , `Quick
-    , t_error_rail_is_propagated_by_functions )
   ; ( "Query strings behave properly given multiple duplicate keys"
     , `Quick
     , t_query_params_with_duplicate_keys )
-  ; ( "Canvas verification catches duplicate DB name via creation"
-    , `Quick
-    , t_canvas_verification_duplicate_creation )
-  ; ( "Canvas verification catches duplicate DB name via renaming"
-    , `Quick
-    , t_canvas_verification_duplicate_renaming )
-  ; ( "Canvas verification returns Ok if no error"
-    , `Quick
-    , t_canvas_verification_no_error )
-  ; ( "Canvas verification catches inconsistency post undo"
-    , `Quick
-    , t_canvas_verification_undo_rename_duped_name )
-  ; ("Special case accounts work", `Quick, t_special_case_accounts_work)
+    (* ------------------- *)
+    (* stdlib: option / result *)
+    (* ------------------- *)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
-  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work) ]
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
+    (* ------------------- *)
+    (* stdlib: strings *)
+    (* ------------------- *)
+  ; ( "Dval.dstr_of_string validates ASCII as UTF8"
+    , `Quick
+    , t_ascii_string_literal_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string validates replacement character utf8 repr as UTF8"
+    , `Quick
+    , t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string validates utf8 emoji repr as UTF8"
+    , `Quick
+    , t_family_emoji_utf8_byte_seq_validates_as_utf8 )
+  ; ( "Dval.dstr_of_string rejects UTF16 repr of emoji"
+    , `Quick
+    , t_family_emoji_utf16_byte_seq_fails_validation )
+  ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
+    , `Quick
+    , t_mix_of_ascii_and_utf16_fails_validation )
+  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
+  ; ( "String::length_v2 returns the correct length for a string containing an emoji"
+    , `Quick
+    , t_string_length_v1_works_on_emoji )
+  ; ( "String::toUppercase_v1 works for ASCII range"
+    , `Quick
+    , t_string_uppercase_works_for_ascii_range )
+  ; ( "String::toLowercase_v1 works for ASCII range"
+    , `Quick
+    , t_string_lowercase_works_for_ascii_range )
+  ; ( "String::toUppercase_v1 works on mixed strings"
+    , `Quick
+    , t_string_uppercase_v1_works_on_mixed_strings )
+  ; ( "String::toUppercase_v1 works on non-ascii strings"
+    , `Quick
+    , t_string_uppercase_v1_works_on_non_ascii_strings )
+  ; ( "String split works on strings with emoji + ascii"
+    , `Quick
+    , t_string_split_works_for_emoji )
+  ; ( "Unicode_string.reverse works on strings with emoji + ascii"
+    , `Quick
+    , t_unicode_string_reverse_works_with_emojis )
+  ; ( "Unicode_string.length works for strings with emoji + ascii"
+    , `Quick
+    , t_unicode_string_length_works_with_emojis )
+  ; ( "Unicode_string.regex_replace_works_with_emojis"
+    , `Quick
+    , t_unicode_string_regex_replace_works_with_emojis ) ]
 
 
 let () =
