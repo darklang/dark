@@ -770,100 +770,6 @@ let t_parsed_request_cookies () =
     ]
 
 
-let t_ascii_string_literal_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "ASCII string validates as UTF-8"
-    0
-    (match Dval.dstr_of_string "foobar" with Some _ -> 0 | _ -> 1)
-
-
-let t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "Replacement character utf8 multi-byte sequence validates"
-    0
-    (match Dval.dstr_of_string "\xef\xbf\xbd" with Some _ -> 0 | _ -> 1)
-
-
-let t_family_emoji_utf8_byte_seq_validates_as_utf8 () =
-  AT.check
-    AT.int
-    "Emoji utf8 multi-byte sequence validates"
-    0
-    (match Dval.dstr_of_string "\xf0\x9f\x91\xaa" with Some _ -> 0 | _ -> 1)
-
-
-let t_family_emoji_utf16_byte_seq_fails_validation () =
-  AT.check
-    AT.int
-    "UTF16 representation of family emoji does not validate"
-    0
-    (match Dval.dstr_of_string "\xd8\x3d\xdc\x6A" with Some _ -> 1 | _ -> 0)
-
-
-let t_mix_of_ascii_and_utf16_fails_validation () =
-  AT.check
-    AT.int
-    "Mix of valid ASCII followed by a UTF16 byte sequence fails validation"
-    0
-    ( match Dval.dstr_of_string "hello, \xd8\x3d\xdc\x6A" with
-    | Some _ ->
-        1
-    | _ ->
-        0 )
-
-
-let t_u0000_fails_validation () =
-  AT.check
-    AT.int
-    "String containing U+0000/0x00 fails to validate (due to Postgres quirks)"
-    0
-    (match Dval.dstr_of_string "hello, \x00" with Some _ -> 1 | _ -> 0)
-
-
-let t_string_length_v1_works_on_emoji () =
-  check_dval
-    "stringLength"
-    (exec_ast "(String::length_v1 '\xef\xbf\xbd')")
-    (DInt 1)
-
-
-let t_string_uppercase_works_for_ascii_range () =
-  check_dval
-    "stringUppercaseASCII"
-    (exec_ast "(String::toUppercase_v1 'abcdef')")
-    (Dval.dstr_of_string_exn "ABCDEF")
-
-
-let t_string_lowercase_works_for_ascii_range () =
-  check_dval
-    "stringLowercaseASCII"
-    (exec_ast "(String::toLowercase_v1 'ABCDEF')")
-    (Dval.dstr_of_string_exn "abcdef")
-
-
-let t_string_uppercase_v1_works_on_mixed_strings () =
-  check_dval
-    "stringUpppercaseMixed"
-    (exec_ast "(String::toUppercase_v1 'hello\xf0\x9f\x98\x84world')")
-    (Dval.dstr_of_string_exn "HELLO\xf0\x9f\x98\x84WORLD")
-
-
-let t_string_uppercase_v1_works_on_non_ascii_strings () =
-  check_dval
-    "stringUpppercaseMixed"
-    (exec_ast "(String::toUppercase_v1 'żółw')")
-    (Dval.dstr_of_string_exn "ŻÓŁW")
-
-
-let t_string_split_works_for_emoji () =
-  check_dval
-    "stringSplit"
-    (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
-    (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
-
-
 let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
@@ -922,36 +828,6 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;
   ()
-
-
-let unicode_string_tester = AT.testable Unicode_string.pp Unicode_string.equal
-
-let t_unicode_string_reverse_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let expected = Unicode_string.of_string_exn "dlrow\xf0\x9f\x98\x84olleh" in
-  AT.check
-    unicode_string_tester
-    "emoji_reverse"
-    expected
-    (Unicode_string.rev s1)
-
-
-let t_unicode_string_length_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let expected = 11 in
-  AT.check AT.int "emoji_length" expected (Unicode_string.length s1)
-
-
-let t_unicode_string_regex_replace_works_with_emojis () =
-  let s1 = Unicode_string.of_string_exn "hello\xf0\x9f\x98\x84world" in
-  let pattern = "\xf0\x9f\x98\x84" in
-  let replacement = Unicode_string.of_string_exn "FOO" in
-  let expected = Unicode_string.of_string_exn "helloFOOworld" in
-  AT.check
-    unicode_string_tester
-    "emoji_regex_replace"
-    expected
-    (Unicode_string.regexp_replace ~pattern ~replacement s1)
 
 
 let t_trace_data_json_format_redacts_passwords () =
@@ -1078,53 +954,7 @@ let suite =
     (* stdlib: option / result *)
     (* ------------------- *)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
-  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
-    (* ------------------- *)
-    (* stdlib: strings *)
-    (* ------------------- *)
-  ; ( "Dval.dstr_of_string validates ASCII as UTF8"
-    , `Quick
-    , t_ascii_string_literal_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates replacement character utf8 repr as UTF8"
-    , `Quick
-    , t_unicode_replacement_character_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string validates utf8 emoji repr as UTF8"
-    , `Quick
-    , t_family_emoji_utf8_byte_seq_validates_as_utf8 )
-  ; ( "Dval.dstr_of_string rejects UTF16 repr of emoji"
-    , `Quick
-    , t_family_emoji_utf16_byte_seq_fails_validation )
-  ; ( "Dval.dstr_of_string rejects mix of ASCII and UTF16"
-    , `Quick
-    , t_mix_of_ascii_and_utf16_fails_validation )
-  ; ("Dval.dstr_of_string rejects 0x00", `Quick, t_u0000_fails_validation)
-  ; ( "String::length_v2 returns the correct length for a string containing an emoji"
-    , `Quick
-    , t_string_length_v1_works_on_emoji )
-  ; ( "String::toUppercase_v1 works for ASCII range"
-    , `Quick
-    , t_string_uppercase_works_for_ascii_range )
-  ; ( "String::toLowercase_v1 works for ASCII range"
-    , `Quick
-    , t_string_lowercase_works_for_ascii_range )
-  ; ( "String::toUppercase_v1 works on mixed strings"
-    , `Quick
-    , t_string_uppercase_v1_works_on_mixed_strings )
-  ; ( "String::toUppercase_v1 works on non-ascii strings"
-    , `Quick
-    , t_string_uppercase_v1_works_on_non_ascii_strings )
-  ; ( "String split works on strings with emoji + ascii"
-    , `Quick
-    , t_string_split_works_for_emoji )
-  ; ( "Unicode_string.reverse works on strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_reverse_works_with_emojis )
-  ; ( "Unicode_string.length works for strings with emoji + ascii"
-    , `Quick
-    , t_unicode_string_length_works_with_emojis )
-  ; ( "Unicode_string.regex_replace_works_with_emojis"
-    , `Quick
-    , t_unicode_string_regex_replace_works_with_emojis ) ]
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work) ]
 
 
 let () =
@@ -1145,7 +975,8 @@ let () =
     ; ("tests", suite)
     ; ("canvas+ops", Test_canvas_ops.suite)
     ; ("json", Test_json.suite)
-    ; ("user_db", Test_user_db.suite) ]
+    ; ("user_db", Test_user_db.suite)
+    ; ("string-libs", Test_string_libs.suite) ]
   in
   let wrapped_suites =
     List.map suites ~f:(fun (n, ts) ->
