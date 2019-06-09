@@ -6,6 +6,7 @@ open Types
 open Types.RuntimeT
 open Ast
 open Lwt
+open Utils
 module Resp = Cohttp_lwt_unix.Response
 module Req = Cohttp_lwt_unix.Request
 module Header = Cohttp.Header
@@ -13,227 +14,7 @@ module Code = Cohttp.Code
 module C = Canvas
 module RT = Runtime
 module TL = Toplevel
-module Map = Map.Poly
 module AT = Alcotest
-
-(* ------------------- *)
-(* Misc fns *)
-(* ------------------- *)
-let clear_test_data () : unit =
-  let owner = Account.for_host_exn "test" in
-  let canvas_ids =
-    Db.fetch
-      ~params:[Uuid owner]
-      ~name:"lol"
-      "SELECT id
-       FROM canvases
-       WHERE account_id = $1"
-    |> List.filter_map ~f:(fun cid -> cid |> List.hd_exn |> Uuidm.of_string)
-    |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
-  in
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_events_test_data"
-    "DELETE FROM events where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_stored_events_test_data"
-    "DELETE FROM stored_events_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_function_results_test_data"
-    "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_cron_records_test_data"
-    "DELETE FROM cron_records where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_toplevel_oplists_test_data"
-    "DELETE FROM toplevel_oplists WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_function_arguments"
-    "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
-    ~name:"clear_canvases_test_data"
-    "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
-  ()
-
-
-(* ------------------- *)
-(* Test fns *)
-(* ------------------- *)
-
-let at_dval =
-  AT.testable
-    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
-    (fun a b -> compare_dval a b = 0)
-
-
-let check_dval = AT.check at_dval
-
-let check_dval_list = AT.check (AT.list at_dval)
-
-let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
-
-let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
-
-let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
-  let e =
-    try
-      let r = f () in
-      Log.erroR "result" ~data:(Dval.to_developer_repr_v0 r) ;
-      Some "no exception"
-    with
-    | Exception.DarkException ed ->
-        if check ed
-        then None
-        else (
-          Log.erroR "check failed" ~data:(Log.dump ed) ;
-          Some "Check failed" )
-    | e ->
-        let bt = Backtrace.Exn.most_recent () in
-        let msg = Exn.to_string e in
-        print_endline (Backtrace.to_string bt) ;
-        Log.erroR "different exception" ~data:msg ;
-        Some "different exception"
-  in
-  AT.check (AT.option AT.string) msg None e
-
-
-let check_error_contains (name : string) (result : dval) (substring : string) =
-  let strresult = Dval.to_developer_repr_v0 result in
-  AT.(check bool)
-    (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
-    true
-    (String.is_substring ~substring strresult)
-
-
-(* ------------------- *)
-(* Set up test data *)
-(* ------------------- *)
-
-let fid = Util.create_id
-
-let v str = Filled (fid (), Value str)
-
-let b () = Blank (fid ())
-
-let f a = Filled (fid (), a)
-
-let fncall (a, b) = f (FnCall (a, b))
-
-let tlid = Int63.of_int 7
-
-let tlid2 = Int63.of_int 35
-
-let tlid3 = Int63.of_int 70
-
-let tipe_id = Int63.of_int 9
-
-let dbid = Int63.of_int 89
-
-let dbid2 = Int63.of_int 189
-
-let colnameid = Int63.of_int 11
-
-let coltypeid = Int63.of_int 12
-
-let colnameid2 = Int63.of_int 13
-
-let coltypeid2 = Int63.of_int 14
-
-let colnameid3 = Int63.of_int 15
-
-let coltypeid3 = Int63.of_int 16
-
-let nameid = Int63.of_int 17
-
-let nameid2 = Int63.of_int 217
-
-let pos = {x = 0; y = 0}
-
-let execution_id = Int63.of_int 6542
-
-let ast_for = Expr_dsl.ast_for
-
-let handler ?(tlid = tlid) ast : HandlerT.handler =
-  { tlid
-  ; ast
-  ; spec =
-      { module_ = b ()
-      ; name = b ()
-      ; modifier = b ()
-      ; types = {input = b (); output = b ()} } }
-
-
-let http_handler ?(tlid = tlid) ast : HandlerT.handler =
-  { tlid
-  ; ast
-  ; spec =
-      { module_ = f "HTTP"
-      ; name = f "/test"
-      ; modifier = f "GET"
-      ; types = {input = b (); output = b ()} } }
-
-
-let http_request_path = "/some/vars/and/such"
-
-let http_route = "/some/:vars/:and/such"
-
-let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
-    HandlerT.handler =
-  { tlid
-  ; ast = f (Value "5")
-  ; spec =
-      { module_ = f "HTTP"
-      ; name = f route
-      ; modifier = f "GET"
-      ; types = {input = b (); output = b ()} } }
-
-
-let daily_cron ast : HandlerT.handler =
-  { tlid
-  ; ast
-  ; spec =
-      { module_ = f "CRON"
-      ; name = f "test"
-      ; modifier = f "Daily"
-      ; types = {input = b (); output = b ()} } }
-
-
-let hop h = Op.SetHandler (tlid, pos, h)
-
-let user_fn name params ast : user_fn =
-  { tlid
-  ; ast
-  ; metadata =
-      { name = f name
-      ; parameters =
-          List.map params ~f:(fun p ->
-              { name = f p
-              ; tipe = f TAny
-              ; block_args = []
-              ; optional = false
-              ; description = "test" } )
-      ; return_type = f TAny
-      ; description = "test user fn"
-      ; infix = false } }
-
-
-let user_record name fields : user_tipe =
-  {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
-
-
-let t4_get1st (x, _, _, _) = x
-
-let t4_get4th (_, _, _, x) = x
 
 let sample_dvals =
   [ ("int", DInt 5)
@@ -280,92 +61,6 @@ let sample_dvals =
         (* use image bytes here to test for any weird bytes forms *)
         (RawBytes.of_string
            (File.readfile ~root:Testdata "sample_image_bytes.png")) ) ]
-
-
-(* ------------------- *)
-(* Execution *)
-(* ------------------- *)
-let ops2c (host : string) (ops : Op.op list) :
-    (C.canvas ref, string list) Result.t =
-  C.init host ops
-
-
-let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
-  C.init host ops
-  |> Result.map_error ~f:(String.concat ~sep:", ")
-  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
-
-
-let test_execution_data ?(canvas_name = "test") ops :
-    C.canvas ref * exec_state * input_vars =
-  let c = ops2c_exn canvas_name ops in
-  let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
-  let canvas_id = !c.id in
-  let trace_id = Util.create_uuid () in
-  let state =
-    { tlid
-    ; account_id = !c.owner
-    ; canvas_id = !c.id
-    ; user_fns = IDMap.data !c.user_functions
-    ; user_tipes = IDMap.data !c.user_tipes
-    ; fail_fn = None
-    ; dbs = TL.dbs !c.dbs
-    ; execution_id
-    ; load_fn_result = Execution.load_no_results
-    ; store_fn_result = Stored_function_result.store ~canvas_id ~trace_id
-    ; load_fn_arguments = Execution.load_no_arguments
-    ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
-    }
-  in
-  (c, state, vars)
-
-
-let execute_ops (ops : Op.op list) : dval =
-  let ( c
-      , {tlid; execution_id; dbs; user_fns; user_tipes; account_id; canvas_id}
-      , input_vars ) =
-    test_execution_data ops
-  in
-  let h = !c.handlers |> TL.handlers |> List.hd_exn in
-  let result, _ =
-    Execution.execute_handler
-      h
-      ~tlid
-      ~execution_id
-      ~dbs
-      ~user_fns
-      ~user_tipes
-      ~account_id
-      ~canvas_id
-      ~input_vars:[]
-  in
-  result
-
-
-(* already provided in execute_handler *)
-
-let exec_handler ?(ops = []) (prog : string) : dval =
-  prog
-  |> ast_for
-  (* |> Log.pp ~f:show_expr *)
-  |> handler
-  |> hop
-  |> fun h -> execute_ops (ops @ [h])
-
-
-let exec_ast ?(canvas_name = "test") (prog : string) : dval =
-  let c, state, input_vars = test_execution_data ~canvas_name [] in
-  let result, _ = Ast.execute_ast input_vars state (ast_for prog) in
-  result
-
-
-let exec_userfn (prog : string) : dval =
-  let name = "test_function" in
-  let ast = ast_for prog in
-  let fn = user_fn name [] ast in
-  let c, state, _ = test_execution_data [SetFunction fn] in
-  let result, _ = Ast.execute_fn state name execution_id [] in
-  result
 
 
 (* ----------------------- *)
@@ -808,13 +503,6 @@ let t_event_queue_roundtrip () =
   ()
 
 
-let t_bad_ssl_cert _ =
-  check_error_contains
-    "should get bad_ssl"
-    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
-    "Bad HTTP request: Peer certificate cannot be authenticated with given CA certificates"
-
-
 let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   let ts = "1318622958" in
@@ -1232,43 +920,6 @@ let t_uuid_string_roundtrip () =
     "A generated id can round-trip"
     0
     (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
-
-
-let t_should_use_https () =
-  AT.check
-    (AT.list AT.bool)
-    "should_use_https works"
-    (List.map
-       ~f:(fun x -> Webserver.should_use_https (Uri.of_string x))
-       [ "http://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "http://localhost"
-       ; "http://test.localhost" ])
-    [true; true; false; false]
-
-
-let t_redirect_to () =
-  AT.check
-    (AT.list (AT.option AT.string))
-    "redirect_to works"
-    (List.map
-       ~f:(fun x ->
-         x
-         |> Uri.of_string
-         |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string )
-       [ "http://example.com"
-       ; "http://builtwithdark.com"
-       ; "https://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "https://test.builtwithdark.com"
-       ; "http://test.builtwithdark.com/x/y?z=a" ])
-    [ None
-    ; Some "https://builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com/x/y?z=a" ]
 
 
 let t_errorrail_simple () =
@@ -1941,56 +1592,6 @@ let t_string_split_works_for_emoji () =
     (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
 
 
-let t_sanitize_uri_path_with_repeated_slashes () =
-  AT.check
-    AT.string
-    "/foo//bar->/foo/bar"
-    (Webserver.sanitize_uri_path "/foo//bar")
-    "/foo/bar"
-
-
-let t_sanitize_uri_path_with_trailing_slash () =
-  AT.check AT.string "/foo/->/foo" (Webserver.sanitize_uri_path "/foo/") "/foo"
-
-
-let t_sanitize_uri_path_with_root_noops () =
-  AT.check AT.string "/->/" (Webserver.sanitize_uri_path "/") "/"
-
-
-let t_sanitize_uri_path_with_repeated_root () =
-  AT.check AT.string "//->/" (Webserver.sanitize_uri_path "//") "/"
-
-
-let t_route_variables_work () =
-  AT.check
-    (AT.list AT.string)
-    "Variables are as expected"
-    ["userid"; "cardid"]
-    (Http.route_variables "/user/:userid/card/:cardid") ;
-  AT.check
-    (AT.list (AT.pair AT.string at_dval))
-    "Variables are bound as expected"
-    [ ("cardid", Dval.dstr_of_string_exn "0")
-    ; ("userid", Dval.dstr_of_string_exn "myid") ]
-    (Http.bind_route_variables_exn
-       "/user/myid/card/0"
-       ~route:"/user/:userid/card/:cardid") ;
-  AT.check
-    AT.bool
-    "Path matches the route"
-    true
-    (Http.request_path_matches_route
-       "/user/myid/card/0"
-       ~route:"/user/:userid/card/:cardid") ;
-  AT.check
-    AT.bool
-    "Path doesnt match erroneously"
-    false
-    (Http.request_path_matches_route
-       "/api/create-token"
-       ~route:"/api/create_token")
-
-
 let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
@@ -2312,250 +1913,6 @@ let set_after_delete () =
   ()
 
 
-let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
-
-let t_concrete_over_wild () =
-  let wild = http_route_handler ~route:"/:foo" () in
-  let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [concrete; wild]
-  in
-  AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
-
-
-let t_wild_over_nothing () =
-  let wild = http_route_handler ~route:"/a/:foo" () in
-  let nothing = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [wild; nothing] in
-  AT.check (AT.list testable_handler) "wild over nothing" [wild] ordered
-
-
-let t_differing_wildcards () =
-  let single = http_route_handler ~route:"/:first" () in
-  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [single; double]
-  in
-  AT.check (AT.list testable_handler) "differing wildcards" [double] ordered
-
-
-let t_lengthy_abcdef_wildcard () =
-  let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
-  let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [more; earlier] in
-  AT.check (AT.list testable_handler) "lengthy abcdef wildcard" [more] ordered
-
-
-let t_same_length_abc_diff_wildcards () =
-  let a = http_route_handler ~route:"/a/:b/:c" () in
-  let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
-  AT.check
-    (AT.list testable_handler)
-    "same length abc route with diff # wildcards"
-    [a]
-    ordered
-
-
-let t_same_length_abc_same_wildcards () =
-  let a = http_route_handler ~route:"/:a/b/c" () in
-  let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
-  let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
-  AT.check
-    (AT.list testable_handler)
-    "same length abc routes with same # wildcards"
-    [c]
-    ordered
-
-
-(* note this test depends on the current reverse ordering, even though there's
- * no reason to guarantee the reversal for routes of the same specificity. *)
-let t_same_specificity_are_returned () =
-  let single = http_route_handler ~route:"/:first" () in
-  let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
-  let double2 = http_route_handler ~tlid:tlid3 ~route:"/:foo/:bar" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [single; double; double2]
-  in
-  AT.check
-    (AT.list testable_handler)
-    "multiple specificity are returned"
-    [double2; double]
-    ordered
-
-
-let t_mismatch_is_filtered () =
-  let single = http_route_handler ~route:"/:first" () in
-  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single] in
-  AT.check (AT.list testable_handler) "mismatch is filtered out" [] filtered
-
-
-let t_mismatch_filtering_leaves_root () =
-  let single = http_route_handler ~route:"/:first" () in
-  let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
-  let filtered =
-    Http.filter_invalid_handler_matches ~path:"/" [single; root]
-  in
-  AT.check
-    (AT.list testable_handler)
-    "mismatch is filtered out but root is left"
-    [root]
-    filtered
-
-
-let testable_string_dval_pair =
-  AT.testable pp_string_dval_pair equal_string_dval_pair
-
-
-let t_route_equals_path () =
-  let route = "/a/:b/c" in
-  let path = "/a/pickmeup/c" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "route binds to path when they're same length"
-    (Some [("b", Dval.dstr_of_string_exn "pickmeup")])
-    bound
-
-
-let t_route_lt_path_with_wildcard () =
-  let route = "/a/:b" in
-  let path = "/a/pickmeup/c/d" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "len(route) < len(path) with a trailing wildcard should succeed in binding all of the remaining path bits"
-    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")])
-    bound
-
-
-let t_route_lt_path_without_wildcard () =
-  let route = "/:a/b" in
-  let path = "/a/b/c" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "len(route) < len(path) without trailing wildcards should fail binding"
-    None
-    bound
-
-
-let t_route_gt_path () =
-  let route = "/a/b/c/d" in
-  let path = "/a/b/c" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "len(route) > len(path) should fail binding"
-    None
-    bound
-
-
-let t_route_eq_path_mismatch_concrete () =
-  let route = "/a/:b/c/d" in
-  let path = "/a/b/c/e" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "binding fails due to mismatch in concrete elems"
-    None
-    bound
-
-
-let t_head_and_get_requests_are_coalesced () =
-  let test_name = "head-and-get-requests-are-coalsced" in
-  let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
-    C.save_all !canvas ;
-    canvas
-  in
-  let respond_to_head_from_get (req : Req.t) : int * (int * string) =
-    Lwt_main.run
-      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let test_id = Types.id_of_int 1234 in
-       let canvas = setup_canvas () in
-       let%lwt resp, body =
-         Webserver.canvas_handler
-           ~execution_id:test_id
-           ~canvas:!canvas.host
-           ~ip:""
-           ~uri:(req |> Req.uri)
-           ~body:""
-           req
-       in
-       let code = resp |> Resp.status |> Code.code_of_status in
-       let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
-       resp
-       |> Resp.headers
-       |> (fun headers ->
-            match Header.get headers "Content-Length" with
-            | None ->
-                0
-            | Some h ->
-                int_of_string h )
-       |> fun content_length -> return (code, (content_length, body_string)))
-  in
-  let expected_body = "\"test_body\"" in
-  let expected_content_length = String.length expected_body in
-  AT.check
-    (AT.list (AT.pair AT.int (AT.pair AT.int AT.string)))
-    "canvas_handler returns same content-length for HEAD and GET requests"
-    (List.map
-       ~f:respond_to_head_from_get
-       (* valid basic auth login on darklang.com *)
-       [ Req.make
-           ?meth:(Some `GET)
-           (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-         (* valid basic auth login on localhost *)
-       ; Req.make
-           ?meth:(Some `HEAD)
-           (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-       ])
-    [ (200, (expected_content_length, expected_body))
-    ; (200, (expected_content_length, "")) ]
-
-
-let t_route_eq_path_match_concrete () =
-  let route = "/a/b/c/d" in
-  let path = "/a/b/c/d" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "empty binding succeeds"
-    (Some [])
-    bound
-
-
-let t_route_non_prefix_colon_does_not_denote_variable () =
-  (* as the colon does not denote a variable, this is actually a malformed
-   * route as `:` is reserved in the URL alphabet and thus we could never
-   * receive a path that matches it *)
-  let route = "/letters:var" in
-  let path = "/lettersextra" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "binding fails due to concrete mismatch"
-    None
-    bound
-
-
-let t_path_gt_route_does_not_crash () =
-  let route = "/" in
-  let path = "/a/b/c/d" in
-  let bound = Http.bind_route_variables ~route path in
-  AT.check
-    (AT.option (AT.list testable_string_dval_pair))
-    "binding fails without crash"
-    None
-    bound
-
-
 let t_error_rail_is_propagated_by_functions () =
   check_dval
     "push"
@@ -2619,24 +1976,6 @@ let t_load_for_context_only_loads_relevant_data () =
     |> List.rev
   in
   check_oplist "only loads relevant data from same canvas" shared_oplist ops
-
-
-let t_query_params_with_duplicate_keys () =
-  let parsed =
-    Parsed_request.parsed_query_string [("a", ["b"]); ("a", ["c"])]
-  in
-  check_dval
-    "parsed_query_string"
-    (DObj
-       (DvalMap.singleton
-          "queryParams"
-          (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c")))))
-    parsed ;
-  check_dval
-    "query_to_dval"
-    (Dval.query_to_dval [("a", ["b"]); ("a", ["c"])])
-    (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c"))) ;
-  ()
 
 
 let t_canvas_verification_duplicate_creation () =
@@ -2736,6 +2075,9 @@ let suite =
   ; ( "Canvas verification catches inconsistency post undo"
     , `Quick
     , t_canvas_verification_undo_rename_duped_name )
+  ; ( "Loading handler via HTTP router loads user tipes"
+    , `Quick
+    , t_http_oplist_loads_user_tipes )
     (* ------------------- *)
     (* Basic language functionality *)
     (* ------------------- *)
@@ -2790,6 +2132,12 @@ let suite =
   ; ( "Trace data redacts passwords"
     , `Quick
     , t_trace_data_json_format_redacts_passwords )
+  ; ( "Route variables work with stored events"
+    , `Quick
+    , t_route_variables_work_with_stored_events )
+  ; ( "Route variables work with stored events and wildcards"
+    , `Quick
+    , t_route_variables_work_with_stored_events_and_wildcards )
     (* ------------------- *)
     (* event queue *)
     (* ------------------- *)
@@ -2883,71 +2231,6 @@ let suite =
   ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
   ; ("Special case accounts work", `Quick, t_special_case_accounts_work)
     (* ------------------- *)
-    (* HTTP framework *)
-    (* ------------------- *)
-  ; ("Webserver.should_use_https works", `Quick, t_should_use_https)
-  ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
-  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
-  ; ( "t_sanitize_uri_path_with_repeated_slashes"
-    , `Quick
-    , t_sanitize_uri_path_with_repeated_slashes )
-  ; ( "t_sanitize_uri_path_with_trailing_slash"
-    , `Quick
-    , t_sanitize_uri_path_with_trailing_slash )
-  ; ( "t_sanitize_uri_path_with_root_noops"
-    , `Quick
-    , t_sanitize_uri_path_with_root_noops )
-  ; ( "t_sanitize_uri_path_with_repeated_root"
-    , `Quick
-    , t_sanitize_uri_path_with_repeated_root )
-  ; ("Route variables work", `Quick, t_route_variables_work)
-  ; ( "Route variables work with stored events"
-    , `Quick
-    , t_route_variables_work_with_stored_events )
-  ; ( "Route variables work with stored events and wildcards"
-    , `Quick
-    , t_route_variables_work_with_stored_events_and_wildcards )
-  ; ( "Loading handler via HTTP router loads user tipes"
-    , `Quick
-    , t_http_oplist_loads_user_tipes )
-  ; ("concrete is more specific than wild", `Quick, t_concrete_over_wild)
-  ; ("wild is more specific than nothing", `Quick, t_wild_over_nothing)
-  ; ("differing size wildcard routes", `Quick, t_differing_wildcards)
-  ; ("lengthy a/b/c/d/e/f wildcard", `Quick, t_lengthy_abcdef_wildcard)
-  ; ( "same length a/b/c with different # wildcards "
-    , `Quick
-    , t_same_length_abc_diff_wildcards )
-  ; ( "same length a/b/c with same # wildcards "
-    , `Quick
-    , t_same_length_abc_same_wildcards )
-  ; ("same specificity are returned", `Quick, t_same_specificity_are_returned)
-  ; ("route /:a results in 404 for /", `Quick, t_mismatch_is_filtered)
-  ; ( "root handler is not filtered out"
-    , `Quick
-    , t_mismatch_filtering_leaves_root )
-  ; ("route = path", `Quick, t_route_equals_path)
-  ; ("route < path", `Quick, t_route_lt_path_with_wildcard)
-  ; ("route < path not wildcard", `Quick, t_route_lt_path_without_wildcard)
-  ; ("route > path", `Quick, t_route_gt_path)
-  ; ( "route = path but concrete mismatch"
-    , `Quick
-    , t_route_eq_path_mismatch_concrete )
-  ; ( "head and get requests are coalsced"
-    , `Quick
-    , t_head_and_get_requests_are_coalesced )
-  ; ( "route = path solely concrete match"
-    , `Quick
-    , t_route_eq_path_match_concrete )
-  ; ( "apparent route variable that's not a prefix does not match"
-    , `Quick
-    , t_route_non_prefix_colon_does_not_denote_variable )
-  ; ( "path > route with root handler does not crash"
-    , `Quick
-    , t_path_gt_route_does_not_crash )
-  ; ( "Query strings behave properly given multiple duplicate keys"
-    , `Quick
-    , t_query_params_with_duplicate_keys )
-    (* ------------------- *)
     (* stdlib: option / result *)
     (* ------------------- *)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -3010,10 +2293,12 @@ let () =
           print_endline (Exception.to_string e) ;
           print_endline (Exception.backtrace_to_string bt) )
   in
-  let wrapped_suite = List.map suite ~f:(fun (n, m, t) -> (n, m, wrap t)) in
-  let suite, exit =
-    Junit_alcotest.run_and_report "suite" [("tests", wrapped_suite)]
+  let suites = [("http", Test_http.suite); ("tests", suite)] in
+  let wrapped_suites =
+    List.map suites ~f:(fun (n, ts) ->
+        (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))) )
   in
+  let suite, exit = Junit_alcotest.run_and_report "all" wrapped_suites in
   let report = Junit.make [suite] in
   File.mkdir ~root:Testresults "" ;
   let file =
