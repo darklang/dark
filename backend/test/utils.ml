@@ -325,3 +325,51 @@ let exec_userfn (prog : string) : dval =
   let c, state, _ = test_execution_data [SetFunction fn] in
   let result, _ = Ast.execute_fn state name execution_id [] in
   result
+
+
+(* Sample values *)
+let sample_dvals =
+  [ ("int", DInt 5)
+  ; ("int2", DInt (-1))
+  ; ("float", DFloat 7.2)
+  ; ("float2", DFloat (-7.2))
+  ; ("true", DBool true)
+  ; ("false", DBool false)
+  ; ("null", DNull)
+  ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
+  ; ("list", DList [DDB "Visitors"; DInt 4])
+  ; ("obj", DObj (DvalMap.singleton "foo" (DInt 5)))
+  ; ( "obj2"
+    , DObj
+        (DvalMap.from_list
+           [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
+  ; ( "obj3"
+    , DObj
+        (DvalMap.from_list
+           [ ("type", Dval.dstr_of_string_exn "weird")
+           ; ("value", Dval.dstr_of_string_exn "x") ]) )
+  ; ("incomplete", DIncomplete)
+  ; ("error", DError "some error string")
+  ; ("block", DBlock (fun _args -> DNull))
+  ; ("errorrail", DErrorRail (DInt 5))
+  ; ("redirect", DResp (Redirect "/home", DNull))
+  ; ( "httpresponse"
+    , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
+  ; ("db", DDB "Visitors")
+  ; ("date", DDate (Time.of_string "2018-09-14T00:31:41Z"))
+  ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
+  ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
+  ; ("option", DOption OptNothing)
+  ; ("option2", DOption (OptJust (DInt 15)))
+  ; ("character", DCharacter (Unicode_string.Character.unsafe_of_string "s"))
+  ; ("result", DResult (ResOk (DInt 15)))
+  ; ( "result2"
+    , DResult
+        (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
+    )
+  ; ("bytes", DBytes ("JyIoXCg=" |> B64.decode |> RawBytes.of_string))
+  ; ( "bytes2"
+    , DBytes
+        (* use image bytes here to test for any weird bytes forms *)
+        (RawBytes.of_string
+           (File.readfile ~root:Testdata "sample_image_bytes.png")) ) ]
