@@ -236,6 +236,35 @@ let t_cron_just_ran () =
   ()
 
 
+(* ------------------- *)
+(* httpclient *)
+(* ------------------- *)
+let t_curl_file_urls () =
+  AT.check
+    (AT.option AT.string)
+    "aaa"
+    (* Before we limited the protocols for curl, .info.error was "",
+       since Httpclient.http_call checked for a 2xx HTTP code. But the file
+       contents ended up in the error message. Now we've restricted the URL
+       protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
+       is even sent. *)
+    (Some "Unsupported protocol")
+    ( try
+        ignore
+          (Httpclient.http_call
+             "file://localhost/etc/passwd"
+             []
+             Httpclient.GET
+             []
+             "") ;
+        None
+      with
+    | Exception.DarkException i ->
+        List.Assoc.find i.info ~equal:( = ) "error"
+    | _ ->
+        None )
+
+
 let suite =
   [ ("stored_events", `Quick, t_stored_event_roundtrip)
   ; ( "Trace data redacts passwords"
@@ -249,4 +278,5 @@ let suite =
     , t_route_variables_work_with_stored_events_and_wildcards )
   ; ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
-  ; ("Cron just ran", `Quick, t_cron_just_ran) ]
+  ; ("Cron just ran", `Quick, t_cron_just_ran)
+  ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls) ]
