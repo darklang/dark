@@ -63,15 +63,6 @@ let suite =
 
 
 let () =
-  Libbackend.Init.init ~run_side_effects:true ;
-  Log.set_level `All ;
-  Account.init_testing () ;
-  let wrap f () =
-    try f () with e ->
-      Exception.reraise_after e (fun bt ->
-          print_endline (Exception.to_string e) ;
-          print_endline (Exception.backtrace_to_string bt) )
-  in
   let suites =
     [ ("http", Test_http.suite)
     ; ("accounts", Test_account.suite)
@@ -87,7 +78,16 @@ let () =
     ; ("framework", Test_framework.suite)
     ; ("other-libs", Test_other_libs.suite) ]
   in
+  Libbackend.Init.init ~run_side_effects:true ;
+  Log.set_level `All ;
+  Account.init_testing () ;
   let wrapped_suites =
+    let wrap f () =
+      try f () with e ->
+        Exception.reraise_after e (fun bt ->
+            print_endline (Exception.to_string e) ;
+            print_endline (Exception.backtrace_to_string bt) )
+    in
     List.map suites ~f:(fun (n, ts) ->
         (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))) )
   in
