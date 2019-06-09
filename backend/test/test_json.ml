@@ -181,6 +181,79 @@ let date_migration_has_correct_formats () =
     (Dval.to_pretty_machine_json_v1 date)
 
 
+let t_password_json_round_trip_forwards () =
+  let password = DPassword (Bytes.of_string "x") in
+  check_dval
+    "Passwords serialize and deserialize if there's no redaction."
+    password
+    ( password
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0
+    |> Dval.to_internal_roundtrippable_v0
+    |> Dval.of_internal_roundtrippable_v0 )
+
+
+let t_password_serialization () =
+  let does_serialize name expected f =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      AT.bool
+      ("Passwords serialize in non-redaction function: " ^ name)
+      expected
+      (String.is_substring
+         ~substring:(B64.encode "encryptedbytes")
+         (f password))
+  in
+  let roundtrips name serialize deserialize =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DPassword bytes in
+    AT.check
+      at_dval
+      ("Passwords serialize in non-redaction function: " ^ name)
+      password
+      (password |> serialize |> deserialize |> serialize |> deserialize)
+  in
+  (* doesn't redact *)
+  does_serialize
+    "to_internal_roundtrippable_v0"
+    true
+    Dval.to_internal_roundtrippable_v0 ;
+  does_serialize "to_internal_queryable_v0" true Dval.to_internal_queryable_v0 ;
+  (* roundtrips *)
+  roundtrips
+    "to_internal_roundtrippable_v0"
+    Dval.to_internal_roundtrippable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  roundtrips
+    "to_internal_queryable_v0"
+    Dval.to_internal_queryable_v0
+    Dval.of_internal_roundtrippable_v0 ;
+  (* redacting *)
+  does_serialize
+    "to_enduser_readable_text_v0"
+    false
+    Dval.to_enduser_readable_text_v0 ;
+  does_serialize
+    "to_enduser_readable_html_v0"
+    false
+    Dval.to_enduser_readable_html_v0 ;
+  does_serialize "to_developer_repr_v0" false Dval.to_developer_repr_v0 ;
+  does_serialize
+    "to_pretty_machine_json_v1"
+    false
+    Dval.to_pretty_machine_json_v1 ;
+  does_serialize
+    "to_pretty_request_json_v0"
+    false
+    Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
+  does_serialize
+    "to_pretty_response_json_v1"
+    false
+    Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
+  ()
+
+
 let suite =
   [ ( "Parsing JSON to Dvals doesn't care about key order"
     , `Quick
@@ -191,4 +264,10 @@ let suite =
     , t_result_to_response_works )
   ; ( "Date has correct formats in migration"
     , `Quick
-    , date_migration_has_correct_formats ) ]
+    , date_migration_has_correct_formats )
+  ; ( "Passwords serialize correctly and redact (or not) correctly"
+    , `Quick
+    , t_password_serialization )
+  ; ( "Passwords serialize when not redacting"
+    , `Quick
+    , t_password_json_round_trip_forwards ) ]
