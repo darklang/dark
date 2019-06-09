@@ -8,16 +8,6 @@ module Req = Cohttp_lwt_unix.Request
 module Header = Cohttp.Header
 module AT = Alcotest
 
-let t_derror_roundtrip () =
-  let x = DError "test" in
-  let converted =
-    x
-    |> Dval.to_internal_roundtrippable_v0
-    |> Dval.of_internal_roundtrippable_v0
-  in
-  check_dval "roundtrip" converted x
-
-
 let t_internal_roundtrippable_doesnt_care_about_order () =
   check_dval
     "internal_roundtrippable doesn't care about key order"
@@ -228,8 +218,7 @@ let date_migration_has_correct_formats () =
 
 
 let suite =
-  [ ("derror roundtrip", `Quick, t_derror_roundtrip)
-  ; ( "Parsing JSON to DVals doesn't care about key order"
+  [ ( "Parsing JSON to Dvals doesn't care about key order"
     , `Quick
     , t_internal_roundtrippable_doesnt_care_about_order )
   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
