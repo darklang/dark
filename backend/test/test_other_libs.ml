@@ -149,7 +149,22 @@ let t_result_stdlibs_work () =
   ()
 
 
+let t_password_hashing_and_checking_works () =
+  let ast =
+    "(let password 'password'
+               (Password::check (Password::hash password)
+               password))"
+  in
+  check_dval
+    "A `Password::hash'd string `Password::check's against itself."
+    (exec_ast ast)
+    (DBool true)
+
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
-  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work) ]
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
+  ; ( "End-user password hashing and checking works"
+    , `Quick
+    , t_password_hashing_and_checking_works ) ]
