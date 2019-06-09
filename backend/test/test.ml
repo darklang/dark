@@ -422,15 +422,6 @@ let t_password_json_round_trip_forwards () =
     |> Dval.of_internal_roundtrippable_v0 )
 
 
-let t_html_escaping () =
-  check_dval
-    "html escaping works"
-    (* TODO: add back in check that `'` is correctly escaped. It didn't
-     * play nice with our hacky `'` removal in the DSL parser *)
-    (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
-    (exec_ast "(String::htmlEscape 'test<>&\\\"')")
-
-
 let t_curl_file_urls () =
   AT.check
     (AT.option AT.string)
@@ -455,20 +446,6 @@ let t_curl_file_urls () =
         List.Assoc.find i.info ~equal:( = ) "error"
     | _ ->
         None )
-
-
-let t_uuid_string_roundtrip () =
-  let ast =
-    "(let i (Uuid::generate)
-               (let s (toString i)
-                 (let parsed (String::toUUID s)
-                   (i parsed))))"
-  in
-  AT.check
-    AT.int
-    "A generated id can round-trip"
-    0
-    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
 
 
 let t_parsed_request_cookies () =
@@ -607,8 +584,8 @@ let suite =
   (* ------------------- *)
   (* stdlib: Twitter *)
   (* ------------------- *)
-  [ ("hmac signing works", `Quick, t_hmac_signing) (* stdlib: uuids *)
-  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
+  [ ("hmac signing works", `Quick, t_hmac_signing)
+    (* stdlib: uuids *)
     (* ------------------- *)
     (* Analysis *)
     (* ------------------- *)
@@ -648,10 +625,6 @@ let suite =
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )
-    (* ------------------- *)
-    (* stdlib: string *)
-    (* ------------------- *)
-  ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
     (* ------------------- *)
     (* stdlib: http client *)
     (* ------------------- *)
