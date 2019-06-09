@@ -261,6 +261,42 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_parsed_request_cookies () =
+  let with_headers h =
+    Parsed_request.from_request h [] ""
+    |> Parsed_request.to_dval
+    |> fun v ->
+    match v with
+    | DObj o ->
+        Base.Map.find_exn o "cookies"
+    | _ ->
+        failwith "didn't end up with 'cookies' in the DObj"
+  in
+  let with_cookies c = with_headers [("cookie", c)] in
+  AT.check
+    (AT.list at_dval)
+    "Parsed_request.from_request parses cookies correctly."
+    [ with_headers []
+    ; with_cookies ""
+    ; with_cookies "a"
+    ; with_cookies "a="
+    ; with_cookies "a=b"
+    ; with_cookies "a=b;"
+    ; with_cookies "a=b; c=d"
+    ; with_cookies "a=b; c=d;" ]
+    [ Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn []
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
+    ; Dval.to_dobj_exn
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
+    ]
+
+
 let suite =
   [ ( "t_sanitize_uri_path_with_repeated_slashes"
     , `Quick
@@ -308,4 +344,5 @@ let suite =
     , t_path_gt_route_does_not_crash )
   ; ( "Query strings behave properly given multiple duplicate keys"
     , `Quick
-    , t_query_params_with_duplicate_keys ) ]
+    , t_query_params_with_duplicate_keys )
+  ; ("Cookies are parsed correctly", `Quick, t_parsed_request_cookies) ]
