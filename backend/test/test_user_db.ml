@@ -134,6 +134,13 @@ let t_password_hash_db_roundtrip () =
         1 )
 
 
+let t_escape_pg_escaping () =
+  AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd") ;
+  AT.check AT.string "single" "as''dd" (Db.escape_single "as'dd") ;
+  AT.check AT.string "double" "as\"dd" (Db.escape_single "as\"dd") ;
+  ()
+
+
 let suite =
   [ ("DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip)
   ; ( "Good error when inserting badly"
@@ -144,4 +151,5 @@ let suite =
   ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
   ; ( "Password hashes can be stored in and retrieved from the DB"
     , `Quick
-    , t_password_hash_db_roundtrip ) ]
+    , t_password_hash_db_roundtrip )
+  ; ("Test postgres escaping", `Quick, t_escape_pg_escaping) ]
