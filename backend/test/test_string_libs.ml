@@ -45,6 +45,29 @@ let t_string_uppercase_v1_works_on_non_ascii_strings () =
     (Dval.dstr_of_string_exn "ŻÓŁW")
 
 
+let t_html_escaping () =
+  check_dval
+    "html escaping works"
+    (* TODO: add back in check that `'` is correctly escaped. It didn't
+     * play nice with our hacky `'` removal in the DSL parser *)
+    (Dval.dstr_of_string_exn "test&lt;&gt;&amp;&quot;")
+    (exec_ast "(String::htmlEscape 'test<>&\\\"')")
+
+
+let t_uuid_string_roundtrip () =
+  let ast =
+    "(let i (Uuid::generate)
+               (let s (toString i)
+                 (let parsed (String::toUUID s)
+                   (i parsed))))"
+  in
+  AT.check
+    AT.int
+    "A generated id can round-trip"
+    0
+    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
+
+
 let suite =
   [ ( "String::length_v2 returns the correct length for a string containing an emoji"
     , `Quick
@@ -63,4 +86,6 @@ let suite =
     , t_string_uppercase_v1_works_on_non_ascii_strings )
   ; ( "String split works on strings with emoji + ascii"
     , `Quick
-    , t_string_split_works_for_emoji ) ]
+    , t_string_split_works_for_emoji )
+  ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
+  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip) ]
