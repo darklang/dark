@@ -368,31 +368,6 @@ let t_password_hashing_and_checking_works () =
     (DBool true)
 
 
-let t_password_hash_db_roundtrip () =
-  clear_test_data () ;
-  let ops =
-    [ Op.CreateDB (dbid, pos, "Passwords")
-    ; Op.AddDBCol (dbid, colnameid, coltypeid)
-    ; Op.SetDBColName (dbid, colnameid, "password")
-    ; Op.SetDBColType (dbid, coltypeid, "Password") ]
-  in
-  let ast =
-    "(let pw (Password::hash 'password')
-               (let _ (DB::add_v0 (obj (password pw)) Passwords)
-                 (let fetched (. (List::head (DB::getAll_v2 Passwords)) password)
-                   (pw fetched))))"
-  in
-  AT.check
-    AT.int
-    "A Password::hash'd string can get stored in and retrieved from a user database."
-    0
-    ( match exec_handler ~ops ast with
-    | DList [p1; p2] ->
-        compare_dval p1 p2
-    | _ ->
-        1 )
-
-
 let t_password_serialization () =
   let does_serialize name expected f =
     let bytes = Bytes.of_string "encryptedbytes" in
@@ -1085,9 +1060,6 @@ let suite =
     (* ------------------- *)
     (* passwords *)
     (* ------------------- *)
-  ; ( "Password hashes can be stored in and retrieved from the DB"
-    , `Quick
-    , t_password_hash_db_roundtrip )
   ; ( "Passwords serialize correctly and redact (or not) correctly"
     , `Quick
     , t_password_serialization )

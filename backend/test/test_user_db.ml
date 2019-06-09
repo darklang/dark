@@ -84,10 +84,64 @@ let t_nulls_added_to_missing_column () =
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 
+let t_uuid_db_roundtrip () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "Ids")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "uu")
+    ; Op.SetDBColType (dbid, coltypeid, "UUID") ]
+  in
+  let ast =
+    "(let i (Uuid::generate)
+               (let _ (DB::add_v0 (obj (uu i)) Ids)
+                 (let fetched (. (List::head (DB::getAll_v2 Ids)) uu)
+                   (i fetched))))"
+  in
+  AT.check
+    AT.int
+    "A generated UUID can round-trip from the DB"
+    0
+    ( match exec_handler ~ops ast with
+    | DList [p1; p2] ->
+        compare_dval p1 p2
+    | _ ->
+        1 )
+
+
+let t_password_hash_db_roundtrip () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "Passwords")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "password")
+    ; Op.SetDBColType (dbid, coltypeid, "Password") ]
+  in
+  let ast =
+    "(let pw (Password::hash 'password')
+               (let _ (DB::add_v0 (obj (password pw)) Passwords)
+                 (let fetched (. (List::head (DB::getAll_v2 Passwords)) password)
+                   (pw fetched))))"
+  in
+  AT.check
+    AT.int
+    "A Password::hash'd string can get stored in and retrieved from a user database."
+    0
+    ( match exec_handler ~ops ast with
+    | DList [p1; p2] ->
+        compare_dval p1 p2
+    | _ ->
+        1 )
+
+
 let suite =
   [ ("DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip)
   ; ( "Good error when inserting badly"
     , `Quick
     , t_inserting_object_to_missing_col_gives_good_error )
   ; ("Nulls allowed in DB", `Quick, t_nulls_allowed_in_db)
-  ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column) ]
+  ; ("UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip)
+  ; ("Nulls for missing column", `Quick, t_nulls_added_to_missing_column)
+  ; ( "Password hashes can be stored in and retrieved from the DB"
+    , `Quick
+    , t_password_hash_db_roundtrip ) ]
