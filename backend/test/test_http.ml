@@ -4,61 +4,13 @@ open Libexecution
 open Libbackend
 open Types
 open Types.RuntimeT
-open Ast
 open Lwt
 open Utils
 module Resp = Cohttp_lwt_unix.Response
 module Req = Cohttp_lwt_unix.Request
 module Header = Cohttp.Header
 module Code = Cohttp.Code
-module C = Canvas
-module RT = Runtime
-module TL = Toplevel
 module AT = Alcotest
-
-let t_should_use_https () =
-  AT.check
-    (AT.list AT.bool)
-    "should_use_https works"
-    (List.map
-       ~f:(fun x -> Webserver.should_use_https (Uri.of_string x))
-       [ "http://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "http://localhost"
-       ; "http://test.localhost" ])
-    [true; true; false; false]
-
-
-let t_redirect_to () =
-  AT.check
-    (AT.list (AT.option AT.string))
-    "redirect_to works"
-    (List.map
-       ~f:(fun x ->
-         x
-         |> Uri.of_string
-         |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string )
-       [ "http://example.com"
-       ; "http://builtwithdark.com"
-       ; "https://builtwithdark.com"
-       ; "http://test.builtwithdark.com"
-       ; "https://test.builtwithdark.com"
-       ; "http://test.builtwithdark.com/x/y?z=a" ])
-    [ None
-    ; Some "https://builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com"
-    ; None
-    ; Some "https://test.builtwithdark.com/x/y?z=a" ]
-
-
-let t_bad_ssl_cert _ =
-  check_error_contains
-    "should get bad_ssl"
-    (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
-    "Bad HTTP request: Peer certificate cannot be authenticated with given CA certificates"
-
 
 let t_sanitize_uri_path_with_repeated_slashes () =
   AT.check
@@ -255,63 +207,6 @@ let t_route_eq_path_mismatch_concrete () =
     bound
 
 
-let t_head_and_get_requests_are_coalesced () =
-  let test_name = "head-and-get-requests-are-coalsced" in
-  let setup_canvas () =
-    let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
-    C.save_all !canvas ;
-    canvas
-  in
-  let respond_to_head_from_get (req : Req.t) : int * (int * string) =
-    Lwt_main.run
-      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
-       let test_id = Types.id_of_int 1234 in
-       let canvas = setup_canvas () in
-       let%lwt resp, body =
-         Webserver.canvas_handler
-           ~execution_id:test_id
-           ~canvas:!canvas.host
-           ~ip:""
-           ~uri:(req |> Req.uri)
-           ~body:""
-           req
-       in
-       let code = resp |> Resp.status |> Code.code_of_status in
-       let body_string = Cohttp_lwt__.Body.to_string body |> Lwt_main.run in
-       resp
-       |> Resp.headers
-       |> (fun headers ->
-            match Header.get headers "Content-Length" with
-            | None ->
-                0
-            | Some h ->
-                int_of_string h )
-       |> fun content_length -> return (code, (content_length, body_string)))
-  in
-  let expected_body = "\"test_body\"" in
-  let expected_content_length = String.length expected_body in
-  AT.check
-    (AT.list (AT.pair AT.int (AT.pair AT.int AT.string)))
-    "canvas_handler returns same content-length for HEAD and GET requests"
-    (List.map
-       ~f:respond_to_head_from_get
-       (* valid basic auth login on darklang.com *)
-       [ Req.make
-           ?meth:(Some `GET)
-           (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-         (* valid basic auth login on localhost *)
-       ; Req.make
-           ?meth:(Some `HEAD)
-           (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-       ])
-    [ (200, (expected_content_length, expected_body))
-    ; (200, (expected_content_length, "")) ]
-
-
 let t_route_eq_path_match_concrete () =
   let route = "/a/b/c/d" in
   let path = "/a/b/c/d" in
@@ -367,10 +262,7 @@ let t_path_gt_route_does_not_crash () =
 
 
 let suite =
-  [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
-  ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
-  ; ("bad ssl cert", `Slow, t_bad_ssl_cert)
-  ; ( "t_sanitize_uri_path_with_repeated_slashes"
+  [ ( "t_sanitize_uri_path_with_repeated_slashes"
     , `Quick
     , t_sanitize_uri_path_with_repeated_slashes )
   ; ( "t_sanitize_uri_path_with_trailing_slash"
@@ -405,9 +297,6 @@ let suite =
   ; ( "route = path but concrete mismatch"
     , `Quick
     , t_route_eq_path_mismatch_concrete )
-  ; ( "head and get requests are coalsced"
-    , `Quick
-    , t_head_and_get_requests_are_coalesced )
   ; ( "route = path solely concrete match"
     , `Quick
     , t_route_eq_path_match_concrete )
