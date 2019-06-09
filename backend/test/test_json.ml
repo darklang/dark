@@ -187,17 +187,6 @@ let t_result_to_response_works () =
   ()
 
 
-let t_old_new_dval_reprs () =
-  List.iter sample_dvals ~f:(fun (name, dv) ->
-      (* AT.check *)
-      (*   AT.string *)
-      (*   ("old_new_dval check: " ^ name) *)
-      (*   (Dval.old_to_internal_repr dv) *)
-      (*   (Dval.to_hashable_repr dv) ; *)
-      () ) ;
-  ()
-
-
 let date_migration_has_correct_formats () =
   let str = "2019-03-08T08:26:14Z" in
   let date = DDate (Util.date_of_isostring str) in
@@ -226,9 +215,6 @@ let suite =
   ; ( "Dvals get converted to web responses correctly"
     , `Quick
     , t_result_to_response_works )
-  ; ( "New dval representations are the same as the old ones"
-    , `Quick
-    , t_old_new_dval_reprs )
   ; ( "Date has correct formats in migration"
     , `Quick
     , date_migration_has_correct_formats ) ]
