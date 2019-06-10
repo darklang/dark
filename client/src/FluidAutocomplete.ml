@@ -76,22 +76,12 @@ let asName (aci : autocompleteItem) : string =
         "match" )
   | FACPattern p ->
     ( match p with
-    | FPVariable (_, _, name) | FPConstructor (_, _, name, _) ->
+    | FPAVariable (_, _, name) | FPAConstructor (_, _, name, _) ->
         name
-    | FPInteger (_, _, v) ->
-        string_of_int v
-    | FPBool (_, _, v) ->
+    | FPABool (_, _, v) ->
         string_of_bool v
-    | FPString (_, _, v) ->
-        v
-    | FPFloat (_, _, v, v') ->
-        v ^ "." ^ v'
-    | FPNull _ ->
-        "null"
-    | FPBlank _ ->
-        "_"
-    | FPOldPattern _ ->
-        "TODO: oldPattern" )
+    | FPANull _ ->
+        "null" )
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -104,9 +94,9 @@ let asTypeString (item : autocompleteItem) : string =
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
-  | FACVariable _ | FACPattern (FPVariable _) ->
+  | FACVariable _ | FACPattern (FPAVariable _) ->
       "variable"
-  | FACConstructorName (name, _) | FACPattern (FPConstructor (_, _, name, _))
+  | FACConstructorName (name, _) | FACPattern (FPAConstructor (_, _, name, _))
     ->
       if name = "Just"
       then "(any) -> option"
@@ -124,22 +114,12 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.tipe2str
       in
       tipe ^ " literal"
-  | FACPattern (FPString _) ->
-      "string literal"
-  | FACPattern (FPInteger _) ->
-      "integer literal"
-  | FACPattern (FPBool _) ->
+  | FACPattern (FPABool _) ->
       "boolean literal"
-  | FACPattern (FPFloat _) ->
-      "float literal"
   | FACKeyword _ ->
       "keyword"
-  | FACPattern (FPNull _) ->
+  | FACPattern (FPANull _) ->
       "null"
-  | FACPattern (FPBlank _) ->
-      "_"
-  | FACPattern (FPOldPattern _) ->
-      "TODO: oldPattern"
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -382,26 +362,26 @@ let generate
         then
           (* update query string variable in autocomplete *)
           ( if queryString != ""
-          then [FACPattern (FPVariable (pmid, gid (), queryString))]
+          then [FACPattern (FPAVariable (pmid, gid (), queryString))]
           else [] )
           @ ( a.allCompletions
             |> List.filter ~f:(fun c ->
                    match c with
-                   | FACPattern (FPVariable _) ->
+                   | FACPattern (FPAVariable _) ->
                        false
                    | _ ->
                        true ) )
         else
-          (* since patterns have no partial but commit as variables 
+          (* since patterns have no partial but commit as variables
            * automatically, include variable in autocomplete items *)
-          [ FPVariable (pmid, gid (), queryString)
-          ; FPBool (pmid, gid (), true)
-          ; FPBool (pmid, gid (), false)
-          ; FPConstructor (pmid, gid (), "Just", [FPBlank (pmid, gid ())])
-          ; FPConstructor (pmid, gid (), "Nothing", [])
-          ; FPConstructor (pmid, gid (), "Ok", [FPBlank (pmid, gid ())])
-          ; FPConstructor (pmid, gid (), "Error", [FPBlank (pmid, gid ())])
-          ; FPNull (pmid, gid ()) ]
+          [ FPAVariable (pmid, gid (), queryString)
+          ; FPABool (pmid, gid (), true)
+          ; FPABool (pmid, gid (), false)
+          ; FPAConstructor (pmid, gid (), "Just", [FPBlank (pmid, gid ())])
+          ; FPAConstructor (pmid, gid (), "Nothing", [])
+          ; FPAConstructor (pmid, gid (), "Ok", [FPBlank (pmid, gid ())])
+          ; FPAConstructor (pmid, gid (), "Error", [FPBlank (pmid, gid ())])
+          ; FPANull (pmid, gid ()) ]
           |> List.map ~f:(fun x -> FACPattern x)
     | _ ->
         []
@@ -620,22 +600,11 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
   | FACPattern p ->
     ( match p with
-    | FPConstructor (_, _, name, args) ->
+    | FPAConstructor (_, _, name, args) ->
         documentationForItem (FACConstructorName (name, List.length args))
-    | FPVariable (_, _, name) ->
+    | FPAVariable (_, _, name) ->
         documentationForItem (FACVariable name)
-    | FPInteger (_, _, var) ->
-        documentationForItem (FACLiteral (string_of_int var))
-    | FPBool (_, _, var) ->
+    | FPABool (_, _, var) ->
         documentationForItem (FACLiteral (string_of_bool var))
-    | FPString (_, _, var) ->
-        documentationForItem (FACLiteral var)
-    | FPFloat (_, _, var, var') ->
-        let var = var ^ "." ^ var' in
-        documentationForItem (FACLiteral var)
-    | FPNull _ ->
-        Some "A 'null' literal"
-    | FPBlank _ ->
-        Some "A Blank allows you to match any value"
-    | FPOldPattern _ ->
-        Some "TODO: oldPattern" )
+    | FPANull _ ->
+        Some "A 'null' literal" )

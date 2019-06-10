@@ -722,22 +722,14 @@ let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
   match entry with
   | FACPattern p ->
     ( match p with
-    | FPConstructor (_, _, var, _)
-    | FPVariable (_, _, var)
-    | FPString (_, _, var) ->
-        (p, String.length var + 1)
-    | FPInteger (_, _, var) ->
-        (p, String.length (string_of_int var) + 1)
-    | FPBool (_, _, var) ->
-        (p, String.length (string_of_bool var) + 1)
-    | FPFloat (_, _, var, var') ->
-        (p, String.length var + String.length var' + 1)
-    | FPNull _ ->
-        (p, 4)
-    | FPBlank _ ->
-        (p, 1)
-    | FPOldPattern (id, _) ->
-        (FPString (id, gid (), "TODO: oldPattern"), 0) )
+    | FPAConstructor (mID, patID, var, pats) ->
+        (FPConstructor (mID, patID, var, pats), String.length var + 1)
+    | FPAVariable (mID, patID, var) ->
+        (FPVariable (mID, patID, var), String.length var + 1)
+    | FPABool (mID, patID, var) ->
+        (FPBool (mID, patID, var), String.length (string_of_bool var) + 1)
+    | FPANull (mID, patID) ->
+        (FPNull (mID, patID), 4) )
   | _ ->
       fail
         "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
@@ -1754,8 +1746,8 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
        * ahead, tab goes to next blank *)
       let newAST, acOffset =
         match ti.token with
-        (* since patterns have no partial but commit as variables 
-        * automatically, allow intermediate variables to 
+        (* since patterns have no partial but commit as variables
+        * automatically, allow intermediate variables to
         * be autocompletable to other expressions *)
         | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
             let newPat, acOffset = acToPattern entry in

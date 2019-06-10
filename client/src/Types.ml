@@ -970,6 +970,12 @@ and fluidPattern =
   | FPBlank of id * id
   | FPOldPattern of id * pattern
 
+and fluidPatternAutocomplete =
+  | FPAVariable of id * id * fluidName
+  | FPAConstructor of id * id * fluidName * fluidPattern list
+  | FPANull of id * id
+  | FPABool of id * id * bool
+
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)
   | EInteger of id * int
@@ -1077,7 +1083,7 @@ and fluidAutocompleteItem =
   | FACVariable of varName
   | FACLiteral of literal
   | FACKeyword of keyword
-  | FACPattern of fluidPattern
+  | FACPattern of fluidPatternAutocomplete
 
 and fluidAutocompleteState =
   { (* ------------------------------- *)
