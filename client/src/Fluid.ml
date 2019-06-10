@@ -1682,6 +1682,10 @@ let acSetIndex (i : int) (s : state) : state =
 
 let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
 
+let acShow (s : state) : state =
+  if s.ac.index = None then {s with ac = {s.ac with index = Some 0}} else s
+
+
 let acMoveUp (s : state) : state =
   let s = recordAction "acMoveUp" s in
   let index =
@@ -2310,9 +2314,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
     | K.Left, L (_, ti), _ ->
-        (ast, doLeft ~pos ti s)
+        (ast, doLeft ~pos ti s |> acShow)
     | K.Right, _, R (_, ti) ->
-        (ast, doRight ~pos ~next:mNext ti s)
+        (ast, doRight ~pos ~next:mNext ti s |> acShow)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
