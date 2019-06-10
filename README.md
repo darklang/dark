@@ -237,7 +237,7 @@ let g:ale_fixers = {'ocaml':['ocamlformat']}
 
 You probably also want to install a pre-commit hook that runs ocamlformat for
 you.
-`cp scripts/pre-commit.hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
+`cp scripts/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
 
 
 ## (Not) Rebuilding the dev container
