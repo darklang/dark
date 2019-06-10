@@ -538,9 +538,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     |> List.sortBy ~f:(fun t ->
            t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
   in
-  let isClosed : bool =
-    VariantTesting.variantIsActive m SidebarVariant && not m.sidebarOpen
-  in
+  let isClosed : bool = not m.sidebarOpen in
   let cats =
     [ httpCategory m tls
     ; dbCategory m tls
@@ -550,11 +548,6 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
-  let sidebarBtns =
-    if VariantTesting.variantIsActive m SidebarVariant
-    then [toggleSidebar m]
-    else []
-  in
   let html =
     Html.div
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
@@ -563,7 +556,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning false )
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
-      ( sidebarBtns
+      ( [toggleSidebar m]
       @ [ Html.div
             [Html.classList [("routings", isClosed)]]
             (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
