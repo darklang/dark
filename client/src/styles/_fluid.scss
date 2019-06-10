@@ -2,7 +2,6 @@
 // Fluid
 //*************
 
-
 .fluid-variant .live-values {
   display: none;
   position: absolute;
@@ -85,8 +84,7 @@ https://github.com/chriskempson/tomorrow-theme */
 
   padding: 0.5ch;
 
-  font-family: monaco,
-  monospace;
+  font-family: monaco, monospace;
 
   .fluid-newline {
     display: block;
@@ -201,7 +199,6 @@ since they are essentially both commands just acting upon different things. */
     max-height: 100px;
     overflow-y: scroll;
     padding: 0;
-
 
     ul {
       margin: 0;

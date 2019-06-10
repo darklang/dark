@@ -61,12 +61,12 @@
   }
 }
 
-@mixin border-radius-bottom ($radius) {
+@mixin border-radius-bottom($radius) {
   border-bottom-left-radius: $radius;
   border-bottom-right-radius: $radius;
 }
 
-@mixin border-radius-top ($radius) {
+@mixin border-radius-top($radius) {
   border-top-left-radius: $radius;
   border-top-right-radius: $radius;
 }
@@ -116,15 +116,11 @@ body {
                                 supported by Chrome and Opera */
 }
 
-/* Global */
-$toplevel-shadow: 1px 2px 2px 1px $black1;
-
-
 /* Body */
 body #app * {
   &:not(.fa) {
     // skip fontawesome
-    font-family: 'Fira Code', monospace;
+    font-family: "Fira Code", monospace;
   }
 }
 

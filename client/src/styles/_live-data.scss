@@ -16,15 +16,12 @@
       line-height: 15px;
       color: $grey2;
 
-      &.tipe-Incomplete {
-        color: darken($grey2, 10%);
-      }
-
       &.tipe-Error {
         color: $red;
       }
 
-      &.mouseovered, &.active {
+      &.mouseovered,
+      &.active {
         color: $live-value-foreground;
       }
 
@@ -52,7 +49,6 @@
 
       &.mouseovered .data {
         display: block;
-        z-index: 600;
       }
     }
   }

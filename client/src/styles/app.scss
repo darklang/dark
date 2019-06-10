@@ -3,23 +3,23 @@
 @import "colors";
 @import "typography";
 @import "sizes";
-@import 'anim';
+@import "anim";
 
-@import 'canvas';
+@import "canvas";
 
 /* Components */
-@import 'ast';
-@import 'avatar';
-@import 'db';
-@import 'doc';
-@import 'dropdown';
-@import 'feature-flag';
-@import 'footer';
-@import 'function';
-@import 'introspect';
-@import 'live-data';
-@import 'user-type';
-@import 'sidebar';
+@import "ast";
+@import "avatar";
+@import "db";
+@import "doc";
+@import "dropdown";
+@import "feature-flag";
+@import "footer";
+@import "function";
+@import "introspect";
+@import "live-data";
+@import "user-type";
+@import "sidebar";
 
 /* Overrides */
 @import 'fluid';
