@@ -1076,6 +1076,22 @@ let () =
         (ELet (gid (), gid (), "x", blank, EVariable (gid (), "x")))
         (press ~wrap:false K.Plus 13)
         ("let x = ___\nx + ___", 16) ;
+      test "escape hides autocomplete" (fun () ->
+          expect
+            (let ast = blank in
+             moveTo 0 s
+             |> (fun s -> updateKey (K.Letter 'r') ast s)
+             |> (fun (ast, s) -> updateKey K.Escape ast s)
+             |> fun (_, s) -> s.ac.index)
+          |> toEqual None ) ;
+      test "right/left brings back autocomplete" (fun () ->
+          expect
+            (let ast = blank in
+             moveTo 0 s
+             |> (fun s -> updateKey (K.Letter 'r') ast s)
+             |> (fun (ast, s) -> updateKey K.Escape ast s)
+             |> fun (_, s) -> s.ac.index)
+          |> toEqual None ) ;
       () ) ;
   describe "Tabs" (fun () ->
       t

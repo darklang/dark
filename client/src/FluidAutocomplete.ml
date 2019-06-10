@@ -414,7 +414,7 @@ let refilter
   let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
   let newCount = List.length allCompletions in
-  let oldHighlightNewPos =
+  let oldHighlightNewIndex =
     oldHighlight
     |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
   in
@@ -422,27 +422,23 @@ let refilter
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
   let index =
-    (* Clear the highlight conditions *)
     if queryString = ""
-       (* when we had previously highlighted something due to any actual match *)
-       (* or this condition previously held and nothing has changed *)
-       && (old.index = None || oldQueryString <> "")
     then None
     else
       (* If an entry is highlighted, and you press another *)
       (* valid key for that entry, keep it highlighted *)
-      match oldHighlightNewPos with
-      | Some i ->
-          Some i
-      (* If an entry vanishes, highlight 0 *)
+      match oldHighlightNewIndex with
+      | Some newIndex ->
+          Some newIndex
       | None ->
-          (* if nothing matches, highlight nothing *)
           if newCount = 0
-          then
+          then (* if nothing matches, highlight nothing *)
             None
-            (* we matched something but its gone, go to top of *)
-            (* list *)
-          else Some 0
+          else if oldQueryString = queryString
+          then (* If we didn't change anything, don't change anything *)
+            None
+          else (* If an entry vanishes, highlight 0 *)
+            Some 0
   in
   { old with
     index
