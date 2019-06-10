@@ -912,17 +912,17 @@ test("cant_delete_locked_col", async t => {
   await t.expect(Selector(".fa-lock").exists).ok();
 
   await t
-    .click(Selector('.db')) // this click is required due to caching
-    .expect(Selector('.delete-col').exists).notOk()
-  ;
-})
+    .click(Selector(".db")) // this click is required due to caching
+    .expect(Selector(".delete-col").exists)
+    .notOk();
+});
 
-test('select_route', async t => {
-  await t.navigateTo(`${BASE_URL}select_route?integration-test=true&sidebarv2=1`)
-  const categoryHeader = 'summary.headerSummary';
-  const httpVerbLink = 'a.verb.verb-link';
-  const toplevelElement = '.node .sidebar-box';
-  const sidebarController =  '.toggle-button .button-link'
+test("select_route", async t => {
+  await t.navigateTo(`${BASE_URL}select_route?integration-test=true&sidebarv2=1`);
+  const categoryHeader = "summary.headerSummary";
+  const httpVerbLink = "a.verb.verb-link";
+  const toplevelElement = ".node .sidebar-box";
+  const sidebarController = ".toggle-button .button-link";
 
   await t.click(Selector(sidebarController));
 
