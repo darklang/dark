@@ -1,0 +1,199 @@
+//*************
+// DB
+//*************
+.db {
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  background-color: $toplevel-background;
+
+  .delete-col {
+    color: $grey2;
+    font-size: $code-font-size;
+
+    .fa {
+      &:hover {
+        color: $white1;
+        cursor: pointer;
+      }
+    }
+  }
+
+  &.dbdata {
+    display: block;
+    position: absolute;
+    right: calc(#{"100% + 30px"});
+    font-style: normal;
+
+
+    padding: 4px;
+    width: max-content;
+    max-width: 250px;
+
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+    font-size: $code-font-size * 0.85;
+    color: $grey3;
+
+    background-color: $toplevel-background;
+    outline: 0.4px $grey2 dotted;
+
+  }
+
+  &.migration-view {
+    position: absolute;
+    top: -12px;
+    left: calc(#{"100% + 20px"});
+    min-width: $toplevel-min-width;
+    padding: 24px;
+    border-color: $yellow;
+    border-width: 1px;
+    background-color: $black1;
+
+    .dbtitle {
+      .version {
+        color: $yellow;
+      }
+    }
+
+    .col {
+
+      &.roll-fn {
+        margin-top: 12px;
+        flex-direction: column;
+
+        .fn-title {
+          font-size: 0.8rem;
+
+          .varname {
+            color: $grey2;
+          }
+        }
+      }
+
+      &.actions {
+        margin-top: 25px;
+        flex-wrap: nowrap;
+        justify-content: space-around;
+
+        button {
+          padding: $spacing-medium;
+          font-size: 10px;
+          background-color: $black3;
+          color: $yellow;
+          border: 1px solid $yellow;
+          text-transform: uppercase;
+
+          &:disabled {
+            color: $grey2;
+            border-color: $grey2;
+          }
+        }
+      }
+
+      &.err {
+        margin-top: 25px;
+        font-size: 10px;
+        color: lighten($red, 15%);
+        font-style: italic;
+      }
+    }
+
+
+  }
+
+  .fa-lock,
+  .fa-unlock {
+    position: fixed;
+    margin-left: -16px;
+    margin-top: -22px;
+    font-size: 12px;
+
+    &.fa-lock {
+      color: $lock-color;
+
+      &:hover {
+        color: saturate($lock-color, 15%);
+      }
+    }
+
+    &.fa-unlock {
+      color: $unlock-color;
+    }
+  }
+
+
+  .dbtitle {
+    background-image: url('/_db.png');
+    background-position: left center;
+    background-repeat: no-repeat;
+    padding-left: 20px;
+    /* Adjust according to image size to push text across. */
+    margin-bottom: 10px;
+    margin: 0 auto;
+
+    /* center the db name */
+    &::before {
+      content: "DB: ";
+      font-weight: bold;
+      font-size: 110%;
+    }
+
+    .dbname {
+      display: inline-block;
+    }
+  }
+
+  .col {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 4px;
+    margin-top: 4px;
+    justify-content: flex-start;
+    align-items: center;
+
+    .name,
+    .type {
+      flex: 1;
+      font-size: 10px;
+      height: 15px;
+      margin-left: 4px;
+      margin-right: 4px;
+      padding-left: 1ch;
+      padding-right: 1ch;
+
+      #search-container {
+        font-size: 10px;
+        height: 10px;
+        margin-bottom: -1px;
+        margin-left: -6px;
+        min-width: calc(#{"100% + 12px"});
+        padding-bottom: 5px;
+      }
+
+      &.blank {
+        height: 15px;
+      }
+
+      .entry {
+        background: transparent;
+        // Don't center text-entry, it makes everything weird
+        text-align: left;
+      }
+    }
+
+    .name.blank {
+      margin-left: 17px;
+    }
+
+    .migration-view {
+      @extend .default;
+      position: absolute;
+      width: max-content;
+      left: calc(#{"100% + 6px"});
+    }
+
+
+  }
+}

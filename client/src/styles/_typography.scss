@@ -1,0 +1,112 @@
+$code-font-size: 13.3333px;
+$string-color: lighten($purple, 10%);
+
+.placeholder {
+  color: $grey2;
+  font-style: italic;
+  font-size: 8pt;
+}
+
+.indent {
+  margin-left: 16px;
+}
+
+.string-style {
+  color: $string-color;
+  max-width: 120ch;
+  min-height: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  word-wrap: break-word;
+
+  &.short-strings {
+    max-width: 40ch;
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+  }
+}
+
+// ---------------------------
+// Strings
+// ---------------------------
+.string-entry {
+  border: 0;
+  font-size: $code-font-size;
+  margin: 0;
+  padding-left: 1ch;
+  padding-right: 1ch;
+  position: relative;
+
+  &::before {
+    @extend .string-style;
+    content: "“";
+    display: inline-block;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 1.5ch;
+  }
+
+  &::after {
+    @extend .string-style;
+    content: "”";
+    bottom: 0;
+    display: inline-block;
+    position: absolute;
+    right: 0ch;
+  }
+
+  &.big-string-entry {
+    padding-left: 0;
+    padding-right: 0;
+
+    &::before {
+      width: 0;
+    }
+
+    &::after {
+      width: 0;
+    }
+  }
+
+  .string-container {
+    display: block;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    width: 100%;
+  }
+
+  #entry-box {
+    background: transparent;
+    color: transparent;
+    caret-color: $grey3;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    vertical-align: baseline;
+    white-space: pre-wrap;
+    width: 100%;
+    word-break: break-all;
+    word-wrap: break-word;
+  }
+
+  textarea {
+    color: $string-color !important;
+    display: block;
+    overflow: hidden;
+    resize: none;
+  }
+
+  #fluidWidthSpan {
+    @extend .string-style;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+}

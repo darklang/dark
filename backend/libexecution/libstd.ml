@@ -70,6 +70,24 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Dict::get_v1"]
+    ; ins = []
+    ; p = [par "dict" TObj; par "key" TStr]
+    ; r = TOption
+    ; d = "Looks up `key` in object `dict` and returns an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DStr s] ->
+            ( match DvalMap.get o (Unicode_string.to_string s) with
+            | Some d ->
+                DOption (OptJust d)
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Dict::foreach"]
     ; ins = []
     ; p = [par "dict" TObj; func ["value"]]
@@ -674,7 +692,7 @@ let fns : Lib.shortfn list =
     ; r = TStr
     ; d =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::foreach_v1"]
@@ -726,7 +744,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TList
     ; d = "Returns the list of characters (byte, not EGC) in the string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::toList_v1"]
@@ -769,7 +787,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DInt (int_of_string utf8) with e ->
-                  Exception.user
+                  Exception.code
                     ~actual:utf8
                     ~expected:"\\d+"
                     "Expected a string with only numbers" )
@@ -805,7 +823,7 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DFloat (float_of_string utf8) with e ->
-                  Exception.user
+                  Exception.code
                     ~actual:utf8
                     "Expected a string representation of an IEEE float" )
           | args ->
@@ -1000,7 +1018,7 @@ let fns : Lib.shortfn list =
                     | DStr st ->
                         st
                     | _ ->
-                        Exception.user "Expected string" )
+                        Exception.code "Expected string" )
                   l
               in
               DStr (Unicode_string.concat ~sep s)
@@ -1013,7 +1031,7 @@ let fns : Lib.shortfn list =
     ; p = [par "l" TList]
     ; r = TStr
     ; d = "Returns the list of characters as a string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::fromList_v1"]
@@ -1042,7 +1060,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Converts a char to a string"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["String::fromChar_v1"]
@@ -1165,7 +1183,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt l] ->
               if l < 0
-              then Exception.user "l should be a positive integer"
+              then Exception.code "l should be a positive integer"
               else Dval.dstr_of_string_exn (Util.random_string l)
           | args ->
               fail args)
@@ -1219,7 +1237,7 @@ let fns : Lib.shortfn list =
             | Some id ->
                 DUuid id
             | None ->
-                Exception.user
+                Exception.code
                   "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
             )
           | args ->
@@ -1279,6 +1297,24 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["List::head_v1"]
+    ; ins = []
+    ; p = [par "list" TList]
+    ; r = TOption
+    ; d = "Fetches the head of the list and returns an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l] ->
+            ( match List.hd l with
+            | Some dv ->
+                DOption (OptJust dv)
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["List::empty"]
     ; ins = []
     ; p = []
@@ -1321,6 +1357,22 @@ let fns : Lib.shortfn list =
               DNull
           | _, [DList l] ->
               List.last_exn l
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["List::last_v1"]
+    ; ins = []
+    ; p = [par "list" TList]
+    ; r = TOption
+    ; d = "Returns the last item in the list as an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DList []] ->
+              DOption OptNothing
+          | _, [DList l] ->
+              DOption (OptJust (List.last_exn l))
           | args ->
               fail args)
     ; ps = true
@@ -1756,7 +1808,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TInt
     ; d = "Return `c`'s ASCII code"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
@@ -1764,7 +1816,7 @@ let fns : Lib.shortfn list =
     ; p = [par "i" TInt]
     ; r = TCharacter
     ; d = "convert an int to an ASCII character"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toLowercase"]
@@ -1772,7 +1824,7 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the lowercase value of `c`"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
   ; { pns = ["Char::toUppercase"]
@@ -1780,9 +1832,12 @@ let fns : Lib.shortfn list =
     ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the uppercase value of `c`"
-    ; f = InProcess (fun _ -> Exception.user "This function no longer exists.")
+    ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true }
+    (* ====================================== *)
+    (* UUIDs *)
+    (* ====================================== *)
   ; { pns = ["Uuid::generate"]
     ; ins = []
     ; p = []
@@ -1809,105 +1864,199 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false }
   ; (* ====================================== *)
-    (* StaticAssets *)
+    (* Options *)
     (* ====================================== *)
-    { pns = ["StaticAssets::baseUrlFor"]
+    { pns = ["Option::map"]
     ; ins = []
-    ; p = [par "deploy_hash" TStr]
-    ; r = TStr
-    ; d = "Return the baseUrl for the specified deploy hash"
-    ; f = NotClientAvailable
-    ; ps = false
+    ; p = [par "option" TOption; par "f" TBlock]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+                DOption (OptJust (fn [dv]))
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::baseUrlForLatest"]
+  ; { pns = ["Option::andThen"]
     ; ins = []
-    ; p = []
-    ; r = TStr
-    ; d = "Return the baseUrl for the latest deploy"
-    ; f = NotClientAvailable
-    ; ps = false
+    ; p = [par "option" TOption; par "f" TBlock]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+              ( match fn [dv] with
+              | DOption result ->
+                  DOption result
+              | other ->
+                  RT.error
+                    ~actual:other
+                    ~expected:"an option"
+                    "Expected `f` to return an option" )
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::urlFor"]
+  ; { pns = ["Option::withDefault"]
     ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TStr
-    ; d = "Return a url for the specified file and deploy hash"
-    ; f = NotClientAvailable
-    ; ps = false
+    ; p = [par "option" TOption; par "default" TAny]
+    ; r = TAny
+    ; d =
+        "Turn an option into a normal value, using `default` if the option is Nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; default] ->
+            (match o with OptJust dv -> dv | OptNothing -> default)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::urlForLatest"]
+  ; (* ====================================== *)
+    (* Results *)
+    (* ====================================== *)
+    { pns = ["Result::map"]
     ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TStr
-    ; d = "Return a url for the specified file and latest deploy"
-    ; f = NotClientAvailable
-    ; ps = false
-    ; dep = false }
-  ; { pns = ["StaticAssets::fetch"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
+    ; p = [par "result" TResult; par "f" TBlock]
     ; r = TResult
     ; d =
-        "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
-    ; f = NotClientAvailable
-    ; ps = false
+        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult r; DBlock fn] ->
+            ( match r with
+            | ResOk dv ->
+                DResult (ResOk (fn [dv]))
+            | ResError _ ->
+                DResult r )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::fetchBytes"]
+  ; { pns = ["Result::mapError"]
     ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d = "Return the bytes of the specified file from the deploy_hash"
-    ; f = NotClientAvailable
-    ; ps = false
+    ; p = [par "result" TResult; par "f" TBlock]
+    ; r = TAny
+    ; d =
+        "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult r; DBlock fn] ->
+            ( match r with
+            | ResOk _ ->
+                DResult r
+            | ResError err ->
+                DResult (ResError (fn [err])) )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::fetchLatest"]
+  ; { pns = ["Result::withDefault"]
     ; ins = []
-    ; p = [par "file" TStr]
+    ; p = [par "result" TResult; par "default" TAny]
+    ; r = TAny
+    ; d =
+        "Turn a result into a normal value, using `default` if the result is Error."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult o; default] ->
+            (match o with ResOk dv -> dv | ResError _ -> default)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Result::fromOption"]
+    ; ins = []
+    ; p = [par "option" TOption; par "error" TStr]
     ; r = TResult
     ; d =
-        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f = NotClientAvailable
-    ; ps = false
+        "Turn an option into a result, using `error` as the error message for Error."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DStr error] ->
+            ( match o with
+            | OptJust dv ->
+                DResult (ResOk dv)
+            | OptNothing ->
+                DResult (ResError (DStr error)) )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::fetchLatestBytes"]
+  ; { pns = ["Result::toOption"]
     ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d = "Return the bytes of the specified file from the latest deploy"
-    ; f = NotClientAvailable
-    ; ps = false
+    ; p = [par "result" TResult]
+    ; r = TAny
+    ; d = "Turn a result into an option."
+    ; f =
+        InProcess
+          (function
+          | _, [DResult o] ->
+            ( match o with
+            | ResOk dv ->
+                DOption (OptJust dv)
+            | ResError _ ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::serve"]
+  ; { pns = ["Result::andThen"]
     ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
+    ; p = [par "result" TResult; par "f" TBlock]
     ; r = TResult
     ; d =
-        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f = NotClientAvailable
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::serve_v1"]
-    ; ins = []
-    ; p = [par "deploy_hash" TStr; par "file" TStr]
-    ; r = TResult
-    ; d = "Return the specified file from the latest deploy"
-    ; f = NotClientAvailable
-    ; ps = false
+        "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
+    ; f =
+        InProcess
+          (function
+          | _, [DResult o; DBlock fn] ->
+            ( match o with
+            | ResOk dv ->
+              ( match fn [dv] with
+              | DResult result ->
+                  DResult result
+              | other ->
+                  RT.error
+                    ~actual:other
+                    ~expected:"a result"
+                    "Expected `f` to return a result" )
+            | ResError msg ->
+                DResult (ResError msg) )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
-  ; { pns = ["StaticAssets::serveLatest"]
+  ; { pns = ["Option::withDefault"]
     ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
+    ; p = [par "option" TOption; par "default" TAny]
+    ; r = TAny
     ; d =
-        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
-    ; f = NotClientAvailable
-    ; ps = false
-    ; dep = true }
-  ; { pns = ["StaticAssets::serveLatest_v1"]
-    ; ins = []
-    ; p = [par "file" TStr]
-    ; r = TResult
-    ; d = "Return the specified file from the latest deploy"
-    ; f = NotClientAvailable
-    ; ps = false
+        "Turn an option into a normal value, using `default` if the option is Nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; default] ->
+            (match o with OptJust dv -> dv | OptNothing -> default)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]

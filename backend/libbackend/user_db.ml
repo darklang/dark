@@ -153,7 +153,7 @@ and type_check db (obj : dval_map) : dval_map =
         | _, DNull ->
             value (* allow nulls for now *)
         | expected_type, value_of_actual_type ->
-            Exception.user
+            Exception.code
               (type_error_msg key expected_type value_of_actual_type) )
       obj
   else
@@ -173,11 +173,11 @@ and type_check db (obj : dval_map) : dval_map =
       (String.Set.is_empty missing_keys, String.Set.is_empty extra_keys)
     with
     | false, false ->
-        Exception.user (missing_msg ^ " & " ^ extra_msg)
+        Exception.code (missing_msg ^ " & " ^ extra_msg)
     | false, true ->
-        Exception.user missing_msg
+        Exception.code missing_msg
     | true, false ->
-        Exception.user extra_msg
+        Exception.code extra_msg
     | true, true ->
         Exception.internal
           "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"

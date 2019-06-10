@@ -257,6 +257,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               | Some id ->
                   let pd = TL.findExn tl id in
                   Refactor.extractFunction m tl pd
+            else if event.altKey
+            then FeatureFlags.start m
             else NoChange
         | Key.B ->
             if event.ctrlKey

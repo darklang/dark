@@ -55,7 +55,7 @@ let replacements =
                   | DStr s ->
                       Unicode_string.to_string s
                   | t ->
-                      Exception.user "Expected a string, got: "
+                      Exception.code "Expected a string, got: "
                       ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                 keys
             in

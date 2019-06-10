@@ -733,9 +733,13 @@ and canvasProps =
 
 and httpError = (string Tea.Http.error[@opaque])
 
+and errorImportance =
+  | IgnorableError
+  | ImportantError
+
 and modification =
   | DisplayAndReportHttpError of
-      string * bool * httpError * (Js.Json.t[@opaque])
+      string * errorImportance * httpError * (Js.Json.t[@opaque])
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
@@ -864,6 +868,7 @@ and msg =
   | TraceMouseLeave of tlid * traceID * mouseEvent
   | TriggerCron of tlid
   | CreateRouteHandler of string option
+  | ToggleSideBar
   | CreateFunction
   | ExtractFunction
   | CreateType
@@ -903,6 +908,7 @@ and msg =
 and variantTest =
   | StubVariant
   | FluidVariant
+  | SidebarVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1178,7 +1184,8 @@ and model =
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
-  ; browserId : string }
+  ; browserId : string
+  ; sidebarOpen : bool }
 
 (* Values that we serialize *)
 and serializableEditor =

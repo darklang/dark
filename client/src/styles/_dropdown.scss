@@ -1,0 +1,174 @@
+$highlight-color: saturate(darken($blue, 20%), 10%);
+$autocomplete-padding: ($spacing-medium/2);
+
+$wrapper-background: $black2;
+
+.entry {
+  // headers need to be relative to position them. We need to be above
+  // the headers, and position:relative allows us to do it.
+  cursor: default;
+  background: $wrapper-background;
+  color: $white1;
+  margin-left: 4px;
+  margin-right: 4px;
+  width: auto;
+
+  /* width: 96px; // keeps autocomplete appearing when Creating */
+  .types {
+    float: right;
+    text-transform: lowercase;
+    font-family: monospace;
+    font-size: 80%;
+  }
+
+  form {
+    // makes the form takes up no space in the DOM, meaning we don't
+    // expand the top-level
+    position: absolute;
+
+    // account for the space of both input boxes
+    margin-top: -12px;
+
+    #search-container {
+      background: $wrapper-background;
+      border: 0;
+      margin: 0;
+      padding: 0;
+      position: relative;
+
+      #entry-box {
+        // as much like the blank box as possible
+        background: transparent;
+        color: transparent;
+        caret-color: $grey3;
+        position: relative;
+        text-align: left;
+        vertical-align: baseline;
+        width: 100%;
+      }
+
+      #suggestionBox {
+        color: rgb(84, 84, 84);
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+      }
+
+      #fluidWidthSpan {
+        color: $grey3;
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+      }
+    }
+  }
+
+  #autocomplete-holder {
+    font-size: 11.3px;
+    max-height: 90px;
+    overflow-y: scroll;
+    position: absolute;
+    text-align: initial;
+    width: $toplevel-min-width - 10px;
+    z-index: 1;
+    background: $black3;
+    @include border-radius-bottom($autocomplete-padding);
+
+    .autocomplete-item {
+      padding: 0 $autocomplete-padding;
+      background: transparent;
+
+      .atom {
+        margin-left: 0;
+      }
+
+      &.highlighted {
+        background: $highlight-color;
+      }
+
+      &.invalid {
+        color: $grey3;
+
+        &.highlighted {
+          background: lighten($highlight-color, 50%);
+          color: black;
+
+          .moduleseparator {
+            color: black;
+          }
+        }
+
+        .name,
+        .types,
+        .module,
+        .moduleseparator {
+          text-decoration: line-through solid;
+        }
+
+        .moduleseparator {
+          color: $grey3;
+        }
+      }
+    }
+  }
+}
+
+.omnibox {
+  $box-width: 400px;
+  $left-margin: 24px;
+
+  // honestly couldnt tell you where this magic number comes from
+  font-size: $code-font-size * 1.5;
+  margin-top: -9px;
+
+  .string-entry {
+    margin-top: -21px;
+  }
+
+  .entry form #search-container {
+    min-width: $box-width;
+    background-color: $black3;
+    padding: 0 $left-margin;
+    @include border-radius-top(6px);
+
+    #fluidWidthSpan {
+      width: 100%;
+      box-sizing: border-box;
+      margin-left: $left-margin;
+
+      &:before {
+        display: inline-block;
+        margin-left: -0.85 * $left-margin;
+        margin-top: -$spacing-medium;
+
+        content: "\f002";
+        font-family: "Font Awesome 5 Free";
+        font-weight: 900;
+        color: $grey2;
+        font-size: 16px;
+      }
+    }
+  }
+
+  ul#autocomplete-holder {
+    width: 100%;
+    background-color: $wrapper-background;
+    overflow-y: visible;
+    list-style-type: none;
+    @include border-radius-bottom(6px);
+
+    li {
+      font-size: $code-font-size;
+      padding: 2px $left-margin;
+    }
+  }
+}
+
+.selecting-command {
+  ul#autocomplete-holder {
+    @include border-radius-top(4px);
+    @include border-radius-bottom(4px);
+  }
+}

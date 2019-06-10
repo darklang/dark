@@ -19,7 +19,7 @@ let init ~run_side_effects =
         @ Libcrypto.replacements
         @ Libtwilio.replacements
         @ Libdarkinternal.replacements
-        @ Libstatic_assets.replacements
+        @ Libstaticassets.replacements
         (* @ Libtwitter.fns  *)
       in
       Libexecution.Init.init Config.log_level Config.log_format replacements ;

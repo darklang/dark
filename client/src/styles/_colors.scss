@@ -1,0 +1,49 @@
+/* Color palette */
+
+$black1: #181818;
+$black2: #282828;
+$black3: #383838;
+
+$grey1 : #484848;
+$grey2 : #585858;
+$grey3 : #b8b8b8;
+
+$white1: #d8d8d8;
+$white2: #e8e8e8;
+$white3: #f8f8f8;
+
+$red: #AB4642;
+$orange: #dc9656;
+$yellow: #f7ca88;
+$green : #a1b56c;
+$cyan : #86c1b9;
+$blue : #7cafc2;
+$purple: #B18BBA;
+$pink: #D5839D;
+
+
+/* Semantic Variables */
+$canvas-background: $grey1;
+$toplevel-background: $black2;
+
+$live-value-foreground: lighten($cyan, 10%);
+$live-value-background: $black3;
+
+$http-get: $green;
+$http-post: $blue;
+$http-put: $orange;
+$http-patch: $purple;
+$http-delete: lighten($red, 15%);
+$cron-color: $yellow;
+$queue-color: $grey3;
+$user-functions: saturate($cyan, 10%);
+
+$hover-foreground: darken($blue, 10%);
+$selected-background: darken($toplevel-background, 20%);
+$hover-background: #1C2E4A;
+
+$unlock-color: lighten($green, 15%);
+$lock-color: lighten($red, 10%);
+
+$link-color: $white1;
+$link-hover-color: $yellow;
