@@ -82,6 +82,9 @@ let isAutocompletable (t : token) : bool =
   | TPlaceholder _
   | TPartial _
   | TPatternBlank _
+  (* since patterns have no partial but commit as variables
+   * automatically, allow intermediate variables to
+   * be autocompletable to other expressions *)
   | TPatternVariable _ ->
       true
   | _ ->
