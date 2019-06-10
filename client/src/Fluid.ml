@@ -1228,7 +1228,20 @@ let wrapPattern
 
 let replacePattern
     ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
+  wrapPattern matchID patID ast ~f:(fun pat ->
+      match pat with
+      | FPVariable (_, _, varName) ->
+        ( match varName with
+        | "" ->
+            FPBlank (matchID, patID)
+        | "Just" | "Ok" | "Error" ->
+            FPConstructor (matchID, patID, varName, [FPBlank (matchID, gid ())])
+        | "Nothing" ->
+            FPConstructor (matchID, patID, varName, [])
+        | _ ->
+            FPVariable (matchID, patID, varName) )
+      | _ ->
+          newPat )
 
 
 let replaceVarInPattern
@@ -1239,9 +1252,11 @@ let replaceVarInPattern
           let rec replaceNameInPattern pat =
             match pat with
             | FPVariable (_, id, varName) when varName = oldVarName ->
-                if newVarName = ""
-                then FPBlank (mID, id)
-                else FPVariable (mID, id, newVarName)
+              ( match newVarName with
+              | "" ->
+                  FPBlank (mID, id)
+              | _ ->
+                  FPVariable (mID, id, newVarName) )
             | FPConstructor (mID, id, name, patterns) ->
                 FPConstructor
                   (mID, id, name, List.map patterns ~f:replaceNameInPattern)
@@ -1719,14 +1734,18 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
   let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
-      (ast, s)
+    ( match ti.token with
+    | TPatternVariable _ ->
+        (ast, moveToNextBlank ~pos:s.newPos ast s)
+    | _ ->
+        (ast, s) )
   | Some entry ->
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
       let newAST, acOffset =
-        match entry with
-        | FACPattern _ ->
+        match (ti.token, entry) with
+        | TPatternBlank _, FACPattern _ | TPatternVariable _, FACPattern _ ->
             let newPat, acOffset = acToPattern entry in
             let newAST =
               replacePattern ~newPat (pid newPat) (pmid newPat) ast
@@ -1949,7 +1968,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
-  | TPatternBlank _ | TPatternConstructorName _ ->
+  | TPatternConstructorName (mID, id, _) ->
+      (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, s)
+  | TPatternBlank _ ->
       (ast, s)
 
 
@@ -2168,15 +2189,20 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, right)
   | TPatternFloatPoint (mID, id) ->
       (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
-  | TPatternConstructorName _ ->
+  | TPatternConstructorName (_mID, _id, _) ->
+      (* (replaceExpr id ~newExpr:(FPBlank (mID, id)) ast, moveTo ti.startPos s)*)
       (ast, s)
   | TPatternBlank (mID, pID) ->
       let newPat =
         if letter = '"'
         then FPString (mID, newID, "")
         else if isNumber letterStr
-        then FPInteger (mID, newID, letterStr |> safe_int_of_string)
-        else FPVariable (mID, newID, letterStr)
+        then
+          FPInteger (mID, newID, letterStr |> safe_int_of_string)
+          (* TODO: special token for FPUnderscore
+        else if letter = '_'
+        then FPBlank (mID, newID)*)
+        else FPVariable (mID, pID, letterStr)
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
@@ -2283,16 +2309,28 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     (* Autocomplete finish *)
     | K.Enter, L (TPartial (_, _), ti), _
     | K.Enter, _, R (TPartial (_, _), ti)
+    | K.Enter, L (TPatternVariable (_, _, _), ti), _
+    | K.Enter, _, R (TPatternVariable (_, _, _), ti)
     | K.Space, L (TPartial (_, _), ti), _
     | K.Space, _, R (TPartial (_, _), ti)
+    | K.Space, L (TPatternVariable (_, _, _), ti), _
+    | K.Space, _, R (TPatternVariable (_, _, _), ti)
     | K.Tab, L (TPartial (_, _), ti), _
     | K.Tab, _, R (TPartial (_, _), ti)
+    | K.Tab, L (TPatternVariable (_, _, _), ti), _
+    | K.Tab, _, R (TPatternVariable (_, _, _), ti)
     | K.Enter, L (TBlank _, ti), _
     | K.Enter, _, R (TBlank _, ti)
+    | K.Enter, L (TPatternBlank (_, _), ti), _
+    | K.Enter, _, R (TPatternBlank (_, _), ti)
     | K.Space, L (TBlank _, ti), _
     | K.Space, _, R (TBlank _, ti)
+    | K.Space, L (TPatternBlank (_, _), ti), _
+    | K.Space, _, R (TPatternBlank (_, _), ti)
     | K.Tab, L (TBlank _, ti), _
-    | K.Tab, _, R (TBlank _, ti) ->
+    | K.Tab, _, R (TBlank _, ti)
+    | K.Tab, L (TPatternBlank (_, _), ti), _
+    | K.Tab, _, R (TPatternBlank (_, _), ti) ->
         acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
@@ -2413,6 +2451,9 @@ let updateAutocomplete m tlid ast s : fluidState =
     | _, R (_, ti)
       when isTextToken ti.token && Token.isAutocompletable ti.token ->
         Some ti
+    | _, R (_, ({token = TMatchSep _; _} as ti))
+    | L (_, ({token = TPatternVariable _; _} as ti)), _ ->
+        Some ti
     | L (_, ti), _
       when isTextToken ti.token && Token.isAutocompletable ti.token ->
         Some ti
@@ -2436,6 +2477,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   let newAST, newState =
     match msg with
     | FluidMouseClick ->
+      (* TODO: if mouseclick on blank put cursor at beginning of it *)
       ( match getCursorPosition () with
       | Some newPos ->
           let lastPos =

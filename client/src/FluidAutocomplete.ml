@@ -368,6 +368,30 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (* | _ -> *)
     (*     [] *)
   in
+  let open Prelude in
+  let pmid = gid () in
+  let patterns =
+    match ti.token with
+    | TPatternBlank _ | TPatternVariable _ ->
+        (* if a pattern is in the autocomplete already, don't bother creating
+         * new FACPatterns with different pmids and pids *)
+        if List.any
+             ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
+             a.allCompletions
+        then a.allCompletions
+        else
+          [ FPBool (pmid, gid (), true)
+          ; FPBool (pmid, gid (), false)
+          ; FPConstructor (pmid, gid (), "Just", [FPBlank (pmid, gid ())])
+          ; FPConstructor (pmid, gid (), "Nothing", [])
+          ; FPConstructor (pmid, gid (), "Ok", [FPBlank (pmid, gid ())])
+          ; FPConstructor (pmid, gid (), "Error", [FPBlank (pmid, gid ())])
+          ; FPNull (pmid, gid ()) ]
+          @ List.map ~f:(fun var -> FPVariable (pmid, gid (), var)) varnames
+          |> List.map ~f:(fun x -> FACPattern x)
+    | _ ->
+        []
+  in
   let exprs =
     (* if isExpression *)
     (* then *)
@@ -382,7 +406,12 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (* else [] *)
   in
   let items = extras @ exprs @ fields in
-  {a with allCompletions = items}
+  if patterns == []
+  then {a with allCompletions = items}
+  else
+    { a with
+      allCompletions = patterns
+    ; index = Some (a.index |> Option.withDefault ~default:0) }
 
 
 let filter
@@ -450,6 +479,17 @@ let refilter
   let oldHighlightNewPos =
     oldHighlight
     |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
+  in
+  let oldHighlightNewPos =
+    match old.query with
+    | Some (_, {token = TPatternBlank _})
+    | Some (_, {token = TPatternVariable _}) ->
+        (* in the case of pattern complete where query is included in AC
+      * , check for new query position *)
+        let allCompletionStrs = allCompletions |> List.map ~f:asString in
+        List.elemIndex ~value:queryString allCompletionStrs
+    | _ ->
+        oldHighlightNewPos
   in
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
