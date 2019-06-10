@@ -222,20 +222,21 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
 
 let fromFluidACI (aci : fluidAutocompleteItem) : Types.autocompleteItem option
     =
-  Some
-    ( match aci with
-    | FACFunction f ->
-        ACFunction f
-    | FACConstructorName (name, _) ->
-        ACConstructorName name
-    | FACField name ->
-        ACField name
-    | FACVariable name ->
-        ACVariable name
-    | FACLiteral lit ->
-        ACLiteral lit
-    | FACKeyword kw ->
-        ACKeyword kw )
+  match aci with
+  | FACFunction f ->
+      Some (ACFunction f)
+  | FACConstructorName (name, _) ->
+      Some (ACConstructorName name)
+  | FACField name ->
+      Some (ACField name)
+  | FACVariable name ->
+      Some (ACVariable name)
+  | FACLiteral lit ->
+      Some (ACLiteral lit)
+  | FACKeyword kw ->
+      Some (ACKeyword kw)
+  | FACPattern _ ->
+      None
 
 
 let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
