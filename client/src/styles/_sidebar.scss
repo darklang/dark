@@ -18,7 +18,7 @@ $countBoxSize: 15px;
 
 .viewing-table {
   $toggleSpace: 60px;
-  background-color: $black2;
+  background-color: darken($canvas-background, 10%);
   height: 100%;
   position: relative;
   width: $sidebarFullWidth;
