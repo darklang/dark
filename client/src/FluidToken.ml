@@ -77,7 +77,15 @@ let isBlank t =
 
 
 let isAutocompletable (t : token) : bool =
-  match t with TBlank _ | TPlaceholder _ | TPartial _ -> true | _ -> false
+  match t with
+  | TBlank _
+  | TPlaceholder _
+  | TPartial _
+  | TPatternBlank _
+  | TPatternVariable _ ->
+      true
+  | _ ->
+      false
 
 
 let toText (t : token) : string =
