@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 (* Dark *)
 module P = Pointer
@@ -318,7 +319,8 @@ let toQueryString (ti : tokenInfo) : string =
 (* Create the list *)
 (* ------------------------------------ *)
 
-let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
+let generate
+    (m : model) (a : autocomplete) ((tl, ti, _, queryString) : fullQuery) :
     autocomplete =
   let varnames, _dval =
     let id = FluidToken.tid ti.token in
@@ -368,7 +370,6 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (* | _ -> *)
     (*     [] *)
   in
-  let open Prelude in
   let pmid = gid () in
   let patterns =
     match ti.token with
@@ -378,16 +379,29 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
         if List.any
              ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
              a.allCompletions
-        then a.allCompletions
+        then
+          (* update query string variable in autocomplete *)
+          ( if queryString != ""
+          then [FACPattern (FPVariable (pmid, gid (), queryString))]
+          else [] )
+          @ ( a.allCompletions
+            |> List.filter ~f:(fun c ->
+                   match c with
+                   | FACPattern (FPVariable _) ->
+                       false
+                   | _ ->
+                       true ) )
         else
-          [ FPBool (pmid, gid (), true)
+          (* since patterns have no partial but commit as variables 
+           * automatically, include variable in autocomplete items *)
+          [ FPVariable (pmid, gid (), queryString)
+          ; FPBool (pmid, gid (), true)
           ; FPBool (pmid, gid (), false)
           ; FPConstructor (pmid, gid (), "Just", [FPBlank (pmid, gid ())])
           ; FPConstructor (pmid, gid (), "Nothing", [])
           ; FPConstructor (pmid, gid (), "Ok", [FPBlank (pmid, gid ())])
           ; FPConstructor (pmid, gid (), "Error", [FPBlank (pmid, gid ())])
           ; FPNull (pmid, gid ()) ]
-          @ List.map ~f:(fun var -> FPVariable (pmid, gid (), var)) varnames
           |> List.map ~f:(fun x -> FACPattern x)
     | _ ->
         []

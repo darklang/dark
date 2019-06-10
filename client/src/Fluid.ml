@@ -915,6 +915,10 @@ type neighbour =
   | R of token * tokenInfo
   | No
 
+let neighborTokenInfo (n : neighbour) : tokenInfo option =
+  match n with R (_, ti) | L (_, ti) -> Some ti | No -> None
+
+
 let rec getTokensAtPosition
     ?(prev = None) ~(pos : int) (tokens : tokenInfo list) :
     tokenInfo option * tokenInfo option * tokenInfo option =
@@ -1749,9 +1753,11 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
       let newAST, acOffset =
-        match (ti.token, entry) with
-        | TPatternBlank (mID, pID), FACPattern _
-        | TPatternVariable (mID, pID, _), FACPattern _ ->
+        match ti.token with
+        (* since patterns have no partial but commit as variables 
+        * automatically, allow intermediate variables to 
+        * be autocompletable to other expressions *)
+        | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
             let newPat, acOffset = acToPattern entry in
             let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
@@ -2215,19 +2221,14 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, right)
   | TPatternFloatPoint (mID, id) ->
       (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
-  | TPatternConstructorName (_mID, _id, _) ->
-      (* (replaceExpr id ~newExpr:(FPBlank (mID, id)) ast, moveTo ti.startPos s)*)
+  | TPatternConstructorName (_, _, _) ->
       (ast, s)
   | TPatternBlank (mID, pID) ->
       let newPat =
         if letter = '"'
         then FPString (mID, newID, "")
         else if isNumber letterStr
-        then
-          FPInteger (mID, newID, letterStr |> safe_int_of_string)
-          (* TODO: special token for FPUnderscore
-        else if letter = '_'
-        then FPBlank (mID, newID)*)
+        then FPInteger (mID, newID, letterStr |> safe_int_of_string)
         else FPVariable (mID, pID, letterStr)
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
@@ -2301,6 +2302,16 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | _ ->
         true
   in
+  (*let isAutocompletingNeighbors l r s =
+    match (l, r) with
+    | L (_, ti), _ | _, R (_, ti) ->
+        (isAutocompleting ti s)
+    | _ ->
+        false
+  in*)
+  let wrappedIsAutocompleting n s =
+    match n with L (_, ti) | R (_, ti) -> isAutocompleting ti s | No -> false
+  in
   let newAST, newState =
     (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
@@ -2333,37 +2344,15 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Down, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | K.Enter, L (TPartial (_, _), ti), _
-    | K.Enter, _, R (TPartial (_, _), ti)
-    | K.Enter, L (TPatternVariable (_, _, _), ti), _
-    | K.Enter, _, R (TPatternVariable (_, _, _), ti)
-    | K.Space, L (TPartial (_, _), ti), _
-    | K.Space, _, R (TPartial (_, _), ti)
-    | K.Space, L (TPatternVariable (_, _, _), ti), _
-    | K.Space, _, R (TPatternVariable (_, _, _), ti)
-    | K.Tab, L (TPartial (_, _), ti), _
-    | K.Tab, _, R (TPartial (_, _), ti)
-    | K.Tab, L (TPatternVariable (_, _, _), ti), _
-    | K.Tab, _, R (TPatternVariable (_, _, _), ti)
-    | K.Enter, L (TBlank _, ti), _
-    | K.Enter, _, R (TBlank _, ti)
-    | K.Enter, L (TPatternBlank (_, _), ti), _
-    | K.Enter, _, R (TPatternBlank (_, _), ti)
-    | K.Space, L (TBlank _, ti), _
-    | K.Space, _, R (TBlank _, ti)
-    | K.Space, L (TPatternBlank (_, _), ti), _
-    | K.Space, _, R (TPatternBlank (_, _), ti)
-    | K.Tab, L (TBlank _, ti), _
-    | K.Tab, _, R (TBlank _, ti)
-    | K.Tab, L (TPatternBlank (_, _), ti), _
-    | K.Tab, _, R (TPatternBlank (_, _), ti)
-    | K.ShiftTab, L (TPartial (_, _), ti), _
-    | K.ShiftTab, _, R (TPartial (_, _), ti) ->
-        if isAutocompleting ti s
-        then acEnter ti ast s key
-        else if key = K.ShiftTab
-        then (ast, moveToPrevBlank ~pos ast s)
-        else (ast, moveToNextBlank ~pos ast s)
+    | _, l, r
+      when (wrappedIsAutocompleting r s || wrappedIsAutocompleting l s)
+           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+  ->
+      ( match (l, r) with
+      | L (_, ti), _ | _, R (_, ti) ->
+          acEnter ti ast s key
+      | _ ->
+          (ast, s) )
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
@@ -2484,9 +2473,6 @@ let updateAutocomplete m tlid ast s : fluidState =
     match (toTheLeft, toTheRight) with
     | _, R (_, ti)
       when isTextToken ti.token && Token.isAutocompletable ti.token ->
-        Some ti
-    | _, R (_, ({token = TMatchSep _; _} as ti))
-    | L (_, ({token = TPatternVariable _; _} as ti)), _ ->
         Some ti
     | L (_, ti), _
       when isTextToken ti.token && Token.isAutocompletable ti.token ->
