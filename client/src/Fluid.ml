@@ -622,6 +622,14 @@ let eToString (s : state) (e : ast) : string =
   |> String.join ~sep:""
 
 
+let eToStructure (s : state) (e : fluidExpr) : string =
+  e
+  |> toTokens s
+  |> List.map ~f:(fun ti ->
+         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+  |> String.join ~sep:""
+
+
 (* -------------------- *)
 (* Patterns *)
 (* -------------------- *)
@@ -1660,41 +1668,51 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-let getNextBlank (pos : int) (tokens : tokenInfo list) : int =
-  let rec f pos tokens' =
-    match tokens' with
-    | [] ->
-        (* Wrap, unless we've already wrapped *)
-        if pos = -1 then 0 else f (-1) tokens
-    | ti :: rest ->
-        if Token.isBlank ti.token && ti.startPos > pos
-        then ti.startPos
-        else f pos rest
-  in
-  f pos tokens
+let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextBlank 0 tokens )
 
 
-(* TODO: rewrite nextBlank like prevBlank *)
+let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getNextBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
   let tokens = toTokens s ast in
-  let newPos = getNextBlank pos tokens in
+  let newPos = getNextBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
+
+
+let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.filter ~f:(fun ti -> Token.isBlank ti.token && ti.endPos < pos)
+  |> List.last
+  |> Option.orElseLazy (fun () ->
+         let lastPos =
+           List.last tokens
+           |> Option.map ~f:(fun ti -> ti.endPos)
+           |> Option.withDefault ~default:0
+         in
+         if pos = lastPos then None else getPrevBlank lastPos tokens )
+
+
+let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getPrevBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
 
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens =
-    toTokens s ast |> List.filter ~f:(fun ti -> Token.isBlank ti.token)
-  in
-  let rec getPrevBlank pos' tokens' =
-    match tokens' with
-    | [] ->
-      (match List.last tokens with None -> 0 | Some ti -> ti.startPos)
-    | ti :: rest ->
-        if ti.endPos < pos' then ti.startPos else getPrevBlank pos' rest
-  in
-  let newPos = getPrevBlank pos (List.reverse tokens) in
+  let tokens = toTokens s ast in
+  let newPos = getPrevBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
 
@@ -1758,21 +1776,43 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             (newAST, acOffset)
       in
       let tokens = toTokens s newAST in
-      let offset = getNextBlank s.newPos tokens in
+      let nextBlank = getNextBlankPos s.newPos tokens in
+      let prevBlank = getPrevBlankPos s.newPos tokens in
       let newPos =
         match key with
         | K.Tab ->
-            offset
+            nextBlank
+        | K.ShiftTab ->
+            prevBlank
         | K.Enter ->
             ti.startPos + acOffset
         | K.Space ->
             (* if new position is after next blank, stay in next blank *)
-            min offset (ti.startPos + acOffset + 1)
+            min nextBlank (ti.startPos + acOffset + 1)
         | _ ->
             s.newPos
       in
       let newState = moveTo newPos (acClear s) in
       (newAST, newState)
+
+
+let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
+    : ast =
+  let highlightedText = s.ac |> AC.highlighted |> Option.map ~f:AC.asName in
+  let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
+  if (not isInside) && Some (Token.toText ti.token) = highlightedText
+  then
+    let newAST, _ = acEnter ti ast s K.Enter in
+    newAST
+  else ast
+
+
+let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
+  match s.ac.query with
+  | Some (_, ti) ->
+      commitIfValid newPos ti (ast, s)
+  | None ->
+      ast
 
 
 let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
@@ -2331,6 +2371,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Tab, _, R (TBlank _, ti)
     | K.Tab, L (TPatternBlank (_, _), ti), _
     | K.Tab, _, R (TPatternBlank (_, _), ti) ->
+
+    | K.ShiftTab, L (TPartial (_, _), ti), _
+    | K.ShiftTab, _, R (TPartial (_, _), ti) ->
         acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
@@ -2338,21 +2381,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acCompleteField ti ast s
     (* Tab to next blank *)
-    | K.Tab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
+    | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
-    | K.Tab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, ti)
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
-        (ast, moveToPrevBlank ~pos ast s)
-    | K.ShiftTab, L (_, ti), _
-      when exprIsEmpty (Token.tid ti.token) ast || not (isAutocompleting ti s)
-      ->
+    | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
@@ -2440,7 +2471,21 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
-  (newAST, newState)
+  (* If we were on a partial and have moved off it, we may want to commit
+   * that partial. This is done here because the logic is different that
+   * clicking. *)
+  match (key, toTheLeft, toTheRight) with
+  | K.Number _, _, _ | K.Letter _, _, _ ->
+      (newAST, newState)
+  | _, L (TPartial _, ti), _ | _, _, R (TPartial _, ti) ->
+      (* Use the old position and ac and token *)
+      let committedAST = commitIfValid newState.newPos ti (newAST, s) in
+      (* TODO: I tried redoing the action after it had been committed, but in
+       * the cases I tried it didn't have a better user experience. Might be
+       * edge cases I didn't consider though. *)
+      (committedAST, newState)
+  | _ ->
+      (newAST, newState)
 
 
 let updateAutocomplete m tlid ast s : fluidState =
@@ -2469,6 +2514,19 @@ let updateAutocomplete m tlid ast s : fluidState =
       s
 
 
+let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let lastPos =
+    toTokens s ast
+    |> List.last
+    |> Option.map ~f:(fun ti -> ti.endPos)
+    |> Option.withDefault ~default:0
+  in
+  let newPos = if newPos > lastPos then lastPos else newPos in
+  let newAST = acMaybeCommit newPos ast s in
+  (newAST, setPosition s newPos)
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -2480,14 +2538,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
       (* TODO: if mouseclick on blank put cursor at beginning of it *)
       ( match getCursorPosition () with
       | Some newPos ->
-          let lastPos =
-            toTokens s ast
-            |> List.last
-            |> Option.map ~f:(fun ti -> ti.endPos)
-            |> Option.withDefault ~default:0
-          in
-          let newPos = if newPos > lastPos then lastPos else newPos in
-          (ast, setPosition s newPos)
+          updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
     | FluidKeyPress {key} ->
@@ -2545,9 +2596,18 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             if ast <> newAST
             then
               let asExpr = toExpr newAST in
+              let requestAnalysis =
+                match Analysis.cursor m tl.id with
+                | Some traceID ->
+                    let m = TL.withAST m tl.id asExpr in
+                    MakeCmd (Analysis.requestAnalysis m tl.id traceID)
+                | None ->
+                    NoChange
+              in
               Many
                 [ Types.TweakModel (fun m -> TL.withAST m tl.id asExpr)
-                ; Toplevel.setSelectedAST m asExpr ]
+                ; Toplevel.setSelectedAST m asExpr
+                ; requestAnalysis ]
             else Types.NoChange
           in
           Types.Many
@@ -2601,25 +2661,6 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewLiveValue ~tlid ~currentResults ti : Types.msg Html.html =
-  match ti.token with
-  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-      Vdom.noNode
-  | _ ->
-      let id = Token.tid ti.token in
-      let liveValueString =
-        StrDict.get ~key:(deID id) currentResults.liveValues
-        |> Option.map ~f:Runtime.toRepr
-        |> Option.withDefault ~default:"<loading>"
-      in
-      Html.div
-        [ Html.class' "live-value"
-        ; Vdom.prop "contentEditable" "true"
-        ; Attrs.autofocus false
-        ; Attrs.spellcheck false ]
-        [Html.text liveValueString; viewCopyButton tlid liveValueString]
-
-
 let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
   let sentToRail id =
     let dv =
@@ -2645,9 +2686,8 @@ let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
+let toHtml ~currentResults ~state (l : tokenInfo list) :
     Types.msg Html.html list =
-  let displayedLv = ref false in
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2656,7 +2696,6 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
         then viewAutocomplete state.ac
         else Vdom.noNode
       in
-      let liveValue () = viewLiveValue ~tlid ~currentResults ti in
       let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
@@ -2667,24 +2706,50 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      let liveValue =
-        if state.newPos <= ti.endPos
-           && state.newPos >= ti.startPos
-           && not !displayedLv
-        then (
-          displayedLv := true ;
-          liveValue () )
-        else Vdom.noNode
-      in
-      [element [dropdown (); liveValue]; errorIndicator] )
+      [element [dropdown ()]; errorIndicator] )
   |> List.flatten
+
+
+let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
+  List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
+
+
+let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
+    Types.msg Html.html =
+  let liveValues, show, offset =
+    getTokenAt state.newPos tis
+    |> Option.andThen ~f:(fun ti ->
+           match ti.token with
+           | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+               None
+           | _ ->
+               let liveValuesOfToken =
+                 let id = Token.tid ti.token in
+                 let liveValueString =
+                   StrDict.get ~key:(deID id) currentResults.liveValues
+                   |> Option.map ~f:Runtime.toRepr
+                   |> Option.withDefault ~default:"<loading>"
+                 in
+                 [ Html.text liveValueString
+                 ; viewCopyButton tlid liveValueString ]
+               in
+               Some (liveValuesOfToken, true, ti.startRow) )
+    |> Option.withDefault ~default:([Vdom.noNode], false, 0)
+  in
+  let offset = float_of_int offset +. 1.5 in
+  Html.div
+    [ Html.classList [("live-values", true); ("show", show)]
+    ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
+    ; Attrs.autofocus false
+    ; Attrs.spellcheck false ]
+    liveValues
 
 
 let viewAST
     ~(tlid : tlid)
     ~(currentResults : analysisResults)
     ~(state : state)
-    (ast : ast) : Types.msg Html.html =
+    (ast : ast) : Types.msg Html.html list =
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
@@ -2698,15 +2763,15 @@ let viewAST
       decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
-  Html.div
-    [ Attrs.id editorID
-    ; Vdom.prop "contentEditable" "true"
-    ; Attrs.autofocus true
-    ; Attrs.spellcheck false
-    ; event ~key:eventKey "keydown"
-    (* ; event ~key:"keyup" "keyup" *)
-     ]
-    (ast |> toTokens state |> toHtml ~tlid ~currentResults ~state)
+  let tokenInfos = ast |> toTokens state in
+  [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
+  ; Html.div
+      [ Attrs.id editorID
+      ; Vdom.prop "contentEditable" "true"
+      ; Attrs.autofocus true
+      ; Attrs.spellcheck false
+      ; event ~key:eventKey "keydown" ]
+      (tokenInfos |> toHtml ~currentResults ~state) ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =

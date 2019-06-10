@@ -6,7 +6,7 @@
     { "x": 600, "y": 200 },
     {
       "tlid": 180770093,
-      "ast": [ "Filled", 3981133572, [ "FnCall", "fn_2173672243", [] ] ],
+      "ast": [ "Filled", 3981133572, [ "FnCall", "fn1", [] ] ],
       "spec": {
         "module": [ "Blank", 1013789043 ],
         "name": [ "Blank", 1686646085 ],
@@ -18,13 +18,13 @@
       }
     }
   ],
-  [ "TLSavepoint", 2296485551 ],
+  [ "TLSavepoint", 123 ],
   [
     "SetFunction",
     {
-      "tlid": 2296485551,
+      "tlid": 123,
       "metadata": {
-        "name": [ "Filled", 12399029, "fn_2173672243" ],
+        "name": [ "Filled", 12399029, "fn1" ],
         "parameters": [],
         "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
         "description": "",

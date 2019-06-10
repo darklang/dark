@@ -1,0 +1,160 @@
+/* Mixins */
+
+.default {
+  margin: 0;
+  padding: 0;
+  background-color: $toplevel-background;
+  color: $grey3;
+}
+
+.default-link {
+  text-decoration: none;
+
+  &:link,
+  &:visited {
+    color: $link-color;
+  }
+
+  &:hover,
+  &:active {
+    color: $link-hover-color;
+  }
+}
+
+.parameter-btn {
+  font-size: 75%;
+
+  &.allowed {
+    &:hover {
+      color: $green;
+      cursor: pointer;
+    }
+  }
+
+  &.disallowed {
+    color: lighten($black3, 20%);
+
+    &:hover {
+      &:after {
+        content: attr(title);
+        position: absolute;
+        left: calc(100% + 10px);
+        color: $red;
+        width: max-content;
+      }
+    }
+  }
+
+  &.info {
+    color: lighten($black3, 20%);
+
+    &:hover {
+      &:after {
+        content: attr(title);
+        position: absolute;
+        left: 0;
+        top: -20px;
+        color: $blue;
+        width: max-content;
+      }
+    }
+  }
+}
+
+@mixin border-radius-bottom ($radius) {
+  border-bottom-left-radius: $radius;
+  border-bottom-right-radius: $radius;
+}
+
+@mixin border-radius-top ($radius) {
+  border-top-left-radius: $radius;
+  border-top-right-radius: $radius;
+}
+
+/* Body */
+
+html {
+  height: 100%;
+}
+
+::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 7px;
+  background-color: $grey2;
+}
+
+body {
+  @extend .default;
+  height: 100%;
+}
+
+#app {
+  background: $canvas-background;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  -webkit-touch-callout: none;
+  /* iOS Safari */
+  -webkit-user-select: none;
+  /* Safari */
+  -khtml-user-select: none;
+  /* Konqueror HTML */
+  -moz-user-select: none;
+  /* Firefox */
+  -ms-user-select: none;
+  /* Internet Explorer/Edge */
+  user-select: none;
+  /* Non-prefixed version, currently
+                                supported by Chrome and Opera */
+}
+
+/* Global */
+$toplevel-shadow: 1px 2px 2px 1px $black1;
+
+
+/* Body */
+body #app * {
+  &:not(.fa) {
+    // skip fontawesome
+    font-family: 'Fira Code', monospace;
+  }
+}
+
+#canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  min-height: 100%;
+  min-width: 100%;
+  overflow: visible;
+
+  .node {
+    position: absolute;
+    display: flex;
+    align-items: flex-start;
+  }
+}
+
+.overlay {
+  position: fixed;
+  top: -1 * $ridiculously-large;
+  left: -1 * $ridiculously-large;
+  display: none;
+  height: 2 * $ridiculously-large;
+  width: 2 * $ridiculously-large;
+  overflow: visible;
+  background-color: rgba(72, 72, 72, 0.75);
+
+  &.show {
+    display: block;
+  }
+}

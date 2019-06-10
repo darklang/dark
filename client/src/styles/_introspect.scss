@@ -1,0 +1,117 @@
+.use-wrapper {
+  background: transparent;
+  margin-left: 10px;
+
+  &.fade {
+    opacity: 0.3;
+  }
+
+  .usages,
+  .used-in {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.usages {
+  position: absolute;
+  //Change after avatars to shown, quick fix: left 100% - 50px
+  left: calc(#{"100% + 30px"});
+
+  display: flex;
+  flex-direction: column;
+
+}
+
+.ref-block {
+  display: block;
+  box-sizing: content-box;
+
+  min-width: 120px;
+  width: max-content;
+
+  margin: $spacing-medium 0;
+  padding: 4px $spacing-medium;
+
+  background-color: $live-value-background;
+
+  color: $queue-color;
+  font-size: $code-font-size;
+
+  &:first-child {
+    margin-top: 0;
+    margin-bottom: $spacing-medium;
+  }
+
+  &.db {
+    margin: $spacing-small 0;
+
+    .dbtitle {
+      margin: 0 auto;
+      margin-bottom: 0;
+    }
+
+    .cols {
+      color: $grey3;
+    }
+  }
+
+  &.emit,
+  &.handler {
+    display: flex;
+    flex-direction: row;
+  }
+
+  &:hover {
+    cursor: pointer;
+    color: $hover-foreground;
+    background-color: darken($live-value-background, 10%);
+
+    .cols .col .name,
+    .cols .col .type {
+      color: $hover-foreground;
+    }
+  }
+
+  .spec {
+    display: inline-block;
+
+    margin-left: 4ch;
+    padding-bottom: 2px;
+    padding-top: 0;
+    padding-left: 1ch;
+    padding-right: 1ch;
+
+    &:first-child {
+      margin-left: 0;
+    }
+  }
+
+  .fnicon,
+  .fnname {
+    display: inline-block;
+  }
+
+  .fnname {
+    color: $white1;
+  }
+
+  .fnheader,
+  .fnparams {
+    display: block;
+    width: 100%;
+  }
+
+  .fnparam {
+    display: inline-block;
+    color: $grey2;
+    font-size: $code-font-size * 0.8;
+    margin: 0 12px;
+
+    .has-blanks {
+      color: lighten($red, 12%);
+      font-style: italic;
+    }
+  }
+}

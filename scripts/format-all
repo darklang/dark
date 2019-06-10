@@ -1,0 +1,15 @@
+#! /usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# check-format is the definitive list of how we format things
+
+scripts/ocamlformat-all client
+scripts/ocamlformat-all backend
+client/node_modules/.bin/prettier --write \
+  client/src/appsupport.js \
+  integration-tests/tests.js \
+  backend/templates/ui.html 
+ 
+

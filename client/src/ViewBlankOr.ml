@@ -133,11 +133,7 @@ let div
     |> List.filterMap ~f:(fun a ->
            match a with WithClass c -> Some c | _ -> None )
   in
-  let showFeatureFlag = List.member ~value:WithFF configs in
   let showROP = List.member ~value:WithROP configs in
-  let editFn =
-    getFirst (fun a -> match a with WithEditFn id -> Some id | _ -> None)
-  in
   let isCommandTarget =
     match vs.cursorState with
     | SelectingCommand (_, id) ->
@@ -213,19 +209,6 @@ let div
       ]
     else []
   in
-  let featureFlagHtml = if showFeatureFlag then [viewFeatureFlag] else [] in
-  let editFnHtml =
-    match editFn with
-    | Some editFn ->
-        [viewEditFn editFn showFeatureFlag]
-    | None ->
-        if showFeatureFlag then [viewCreateFn] else [Vdom.noNode]
-  in
-  let rightSideHtml =
-    if selected
-    then [Html.div [Html.class' "expr-actions"] (featureFlagHtml @ editFnHtml)]
-    else []
-  in
   let leftSideHtml = liveValueHtml @ showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
@@ -237,7 +220,7 @@ let div
      * to be re-used for a different blank_or *)
     ~unique:(thisID |> Option.map ~f:showID |> Option.withDefault ~default:"")
     attrs
-    (leftSideHtml @ content @ rightSideHtml)
+    (leftSideHtml @ content)
 
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :

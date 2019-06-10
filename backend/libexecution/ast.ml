@@ -580,7 +580,7 @@ and exec_fn
           in
           let result =
             try f (state, arglist) with
-            | Exception.DarkException de as e when de.tipe = UserCode ->
+            | Exception.DarkException de as e when de.tipe = Code ->
                 (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.

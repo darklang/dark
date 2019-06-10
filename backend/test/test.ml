@@ -459,6 +459,128 @@ let t_stdlib_works () =
   ()
 
 
+let t_option_stdlibs_work () =
+  check_dval
+    "map just"
+    (exec_ast "(Option::map (Just 4) (\\x -> (Int::divide x 2)))")
+    (DOption (OptJust (DInt 2))) ;
+  check_dval
+    "map nothing"
+    (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
+    (DOption OptNothing) ;
+  check_dval
+    "withDefault just"
+    (exec_ast "(Option::withDefault (Just 6) 5)")
+    (DInt 6) ;
+  check_dval
+    "withDefault nothing"
+    (exec_ast "(Option::withDefault (Nothing) 5)")
+    (DInt 5) ;
+  check_dval
+    "andThen just,nothing"
+    (exec_ast "(Option::andThen (Just 5) (\\x -> (Nothing)))")
+    (DOption OptNothing) ;
+  check_dval
+    "andThen just,just"
+    (exec_ast "(Option::andThen (Just 5) (\\x -> (Just (+ 1 x))))")
+    (DOption (OptJust (DInt 6))) ;
+  check_dval
+    "andThen nothing,just"
+    (exec_ast "(Option::andThen (Nothing) (\\x -> (Just 5)))")
+    (DOption OptNothing) ;
+  check_dval
+    "andThen nothing,nothing"
+    (exec_ast "(Option::andThen (Nothing) (\\x -> (Nothing)))")
+    (DOption OptNothing) ;
+  AT.check
+    AT.bool
+    "andThen wrong type"
+    ( match
+        exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))"
+      with
+    | DError msg ->
+        Prelude.String.contains
+          ~substring:"Expected `f` to return an option"
+          msg
+    | _ ->
+        false )
+    true ;
+  ()
+
+
+let t_result_stdlibs_work () =
+  let test_string = Dval.dstr_of_string_exn "test" in
+  check_dval
+    "map ok"
+    (exec_ast "(Result::map (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (DInt 2))) ;
+  check_dval
+    "map error"
+    (exec_ast "(Result::map (Error 'test') (\\x -> (Int::divide x 2)))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "maperror ok"
+    (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
+    (DResult (ResOk (DInt 4))) ;
+  check_dval
+    "maperror error"
+    (exec_ast
+       "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
+    (DResult (ResError (Dval.dstr_of_string_exn "test-appended"))) ;
+  check_dval
+    "withDefault ok"
+    (exec_ast "(Result::withDefault (Ok 6) 5)")
+    (DInt 6) ;
+  check_dval
+    "withDefault error"
+    (exec_ast "(Result::withDefault (Error 'test') 5)")
+    (DInt 5) ;
+  check_dval
+    "fromOption just"
+    (exec_ast "(Result::fromOption (Just 6) 'test')")
+    (DResult (ResOk (DInt 6))) ;
+  check_dval
+    "fromOption nothing"
+    (exec_ast "(Result::fromOption (Nothing) 'test')")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "toOption ok"
+    (exec_ast "(Result::toOption (Ok 6))")
+    (DOption (OptJust (DInt 6))) ;
+  check_dval
+    "toOption error"
+    (exec_ast "(Result::toOption (Error 'test'))")
+    (DOption OptNothing) ;
+  check_dval
+    "andThen ok,error"
+    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen ok,ok"
+    (exec_ast "(Result::andThen (Ok 5) (\\x -> (Ok (+ 1 x))))")
+    (DResult (ResOk (DInt 6))) ;
+  check_dval
+    "andThen error,ok"
+    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Ok 5)))")
+    (DResult (ResError test_string)) ;
+  check_dval
+    "andThen error,error"
+    (exec_ast "(Result::andThen (Error 'test') (\\x -> (Error 'test')))")
+    (DResult (ResError test_string)) ;
+  AT.check
+    AT.bool
+    "andThen wrong type"
+    ( match exec_ast "(Result::andThen (Ok 8) (\\x -> (Int::divide x 2)))" with
+    | DError msg ->
+        Prelude.String.contains
+          ~substring:"Expected `f` to return a result"
+          msg
+    | _ ->
+        false )
+    true ;
+  ()
+
+
 let t_multiple_copies_of_same_name () =
   check_dval
     "object field names"
@@ -1207,11 +1329,11 @@ let t_errorrail_userfn () =
 
 
 let t_nothing () =
-  check_dval "can specifiy nothing" (DOption OptNothing) (exec_ast "nothing") ;
+  check_dval "can specifiy nothing" (DOption OptNothing) (exec_ast "(Nothing)") ;
   check_dval
     "nothing works as expected"
     (DBool true)
-    (exec_ast "(== (List::head_v1 []) nothing)") ;
+    (exec_ast "(== (List::head_v1 []) (Nothing))") ;
   ()
 
 
@@ -2559,6 +2681,25 @@ let t_canvas_verification_undo_rename_duped_name () =
   AT.check AT.bool "should then fail to verify" false (Result.is_ok c2)
 
 
+let t_special_case_accounts_work () =
+  AT.check
+    AT.bool
+    "lee is allowed"
+    true
+    (Account.can_edit_canvas ~auth_domain:"rootvc" ~username:"lee") ;
+  AT.check
+    AT.bool
+    "donkey isn't allowed"
+    false
+    (Account.can_edit_canvas ~auth_domain:"rootvc" ~username:"donkey") ;
+  AT.check
+    AT.bool
+    "only goes one way"
+    false
+    (Account.can_edit_canvas ~auth_domain:"lee" ~username:"rootvc") ;
+  ()
+
+
 (* ------------------- *)
 (* Test setup *)
 (* ------------------- *)
@@ -2798,7 +2939,10 @@ let suite =
     , t_canvas_verification_no_error )
   ; ( "Canvas verification catches inconsistency post undo"
     , `Quick
-    , t_canvas_verification_undo_rename_duped_name ) ]
+    , t_canvas_verification_undo_rename_duped_name )
+  ; ("Special case accounts work", `Quick, t_special_case_accounts_work)
+  ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
+  ; ("Result stdlibs work", `Quick, t_result_stdlibs_work) ]
 
 
 let () =
