@@ -14,17 +14,17 @@
       display: block;
       font-size: 30px;
       line-height: 15px;
-      color: $white1;
+      color: $grey2;
+
+      &.tipe-Incomplete {
+        color: darken($grey2, 10%);
+      }
 
       &.tipe-Error {
         color: $red;
       }
 
-      &.tipe-Incomplete {
-        color: $grey2;
-      }
-
-      &.mouseovered {
+      &.mouseovered, &.active {
         color: $live-value-foreground;
       }
 

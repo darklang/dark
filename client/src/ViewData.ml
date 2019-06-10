@@ -43,6 +43,13 @@ let asValue (inputValue : inputValueDict) : string =
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
+  let hasHover =
+    match vs.hovering with
+    | Some (tlid, _id) when tlid = vs.tl.id ->
+        true
+    | _ ->
+        false
+  in
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> asValue td.input) traceData
@@ -58,7 +65,9 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
+      if hasHover
+      then false
+      else Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tl.id, ID traceID) in
     let astTipe =
