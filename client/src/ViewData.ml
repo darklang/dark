@@ -43,13 +43,7 @@ let asValue (inputValue : inputValueDict) : string =
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
-  let hasHover =
-    match vs.hovering with
-    | Some (tlid, _id) when tlid = vs.tl.id ->
-        true
-    | _ ->
-        false
-  in
+  let hasHover = ViewUtils.isHoverOverTL vs in
   let traceToHtml ((traceID, traceData) : trace) =
     let value =
       Option.map ~f:(fun td -> asValue td.input) traceData

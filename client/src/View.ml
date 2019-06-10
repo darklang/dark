@@ -63,6 +63,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   let avatars = Avatar.viewAvatars vs.avatarsList tl.id in
   let selected = Some tl.id = tlidOf m.cursorState in
+  let hovering = ViewUtils.isHoverOverTL vs in
   let boxClasses =
     let dragging =
       match m.cursorState with
@@ -71,7 +72,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       | _ ->
           false
     in
-    [("selected", selected); ("dragging", dragging)]
+    [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
   let class_ =
     ["toplevel"; "tl-" ^ deTLID tl.id; (if selected then "selected" else "")]

@@ -437,6 +437,14 @@ let isHandlerExpanded (vs : viewState) : bool =
   match state with HandlerExpanded | HandlerExpanding -> true | _ -> false
 
 
+let isHoverOverTL (vs : viewState) : bool =
+  match vs.hovering with
+  | Some (tlid, _id) when tlid = vs.tl.id ->
+      true
+  | _ ->
+      false
+
+
 let toggleIconButton
     ~(name : string)
     ~(activeIcon : string)
