@@ -602,8 +602,6 @@ let closedDeployStats2html (m : model) : msg Html.html =
               [Html.class' "count-box"]
               [Html.p [] [Html.text (count |> string_of_int)]] ] ]
   in
-  (*     then entries |> List.take ~count:1 |> List.map ~f:deploy2html
- *)
   let deployLatest =
     if count <> 0
     then entries |> List.take ~count:1 |> List.map ~f:deploy2html
