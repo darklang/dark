@@ -16,9 +16,7 @@ if [[ "$ocamlfiles" ]]; then
   echo "$ocamlfiles" | xargs -0L1 git add
 fi
 
-jsfiles=$(git diff --cached --name-only --diff-filter=ACM "*.js" | tr '\n' ' ')
-htmlfiles=$(git diff --cached --name-only --diff-filter=ACM "*.html" | tr '\n' ' ')
-prettierfiles="${jsfiles} ${htmlfiles}"
+prettierfiles=$(git diff --cached --name-only --diff-filter=ACM "*.js" "*.html" | tr '\n' ' ')
 
 if [[ "$prettierfiles" ]]; then
   # format all staged files
