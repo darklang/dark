@@ -1236,20 +1236,7 @@ let wrapPattern
 
 let replacePattern
     ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun pat ->
-      match pat with
-      | FPVariable (_, _, varName) ->
-        ( match varName with
-        | "" ->
-            FPBlank (matchID, patID)
-        | "Just" | "Ok" | "Error" ->
-            FPConstructor (matchID, patID, varName, [FPBlank (matchID, gid ())])
-        | "Nothing" ->
-            FPConstructor (matchID, patID, varName, [])
-        | _ ->
-            FPVariable (matchID, patID, varName) )
-      | _ ->
-          newPat )
+  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
 
 
 let replaceVarInPattern
@@ -1763,11 +1750,10 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
        * ahead, tab goes to next blank *)
       let newAST, acOffset =
         match (ti.token, entry) with
-        | TPatternBlank _, FACPattern _ | TPatternVariable _, FACPattern _ ->
+        | TPatternBlank (mID, pID), FACPattern _
+        | TPatternVariable (mID, pID, _), FACPattern _ ->
             let newPat, acOffset = acToPattern entry in
-            let newAST =
-              replacePattern ~newPat (pid newPat) (pmid newPat) ast
-            in
+            let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
         | _ ->
             let newExpr, acOffset = acToExpr entry in
@@ -2370,8 +2356,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Tab, L (TBlank _, ti), _
     | K.Tab, _, R (TBlank _, ti)
     | K.Tab, L (TPatternBlank (_, _), ti), _
-    | K.Tab, _, R (TPatternBlank (_, _), ti) ->
-
+    | K.Tab, _, R (TPatternBlank (_, _), ti)
     | K.ShiftTab, L (TPartial (_, _), ti), _
     | K.ShiftTab, _, R (TPartial (_, _), ti) ->
         acEnter ti ast s key

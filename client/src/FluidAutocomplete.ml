@@ -480,17 +480,6 @@ let refilter
     oldHighlight
     |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
   in
-  let oldHighlightNewPos =
-    match old.query with
-    | Some (_, {token = TPatternBlank _})
-    | Some (_, {token = TPatternVariable _}) ->
-        (* in the case of pattern complete where query is included in AC
-      * , check for new query position *)
-        let allCompletionStrs = allCompletions |> List.map ~f:asString in
-        List.elemIndex ~value:queryString allCompletionStrs
-    | _ ->
-        oldHighlightNewPos
-  in
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
