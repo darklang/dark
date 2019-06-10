@@ -2359,7 +2359,11 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Tab, _, R (TPatternBlank (_, _), ti)
     | K.ShiftTab, L (TPartial (_, _), ti), _
     | K.ShiftTab, _, R (TPartial (_, _), ti) ->
-        acEnter ti ast s key
+        if isAutocompleting ti s
+        then acEnter ti ast s key
+        else if key = K.ShiftTab
+        then (ast, moveToPrevBlank ~pos ast s)
+        else (ast, moveToNextBlank ~pos ast s)
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
