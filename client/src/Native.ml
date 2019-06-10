@@ -85,6 +85,8 @@ module Ext = struct
 
   external rectHeight : Dom.domRect -> float = "height" [@@bs.get]
 
+  let staticHost : unit -> string = [%bs.raw "function(){ return staticUrl; }"]
+
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
 
