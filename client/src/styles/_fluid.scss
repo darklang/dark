@@ -228,7 +228,7 @@ since they are essentially both commands just acting upon different things. */
 
   .error-indicator {
     position: absolute;
-    left: calc(100% - 1$spacing-medium);
+    left: calc(100% - 2ch);
   }
 
   .error-icon {
