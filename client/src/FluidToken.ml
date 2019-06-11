@@ -61,11 +61,83 @@ let tid (t : token) : id =
       ID "no-id"
 
 
+let isTextToken token : bool =
+  match token with
+  | TInteger _
+  | TLetLHS _
+  | TBinOp _
+  | TFieldName _
+  | TVariable _
+  | TConstructorName _
+  | TFnName _
+  | TBlank _
+  | TPlaceholder _
+  | TPartial _
+  | TRecordField _
+  | TString _
+  | TTrue _
+  | TFalse _
+  | TNullToken _
+  | TLambdaVar _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFraction _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternBlank _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _ ->
+      true
+  | TListOpen _
+  | TListClose _
+  | TListSep _
+  | TSep
+  | TLetKeyword _
+  | TRecordOpen _
+  | TRecordClose _
+  | TRecordSep _
+  | TLetAssignment _
+  | TIfKeyword _
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TFieldOp _
+  | TNewline
+  | TIndented _
+  | TIndentToHere _
+  | TIndent _
+  | TLambdaSymbol _
+  | TLambdaSep _
+  | TMatchKeyword _
+  | TMatchSep _
+  | TThreadPipe _
+  | TLambdaArrow _ ->
+      false
+
+
+(* if the cursor is at the end of this token, we take it as editing this
+* token, rather than writing the next token. *)
+let isAppendable token : bool =
+  match token with
+  (* String should really be directly editable, but the extra quote at the end
+   makes it not so. *)
+  | TString _ | TPatternString _ ->
+      false
+  | _ ->
+      isTextToken token
+
+
 let isBlank t =
   match t with
   | TBlank _
   | TPlaceholder _
   | TRecordField (_, _, "")
+  | TVariable (_, "")
   | TFieldName (_, "")
   | TLetLHS (_, "")
   | TLambdaVar (_, _, "")
@@ -74,6 +146,30 @@ let isBlank t =
       true
   | _ ->
       false
+
+
+let isKeyword (t : token) =
+  match t with
+  | TLetKeyword _
+  | TIfKeyword _
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TMatchKeyword _ ->
+      true
+  | _ ->
+      false
+
+
+let isSkippable (token : token) : bool =
+  match token with TIndent _ -> true | _ -> false
+
+
+let isAtom (t : token) : bool =
+  match t with
+  | TMatchSep _ | TThreadPipe _ | TLambdaArrow _ ->
+      true
+  | _ ->
+      isKeyword t || isBlank t
 
 
 let isAutocompletable (t : token) : bool =
@@ -367,35 +463,13 @@ let toCategoryName (t : token) : string =
 
 
 let toCssClasses (t : token) : string =
-  let keyword =
-    match t with
-    | TLetKeyword _
-    | TIfKeyword _
-    | TIfThenKeyword _
-    | TIfElseKeyword _
-    | TMatchKeyword _ ->
-        "fluid-keyword"
-    | _ ->
-        ""
+  let keyword = if isBlank t then "fluid-empty" else "" in
+  let empty = if isKeyword t then "fluid-keyword" else "" in
+  let category =
+    let name = toCategoryName t in
+    if name = "" then "" else " fluid-" ^ name
   in
-  let empty =
-    match t with
-    | TLetLHS (_, "")
-    | TFieldName (_, "")
-    | TLambdaVar (_, _, "")
-    | TPlaceholder _
-    | TPatternBlank _
-    | TBlank _
-    | TRecordField (_, _, "") ->
-        "fluid-empty"
-    | _ ->
-        ""
-  in
-  String.trim (keyword ^ " " ^ empty)
-  ^ " fluid-"
-  ^ toCategoryName t
-  ^ " fluid-"
-  ^ toTypeName t
+  String.trim (keyword ^ " " ^ empty) ^ category ^ " fluid-" ^ toTypeName t
 
 
 let show_tokenInfo (ti : tokenInfo) =

@@ -745,140 +745,6 @@ let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
 (* Update *)
 (* -------------------- *)
 
-let isTextToken token : bool =
-  match token with
-  | TInteger _
-  | TLetLHS _
-  | TBinOp _
-  | TFieldName _
-  | TVariable _
-  | TConstructorName _
-  | TFnName _
-  | TBlank _
-  | TPlaceholder _
-  | TPartial _
-  | TRecordField _
-  | TString _
-  | TTrue _
-  | TFalse _
-  | TNullToken _
-  | TLambdaVar _
-  | TFloatWhole _
-  | TFloatPoint _
-  | TFloatFraction _
-  | TPatternInteger _
-  | TPatternVariable _
-  | TPatternConstructorName _
-  | TPatternBlank _
-  | TPatternString _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TPatternNullToken _
-  | TPatternFloatWhole _
-  | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
-      true
-  | TListOpen _
-  | TListClose _
-  | TListSep _
-  | TSep
-  | TLetKeyword _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TLetAssignment _
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TFieldOp _
-  | TNewline
-  | TIndented _
-  | TIndentToHere _
-  | TIndent _
-  | TLambdaSymbol _
-  | TLambdaSep _
-  | TMatchKeyword _
-  | TMatchSep _
-  | TThreadPipe _
-  | TLambdaArrow _ ->
-      false
-
-
-(* if the cursor is at the end of this token, we take it as editing this
-* token, rather than writing the next token. *)
-let isAppendable token : bool =
-  match token with
-  (* String should really be directly editable, but the extra quote at the end
-   makes it not so. *)
-  | TString _ | TPatternString _ ->
-      false
-  | _ ->
-      isTextToken token
-
-
-let isSkippable (token : token) : bool =
-  match token with TIndent _ -> true | _ -> false
-
-
-let isAtom (token : token) : bool =
-  match token with
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TLetKeyword _
-  | TMatchSep _
-  | TMatchKeyword _
-  | TThreadPipe _
-  | TPlaceholder _
-  | TBlank _
-  | TLambdaArrow _
-  | TPatternBlank _ ->
-      true
-  | TListOpen _
-  | TListClose _
-  | TListSep _
-  | TInteger _
-  | TFloatWhole _
-  | TFloatPoint _
-  | TFloatFraction _
-  | TString _
-  | TTrue _
-  | TFalse _
-  | TNullToken _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TFieldOp _
-  | TFieldName _
-  | TVariable _
-  | TFnName _
-  | TLetLHS _
-  | TLetAssignment _
-  | TRecordField _
-  | TBinOp _
-  | TSep
-  | TNewline
-  | TIndented _
-  | TIndent _
-  | TIndentToHere _
-  | TPartial _
-  | TLambdaSymbol _
-  | TLambdaSep _
-  | TLambdaVar _
-  | TConstructorName _
-  | TPatternInteger _
-  | TPatternVariable _
-  | TPatternConstructorName _
-  | TPatternString _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TPatternNullToken _
-  | TPatternFloatWhole _
-  | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
-      false
-
-
 let length (tokens : token list) : int =
   tokens |> List.map ~f:Token.toText |> List.map ~f:String.length |> List.sum
 
@@ -898,7 +764,9 @@ let rec getTokensAtPosition
       tokenInfo option * tokenInfo list =
     match infos with
     | ti :: rest ->
-        if isSkippable ti.token then getNextToken rest else (Some ti, rest)
+        if Token.isSkippable ti.token
+        then getNextToken rest
+        else (Some ti, rest)
     | [] ->
         (None, [])
   in
@@ -1963,7 +1831,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~pos "doLeft" s in
-  if isAtom ti.token
+  if Token.isAtom ti.token
   then moveToStart ti s
   else moveOneLeft (min pos ti.endPos) s
 
@@ -1972,73 +1840,22 @@ let doRight
     ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
     state =
   let s = recordAction ~pos "doRight" s in
-  match current.token with
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TLetKeyword _
-  | TPlaceholder _
-  | TBlank _
-  | TLambdaArrow _
-  | TMatchSep _
-  | TPatternBlank _
-  | TMatchKeyword _ ->
-    ( match next with
+  if Token.isAtom current.token
+  then
+    match next with
     | None ->
         moveToAfter current s
     | Some nInfo ->
-        moveToStart nInfo s )
-  | TIndent _
-  | TIndented _
-  | TIndentToHere _
-  | TInteger _
-  | TFloatWhole _
-  | TFloatPoint _
-  | TFloatFraction _
-  | TString _
-  | TTrue _
-  | TFalse _
-  | TNullToken _
-  | TFieldOp _
-  | TFieldName _
-  | TVariable _
-  | TFnName _
-  | TConstructorName _
-  | TLetLHS _
-  | TLetAssignment _
-  | TBinOp _
-  | TSep
-  | TListOpen _
-  | TListClose _
-  | TListSep _
-  | TNewline
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TPartial _
-  | TRecordField _
-  | TThreadPipe _
-  | TLambdaVar _
-  | TLambdaSymbol _
-  | TLambdaSep _
-  | TPatternInteger _
-  | TPatternVariable _
-  | TPatternConstructorName _
-  | TPatternString _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TPatternNullToken _
-  | TPatternFloatWhole _
-  | TPatternFloatPoint _
-  | TPatternFloatFraction _ ->
-    ( match next with
+        moveToStart nInfo s
+  else
+    match next with
     | Some n when pos + 1 >= current.endPos ->
         moveToStart n s
     | _ ->
         (* When we're in whitespace, current is the next non-whitespace. So we
          * don't want to use pos, we want to use the startPos of current. *)
         let startingPos = max pos (current.startPos - 1) in
-        moveOneRight startingPos s )
+        moveOneRight startingPos s
 
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
@@ -2384,7 +2201,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
-    | _, L (_, toTheLeft), _ when isAppendable toTheLeft.token ->
+    | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
@@ -2417,10 +2234,10 @@ let updateAutocomplete m tlid ast s : fluidState =
     let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
     match (toTheLeft, toTheRight) with
     | _, R (_, ti)
-      when isTextToken ti.token && Token.isAutocompletable ti.token ->
+      when Token.isTextToken ti.token && Token.isAutocompletable ti.token ->
         Some ti
     | L (_, ti), _
-      when isTextToken ti.token && Token.isAutocompletable ti.token ->
+      when Token.isTextToken ti.token && Token.isAutocompletable ti.token ->
         Some ti
     | _ ->
         None
