@@ -51,6 +51,13 @@ let defaultID2 = gid ()
 
 let defaultExpr = EBlank defaultID
 
+let aMatchExpr ?(mID = defaultID) ?(patID = gid ()) () =
+  EMatch
+    ( mID
+    , EVariable (gid (), "request")
+    , [(FPBlank (mID, patID), EBlank (gid ()))] )
+
+
 let defaultToplevel =
   { id = defaultTLID
   ; pos = Defaults.origin
@@ -75,12 +82,23 @@ let defaultTokenInfo =
   ; token = TBlank defaultID }
 
 
-let defaultFullQuery (m : model) (query : string) : AC.fullQuery =
-  let _, ti =
-    m.fluidState.ac.query
-    |> Option.withDefault ~default:(defaultTLID, defaultTokenInfo)
+let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
+    AC.fullQuery =
+  let ti =
+    match tl.data with
+    | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
+        ast
+        |> fromExpr m.fluidState
+        |> toTokens m.fluidState
+        |> List.head
+        |> Option.withDefault ~default:defaultTokenInfo
+    | _ ->
+        defaultTokenInfo
   in
-  (defaultToplevel, ti, None, query)
+  let _, ti =
+    m.fluidState.ac.query |> Option.withDefault ~default:(tl.id, ti)
+  in
+  (tl, ti, None, query)
 
 
 let fillingCS ?(tlid = defaultTLID) ?(_id = defaultID) () : cursorState =
@@ -181,8 +199,12 @@ let enteringDBType
     ()
 
 
-let enteringHandler ?(module_ : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~module_ ()] ()
+let enteringHandler ?(module_ : string option = None) ?(expr = defaultExpr) ()
+    : model =
+  defaultModel
+    ~cursorState:(fillingCS ())
+    ~handlers:[aHandler ~module_ ~expr ()]
+    ()
 
 
 (* AC targeting a tlid and pointer *)
@@ -540,6 +562,24 @@ let () =
             ; FACConstructorName ("Ok", 1)
             ; FACConstructorName ("Error", 1) ]
           in
+          let patternFAC mID firstPatID queryString =
+            let patID = firstPatID in
+            let incr (ID id) count =
+              ID (count + int_of_string id |> string_of_int)
+            in
+            [ FPAVariable (mID, patID, queryString)
+            ; FPABool (mID, incr patID 1, true)
+            ; FPABool (mID, incr patID 2, false)
+            ; FPAConstructor
+                (mID, incr patID 3, "Just", [FPBlank (mID, incr patID 8)])
+            ; FPAConstructor (mID, incr patID 4, "Nothing", [])
+            ; FPAConstructor
+                (mID, incr patID 5, "Ok", [FPBlank (mID, incr patID 9)])
+            ; FPAConstructor
+                (mID, incr patID 6, "Error", [FPBlank (mID, incr patID 10)])
+            ; FPANull (mID, incr patID 7) ]
+            |> List.map ~f:(fun x -> FACPattern x)
+          in
           (* TODO: not yet working in fluid
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
               let param1id = ID "123" in
@@ -621,6 +661,37 @@ let () =
                 && List.member ~value:(FACConstructorName ("Error", 1)) valid
                 && List.member ~value:(FACConstructorName ("Just", 1)) valid
                 && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
+                )
+              |> toEqual true ) ;
+          test "Pattern expressions are available in pattern blank" (fun () ->
+              let tlid = TLID "789" in
+              let mID = ID "1234" in
+              let patID = ID "456" in
+              let expr = aMatchExpr ~mID ~patID () in
+              let m =
+                defaultModel
+                  ~cursorState:(fillingCS ~tlid ~_id:patID ())
+                  ~handlers:[aHandler ~tlid ~expr ()]
+                  ()
+              in
+              let query = "o" in
+              let patternFAC = patternFAC mID patID query in
+              let expected =
+                [ FPAVariable (mID, ID "456", query)
+                ; FPAConstructor (mID, ID "460", "Nothing", [])
+                ; FPAConstructor
+                    (mID, ID "461", "Ok", [FPBlank (mID, ID "465")])
+                ; FPAConstructor
+                    (mID, ID "462", "Error", [FPBlank (mID, ID "466")]) ]
+                |> List.map ~f:(fun x -> FACPattern x)
+              in
+              let ac = acFor ~target:(Some (tlid, PExpr (toExpr expr))) m in
+              let valid, _invalid =
+                AC.filter m ac patternFAC (defaultFullQuery m query)
+              in
+              expect
+                ( List.length valid = List.length expected
+                && List.all ~f:(fun v -> List.member ~value:v valid) expected
                 )
               |> toEqual true ) ;
           () ) ;
