@@ -794,7 +794,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ExpireAvatars ->
         ({m with avatarsList = m.avatarsList |> expireAvatars}, Cmd.none)
     | UpdateAvatarList avatarsList ->
-        ({m with avatarsList = avatarsList |> expireAvatars}, Cmd.none)
+        let updatedAvatars =
+          avatarsList
+          |> List.filter ~f:(fun (avatar : Types.avatar) ->
+                 avatar.browserId != m.browserId )
+          |> expireAvatars
+        in
+        ({m with avatarsList = updatedAvatars}, Cmd.none)
     | AppendStaticDeploy d ->
         ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
         , Cmd.none )

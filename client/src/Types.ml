@@ -1122,7 +1122,8 @@ and avatar =
   ; tlid : string option
   ; username : string
   ; email : string
-  ; fullname : string option }
+  ; fullname : string option
+  ; browserId : string }
 
 and avatarModelMessage =
   { browserId : string
