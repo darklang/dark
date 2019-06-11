@@ -170,4 +170,18 @@ let fns : Lib.shortfn list =
     ; d = "Returns an `Obj` representing { fieldName: fieldType } in `table`"
     ; f = NotClientAvailable
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::generateKey"]
+    ; ins = []
+    ; p = []
+    ; r = TStr
+    ; d = "Returns a random key suitable for use as a DB key"
+    ; f =
+        InProcess
+          (function
+          | _, [] ->
+              Uuidm.v `V4 |> Uuidm.to_string |> Dval.dstr_of_string_exn
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
