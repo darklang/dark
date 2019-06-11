@@ -918,7 +918,6 @@ test("cant_delete_locked_col", async t => {
 });
 
 test("select_route", async t => {
-  await t.navigateTo(`${BASE_URL}select_route?integration-test=true&sidebarv2=1`);
   const categoryHeader = "summary.headerSummary";
   const httpVerbLink = "a.verb.verb-link";
   const toplevelElement = ".node .toplevel";
