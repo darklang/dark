@@ -79,6 +79,17 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
 let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let astID = B.toID ast in
   let requestEls = viewInputs vs astID in
+  let maxHeight =
+    if Some vs.tlid = tlidOf vs.cursorState
+    then "max-content"
+    else
+      let height =
+        Native.Ext.querySelector (".tl-" ^ showTLID vs.tlid ^ " .ast")
+        |> Option.andThen ~f:(fun e -> Some (Native.Ext.clientHeight e + 20))
+        |> Option.withDefault ~default:100
+      in
+      string_of_int height ^ "px"
+  in
   let selectedValue =
     match vs.cursorState with
     | Selecting (_, Some (ID id)) ->
@@ -89,5 +100,6 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   [ Html.div
       [ Html.classList
           [ ("view-data", true)
-          ; ("live-view-selection-active", selectedValue <> None) ] ]
+          ; ("live-view-selection-active", selectedValue <> None) ]
+      ; Html.style "max-height" maxHeight ]
       [Html.ul [Html.class' "request-cursor"] requestEls] ]
