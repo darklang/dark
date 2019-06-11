@@ -38,7 +38,6 @@
 }
 
 .omnibox .entry {
-
   #search-container,
   #autocomplete-holder {
     z-index: 100;
@@ -62,7 +61,8 @@
     z-index: 50;
   }
 
-  &.selected {
+  &.selected,
+  &.hovering {
     z-index: 40;
   }
 }

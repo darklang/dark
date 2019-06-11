@@ -1,26 +1,24 @@
-/* Variables & Mixins */
-@import 'variables';
-@import "colors";
-@import "typography";
-@import "sizes";
-@import 'anim';
+/* Variables & Animation Mixins */
+@import "variables";
+@import "anim";
 
-@import 'canvas';
+/* Main body */
+@import "canvas";
 
 /* Components */
-@import 'ast';
-@import 'avatar';
-@import 'db';
-@import 'doc';
-@import 'dropdown';
-@import 'feature-flag';
-@import 'footer';
-@import 'function';
-@import 'introspect';
-@import 'live-data';
-@import 'user-type';
-@import 'sidebar';
+@import "ast";
+@import "avatar";
+@import "db";
+@import "doc";
+@import "dropdown";
+@import "feature-flag";
+@import "footer";
+@import "function";
+@import "introspect";
+@import "live-data";
+@import "user-type";
+@import "sidebar";
 
 /* Overrides */
-@import 'fluid';
-@import 'zindex';
+@import "fluid";
+@import "zindex";

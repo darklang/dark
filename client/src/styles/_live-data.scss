@@ -4,6 +4,7 @@
   top: 0;
   left: -20px;
   cursor: pointer;
+  overflow: hidden;
 
   ul.request-cursor {
     float: none;
@@ -14,17 +15,14 @@
       display: block;
       font-size: 30px;
       line-height: 15px;
-      color: $white1;
+      color: $grey2;
 
       &.tipe-Error {
         color: $red;
       }
 
-      &.tipe-Incomplete {
-        color: $grey2;
-      }
-
-      &.mouseovered {
+      &.mouseovered,
+      &.active {
         color: $live-value-foreground;
       }
 
@@ -52,7 +50,6 @@
 
       &.mouseovered .data {
         display: block;
-        z-index: 600;
       }
     }
   }

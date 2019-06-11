@@ -4,7 +4,6 @@ $pipe-color: $blue;
 
 @mixin precedence($depth) {
   .precedence-#{$depth} {
-
     &:not(.mouseovered),
     &:not(.mouseovered) .entry form #search-container #suggestionBox,
     &:not(.mouseovered) .string-entry {
@@ -44,6 +43,9 @@ $pipe-color: $blue;
   text-align: left;
 }
 
+$toplevel-shadow: 1px 2px 2px 0 $black1;
+$toplevel-shadow-front: 1px 2px 4px 2px $black1;
+
 /* Toplevel */
 .toplevel {
   display: flex;
@@ -54,6 +56,14 @@ $pipe-color: $blue;
   padding: 4px;
   background: $toplevel-background;
   box-shadow: $toplevel-shadow;
+
+  .node.hovering & {
+    box-shadow: $toplevel-shadow-front;
+  }
+
+  .node.selected & {
+    box-shadow: none;
+  }
 
   .mouseovered-selectable {
     background-color: $hover-background;
@@ -138,7 +148,6 @@ $pipe-color: $blue;
   }
 
   .modifier {
-
     div.blankOr,
     div.blank {
       display: inline;
@@ -244,7 +253,6 @@ $pipe-color: $blue;
   }
 }
 
-
 //*************
 // AST
 //*************
@@ -272,7 +280,6 @@ $pipe-color: $blue;
       position: absolute;
       right: calc(#{"100% + 30px"});
       font-style: normal;
-
 
       padding: 4px;
       width: max-content;
@@ -304,7 +311,7 @@ $pipe-color: $blue;
     background-color: fadeout(red, 70%);
   }
 
-  .letexpr>.letbody {
+  .letexpr > .letbody {
     display: block;
   }
 
@@ -409,27 +416,23 @@ $pipe-color: $blue;
   }
 
   .fncall {
-
-    &.prefix>.arg-on-new-line {
-
+    &.prefix > .arg-on-new-line {
       display: block;
       box-sizing: border-box;
       margin-left: 2ch;
     }
 
     .arg-on-new-line {
-
-      &.blank>.param-name {
+      &.blank > .param-name {
         font-style: normal;
       }
 
-      &>.param-name {
+      & > .param-name {
         width: auto;
         position: absolute;
         color: darken($grey3, 25%);
         font-size: 0.85rem;
       }
-
     }
 
     .tstr {
@@ -484,11 +487,10 @@ $pipe-color: $blue;
   @include precedence(6);
 
   .threadexpr {
-
     .threadmember {
       display: block;
 
-      &:first-child>.thread.pipe {
+      &:first-child > .thread.pipe {
         display: none;
       }
 
@@ -532,7 +534,6 @@ $pipe-color: $blue;
   display: block;
 }
 
-
 .versioned-function {
   display: inline-block;
   vertical-align: baseline;
@@ -545,7 +546,7 @@ $pipe-color: $blue;
 
 .letvarname,
 .fieldname {
-  &>.entry {
+  & > .entry {
     margin-left: 0;
     margin-right: 0;
   }
