@@ -40,6 +40,37 @@ let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
   Html.a [event; Html.class' "button-link"] [content]
 
 
+let htmlObject (src : string) =
+  Html.node
+    "object"
+    [Vdom.attribute "" "data" src; Html.type' "image/svg+xml"]
+    []
+
+
+let categoryIcon (name : string) : msg Html.html list =
+  match name with
+  | "http" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
+  | "dbs" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/db.svg")]
+  | "fns" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fn.svg")]
+  | "deleted" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
+  | "static" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
+  | "types" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
+  | "cron" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
+  | "Undefined" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+  | "fof" ->
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
+  | _ ->
+      []
+
+
 let httpCategory (_m : model) (tls : toplevel list) : category =
   let handlers = tls |> List.filter ~f:TL.isHTTPHandler in
   { count = List.length handlers
@@ -121,7 +152,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           ; plusButton = None } )
   in
   { count = List.length dbs
-  ; name = "DBs"
+  ; name = "Databases"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; entries }
@@ -352,14 +383,16 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     Url.linkFor page classes [Html.text name]
   in
   let mainlink =
-    match e.destination with
-    | Some dest ->
-        let cl =
-          if e.uses = Some 0 then "default-link unused" else "default-link"
-        in
-        [destinationLink dest cl name]
-    | _ ->
-        [Html.text name]
+    Html.span
+      [Html.class' "name"]
+      ( match e.destination with
+      | Some dest ->
+          let cl =
+            if e.uses = Some 0 then "default-link unused" else "default-link"
+          in
+          [destinationLink dest cl name]
+      | _ ->
+          [Html.text name] )
   in
   let verb =
     let noExt = if List.isEmpty ext then " no-ext" else "" in
@@ -369,15 +402,21 @@ let entry2html (m : model) (e : entry) : msg Html.html =
     | None, Some v ->
         [Html.span [Html.class' ("verb" ^ noExt)] [Html.text v]]
     | _ ->
-        []
+        [Html.span [Html.class' ("verb" ^ noExt)] []]
   in
+  let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
-    match e.minusButton with
-    | Some msg ->
-        [buttonLink ~key:("entry-" ^ showTLID e.tlid) (fontAwesome "times") msg]
-    | None ->
-        iconspacer
+    Html.div
+      [Html.class' "delete"]
+      ( match e.minusButton with
+      | Some msg ->
+          [ buttonLink
+              ~key:("entry-" ^ showTLID e.tlid)
+              (fontAwesome "times-circle")
+              msg ]
+      | None ->
+          iconspacer )
   in
   let pluslink =
     match e.plusButton with
@@ -387,12 +426,14 @@ let entry2html (m : model) (e : entry) : msg Html.html =
         iconspacer
   in
   let auxViews =
-    Html.div [Html.class' "aux"] (verb @ ext @ minuslink @ pluslink)
+    Html.div
+      [Html.classList [("aux", true); (httpMethod, true)]]
+      (ext @ verb @ pluslink)
   in
   let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
     [Html.classList [("simple-route handler", true); ("selected", selected)]]
-    [Html.span [Html.class' "name"] mainlink; auxViews]
+    [minuslink; mainlink; auxViews]
 
 
 let deploy2html (d : staticDeploy) : msg Html.html =
@@ -401,28 +442,35 @@ let deploy2html (d : staticDeploy) : msg Html.html =
   in
   Html.div
     [Html.class' "simple-route deploy"]
-    [ Html.span
-        [Html.class' "datetime"]
-        [Html.text (Js.Date.toUTCString d.lastUpdate)]
-    ; Html.a
-        [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
-        [Html.text d.deployHash]
+    [ Html.div
+        [Html.class' "deploy-status"]
+        [ Html.a
+            [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
+            [Html.text d.deployHash]
+        ; Html.span
+            [ Html.classList
+                [ ("status", true)
+                ; ( "success"
+                  , match d.status with Deployed -> true | _ -> false ) ] ]
+            [Html.text statusString] ]
     ; Html.span
-        [ Html.classList
-            [ ("status", true)
-            ; ("success", match d.status with Deployed -> true | _ -> false) ]
-        ]
-        [Html.text statusString] ]
+        [Html.class' "datetime"]
+        [Html.text (Js.Date.toUTCString d.lastUpdate)] ]
 
 
 (* Category Views *)
 
-let categoryTitle (name : string) (count : int) : msg Html.html list =
+let categoryTitle (name : string) (count : int) (classname : string) :
+    msg Html.html =
+  let icon = Html.div [Html.class' "header-icon"] (categoryIcon classname) in
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  [ text "title" name
-  ; text "parens" "("
-  ; text "count" (count |> string_of_int)
-  ; text "parens" ")" ]
+  Html.div
+    [Html.class' "title"]
+    [ icon
+    ; text "title" name
+    ; text "parens" "("
+    ; text "count" (count |> string_of_int)
+    ; text "parens" ")" ]
 
 
 let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
@@ -447,13 +495,15 @@ let deployStats2html (m : model) : msg Html.html =
     categoryOpenCloseHelpers m "deploys" count
   in
   let header =
-    let title = categoryTitle "Static Assets" count in
+    let title = categoryTitle "Static Assets" count "static" in
     let deployLatest =
       if count <> 0
       then entries |> List.take ~count:1 |> List.map ~f:deploy2html
       else []
     in
-    Html.summary [Html.class' "header"; openEventHandler] (title @ deployLatest)
+    Html.summary
+      [openEventHandler]
+      [Html.div [Html.class' "header"] (title :: deployLatest)]
   in
   let routes =
     if count > 1
@@ -478,7 +528,7 @@ and category2html (m : model) (c : category) : msg Html.html =
     categoryOpenCloseHelpers m c.classname c.count
   in
   let header =
-    let title = categoryTitle c.name c.count in
+    let title = categoryTitle c.name c.count c.classname in
     let plusButton =
       match c.plusButton with
       | Some msg ->
@@ -489,7 +539,9 @@ and category2html (m : model) (c : category) : msg Html.html =
       | None ->
           []
     in
-    Html.summary [Html.class' "header"; openEventHandler] (title @ plusButton)
+    Html.summary
+      [Html.class' "headerSummary"; openEventHandler]
+      [Html.div [Html.class' "header"] (title :: plusButton)]
   in
   let routes = List.map ~f:(item2html m) c.entries in
   let classes =
@@ -499,6 +551,73 @@ and category2html (m : model) (c : category) : msg Html.html =
   (if c.count = 0 then Html.div else Html.details)
     [classes; openAttr]
     (header :: routes)
+
+
+let closedCategory2html (m : model) (c : category) : msg Html.html =
+  let plusButton =
+    match c.plusButton with
+    | Some msg ->
+        [ buttonLink
+            ~key:("plus-" ^ c.classname)
+            (fontAwesome "plus-circle")
+            msg ]
+    | None ->
+        []
+  in
+  let count =
+    if c.count = 0
+    then []
+    else
+      [ Html.div
+          [Html.class' "count"]
+          [ Html.div
+              [Html.class' "count-box"]
+              [Html.p [] [Html.text (c.count |> string_of_int)]] ] ]
+  in
+  let routes = List.map ~f:(item2html m) c.entries in
+  let hoverView =
+    if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
+  in
+  let icon =
+    Html.div
+      [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
+      (categoryIcon c.classname)
+  in
+  Html.div
+    [Html.class' "collapsed"]
+    ( [Html.div [Html.class' "collapsed-icon"] (count @ (icon :: plusButton))]
+    @ hoverView )
+
+
+let closedDeployStats2html (m : model) : msg Html.html =
+  let entries = m.staticDeploys in
+  let count = List.length entries in
+  let countView =
+    if count = 0
+    then []
+    else
+      [ Html.div
+          [Html.class' "count"]
+          [ Html.div
+              [Html.class' "count-box"]
+              [Html.p [] [Html.text (count |> string_of_int)]] ] ]
+  in
+  let deployLatest =
+    if count <> 0
+    then entries |> List.take ~count:1 |> List.map ~f:deploy2html
+    else []
+  in
+  let hoverView =
+    if count = 0 then [] else [Html.div [Html.class' "hover"] deployLatest]
+  in
+  let icon =
+    Html.div
+      [Html.classList [("header-icon", true); ("empty", count = 0)]]
+      (categoryIcon "static")
+  in
+  Html.div
+    [Html.class' "collapsed"]
+    ([Html.div [Html.class' "collapsed-icon"] (countView @ [icon])] @ hoverView)
 
 
 let toggleSidebar (m : model) : msg Html.html =
@@ -511,10 +630,10 @@ let toggleSidebar (m : model) : msg Html.html =
     then fontAwesome "chevron-left"
     else fontAwesome "chevron-right"
   in
-  let toggleBtn = Html.a [event; Html.class' "button-link"] [button] in
+  let toggleBtn = Html.a [Html.class' "button-link"] [button; button] in
   let toggleSide =
     Html.div
-      [Html.class' "toggle-container"]
+      [event; Html.class' "toggle-container"]
       [ Html.p [] [Html.text "Collapse sidebar"]
       ; Html.div
           [ Html.classList
@@ -548,6 +667,12 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
+  let showCategories =
+    if isClosed then closedCategory2html else category2html
+  in
+  let showDeployStats =
+    if isClosed then closedDeployStats2html else deployStats2html
+  in
   let html =
     Html.div
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
@@ -558,8 +683,8 @@ let viewRoutingTable_ (m : model) : msg Html.html =
             EnablePanning true ) ]
       ( [toggleSidebar m]
       @ [ Html.div
-            [Html.classList [("routings", isClosed)]]
-            (List.map ~f:(category2html m) cats @ [deployStats2html m]) ] )
+            [Html.classList [("routings", isClosed); ("routes", true)]]
+            (List.map ~f:(showCategories m) cats @ [showDeployStats m]) ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
 
