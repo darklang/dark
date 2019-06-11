@@ -1981,6 +1981,7 @@ let doRight
   | TBlank _
   | TLambdaArrow _
   | TMatchSep _
+  | TPatternBlank _
   | TMatchKeyword _ ->
     ( match next with
     | None ->
@@ -2020,7 +2021,6 @@ let doRight
   | TLambdaVar _
   | TLambdaSymbol _
   | TLambdaSep _
-  | TPatternBlank _
   | TPatternInteger _
   | TPatternVariable _
   | TPatternConstructorName _
