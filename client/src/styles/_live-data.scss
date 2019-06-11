@@ -1,10 +1,14 @@
-.toplevel .view-data {
+.view-data {
   position: absolute;
   width: max-content;
   top: 0;
   left: -20px;
   cursor: pointer;
   overflow: hidden;
+
+  .toplevel.selected &, .node.hovering & {
+    overflow: visible;
+  }
 
   ul.request-cursor {
     float: none;
