@@ -234,7 +234,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
   .ast .error-indicator {
     position: absolute;
-    left: calc(#{"100% - 1$spacing-medium"});
+    left: calc(100% - 2ch);
   }
 
   .fncall {
