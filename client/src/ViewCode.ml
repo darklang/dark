@@ -228,9 +228,10 @@ and viewNExpr
       in
       (* buttons *)
       let allExprs = previous @ exprs in
+      let lvOf = ViewBlankOr.getLiveValue vs.currentResults.liveValues in
       let isComplete v =
         v
-        |> ViewBlankOr.getLiveValue vs.currentResults.liveValues
+        |> lvOf
         |> fun v_ ->
         match v_ with
         | None ->
@@ -298,9 +299,18 @@ and viewNExpr
         if sendToRail = NoRail
         then []
         else
+          let erTipe = Runtime.tipe2str fn.fnReturnTipe in
+          let eval =
+            match lvOf id with
+            | Some v ->
+                v |> Runtime.typeOf |> Runtime.tipe2str
+            | None ->
+                ""
+          in
           [ Html.div
-              [Html.class' "error-indicator"]
-              [Html.div [Html.class' "error-icon"] []] ]
+              [ Html.class'
+                  (String.join ~sep:" " ["error-indicator"; erTipe; eval]) ]
+              [] ]
       in
       let fnname parens =
         ViewBlankOr.viewBlankOr
