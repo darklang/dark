@@ -159,14 +159,16 @@ $wrapper-background: $black2;
     list-style-type: none;
     @include border-radius-bottom(6px);
 
-    li {
-      font-size: $code-font-size;
+    li.autocomplete-item {
+      letter-spacing: 0.05rem;
+      font-size: 1.0rem;
       padding: 2px $left-margin;
     }
   }
 }
 
 .selecting-command {
+
   ul#autocomplete-holder {
     @include border-radius-top(4px);
     @include border-radius-bottom(4px);
