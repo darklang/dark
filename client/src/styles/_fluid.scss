@@ -99,11 +99,14 @@ https://github.com/chriskempson/tomorrow-theme */
     color: $string-color;
   }
 
+
+
+  // The cursor disappears when the element it should appear
+  // in has no size. To make it have size, we need all of this.
+  // https://stackoverflow.com/questions/25897883/
   .fluid-sep,
-  .fluid-blank {
-    // The cursor disappears when the element it should appear in has no size. To
-    // make it have size, we need all of this.
-    // https://stackoverflow.com/questions/25897883/
+  .fluid-empty
+  {
     display: inline-block;
     white-space: pre;
     margin-left: 1px;
