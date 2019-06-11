@@ -1,8 +1,7 @@
-@import 'variables';
-
 $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
-$yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%) contrast(0.7);
+$yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%)
+  contrast(0.7);
 $greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
 $orangeFilter: invert(0.4) sepia(0.5) saturate(4) hue-rotate(0deg) brightness(1);
 
@@ -16,10 +15,9 @@ $countBoxSize: 15px;
   left: 0;
 }
 
-
 .viewing-table {
   $toggleSpace: 60px;
-  background-color: $black2;
+  background-color: darken($canvas-background, 10%);
   height: 100%;
   position: relative;
   width: $sidebarFullWidth;
@@ -27,38 +25,38 @@ $countBoxSize: 15px;
   padding: 5px 0px;
 
   &::-webkit-scrollbar {
-    width: 0px;  /* Remove scrollbar space */
+    width: 0px; /* Remove scrollbar space */
   }
 
-  &.isClosed{
+  &.isClosed {
     width: $sidebarClosedWidth;
     min-width: initial;
-    .toggle-container{
+    .toggle-container {
       justify-content: center;
-      &:last-child{
-        display: flex; 
+      &:last-child {
+        display: flex;
       }
-      p{
-        display: none
+      p {
+        display: none;
       }
     }
   }
-  
-  .routes{
+
+  .routes {
     display: flex;
     flex-direction: column;
     height: calc(#{"100% - 60px"});
     overflow-y: scroll;
     width: 100%;
-    &.routings{
+    &.routings {
       display: flex;
       flex-direction: column;
       align-items: center;
-      overflow: hidden;      
+      overflow: hidden;
     }
-    
-    .collapsed{
-      $itemHeight: 30px; 
+
+    .collapsed {
+      $itemHeight: 30px;
       height: $itemHeight;
       display: flex;
       align-items: center;
@@ -66,14 +64,14 @@ $countBoxSize: 15px;
       margin: 10px 5px;
       color: $grey2;
       width: 100%;
-      .collapsed-icon{
+      .collapsed-icon {
         display: flex;
         align-items: center;
         justify-content: center;
         margin: 10px 0px;
         width: 80%;
         height: 100%;
-        .count{
+        .count {
           height: max-content;
           display: flex;
           left: 10%;
@@ -81,7 +79,7 @@ $countBoxSize: 15px;
           color: $white1;
           z-index: 2;
           margin-top: -10px;
-          .count-box{
+          .count-box {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -89,7 +87,7 @@ $countBoxSize: 15px;
             width: $countBoxSize;
             background: $green;
             border-radius: 2px;
-            p{
+            p {
               font-size: 10px;
               margin: 0px;
             }
@@ -103,39 +101,36 @@ $countBoxSize: 15px;
           align-self: flex-end;
           position: absolute;
           color: $white1;
-  
+
           font-size: 15px;
           left: 10;
           right: 0;
           margin-right: 2px;
         }
-        
-  
-        .header-icon{
+
+        .header-icon {
           display: flex;
           filter: $greyFilter;
           object {
             width: 100%;
             height: 100%;
           }
-          &.empty{
+          &.empty {
             filter: none;
             opacity: 0.2;
-            &:hover{
-              filter:none;
+            &:hover {
+              filter: none;
             }
           }
-          
-          &:hover{
+
+          &:hover {
             filter: $orangeFilter;
           }
         }
       }
-      
 
-      
-      &:hover{
-        .hover{
+      &:hover {
+        .hover {
           max-height: 400px;
           overflow-y: scroll;
           display: flex;
@@ -150,17 +145,17 @@ $countBoxSize: 15px;
           -ms-transform: translate(0%, 40%);
           -o-transform: translate(0%, 40%);
           transform: translate(0%, 40%);
-          .header-icon{
+          .header-icon {
             display: none;
           }
         }
       }
-      .hover{
+      .hover {
         display: none;
       }
     }
   }
-  
+
   .toggle-container {
     height: 30px;
     display: flex;
@@ -169,20 +164,20 @@ $countBoxSize: 15px;
     margin-bottom: 5px;
     color: $grey2;
 
-    .toggle-button{
+    .toggle-button {
       display: flex;
-      
-      .fa{
+
+      .fa {
         font-size: 25px;
-        &:nth-child(2){
-          margin-left: -5px; 
+        &:nth-child(2) {
+          margin-left: -5px;
         }
       }
     }
-    p{
+    p {
       margin: 0px 10px;
     }
-    &:last-child{
+    &:last-child {
       display: none;
     }
   }
@@ -190,7 +185,7 @@ $countBoxSize: 15px;
     display: flex;
     width: 100%;
     margin: 5px 0px;
-    .name{
+    .name {
       color: $white3;
       width: 70%;
       display: block;
@@ -198,67 +193,72 @@ $countBoxSize: 15px;
       white-space: nowrap;
       overflow: hidden;
     }
-    .delete{
+    .delete {
       display: flex;
       width: 10%;
       align-items: center;
       justify-content: center;
-      .button-link{
+      .button-link {
         color: $grey2;
       }
     }
-    .aux{
+    .aux {
       display: flex;
       align-items: center;
       justify-content: flex-end;
       width: 20%;
-      overflow: hidden; 
-      .verb{
+      overflow: hidden;
+      .verb {
         font-size: 14px;
         // width: 10%;
-      }  
-      .no-ext{
+      }
+      .no-ext {
         margin-left: 16px;
-      } 
-      &.GET a, &.GET span{
-        color: $green;    
-      }   
-      &.POST a, &.POST span{
-        color: $blue;
       }
-      &.DELETE a, &.DELETE span{
-        color: $red;
+      &.GET a,
+      &.GET span {
+        color: $http-get;
       }
-      &.PUT a, &.PUT span{
-        color: $orange;
+      &.POST a,
+      &.POST span {
+        color: $http-post;
       }
-      &.PATCH a, &.PATCH span{
-        color: $purple;
+      &.DELETE a,
+      &.DELETE span {
+        color: $http-delete;
+      }
+      &.PUT a,
+      &.PUT span {
+        color: $http-put;
+      }
+      &.PATCH a,
+      &.PATCH span {
+        color: $http-patch;
       }
     }
   }
 
-  .deleted{
-    .header-icon{
+  .deleted {
+    .header-icon {
       display: none;
     }
   }
 
   .routing-section {
     margin: 5px 5px 10px 5px;
-    &:first-child{
+    &:first-child {
       margin-top: 0px;
     }
     summary::-webkit-details-marker {
       display: none;
     }
-    
-    &.deleted>.routing-section {
-        margin-left: 10px;
+
+    &.deleted > .routing-section {
+      margin-left: 10px;
     }
 
     &.deleted.empty div {
-        display: none;
+      display: none;
     }
     .header {
       padding: 2px 5px 2px 10px;
@@ -268,21 +268,21 @@ $countBoxSize: 15px;
       justify-content: space-between;
       color: #fff;
 
-      .title{
+      .title {
         display: flex;
         filter: $yellowFilter;
         .count {
           font-weight: bold;
         }
       }
-    
+
       .verb-link,
       .button-link {
-          float: right;
-          color: $grey3;
+        float: right;
+        color: $grey3;
       }
-      
-      .header-icon{
+
+      .header-icon {
         height: 20px;
         width: 20px;
         margin-right: 5px;
@@ -291,106 +291,103 @@ $countBoxSize: 15px;
 
     .button-link,
     .external {
-        @include default-link;
+      @extend .default-link;
 
-        display: inline-block;
-        width: 16px;
-        margin: 0 2px;
-        cursor: pointer;
+      display: inline-block;
+      width: 16px;
+      margin: 0 2px;
+      cursor: pointer;
+      color: $grey3;
+
+      &:link,
+      &:visited {
         color: $grey3;
+      }
 
-        &:link,
-        &:visited {
-            color: $grey3;
-        }
-
-        &:hover {
-            color: $yellow;
-        }
+      &:hover {
+        color: $yellow;
+      }
     }
-
   }
 
-  
   .routing-section.http .simple-route.handler,
   .routing-section.fof .simple-route.handler,
   .routing-section.deleted-http .simple-route.handler {
-
-      .verb {
-          width: 60px;
-          display: inline-block;
-          text-align: right;
-          margin-right: 4px;
-          vertical-align: middle;
-          &:not(.no-ext){
-            width: 30px;
-          }
-          &.verb-link {
-              text-decoration: none;
-          }
-
-          &:hover {
-              color: $yellow;
-          }
+    .verb {
+      width: 60px;
+      display: inline-block;
+      text-align: right;
+      margin-right: 4px;
+      vertical-align: middle;
+      &:not(.no-ext) {
+        width: 30px;
+      }
+      &.verb-link {
+        text-decoration: none;
       }
 
-      .external {
-          font-size: 12px;
+      &:hover {
+        color: $yellow;
       }
+    }
 
+    .external {
+      font-size: 12px;
+    }
   }
 
   .default-link.unused {
-      color: $grey2;
+    color: $grey2;
   }
 }
 
-.routing-section.deploys, .simple-route.deploy{
+.routing-section.deploys,
+.simple-route.deploy {
   color: $grey3;
-    .header{
-      color: lighten($yellow, 15%);
-      width: fit-content;
-      padding-left: 0px; 
-      margin: 0px 5px 0px 10px;  
-      background: none;
-      display: flex;
-      flex-direction: column;
+  .header {
+    color: lighten($yellow, 15%);
+    width: fit-content;
+    padding-left: 0px;
+    margin: 0px 5px 0px 10px;
+    background: none;
+    display: flex;
+    flex-direction: column;
+  }
+  .title {
+    align-self: flex-start;
+    border-bottom: 1px solid;
+    .title {
+      border-bottom: none;
     }
-    .title{
-      align-self: flex-start;
-      border-bottom: 1px solid;
-      .title{
-        border-bottom: none;
+  }
+
+  .deploy-status {
+    margin-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    a.hash {
+      color: $grey3;
+
+      &:hover {
+        color: $yellow;
       }
     }
 
-    .deploy-status{
-      margin-top: 5px;
-      display: flex;
-     justify-content: space-between;
-      a.hash {
-          color: $grey3;
+    .status {
+      color: $white1;
 
-          &:hover {
-              color: $yellow;
-          }
-      }
-
-      .status {
-          color: $white1;
-
-          &.success {
-              color: $green;
-          }
+      &.success {
+        color: $green;
       }
     }
-    .datetime{
-       font-size: 12px;
-       margin-left: 5px;
-    }
+  }
+  .datetime {
+    font-size: 12px;
+    margin-left: 5px;
+  }
 
-    .datetime,
-    .hash {
-        margin-right: 2ch;
-    }
+  .datetime,
+  .hash {
+    margin-right: 2ch;
+  }
 }

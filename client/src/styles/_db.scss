@@ -25,7 +25,6 @@
     right: calc(#{"100% + 30px"});
     font-style: normal;
 
-
     padding: 4px;
     width: max-content;
     max-width: 250px;
@@ -38,7 +37,6 @@
 
     background-color: $toplevel-background;
     outline: 0.4px $grey2 dotted;
-
   }
 
   &.migration-view {
@@ -58,7 +56,6 @@
     }
 
     .col {
-
       &.roll-fn {
         margin-top: 12px;
         flex-direction: column;
@@ -99,8 +96,6 @@
         font-style: italic;
       }
     }
-
-
   }
 
   .fa-lock,
@@ -123,9 +118,8 @@
     }
   }
 
-
   .dbtitle {
-    background-image: url('/_db.png');
+    background-image: url("/_db.png");
     background-position: left center;
     background-repeat: no-repeat;
     padding-left: 20px;
@@ -193,7 +187,5 @@
       width: max-content;
       left: calc(#{"100% + 6px"});
     }
-
-
   }
 }
