@@ -751,6 +751,10 @@ let length (tokens : token list) : int =
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
 
+let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
+  List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
+
+
 type neighbour =
   | L of token * tokenInfo
   | R of token * tokenInfo
@@ -2253,13 +2257,21 @@ let updateAutocomplete m tlid ast s : fluidState =
 
 let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     ast * fluidState =
+  let tokens = toTokens s ast in
   let lastPos =
-    toTokens s ast
+    tokens
     |> List.last
     |> Option.map ~f:(fun ti -> ti.endPos)
     |> Option.withDefault ~default:0
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
+  let newPos =
+    match getTokenAt newPos tokens with
+    | Some current when Token.isBlank current.token ->
+        current.startPos
+    | _ ->
+        newPos
+  in
   let newAST = acMaybeCommit newPos ast s in
   (newAST, setPosition s newPos)
 
@@ -2445,10 +2457,6 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
       in
       [element [dropdown ()]; errorIndicator] )
   |> List.flatten
-
-
-let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
-  List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
 
 
 let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
