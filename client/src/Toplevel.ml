@@ -543,11 +543,7 @@ let allDBNames (toplevels : toplevel list) : string list =
   |> List.filterMap ~f:(fun tl ->
          match tl.data with
          | TLDB db ->
-           ( match db.dbName with
-           | F (_, name) ->
-               Some name
-           | Partial _ | Blank _ ->
-               None )
+           (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
          | _ ->
              None )
 

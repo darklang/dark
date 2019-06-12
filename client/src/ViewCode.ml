@@ -186,7 +186,7 @@ and viewNExpr
         ; n [wc "ifbody"] [vExpr 0 ifbody]
         ; kw [] "else"
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
-  | FnCall (Partial _, _, _) | FnCall (Blank _, _, _) ->
+  | FnCall (Blank _, _, _) ->
       Debug.crash "fn with blank"
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
@@ -469,6 +469,8 @@ and viewNExpr
             [ Html.class'
                 ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
+  | FluidPartial (str, _) ->
+      Html.text str
 
 
 let view (vs : viewState) (e : expr) =

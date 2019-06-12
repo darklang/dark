@@ -35,11 +35,7 @@ let allData (db : dB) : pointerData list =
 let hasCol (db : dB) (name : string) : bool =
   db.cols
   |> List.any ~f:(fun (colname, _) ->
-         match colname with
-         | Partial _ | Blank _ ->
-             false
-         | F (_, n) ->
-             name = n )
+         match colname with Blank _ -> false | F (_, n) -> name = n )
 
 
 let isLocked (m : model) (TLID tlid : tlid) : bool =

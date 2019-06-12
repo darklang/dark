@@ -2,7 +2,7 @@ open Prelude
 open Types
 
 let toID (b : 'a blankOr) : id =
-  match b with Partial (id, _) | Blank id -> id | F (id, _) -> id
+  match b with Blank id -> id | F (id, _) -> id
 
 
 let new_ (() : unit) : 'a blankOr = Blank (gid ())
@@ -10,31 +10,25 @@ let new_ (() : unit) : 'a blankOr = Blank (gid ())
 let newF (a : 'a) : 'a blankOr = F (gid (), a)
 
 let clone (fn : 'a -> 'a) (b : 'a blankOr) : 'a blankOr =
-  match b with
-  | Partial (_, data) ->
-      Partial (gid (), data)
-  | Blank _ ->
-      Blank (gid ())
-  | F (_, val_) ->
-      F (gid (), fn val_)
+  match b with Blank _ -> Blank (gid ()) | F (_, val_) -> F (gid (), fn val_)
 
 
 let isBlank (b : 'a blankOr) : bool =
-  match b with Partial _ | Blank _ -> true | F (_, _) -> false
+  match b with Blank _ -> true | F (_, _) -> false
 
 
 let isF (b : 'a blankOr) : bool = not (isBlank b)
 
 let asF (b : 'a blankOr) : 'a option =
-  match b with F (_, v) -> Some v | Partial _ | Blank _ -> None
+  match b with F (_, v) -> Some v | Blank _ -> None
 
 
 let valueWithDefault (a : 'a) (b : 'a blankOr) : 'a =
-  match b with F (_, v) -> v | Partial _ | Blank _ -> a
+  match b with F (_, v) -> v | Blank _ -> a
 
 
 let toMaybe (b : 'a blankOr) : 'a option =
-  match b with F (_, v) -> Some v | Partial _ | Blank _ -> None
+  match b with F (_, v) -> Some v | Blank _ -> None
 
 
 let ofOption (o : 'a option) : 'a blankOr =

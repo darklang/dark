@@ -130,7 +130,7 @@ let dbCategory (m : model) (tls : toplevel list) : category =
     List.map dbs ~f:(fun (db, _) ->
         let uses =
           match db.dbName with
-          | Partial _ | Blank _ ->
+          | Blank _ ->
               0
           | F (_, name) ->
               Refactor.dbUseCount m name
