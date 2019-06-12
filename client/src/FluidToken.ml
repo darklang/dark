@@ -18,6 +18,7 @@ let tid (t : token) : id =
   | TBlank id
   | TPlaceholder (_, id)
   | TPartial (id, _)
+  | TPartialGhost (id, _)
   | TLetKeyword id
   | TLetAssignment id
   | TLetLHS (id, _)
@@ -73,6 +74,7 @@ let isTextToken token : bool =
   | TBlank _
   | TPlaceholder _
   | TPartial _
+  | TPartialGhost _
   | TRecordField _
   | TString _
   | TTrue _
@@ -219,6 +221,8 @@ let toText (t : token) : string =
       " " ^ name ^ " : " ^ tipe ^ " "
   | TPartial (_, str) ->
       canBeEmpty str
+  | TPartialGhost (_, str) ->
+      shouldntBeEmpty str
   | TSep ->
       " "
   | TNewline ->
@@ -311,6 +315,19 @@ let toTestText (t : token) : string =
   match t with
   | TPlaceholder _ | TBlank _ ->
       "___"
+  | TPartialGhost (_, str) ->
+    ( match String.length str with
+    | 0 ->
+        "@EMPTY@"
+    | 1 ->
+        "@"
+    | 2 ->
+        "@@"
+    | _ ->
+        let str =
+          str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+        in
+        "@" ^ str ^ "@" )
   | _ ->
       if isBlank t then "***" else toText t
 
@@ -339,6 +356,8 @@ let toTypeName (t : token) : string =
       "placeholder"
   | TPartial _ ->
       "partial"
+  | TPartialGhost _ ->
+      "partial-ghost"
   | TLetKeyword _ ->
       "let-keyword"
   | TLetAssignment _ ->
@@ -429,7 +448,13 @@ let toCategoryName (t : token) : string =
   match t with
   | TInteger _ | TString _ ->
       "literal"
-  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ | TPlaceholder _ ->
+  | TVariable _
+  | TNewline
+  | TSep
+  | TBlank _
+  | TPartial _
+  | TPlaceholder _
+  | TPartialGhost _ ->
       ""
   | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
       "float"

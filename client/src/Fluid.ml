@@ -438,9 +438,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
       whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
-  | EPartial (id, str, _) ->
-      (* TODO: show the partial's old value *)
-      [TPartial (id, str)]
   | ELet (id, _, lhs, rhs, next) ->
       [ TLetKeyword id
       ; TLetLHS (id, lhs)
@@ -469,6 +466,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TBinOp (id, op)
       ; TSep
       ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
+  | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
+      let ghostSuffix = String.dropLeft ~count:(String.length newOp) op in
+      let ghost =
+        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      in
+      [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
+      @ ghost
+      @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EFieldAccess (id, expr, _, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldname)]
   | EVariable (id, name) ->
@@ -543,6 +548,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       |> List.concat
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
+  | EPartial (id, str, _) ->
+      [TPartial (id, str)]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -1236,7 +1243,15 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       match e with
       | EPartial (id, _, oldVal) ->
-          if str = "" then oldVal else EPartial (id, str, oldVal)
+          if str = ""
+          then
+            (* Remove partials which provide no value *)
+            match oldVal with
+            | EPartial _ | EBlank _ ->
+                oldVal
+            | _ ->
+                EPartial (id, str, oldVal)
+          else EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then EBlank (gid ()) else EPartial (gid (), str, oldVal)
   )
@@ -1303,6 +1318,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithPartial (f "false") id ast
   | TNullToken id ->
       replaceWithPartial (f "null") id ast
+  | TBinOp (id, name) ->
+      replaceWithPartial (f name) id ast
   | _ ->
       fail "not supported by replaceToken"
 
@@ -1722,7 +1739,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TThreadPipe _
   | TLambdaSep _
   | TPatternBlank _
-  | TPatternConstructorName _ ->
+  | TPatternConstructorName _
+  | TPartialGhost _ ->
       (ast, left s)
   | TFieldOp id ->
       (removeField id ast, left s)
@@ -1730,10 +1748,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
-  | TBinOp (id, _) ->
-      (* TODO this should move to the start of the new blank, but we don't know
-       * where it is at the moment. *)
-      (deleteWithArguments id ast, moveToStart ti s |> left)
   | TConstructorName (id, _) | TFnName (id, _, _) ->
       (deleteWithArguments id ast, moveToStart ti s)
   | TString _
@@ -1752,6 +1766,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternInteger _
   | TPatternNullToken _
   | TPatternVariable _
+  | TBinOp _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
       (replaceStringToken ~f ti.token ast, left s)
@@ -1798,7 +1813,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordSep _
   | TSep
   | TThreadPipe _
-  | TLambdaSep _ ->
+  | TLambdaSep _
+  | TPartialGhost _ ->
       (ast, s)
   | TBinOp (id, _) ->
       (* TODO this should move to the start of the new blank, but we don't know
@@ -2063,7 +2079,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TConstructorName _
   | TLambdaSep _
   | TMatchSep _
-  | TMatchKeyword _ ->
+  | TMatchKeyword _
+  | TPartialGhost _ ->
       (ast, s)
 
 
