@@ -287,7 +287,7 @@ and viewNExpr
         if sendToRail = NoRail
         then []
         else
-          let erTipe = Runtime.tipe2str fn.fnReturnTipe in
+          let returnTipe = Runtime.tipe2str fn.fnReturnTipe in
           let eval =
             match lvOf id with
             | Some v ->
@@ -297,7 +297,8 @@ and viewNExpr
           in
           [ Html.div
               [ Html.class'
-                  (String.join ~sep:" " ["error-indicator"; erTipe; eval]) ]
+                  (String.join ~sep:" " ["error-indicator"; returnTipe; eval])
+              ]
               [] ]
       in
       let fnname parens =

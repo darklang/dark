@@ -247,10 +247,11 @@ since they are essentially both commands just acting upon different things. */
   }
 
   .error-indicator {
-    left: 4px;
+    left: 6px;
   }
 }
 
+/* Hide non-fluid rail for now until we get rid of non-fluid code */
 .handler-body > .fluid-ast + .rop-rail.active {
   display: none;
 }
