@@ -70,5 +70,5 @@ let viewAllAvatars (avatars : avatar list) : msg Html.html =
   in
   let avatarView = List.map ~f:avatarDiv avatars in
   Html.div
-    [Html.class' "all-avatars"]
+    [Html.classList [("all-avatars", List.length avatars > 0)]]
     [Html.div [Html.class' "avatars-wrapper"] avatarView]
