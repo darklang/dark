@@ -2686,6 +2686,15 @@ let viewAST
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in
+  let errorRail =
+    let indicators = tokenInfos
+    |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti)
+    in
+    let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
+    Html.div
+    [ Html.classList [("fluid-error-rail", true) ; ("show", hasMaybeErrors ) ]]
+    indicators
+  in
   [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
   ; Html.div
       [ Attrs.id editorID
@@ -2694,9 +2703,7 @@ let viewAST
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
       (tokenInfos |> toHtml ~state)
-  ; Html.div
-    [ Html.class' "fluid-error-rail"]
-    (tokenInfos |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti))
+  ; errorRail
   ]
 
 
