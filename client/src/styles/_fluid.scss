@@ -56,7 +56,7 @@ https://github.com/chriskempson/tomorrow-theme */
   $black: #1d1f21;
   $background: transparent;
   $selected-background: #2d2d2d;
-  $blanks: lighten($black1, 8%);
+  $blanks: lighten($toplevel-background, 10%);
   $currentline: $black3;
   $selection: $grey3;
   $foreground: $white2;
@@ -133,7 +133,7 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-empty {
-    color: $green;
+    color: lighten($grey2, 5%);
     background-color: $blanks;
   }
 
