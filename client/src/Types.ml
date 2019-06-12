@@ -1020,6 +1020,9 @@ and fluidToken =
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
+  (* When a partial used to be another thing, we want to show the name of the
+   * old thing in a non-interactable way *)
+  | TPartialGhost of id * string
   | TSep
   | TNewline
   (* All newlines in the nested tokens start indented to this position. *)

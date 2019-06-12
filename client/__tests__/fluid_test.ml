@@ -460,8 +460,6 @@ let () =
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       tp "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
-  describe "Partials" (fun () -> (* "func 1 2" -> "fun_c_ 1 2" *)
-                                 ()) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
       t
@@ -520,36 +518,42 @@ let () =
         ("___", 0) ;
       () ) ;
   describe "Binops" (fun () ->
+      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ;
+      (* "func 1 2" -> "fun 1 2" *)
+      (* "true && false" -> "true & false" -> "true ___ false" -> "true | false" -> "true || false" *)
+      (* "3 + 4" -> "3 ___ 4" -> "3 + 4" *)
+      (* backspace on empty partial does something *)
+      
       (* t *)
       (*   "add a binop at the end of a var" *)
       (*   aShortVar *)
       (*   (press K.Percent 1) *)
       (*   ("v % ___", 4) ; *)
-      t
-        "backspace on a binop deletes function"
-        aFullBinOp
-        (press K.Backspace 8)
-        ("___", 7) ;
+      (* TODO: disable *)
       t
         "delete on a binop deletes function"
         aFullBinOp
         (press K.Delete 6)
         ("___", 5) ;
+      (* TODO: disable *)
       t
         "plus becomes ++ (String::append) if left is a string"
         oneCharStr
         (press K.Plus 3)
         ("\"c\" ++ ___", 7) ;
+      (* TODO: disable *)
       t
         "plus becomes + (Int::add) for non strings"
         aShortInt
         (press K.Plus 1)
         ("1 + ___", 4) ;
+      (* TODO: disable *)
       t
         "& becomes && (Bool::and)"
         trueBool
         (press K.Ampersand 4)
         ("true && ___", 8) ;
+      (* TODO: disable *)
       t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ;
       () ) ;
   describe "Constructors" (fun () ->
