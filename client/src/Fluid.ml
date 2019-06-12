@@ -2580,27 +2580,28 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
+let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
+  let returnTipe name =
+    let fn = Functions.findByNameInList name state.ac.functions in
+    Runtime.tipe2str fn.fnReturnTipe
+  in
   let sentToRail id =
     let dv =
       StrDict.get ~key:(deID id) currentResults.liveValues
       |> Option.withDefault ~default:DNull
     in
     match dv with
-    | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
-        true
+    | DErrorRail (DResult (ResError _))
+    | DErrorRail (DOption OptNothing) ->
+        "ErrorRail"
     | _ ->
-        false
+        ""
   in
   match ti.token with
-  | TFnName (id, _, Rail) ->
-      Html.span
-        [Html.class' "error-indicator"]
-        [ Html.span
-            [ Html.class' "error-icon"
-            ; Vdom.prop "data-sent-to-rail" (sentToRail id |> string_of_bool)
-            ]
-            [] ]
+  | TFnName (id, name, Rail) ->
+      Html.div
+        [Html.class' (String.join ~sep:" " ["error-indicator" ; returnTipe name ; sentToRail id])]
+        []
   | _ ->
       Vdom.noNode
 
@@ -2615,7 +2616,7 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
         then viewAutocomplete state.ac
         else Vdom.noNode
       in
-      let errorIndicator = viewErrorIndicator ~currentResults ti in
+      let errorIndicator = viewErrorIndicator ~currentResults ~state ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in

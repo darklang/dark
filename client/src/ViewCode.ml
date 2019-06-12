@@ -197,19 +197,7 @@ and viewNExpr
         viewExpr d_ {vs with tooWide = true} c e_
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
-      let fn =
-        vs.ac.functions
-        |> List.find ~f:(fun f -> f.fnName = name)
-        |> Option.withDefault
-             ~default:
-               { fnName = "fnLookupError"
-               ; fnParameters = []
-               ; fnDescription = "default, fn error"
-               ; fnReturnTipe = TError
-               ; fnPreviewExecutionSafe = true
-               ; fnInfix = false
-               ; fnDeprecated = false }
-      in
+      let fn = Functions.findByNameInList name vs.ac.functions in
       let previous =
         match vs.tl.data with
         | TLHandler h ->
