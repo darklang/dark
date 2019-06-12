@@ -134,7 +134,9 @@ let load_event_ids
      * events don't have leading slashes. *)
     if String.Caseless.equal module_ "HTTP"
     then Http.route_to_postgres_pattern route
-    else route
+    else
+      (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+      route |> Util.string_replace "%" "\\%" |> Util.string_replace "_" "\\_"
   in
   Db.fetch
     ~name:"load_events"
