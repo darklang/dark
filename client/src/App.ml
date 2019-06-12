@@ -477,7 +477,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               TL.get m tlid <> None
         in
         if pagePresent
-        then (Page.setPage m m.currentPage page, Cmd.none)
+        then
+          let avMessage : avatarModelMessage =
+            { canvasName = m.canvasName
+            ; browserId = m.browserId
+            ; tlid = Page.tlidOf page
+            ; timestamp = Js.Date.now () /. 1000.0 }
+          in
+          ( Page.setPage m m.currentPage page
+          , Cmd.batch [RPC.sendPresence m avMessage] )
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
