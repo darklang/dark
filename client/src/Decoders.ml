@@ -24,7 +24,7 @@ let blankOr d =
   variants
     [ ("Filled", variant2 (fun id v -> F (id, v)) id d)
     ; ("Blank", variant1 (fun id -> Blank id) id)
-    ; ("Partial", variant2 (fun id v -> Partial (id, v)) id string) ]
+    ; ("Partial", variant2 (fun id _ -> Blank id) id string) ]
 
 
 let rec pointerData j : pointerData =
@@ -111,7 +111,18 @@ and entering j =
 
 
 and expr j : expr =
-  match blankOr nExpr j with
+  let blankOrExpr =
+    variants
+      [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
+      ; ("Blank", variant1 (fun id -> Blank id) id)
+        (* We're phasing this out *)
+      ; ( "Partial"
+        , variant2
+            (fun id name -> F (id, FluidPartial (name, Blank.new_ ())))
+            id
+            string ) ]
+  in
+  match blankOrExpr j with
   | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
       F (ID id, FnCall (F (ID (id ^ "_name"), name), exprs, rail))
   | other ->
@@ -150,7 +161,8 @@ and nExpr j : nExpr =
       )
     ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de)))
     ; ( "Constructor"
-      , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) ) ]
+      , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
+    ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de) ]
     j
 
 

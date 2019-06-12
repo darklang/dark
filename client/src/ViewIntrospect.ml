@@ -92,7 +92,7 @@ let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
             ( match p.ufpTipe with
             | F (_, v) ->
                 Runtime.tipe2str v
-            | Partial _ | Blank _ ->
+            | Blank _ ->
                 "no type" ) ]
     in
     Html.div [Html.class' "fnparam"] [name; Html.text ":"; ptype]
