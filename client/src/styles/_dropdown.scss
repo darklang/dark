@@ -161,14 +161,13 @@ $wrapper-background: $black2;
 
     li.autocomplete-item {
       letter-spacing: 0.05rem;
-      font-size: 1.0rem;
+      font-size: 1rem;
       padding: 2px $left-margin;
     }
   }
 }
 
 .selecting-command {
-
   ul#autocomplete-holder {
     @include border-radius-top(4px);
     @include border-radius-bottom(4px);

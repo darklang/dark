@@ -2591,8 +2591,7 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
       |> Option.withDefault ~default:DNull
     in
     match dv with
-    | DErrorRail (DResult (ResError _))
-    | DErrorRail (DOption OptNothing) ->
+    | DErrorRail (DResult (ResError _)) | DErrorRail (DOption OptNothing) ->
         "ErrorRail"
     | _ ->
         ""
@@ -2601,16 +2600,17 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
   | TFnName (id, name, Rail) ->
       let offset = float_of_int ti.startRow in
       Html.div
-        [ Html.class' (String.join ~sep:" " ["error-indicator" ; returnTipe name ; sentToRail id])
-        ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
-        ]
+        [ Html.class'
+            (String.join
+               ~sep:" "
+               ["error-indicator"; returnTipe name; sentToRail id])
+        ; Html.styles [("top", Js.Float.toString offset ^ "rem")] ]
         []
   | _ ->
       Vdom.noNode
 
 
-let toHtml ~state (l : tokenInfo list) :
-    Types.msg Html.html list =
+let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2687,13 +2687,14 @@ let viewAST
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in
   let errorRail =
-    let indicators = tokenInfos
-    |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti)
+    let indicators =
+      tokenInfos
+      |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
-    [ Html.classList [("fluid-error-rail", true) ; ("show", hasMaybeErrors ) ]]
-    indicators
+      [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
+      indicators
   in
   [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
   ; Html.div
@@ -2703,8 +2704,7 @@ let viewAST
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
       (tokenInfos |> toHtml ~state)
-  ; errorRail
-  ]
+  ; errorRail ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
