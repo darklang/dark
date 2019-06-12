@@ -33,11 +33,13 @@ let t_stored_event_roundtrip () =
   let t3 = Util.create_uuid () in
   let t4 = Util.create_uuid () in
   let t5 = Util.create_uuid () in
+  let t6 = Util.create_uuid () in
   SE.clear_all_events ~canvas_id:id1 () ;
   SE.clear_all_events ~canvas_id:id2 () ;
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
+  let desc4 = ("BG", "lol", "_") in
   ignore
     (SE.store_event
        ~canvas_id:id1
@@ -68,6 +70,12 @@ let t_stored_event_roundtrip () =
        ~trace_id:t5
        desc2
        (Dval.dstr_of_string_exn "3")) ;
+  ignore
+    (SE.store_event
+       ~canvas_id:id2
+       ~trace_id:t6
+       desc4
+       (Dval.dstr_of_string_exn "3")) ;
   let at_trace_id = AT.of_pp Uuidm.pp_string in
   let to_trace_id (t1, t2, t3, t4, t5) = t5 in
   let listed = SE.list_events ~limit:`All ~canvas_id:id1 () in
@@ -76,6 +84,12 @@ let t_stored_event_roundtrip () =
     "list host events"
     (List.sort ~compare [t1; t3; t4])
     (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
+  let loaded = SE.load_event_ids ~canvas_id:id2 desc4 in
+  AT.check
+    (AT.list at_trace_id)
+    "list desc events"
+    (List.sort ~compare [t6])
+    (List.sort ~compare loaded) ;
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
     "load GET events"
