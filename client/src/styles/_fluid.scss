@@ -235,12 +235,16 @@ since they are essentially both commands just acting upon different things. */
 }
 
 .fluid-error-rail {
-  display: inline-block;
+  display: none;
   position: relative;
   width: 20px;
   margin-top: 4px;
 
   border-left: 1px dotted lighten($black3, 20%);
+
+  &.show {
+    display: inline-block;
+  }
 
   .error-indicator {
     left: 4px;
