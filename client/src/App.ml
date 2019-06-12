@@ -35,6 +35,15 @@ let init (flagString : string) (location : Web.Location.location) =
     Url.parseLocation location
     |> Option.withDefault ~default:Defaults.defaultModel.currentPage
   in
+  let storedBrowserId =
+    match Dom.Storage.getItem "browserId" Dom.Storage.sessionStorage with
+    | Some browserId ->
+        browserId
+    | None ->
+        let newBrowserId = createBrowserId in
+        Dom.Storage.setItem "browserId" newBrowserId Dom.Storage.sessionStorage ;
+        newBrowserId
+  in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
   let m =
@@ -52,7 +61,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; origin = location.origin
     ; environment
     ; csrfToken
-    ; browserId = createBrowserId }
+    ; browserId = storedBrowserId }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
