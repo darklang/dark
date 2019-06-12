@@ -462,14 +462,15 @@ let toCategoryName (t : token) : string =
       "pattern"
 
 
-let toCssClasses (t : token) : string =
-  let keyword = if isBlank t then "fluid-empty" else "" in
-  let empty = if isKeyword t then "fluid-keyword" else "" in
+let toCssClasses (t : token) : string list =
+  let empty = if isBlank t then Some "fluid-empty" else None in
+  let keyword = if isKeyword t then Some "fluid-keyword" else None in
+  let typename = Some ("fluid-" ^ toTypeName t) in
   let category =
     let name = toCategoryName t in
-    if name = "" then "" else " fluid-" ^ name
+    if name = "" then None else Some ("fluid-" ^ name)
   in
-  String.trim (keyword ^ " " ^ empty) ^ category ^ " fluid-" ^ toTypeName t
+  [empty; keyword; typename; category] |> List.filterMap ~f:identity
 
 
 let show_tokenInfo (ti : tokenInfo) =
