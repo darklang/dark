@@ -76,6 +76,8 @@ https://github.com/chriskempson/tomorrow-theme */
   color: $foreground;
   caret-color: $foreground;
   font-size: 13.33px;
+
+  display: inline-block;
   max-width: 200ch;
 
   &:focus {
@@ -225,4 +227,26 @@ since they are essentially both commands just acting upon different things. */
       }
     }
   }
+}
+
+.fluid-ast {
+  display: flex;
+  flex-direction: row;
+}
+
+.fluid-error-rail {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  margin-top: 4px;
+
+  border-left: 1px dotted lighten($black3, 20%);
+
+  .error-indicator {
+    left: 4px;
+  }
+}
+
+.handler-body > .fluid-ast + .rop-rail.active {
+  display: none;
 }

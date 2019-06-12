@@ -2599,14 +2599,17 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
   in
   match ti.token with
   | TFnName (id, name, Rail) ->
+      let offset = float_of_int ti.startRow in
       Html.div
-        [Html.class' (String.join ~sep:" " ["error-indicator" ; returnTipe name ; sentToRail id])]
+        [ Html.class' (String.join ~sep:" " ["error-indicator" ; returnTipe name ; sentToRail id])
+        ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
+        ]
         []
   | _ ->
       Vdom.noNode
 
 
-let toHtml ~currentResults ~state (l : tokenInfo list) :
+let toHtml ~state (l : tokenInfo list) :
     Types.msg Html.html list =
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -2616,7 +2619,6 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
         then viewAutocomplete state.ac
         else Vdom.noNode
       in
-      let errorIndicator = viewErrorIndicator ~currentResults ~state ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
@@ -2626,7 +2628,7 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
               (("fluid-entry", true) :: (classes, true) :: idclasses) ]
           ([Html.text content] @ nested)
       in
-      [element [dropdown ()]; errorIndicator] )
+      [element [dropdown ()]] )
   |> List.flatten
 
 
@@ -2691,7 +2693,11 @@ let viewAST
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (tokenInfos |> toHtml ~currentResults ~state) ]
+      (tokenInfos |> toHtml ~state)
+  ; Html.div
+    [ Html.class' "fluid-error-rail"]
+    (tokenInfos |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti))
+  ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
