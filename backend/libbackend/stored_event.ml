@@ -126,7 +126,18 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
 let load_event_ids
     ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
     Uuidm.t list =
-  let route = Http.route_to_postgres_pattern route in
+  let route =
+    (* Only munge the route for HTTP events, as they have wildcards, whereas
+     * background events are completely concrete.
+     *
+     * `split_uri_path` inside `Http.route_to_postgres_pattern` doesn't like that background
+     * events don't have leading slashes. *)
+    if String.Caseless.equal module_ "HTTP"
+    then Http.route_to_postgres_pattern route
+    else
+      (* https://www.postgresql.org/docs/9.6/functions-matching.html *)
+      route |> Util.string_replace "%" "\\%" |> Util.string_replace "_" "\\_"
+  in
   Db.fetch
     ~name:"load_events"
     "SELECT trace_id FROM stored_events_v2
