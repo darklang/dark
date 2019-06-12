@@ -315,7 +315,8 @@ and presenceMsg j : avatar =
   ; username = field "username" string j
   ; serverTime = field "serverTime" serverTime j
   ; email = field "email" string j
-  ; fullname = field "name" (optional string) j }
+  ; fullname = field "name" (optional string) j
+  ; browserId = field "browserId" string j }
 
 
 and inputValueDict j : inputValueDict =
