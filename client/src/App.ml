@@ -23,10 +23,7 @@ let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
 
 
 let createBrowserId : string =
-  BsUuid.Uuid.V5.create
-    ~name:"browserId"
-    ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
-  |> BsUuid.Uuid.V5.toString
+  BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
 
 
 let init (flagString : string) (location : Web.Location.location) =
