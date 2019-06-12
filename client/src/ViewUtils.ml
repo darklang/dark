@@ -149,7 +149,11 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with
-      | FocusedHandler (tlid_, _) when tlid_ = tl.id ->
+      | FocusedHandler (tlid_, _)
+      | FocusedType tlid_
+      | FocusedFn tlid_
+      | FocusedDB (tlid_, _)
+        when tlid_ = tl.id ->
           Introspect.presentAvatars m
       | _ ->
           [] ) }
