@@ -2436,10 +2436,11 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
-        let idclasses = [("id-" ^ deID (Token.tid ti.token), true)] in
+        let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
         Html.span
-          [ Attrs.classList
-              (("fluid-entry", true) :: (classes, true) :: idclasses) ]
+          [ Attrs.class'
+              (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
+          ]
           ([Html.text content] @ nested)
       in
       [element [dropdown ()]; errorIndicator] )
