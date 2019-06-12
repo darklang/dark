@@ -907,10 +907,6 @@ type neighbour =
   | R of token * tokenInfo
   | No
 
-let neighborTokenInfo (n : neighbour) : tokenInfo option =
-  match n with R (_, ti) | L (_, ti) -> Some ti | No -> None
-
-
 let rec getTokensAtPosition
     ?(prev = None) ~(pos : int) (tokens : tokenInfo list) :
     tokenInfo option * tokenInfo option * tokenInfo option =
@@ -2301,9 +2297,6 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | _ ->
         false
   in*)
-  let wrappedIsAutocompleting n s =
-    match n with L (_, ti) | R (_, ti) -> isAutocompleting ti s | No -> false
-  in
   let newAST, newState =
     (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
@@ -2336,15 +2329,16 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Down, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | _, l, r
-      when (wrappedIsAutocompleting r s || wrappedIsAutocompleting l s)
+    | _, L (_, ti), _
+      when isAutocompleting ti s
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
-  ->
-      ( match (l, r) with
-      | L (_, ti), _ | _, R (_, ti) ->
-          acEnter ti ast s key
-      | _ ->
-          (ast, s) )
+      ->
+        acEnter ti ast s key
+    | _, _, R (_, ti)
+      when isAutocompleting ti s
+           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+      ->
+        acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _

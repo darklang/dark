@@ -354,35 +354,40 @@ let generate
   let patterns =
     match ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
-        (* if a pattern is in the autocomplete already, don't bother creating
+        (* add autocomplete query string to autocomplete as variable,
+         * but only if the query is not empty or equals to standard constructor
+         * /boolean name*)
+        ( ( if [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
+               |> List.member ~value:queryString
+          then [FACPattern (FPAVariable (pmid, gid (), queryString))]
+          else [] )
+        @
+        (* add standard patterns to autocomplete *)
+        (* if patterns are in the autocomplete already, don't bother creating
          * new FACPatterns with different pmids and pids *)
         if List.any
              ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
              a.allCompletions
         then
-          (* update query string variable in autocomplete *)
-          ( if queryString != ""
-          then [FACPattern (FPAVariable (pmid, gid (), queryString))]
-          else [] )
-          @ ( a.allCompletions
-            |> List.filter ~f:(fun c ->
-                   match c with
-                   | FACPattern (FPAVariable _) ->
-                       false
-                   | _ ->
-                       true ) )
+          a.allCompletions
+          |> List.filter ~f:(fun c ->
+                 (* filter out local variables *)
+                 match c with FACPattern (FPAVariable _) -> false | _ -> true
+             )
         else
           (* since patterns have no partial but commit as variables
            * automatically, include variable in autocomplete items *)
-          [ FPAVariable (pmid, gid (), queryString)
-          ; FPABool (pmid, gid (), true)
+          [ FPABool (pmid, gid (), true)
           ; FPABool (pmid, gid (), false)
           ; FPAConstructor (pmid, gid (), "Just", [FPBlank (pmid, gid ())])
           ; FPAConstructor (pmid, gid (), "Nothing", [])
           ; FPAConstructor (pmid, gid (), "Ok", [FPBlank (pmid, gid ())])
           ; FPAConstructor (pmid, gid (), "Error", [FPBlank (pmid, gid ())])
           ; FPANull (pmid, gid ()) ]
-          |> List.map ~f:(fun x -> FACPattern x)
+          |> List.map ~f:(fun x -> FACPattern x) )
+        |> List.filter ~f:(fun c ->
+               (* filter out local variables *)
+               match c with FACPattern (FPAVariable _) -> false | _ -> true )
     | _ ->
         []
   in
