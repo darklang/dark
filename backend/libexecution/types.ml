@@ -179,6 +179,7 @@ module RuntimeT = struct
     | FnCallSendToRail of fnname * expr list
     | Match of expr * (pattern * expr) list
     | Constructor of string or_blank * expr list
+    | FluidPartial of string * expr
 
   and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 
