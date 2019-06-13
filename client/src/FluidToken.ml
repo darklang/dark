@@ -18,6 +18,7 @@ let tid (t : token) : id =
   | TBlank id
   | TPlaceholder (_, id)
   | TPartial (id, _)
+  | TRightPartial (id, _)
   | TPartialGhost (id, _)
   | TLetKeyword id
   | TLetAssignment id
@@ -74,6 +75,7 @@ let isTextToken token : bool =
   | TBlank _
   | TPlaceholder _
   | TPartial _
+  | TRightPartial _
   | TPartialGhost _
   | TRecordField _
   | TString _
@@ -144,6 +146,7 @@ let isBlank t =
   | TLetLHS (_, "")
   | TLambdaVar (_, _, "")
   | TPartial (_, "")
+  | TRightPartial (_, "")
   | TPatternBlank _ ->
       true
   | _ ->
@@ -179,6 +182,7 @@ let isAutocompletable (t : token) : bool =
   | TBlank _
   | TPlaceholder _
   | TPartial _
+  | TRightPartial _
   | TPatternBlank _
   (* since patterns have no partial but commit as variables
    * automatically, allow intermediate variables to
@@ -220,7 +224,9 @@ let toText (t : token) : string =
   | TPlaceholder ((name, tipe), _) ->
       " " ^ name ^ " : " ^ tipe ^ " "
   | TPartial (_, str) ->
-      canBeEmpty str
+      shouldntBeEmpty str
+  | TRightPartial (_, str) ->
+      shouldntBeEmpty str
   | TPartialGhost (_, str) ->
       shouldntBeEmpty str
   | TSep ->
@@ -356,6 +362,8 @@ let toTypeName (t : token) : string =
       "placeholder"
   | TPartial _ ->
       "partial"
+  | TRightPartial _ ->
+      "partial-right"
   | TPartialGhost _ ->
       "partial-ghost"
   | TLetKeyword _ ->
@@ -448,14 +456,10 @@ let toCategoryName (t : token) : string =
   match t with
   | TInteger _ | TString _ ->
       "literal"
-  | TVariable _
-  | TNewline
-  | TSep
-  | TBlank _
-  | TPartial _
-  | TPlaceholder _
-  | TPartialGhost _ ->
+  | TVariable _ | TNewline | TSep | TBlank _ | TPlaceholder _ ->
       ""
+  | TPartial _ | TRightPartial _ | TPartialGhost _ ->
+      "partial"
   | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
       "float"
   | TTrue _ | TFalse _ ->
@@ -504,7 +508,7 @@ let toCssClasses (t : token) : string list =
   let typename = Some ("fluid-" ^ toTypeName t) in
   let category =
     let name = toCategoryName t in
-    if name = "" then None else Some ("fluid-" ^ name)
+    if name = "" then None else Some ("fluid-category-" ^ name)
   in
   [empty; keyword; typename; category] |> List.filterMap ~f:identity
 

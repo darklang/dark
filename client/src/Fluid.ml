@@ -556,7 +556,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EPartial (id, str, _) ->
       [TPartial (id, str)]
   | ERightPartial (id, newOp, expr) ->
-      [nested expr; TSep; TPartial (id, newOp)]
+      [nested expr; TSep; TRightPartial (id, newOp)]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -1325,6 +1325,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithPartial (f str) id ast
   | TPartial (id, str) ->
       replaceWithPartial (f str) id ast
+  | TRightPartial (id, str) ->
+      replaceWithPartial (f str) id ast
   | TFieldName (id, str) ->
       replaceFieldName (f str) id ast
   | TTrue id ->
@@ -1452,11 +1454,8 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
   | None ->
       ast
   | Some c ->
-      let fnName =
-        if c = '&' then "&&" else if c = '|' then "||" else String.fromChar c
-      in
-      wrap id ast ~f:(fun expr -> EBinOp (gid (), fnName, expr, newB (), NoRail)
-      )
+      wrap id ast ~f:(fun expr ->
+          ERightPartial (gid (), String.fromChar c, expr) )
 
 
 let convertToStringAppend (id : id) (ast : ast) : ast =
@@ -1626,6 +1625,48 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
+let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
+    : ast * state =
+  let s = recordAction "acEnter" s in
+  match AC.highlighted s.ac with
+  | Some (FACFunction fn) ->
+      let id = Token.tid ti.token in
+      ( match findExpr id ast with
+      | Some (ERightPartial (_, _, lhs)) ->
+          if not fn.fnInfix then fail "expression is not infix" ;
+          let r =
+            if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+            then Types.Rail
+            else Types.NoRail
+          in
+          let newExpr = EBinOp (gid (), fn.fnName, lhs, EBlank (gid ()), r) in
+          let acOffset = String.length fn.fnName + 1 in
+          let newAST = replaceExpr ~newExpr id ast in
+          let tokens = toTokens s newAST in
+          let nextBlank = getNextBlankPos s.newPos tokens in
+          let prevBlank = getPrevBlankPos s.newPos tokens in
+          let newPos =
+            match key with
+            | K.Tab ->
+                nextBlank
+            | K.ShiftTab ->
+                prevBlank
+            | K.Enter ->
+                ti.startPos + acOffset
+            | K.Space ->
+                (* if new position is after next blank, stay in next blank *)
+                min nextBlank (ti.startPos + acOffset + 1)
+            | _ ->
+                s.newPos
+          in
+          let newState = moveTo newPos (acClear s) in
+          (newAST, newState)
+      | _ ->
+          fail "expression is missing or not a partial" )
+  | _ ->
+      (ast, s)
+
+
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ast * state =
   let s = recordAction "acEnter" s in
@@ -1775,6 +1816,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TNullToken _
   | TVariable _
   | TPartial _
+  | TRightPartial _
   | TFieldName _
   | TLetLHS _
   | TPatternInteger _
@@ -1867,6 +1909,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TNullToken _
   | TVariable _
   | TPartial _
+  | TRightPartial _
   | TFieldName _
   | TLetLHS _
   | TPatternNullToken _
@@ -2027,6 +2070,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFieldName _
   | TVariable _
   | TPartial _
+  | TRightPartial _
   | TString _
   | TPatternString _
   | TLetLHS _
@@ -2181,6 +2225,15 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
       ->
         acEnter ti ast s key
+    | K.Enter, L (TRightPartial (_, _), ti), _
+    | K.Enter, _, R (TRightPartial (_, _), ti)
+    | K.Space, L (TRightPartial (_, _), ti), _
+    | K.Space, _, R (TRightPartial (_, _), ti)
+    | K.Tab, L (TRightPartial (_, _), ti), _
+    | K.Tab, _, R (TRightPartial (_, _), ti)
+    | K.ShiftTab, L (TRightPartial (_, _), ti), _
+    | K.ShiftTab, _, R (TRightPartial (_, _), ti) ->
+        acEnterRightPartial ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
@@ -2255,9 +2308,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Ampersand, L (_, toTheLeft), _
     | K.Pipe, L (_, toTheLeft), _
       when onEdge ->
-        let posOffset = if key = K.Ampersand || key = K.Pipe then 4 else 3 in
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
-        , s |> moveTo (pos + posOffset) )
+        , s |> moveTo (pos + 2) )
     (* End of line *)
     | K.Enter, _, R (TNewline, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
