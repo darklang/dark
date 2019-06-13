@@ -351,42 +351,48 @@ let generate
     (*     [] *)
   in
   let patterns =
+    let alreadyHasPatterns =
+      List.any
+        ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
+        a.allCompletions
+    in
+    let isInvalidPatternName patStr =
+      [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
+      |> List.member ~value:patStr
+    in
     match ti.token with
     | TPatternBlank (mid, pmid) | TPatternVariable (mid, pmid, _) ->
         (* add standard patterns to autocomplete *)
         (* if patterns are in the autocomplete already, don't bother creating
          * new FACPatterns with different mids and pids *)
-        ( ( if List.any
-                 ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
-                 a.allCompletions
-          then a.allCompletions
-          else
-            (* since patterns have no partial but commit as variables
+        ( if alreadyHasPatterns
+        then
+          a.allCompletions
+          |> List.filter ~f:(fun c ->
+                 (* filter out local variables, specifically the query variable *)
+                 match c with FACPattern (FPAVariable _) -> false | _ -> true
+             )
+        else
+          (* since patterns have no partial but commit as variables
            * automatically, include variable in autocomplete items *)
-            [ FPABool (mid, gid (), true)
-            ; FPABool (mid, gid (), false)
-            ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
-            ; FPAConstructor (mid, gid (), "Nothing", [])
-            ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
-            ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
-            ; FPANull (mid, gid ()) ]
-            |> List.map ~f:(fun x -> FACPattern x) )
-        |> List.filter ~f:(fun c ->
-               (* filter out local variables *)
-               match c with FACPattern (FPAVariable _) -> false | _ -> true )
-        )
+          [ FPABool (mid, gid (), true)
+          ; FPABool (mid, gid (), false)
+          ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
+          ; FPAConstructor (mid, gid (), "Nothing", [])
+          ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
+          ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
+          ; FPANull (mid, gid ()) ]
+          |> List.map ~f:(fun x -> FACPattern x) )
         @
         (* add autocomplete query string to autocomplete as variable,
          * but only if the query is not empty or equals to standard constructor
          * /boolean name*)
-        if [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
-           |> List.member ~value:queryString
-           |> not
-        then
+        if isInvalidPatternName queryString
+        then []
+        else
           (* query string variable should share the same pmid as the
            * pattern blank or existing pattern variable *)
           [FACPattern (FPAVariable (mid, pmid, queryString))]
-        else []
     | _ ->
         []
   in
