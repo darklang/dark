@@ -2404,33 +2404,36 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~currentResults ti : Types.msg Html.html =
+let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
+  let returnTipe name =
+    let fn = Functions.findByNameInList name state.ac.functions in
+    Runtime.tipe2str fn.fnReturnTipe
+  in
   let sentToRail id =
     let dv =
       StrDict.get ~key:(deID id) currentResults.liveValues
       |> Option.withDefault ~default:DNull
     in
     match dv with
-    | DErrorRail (DOption OptNothing) | DErrorRail (DResult (ResError _)) ->
-        true
+    | DErrorRail (DResult (ResError _)) | DErrorRail (DOption OptNothing) ->
+        "ErrorRail"
+    | DIncomplete | DError _ ->
+        "EvalFail"
     | _ ->
-        false
+        ""
   in
   match ti.token with
-  | TFnName (id, _, Rail) ->
-      Html.span
-        [Html.class' "error-indicator"]
-        [ Html.span
-            [ Html.class' "error-icon"
-            ; Vdom.prop "data-sent-to-rail" (sentToRail id |> string_of_bool)
-            ]
-            [] ]
+  | TFnName (id, name, Rail) ->
+      let offset = string_of_int ti.startRow ^ "rem" in
+      let cls = ["error-indicator"; returnTipe name; sentToRail id] in
+      Html.div
+        [Html.class' (String.join ~sep:" " cls); Html.styles [("top", offset)]]
+        []
   | _ ->
       Vdom.noNode
 
 
-let toHtml ~currentResults ~state (l : tokenInfo list) :
-    Types.msg Html.html list =
+let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2439,7 +2442,6 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
         then viewAutocomplete state.ac
         else Vdom.noNode
       in
-      let errorIndicator = viewErrorIndicator ~currentResults ti in
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
@@ -2450,7 +2452,7 @@ let toHtml ~currentResults ~state (l : tokenInfo list) :
           ]
           ([Html.text content] @ nested)
       in
-      [element [dropdown ()]; errorIndicator] )
+      [element [dropdown ()]] )
   |> List.flatten
 
 
@@ -2504,6 +2506,16 @@ let viewAST
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in
+  let errorRail =
+    let indicators =
+      tokenInfos
+      |> List.map ~f:(fun ti -> viewErrorIndicator ~currentResults ~state ti)
+    in
+    let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
+    Html.div
+      [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
+      indicators
+  in
   [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
   ; Html.div
       [ Attrs.id editorID
@@ -2511,7 +2523,8 @@ let viewAST
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (tokenInfos |> toHtml ~currentResults ~state) ]
+      (tokenInfos |> toHtml ~state)
+  ; errorRail ]
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =

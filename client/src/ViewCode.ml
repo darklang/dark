@@ -197,19 +197,7 @@ and viewNExpr
         viewExpr d_ {vs with tooWide = true} c e_
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
-      let fn =
-        vs.ac.functions
-        |> List.find ~f:(fun f -> f.fnName = name)
-        |> Option.withDefault
-             ~default:
-               { fnName = "fnLookupError"
-               ; fnParameters = []
-               ; fnDescription = "default, fn error"
-               ; fnReturnTipe = TError
-               ; fnPreviewExecutionSafe = true
-               ; fnInfix = false
-               ; fnDeprecated = false }
-      in
+      let fn = Functions.findByNameInList name vs.ac.functions in
       let previous =
         match vs.tl.data with
         | TLHandler h ->
@@ -228,9 +216,10 @@ and viewNExpr
       in
       (* buttons *)
       let allExprs = previous @ exprs in
+      let lvOf = ViewBlankOr.getLiveValue vs.currentResults.liveValues in
       let isComplete v =
         v
-        |> ViewBlankOr.getLiveValue vs.currentResults.liveValues
+        |> lvOf
         |> fun v_ ->
         match v_ with
         | None ->
@@ -298,9 +287,19 @@ and viewNExpr
         if sendToRail = NoRail
         then []
         else
+          let returnTipe = Runtime.tipe2str fn.fnReturnTipe in
+          let eval =
+            match lvOf id with
+            | Some v ->
+                v |> Runtime.typeOf |> Runtime.tipe2str
+            | None ->
+                ""
+          in
           [ Html.div
-              [Html.class' "error-indicator"]
-              [Html.div [Html.class' "error-icon"] []] ]
+              [ Html.class'
+                  (String.join ~sep:" " ["error-indicator"; returnTipe; eval])
+              ]
+              [] ]
       in
       let fnname parens =
         ViewBlankOr.viewBlankOr
