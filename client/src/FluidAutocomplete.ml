@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 (* Dark *)
 module P = Pointer
@@ -73,6 +74,14 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match" )
+  | FACPattern p ->
+    ( match p with
+    | FPAVariable (_, _, name) | FPAConstructor (_, _, name, _) ->
+        name
+    | FPABool (_, _, v) ->
+        string_of_bool v
+    | FPANull _ ->
+        "null" )
 
 
 let asTypeString (item : autocompleteItem) : string =
@@ -85,9 +94,10 @@ let asTypeString (item : autocompleteItem) : string =
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
-  | FACVariable _ ->
+  | FACVariable _ | FACPattern (FPAVariable _) ->
       "variable"
-  | FACConstructorName (name, _) ->
+  | FACConstructorName (name, _) | FACPattern (FPAConstructor (_, _, name, _))
+    ->
       if name = "Just"
       then "(any) -> option"
       else if name = "Nothing"
@@ -104,8 +114,12 @@ let asTypeString (item : autocompleteItem) : string =
         |> RT.tipe2str
       in
       tipe ^ " literal"
+  | FACPattern (FPABool _) ->
+      "boolean literal"
   | FACKeyword _ ->
       "keyword"
+  | FACPattern (FPANull _) ->
+      "null"
 
 
 let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
@@ -285,7 +299,8 @@ let toQueryString (ti : tokenInfo) : string =
 (* Create the list *)
 (* ------------------------------------ *)
 
-let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
+let generate
+    (m : model) (a : autocomplete) ((tl, ti, _, queryString) : fullQuery) :
     autocomplete =
   let varnames, _dval =
     let id = FluidToken.tid ti.token in
@@ -325,15 +340,59 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (*   | Pattern -> *)
     (*     ( match dval with *)
     (*     | Some dv when RT.typeOf dv = TResult -> *)
-    (*         [ACConstructorName "Ok"; ACConstructorName "Error"] *)
+    (*         [FACConstructorName "Ok"; FACConstructorName "Error"] *)
     (*     | Some dv when RT.typeOf dv = TOption -> *)
-    (*         [ACConstructorName "Just"; ACConstructorName "Nothing"] *)
+    (*         [FACConstructorName "Just"; FACConstructorName "Nothing"] *)
     (*     | _ -> *)
     (*         constructors ) *)
     (*   | _ -> *)
     (*       [] ) *)
     (* | _ -> *)
     (*     [] *)
+  in
+  let patterns =
+    let alreadyHasPatterns =
+      List.any
+        ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
+        a.allCompletions
+    in
+    let newStandardPatterns mid =
+      (* if patterns are in the autocomplete already, don't bother creating
+        * new FACPatterns with different mids and pids *)
+      ( if alreadyHasPatterns
+      then a.allCompletions
+      else
+        [ FPABool (mid, gid (), true)
+        ; FPABool (mid, gid (), false)
+        ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
+        ; FPAConstructor (mid, gid (), "Nothing", [])
+        ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
+        ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
+        ; FPANull (mid, gid ()) ]
+        |> List.map ~f:(fun p -> FACPattern p) )
+      |> List.filter ~f:(fun c ->
+             (* filter out old query string variable *)
+             match c with FACPattern (FPAVariable _) -> false | _ -> true )
+    in
+    let isInvalidPatternVar str =
+      [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
+      |> List.member ~value:str
+      || str
+         |> String.dropRight ~count:(String.length str - 1)
+         |> String.isCapitalized
+    in
+    let newQueryVariable mid =
+      (* no Query variable if the query is empty or equals to standard constructor
+         * or boolean name *)
+      if isInvalidPatternVar queryString
+      then []
+      else [FACPattern (FPAVariable (mid, gid (), queryString))]
+    in
+    match ti.token with
+    | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
+        newQueryVariable mid @ newStandardPatterns mid
+    | _ ->
+        []
   in
   let exprs =
     (* if isExpression *)
@@ -349,7 +408,12 @@ let generate (m : model) (a : autocomplete) ((tl, ti, _, _) : fullQuery) :
     (* else [] *)
   in
   let items = extras @ exprs @ fields in
-  {a with allCompletions = items}
+  if patterns == []
+  then {a with allCompletions = items}
+  else
+    { a with
+      allCompletions = patterns
+    ; index = Some (a.index |> Option.withDefault ~default:0) }
 
 
 let filter
@@ -500,7 +564,7 @@ let selectUp (a : autocomplete) : autocomplete =
       a
 
 
-let documentationForItem (aci : autocompleteItem) : string option =
+let rec documentationForItem (aci : autocompleteItem) : string option =
   match aci with
   | FACFunction f ->
       let desc =
@@ -538,3 +602,13 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | FACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+  | FACPattern p ->
+    ( match p with
+    | FPAConstructor (_, _, name, args) ->
+        documentationForItem (FACConstructorName (name, List.length args))
+    | FPAVariable (_, _, name) ->
+        documentationForItem (FACVariable name)
+    | FPABool (_, _, var) ->
+        documentationForItem (FACLiteral (string_of_bool var))
+    | FPANull _ ->
+        Some "A 'null' literal" )

@@ -713,6 +713,23 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         ^ Types.show_fluidAutocompleteItem entry )
 
 
+let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
+  match entry with
+  | FACPattern p ->
+    ( match p with
+    | FPAConstructor (mID, patID, var, pats) ->
+        (FPConstructor (mID, patID, var, pats), String.length var + 1)
+    | FPAVariable (mID, patID, var) ->
+        (FPVariable (mID, patID, var), String.length var + 1)
+    | FPABool (mID, patID, var) ->
+        (FPBool (mID, patID, var), String.length (string_of_bool var) + 1)
+    | FPANull (mID, patID) ->
+        (FPNull (mID, patID), 4) )
+  | _ ->
+      fail
+        "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+
+
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
@@ -1583,14 +1600,30 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
   let s = recordAction "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
-      (ast, s)
+    ( match ti.token with
+    | TPatternVariable _ ->
+        (ast, moveToNextBlank ~pos:s.newPos ast s)
+    | _ ->
+        (ast, s) )
   | Some entry ->
       (* TODO: the correct thing is to decide on where to go based
        * on context: Enter stops at the end, space goes one space
        * ahead, tab goes to next blank *)
-      let newExpr, acOffset = acToExpr entry in
-      let id = Token.tid ti.token in
-      let newAST = replaceExpr ~newExpr id ast in
+      let newAST, acOffset =
+        match ti.token with
+        (* since patterns have no partial but commit as variables
+        * automatically, allow intermediate variables to
+        * be autocompletable to other expressions *)
+        | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
+            let newPat, acOffset = acToPattern entry in
+            let newAST = replacePattern ~newPat mID pID ast in
+            (newAST, acOffset)
+        | _ ->
+            let newExpr, acOffset = acToExpr entry in
+            let id = Token.tid ti.token in
+            let newAST = replaceExpr ~newExpr id ast in
+            (newAST, acOffset)
+      in
       let tokens = toTokens s newAST in
       let nextBlank = getNextBlankPos s.newPos tokens in
       let prevBlank = getPrevBlankPos s.newPos tokens in
@@ -1824,7 +1857,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
-  | TPatternBlank _ | TPatternConstructorName _ ->
+  | TPatternConstructorName (mID, id, _) ->
+      (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, s)
+  | TPatternBlank _ ->
       (ast, s)
 
 
@@ -2105,14 +2140,15 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Down, L (_, ti), _ when isAutocompleting ti s ->
         (ast, acMoveDown s)
     (* Autocomplete finish *)
-    | K.Enter, L (TPartial (_, _), ti), _
-    | K.Enter, _, R (TPartial (_, _), ti)
-    | K.Space, L (TPartial (_, _), ti), _
-    | K.Space, _, R (TPartial (_, _), ti)
-    | K.Tab, L (TPartial (_, _), ti), _
-    | K.Tab, _, R (TPartial (_, _), ti)
-    | K.ShiftTab, L (TPartial (_, _), ti), _
-    | K.ShiftTab, _, R (TPartial (_, _), ti) ->
+    | _, L (_, ti), _
+      when isAutocompleting ti s
+           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+      ->
+        acEnter ti ast s key
+    | _, _, R (_, ti)
+      when isAutocompleting ti s
+           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+      ->
         acEnter ti ast s key
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
@@ -2279,6 +2315,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   let newAST, newState =
     match msg with
     | FluidMouseClick ->
+      (* TODO: if mouseclick on blank put cursor at beginning of it *)
       ( match getCursorPosition () with
       | Some newPos ->
           updateMouseClick newPos ast s
