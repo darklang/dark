@@ -51,6 +51,11 @@ let defaultID2 = gid ()
 
 let defaultExpr = EBlank defaultID
 
+let aMatchExpr
+    ?(mID = defaultID) ?(patID = gid ()) ?(pattern = FPBlank (mID, patID)) () =
+  EMatch (mID, EVariable (gid (), "request"), [(pattern, EBool (gid (), true))])
+
+
 let defaultToplevel =
   { id = defaultTLID
   ; pos = Defaults.origin
@@ -75,12 +80,23 @@ let defaultTokenInfo =
   ; token = TBlank defaultID }
 
 
-let defaultFullQuery (m : model) (query : string) : AC.fullQuery =
-  let _, ti =
-    m.fluidState.ac.query
-    |> Option.withDefault ~default:(defaultTLID, defaultTokenInfo)
+let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
+    AC.fullQuery =
+  let ti =
+    match tl.data with
+    | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
+        ast
+        |> fromExpr m.fluidState
+        |> toTokens m.fluidState
+        |> List.head
+        |> Option.withDefault ~default:defaultTokenInfo
+    | _ ->
+        defaultTokenInfo
   in
-  (defaultToplevel, ti, None, query)
+  let _, ti =
+    m.fluidState.ac.query |> Option.withDefault ~default:(tl.id, ti)
+  in
+  (tl, ti, None, query)
 
 
 let fillingCS ?(tlid = defaultTLID) ?(_id = defaultID) () : cursorState =
@@ -181,8 +197,12 @@ let enteringDBType
     ()
 
 
-let enteringHandler ?(module_ : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~module_ ()] ()
+let enteringHandler ?(module_ : string option = None) ?(expr = defaultExpr) ()
+    : model =
+  defaultModel
+    ~cursorState:(fillingCS ())
+    ~handlers:[aHandler ~module_ ~expr ()]
+    ()
 
 
 (* AC targeting a tlid and pointer *)
@@ -195,6 +215,7 @@ let acFor
         let ti =
           fromExpr Defaults.defaultModel.fluidState expr
           |> toTokens Defaults.defaultModel.fluidState
+          |> List.filter ~f:(fun ti -> FluidToken.isAutocompletable ti.token)
           |> List.head
           |> Option.withDefault ~default:defaultTokenInfo
         in
@@ -222,20 +243,21 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
 
 let fromFluidACI (aci : fluidAutocompleteItem) : Types.autocompleteItem option
     =
-  Some
-    ( match aci with
-    | FACFunction f ->
-        ACFunction f
-    | FACConstructorName (name, _) ->
-        ACConstructorName name
-    | FACField name ->
-        ACField name
-    | FACVariable name ->
-        ACVariable name
-    | FACLiteral lit ->
-        ACLiteral lit
-    | FACKeyword kw ->
-        ACKeyword kw )
+  match aci with
+  | FACFunction f ->
+      Some (ACFunction f)
+  | FACConstructorName (name, _) ->
+      Some (ACConstructorName name)
+  | FACField name ->
+      Some (ACField name)
+  | FACVariable name ->
+      Some (ACVariable name)
+  | FACLiteral lit ->
+      Some (ACLiteral lit)
+  | FACKeyword kw ->
+      Some (ACKeyword kw)
+  | FACPattern _ ->
+      None
 
 
 let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
@@ -622,6 +644,25 @@ let () =
                 && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
                 )
               |> toEqual true ) ;
+          test "Pattern expressions are available in pattern blank" (fun () ->
+              let tlid = TLID "789" in
+              let mID = ID "1234" in
+              let patID = ID "456" in
+              let pattern = FPVariable (mID, patID, "o") in
+              let expr = aMatchExpr ~mID ~patID ~pattern () in
+              let m =
+                defaultModel
+                  ~cursorState:(fillingCS ~tlid ~_id:patID ())
+                  ~handlers:[aHandler ~tlid ~expr ()]
+                  ()
+                |> fun m -> {m with builtInFunctions = []}
+              in
+              expect
+                ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m
+                |> (fun x -> x.completions)
+                (* |> List.filter ~f:isStaticItem *)
+                |> List.map ~f:(fun x -> AC.asName x) )
+              |> toEqual ["o"; "Ok"; "Nothing"; "Error"] ) ;
           () ) ;
       () ) ;
   ()
