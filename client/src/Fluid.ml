@@ -2197,8 +2197,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + posOffset) )
     (* End of line *)
-    | K.Enter, _, R (TNewline, _) ->
-        (ast, moveOneRight pos s)
+    | K.Enter, _, R (TNewline, ti) ->
+        (ast, doRight ~pos ~next:mNext ti s)
     (* Let specific *)
     | K.Equals, _, R (TLetAssignment _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
