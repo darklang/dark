@@ -323,9 +323,7 @@ let qLiteral (s : string) : autocompleteItem option =
 
 (* allow : for parameter names. TODO: do better job parsing here *)
 
-let nonEventNameSafeCharacters = "[^-a-zA-Z0-9_./]"
-
-let nonHttpSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
+let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
 
 let httpNameValidator = "/[-a-zA-Z0-9$_@.&!*\"'(),%/:]*"
 
@@ -418,10 +416,6 @@ let cleanEventName (s : string) : string =
   s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
 
 
-let cleanHttpName (s : string) : string =
-  s |> stripChars nonHttpSafeCharacters |> removeExtraSlashes
-
-
 let cleanDBName (s : string) : string =
   s
   |> stripChars "[^a-zA-Z0-9_]"
@@ -458,7 +452,7 @@ let qHandler (s : string) : omniAction =
 
 
 let qHTTPHandler (s : string) : omniAction =
-  let name = cleanHttpName s in
+  let name = cleanEventName s in
   if name = ""
   then NewHTTPHandler None
   else if String.startsWith ~prefix:"/" name
