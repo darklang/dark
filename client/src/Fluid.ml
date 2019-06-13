@@ -2603,8 +2603,7 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
       let offset = string_of_int ti.startRow ^ "rem" in
       let cls = ["error-indicator"; returnTipe name; sentToRail id] in
       Html.div
-        [ Html.class' (String.join ~sep:" " cls)
-        ; Html.styles [("top", offset)] ]
+        [Html.class' (String.join ~sep:" " cls); Html.styles [("top", offset)]]
         []
   | _ ->
       Vdom.noNode
