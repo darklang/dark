@@ -11,7 +11,7 @@ module P = Pointer
 (* ------------------------- *)
 let traverse (fn : expr -> expr) (expr : expr) : expr =
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       expr
   | F (id, nexpr) ->
       F
@@ -47,7 +47,9 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
               let traversedCases =
                 cases |> List.map ~f:(fun (k, v) -> (k, fn v))
               in
-              Match (fn matchExpr, traversedCases) )
+              Match (fn matchExpr, traversedCases)
+          | FluidPartial (name, oldExpr) ->
+              FluidPartial (name, fn oldExpr) )
 
 
 (* -------------------------------- *)
@@ -60,7 +62,7 @@ let rec allData (expr : expr) : pointerData list =
   [e2ld expr]
   @
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -95,7 +97,9 @@ let rec allData (expr : expr) : pointerData list =
           |> List.map ~f:(fun (p, e) -> Pattern.allData p @ rl [e])
           |> List.concat
         in
-        matchData @ caseData )
+        matchData @ caseData
+    | FluidPartial (_, oldExpr) ->
+        allData oldExpr )
 
 
 let find (id : id) (expr : expr) : pointerData option =
@@ -114,14 +118,14 @@ let findExn (id : id) (expr : expr) : pointerData =
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         false
     | F (_, potential) ->
         if potential = var then true else false
   in
   let u = uses var in
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -158,7 +162,9 @@ let rec uses (var : varName) (expr : expr) : expr list =
         let replacements =
           cases |> List.map ~f:findReplacements |> List.concat
         in
-        u matchExpr @ replacements )
+        u matchExpr @ replacements
+    | FluidPartial (_, oldExpr) ->
+        u oldExpr )
 
 
 let rec replace_
@@ -275,7 +281,7 @@ let rec replace_
                  | Some currentPattern ->
                      let newBody =
                        match (currentPattern, newPattern) with
-                       | Partial _, _ | Blank _, _ | F (_, PLiteral _), _ ->
+                       | Blank _, _ | F (_, PLiteral _), _ ->
                            e
                        | F (_, PVariable c), F (_, PVariable n) ->
                            renameVariable c n e
@@ -309,7 +315,7 @@ let replace (search : pointerData) (replacement : pointerData) (expr : expr) :
 let children (expr : expr) : pointerData list =
   let ces exprs = List.map ~f:(fun e -> PExpr e) exprs in
   match expr with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       []
   | F (_, nexpr) ->
     ( match nexpr with
@@ -348,7 +354,9 @@ let children (expr : expr) : pointerData list =
                  ps @ [PExpr e] )
           |> List.concat
         in
-        PExpr matchExpr :: casePointers )
+        PExpr matchExpr :: casePointers
+    | FluidPartial (_, oldExpr) ->
+        [PExpr oldExpr] )
 
 
 (* Look through an AST for the expr with the id, then return its children. *)
@@ -358,7 +366,7 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
   then children expr
   else
     match expr with
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         []
     | F (_, nexpr) ->
       ( match nexpr with
@@ -390,7 +398,9 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
           let cCases =
             cases |> List.map ~f:Tuple2.second |> List.map ~f:co |> List.concat
           in
-          co matchExpr @ cCases )
+          co matchExpr @ cCases
+      | FluidPartial (_, oldExpr) ->
+          co oldExpr )
 
 
 (* ------------------------- *)
@@ -406,7 +416,7 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
   then Some haystack
   else
     match haystack with
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         None
     | F (_, nexpr) ->
       ( match nexpr with
@@ -436,7 +446,9 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
       | FeatureFlag (_, cond, a, b) ->
           fpowList [cond; a; b]
       | Match (matchExpr, cases) ->
-          fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second)) )
+          fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second))
+      | FluidPartial (_, oldExpr) ->
+          fpow oldExpr )
 
 
 let findParentOfWithin (id : id) (haystack : expr) : expr =
@@ -480,8 +492,10 @@ let rec listThreadBlanks (expr : expr) : id list =
         r cond @ r a @ r b
     | Match (matchExpr, cases) ->
         r matchExpr @ (cases |> List.map ~f:Tuple2.second |> rList)
+    | FluidPartial (_, oldExpr) ->
+        r oldExpr
   in
-  match expr with Partial _ | Blank _ -> [] | F (_, f) -> rn f
+  match expr with Blank _ -> [] | F (_, f) -> rn f
 
 
 let rec closeThreads (expr : expr) : expr =
@@ -736,7 +750,7 @@ let rec wrapInThread (id : id) (expr : expr) : expr =
         expr
     | F (_, _) ->
         B.newF (Thread [expr; B.new_ ()])
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         (* decide based on the displayed value, so flatten *)
         B.newF (Thread [expr])
   else traverse (wrapInThread id) expr
@@ -813,7 +827,7 @@ let ancestors (id : id) (expr : expr) : expr list =
     then walk
     else
       match exp with
-      | Partial _ | Blank _ ->
+      | Blank _ ->
           []
       | F (_, nexpr) ->
         ( match nexpr with
@@ -842,7 +856,9 @@ let ancestors (id : id) (expr : expr) : expr list =
         | Match (matchExpr, cases) ->
             reclist id exp walk (matchExpr :: List.map ~f:Tuple2.second cases)
         | Constructor (_, args) ->
-            reclist id exp walk args )
+            reclist id exp walk args
+        | FluidPartial (_, oldExpr) ->
+            rec_ id exp walk oldExpr )
   in
   rec_ancestors id [] expr
 
@@ -920,26 +936,24 @@ let rec clone (expr : expr) : expr =
           (c matchExpr, List.map ~f:(fun (k, v) -> (clonePattern k, c v)) cases)
     | Constructor (name, args) ->
         Constructor (cString name, cl args)
+    | FluidPartial (str, oldExpr) ->
+        FluidPartial (str, c oldExpr)
   in
   B.clone cNExpr expr
 
 
 let isDefinitionOf (var : varName) (exp : expr) : bool =
   match exp with
-  | Partial _ | Blank _ ->
+  | Blank _ ->
       false
   | F (_, e) ->
     ( match e with
     | Let (b, _, _) ->
-      (match b with Partial _ | Blank _ -> false | F (_, vb) -> vb = var)
+      (match b with Blank _ -> false | F (_, vb) -> vb = var)
     | Lambda (vars, _) ->
         vars
         |> List.any ~f:(fun v ->
-               match v with
-               | Partial _ | Blank _ ->
-                   false
-               | F (_, vb) ->
-                   vb = var )
+               match v with Blank _ -> false | F (_, vb) -> vb = var )
     | _ ->
         false )
 
@@ -955,7 +969,7 @@ let freeVariables (ast : expr) : (id * varName) list =
            match n with
            | PExpr boe ->
              ( match boe with
-             | Partial _ | Blank _ ->
+             | Blank _ ->
                  None
              | F (_, e) ->
                ( match e with
@@ -993,7 +1007,7 @@ let freeVariables (ast : expr) : (id * varName) list =
          match n with
          | PExpr boe ->
            ( match boe with
-           | Partial _ | Blank _ ->
+           | Blank _ ->
                None
            | F (id, e) ->
              ( match e with
@@ -1022,7 +1036,7 @@ let rec sym_exec
   let sexe = sym_exec ~trace in
   ignore
     ( match expr with
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         ()
     | F (_, Value _) ->
         ()
@@ -1034,7 +1048,7 @@ let rec sym_exec
           | F (_, name) ->
               sexe st rhs ;
               SymSet.add st ~value:name
-          | Partial _ | Blank _ ->
+          | Blank _ ->
               st
         in
         sexe bound body
@@ -1062,7 +1076,7 @@ let rec sym_exec
     | F (_, Match (matchExpr, cases)) ->
         let rec variables_in_pattern p =
           match p with
-          | Partial _ | Blank _ ->
+          | Blank _ ->
               []
           | F (_, PLiteral _) ->
               []
@@ -1080,7 +1094,9 @@ let rec sym_exec
     | F (_, ObjectLiteral exprs) ->
         exprs |> List.map ~f:Tuple2.second |> List.iter ~f:(sexe st)
     | F (_, Constructor (_, args)) ->
-        List.iter ~f:(sexe st) args ) ;
+        List.iter ~f:(sexe st) args
+    | F (_, FluidPartial (_, oldExpr)) ->
+        sexe st oldExpr ) ;
   trace expr st
 
 

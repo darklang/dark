@@ -78,7 +78,7 @@ let () =
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
   let blank = EBlank (gid ()) in
-  let aPartialVar = EPartial (gid (), "req") in
+  let aPartialVar = EPartial (gid (), "req", EBlank (gid ())) in
   let completelyEmptyLet =
     ELet (gid (), gid (), "", EBlank (gid ()), EBlank (gid ()))
   in
@@ -460,6 +460,8 @@ let () =
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       tp "insert partial" blank (insert 't' 0) ("t", 1) ;
       () ) ;
+  describe "Partials" (fun () -> (* "func 1 2" -> "fun_c_ 1 2" *)
+                                 ()) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
       t
@@ -600,7 +602,8 @@ let () =
       tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
       t
         "variable doesn't override if"
-        (ELet (gid (), gid (), "i", blank, EPartial (gid (), "i")))
+        (ELet
+           (gid (), gid (), "i", blank, EPartial (gid (), "i", EBlank (gid ()))))
         (presses ~wrap:false [K.Letter 'f'; K.Enter] 13)
         ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
@@ -893,12 +896,12 @@ let () =
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
-        (EPartial (gid (), "if"))
+        (EPartial (gid (), "if", EBlank (gid ())))
         (press K.Space 2)
         ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t
         "let moves to right place"
-        (EPartial (gid (), "let"))
+        (EPartial (gid (), "let", EBlank (gid ())))
         (press K.Enter 3)
         ("let *** = ___\n___", 4) ;
       t
@@ -936,7 +939,7 @@ let () =
       *)
       t
         "variable moves to right place"
-        (EPartial (gid (), "req"))
+        (EPartial (gid (), "req", EBlank (gid ())))
         (press K.Enter 3)
         ("request", 7) ;
       List.map
@@ -950,7 +953,7 @@ let () =
           in
           t
             ("constructor autocomplete works for " ^ con)
-            (EPartial (gid (), con))
+            (EPartial (gid (), con, EBlank (gid ())))
             (press K.Enter (String.length con))
             (con ^ blanks, 1 + String.length con) )
       |> ignore ;
@@ -1066,7 +1069,12 @@ let () =
       test "clicking away from autocomplete commits" (fun () ->
           expect
             (let ast =
-               ELet (gid (), gid (), "var", EPartial (gid (), "false"), blank)
+               ELet
+                 ( gid ()
+                 , gid ()
+                 , "var"
+                 , EPartial (gid (), "false", EBlank (gid ()))
+                 , blank )
              in
              moveTo 14 s
              |> (fun s ->
@@ -1083,12 +1091,22 @@ let () =
           |> toEqual "success" ) ;
       t
         "moving right off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add"), blank))
+        (ELet
+           ( gid ()
+           , gid ()
+           , "x"
+           , EPartial (gid (), "Int::add", EBlank (gid ()))
+           , blank ))
         (press ~wrap:false K.Right 16)
         ("let x = Int::add ___ ___\n___", 17) ;
       t
         "moving left off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add"), blank))
+        (ELet
+           ( gid ()
+           , gid ()
+           , "x"
+           , EPartial (gid (), "Int::add", EBlank (gid ()))
+           , blank ))
         (press ~wrap:false K.Left 8)
         ("let x = Int::add ___ ___\n___", 7) ;
       t

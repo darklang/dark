@@ -91,7 +91,9 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
           | Match (matchExpr, cases) ->
               Match (f matchExpr, List.map ~f:(fun (k, v) -> (k, f v)) cases)
           | Constructor (name, args) ->
-              Constructor (name, List.map ~f args) )
+              Constructor (name, List.map ~f args)
+          | FluidPartial (name, old_val) ->
+              FluidPartial (name, f old_val) )
 
 
 (* Example usage of traverse. See also AST.ml *)
@@ -189,6 +191,8 @@ let rec exec
         DIncomplete
     | Partial _ ->
         DIncomplete
+    | Filled (_, FluidPartial (_, expr)) ->
+        exe st expr
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in
         ( match data with
