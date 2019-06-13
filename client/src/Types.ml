@@ -140,6 +140,7 @@ and nExpr =
   | Match of expr * (pattern * expr) list
   | Constructor of string blankOr * expr list
   | FluidPartial of string * expr
+  | FluidRightPartial of string * expr
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -994,6 +995,7 @@ and fluidExpr =
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string * fluidExpr
+  | ERightPartial of id * string * fluidExpr
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list

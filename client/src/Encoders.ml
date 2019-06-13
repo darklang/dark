@@ -540,6 +540,8 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
       ev "Constructor" [blankOr string name; list e args]
   | FluidPartial (name, oldExpr) ->
       ev "FluidPartial" [string name; e oldExpr]
+  | FluidRightPartial (name, oldExpr) ->
+      ev "FluidRightPartial" [string name; e oldExpr]
 
 
 and pattern (p : Types.pattern) : Js.Json.t = blankOr nPattern p
