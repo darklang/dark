@@ -200,7 +200,9 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
     | FeatureFlag _ ->
         EOldExpr expr
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, fromExpr oldExpr) )
+        EPartial (id, str, fromExpr oldExpr)
+    | FluidRightPartial (str, oldExpr) ->
+        ERightPartial (id, str, fromExpr oldExpr) )
 
 
 let literalToString
@@ -285,6 +287,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str, oldVal) ->
       F (id, FluidPartial (str, toExpr oldVal))
+  | ERightPartial (id, str, oldVal) ->
+      F (id, FluidRightPartial (str, toExpr oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:toExpr exprs))
   | ERecord (id, pairs) ->
@@ -321,6 +325,7 @@ let eid expr : id =
   | ELet (id, _, _, _, _)
   | EIf (id, _, _, _)
   | EPartial (id, _, _)
+  | ERightPartial (id, _, _)
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
@@ -550,6 +555,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
       [TPartial (id, str)]
+  | ERightPartial (id, newOp, expr) ->
+      [nested expr; TSep; TPartial (id, newOp)]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -910,7 +917,6 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | EBlank _
     | EString _
     | EVariable _
-    | EPartial _
     | EBool _
     | ENull _
     | EFloat _ ->
@@ -934,6 +940,8 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         List.filterMap ~f:fe exprs |> List.head
     | EOldExpr _ ->
         None
+    | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
+        fe oldExpr
 
 
 let isEmpty (e : fluidExpr) : bool =
@@ -969,7 +977,6 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
       | EBlank _
       | EString _
       | EVariable _
-      | EPartial _
       | EBool _
       | ENull _
       | EFloat _ ->
@@ -999,6 +1006,10 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           List.filterMap ~f:fp exprs |> List.head
       | EOldExpr _ ->
           None
+      | EPartial (_, _, expr) ->
+          fp expr
+      | ERightPartial (_, _, expr) ->
+          fp expr
   in
   findParent' ~parent:None id ast
 
@@ -1013,7 +1024,6 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | EBlank _
   | EString _
   | EVariable _
-  | EPartial _
   | EBool _
   | ENull _
   | EFloat _ ->
@@ -1044,6 +1054,10 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       EConstructor (id, nameID, name, List.map ~f exprs)
   | EOldExpr _ ->
       expr
+  | EPartial (id, str, oldExpr) ->
+      EPartial (id, str, f oldExpr)
+  | ERightPartial (id, str, oldExpr) ->
+      ERightPartial (id, str, f oldExpr)
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
@@ -1241,6 +1255,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
+      let str = String.trim str in
       match e with
       | EPartial (id, _, oldVal) ->
           if str = ""
@@ -1433,7 +1448,6 @@ let addRecordRowToFront (id : id) (ast : ast) : ast =
 
 
 let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
-  (* TODO: does it go on the error rail? *)
   match char with
   | None ->
       ast
