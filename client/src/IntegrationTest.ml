@@ -662,7 +662,7 @@ let rename_pattern_variable (m : model) : testResult =
       fail ~f:show_nExpr expr
 
 
-let sending_to_rail_works (m : model) : testResult =
+let taking_off_rail_works (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
   | F (_, FnCall (F (_, "List::head_v1"), _, NoRail)) ->
@@ -870,8 +870,8 @@ let trigger (test_name : string) : integrationTestState =
         rename_function
     | "rename_pattern_variable" ->
         rename_pattern_variable
-    | "sending_to_rail_works" ->
-        sending_to_rail_works
+    | "taking_off_rail_works" ->
+        taking_off_rail_works
     | "feature_flag_in_function" ->
         feature_flag_in_function
     | "execute_function_works" ->
