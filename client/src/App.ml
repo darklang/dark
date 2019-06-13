@@ -26,6 +26,17 @@ let createBrowserId : string =
   BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
 
 
+let manageBrowserId : string =
+  (* Setting the browser id in session storage so it is stored per tab *)
+  match Dom.Storage.getItem "browserId" Dom.Storage.sessionStorage with
+  | Some browserId ->
+      browserId
+  | None ->
+      let newBrowserId = createBrowserId in
+      Dom.Storage.setItem "browserId" newBrowserId Dom.Storage.sessionStorage ;
+      newBrowserId
+
+
 let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
@@ -52,7 +63,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; origin = location.origin
     ; environment
     ; csrfToken
-    ; browserId = createBrowserId }
+    ; browserId = manageBrowserId }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
