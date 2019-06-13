@@ -232,23 +232,32 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     }
   }
 
-  .ast .error-indicator {
+  .error-indicator {
     position: absolute;
-    left: calc(#{"100% - 1$spacing-medium"});
-  }
+    left: calc(100% - 2ch);
+    width: 12px;
+    height: 12px;
+    background-size: cover;
 
-  .fncall {
-    .error-icon {
-      display: block;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      border: 1px solid lighten($black3, 20%);
-      background-color: transparent;
+    &.Option {
+      background-image: url("/icons/option_just.svg");
+
+      &.ErrorRail {
+        background-image: url("/icons/option_nothing.svg");
+      }
     }
 
-    &[data-live-value="<ErrorRail: Nothing>"] .error-icon {
-      background-color: lighten($black3, 20%);
+    &.Result {
+      background-image: url("/icons/result_ok.svg");
+
+      &.ErrorRail {
+        background-image: url("/icons/result_error.svg");
+      }
+    }
+
+    &.Result.EvalFail,
+    &.Option.EvalFail {
+      background-image: none;
     }
   }
 }

@@ -257,3 +257,17 @@ let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
   let params = List.filter ~f:(fun p -> p <> ufp) metadata.ufmParameters in
   let newM = {metadata with ufmParameters = params} in
   {uf with ufMetadata = newM}
+
+
+let findByNameInList (name : string) (functions : function_ list) : function_ =
+  functions
+  |> List.find ~f:(fun f -> f.fnName = name)
+  |> Option.withDefault
+       ~default:
+         { fnName = "fnLookupError"
+         ; fnParameters = []
+         ; fnDescription = "default, fn error"
+         ; fnReturnTipe = TError
+         ; fnPreviewExecutionSafe = true
+         ; fnInfix = false
+         ; fnDeprecated = false }

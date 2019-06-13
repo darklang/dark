@@ -6,7 +6,8 @@
   cursor: pointer;
   overflow: hidden;
 
-  .toplevel.selected &, .node.hovering & {
+  .toplevel.selected &,
+  .node.hovering & {
     overflow: visible;
   }
 

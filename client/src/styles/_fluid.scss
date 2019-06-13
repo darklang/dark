@@ -76,6 +76,8 @@ https://github.com/chriskempson/tomorrow-theme */
   color: $foreground;
   caret-color: $foreground;
   font-size: 13.33px;
+
+  display: inline-block;
   max-width: 200ch;
 
   &:focus {
@@ -228,22 +230,33 @@ since they are essentially both commands just acting upon different things. */
       }
     }
   }
+}
+
+.fluid-ast {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.fluid-error-rail {
+  display: none;
+  position: relative;
+  width: 20px;
+  margin-top: 4px;
+
+  border-left: 1px dotted lighten($black3, 20%);
+
+  &.show {
+    display: inline-block;
+  }
 
   .error-indicator {
-    position: absolute;
-    left: calc(100% - 1$spacing-medium);
+    left: 6px;
   }
+}
 
-  .error-icon {
-    display: block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 1px solid #6b6b6b;
-    background-color: transparent;
-  }
-
-  .error-icon[data-sent-to-rail="true"] {
-    background-color: #6b6b6b;
-  }
+/* Hide non-fluid rail for now until we get rid of non-fluid code */
+.handler-body > .fluid-ast + .rop-rail.active {
+  display: none;
 }
