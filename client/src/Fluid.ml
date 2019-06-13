@@ -2598,11 +2598,11 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
   in
   match ti.token with
   | TFnName (id, name, Rail) ->
-      let offset = float_of_int ti.startRow in
+      let offset = string_of_int ti.startRow ^ "rem" in
       let cls = ["error-indicator"; returnTipe name; sentToRail id] in
       Html.div
         [ Html.class' (String.join ~sep:" " cls)
-        ; Html.styles [("top", Js.Float.toString offset ^ "rem")] ]
+        ; Html.styles [("top", offset)] ]
         []
   | _ ->
       Vdom.noNode
