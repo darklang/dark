@@ -2593,6 +2593,8 @@ let viewErrorIndicator ~currentResults ~state ti : Types.msg Html.html =
     match dv with
     | DErrorRail (DResult (ResError _)) | DErrorRail (DOption OptNothing) ->
         "ErrorRail"
+    | DIncomplete | DError _ ->
+        "EvalFail"
     | _ ->
         ""
   in

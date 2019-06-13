@@ -254,6 +254,11 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
         background-image: url("/icons/result_error.svg");
       }
     }
+
+    &.Result.EvalFail,
+    &.Option.EvalFail {
+      background-image: none;
+    }
   }
 }
 
