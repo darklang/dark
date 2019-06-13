@@ -88,6 +88,8 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
     match nexpr with
     | FluidPartial (v, _) ->
         v
+    | FluidRightPartial (v, _) ->
+        v
     | Value v ->
         v
     | Variable name ->
