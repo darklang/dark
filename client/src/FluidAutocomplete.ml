@@ -389,7 +389,7 @@ let generate
       else [FACPattern (FPAVariable (mid, gid (), queryString))]
     in
     match ti.token with
-    | TPatternBlank (mid, _pmid) | TPatternVariable (mid, _pmid, _) ->
+    | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
         newQueryVariable mid @ newStandardPatterns mid
     | _ ->
         []
