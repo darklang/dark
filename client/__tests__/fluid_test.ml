@@ -550,11 +550,11 @@ let () =
         trueBool
         (press K.Plus 4)
         ("true +", 6) ;
-      (* tp *)
-      (*   "pressing pipe twice then space completes partial" *)
-      (*   trueBool *)
-      (*   (presses [K.Pipe; K.Pipe; K.Space] 4) *)
-      (*   ("true || ___", 8) ; *)
+      t
+        "pressing pipe twice then space completes partial"
+        trueBool
+        (presses [K.Pipe; K.Pipe; K.Space] 4)
+        ("true || ___", 8) ;
       (* t *)
       (*   "pressing backspace to clear partial reverts for blank rhs" *)
       (*   (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail))) *)
