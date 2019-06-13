@@ -1239,11 +1239,9 @@ let replaceVarInPattern
           let rec replaceNameInPattern pat =
             match pat with
             | FPVariable (_, id, varName) when varName = oldVarName ->
-              ( match newVarName with
-              | "" ->
-                  FPBlank (mID, id)
-              | _ ->
-                  FPVariable (mID, id, newVarName) )
+                if newVarName = ""
+                then FPBlank (mID, id)
+                else FPVariable (mID, id, newVarName)
             | FPConstructor (mID, id, name, patterns) ->
                 FPConstructor
                   (mID, id, name, List.map patterns ~f:replaceNameInPattern)
@@ -2209,7 +2207,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, right)
   | TPatternFloatPoint (mID, id) ->
       (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
-  | TPatternConstructorName (_, _, _) ->
+  | TPatternConstructorName _ ->
       (ast, s)
   | TPatternBlank (mID, pID) ->
       let newPat =
@@ -2217,7 +2215,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         then FPString (mID, newID, "")
         else if isNumber letterStr
         then FPInteger (mID, newID, letterStr |> safe_int_of_string)
-        else FPVariable (mID, pID, letterStr)
+        else FPVariable (mID, newID, letterStr)
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
@@ -2290,13 +2288,6 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | _ ->
         true
   in
-  (*let isAutocompletingNeighbors l r s =
-    match (l, r) with
-    | L (_, ti), _ | _, R (_, ti) ->
-        (isAutocompleting ti s)
-    | _ ->
-        false
-  in*)
   let newAST, newState =
     (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
