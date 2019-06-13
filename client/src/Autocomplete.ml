@@ -327,7 +327,7 @@ let nonEventNameSafeCharacters = "[^-a-zA-Z0-9$_@.&!*\"'(),%/:]"
 
 let httpNameValidator = "/[-a-zA-Z0-9$_@.&!*\"'(),%/:]*"
 
-let eventNameValidator = "[-a-zA-Z0-9_./]+"
+let eventNameValidator = "[-a-zA-Z0-9$_@.&!*\"'(),%/:]+"
 
 let varnameValidator = "[a-z_][a-zA-Z0-9_]*"
 
