@@ -1258,18 +1258,23 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       let str = String.trim str in
       match e with
       | EPartial (id, _, oldVal) ->
-          if str = ""
-          then
-            (* Remove partials which provide no value *)
-            match oldVal with
-            | EPartial _ | EBlank _ ->
-                oldVal
-            | _ ->
-                EPartial (id, str, oldVal)
-          else EPartial (id, str, oldVal)
+          if str = "" then oldVal else EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then EBlank (gid ()) else EPartial (gid (), str, oldVal)
   )
+
+
+let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      let str = String.trim str in
+      match e with
+      | ERightPartial (id, _, oldVal) ->
+          if str = "" then oldVal else ERightPartial (id, str, oldVal)
+      | oldVal ->
+          (* This uses oldval, unlike replaceWithPartial, because when a
+           * partial goes to blank you're deleting it, while when a
+           * rightPartial goes to blank you've only deleted the rhs *)
+          if str = "" then oldVal else EPartial (gid (), str, oldVal) )
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -1326,7 +1331,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TPartial (id, str) ->
       replaceWithPartial (f str) id ast
   | TRightPartial (id, str) ->
-      replaceWithPartial (f str) id ast
+      replaceWithRightPartial (f str) id ast
   | TFieldName (id, str) ->
       replaceFieldName (f str) id ast
   | TTrue id ->
@@ -2183,6 +2188,18 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | _ ->
         true
   in
+  let infixKeys =
+    [ K.Plus
+    ; K.Percent
+    ; K.Minus
+    ; K.Plus
+    ; K.Multiply
+    ; K.ForwardSlash
+    ; K.LessThan
+    ; K.GreaterThan
+    ; K.Ampersand
+    ; K.Pipe ]
+  in
   let newAST, newState =
     (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
@@ -2296,18 +2313,11 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
-    | K.Plus, L (TString (id, _str), _), _ ->
-        (convertToStringAppend id ast, s |> moveTo (pos + 4))
-    | K.Percent, L (_, toTheLeft), _
-    | K.Minus, L (_, toTheLeft), _
-    | K.Plus, L (_, toTheLeft), _
-    | K.Multiply, L (_, toTheLeft), _
-    | K.ForwardSlash, L (_, toTheLeft), _
-    | K.LessThan, L (_, toTheLeft), _
-    | K.GreaterThan, L (_, toTheLeft), _
-    | K.Ampersand, L (_, toTheLeft), _
-    | K.Pipe, L (_, toTheLeft), _
-      when onEdge ->
+    | key, L (TRightPartial (_, _), toTheLeft), _
+      when List.member ~value:key infixKeys ->
+        doInsert ~pos keyChar toTheLeft ast s
+    | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys
+      ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* End of line *)
