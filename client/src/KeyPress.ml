@@ -314,7 +314,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                   NoChange
               | Some id ->
                   let pd = TL.findExn tl id in
-                  Refactor.toggleOnRail m tl pd
+                  if event.shiftKey
+                  then Refactor.takeOffRail m tl pd
+                  else Refactor.putOnRail m tl pd
             else NoChange
         | Key.O ->
             if event.altKey then CenterCanvasOn tlid else NoChange
@@ -378,7 +380,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Filling (tlid, id) ->
                 let tl = TL.getExn m tlid in
                 let pd = TL.findExn tl id in
-                Refactor.toggleOnRail m tl pd )
+                if event.shiftKey
+                then Refactor.takeOffRail m tl pd
+                else Refactor.putOnRail m tl pd )
           | _ ->
               NoChange
         else (
