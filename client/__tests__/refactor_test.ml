@@ -77,12 +77,12 @@ let () =
             | _ ->
                 false
           in
-          expect res |> toEqual true )
-      (* test "does not put non-error-rail-y function onto rail" (fun () ->
+          expect res |> toEqual true ) ;
+      test "does not put non-error-rail-y function onto rail" (fun () ->
           let m, tl, pd = init "Int::notResulty" NoRail in
           let op = Refactor.putOnRail m tl pd in
           let res = match op with NoChange -> true | _ -> false in
-          expect res |> toEqual true )  *)
+          expect res |> toEqual true ) ;
   ) ;
   describe "renameDBReferences" (fun () ->
       let db0 =
