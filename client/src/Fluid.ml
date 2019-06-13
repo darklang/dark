@@ -1858,6 +1858,18 @@ let doRight
         moveOneRight startingPos s
 
 
+let doEnter
+    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
+    state =
+  let s = recordAction ~pos "doEnter" s in
+  match next with
+  (* if next token is indented *)
+  | Some n when n.startPos > current.endPos ->
+      moveToStart n s
+  | _ ->
+      moveOneRight pos s
+
+
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction "doUp" s in
   let tokens = toTokens s ast in
@@ -2193,8 +2205,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + posOffset) )
     (* End of line *)
-    | K.Enter, _, R (TNewline, _) ->
-        (ast, moveOneRight pos s)
+    | K.Enter, _, R (TNewline, ti) ->
+        (ast, doEnter ~pos ~next:mNext ti s)
     (* Let specific *)
     | K.Equals, _, R (TLetAssignment _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)

@@ -175,6 +175,15 @@ let () =
   let aBlankField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
   in
+  let indentedIfElse =
+    ELet
+      ( gid ()
+      , gid ()
+      , "var"
+      , EIf
+          (gid (), EBlank (gid ()), EInteger (gid (), 6), EInteger (gid (), 7))
+      , EVariable (gid (), "var") )
+  in
   let m =
     let fnParam (name : string) (t : tipe) (opt : bool) : Types.parameter =
       { paramName = name
@@ -1004,8 +1013,19 @@ let () =
       t
         "enter at the end of a line goes to start of next line"
         nonEmptyLet
-        (press K.Enter 11)
+        (press ~wrap:false K.Enter 11)
         ("let *** = 6\n5", 12) ;
+      t
+        "enter at the end of a line goes to first non-whitespace token"
+        indentedIfElse
+        (press ~wrap:false K.Enter 16)
+        ( "let var = if ___\n"
+          ^ "          then\n"
+          ^ "            6\n"
+          ^ "          else\n"
+          ^ "            7\n"
+          ^ "var"
+        , 27 ) ;
       t
         "end of if-then blank goes up properly"
         emptyIf
