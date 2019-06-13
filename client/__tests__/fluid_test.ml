@@ -540,21 +540,21 @@ let () =
         trueBool
         (press K.Pipe 4)
         ("true |", 6) ;
-      (* tp *)
-      (*   "pressing pipe twice then space completes partial" *)
-      (*   trueBool *)
-      (*   (presses [K.Pipe; K.Pipe; K.Space] 4) *)
-      (*   ("true || ___", 8) ; *)
       t
         "pressing then enter completes partial"
         trueBool
         (presses [K.Pipe; K.Enter] 4)
         ("true || ___", 8) ;
+      tp
+        "pressing plus key starts partial"
+        trueBool
+        (press K.Plus 4)
+        ("true +", 6) ;
       (* tp *)
-      (*   "pressing plus key starts partial" *)
+      (*   "pressing pipe twice then space completes partial" *)
       (*   trueBool *)
-      (*   (press K.Plus 4) *)
-      (*   ("true + ___", 6) ; *)
+      (*   (presses [K.Pipe; K.Pipe; K.Space] 4) *)
+      (*   ("true || ___", 8) ; *)
       (* t *)
       (*   "pressing backspace to clear partial reverts for blank rhs" *)
       (*   (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail))) *)
