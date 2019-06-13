@@ -152,10 +152,10 @@ let () =
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
-  let aFullBinOp =
-    EBinOp
-      (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail)
-  in
+  (* let aFullBinOp = *)
+  (*   EBinOp *)
+  (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
+  (* in *)
   let aConstructor =
     EConstructor (gid (), gid (), "Just", [EBlank (gid ())])
   in
@@ -205,6 +205,13 @@ let () =
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TBool
           ; fnDescription = "Returns true if the two value are equal"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
+        ; { fnName = "||"
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if either value is true"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = true }
@@ -260,7 +267,11 @@ let () =
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
-          match ti.token with TPartial _ -> true | _ -> false )
+          match ti.token with
+          | TRightPartial _ | TPartial _ ->
+              true
+          | _ ->
+              false )
     in
     ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
   in
@@ -518,11 +529,49 @@ let () =
         ("___", 0) ;
       () ) ;
   describe "Binops" (fun () ->
-      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ;
-      (* "func 1 2" -> "fun 1 2" *)
+      (* let aBoolBinOp = *)
+      (*   EBinOp *)
+      (*     (gid (), "||", EBool (gid (), false), EBool (gid (), true), NoRail) *)
+      (* in *)
+      (* let anEditedBinOp = EPartial (gid (), "|", aBoolBinOp) in *)
+      (* TODO "func 1 2" -> "fun 1 2" *)
+      tp
+        "pressing pipe key starts partial"
+        trueBool
+        (press K.Pipe 4)
+        ("true |", 6) ;
+      (* tp *)
+      (*   "pressing pipe twice then space completes partial" *)
+      (*   trueBool *)
+      (*   (presses [K.Pipe; K.Pipe; K.Space] 4) *)
+      (*   ("true || ___", 8) ; *)
+      t
+        "pressing then enter completes partial"
+        trueBool
+        (presses [K.Pipe; K.Enter] 4)
+        ("true || ___", 8) ;
+      (* tp *)
+      (*   "pressing plus key starts partial" *)
+      (*   trueBool *)
+      (*   (press K.Plus 4) *)
+      (*   ("true + ___", 6) ; *)
+      (* t *)
+      (*   "pressing backspace to clear partial reverts for blank rhs" *)
+      (*   (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail))) *)
+      (*   (press K.Backspace 4) *)
+      (*   ("4", 1) ; *)
+      (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
+      (* t *)
+      (*   "show full ghost partial" *)
+      (*   aBoolBinOp *)
+      (*   (presses [K.Backspace; K.Backspace] 8) *)
+      (*   ("false @@ true", 6) ; *)
+      (*  *)
+      
       (* "true && false" -> "true & false" -> "true ___ false" -> "true | false" -> "true || false" *)
       (* "3 + 4" -> "3 ___ 4" -> "3 + 4" *)
       (* backspace on empty partial does something *)
+      (* pressing enter at the end of the partialGhost *)
       
       (* t *)
       (*   "add a binop at the end of a var" *)
@@ -530,31 +579,31 @@ let () =
       (*   (press K.Percent 1) *)
       (*   ("v % ___", 4) ; *)
       (* TODO: disable *)
-      t
-        "delete on a binop deletes function"
-        aFullBinOp
-        (press K.Delete 6)
-        ("___", 5) ;
+      (* t *)
+      (*   "delete on a binop deletes function" *)
+      (*   aFullBinOp *)
+      (*   (press K.Delete 6) *)
+      (*   ("___", 5) ; *)
+      (* (* TODO: disable *) *)
+      (* t *)
+      (*   "plus becomes ++ (String::append) if left is a string" *)
+      (*   oneCharStr *)
+      (*   (press K.Plus 3) *)
+      (*   ("\"c\" ++ ___", 7) ; *)
       (* TODO: disable *)
-      t
-        "plus becomes ++ (String::append) if left is a string"
-        oneCharStr
-        (press K.Plus 3)
-        ("\"c\" ++ ___", 7) ;
+      (* t *)
+      (*   "plus becomes + (Int::add) for non strings" *)
+      (*   aShortInt *)
+      (*   (press K.Plus 1) *)
+      (*   ("1 + ___", 4) ; *)
       (* TODO: disable *)
-      t
-        "plus becomes + (Int::add) for non strings"
-        aShortInt
-        (press K.Plus 1)
-        ("1 + ___", 4) ;
+      (* t *)
+      (*   "& becomes && (Bool::and)" *)
+      (*   trueBool *)
+      (*   (press K.Ampersand 4) *)
+      (*   ("true && ___", 8) ; *)
       (* TODO: disable *)
-      t
-        "& becomes && (Bool::and)"
-        trueBool
-        (press K.Ampersand 4)
-        ("true && ___", 8) ;
-      (* TODO: disable *)
-      t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ;
+      (* t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ; *)
       () ) ;
   describe "Constructors" (fun () ->
       t
@@ -1113,11 +1162,6 @@ let () =
            , blank ))
         (press ~wrap:false K.Left 8)
         ("let x = Int::add ___ ___\n___", 7) ;
-      t
-        "pressing + commits the partial"
-        (ELet (gid (), gid (), "x", blank, EVariable (gid (), "x")))
-        (press ~wrap:false K.Plus 13)
-        ("let x = ___\nx + ___", 16) ;
       test "escape hides autocomplete" (fun () ->
           expect
             (let ast = blank in
