@@ -5,8 +5,8 @@ module B = Blank
 
 let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
     =
-  let space_ = match space with F (_, s) -> s | Partial _ | Blank _ -> "_" in
-  let name_ = match name with F (_, n) -> n | Partial _ | Blank _ -> "_" in
+  let space_ = match space with F (_, s) -> s | Blank _ -> "_" in
+  let name_ = match name with F (_, n) -> n | Blank _ -> "_" in
   space_ ^ ":" ^ name_
 
 
@@ -18,7 +18,7 @@ let dbsByName (toplevels : toplevel list) : tlid StrDict.t =
         ( match db.dbName with
         | F (_, name) ->
             StrDict.insert ~key:name ~value:tl.id res
-        | Partial _ | Blank _ ->
+        | Blank _ ->
             res )
       | _ ->
           res )
@@ -267,14 +267,14 @@ let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
     | F (_, dbname) ->
         let value = DBMeta (dbname, dB.cols) in
         StrDict.insert ~key ~value meta
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         meta )
   | TLFunc f ->
     ( match f.ufMetadata.ufmName with
     | F (_, name) ->
         let value = FunctionMeta (name, f.ufMetadata.ufmParameters) in
         StrDict.insert ~key ~value meta
-    | Partial _ | Blank _ ->
+    | Blank _ ->
         meta )
   | TLTipe _ ->
       meta

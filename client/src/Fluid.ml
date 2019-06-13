@@ -60,9 +60,7 @@ type ast = fluidExpr [@@deriving show]
 type state = Types.fluidState
 
 let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
-  let varToName var =
-    match var with Blank _ -> "" | Partial (_, name) | F (_, name) -> name
-  in
+  let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
       | `Int of int
@@ -108,8 +106,6 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
   match expr with
   | Blank id ->
       EBlank id
-  | Partial (id, v) ->
-      EPartial (id, v)
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
@@ -173,8 +169,6 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
           match p with
           | Blank id ->
               FPBlank (mid, id)
-          | Partial (id, name) ->
-              FPVariable (mid, id, name)
           | F (id, np) ->
             ( match np with
             | PVariable name ->
@@ -204,7 +198,9 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         in
         EMatch (id, fromExpr mexpr, pairs)
     | FeatureFlag _ ->
-        EOldExpr expr )
+        EOldExpr expr
+    | FluidPartial (str, oldExpr) ->
+        EPartial (id, str, fromExpr oldExpr) )
 
 
 let literalToString
@@ -287,8 +283,8 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
       F (id, Let (F (lhsID, lhs), toExpr rhs, toExpr body))
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
-  | EPartial (id, str) ->
-      Partial (id, str)
+  | EPartial (id, str, oldVal) ->
+      F (id, FluidPartial (str, toExpr oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:toExpr exprs))
   | ERecord (id, pairs) ->
@@ -324,7 +320,7 @@ let eid expr : id =
   | EBlank id
   | ELet (id, _, _, _, _)
   | EIf (id, _, _, _)
-  | EPartial (id, _)
+  | EPartial (id, _, _)
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
@@ -442,7 +438,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
-  | EPartial (id, str) ->
+  | EPartial (id, str, _) ->
+      (* TODO: show the partial's old value *)
       [TPartial (id, str)]
   | ELet (id, _, lhs, rhs, next) ->
       [ TLetKeyword id
@@ -711,11 +708,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
       (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
   | _ ->
-      let str =
-        "TODO: autocomplete result for "
-        ^ Types.show_fluidAutocompleteItem entry
-      in
-      (EPartial (gid (), str), String.length str)
+      fail
+        ( "disallowed autocomplete value: "
+        ^ Types.show_fluidAutocompleteItem entry )
 
 
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
@@ -1220,6 +1215,16 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           fail "not a record" )
 
 
+let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EPartial (id, _, oldVal) ->
+          if str = "" then oldVal else EPartial (id, str, oldVal)
+      | oldVal ->
+          if str = "" then EBlank (gid ()) else EPartial (gid (), str, oldVal)
+  )
+
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1270,27 +1275,17 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TLambdaVar (id, index, str) ->
       replaceLamdaVar ~index str (f str) id ast
   | TVariable (id, str) ->
-      let str = f str in
-      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
-      replaceExpr id ~newExpr ast
+      replaceWithPartial (f str) id ast
   | TPartial (id, str) ->
-      let str = f str in
-      let newExpr = if str = "" then EBlank id else EPartial (id, str) in
-      replaceExpr id ~newExpr ast
+      replaceWithPartial (f str) id ast
   | TFieldName (id, str) ->
       replaceFieldName (f str) id ast
   | TTrue id ->
-      let str = f "true" in
-      let newExpr = EPartial (gid (), str) in
-      replaceExpr id ~newExpr ast
+      replaceWithPartial (f "true") id ast
   | TFalse id ->
-      let str = f "false" in
-      let newExpr = EPartial (gid (), str) in
-      replaceExpr id ~newExpr ast
+      replaceWithPartial (f "false") id ast
   | TNullToken id ->
-      let str = f "null" in
-      let newExpr = EPartial (gid (), str) in
-      replaceExpr id ~newExpr ast
+      replaceWithPartial (f "null") id ast
   | _ ->
       fail "not supported by replaceToken"
 
@@ -1911,7 +1906,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     then EBlank newID (* new separators *)
     else if isNumber letterStr
     then EInteger (newID, letterStr |> safe_int_of_string)
-    else EPartial (newID, letterStr)
+    else EPartial (newID, letterStr, EBlank (gid ()))
   in
   match ti.token with
   | (TFieldName (id, _) | TVariable (id, _))

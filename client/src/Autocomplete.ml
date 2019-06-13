@@ -567,7 +567,7 @@ let tlDestinations (m : model) : autocompleteItem list =
     List.filterMap
       ~f:(fun fn ->
         match fn.ufMetadata.ufmName with
-        | Partial _ | Blank _ ->
+        | Blank _ ->
             None
         | F (_, name) ->
             Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )

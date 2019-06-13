@@ -373,7 +373,7 @@ let viewBlankOr
     match bo with
     | F (id, fill) ->
         drawFilled id fill
-    | Partial (id, _) | Blank id ->
+    | Blank id ->
         drawBlank id
   in
   match vs.cursorState with

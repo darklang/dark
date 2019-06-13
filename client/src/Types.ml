@@ -38,8 +38,6 @@ and id = ID of string
 
 and 'a blankOr =
   | Blank of id
-  (* A partial is only used by Fluid *)
-  | Partial of id * string
   | F of id * 'a
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
@@ -141,6 +139,7 @@ and nExpr =
   | FeatureFlag of string blankOr * expr * expr * expr
   | Match of expr * (pattern * expr) list
   | Constructor of string blankOr * expr list
+  | FluidPartial of string * expr
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -987,7 +986,7 @@ and fluidExpr =
   | EFieldAccess of id * fluidExpr * id * fluidName
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
-  | EPartial of id * string
+  | EPartial of id * string * fluidExpr
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
