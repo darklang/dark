@@ -1264,10 +1264,9 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       let str = String.trim str in
       match e with
       | EPartial (id, _, oldVal) ->
-          if str = "" then oldVal else EPartial (id, str, oldVal)
+          if str = "" then newB () else EPartial (id, str, oldVal)
       | oldVal ->
-          if str = "" then EBlank (gid ()) else EPartial (gid (), str, oldVal)
-  )
+          if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
 
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
