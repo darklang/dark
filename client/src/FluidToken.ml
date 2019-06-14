@@ -318,27 +318,32 @@ let toText (t : token) : string =
 
 
 let toTestText (t : token) : string =
-  match t with
-  | TPlaceholder ((name, tipe), _) ->
-      let count = 1 + String.length name + 3 + String.length tipe + 1 in
-      Caml.String.make count '_'
-  | TBlank _ ->
-      "___"
-  | TPartialGhost (_, str) ->
-    ( match String.length str with
-    | 0 ->
-        "@EMPTY@"
-    | 1 ->
-        "@"
-    | 2 ->
-        "@@"
+  let result =
+    match t with
+    | TPlaceholder ((name, tipe), _) ->
+        let count = 1 + String.length name + 3 + String.length tipe + 1 in
+        Caml.String.make count '_'
+    | TBlank _ ->
+        "___"
+    | TPartialGhost (_, str) ->
+      ( match String.length str with
+      | 0 ->
+          "@EMPTY@"
+      | 1 ->
+          "@"
+      | 2 ->
+          "@@"
+      | _ ->
+          let str =
+            str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+          in
+          "@" ^ str ^ "@" )
     | _ ->
-        let str =
-          str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
-        in
-        "@" ^ str ^ "@" )
-  | _ ->
-      if isBlank t then "***" else toText t
+        if isBlank t then "***" else toText t
+  in
+  if String.length result <> String.length (toText t)
+  then failwith "wrong length toTestText" ;
+  result
 
 
 let toTypeName (t : token) : string =
