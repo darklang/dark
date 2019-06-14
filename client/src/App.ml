@@ -1461,7 +1461,11 @@ let update_ (msg : msg) (m : model) : modification =
        *)
       let fluidMods =
         if VariantTesting.isFluid m.tests
-        then [SetCursorState (FluidEntering tlid)]
+        then
+          let s = m.fluidState in
+          let newS = {s with newPos = 0} in
+          [ TweakModel (fun m -> {m with fluidState = newS})
+          ; SetCursorState (FluidEntering tlid) ]
         else []
       in
       Many
