@@ -2434,6 +2434,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
+    | key, L (TPartial (_, _), toTheLeft), _
     | key, L (TRightPartial (_, _), toTheLeft), _
       when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheLeft ast s
