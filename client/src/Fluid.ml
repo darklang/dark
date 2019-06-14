@@ -1263,8 +1263,12 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       let str = String.trim str in
       match e with
+      | EPartial (id, _, (EBinOp (_, _, lhs, _, _) as oldVal)) ->
+          if str = "" then lhs else EPartial (id, str, oldVal)
       | EPartial (id, _, oldVal) ->
           if str = "" then newB () else EPartial (id, str, oldVal)
+      | EBinOp (_, _, lhs, _, _) ->
+          if str = "" then lhs else EPartial (gid (), str, e)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1279,7 +1283,7 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
           (* This uses oldval, unlike replaceWithPartial, because when a
            * partial goes to blank you're deleting it, while when a
            * rightPartial goes to blank you've only deleted the rhs *)
-          if str = "" then oldVal else EPartial (gid (), str, oldVal) )
+          if str = "" then oldVal else ERightPartial (gid (), str, oldVal) )
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -1828,8 +1832,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternFalse _
   | TNullToken _
   | TVariable _
-  | TPartial _
   | TRightPartial _
+  | TPartial _
   | TFieldName _
   | TLetLHS _
   | TPatternInteger _
