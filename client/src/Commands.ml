@@ -5,6 +5,7 @@ module TL = Toplevel
 
 (* commands *)
 let takeFunctionOffRail = "take-function-off-rail"
+
 let putFunctionOnRail = "put-function-on-rail"
 
 let executeCommand
@@ -21,6 +22,7 @@ let executeCommand
 
 let endCommandExecution (tlid : tlid) (id : id) : modification =
   Many [AutocompleteMod ACReset; Select (tlid, Some id)]
+
 
 let commands : command list =
   [ { commandName = "extract-function"
