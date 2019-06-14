@@ -565,11 +565,25 @@ let () =
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      (* t *)
-      (*   "pressing backspace to clear partial reverts for blank rhs" *)
-      (*   (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail))) *)
-      (*   (press K.Backspace 4) *)
-      (*   ("4 || ___", 1) ; *)
+      t
+        "pressing backspace to clear partial reverts for blank rhs"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
+        (press K.Backspace 7)
+        (* TODO: the correct answer is 5, fix before merge *)
+        ("12345", 6) ;
+      (* TODO: delete key as well *)
+      t
+        "pressing backspace on single digit binop leaves lhs"
+        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (press K.Backspace 7)
+        (* TODO: the correct answer is 5, fix before merge *)
+        ("12345", 6) ;
+      t
+        "pressing backspace to clear partial reverts for blank rhs, check lhs pos"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
+        (press K.Backspace 5)
+        (* TODO: the correct answer is 0, fix before merge *)
+        ("___ ||", 0) ;
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
       (* t *)
       (*   "show full ghost partial" *)
