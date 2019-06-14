@@ -760,9 +760,22 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
   && s.newPos >= ti.startPos
 
 
-let recordAction ?(pos = -1000) (action : string) (s : state) : state =
+let tiSentinel : tokenInfo =
+  { token = TSep
+  ; startPos = -1000
+  ; startRow = -1000
+  ; startCol = -1000
+  ; endPos = -1000
+  ; length = -1000 }
+
+
+let recordAction
+    ?(pos = -1000) ?(ti = tiSentinel) (action : string) (s : state) : state =
   let action =
     if pos = -1000 then action else action ^ " " ^ string_of_int pos
+  in
+  let action =
+    if ti = tiSentinel then action else action ^ " " ^ show_fluidToken ti.token
   in
   {s with actions = s.actions @ [action]}
 
@@ -1573,17 +1586,17 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
 
 
 let moveToEnd (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToEnd" s in
+  let s = recordAction ~ti "moveToEnd" s in
   setPosition ~resetUD:true s (ti.endPos - 1)
 
 
 let moveToStart (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~pos:ti.startPos "moveToStart" s in
+  let s = recordAction ~ti ~pos:ti.startPos "moveToStart" s in
   setPosition ~resetUD:true s ti.startPos
 
 
 let moveToAfter (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~pos:ti.endPos "moveToAfter" s in
+  let s = recordAction ~ti ~pos:ti.endPos "moveToAfter" s in
   setPosition ~resetUD:true s ti.endPos
 
 
@@ -1708,7 +1721,7 @@ let report (e : string) (s : state) =
 
 let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
     : ast * state =
-  let s = recordAction "acEnter" s in
+  let s = recordAction ~ti "acEnter" s in
   let id = Token.tid ti.token in
   let newExpr, offset =
     match (AC.highlighted s.ac, findExpr id ast) with
@@ -1757,7 +1770,7 @@ let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
 
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ast * state =
-  let s = recordAction "acEnter" s in
+  let s = recordAction ~ti "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
     ( match ti.token with
@@ -1825,7 +1838,7 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
 
 
 let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
-  let s = recordAction "acCompleteField" s in
+  let s = recordAction ~ti "acCompleteField" s in
   match AC.highlighted s.ac with
   | None ->
       (ast, s)
@@ -1840,7 +1853,7 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
-  let s = recordAction "doBackspace" s in
+  let s = recordAction ~ti "doBackspace" s in
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
@@ -1939,7 +1952,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
-  let s = recordAction "doDelete" s in
+  let s = recordAction ~ti "doDelete" s in
   let left s = moveOneLeft pos s in
   let offset = pos - ti.startPos in
   let newID = gid () in
@@ -2034,7 +2047,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~pos "doLeft" s in
+  let s = recordAction ~ti ~pos "doLeft" s in
   if Token.isAtom ti.token
   then moveToStart ti s
   else moveOneLeft (min pos ti.endPos) s
@@ -2043,7 +2056,7 @@ let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
 let doRight
     ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
     state =
-  let s = recordAction ~pos "doRight" s in
+  let s = recordAction ~ti:current ~pos "doRight" s in
   if Token.isAtom current.token
   then
     match next with
