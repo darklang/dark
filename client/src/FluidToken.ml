@@ -319,7 +319,10 @@ let toText (t : token) : string =
 
 let toTestText (t : token) : string =
   match t with
-  | TPlaceholder _ | TBlank _ ->
+  | TPlaceholder _ ->
+      (* TODO: set to 7 *)
+      "___"
+  | TBlank _ ->
       "___"
   | TPartialGhost (_, str) ->
     ( match String.length str with

@@ -1259,16 +1259,64 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           fail "not a record" )
 
 
+let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
+  let id = ref (ID "no-id") in
+  let ast =
+    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
+            id := eid lhs ;
+            lhs
+        | EPartial (_, _, _) ->
+            let b = newB () in
+            id := eid b ;
+            b
+        | _ ->
+            fail "not a partial" )
+  in
+  (ast, !id)
+
+
+let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
+  let id = ref (ID "no-id") in
+  let ast =
+    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EBinOp (_, _, lhs, _, _) ->
+            id := eid lhs ;
+            lhs
+        | _ ->
+            fail "not a binop" )
+  in
+  (ast, !id)
+
+
+let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
+  let id = ref (ID "no-id") in
+  let ast =
+    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | ERightPartial (_, _, oldVal) ->
+            id := eid oldVal ;
+            oldVal
+        | oldVal ->
+            id := eid oldVal ;
+            (* This uses oldval, unlike replaceWithPartial, because when a
+           * partial goes to blank you're deleting it, while when a
+           * rightPartial goes to blank you've only deleted the rhs *)
+            oldVal )
+  in
+  (ast, !id)
+
+
 let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       let str = String.trim str in
       match e with
-      | EPartial (id, _, (EBinOp (_, _, lhs, _, _) as oldVal)) ->
-          if str = "" then lhs else EPartial (id, str, oldVal)
       | EPartial (id, _, oldVal) ->
-          if str = "" then newB () else EPartial (id, str, oldVal)
-      | EBinOp (_, _, lhs, _, _) ->
-          if str = "" then lhs else EPartial (gid (), str, e)
+          if str = ""
+          then fail "replacing with empty partial, use delete partial instead" ;
+          EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1276,14 +1324,12 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       let str = String.trim str in
+      if str = "" then fail "replacing with empty right partial" ;
       match e with
       | ERightPartial (id, _, oldVal) ->
-          if str = "" then oldVal else ERightPartial (id, str, oldVal)
+          ERightPartial (id, str, oldVal)
       | oldVal ->
-          (* This uses oldval, unlike replaceWithPartial, because when a
-           * partial goes to blank you're deleting it, while when a
-           * rightPartial goes to blank you've only deleted the rhs *)
-          if str = "" then oldVal else ERightPartial (gid (), str, oldVal) )
+          ERightPartial (gid (), str, oldVal) )
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -1556,6 +1602,27 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
+(* Starting from somewhere after the location, move back until we reach the
+ * `target` expression, and return a state with it's location. If blank, will
+ * go to the start of the blank *)
+let moveBackTo (target : id) (ast : ast) (s : state) : state =
+  let s = recordAction "moveBackTo" s in
+  let tokens = toTokens s ast in
+  match
+    List.find (List.reverse tokens) ~f:(fun ti ->
+        FluidToken.tid ti.token = target )
+  with
+  | None ->
+      fail "cannot find token to moveBackTo"
+  | Some lastToken ->
+      let newPos =
+        if FluidToken.isBlank lastToken.token
+        then lastToken.startPos
+        else lastToken.endPos
+      in
+      moveTo newPos s
+
+
 let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
   tokens
   |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
@@ -1826,6 +1893,15 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePatternPointFromFloat mID id ast, left s)
   | TConstructorName (id, _) | TFnName (id, _, _) ->
       (deleteWithArguments id ast, moveToStart ti s)
+  | TRightPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteRightPartial ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deletePartial ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TBinOp (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteBinOp ti ast in
+      (ast, moveBackTo targetID ast s)
   | TString _
   | TPatternString _
   | TRecordField _
@@ -1836,13 +1912,13 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternFalse _
   | TNullToken _
   | TVariable _
-  | TRightPartial _
-  | TPartial _
   | TFieldName _
   | TLetLHS _
   | TPatternInteger _
   | TPatternNullToken _
   | TPatternVariable _
+  | TRightPartial _
+  | TPartial _
   | TBinOp _
   | TLambdaVar _ ->
       let f str = removeCharAt str offset in
