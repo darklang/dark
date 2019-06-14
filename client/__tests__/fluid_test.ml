@@ -148,7 +148,7 @@ let () =
       , [(gid (), "somevar"); (gid (), bindingName)]
       , EVariable (gid (), bindingName) )
   in
-  let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
+  let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
@@ -522,18 +522,18 @@ let () =
       t
         "space on a sep goes to next arg"
         aFnCall
-        (press K.Space 13)
-        ("List::range 5 ___", 14) ;
-      t
-        "backspace on a function name deletes function"
-        aFnCall
-        (press K.Backspace 11)
-        ("___", 0) ;
-      t
-        "delete on a function name deletes function"
-        aFnCall
-        (press K.Delete 3)
-        ("___", 0) ;
+        (press K.Space 10)
+        ("Int::add 5 _________", 11) ;
+      (* t *)
+      (*   "backspace on a function name deletes function" *)
+      (*   aFnCall *)
+      (*   (press K.Backspace 8) *)
+      (*   ("___", 0) ; *)
+      (* t *)
+      (*   "delete on a function name deletes function" *)
+      (*   aFnCall *)
+      (*   (press K.Delete 3) *)
+      (*   ("___", 0) ; *)
       () ) ;
   describe "Binops" (fun () ->
       (* let aBoolBinOp = *)
@@ -542,16 +542,12 @@ let () =
       (* in *)
       (* let anEditedBinOp = EPartial (gid (), "|", aBoolBinOp) in *)
       (* TODO "func 1 2" -> "fun 1 2" *)
-      tp
-        "pressing pipe key starts partial"
-        trueBool
-        (press K.Pipe 4)
-        ("true |", 6) ;
+      tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
       t
         "pressing then enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
-        ("true || ___", 8) ;
+        ("true || _________", 8) ;
       tp
         "pressing plus key starts partial"
         trueBool
@@ -561,7 +557,7 @@ let () =
         "pressing pipe twice then space completes partial"
         trueBool
         (presses [K.Pipe; K.Pipe; K.Space] 4)
-        ("true || ___", 8) ;
+        ("true || _________", 8) ;
       t
         "piping into newline creates thread"
         trueBool
@@ -581,7 +577,7 @@ let () =
       t
         "deleting an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Backspace 9)
+        (press ~debug:true ~wrap:false K.Backspace 5)
         ("___", 0) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
@@ -598,7 +594,7 @@ let () =
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
         (press K.Backspace 5)
         (* TODO: the correct answer is 0, fix before merge *)
-        ("___ ||", 0) ;
+        ("_________ ||", 0) ;
       t
         "pressing letters and numbers on a partial completes it"
         blank
@@ -616,7 +612,7 @@ let () =
       (*   "add a binop at the end of a var" *)
       (*   aShortVar *)
       (*   (press K.Percent 1) *)
-      (*   ("v % ___", 4) ; *)
+      (*   ("v % _________", 4) ; *)
       (* TODO: disable *)
       (* t *)
       (*   "delete on a binop deletes function" *)
@@ -628,21 +624,21 @@ let () =
       (*   "plus becomes ++ (String::append) if left is a string" *)
       (*   oneCharStr *)
       (*   (press K.Plus 3) *)
-      (*   ("\"c\" ++ ___", 7) ; *)
+      (*   ("\"c\" ++ _________", 7) ; *)
       (* TODO: disable *)
       (* t *)
       (*   "plus becomes + (Int::add) for non strings" *)
       (*   aShortInt *)
       (*   (press K.Plus 1) *)
-      (*   ("1 + ___", 4) ; *)
+      (*   ("1 + _________", 4) ; *)
       (* TODO: disable *)
       (* t *)
       (*   "& becomes && (Bool::and)" *)
       (*   trueBool *)
       (*   (press K.Ampersand 4) *)
-      (*   ("true && ___", 8) ; *)
+      (*   ("true && _________", 8) ; *)
       (* TODO: disable *)
-      (* t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ; *)
+      (* t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || _________", 8) ; *)
       () ) ;
   describe "Constructors" (fun () ->
       t
@@ -1000,34 +996,34 @@ let () =
         "autocomplete space moves forward by 1"
         aBinOp
         (presses [K.Letter 'r'; K.Space] 0)
-        ("request == ___", 8) ;
+        ("request == _________", 8) ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
         (presses [K.Letter 'r'; K.Enter] 0)
-        ("request == ___", 7) ;
+        ("request == _________", 7) ;
       t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
         (presses [K.Letter 'r'; K.Tab] 0)
-        ("request == ___", 11) ;
+        ("request == _________", 11) ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Enter] 0)
-        ("___ == ___", 0) ;
+        ("_________ == _________", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Tab] 0)
-        ("___ == ___", 13) ;
+        ("_________ == _________", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Space] 0)
-        ("___ == ___", 0) ;
+        ("_________ == _________", 0) ;
       *)
       t
         "variable moves to right place"
@@ -1190,7 +1186,7 @@ let () =
            , EPartial (gid (), "Int::add", EBlank (gid ()))
            , blank ))
         (press ~wrap:false K.Right 16)
-        ("let x = Int::add ___ ___\n___", 17) ;
+        ("let x = Int::add _________ _________\n___", 17) ;
       t
         "moving left off a function autocompletes it anyway"
         (ELet
@@ -1200,7 +1196,7 @@ let () =
            , EPartial (gid (), "Int::add", EBlank (gid ()))
            , blank ))
         (press ~wrap:false K.Left 8)
-        ("let x = Int::add ___ ___\n___", 7) ;
+        ("let x = Int::add _________ _________\n___", 7) ;
       test "escape hides autocomplete" (fun () ->
           expect
             (let ast = blank in

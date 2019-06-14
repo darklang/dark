@@ -319,9 +319,9 @@ let toText (t : token) : string =
 
 let toTestText (t : token) : string =
   match t with
-  | TPlaceholder _ ->
-      (* TODO: set to 7 *)
-      "___"
+  | TPlaceholder ((name, tipe), _) ->
+      let count = 1 + String.length name + 3 + String.length tipe + 1 in
+      Caml.String.make count '_'
   | TBlank _ ->
       "___"
   | TPartialGhost (_, str) ->
