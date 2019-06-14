@@ -1685,12 +1685,17 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
 
 
 let acSetIndex (i : int) (s : state) : state =
+  let s = recordAction "acSetIndex" s in
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
 
 
-let acClear (s : state) : state = {s with ac = {s.ac with index = None}}
+let acClear (s : state) : state =
+  let s = recordAction "acClear" s in
+  {s with ac = {s.ac with index = None}}
+
 
 let acShow (s : state) : state =
+  let s = recordAction "acShow" s in
   if s.ac.index = None then {s with ac = {s.ac with index = Some 0}} else s
 
 
@@ -1721,7 +1726,7 @@ let report (e : string) (s : state) =
 
 let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
     : ast * state =
-  let s = recordAction ~ti "acEnter" s in
+  let s = recordAction ~ti "acEnterRightPartial" s in
   let id = Token.tid ti.token in
   let newExpr, offset =
     match (AC.highlighted s.ac, findExpr id ast) with
