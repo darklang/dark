@@ -783,7 +783,7 @@ let length (tokens : token list) : int =
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
 
-let getTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
+let getLeftTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
   List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
 
 
@@ -1659,6 +1659,10 @@ let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
         let newExpr = EThread (gid (), [lhs; EBlank (gid ())]) in
         let acOffset = 2 in
         (newExpr, acOffset)
+    | None, _ ->
+        fail "No rightPartial autocomplete selected"
+    | _, None ->
+        fail "No rightPartial expression found"
     | _ ->
         fail "expression is missing or not a partial"
   in
@@ -2263,6 +2267,17 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.ShiftTab, L (TRightPartial (_, _), ti), _
     | K.ShiftTab, _, R (TRightPartial (_, _), ti) ->
         acEnterRightPartial ti ast s key
+    (* When we type a letter/number after an infix operator, complete and
+     * then enter the number/letter. *)
+    | K.Number _, L (TRightPartial (_, _), ti), _
+    | K.Letter _, L (TRightPartial (_, _), ti), _
+      when onEdge ->
+        let ast, s = acEnterRightPartial ti ast s K.Tab in
+        let ti =
+          getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
+          |> deOption "rightPartialLetter/number"
+        in
+        doInsert ~pos:s.newPos keyChar ti ast s
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
@@ -2402,7 +2417,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
-    match getTokenAt newPos tokens with
+    match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
     | _ ->
@@ -2608,7 +2623,7 @@ let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
 let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     Types.msg Html.html =
   let liveValues, show, offset =
-    getTokenAt state.newPos tis
+    getLeftTokenAt state.newPos tis
     |> Option.andThen ~f:(fun ti ->
            match ti.token with
            | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
