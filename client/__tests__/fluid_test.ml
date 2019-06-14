@@ -567,6 +567,7 @@ let () =
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
         ("true\n|>___", 8) ;
+      (* TODO: delete key as well *)
       t
         "backspacing your way through a partial finishes"
         trueBool
@@ -576,15 +577,22 @@ let () =
         "pressing backspace to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
         (press K.Backspace 7)
-        (* TODO: the correct answer is 5, fix before merge *)
-        ("12345", 6) ;
-      (* TODO: delete key as well *)
+        ("12345", 5) ;
+      t
+        "deleting an infix with a placeholder goes to right place"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
+        (press K.Backspace 9)
+        ("___", 0) ;
+      t
+        "pressing backspace to clear rightpartial reverts for blank rhs"
+        (ERightPartial (gid (), "|", blank))
+        (press K.Backspace 5)
+        ("___", 0) ;
       t
         "pressing backspace on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (press K.Backspace 7)
-        (* TODO: the correct answer is 5, fix before merge *)
-        ("12345", 6) ;
+        ("12345", 5) ;
       t
         "pressing backspace to clear partial reverts for blank rhs, check lhs pos"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
@@ -596,6 +604,7 @@ let () =
         blank
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
         ("5 + 5", 5) ;
+      (* t "pressing plus on a let lhs gets a correct partial" *)
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
       
       (* "true && false" -> "true & false" -> "true ___ false" -> "true | false" -> "true || false" *)
