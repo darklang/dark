@@ -710,6 +710,8 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACKeyword KMatch ->
       let matchID = gid () in
       (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
+  | FACKeyword KThread ->
+      (EThread (gid (), [newB (); newB ()]), 8)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -721,9 +723,13 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACConstructorName (name, argCount) ->
       let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
       (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
-  | _ ->
+  | FACField _ ->
       fail
-        ( "disallowed autocomplete value: "
+        ( "TODO: fieldnames are not supported yet: "
+        ^ Types.show_fluidAutocompleteItem entry )
+  | FACLiteral _ ->
+      fail
+        ( "invalid literal in autocomplete: "
         ^ Types.show_fluidAutocompleteItem entry )
 
 
@@ -1633,43 +1639,46 @@ let report (e : string) (s : state) =
 let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
     : ast * state =
   let s = recordAction "acEnter" s in
-  match AC.highlighted s.ac with
-  | Some (FACFunction fn) ->
-      let id = Token.tid ti.token in
-      ( match findExpr id ast with
-      | Some (ERightPartial (_, _, lhs)) ->
-          if not fn.fnInfix then fail "expression is not infix" ;
-          let r =
-            if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
-            then Types.Rail
-            else Types.NoRail
-          in
-          let newExpr = EBinOp (gid (), fn.fnName, lhs, EBlank (gid ()), r) in
-          let acOffset = String.length fn.fnName + 1 in
-          let newAST = replaceExpr ~newExpr id ast in
-          let tokens = toTokens s newAST in
-          let nextBlank = getNextBlankPos s.newPos tokens in
-          let prevBlank = getPrevBlankPos s.newPos tokens in
-          let newPos =
-            match key with
-            | K.Tab ->
-                nextBlank
-            | K.ShiftTab ->
-                prevBlank
-            | K.Enter ->
-                ti.startPos + acOffset
-            | K.Space ->
-                (* if new position is after next blank, stay in next blank *)
-                min nextBlank (ti.startPos + acOffset + 1)
-            | _ ->
-                s.newPos
-          in
-          let newState = moveTo newPos (acClear s) in
-          (newAST, newState)
-      | _ ->
-          fail "expression is missing or not a partial" )
-  | _ ->
-      (ast, s)
+  let id = Token.tid ti.token in
+  let newExpr, offset =
+    match (AC.highlighted s.ac, findExpr id ast) with
+    | Some (FACFunction fn), Some (ERightPartial (_, _, lhs)) ->
+        if not fn.fnInfix then fail "expression is not infix" ;
+        let r =
+          if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+          then Types.Rail
+          else Types.NoRail
+        in
+        let newExpr = EBinOp (gid (), fn.fnName, lhs, EBlank (gid ()), r) in
+        let acOffset = String.length fn.fnName + 1 in
+        (newExpr, acOffset)
+    | Some (FACKeyword KThread), Some (ERightPartial (_, _, lhs)) ->
+        let newExpr = EThread (gid (), [lhs; EBlank (gid ())]) in
+        let acOffset = 2 in
+        (newExpr, acOffset)
+    | _ ->
+        fail "expression is missing or not a partial"
+  in
+  let newAST = replaceExpr ~newExpr id ast in
+  let tokens = toTokens s newAST in
+  let nextBlank = getNextBlankPos s.newPos tokens in
+  let prevBlank = getPrevBlankPos s.newPos tokens in
+  let newPos =
+    match key with
+    | K.Tab ->
+        nextBlank
+    | K.ShiftTab ->
+        prevBlank
+    | K.Enter ->
+        ti.startPos + offset
+    | K.Space ->
+        (* if new position is after next blank, stay in next blank *)
+        min nextBlank (ti.startPos + offset + 1)
+    | _ ->
+        s.newPos
+  in
+  let newState = moveTo newPos (acClear s) in
+  (newAST, newState)
 
 
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
@@ -2421,6 +2430,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         (ast, s)
   in
   let newState = updateAutocomplete m tlid newAST newState in
+  (* Js.log2 "ast" (show_ast newAST) ; *)
+  (* Js.log2 "tokens" (eToStructure s newAST) ; *)
   (newAST, newState)
 
 

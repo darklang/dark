@@ -613,6 +613,7 @@ and keyword =
   | KIf
   | KLambda
   | KMatch
+  | KThread
 
 and command =
   { commandName : string
