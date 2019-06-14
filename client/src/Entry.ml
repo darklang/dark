@@ -37,10 +37,33 @@ let focusWithOffset id offset =
       () )
 
 
+external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
+  [@@bs.val] [@@bs.scope "window"]
+
+external jsSetCursorPosition : int -> unit = "setCursorPosition"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getCursorPosition () : int option =
+  jsGetCursorPosition () |> Js.Nullable.toOption
+
+
+let setCursorPosition (v : int) : unit = jsSetCursorPosition v
+
+let setBrowserPos offset =
+  Tea.Cmd.call (fun _ ->
+      (* We need to set this in the new frame, as updating sets the cursor to
+       * the start of the DOM node. *)
+      ignore
+        (Web.Window.requestAnimationFrame (fun _ -> setCursorPosition offset)) ;
+      () )
+
+
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) ->
       Tea_html_cmds.focus Defaults.entryID
+  | FluidEntering _tlid ->
+      setBrowserPos m.fluidState.newPos
   | _ ->
       Tea.Cmd.none
 
@@ -73,7 +96,8 @@ let createFunction (fn : function_) : expr =
         , r ) )
 
 
-let submitOmniAction (pos : pos) (action : omniAction) : modification =
+let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
+    modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
   match action with
   | NewDB maybeName ->
@@ -87,7 +111,14 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
       let spec = newHandlerSpec () in
       let spec = {spec with name = B.ofOption name} in
       let handler = {ast = Blank next; spec; tlid} in
-      RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+      let fluidMods =
+        if VariantTesting.isFluid m.tests
+        then [SetCursorState (FluidEntering tlid)]
+        else []
+      in
+      Many
+        ( RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+        :: fluidMods )
   | NewFunction name ->
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
@@ -113,7 +144,14 @@ let submitOmniAction (pos : pos) (action : omniAction) : modification =
             ; modifier = Blank next }
         ; tlid }
       in
-      RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+      let fluidMods =
+        if VariantTesting.isFluid m.tests
+        then [SetCursorState (FluidEntering tlid)]
+        else []
+      in
+      Many
+        ( RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+        :: fluidMods )
   | NewEventSpace name ->
       let next = gid () in
       let tlid = gtlid () in
@@ -638,10 +676,10 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   | Creating pos ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction act) ->
-        submitOmniAction pos act
+        submitOmniAction m pos act
     (* If empty, create an empty handler *)
     | None when m.complete.value = "" ->
-        submitOmniAction pos (NewHandler None)
+        submitOmniAction m pos (NewHandler None)
     | _ ->
         NoChange )
   | _ ->

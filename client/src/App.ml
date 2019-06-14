@@ -1459,12 +1459,18 @@ let update_ (msg : msg) (m : model) : modification =
        * By doing them first they'll fire the analysis on whatever the user is
        * currently focused on, which is safe.
        *)
+      let fluidMods =
+        if VariantTesting.isFluid m.tests
+        then [SetCursorState (FluidEntering tlid)]
+        else []
+      in
       Many
         ( traceMods
         @ [ RPC
               ( [SetHandler (tlid, aPos, aHandler)]
               , FocusExact (tlid, B.toID ast) )
-          ; Delete404 fof ] )
+          ; Delete404 fof ]
+        @ fluidMods )
   | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
@@ -1488,7 +1494,7 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             NewHandler None
       in
-      Entry.submitOmniAction center action
+      Entry.submitOmniAction m center action
   | CreateDBTable ->
       let center = findCenter m
       and genName = DB.generateDBName () in
