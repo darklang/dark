@@ -113,7 +113,11 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let handler = {ast = Blank next; spec; tlid} in
       let fluidMods =
         if VariantTesting.isFluid m.tests
-        then [SetCursorState (FluidEntering tlid)]
+        then
+          let s = m.fluidState in
+          let newS = {s with newPos = 0} in
+          [ TweakModel (fun m -> {m with fluidState = newS})
+          ; SetCursorState (FluidEntering tlid) ]
         else []
       in
       Many
@@ -146,7 +150,11 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       in
       let fluidMods =
         if VariantTesting.isFluid m.tests
-        then [SetCursorState (FluidEntering tlid)]
+        then
+          let s = m.fluidState in
+          let newS = {s with newPos = 0} in
+          [ TweakModel (fun m -> {m with fluidState = newS})
+          ; SetCursorState (FluidEntering tlid) ]
         else []
       in
       Many
