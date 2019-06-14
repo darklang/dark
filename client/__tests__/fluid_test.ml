@@ -230,8 +230,12 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
-  let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
-      testResult =
+  let process
+      ~(debug : bool)
+      ~(wrap : bool)
+      (keys : K.key list)
+      (pos : int)
+      (ast : ast) : testResult =
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
@@ -280,33 +284,52 @@ let () =
           | _ ->
               false )
     in
+    if debug then Js.log2 "state" (show_fluidState newState) ;
     ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
   in
-  let render (expr : fluidExpr) : testResult = process ~wrap:true [] 0 expr in
-  let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Delete] pos expr
+  let render (expr : fluidExpr) : testResult =
+    process ~debug:false ~wrap:true [] 0 expr
   in
-  let backspace ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Backspace] pos expr
-  in
-  let tab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Tab] pos expr
-  in
-  let shiftTab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.ShiftTab] pos expr
-  in
-  let press ?(wrap = true) (key : K.key) (pos : int) (expr : fluidExpr) :
+  let delete ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~wrap [key] pos expr
+    process ~debug ~wrap [K.Delete] pos expr
   in
-  let presses ?(wrap = true) (keys : K.key list) (pos : int) (expr : fluidExpr)
+  let backspace ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr)
       : testResult =
-    process ~wrap keys pos expr
+    process ~debug ~wrap [K.Backspace] pos expr
   in
-  let insert ?(wrap = true) (char : char) (pos : int) (expr : fluidExpr) :
+  let tab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
       testResult =
+    process ~debug ~wrap [K.Tab] pos expr
+  in
+  let shiftTab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~debug ~wrap [K.ShiftTab] pos expr
+  in
+  let press
+      ?(debug = false)
+      ?(wrap = true)
+      (key : K.key)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~debug ~wrap [key] pos expr
+  in
+  let presses
+      ?(debug = false)
+      ?(wrap = true)
+      (keys : K.key list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~debug ~wrap keys pos expr
+  in
+  let insert
+      ?(debug = false)
+      ?(wrap = true)
+      (char : char)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap [key] pos expr
+    process ~debug ~wrap [key] pos expr
   in
   let b = "___" in
   let t
