@@ -543,7 +543,7 @@ let () =
       t
         "pressing then enter completes partial"
         trueBool
-        (presses [K.Pipe; K.Enter] 4)
+        (presses [K.Pipe; K.Down; K.Enter] 4)
         ("true || ___", 8) ;
       tp
         "pressing plus key starts partial"
@@ -555,11 +555,21 @@ let () =
         trueBool
         (presses [K.Pipe; K.Pipe; K.Space] 4)
         ("true || ___", 8) ;
+      t
+        "piping into newline creates thread"
+        trueBool
+        (presses [K.Pipe; K.GreaterThan; K.Space] 4)
+        ("true\n|>___", 8) ;
+      t
+        "backspacing your way through a partial finishes"
+        trueBool
+        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        ("___", 0) ;
       (* t *)
       (*   "pressing backspace to clear partial reverts for blank rhs" *)
       (*   (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail))) *)
       (*   (press K.Backspace 4) *)
-      (*   ("4", 1) ; *)
+      (*   ("4 || ___", 1) ; *)
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
       (* t *)
       (*   "show full ghost partial" *)
