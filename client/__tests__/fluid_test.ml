@@ -215,6 +215,13 @@ let () =
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = true }
+        ; { fnName = "<="
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if the two value are equal"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
         ; { fnName = "||"
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TBool
@@ -637,10 +644,15 @@ let () =
         (press K.Pipe 7)
         ("12345 || 12345", 8) ;
       tp
-        "pressing = after > should go to partial"
-        (EBinOp (gid (), ">", anInt, anInt, NoRail))
+        "pressing = after < should go to partial"
+        (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (press K.Equals 7)
-        ("12345 >= 12345", 8) ;
+        ("12345 <= 12345", 8) ;
+      t
+        "changing binop should work"
+        (EBinOp (gid (), "<", anInt, anInt, NoRail))
+        (presses [K.Equals; K.Enter] 7)
+        ("12345 <= 12345", 8) ;
       (* t "pressing plus on a let lhs gets a correct partial" *)
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
       
