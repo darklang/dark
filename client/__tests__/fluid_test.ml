@@ -598,9 +598,14 @@ let () =
         (press K.Backspace 7)
         ("12345", 5) ;
       t
+        "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
+        (press K.Backspace 11)
+        ("___", 0) ;
+      t
         "deleting an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press ~debug:true ~wrap:false K.Backspace 5)
+        (press K.Backspace 11)
         ("___", 0) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
@@ -612,12 +617,6 @@ let () =
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (press K.Backspace 7)
         ("12345", 5) ;
-      t
-        "pressing backspace to clear partial reverts for blank rhs, check lhs pos"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
-        (press K.Backspace 5)
-        (* TODO: the correct answer is 0, fix before merge *)
-        ("_________ ||", 0) ;
       t
         "pressing letters and numbers on a partial completes it"
         blank
