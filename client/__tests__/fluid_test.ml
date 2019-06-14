@@ -201,6 +201,13 @@ let () =
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = true }
+        ; { fnName = "+"
+          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+          ; fnReturnTipe = TInt
+          ; fnDescription = "Returns sum"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
         ; { fnName = "=="
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TBool
@@ -584,13 +591,12 @@ let () =
         (press K.Backspace 5)
         (* TODO: the correct answer is 0, fix before merge *)
         ("___ ||", 0) ;
+      t
+        "pressing letters and numbers on a partial completes it"
+        blank
+        (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
+        ("5 + 5", 5) ;
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
-      (* t *)
-      (*   "show full ghost partial" *)
-      (*   aBoolBinOp *)
-      (*   (presses [K.Backspace; K.Backspace] 8) *)
-      (*   ("false @@ true", 6) ; *)
-      (*  *)
       
       (* "true && false" -> "true & false" -> "true ___ false" -> "true | false" -> "true || false" *)
       (* "3 + 4" -> "3 ___ 4" -> "3 + 4" *)
