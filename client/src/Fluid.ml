@@ -1724,6 +1724,30 @@ let report (e : string) (s : state) =
   {s with error = Some e}
 
 
+let moveBasedOnKey
+    (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
+    state =
+  let tokens = toTokens s ast in
+  let nextBlank = getNextBlankPos s.newPos tokens in
+  let prevBlank = getPrevBlankPos s.newPos tokens in
+  let newPos =
+    match key with
+    | K.Tab ->
+        nextBlank
+    | K.ShiftTab ->
+        prevBlank
+    | K.Enter ->
+        startPos + offset
+    | K.Space ->
+        (* if new position is after next blank, stay in next blank *)
+        min nextBlank (startPos + offset + 1)
+    | _ ->
+        s.newPos
+  in
+  let newState = moveTo newPos (acClear s) in
+  newState
+
+
 let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
     : ast * state =
   let s = recordAction ~ti "acEnterRightPartial" s in
@@ -1752,25 +1776,19 @@ let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
         fail "expression is missing or not a partial"
   in
   let newAST = replaceExpr ~newExpr id ast in
-  let tokens = toTokens s newAST in
-  let nextBlank = getNextBlankPos s.newPos tokens in
-  let prevBlank = getPrevBlankPos s.newPos tokens in
-  let newPos =
-    match key with
-    | K.Tab ->
-        nextBlank
-    | K.ShiftTab ->
-        prevBlank
-    | K.Enter ->
-        ti.startPos + offset
-    | K.Space ->
-        (* if new position is after next blank, stay in next blank *)
-        min nextBlank (ti.startPos + offset + 1)
-    | _ ->
-        s.newPos
-  in
-  let newState = moveTo newPos (acClear s) in
-  (newAST, newState)
+  (newAST, moveBasedOnKey key ti.startPos offset s newAST)
+
+
+let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
+    fluidExpr * int =
+  let newExpr, offset = acToExpr entry in
+  let oldExpr = findExpr id ast in
+  match (oldExpr, newExpr) with
+  | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
+    , EBinOp (id, name, _, _, str) ) ->
+      (EBinOp (id, name, lhs, rhs, str), String.length name)
+  | _ ->
+      (newExpr, offset)
 
 
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
@@ -1784,10 +1802,8 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     | _ ->
         (ast, s) )
   | Some entry ->
-      (* TODO: the correct thing is to decide on where to go based
-       * on context: Enter stops at the end, space goes one space
-       * ahead, tab goes to next blank *)
-      let newAST, acOffset =
+      let id = Token.tid ti.token in
+      let newAST, offset =
         match ti.token with
         (* since patterns have no partial but commit as variables
         * automatically, allow intermediate variables to
@@ -1796,31 +1812,16 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newPat, acOffset = acToPattern entry in
             let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
-        | _ ->
-            let newExpr, acOffset = acToExpr entry in
-            let id = Token.tid ti.token in
+        | TPartial _ ->
+            let newExpr, offset = acUpdateExpr id ast entry in
             let newAST = replaceExpr ~newExpr id ast in
-            (newAST, acOffset)
-      in
-      let tokens = toTokens s newAST in
-      let nextBlank = getNextBlankPos s.newPos tokens in
-      let prevBlank = getPrevBlankPos s.newPos tokens in
-      let newPos =
-        match key with
-        | K.Tab ->
-            nextBlank
-        | K.ShiftTab ->
-            prevBlank
-        | K.Enter ->
-            ti.startPos + acOffset
-        | K.Space ->
-            (* if new position is after next blank, stay in next blank *)
-            min nextBlank (ti.startPos + acOffset + 1)
+            (newAST, offset)
         | _ ->
-            s.newPos
+            let newExpr, offset = acToExpr entry in
+            let newAST = replaceExpr ~newExpr id ast in
+            (newAST, offset)
       in
-      let newState = moveTo newPos (acClear s) in
-      (newAST, newState)
+      (newAST, moveBasedOnKey key ti.startPos offset s newAST)
 
 
 let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
