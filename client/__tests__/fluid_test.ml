@@ -630,6 +630,11 @@ let () =
         blank
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
         ("5 + 5", 5) ;
+      tp
+        "pressing pipe while editing a partial works properly"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, anInt, NoRail)))
+        (press K.Pipe 7)
+        ("12345 || 12345", 8) ;
       (* t "pressing plus on a let lhs gets a correct partial" *)
       (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
       
