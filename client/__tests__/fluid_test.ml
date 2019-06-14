@@ -284,7 +284,15 @@ let () =
           | _ ->
               false )
     in
-    if debug then Js.log2 "state" (show_fluidState newState) ;
+    if debug
+    then
+      Js.log2
+        "state"
+        (show_fluidState
+           { newState with
+             (* remove the things that take a lot of space and provide little
+            * value. *)
+             ac = {newState.ac with functions = []; allCompletions = []} }) ;
     ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
