@@ -2196,6 +2196,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TNullToken _
   | TPatternNullToken _
   | TPatternVariable _
+  | TBinOp _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TPatternInteger (_, _, i) | TInteger (_, i) ->
@@ -2236,7 +2237,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFnName _
   | TLetKeyword _
   | TLetAssignment _
-  | TBinOp _
   | TSep
   | TIndented _
   | TIndentToHere _
@@ -2434,8 +2434,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Binop specific *)
-    | key, L (TPartial (_, _), toTheLeft), _
-    | key, L (TRightPartial (_, _), toTheLeft), _
+    | key, L (TPartial _, toTheLeft), _
+    | key, L (TRightPartial _, toTheLeft), _
+    | key, L (TBinOp _, toTheLeft), _
       when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheLeft ast s
     | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys
