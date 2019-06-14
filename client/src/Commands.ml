@@ -3,6 +3,10 @@ open Types
 (* Dark *)
 module TL = Toplevel
 
+(* commands *)
+let takeFunctionOffRail = "take-function-off-rail"
+let putFunctionOnRail = "put-function-on-rail"
+
 let executeCommand
     (m : model) (tlid : tlid) (id : id) (highlighted : autocompleteItem option)
     : modification =
@@ -17,7 +21,6 @@ let executeCommand
 
 let endCommandExecution (tlid : tlid) (id : id) : modification =
   Many [AutocompleteMod ACReset; Select (tlid, Some id)]
-
 
 let commands : command list =
   [ { commandName = "extract-function"
@@ -51,12 +54,12 @@ let commands : command list =
     ; action = Refactor.wrap Refactor.WLetRHS
     ; doc = "Wrap expression in a let"
     ; shortcut = "Ctrl-L" }
-  ; { commandName = "put-function-on-rail"
+  ; { commandName = putFunctionOnRail
     ; action = Refactor.putOnRail
     ; doc =
         "Errors that arise from this function will be handled on the error rail"
     ; shortcut = "Alt-E" }
-  ; { commandName = "take-function-off-rail"
+  ; { commandName = takeFunctionOffRail
     ; action = Refactor.takeOffRail
     ; doc = "Handle errors that arise from this function yourself"
     ; shortcut = "Alt-Shift-E" }

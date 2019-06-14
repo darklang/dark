@@ -587,6 +587,13 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLDB _ ->
         impossible ("no ast in DBs", tl.data) )
 
+let getAST (tl : toplevel) : expr option =
+  match tl.data with
+  | TLHandler h ->
+      Some h.ast
+  | TLFunc f ->
+      Some f.ufAST
+  | _ -> None
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
   update m tlid ~f:(fun tl ->
