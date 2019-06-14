@@ -1853,7 +1853,7 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
-  let s = recordAction ~ti "doBackspace" s in
+  let s = recordAction ~pos ~ti "doBackspace" s in
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
@@ -1952,7 +1952,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
-  let s = recordAction ~ti "doDelete" s in
+  let s = recordAction ~pos ~ti "doDelete" s in
   let left s = moveOneLeft pos s in
   let offset = pos - ti.startPos in
   let newID = gid () in
@@ -2076,7 +2076,7 @@ let doRight
 
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction "doUp" s in
+  let s = recordAction ~pos "doUp" s in
   let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
@@ -2088,7 +2088,7 @@ let doUp ~(pos : int) (ast : ast) (s : state) : state =
 
 
 let doDown ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction "doDown" s in
+  let s = recordAction ~pos "doDown" s in
   let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
@@ -2098,7 +2098,7 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
 
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
-  let s = recordAction "doInsert" s in
+  let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let letterStr = String.fromChar letter in
   let offset =
