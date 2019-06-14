@@ -39,7 +39,13 @@ let commandsFor (tl : toplevel) (id : id) : command list =
          | PExpr (F (_, FnCall (_, _, rail))) ->
              Some (filterForRail rail)
          | _ ->
-             None )
+             let cmds =
+               Commands.commands
+               |> List.filter ~f:(fun c ->
+                      c.commandName <> Commands.putFunctionOnRail
+                      && c.commandName <> Commands.takeFunctionOffRail )
+             in
+             Some cmds )
   |> Option.withDefault ~default:Commands.commands
 
 
