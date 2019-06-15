@@ -12,9 +12,8 @@ if [[ "${DIR}" == "client" ]]; then
   client/node_modules/.bin/prettier -l \
      backend/templates/ui.html \
      integration-tests/tests.js \
-     client/src/appsupport.js
-  # TODO enable styles once things have settled down a bit over there
-  #   client/src/styles/*
+     client/src/appsupport.js \
+     client/src/styles/*
 elif [[ "${DIR}" == "backend" ]]; then
   scripts/ocamlformat-diff-all backend
   # TODO sqlfmt for sql
