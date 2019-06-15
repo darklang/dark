@@ -10,6 +10,7 @@ scripts/ocamlformat-all backend
 client/node_modules/.bin/prettier --write \
   client/src/appsupport.js \
   integration-tests/tests.js \
-  backend/templates/ui.html 
+  backend/templates/ui.html \
+  client/src/styles/*
  
 
