@@ -47,19 +47,23 @@ window.stopKeys = stopKeys;
 // ---------------------------
 
 function isfluidSpecialCase(event) {
-  switch (true) {
-    // ctrl + d (delete)
-    case event.ctrlKey && event.key == "d":
-    // ctrl + a (begining of line)
-    case event.ctrlKey && event.key == "a":
-    // ctrl + e (end of line)
-    case event.ctrlKey && event.key == "e":
-    // command + a (select all)
-    case event.metaKey && event.key == "a":
-      return true;
-      break;
-    default:
-      return false;
+  if (window.navigator.platform == "MacIntel") {
+    switch (true) {
+      // ctrl + d (delete)
+      case event.ctrlKey && event.key == "d":
+      // ctrl + a (begining of line)
+      case event.ctrlKey && event.key == "a":
+      // ctrl + e (end of line)
+      case event.ctrlKey && event.key == "e":
+      // command + a (select all)
+      case event.metaKey && event.key == "a":
+        return true;
+        break;
+      default:
+        return false;
+    }
+  } else {
+    return false;
   }
 }
 
