@@ -10,6 +10,11 @@ const mousewheel = function(callback) {
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 function stopKeys(event) {
+  // Fluid
+  if (event.target.id === "fluid-editor") {
+    fluidStopKeys(event);
+  }
+
   if (event.keyCode == 9) {
     // Tab
     event.preventDefault();
@@ -36,6 +41,33 @@ function stopKeys(event) {
   }
 }
 window.stopKeys = stopKeys;
+
+// ---------------------------
+// Fluid
+// ---------------------------
+
+function isfluidSpecialCase(event) {
+  switch (true) {
+    // ctrl + d (delete)
+    case event.ctrlKey && event.key == "d":
+    // ctrl + a (begining of line)
+    case event.ctrlKey && event.key == "a":
+    // ctrl + e (end of line)
+    case event.ctrlKey && event.key == "e":
+    // command + a (select all)
+    case event.metaKey && event.key == "a":
+      return true;
+      break;
+    default:
+      return false;
+  }
+}
+
+function fluidStopKeys(event) {
+  if (!(event.metaKey || event.ctrlKey || event.altKey) || isfluidSpecialCase(event)) {
+    event.preventDefault();
+  }
+}
 
 // ---------------------------
 // Rollbar
