@@ -2373,6 +2373,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, doRight ~pos ~next:mNext ti s |> acShow)
     | K.GoToFront, _, R (_, ti) ->
         (ast, moveToStart ti s)
+    | K.GoToEnd, L (_, ti), _ ->
+        (ast, moveToEnd ti s)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
@@ -2531,6 +2533,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           | K.Letter 'a' ->
               (* Go to begining of line *)
               K.GoToFront
+          | K.Letter 'e' ->
+              (* Go to end of line *)
+              K.GoToEnd
           | _ ->
               key
         in
