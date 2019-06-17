@@ -4,9 +4,20 @@ open Types
 module TL = Toplevel
 
 (* commands *)
-let takeFunctionOffRail = "take-function-off-rail"
+let takeFunctionOffRail =
+  { commandName = "take-function-off-rail"
+  ; action = Refactor.takeOffRail
+  ; doc = "Handle errors that arise from this function yourself"
+  ; shortcut = "Alt-Shift-E" }
 
-let putFunctionOnRail = "put-function-on-rail"
+
+let putFunctionOnRail =
+  { commandName = "put-function-on-rail"
+  ; action = Refactor.putOnRail
+  ; doc =
+      "Errors that arise from this function will be handled on the error rail"
+  ; shortcut = "Alt-E" }
+
 
 let executeCommand
     (m : model) (tlid : tlid) (id : id) (highlighted : autocompleteItem option)
@@ -56,16 +67,9 @@ let commands : command list =
     ; action = Refactor.wrap Refactor.WLetRHS
     ; doc = "Wrap expression in a let"
     ; shortcut = "Ctrl-L" }
-  ; { commandName = putFunctionOnRail
-    ; action = Refactor.putOnRail
-    ; doc =
-        "Errors that arise from this function will be handled on the error rail"
-    ; shortcut = "Alt-E" }
-  ; { commandName = takeFunctionOffRail
-    ; action = Refactor.takeOffRail
-    ; doc = "Handle errors that arise from this function yourself"
-    ; shortcut = "Alt-Shift-E" }
   ; { commandName = "add-feature-flag"
     ; action = FeatureFlags.wrap
     ; doc = "Clone expression as Case A in a feature flag"
-    ; shortcut = "Alt-F" } ]
+    ; shortcut = "Alt-F" }
+  ; putFunctionOnRail
+  ; takeFunctionOffRail ]

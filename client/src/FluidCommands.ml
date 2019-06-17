@@ -27,9 +27,9 @@ let commandsFor (tl : toplevel) (id : id) : command list =
     Commands.commands
     |> List.filter ~f:(fun c ->
            if rail = Rail
-           then c.commandName <> Commands.putFunctionOnRail
+           then c <> Commands.putFunctionOnRail
            else if rail = NoRail
-           then c.commandName <> Commands.takeFunctionOffRail
+           then c <> Commands.takeFunctionOffRail
            else true )
   in
   Toplevel.getAST tl
@@ -42,8 +42,8 @@ let commandsFor (tl : toplevel) (id : id) : command list =
              let cmds =
                Commands.commands
                |> List.filter ~f:(fun c ->
-                      c.commandName <> Commands.putFunctionOnRail
-                      && c.commandName <> Commands.takeFunctionOffRail )
+                      c <> Commands.putFunctionOnRail
+                      && c <> Commands.takeFunctionOffRail )
              in
              Some cmds )
   |> Option.withDefault ~default:Commands.commands
