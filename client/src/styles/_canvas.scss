@@ -21,6 +21,13 @@
   }
 }
 
+.tooltip {
+  width: 40ch;
+  font-size: 0.6rem;
+  color: $blue;
+  text-align: left;
+}
+
 .parameter-btn {
   font-size: 75%;
 
@@ -36,11 +43,11 @@
 
     &:hover {
       &:after {
+        @extend .tooltip;
         content: attr(title);
         position: absolute;
         left: calc(100% + 10px);
-        color: $red;
-        width: max-content;
+        color: lighten($red, 15%);
       }
     }
   }
@@ -50,12 +57,11 @@
 
     &:hover {
       &:after {
+        @extend .tooltip;
         content: attr(title);
         position: absolute;
         left: 0;
         top: -20px;
-        color: $blue;
-        width: max-content;
       }
     }
   }
