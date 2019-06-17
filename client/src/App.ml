@@ -501,7 +501,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           , Url.updateUrl Architecture )
     | Select (tlid, p) ->
         let cursorState =
-          if p = None && VariantTesting.isFluid m.tests
+          if VariantTesting.isFluid m.tests
           then FluidEntering tlid
           else Selecting (tlid, p)
         in
@@ -547,31 +547,41 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
-        let target =
+        let cursorState, target =
           match entry with
           | Creating _ ->
-              None
+              (Entering entry, None)
           | Filling (tlid, id) ->
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
-              Some (tlid, pd)
+              let cs =
+                if VariantTesting.isFluid m.tests
+                then FluidEntering tlid
+                else Entering entry
+              in
+              (cs, Some (tlid, pd))
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = {m with cursorState = Entering entry} in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
-        let target =
+        let cursorState, target =
           match entry with
           | Creating _ ->
-              None
+              (Entering entry, None)
           | Filling (tlid, id) ->
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
-              Some (tlid, pd)
+              let cs =
+                if VariantTesting.isFluid m.tests
+                then FluidEntering tlid
+                else Entering entry
+              in
+              (cs, Some (tlid, pd))
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = {m with cursorState = Entering entry} in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         ( m
         , Cmd.batch
@@ -1459,22 +1469,12 @@ let update_ (msg : msg) (m : model) : modification =
        * By doing them first they'll fire the analysis on whatever the user is
        * currently focused on, which is safe.
        *)
-      let fluidMods =
-        if VariantTesting.isFluid m.tests
-        then
-          let s = m.fluidState in
-          let newS = {s with newPos = 0} in
-          [ TweakModel (fun m -> {m with fluidState = newS})
-          ; SetCursorState (FluidEntering tlid) ]
-        else []
-      in
       Many
         ( traceMods
         @ [ RPC
               ( [SetHandler (tlid, aPos, aHandler)]
               , FocusExact (tlid, B.toID ast) )
-          ; Delete404 fof ]
-        @ fluidMods )
+          ; Delete404 fof ] )
   | Delete404RPC fof ->
       MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
