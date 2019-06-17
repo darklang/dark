@@ -1588,6 +1588,10 @@ let update_ (msg : msg) (m : model) : modification =
           {m with fluidState = {m.fluidState with cp}} )
   | FluidRunCommand cmd ->
       FluidCommands.runCommand m cmd
+  | TakeOffErrorRail (tlid, id) ->
+      let tl = TL.getExn m tlid in
+      let pd = TL.findExn tl id in
+      Refactor.takeOffRail m tl pd
 
 
 let update (m : model) (msg : msg) : model * msg Cmd.t =
