@@ -2288,7 +2288,6 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     [ K.Plus
     ; K.Percent
     ; K.Minus
-    ; K.Plus
     ; K.Multiply
     ; K.ForwardSlash
     ; K.LessThan
