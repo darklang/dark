@@ -826,7 +826,7 @@ test("rename_pattern_variable", async t => {
     .pressKey("enter");
 });
 
-test("sending_to_rail_works", async t => {
+test("taking_off_rail_works", async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
@@ -834,7 +834,7 @@ test("sending_to_rail_works", async t => {
     .pressKey("enter")
     .pressKey("esc")
     .pressKey("shift+up")
-    .pressKey("alt+e");
+    .pressKey("alt+shift+e");
 });
 
 test("execute_function_works", async t => {

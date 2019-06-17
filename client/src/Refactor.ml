@@ -67,14 +67,27 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
       NoChange
 
 
-let toggleOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
+let takeOffRail (_m : model) (tl : toplevel) (p : pointerData) : modification =
   let new_ =
     match p with
     | PExpr (F (id, FnCall (name, exprs, Rail))) ->
         PExpr (F (id, FnCall (name, exprs, NoRail)))
+    | _ ->
+        p
+  in
+  if p = new_
+  then NoChange
+  else
+    let newtl = TL.replace p new_ tl in
+    RPC (TL.toOp newtl, FocusSame)
+
+
+let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
+  let new_ =
+    match p with
     | PExpr (F (id, FnCall (F (nid, name), exprs, NoRail))) ->
         (* We don't want to use m.complete.functions as the autocomplete
-         * filters out deprecated functions *)
+          * filters out deprecated functions *)
         let allFunctions =
           let ufs =
             m.userFunctions

@@ -22,10 +22,37 @@ let reset : fluidCommandState =
   ; filter = None }
 
 
-let commandsFor (tl : toplevel) (id : id) : fluidCommandState =
+let commandsFor (tl : toplevel) (id : id) : command list =
+  let filterForRail rail =
+    Commands.commands
+    |> List.filter ~f:(fun c ->
+           if rail = Rail
+           then c <> Commands.putFunctionOnRail
+           else if rail = NoRail
+           then c <> Commands.takeFunctionOffRail
+           else true )
+  in
+  Toplevel.getAST tl
+  |> Option.andThen ~f:(fun x -> AST.find id x)
+  |> Option.andThen ~f:(fun pd ->
+         match pd with
+         | PExpr (F (_, FnCall (_, _, rail))) ->
+             Some (filterForRail rail)
+         | _ ->
+             let cmds =
+               Commands.commands
+               |> List.filter ~f:(fun c ->
+                      c <> Commands.putFunctionOnRail
+                      && c <> Commands.takeFunctionOffRail )
+             in
+             Some cmds )
+  |> Option.withDefault ~default:Commands.commands
+
+
+let updateCommandState (tl : toplevel) (id : id) : fluidCommandState =
   { index = 0
   ; show = true
-  ; commands = Commands.commands
+  ; commands = commandsFor tl id
   ; cmdOnTL = Some tl
   ; cmdOnID = Some id
   ; filter = None }
@@ -98,11 +125,18 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 
 
 let filter (query : string) (s : fluidCommandState) : fluidCommandState =
+  let allCmds =
+    match (s.cmdOnTL, s.cmdOnID) with
+    | Some tl, Some id ->
+        commandsFor tl id
+    | _ ->
+        Commands.commands
+  in
   let filter, commands =
     if String.length query > 0
     then
       let isMatched c = String.contains ~substring:query c.commandName in
-      (Some query, List.filter ~f:isMatched Commands.commands)
+      (Some query, List.filter ~f:isMatched allCmds)
     else (None, Commands.commands)
   in
   {s with filter; commands; index = 0}
