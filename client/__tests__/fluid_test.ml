@@ -696,8 +696,7 @@ let () =
         ("\\somevar, bindingc -> bindingc", 18) ;
       () ) ;
   describe "Variables" (fun () ->
-      (* dont do insert until we have autocomplete *)
-      (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
+      tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
       tp "delete middle of variable" aVar (delete 5) ("variale", 5) ;
       tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
