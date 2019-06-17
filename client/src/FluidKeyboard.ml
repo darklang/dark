@@ -84,6 +84,7 @@ type key =
   | F12
   | Unknown of string
   | GoToFront
+  | GoToEnd
 
 and side =
   | LeftHand
@@ -403,7 +404,8 @@ let toChar key : char option =
   | Shift _
   | Ctrl _
   | Unknown _
-  | GoToFront ->
+  | GoToFront
+  | GoToEnd ->
       None
 
 
@@ -559,6 +561,8 @@ let toName (key : key) : string =
       "Unknown: " ^ hint
   | GoToFront ->
       "GoToFront"
+  | GoToEnd ->
+      "GoToEnd"
 
 
 let fromChar (char : char) : key =
