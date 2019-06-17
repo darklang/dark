@@ -72,6 +72,8 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) ->
       focusWithOffset Defaults.entryID offset
+  | FluidEntering _tlid ->
+      setBrowserPos m.fluidState.newPos
   | _ ->
       Tea.Cmd.none
 
