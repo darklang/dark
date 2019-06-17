@@ -2524,22 +2524,23 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
-    | FluidKeyPress {key; ctrlKey} when ctrlKey ->
-        let key =
-          match key with
-          | K.Letter 'd' ->
+    | FluidKeyPress {key; ctrlKey; metaKey} when ctrlKey || metaKey ->
+        let newKey =
+          match (key, ctrlKey, metaKey) with
+          | K.Letter 'd', true, _ ->
               (* Delete *)
               K.Delete
-          | K.Letter 'a' ->
+          | K.Letter 'a', true, _ ->
               (* Go to begining of line *)
               K.GoToFront
-          | K.Letter 'e' ->
+          | K.Letter 'e', true, _ ->
               (* Go to end of line *)
               K.GoToEnd
           | _ ->
               key
         in
-        updateKey key ast s
+        (* Prevent unwanted letters from being added *)
+        if newKey == key then (ast, s) else updateKey newKey ast s
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
         updateKey key ast s
