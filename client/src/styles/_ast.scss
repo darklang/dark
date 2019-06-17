@@ -237,7 +237,23 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     left: calc(100% - 2ch);
     width: 12px;
     height: 12px;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
+    opacity: 0.5;
+
+    &:hover {
+      opacity: 1;
+    }
+
+    &:hover:after {
+      @extend .tooltip;
+
+      content: "Handle errors that arise from this function yourself";
+
+      position: absolute;
+      left: 25px;
+      top: -2px;
+    }
 
     &.Option {
       background-image: url("/icons/option_just.svg");

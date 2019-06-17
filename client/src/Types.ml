@@ -899,6 +899,7 @@ and msg =
       [@printer opaque "TriggerSendPresenceCallback"]
   | FluidCommandsFilter of string
   | FluidRunCommand of command
+  | TakeOffErrorRail of tlid * id
 
 (* ----------------------------- *)
 (* AB tests *)
