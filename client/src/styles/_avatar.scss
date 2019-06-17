@@ -1,8 +1,8 @@
 .avatar {
   padding: 2px 5px;
-  width: 40px;
-  height: 40px;
-
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   &.inactive {
     opacity: 0.5;
   }
@@ -11,6 +11,10 @@
 .avatars {
   display: flex;
   flex-direction: column;
+  .avatar {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 .all-avatars {
