@@ -7,22 +7,13 @@ set -euo pipefail
 # - cp scripts/pre-commit-hook.sh .git/hooks/pre-commit
 # - chmod +x .git/hooks/pre-commit
 
-ocamlfiles=$(git diff --cached --name-only --diff-filter=ACM "*.ml" | tr '\n' ' ')
+# Works on all filetype, silently ignoring unsupported files
 
-if [[ "$ocamlfiles" ]]; then
-  # format all staged files
-  echo "$ocamlfiles" | xargs -0L1 scripts/ocamlformat --inplace
-  # Add back the modified/formatted files to staging
-  echo "$ocamlfiles" | xargs -0L1 git add
-fi
+files=$(git diff --cached --name-only --diff-filter=ACM)
 
-prettierfiles=$(git diff --cached --name-only --diff-filter=ACM "*.js" "*.html" "*.scss" | tr '\n' ' ')
-
-if [[ "$prettierfiles" ]]; then
-  # format all staged files
-  echo "$prettierfiles" | xargs -0L1 client/node_modules/.bin/prettier --write
-  # Add back the modified/formatted files to staging
-  echo "$prettierfiles" | xargs -0L1 git add
-fi
+# format all staged files
+echo "$files" | xargs scripts/format check --quiet
+# Add back the modified/formatted files to staging
+echo "$files" | xargs git add
 
 exit 0

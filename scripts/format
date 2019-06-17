@@ -1,0 +1,165 @@
+#! /usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+CHECK=0 # (0 mean check, 1 means format)
+QUIET=1 # (0 means loud, 1 mean quiet)
+FILES=()
+
+#######################
+# --help
+#######################
+function print_help ()
+{
+	printf '%s\n' "All formatting across Dark"
+	printf 'Usage: %s [check|format] <files|dirs...> [--help] \n' "$0"
+	printf '\t%s\n' "check: Error if files are not formatted. No argument means check all files. Does not error if file is not supported."
+	printf '\t%s\n' "format: Format file or dir. Formats all files with no argument. Does not error or format if file is not supported."
+}
+
+# check for flags
+for val in "${@}"; do
+  case "$val" in
+    --help)
+        print_help
+        exit 0
+        ;;
+    --quiet)
+        QUIET=0
+        ;;
+  esac
+done
+
+#######################
+# Parse rest of arguments
+#######################
+first="$1";
+shift;
+# save all but first arg
+FILES=("${@}")
+
+case "$first" in
+  check)
+    CHECK=0
+    ;;
+  format)
+    CHECK=1
+    ;;
+  *)
+    # its a file so save it
+    FILES=("$first" "${FILES[@]}")
+    ;;
+esac
+
+if [[ ${#FILES[@]} -eq 0 ]]; then
+  FILES=(".")
+fi
+
+#######################
+# functions
+#######################
+is_dir() {
+  [[ -d "$1" ]] 
+}
+
+is_ocaml() {
+  [[ $1 == *.mli || $1 == *.ml ]]
+}
+
+is_allowed() {
+  [[ $1 == *.mli || $1 == *.ml || $1 == *.css || $i == *.scss || $1 == *.js || $1 == *.html ]]
+}
+
+all_prettier_files() {
+  find "$1" -type f \
+    \( -name "*.css" \
+    -o -name "*.scss" \
+    -o -name "*.js" \
+    -o -name "*.html" \) -print0 \
+    -o -path ".git" -prune \
+    -o -path "backend/_build" -prune \
+    -o -path "./backend/_build" -prune \
+    -o -path "client/node_modules" -prune \
+    -o -path "./client/node_modules" -prune \
+    -o -path "backend/static" -prune \
+    -o -path "./backend/static" -prune \
+    -o -path "client/lib" -prune \
+    -o -path "./client/lib" -prune 
+}
+
+all_ocaml_files() {
+  find "$1" -type f \
+    \( -name "*.ml" \
+    -o -name "*.mli" \) -print0 \
+    -o -path ".git" -prune \
+    -o -path "backend/_build" -prune \
+    -o -path "./backend/_build" -prune \
+    -o -path "client/node_modules" -prune \
+    -o -path "./client/node_modules" -prune 
+}
+
+check_ocamlformat() {
+  while read -r i; do
+    if ! diff <(cat "$i") <(ocamlformat "$i") &> /dev/null; then
+      echo "Failed: $i"
+      return 1
+    fi
+  done
+  return 0
+}
+
+check_prettier () {
+  xargs -0L1 client/node_modules/.bin/prettier --list-different
+}
+
+format_ocamlformat() {
+  xargs -0L1 ocamlformat --inplace 
+}
+
+format_prettier() {
+  xargs -0L1 client/node_modules/.bin/prettier --write
+}
+
+do_ocamlformat() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_ocamlformat 
+  else
+    format_ocamlformat 
+  fi
+}
+
+do_prettier() {
+  if [[ 0 -eq "$CHECK" ]]; then
+    check_prettier 
+  else
+    format_prettier 
+  fi
+}
+
+log() {
+  if [[ 0 -ne "$QUIET" ]]; then
+    echo "$1"
+  fi
+}
+
+# TODO sqlfmt for sql
+# TODO add python
+# TODO bash formatter
+
+#######################
+# action files/dirs
+#######################
+for i in "${FILES[@]}"; do
+  if [[ -d "$i" ]]; then
+    all_ocaml_files "$i" | do_ocamlformat
+    all_prettier_files "$i" | do_prettier
+  elif is_allowed "$i"; then
+    if is_ocaml "$i"; then
+      echo "$i" | do_ocamlformat
+    else
+      echo "$i" | do_prettier
+    fi
+  else
+    log "ignored : $i"
+  fi
+done
+
