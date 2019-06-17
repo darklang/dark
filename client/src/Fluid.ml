@@ -2520,6 +2520,15 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
+    | FluidKeyPress {key; metaKey; ctrlKey}
+        when (metaKey || ctrlKey) ->        
+        let key = match key with 
+        | K.Letter 'd' ->
+            K.Delete
+        | _ -> 
+            key
+        in
+        updateKey key ast s
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
         updateKey key ast s
@@ -2863,11 +2872,8 @@ let viewAST
       let open Tea.Json.Decoder in
       succeed Types.IgnoreMsg
     in
-    Html.onWithOptions
-      ~key
-      event
-      {stopPropagation = false; preventDefault = not cmdOpen}
-      decodeNothing
+   (* There is a check to preventDefault() in the appsupport file *)
+    Html.on ~key event decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in
