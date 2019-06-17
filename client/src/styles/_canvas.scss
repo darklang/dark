@@ -26,7 +26,6 @@
   font-size: 0.6rem;
   color: $blue;
   text-align: left;
-  cursor: pointer;
 }
 
 .parameter-btn {
@@ -35,6 +34,7 @@
   &.allowed {
     &:hover {
       color: $green;
+      cursor: pointer;
     }
   }
 
