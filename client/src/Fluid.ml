@@ -679,87 +679,8 @@ let setBrowserPos offset =
 
 
 (* -------------------- *)
-(* Autocomplete *)
+(* Update fluid state *)
 (* -------------------- *)
-
-let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
-  match entry with
-  | FACFunction fn ->
-      let count = List.length fn.fnParameters in
-      let name = fn.fnName in
-      let r =
-        if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
-        then Types.Rail
-        else Types.NoRail
-      in
-      let args = List.initialize count (fun _ -> EBlank (gid ())) in
-      if fn.fnInfix
-      then
-        match args with
-        | [lhs; rhs] ->
-            (EBinOp (gid (), name, lhs, rhs, r), 0)
-        | _ ->
-            fail "BinOp doesn't have 2 args"
-      else (EFnCall (gid (), name, args, r), String.length name + 1)
-  | FACKeyword KLet ->
-      (ELet (gid (), gid (), "", newB (), newB ()), 4)
-  | FACKeyword KIf ->
-      (EIf (gid (), newB (), newB (), newB ()), 3)
-  | FACKeyword KLambda ->
-      (ELambda (gid (), [(gid (), "")], newB ()), 1)
-  | FACKeyword KMatch ->
-      let matchID = gid () in
-      (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
-  | FACKeyword KThread ->
-      (EThread (gid (), [newB (); newB ()]), 8)
-  | FACVariable name ->
-      (EVariable (gid (), name), String.length name)
-  | FACLiteral "true" ->
-      (EBool (gid (), true), 4)
-  | FACLiteral "false" ->
-      (EBool (gid (), false), 5)
-  | FACLiteral "null" ->
-      (ENull (gid ()), 4)
-  | FACConstructorName (name, argCount) ->
-      let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
-      (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
-  | FACField _ ->
-      fail
-        ( "TODO: fieldnames are not supported yet: "
-        ^ Types.show_fluidAutocompleteItem entry )
-  | FACLiteral _ ->
-      fail
-        ( "invalid literal in autocomplete: "
-        ^ Types.show_fluidAutocompleteItem entry )
-
-
-let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
-  match entry with
-  | FACPattern p ->
-    ( match p with
-    | FPAConstructor (mID, patID, var, pats) ->
-        (FPConstructor (mID, patID, var, pats), String.length var + 1)
-    | FPAVariable (mID, patID, var) ->
-        (FPVariable (mID, patID, var), String.length var + 1)
-    | FPABool (mID, patID, var) ->
-        (FPBool (mID, patID, var), String.length (string_of_bool var) + 1)
-    | FPANull (mID, patID) ->
-        (FPNull (mID, patID), 4) )
-  | _ ->
-      fail
-        "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
-
-
-let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
-
-let isAutocompleting (ti : tokenInfo) (s : state) : bool =
-  Token.isAutocompletable ti.token
-  && s.upDownCol = None
-  && s.ac.index <> None
-  && s.newPos <= ti.endPos
-  && s.newPos >= ti.startPos
-
-
 let tiSentinel : tokenInfo =
   { token = TSep
   ; startPos = -1000
@@ -784,6 +705,11 @@ let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
   {s with newPos = pos; upDownCol}
+
+
+let report (e : string) (s : state) =
+  let s = recordAction "report" s in
+  {s with error = Some e}
 
 
 (* -------------------- *)
@@ -1684,6 +1610,110 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
+(* -------------------- *)
+(* Autocomplete *)
+(* -------------------- *)
+
+let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
+  match entry with
+  | FACFunction fn ->
+      let count = List.length fn.fnParameters in
+      let name = fn.fnName in
+      let r =
+        if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
+        then Types.Rail
+        else Types.NoRail
+      in
+      let args = List.initialize count (fun _ -> EBlank (gid ())) in
+      if fn.fnInfix
+      then
+        match args with
+        | [lhs; rhs] ->
+            (EBinOp (gid (), name, lhs, rhs, r), 0)
+        | _ ->
+            fail "BinOp doesn't have 2 args"
+      else (EFnCall (gid (), name, args, r), String.length name + 1)
+  | FACKeyword KLet ->
+      (ELet (gid (), gid (), "", newB (), newB ()), 4)
+  | FACKeyword KIf ->
+      (EIf (gid (), newB (), newB (), newB ()), 3)
+  | FACKeyword KLambda ->
+      (ELambda (gid (), [(gid (), "")], newB ()), 1)
+  | FACKeyword KMatch ->
+      let matchID = gid () in
+      (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
+  | FACKeyword KThread ->
+      (EThread (gid (), [newB (); newB ()]), 8)
+  | FACVariable name ->
+      (EVariable (gid (), name), String.length name)
+  | FACLiteral "true" ->
+      (EBool (gid (), true), 4)
+  | FACLiteral "false" ->
+      (EBool (gid (), false), 5)
+  | FACLiteral "null" ->
+      (ENull (gid ()), 4)
+  | FACConstructorName (name, argCount) ->
+      let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
+      (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
+  | FACPattern _ ->
+      fail
+        ( "TODO: patterns are not supported here: "
+        ^ Types.show_fluidAutocompleteItem entry )
+  | FACField _ ->
+      fail
+        ( "TODO: fieldnames are not supported yet: "
+        ^ Types.show_fluidAutocompleteItem entry )
+  | FACLiteral _ ->
+      fail
+        ( "invalid literal in autocomplete: "
+        ^ Types.show_fluidAutocompleteItem entry )
+
+
+let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
+    fluidExpr * int =
+  let newExpr, offset = acToExpr entry in
+  let oldExpr = findExpr id ast in
+  match (oldExpr, newExpr) with
+  (* A partial - fetch the old nested exprs and put them in place *)
+  | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
+    , EBinOp (id, name, _, _, str) ) ->
+      (EBinOp (id, name, lhs, rhs, str), String.length name)
+      (* A right partial - insert the oldExpr into the first slot *)
+  | Some (ERightPartial (_, _, oldExpr)), EThread (id, _head :: tail) ->
+      (EThread (id, oldExpr :: tail), 2)
+  | Some (ERightPartial (_, _, oldExpr)), EBinOp (id, name, _, rhs, str) ->
+      (EBinOp (id, name, oldExpr, rhs, str), String.length name)
+  | _ ->
+      (newExpr, offset)
+
+
+let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
+  match entry with
+  | FACPattern p ->
+    ( match p with
+    | FPAConstructor (mID, patID, var, pats) ->
+        (FPConstructor (mID, patID, var, pats), String.length var + 1)
+    | FPAVariable (mID, patID, var) ->
+        (FPVariable (mID, patID, var), String.length var + 1)
+    | FPABool (mID, patID, var) ->
+        (FPBool (mID, patID, var), String.length (string_of_bool var) + 1)
+    | FPANull (mID, patID) ->
+        (FPNull (mID, patID), 4) )
+  | _ ->
+      fail
+        "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+
+
+let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
+
+let isAutocompleting (ti : tokenInfo) (s : state) : bool =
+  Token.isAutocompletable ti.token
+  && s.upDownCol = None
+  && s.ac.index <> None
+  && s.newPos <= ti.endPos
+  && s.newPos >= ti.startPos
+
+
 let acSetIndex (i : int) (s : state) : state =
   let s = recordAction "acSetIndex" s in
   {s with ac = {s.ac with index = Some i}; upDownCol = None}
@@ -1719,11 +1749,6 @@ let acMoveDown (s : state) : state =
   acSetIndex index s
 
 
-let report (e : string) (s : state) =
-  let s = recordAction "report" s in
-  {s with error = Some e}
-
-
 let moveBasedOnKey
     (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
     state =
@@ -1748,49 +1773,6 @@ let moveBasedOnKey
   newState
 
 
-let acEnterRightPartial (ti : tokenInfo) (ast : ast) (s : state) (key : K.key)
-    : ast * state =
-  let s = recordAction ~ti "acEnterRightPartial" s in
-  let id = Token.tid ti.token in
-  let newExpr, offset =
-    match (AC.highlighted s.ac, findExpr id ast) with
-    | Some (FACFunction fn), Some (ERightPartial (_, _, lhs)) ->
-        if not fn.fnInfix then fail "expression is not infix" ;
-        let r =
-          if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
-          then Types.Rail
-          else Types.NoRail
-        in
-        let newExpr = EBinOp (gid (), fn.fnName, lhs, EBlank (gid ()), r) in
-        let acOffset = String.length fn.fnName + 1 in
-        (newExpr, acOffset)
-    | Some (FACKeyword KThread), Some (ERightPartial (_, _, lhs)) ->
-        let newExpr = EThread (gid (), [lhs; EBlank (gid ())]) in
-        let acOffset = 2 in
-        (newExpr, acOffset)
-    | None, _ ->
-        fail "No rightPartial autocomplete selected"
-    | _, None ->
-        fail "No rightPartial expression found"
-    | _ ->
-        fail "expression is missing or not a partial"
-  in
-  let newAST = replaceExpr ~newExpr id ast in
-  (newAST, moveBasedOnKey key ti.startPos offset s newAST)
-
-
-let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
-    fluidExpr * int =
-  let newExpr, offset = acToExpr entry in
-  let oldExpr = findExpr id ast in
-  match (oldExpr, newExpr) with
-  | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
-    , EBinOp (id, name, _, _, str) ) ->
-      (EBinOp (id, name, lhs, rhs, str), String.length name)
-  | _ ->
-      (newExpr, offset)
-
-
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ast * state =
   let s = recordAction ~ti "acEnter" s in
@@ -1812,7 +1794,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newPat, acOffset = acToPattern entry in
             let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
-        | TPartial _ ->
+        | TPartial _ | TRightPartial _ ->
             let newExpr, offset = acUpdateExpr id ast entry in
             let newAST = replaceExpr ~newExpr id ast in
             (newAST, offset)
@@ -1857,6 +1839,9 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       (newAST, newState)
 
 
+(* -------------------- *)
+(* Code entering/interaction *)
+(* -------------------- *)
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
@@ -2353,21 +2338,12 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
       ->
         acEnter ti ast s key
-    | K.Enter, L (TRightPartial (_, _), ti), _
-    | K.Enter, _, R (TRightPartial (_, _), ti)
-    | K.Space, L (TRightPartial (_, _), ti), _
-    | K.Space, _, R (TRightPartial (_, _), ti)
-    | K.Tab, L (TRightPartial (_, _), ti), _
-    | K.Tab, _, R (TRightPartial (_, _), ti)
-    | K.ShiftTab, L (TRightPartial (_, _), ti), _
-    | K.ShiftTab, _, R (TRightPartial (_, _), ti) ->
-        acEnterRightPartial ti ast s key
     (* When we type a letter/number after an infix operator, complete and
      * then enter the number/letter. *)
     | K.Number _, L (TRightPartial (_, _), ti), _
     | K.Letter _, L (TRightPartial (_, _), ti), _
       when onEdge ->
-        let ast, s = acEnterRightPartial ti ast s K.Tab in
+        let ast, s = acEnter ti ast s K.Tab in
         let ti =
           getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
           |> deOption "rightPartialLetter/number"

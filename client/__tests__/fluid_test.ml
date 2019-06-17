@@ -586,6 +586,11 @@ let () =
         "pressing then enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
+        ("true || _________", 7) ;
+      t
+        "pressing then space completes partial"
+        trueBool
+        (presses [K.Pipe; K.Down; K.Space] 4)
         ("true || _________", 8) ;
       tp
         "pressing plus key starts partial"
