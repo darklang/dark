@@ -516,6 +516,11 @@ let () =
       t "backspace int->blank " five (backspace 1) (b, 0) ;
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       tp "insert partial" blank (insert 't' 0) ("t", 1) ;
+      t
+        "backspacing your way through a partial finishes"
+        trueBool
+        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        ("___", 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -563,24 +568,13 @@ let () =
         aFnCall
         (press K.Space 10)
         ("Int::add 5 _________", 11) ;
-      (* t *)
-      (*   "backspace on a function name deletes function" *)
-      (*   aFnCall *)
-      (*   (press K.Backspace 8) *)
-      (*   ("___", 0) ; *)
-      (* t *)
-      (*   "delete on a function name deletes function" *)
-      (*   aFnCall *)
-      (*   (press K.Delete 3) *)
-      (*   ("___", 0) ; *)
+      (* TODO: functions are not implemented fully. I deleted backspace and
+       * delete because we were switching to partials, but this isn't
+       * implemented. Some tests we need: 
+         * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
+         * same with delete *)
       () ) ;
   describe "Binops" (fun () ->
-      (* let aBoolBinOp = *)
-      (*   EBinOp *)
-      (*     (gid (), "||", EBool (gid (), false), EBool (gid (), true), NoRail) *)
-      (* in *)
-      (* let anEditedBinOp = EPartial (gid (), "|", aBoolBinOp) in *)
-      (* TODO "func 1 2" -> "fun 1 2" *)
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
       t
         "pressing then enter completes partial"
@@ -607,12 +601,6 @@ let () =
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
         ("true\n|>___", 8) ;
-      (* TODO: delete key as well *)
-      t
-        "backspacing your way through a partial finishes"
-        trueBool
-        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
-        ("___", 0) ;
       t
         "pressing backspace to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
@@ -658,45 +646,18 @@ let () =
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
         ("12345 <= 12345", 8) ;
-      (* t "pressing plus on a let lhs gets a correct partial" *)
-      (* tp "show ghost partial" aFullBinOp (backspace 8) ("myvar =@ 5", 7) ; *)
-      
-      (* "true && false" -> "true & false" -> "true ___ false" -> "true | false" -> "true || false" *)
-      (* "3 + 4" -> "3 ___ 4" -> "3 + 4" *)
-      (* backspace on empty partial does something *)
-      (* pressing enter at the end of the partialGhost *)
-      
-      (* t *)
-      (*   "add a binop at the end of a var" *)
-      (*   aShortVar *)
-      (*   (press K.Percent 1) *)
-      (*   ("v % _________", 4) ; *)
-      (* TODO: disable *)
-      (* t *)
-      (*   "delete on a binop deletes function" *)
-      (*   aFullBinOp *)
-      (*   (press K.Delete 6) *)
-      (*   ("___", 5) ; *)
-      (* (* TODO: disable *) *)
-      (* t *)
-      (*   "plus becomes ++ (String::append) if left is a string" *)
-      (*   oneCharStr *)
-      (*   (press K.Plus 3) *)
-      (*   ("\"c\" ++ _________", 7) ; *)
-      (* TODO: disable *)
-      (* t *)
-      (*   "plus becomes + (Int::add) for non strings" *)
-      (*   aShortInt *)
-      (*   (press K.Plus 1) *)
-      (*   ("1 + _________", 4) ; *)
-      (* TODO: disable *)
-      (* t *)
-      (*   "& becomes && (Bool::and)" *)
-      (*   trueBool *)
-      (*   (press K.Ampersand 4) *)
-      (*   ("true && _________", 8) ; *)
-      (* TODO: disable *)
-      (* t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || _________", 8) ; *)
+      let aFullBinOp =
+        EBinOp
+          ( gid ()
+          , "||"
+          , EVariable (gid (), "myvar")
+          , EInteger (gid (), 5)
+          , NoRail )
+      in
+      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar |@ 5", 7) ;
+      (* TODO backspace on empty partial does something *)
+      (* TODO support delete on all the backspace commands *)
+      (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
       t
