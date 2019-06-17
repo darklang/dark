@@ -66,7 +66,8 @@ def sass_compile():
 def client_build():
   if os.environ.get("CI"):
     start = time.time()
-    result = run_frontend(start, "./scripts/format check client")
+    # checks the backend too
+    result = run_frontend(start, "./scripts/format check")
     if not result:
       return result
 
@@ -117,11 +118,6 @@ def backend_build():
       compilation_profile = "release"
   else:
       compilation_profile = "dev"
-
-  if os.environ.get("CI"):
-      result = run_backend(start, "./scripts/format check backend")
-      if not result:
-          return result
 
   build = "unbuffer" \
         + " scripts/dune-wrapper.sh build" \
