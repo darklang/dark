@@ -913,7 +913,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
     | FluidCommandsFor (tlid, id) ->
-        let cp = FluidCommands.commandsFor (TL.getExn m tlid) id in
+        let cp = FluidCommands.updateCommandState (TL.getExn m tlid) id in
         ( {m with fluidState = {m.fluidState with cp}}
         , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->

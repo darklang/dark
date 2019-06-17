@@ -7,7 +7,7 @@ module D = Defaults
 module R = Refactor
 
 let () =
-  describe "toggleOnRail" (fun () ->
+  describe "takeOffRail & putOnRail" (fun () ->
       let f1 =
         { fnName = "Result::resulty"
         ; fnParameters = []
@@ -50,7 +50,7 @@ let () =
       in
       test "toggles any fncall off rail" (fun () ->
           let m, tl, pd = init "Int::notResulty" Rail in
-          let op = Refactor.toggleOnRail m tl pd in
+          let op = Refactor.takeOffRail m tl pd in
           let res =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
@@ -65,7 +65,7 @@ let () =
           expect res |> toEqual true ) ;
       test "toggles error-rail-y function onto rail" (fun () ->
           let m, tl, pd = init "Result::resulty" NoRail in
-          let op = Refactor.toggleOnRail m tl pd in
+          let op = Refactor.putOnRail m tl pd in
           let res =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
@@ -78,9 +78,9 @@ let () =
                 false
           in
           expect res |> toEqual true ) ;
-      test "does not toggle non-error-rail-y function onto rail" (fun () ->
+      test "does not put non-error-rail-y function onto rail" (fun () ->
           let m, tl, pd = init "Int::notResulty" NoRail in
-          let op = Refactor.toggleOnRail m tl pd in
+          let op = Refactor.putOnRail m tl pd in
           let res = match op with NoChange -> true | _ -> false in
           expect res |> toEqual true ) ) ;
   describe "renameDBReferences" (fun () ->
