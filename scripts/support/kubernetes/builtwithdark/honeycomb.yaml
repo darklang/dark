@@ -173,15 +173,15 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: honeycombio/honeycomb-kubernetes-agent:head
+        image: honeycombio/honeycomb-kubernetes-agent:molly_debug3
         imagePullPolicy: IfNotPresent
         name: honeycomb-agent
-        resources:
-          limits:
-            memory: 200Mi
-          requests:
-            cpu: 100m
-            memory: 200Mi
+        # resources:
+        #   limits:
+        #     memory: 200Mi
+        #   requests:
+        #     cpu: 100m
+        #     memory: 200Mi
         volumeMounts:
         - mountPath: "/etc/honeycomb"
           name: config
