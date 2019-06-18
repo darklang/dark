@@ -5,6 +5,26 @@ open Types
 (* Dark *)
 module B = Blank
 
+let astOwned pt =
+  match pt with
+  | Expr | VarBind | Key | Field | FnCallName | Pattern | ConstructorName ->
+      true
+  | EventModifier
+  | EventName
+  | EventSpace
+  | DBName
+  | DBColName
+  | DBColType
+  | FFMsg
+  | FnName
+  | ParamName
+  | ParamTipe
+  | TypeName
+  | TypeFieldName
+  | TypeFieldTipe ->
+      false
+
+
 (* ------------------------ *)
 (* PointerData *)
 (* ------------------------ *)

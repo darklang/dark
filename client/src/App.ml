@@ -502,7 +502,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
-          then FluidEntering tlid
+          then
+            match p with
+            | None ->
+                FluidEntering tlid
+            | Some id ->
+                let tl = TL.getExn m tlid in
+                let pd = TL.findExn tl id in
+                if P.astOwned (P.typeOf pd)
+                then FluidEntering tlid
+                else Selecting (tlid, p)
           else Selecting (tlid, p)
         in
         let m, hashcmd =
@@ -555,7 +564,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
               let cs =
-                if VariantTesting.isFluid m.tests
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
                 then FluidEntering tlid
                 else Entering entry
               in
@@ -574,7 +583,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
               let cs =
-                if VariantTesting.isFluid m.tests
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
                 then FluidEntering tlid
                 else Entering entry
               in
