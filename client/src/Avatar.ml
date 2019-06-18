@@ -2,6 +2,15 @@ open Prelude
 open Types
 open Tc
 
+let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
+  avatars
+  |> List.filter ~f:(fun (av : Types.avatar) ->
+         match av.tlid with
+         | None ->
+             false
+         | Some avTlid ->
+             avTlid == (tlid |> deTLID))
+
 let avatarUrl (email : string) (name : string option) : string =
   (* Digest.string is Bucklescript's MD5 *)
   let digestedEmail = Digest.to_hex (Digest.string email) in
@@ -45,14 +54,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
 
 
 let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
-  let avList =
-    avatars
-    |> List.filter ~f:(fun (av : Types.avatar) ->
-           match av.tlid with
-           | None ->
-               false
-           | Some avTlid ->
-               avTlid == (tlid |> deTLID) )
+  let avList = filterAvatarsByTlid avatars tlid
   in
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map ~f:renderAvatar avList in
