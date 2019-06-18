@@ -108,7 +108,7 @@ function getCursorPosition() {
 
 function setCursorPosition(pos) {
   editor = document.querySelector(".selected #fluid-editor");
-  if (!editor) throw "no editor";
+  if (!editor) return;
   if (pos < 0) pos = 0;
   if (pos > editor.textContent.length) pos = editor.textContent.length;
   for (var i = 0; i < editor.childNodes.length; i++) {
