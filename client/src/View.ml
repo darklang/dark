@@ -61,7 +61,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         "dblclick"
         (fun _ -> ToplevelDoubleClick vs.tl.id) ]
   in
-  let avatars = Avatar.viewAvatars vs.avatarsList tl.id in
+  let avatars = Avatar.viewAvatars m.avatarsList tl.id in
   let selected = Some tl.id = tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
   let boxClasses =
