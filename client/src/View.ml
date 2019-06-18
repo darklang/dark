@@ -187,17 +187,25 @@ let tlCacheKey (m : model) tl =
       Analysis.getTraces m tl.id
       |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
     in
-    Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded)
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id
+    in
+    Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded, avatarsList)
 
 
 let tlCacheKeyDB (m : model) tl =
   if Some tl.id = tlidOf m.cursorState
   then None
-  else Some (tl, DB.isLocked m tl.id)
+  else 
+  let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id
+  in
+  Some (tl, DB.isLocked m tl.id, avatarsList)
 
 
 let tlCacheKeyTipe (m : model) tl =
-  if Some tl.id = tlidOf m.cursorState then None else Some tl
+  if Some tl.id = tlidOf m.cursorState then None else
+  let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id
+  in
+  Some (tl, avatarsList)
 
 
 let viewTL m tl =
