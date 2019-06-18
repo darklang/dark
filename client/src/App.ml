@@ -501,8 +501,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           , Url.updateUrl Architecture )
     | Select (tlid, p) ->
         let cursorState =
-          if p = None && VariantTesting.isFluid m.tests
-          then FluidEntering tlid
+          if VariantTesting.isFluid m.tests
+          then
+            match p with
+            | None ->
+                FluidEntering tlid
+            | Some id ->
+                let tl = TL.getExn m tlid in
+                let pd = TL.findExn tl id in
+                if P.astOwned (P.typeOf pd)
+                then FluidEntering tlid
+                else Selecting (tlid, p)
           else Selecting (tlid, p)
         in
         let m, hashcmd =
@@ -547,31 +556,41 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
-        let target =
+        let cursorState, target =
           match entry with
           | Creating _ ->
-              None
+              (Entering entry, None)
           | Filling (tlid, id) ->
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
-              Some (tlid, pd)
+              let cs =
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                then FluidEntering tlid
+                else Entering entry
+              in
+              (cs, Some (tlid, pd))
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = {m with cursorState = Entering entry} in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
-        let target =
+        let cursorState, target =
           match entry with
           | Creating _ ->
-              None
+              (Entering entry, None)
           | Filling (tlid, id) ->
               let tl = TL.getExn m tlid in
               let pd = TL.findExn tl id in
-              Some (tlid, pd)
+              let cs =
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                then FluidEntering tlid
+                else Entering entry
+              in
+              (cs, Some (tlid, pd))
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = {m with cursorState = Entering entry} in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         ( m
         , Cmd.batch
@@ -1488,7 +1507,7 @@ let update_ (msg : msg) (m : model) : modification =
         | None ->
             NewHandler None
       in
-      Entry.submitOmniAction center action
+      Entry.submitOmniAction m center action
   | CreateDBTable ->
       let center = findCenter m
       and genName = DB.generateDBName () in

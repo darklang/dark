@@ -641,28 +641,7 @@ let pToString (p : fluidPattern) : string =
 (* Direct canvas interaction *)
 (* -------------------- *)
 
-external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
-  [@@bs.val] [@@bs.scope "window"]
-
-external jsSetCursorPosition : int -> unit = "setCursorPosition"
-  [@@bs.val] [@@bs.scope "window"]
-
-let getCursorPosition () : int option =
-  jsGetCursorPosition () |> Js.Nullable.toOption
-
-
-let setCursorPosition (v : int) : unit = jsSetCursorPosition v
-
 let editorID = "fluid-editor"
-
-let setBrowserPos offset =
-  Tea.Cmd.call (fun _ ->
-      (* We need to set this in the new frame, as updating sets the cursor to
-       * the start of the DOM node. *)
-      ignore
-        (Web.Window.requestAnimationFrame (fun _ -> setCursorPosition offset)) ;
-      () )
-
 
 (* -------------------- *)
 (* Autocomplete *)
@@ -2316,7 +2295,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     match msg with
     | FluidMouseClick ->
       (* TODO: if mouseclick on blank put cursor at beginning of it *)
-      ( match getCursorPosition () with
+      ( match Entry.getCursorPosition () with
       | Some newPos ->
           updateMouseClick newPos ast s
       | None ->
@@ -2359,7 +2338,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           let cmd =
             let astCmd =
               if newAST <> ast || newState.oldPos <> newState.newPos
-              then [setBrowserPos newState.newPos]
+              then [Entry.setBrowserPos newState.newPos]
               else []
             in
             let acCmd =
