@@ -468,7 +468,10 @@ and viewNExpr
             [ Html.class'
                 ("feature-flag" ^ if isExpanded then " expand" else "") ]
             [titleBar; blockCondition; expressions] ]
+      (* Don't care, we're switching to fluid *)
   | FluidPartial (str, _) ->
+      Html.text str
+  | FluidRightPartial (str, _) ->
       Html.text str
 
 

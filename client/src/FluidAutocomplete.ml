@@ -73,7 +73,9 @@ let asName (aci : autocompleteItem) : string =
     | KLambda ->
         "lambda"
     | KMatch ->
-        "match" )
+        "match"
+    | KThread ->
+        "|>" )
   | FACPattern p ->
     ( match p with
     | FPAVariable (_, _, name) | FPAConstructor (_, _, name, _) ->
@@ -399,7 +401,7 @@ let generate
     (* then *)
     let varnames = List.map ~f:(fun x -> FACVariable x) varnames in
     let keywords =
-      List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch]
+      List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KThread]
     in
     let literals =
       List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
@@ -602,6 +604,8 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
   | FACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
+  | FACKeyword KThread ->
+      Some "Pipe into another expression"
   | FACPattern p ->
     ( match p with
     | FPAConstructor (_, _, name, args) ->

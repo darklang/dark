@@ -144,8 +144,13 @@ https://github.com/chriskempson/tomorrow-theme */
     color: $white2;
   }
 
-  .fluid-partial {
+  .fluid-partial,
+  .fluid-partial-right {
     color: $red;
+  }
+
+  .fluid-partial-ghost {
+    color: $grey3;
   }
 
   // <Position autocomplete as a dropdown>

@@ -93,7 +93,9 @@ let rec traverse ~(f : expr -> expr) (expr : expr) : expr =
           | Constructor (name, args) ->
               Constructor (name, List.map ~f args)
           | FluidPartial (name, old_val) ->
-              FluidPartial (name, f old_val) )
+              FluidPartial (name, f old_val)
+          | FluidRightPartial (name, old_val) ->
+              FluidRightPartial (name, f old_val) )
 
 
 (* Example usage of traverse. See also AST.ml *)
@@ -191,7 +193,8 @@ let rec exec
         DIncomplete
     | Partial _ ->
         DIncomplete
-    | Filled (_, FluidPartial (_, expr)) ->
+    | Filled (_, FluidPartial (_, expr))
+    | Filled (_, FluidRightPartial (_, expr)) ->
         exe st expr
     | Filled (_, Let (lhs, rhs, body)) ->
         let data = exe st rhs in

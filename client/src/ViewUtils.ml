@@ -339,6 +339,8 @@ and approxNWidth (ne : nExpr) : int =
       |> Option.withDefault ~default:0
   | FluidPartial (str, oldExpr) ->
       max (String.length str) (approxWidth oldExpr)
+  | FluidRightPartial (str, oldExpr) ->
+      String.length str + approxWidth oldExpr
 
 
 let splitFnName (fnName : fnName) : string option * string * string =

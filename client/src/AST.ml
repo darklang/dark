@@ -49,7 +49,9 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
               in
               Match (fn matchExpr, traversedCases)
           | FluidPartial (name, oldExpr) ->
-              FluidPartial (name, fn oldExpr) )
+              FluidPartial (name, fn oldExpr)
+          | FluidRightPartial (name, oldExpr) ->
+              FluidRightPartial (name, fn oldExpr) )
 
 
 (* -------------------------------- *)
@@ -99,6 +101,8 @@ let rec allData (expr : expr) : pointerData list =
         in
         matchData @ caseData
     | FluidPartial (_, oldExpr) ->
+        allData oldExpr
+    | FluidRightPartial (_, oldExpr) ->
         allData oldExpr )
 
 
@@ -164,6 +168,8 @@ let rec uses (var : varName) (expr : expr) : expr list =
         in
         u matchExpr @ replacements
     | FluidPartial (_, oldExpr) ->
+        u oldExpr
+    | FluidRightPartial (_, oldExpr) ->
         u oldExpr )
 
 
@@ -356,6 +362,8 @@ let children (expr : expr) : pointerData list =
         in
         PExpr matchExpr :: casePointers
     | FluidPartial (_, oldExpr) ->
+        [PExpr oldExpr]
+    | FluidRightPartial (_, oldExpr) ->
         [PExpr oldExpr] )
 
 
@@ -400,6 +408,8 @@ let rec childrenOf (pid : id) (expr : expr) : pointerData list =
           in
           co matchExpr @ cCases
       | FluidPartial (_, oldExpr) ->
+          co oldExpr
+      | FluidRightPartial (_, oldExpr) ->
           co oldExpr )
 
 
@@ -448,6 +458,8 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
       | Match (matchExpr, cases) ->
           fpowList (matchExpr :: (cases |> List.map ~f:Tuple2.second))
       | FluidPartial (_, oldExpr) ->
+          fpow oldExpr
+      | FluidRightPartial (_, oldExpr) ->
           fpow oldExpr )
 
 
@@ -493,6 +505,8 @@ let rec listThreadBlanks (expr : expr) : id list =
     | Match (matchExpr, cases) ->
         r matchExpr @ (cases |> List.map ~f:Tuple2.second |> rList)
     | FluidPartial (_, oldExpr) ->
+        r oldExpr
+    | FluidRightPartial (_, oldExpr) ->
         r oldExpr
   in
   match expr with Blank _ -> [] | F (_, f) -> rn f
@@ -858,6 +872,8 @@ let ancestors (id : id) (expr : expr) : expr list =
         | Constructor (_, args) ->
             reclist id exp walk args
         | FluidPartial (_, oldExpr) ->
+            rec_ id exp walk oldExpr
+        | FluidRightPartial (_, oldExpr) ->
             rec_ id exp walk oldExpr )
   in
   rec_ancestors id [] expr
@@ -938,6 +954,8 @@ let rec clone (expr : expr) : expr =
         Constructor (cString name, cl args)
     | FluidPartial (str, oldExpr) ->
         FluidPartial (str, c oldExpr)
+    | FluidRightPartial (str, oldExpr) ->
+        FluidRightPartial (str, c oldExpr)
   in
   B.clone cNExpr expr
 
@@ -1096,6 +1114,8 @@ let rec sym_exec
     | F (_, Constructor (_, args)) ->
         List.iter ~f:(sexe st) args
     | F (_, FluidPartial (_, oldExpr)) ->
+        sexe st oldExpr
+    | F (_, FluidRightPartial (_, oldExpr)) ->
         sexe st oldExpr ) ;
   trace expr st
 

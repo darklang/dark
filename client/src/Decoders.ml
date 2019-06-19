@@ -162,7 +162,9 @@ and nExpr j : nExpr =
     ; ("Match", dv2 (fun a b -> Match (a, b)) de (list (tuple2 pattern de)))
     ; ( "Constructor"
       , dv2 (fun a b -> Constructor (a, b)) (blankOr string) (list de) )
-    ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de) ]
+    ; ("FluidPartial", dv2 (fun a b -> FluidPartial (a, b)) string de)
+    ; ("FluidRightPartial", dv2 (fun a b -> FluidRightPartial (a, b)) string de)
+    ]
     j
 
 

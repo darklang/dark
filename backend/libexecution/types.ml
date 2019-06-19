@@ -183,6 +183,10 @@ module RuntimeT = struct
      * and the expression holds the old value, which remains valid until the
      * new expression is complete. *)
     | FluidPartial of string * expr
+    (* For changing an expression to a binop, we need to hold the expression
+     * even though it isn't a valid binop yet. The string is  the soon-to-be
+     * binop, and expr is the soon-to-be lhs or the binop. *)
+    | FluidRightPartial of string * expr
 
   and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, bin_io]
 

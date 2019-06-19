@@ -336,6 +336,8 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
              ~f:(isFunctionInExpr fnName)
              (List.map ~f:Tuple2.second cases)
     | FluidPartial (_, oldExpr) ->
+        isFunctionInExpr fnName oldExpr
+    | FluidRightPartial (_, oldExpr) ->
         isFunctionInExpr fnName oldExpr )
 
 
