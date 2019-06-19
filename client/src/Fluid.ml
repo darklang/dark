@@ -2529,6 +2529,33 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       | Some ast ->
           let ast = ast |> fromExpr s in
           let newAST, newState = updateMsg m tl.id ast msg s in
+          let eventSpecMod, newAST, newState =
+            (* if tab is wrapping... *)
+            if newState.lastKey = K.Tab && newState.newPos < newState.oldPos
+            then
+              (* let newState = recordAction "wrapping" newState in *)
+              let isUnselected id =
+                (* if not currently selected by cursor*)
+                m.cursorState != Selecting (tl.id, Some id)
+              in
+              (* toggle through spec headers *)
+              (* if on first spec header that is blank
+               * set cursor to select that *)
+              match (tl.data, m.cursorState) with
+              | TLHandler {spec = {name = Blank id; _}; _}, _
+                when isUnselected id ->
+                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+              | TLHandler {spec = {module_ = Blank id; _}; _}, _
+                when isUnselected id ->
+                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+              | TLHandler {spec = {modifier = Blank id; _}; _}, _
+                when isUnselected id ->
+                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+              | _ ->
+                  (NoChange, newAST, newState)
+            else (NoChange, newAST, newState)
+            (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
+          in
           let cmd =
             let astCmd =
               if newAST <> ast || newState.oldPos <> newState.newPos
@@ -2566,6 +2593,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           Types.Many
             [ Types.TweakModel (fun m -> {m with fluidState = newState})
             ; astMod
+            ; eventSpecMod
             ; Types.MakeCmd cmd ] ) )
 
 
