@@ -1,9 +1,7 @@
 $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
-$yellowFilter: grayscale(100%) brightness(120%) sepia(90%) hue-rotate(5deg) saturate(400%)
-  contrast(0.7);
+$yellowFilter: invert(0.08) sepia(1) saturate(4) hue-rotate(316.8deg) brightness(0.96);
 $greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
-$orangeFilter: invert(0.4) sepia(0.5) saturate(4) hue-rotate(0deg) brightness(1);
 
 $countBoxSize: 15px;
 
@@ -124,7 +122,7 @@ $countBoxSize: 15px;
           }
 
           &:hover {
-            filter: $orangeFilter;
+            filter: $yellowFilter;
           }
         }
       }
@@ -147,6 +145,10 @@ $countBoxSize: 15px;
           transform: translate(0%, 40%);
           .header-icon {
             display: none;
+          }
+
+          .GET a.external {
+            font-size: 12px;
           }
         }
       }
@@ -210,7 +212,7 @@ $countBoxSize: 15px;
       overflow: hidden;
       .verb {
         font-size: 14px;
-        // width: 10%;
+        text-decoration: none;
       }
       .no-ext {
         margin-left: 16px;
@@ -234,6 +236,10 @@ $countBoxSize: 15px;
       &.PATCH a,
       &.PATCH span {
         color: $http-patch;
+      }
+
+      &.GET a.external {
+        margin-right: 6px;
       }
     }
   }
@@ -266,11 +272,10 @@ $countBoxSize: 15px;
       align-items: center;
       flex-direction: row;
       justify-content: space-between;
-      color: #fff;
+      color: lighten($yellow, 10%);
 
       .title {
         display: flex;
-        filter: $yellowFilter;
         .count {
           font-weight: bold;
         }
@@ -286,6 +291,7 @@ $countBoxSize: 15px;
         height: 20px;
         width: 20px;
         margin-right: 5px;
+        filter: $yellowFilter;
       }
     }
 
@@ -345,7 +351,6 @@ $countBoxSize: 15px;
 .simple-route.deploy {
   color: $grey3;
   .header {
-    color: lighten($yellow, 15%);
     width: fit-content;
     padding-left: 0px;
     margin: 0px 5px 0px 10px;
