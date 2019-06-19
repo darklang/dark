@@ -2454,7 +2454,99 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
+let viewPlayIcon
+    ~tlid ~currentResults ~state (ti : tokenInfo) (l : tokenInfo list) :
+    Types.msg Html.html =
+  match ti.token with
+  | TFnName (id, name, _) ->
+      let fn = Functions.findByNameInList name state.ac.functions in
+      let showButton = not fn.fnPreviewExecutionSafe in
+      let isComplete =
+        id
+        |> ViewBlankOr.getLiveValue currentResults.liveValues
+        |> fun v ->
+        match v with
+        | None | Some (DError _) | Some DIncomplete ->
+            false
+        | Some _ ->
+            true
+      in
+      let buttonNeeded = not isComplete in
+      let exeIcon = "play" in
+      let events =
+        [ ViewUtils.eventNoPropagation
+            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+            "click"
+            (fun _ -> ExecuteFunctionButton (tlid, id, name))
+        ; ViewUtils.nothingMouseEvent "mouseup"
+        ; ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "dblclick" ]
+      in
+      (* TODO: determine how to check if fn is executing
+        let executingClass = "" in
+      *)
+      let buttonUnavailable =
+        (* filter out irrelevant tokens *)
+        let tiList =
+          l
+          |> List.filter ~f:(fun ti ->
+                 match ti.token with TSep | TIndent _ -> false | _ -> true )
+        in
+        (* parse out set of tokens corresponding to fn parameters *)
+        List.elemIndex ~value:ti tiList
+        |> Option.map ~f:(fun nameIndex ->
+               let argCount = List.length fn.fnParameters in
+               tiList
+               |> List.drop ~count:(nameIndex + 1)
+               |> List.take ~count:argCount )
+        |> Option.withDefault ~default:[]
+        (* check if any of the parameter tokens are blank *)
+        |> List.any ~f:(fun paramTok ->
+               match paramTok.token with
+               | t when Token.isBlank t ->
+                   true
+               | _ ->
+                   false )
+      in
+      let class_, event, title, icon =
+        if name = "Password::check" || name = "Password::hash"
+        then
+          ( "execution-button-unsafe"
+          , []
+          , "Cannot run interactively for security reasons."
+          , "times" )
+        else if buttonUnavailable
+        then
+          ( "execution-button-unavailable"
+          , []
+          , "Cannot run: some parameters are incomplete"
+          , exeIcon )
+        else if buttonNeeded
+        then
+          ( "execution-button-needed"
+          , events
+          , "Click to execute function"
+          , exeIcon )
+        else
+          ( "execution-button-repeat"
+          , events
+          , "Click to execute function again"
+          , "redo" )
+      in
+      if not showButton
+      then Vdom.noNode
+      else
+        Html.div
+          ( [ Html.class' ("execution-button " ^ class_ (* ^ executingClass *))
+            ; Html.title title ]
+          @ event )
+          [ViewUtils.fontAwesome icon]
+  | _ ->
+      Vdom.noNode
+
+
+let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
+    Types.msg Html.html list =
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2473,7 +2565,8 @@ let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
           ]
           ([Html.text content] @ nested)
       in
-      [element [dropdown ()]] )
+      [element [dropdown (); viewPlayIcon ~tlid ~currentResults ~state ti l]]
+  )
   |> List.flatten
 
 
@@ -2545,7 +2638,7 @@ let viewAST
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (tokenInfos |> toHtml ~state)
+      (tokenInfos |> toHtml ~tlid ~currentResults ~state)
   ; errorRail ]
 
 
