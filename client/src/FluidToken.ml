@@ -18,6 +18,8 @@ let tid (t : token) : id =
   | TBlank id
   | TPlaceholder (_, id)
   | TPartial (id, _)
+  | TRightPartial (id, _)
+  | TPartialGhost (id, _)
   | TLetKeyword id
   | TLetAssignment id
   | TLetLHS (id, _)
@@ -73,6 +75,8 @@ let isTextToken token : bool =
   | TBlank _
   | TPlaceholder _
   | TPartial _
+  | TRightPartial _
+  | TPartialGhost _
   | TRecordField _
   | TString _
   | TTrue _
@@ -142,6 +146,7 @@ let isBlank t =
   | TLetLHS (_, "")
   | TLambdaVar (_, _, "")
   | TPartial (_, "")
+  | TRightPartial (_, "")
   | TPatternBlank _ ->
       true
   | _ ->
@@ -177,6 +182,7 @@ let isAutocompletable (t : token) : bool =
   | TBlank _
   | TPlaceholder _
   | TPartial _
+  | TRightPartial _
   | TPatternBlank _
   (* since patterns have no partial but commit as variables
    * automatically, allow intermediate variables to
@@ -218,7 +224,11 @@ let toText (t : token) : string =
   | TPlaceholder ((name, tipe), _) ->
       " " ^ name ^ " : " ^ tipe ^ " "
   | TPartial (_, str) ->
-      canBeEmpty str
+      shouldntBeEmpty str
+  | TRightPartial (_, str) ->
+      shouldntBeEmpty str
+  | TPartialGhost (_, str) ->
+      shouldntBeEmpty str
   | TSep ->
       " "
   | TNewline ->
@@ -308,11 +318,32 @@ let toText (t : token) : string =
 
 
 let toTestText (t : token) : string =
-  match t with
-  | TPlaceholder _ | TBlank _ ->
-      "___"
-  | _ ->
-      if isBlank t then "***" else toText t
+  let result =
+    match t with
+    | TPlaceholder ((name, tipe), _) ->
+        let count = 1 + String.length name + 3 + String.length tipe + 1 in
+        Caml.String.make count '_'
+    | TBlank _ ->
+        "___"
+    | TPartialGhost (_, str) ->
+      ( match String.length str with
+      | 0 ->
+          "@EMPTY@"
+      | 1 ->
+          "@"
+      | 2 ->
+          "@@"
+      | _ ->
+          let str =
+            str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
+          in
+          "@" ^ str ^ "@" )
+    | _ ->
+        if isBlank t then "***" else toText t
+  in
+  if String.length result <> String.length (toText t)
+  then failwith "wrong length toTestText" ;
+  result
 
 
 let toTypeName (t : token) : string =
@@ -339,6 +370,10 @@ let toTypeName (t : token) : string =
       "placeholder"
   | TPartial _ ->
       "partial"
+  | TRightPartial _ ->
+      "partial-right"
+  | TPartialGhost _ ->
+      "partial-ghost"
   | TLetKeyword _ ->
       "let-keyword"
   | TLetAssignment _ ->
@@ -429,8 +464,10 @@ let toCategoryName (t : token) : string =
   match t with
   | TInteger _ | TString _ ->
       "literal"
-  | TVariable _ | TNewline | TSep | TBlank _ | TPartial _ | TPlaceholder _ ->
+  | TVariable _ | TNewline | TSep | TBlank _ | TPlaceholder _ ->
       ""
+  | TPartial _ | TRightPartial _ | TPartialGhost _ ->
+      "partial"
   | TFloatWhole _ | TFloatPoint _ | TFloatFraction _ ->
       "float"
   | TTrue _ | TFalse _ ->
@@ -479,7 +516,7 @@ let toCssClasses (t : token) : string list =
   let typename = Some ("fluid-" ^ toTypeName t) in
   let category =
     let name = toCategoryName t in
-    if name = "" then None else Some ("fluid-" ^ name)
+    if name = "" then None else Some ("fluid-category-" ^ name)
   in
   [empty; keyword; typename; category] |> List.filterMap ~f:identity
 

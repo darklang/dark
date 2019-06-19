@@ -140,6 +140,7 @@ and nExpr =
   | Match of expr * (pattern * expr) list
   | Constructor of string blankOr * expr list
   | FluidPartial of string * expr
+  | FluidRightPartial of string * expr
 
 (* ----------------------------- *)
 (* Pointers *)
@@ -612,6 +613,7 @@ and keyword =
   | KIf
   | KLambda
   | KMatch
+  | KThread
 
 and command =
   { commandName : string
@@ -994,6 +996,7 @@ and fluidExpr =
   | EVariable of id * string
   | EFnCall of id * fluidName * fluidExpr list * sendToRail
   | EPartial of id * string * fluidExpr
+  | ERightPartial of id * string * fluidExpr
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
@@ -1020,6 +1023,11 @@ and fluidToken =
   (* If you're filling in an expr, but havent finished it. Not used for
    * non-expr names. *)
   | TPartial of id * string
+  (* A partial that extends out to the right. Used to create binops. *)
+  | TRightPartial of id * string
+  (* When a partial used to be another thing, we want to show the name of the
+   * old thing in a non-interactable way *)
+  | TPartialGhost of id * string
   | TSep
   | TNewline
   (* All newlines in the nested tokens start indented to this position. *)

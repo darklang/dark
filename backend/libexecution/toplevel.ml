@@ -86,8 +86,10 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
     let esi = expr_to_string ~indent:(indent + 2) in
     let es ?(indent = indent) = expr_to_string ~indent in
     match nexpr with
-    | FluidPartial (v, _) ->
-        v
+    | FluidPartial (_, expr) ->
+        es expr
+    | FluidRightPartial (_, expr) ->
+        es expr
     | Value v ->
         v
     | Variable name ->

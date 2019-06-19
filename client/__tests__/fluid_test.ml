@@ -148,14 +148,14 @@ let () =
       , [(gid (), "somevar"); (gid (), bindingName)]
       , EVariable (gid (), bindingName) )
   in
-  let aFnCall = EFnCall (gid (), "List::range", [five; blank], NoRail) in
+  let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
-  let aFullBinOp =
-    EBinOp
-      (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail)
-  in
+  (* let aFullBinOp = *)
+  (*   EBinOp *)
+  (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
+  (* in *)
   let aConstructor =
     EConstructor (gid (), gid (), "Just", [EBlank (gid ())])
   in
@@ -201,10 +201,31 @@ let () =
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = true }
+        ; { fnName = "+"
+          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+          ; fnReturnTipe = TInt
+          ; fnDescription = "Returns sum"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
         ; { fnName = "=="
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TBool
           ; fnDescription = "Returns true if the two value are equal"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
+        ; { fnName = "<="
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if the two value are equal"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = true }
+        ; { fnName = "||"
+          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnReturnTipe = TBool
+          ; fnDescription = "Returns true if either value is true"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = true }
@@ -216,8 +237,12 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
-  let process ~(wrap : bool) (keys : K.key list) (pos : int) (ast : ast) :
-      testResult =
+  let process
+      ~(debug : bool)
+      ~(wrap : bool)
+      (keys : K.key list)
+      (pos : int)
+      (ast : ast) : testResult =
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
@@ -260,35 +285,67 @@ let () =
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
-          match ti.token with TPartial _ -> true | _ -> false )
+          match ti.token with
+          | TRightPartial _ | TPartial _ ->
+              true
+          | _ ->
+              false )
     in
+    if debug
+    then (
+      Js.log2
+        "state"
+        (show_fluidState
+           { newState with
+             (* remove the things that take a lot of space and provide little
+            * value. *)
+             ac = {newState.ac with functions = []; allCompletions = []} }) ;
+      Js.log2 "expr" (eToStructure s result) ) ;
     ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
   in
-  let render (expr : fluidExpr) : testResult = process ~wrap:true [] 0 expr in
-  let delete ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Delete] pos expr
+  let render (expr : fluidExpr) : testResult =
+    process ~debug:false ~wrap:true [] 0 expr
   in
-  let backspace ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Backspace] pos expr
-  in
-  let tab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.Tab] pos expr
-  in
-  let shiftTab ?(wrap = true) (pos : int) (expr : fluidExpr) : testResult =
-    process ~wrap [K.ShiftTab] pos expr
-  in
-  let press ?(wrap = true) (key : K.key) (pos : int) (expr : fluidExpr) :
+  let delete ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~wrap [key] pos expr
+    process ~debug ~wrap [K.Delete] pos expr
   in
-  let presses ?(wrap = true) (keys : K.key list) (pos : int) (expr : fluidExpr)
+  let backspace ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr)
       : testResult =
-    process ~wrap keys pos expr
+    process ~debug ~wrap [K.Backspace] pos expr
   in
-  let insert ?(wrap = true) (char : char) (pos : int) (expr : fluidExpr) :
+  let tab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
       testResult =
+    process ~debug ~wrap [K.Tab] pos expr
+  in
+  let shiftTab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~debug ~wrap [K.ShiftTab] pos expr
+  in
+  let press
+      ?(debug = false)
+      ?(wrap = true)
+      (key : K.key)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~debug ~wrap [key] pos expr
+  in
+  let presses
+      ?(debug = false)
+      ?(wrap = true)
+      (keys : K.key list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~debug ~wrap keys pos expr
+  in
+  let insert
+      ?(debug = false)
+      ?(wrap = true)
+      (char : char)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap [key] pos expr
+    process ~debug ~wrap [key] pos expr
   in
   let b = "___" in
   let t
@@ -459,9 +516,12 @@ let () =
       t "backspace int->blank " five (backspace 1) (b, 0) ;
       t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
       tp "insert partial" blank (insert 't' 0) ("t", 1) ;
+      t
+        "backspacing your way through a partial finishes"
+        trueBool
+        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        ("___", 0) ;
       () ) ;
-  describe "Partials" (fun () -> (* "func 1 2" -> "fun_c_ 1 2" *)
-                                 ()) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
       t
@@ -506,51 +566,98 @@ let () =
       t
         "space on a sep goes to next arg"
         aFnCall
-        (press K.Space 13)
-        ("List::range 5 ___", 14) ;
+        (press K.Space 10)
+        ("Int::add 5 _________", 11) ;
+      (* TODO: functions are not implemented fully. I deleted backspace and
+       * delete because we were switching to partials, but this isn't
+       * implemented. Some tests we need: 
+         * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
+         * same with delete *)
+      () ) ;
+  describe "Binops" (fun () ->
+      tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
       t
-        "backspace on a function name deletes function"
-        aFnCall
+        "pressing then enter completes partial"
+        trueBool
+        (presses [K.Pipe; K.Down; K.Enter] 4)
+        ("true || _________", 7) ;
+      t
+        "pressing then space completes partial"
+        trueBool
+        (presses [K.Pipe; K.Down; K.Space] 4)
+        ("true || _________", 8) ;
+      tp
+        "pressing plus key starts partial"
+        trueBool
+        (press K.Plus 4)
+        ("true +", 6) ;
+      t
+        "pressing pipe twice then space completes partial"
+        trueBool
+        (presses [K.Pipe; K.Pipe; K.Space] 4)
+        ("true || _________", 8) ;
+      t
+        "piping into newline creates thread"
+        trueBool
+        (presses [K.Pipe; K.GreaterThan; K.Space] 4)
+        ("true\n|>___", 8) ;
+      t
+        "pressing backspace to clear partial reverts for blank rhs"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
+        (press K.Backspace 7)
+        ("12345", 5) ;
+      t
+        "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
         (press K.Backspace 11)
         ("___", 0) ;
       t
-        "delete on a function name deletes function"
-        aFnCall
-        (press K.Delete 3)
+        "deleting an infix with a placeholder goes to right place"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
+        (press K.Backspace 11)
         ("___", 0) ;
-      () ) ;
-  describe "Binops" (fun () ->
-      (* t *)
-      (*   "add a binop at the end of a var" *)
-      (*   aShortVar *)
-      (*   (press K.Percent 1) *)
-      (*   ("v % ___", 4) ; *)
       t
-        "backspace on a binop deletes function"
-        aFullBinOp
-        (press K.Backspace 8)
-        ("___", 7) ;
+        "pressing backspace to clear rightpartial reverts for blank rhs"
+        (ERightPartial (gid (), "|", blank))
+        (press K.Backspace 5)
+        ("___", 0) ;
       t
-        "delete on a binop deletes function"
-        aFullBinOp
-        (press K.Delete 6)
-        ("___", 5) ;
+        "pressing backspace on single digit binop leaves lhs"
+        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (press K.Backspace 7)
+        ("12345", 5) ;
       t
-        "plus becomes ++ (String::append) if left is a string"
-        oneCharStr
-        (press K.Plus 3)
-        ("\"c\" ++ ___", 7) ;
+        "pressing letters and numbers on a partial completes it"
+        blank
+        (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
+        ("5 + 5", 5) ;
+      tp
+        "pressing pipe while editing a partial works properly"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, anInt, NoRail)))
+        (press K.Pipe 7)
+        ("12345 || 12345", 8) ;
+      tp
+        "pressing = after < should go to partial"
+        (EBinOp (gid (), "<", anInt, anInt, NoRail))
+        (press K.Equals 7)
+        ("12345 <= 12345", 8) ;
       t
-        "plus becomes + (Int::add) for non strings"
-        aShortInt
-        (press K.Plus 1)
-        ("1 + ___", 4) ;
-      t
-        "& becomes && (Bool::and)"
-        trueBool
-        (press K.Ampersand 4)
-        ("true && ___", 8) ;
-      t "| becomes || (Bool::or)" trueBool (press K.Pipe 4) ("true || ___", 8) ;
+        "changing binop should work"
+        (EBinOp (gid (), "<", anInt, anInt, NoRail))
+        (presses [K.Equals; K.Enter] 7)
+        ("12345 <= 12345", 8) ;
+      let aFullBinOp =
+        EBinOp
+          ( gid ()
+          , "||"
+          , EVariable (gid (), "myvar")
+          , EInteger (gid (), 5)
+          , NoRail )
+      in
+      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar |@ 5", 7) ;
+      (* TODO backspace on empty partial does something *)
+      (* TODO support delete on all the backspace commands *)
+      (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
       t
@@ -589,8 +696,7 @@ let () =
         ("\\somevar, bindingc -> bindingc", 18) ;
       () ) ;
   describe "Variables" (fun () ->
-      (* dont do insert until we have autocomplete *)
-      (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
+      tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
       tp "delete middle of variable" aVar (delete 5) ("variale", 5) ;
       tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
@@ -908,34 +1014,34 @@ let () =
         "autocomplete space moves forward by 1"
         aBinOp
         (presses [K.Letter 'r'; K.Space] 0)
-        ("request == ___", 8) ;
+        ("request == _________", 8) ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
         (presses [K.Letter 'r'; K.Enter] 0)
-        ("request == ___", 7) ;
+        ("request == _________", 7) ;
       t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
         (presses [K.Letter 'r'; K.Tab] 0)
-        ("request == ___", 11) ;
+        ("request == _________", 11) ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Enter] 0)
-        ("___ == ___", 0) ;
+        ("_________ == _________", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Tab] 0)
-        ("___ == ___", 13) ;
+        ("_________ == _________", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
         (EBlank (gid ()))
         (presses [K.Equals; K.Space] 0)
-        ("___ == ___", 0) ;
+        ("_________ == _________", 0) ;
       *)
       t
         "variable moves to right place"
@@ -1098,7 +1204,7 @@ let () =
            , EPartial (gid (), "Int::add", EBlank (gid ()))
            , blank ))
         (press ~wrap:false K.Right 16)
-        ("let x = Int::add ___ ___\n___", 17) ;
+        ("let x = Int::add _________ _________\n___", 17) ;
       t
         "moving left off a function autocompletes it anyway"
         (ELet
@@ -1108,12 +1214,7 @@ let () =
            , EPartial (gid (), "Int::add", EBlank (gid ()))
            , blank ))
         (press ~wrap:false K.Left 8)
-        ("let x = Int::add ___ ___\n___", 7) ;
-      t
-        "pressing + commits the partial"
-        (ELet (gid (), gid (), "x", blank, EVariable (gid (), "x")))
-        (press ~wrap:false K.Plus 13)
-        ("let x = ___\nx + ___", 16) ;
+        ("let x = Int::add _________ _________\n___", 7) ;
       test "escape hides autocomplete" (fun () ->
           expect
             (let ast = blank in

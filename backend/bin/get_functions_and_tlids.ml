@@ -52,6 +52,8 @@ let rec fnnames_of_expr (expr : RTT.expr) : RTT.fnname list =
     | Constructor (_, exprs) ->
         exprs |> flatmap ~f:fnnames_of_expr
     | FluidPartial (_, expr) ->
+        fnnames_of_expr expr
+    | FluidRightPartial (_, expr) ->
         fnnames_of_expr expr )
 
 
