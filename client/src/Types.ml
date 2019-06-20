@@ -1045,7 +1045,7 @@ and fluidToken =
   | TIfElseKeyword of id
   | TBinOp of id * string
   | TFieldOp of id
-  | TFieldName of id * string
+  | TFieldName of id * id * string
   | TVariable of id * string
   | TFnName of id * string * sendToRail
   | TLambdaSep of id

@@ -1048,21 +1048,27 @@ let () =
         (EPartial (gid (), "req", EBlank (gid ())))
         (press K.Enter 3)
         ("request", 7) ;
-      List.map
-        [("Just", 1); ("Nothing", 0); ("Ok", 1); ("Error", 1)]
-        ~f:(fun (con, args) ->
-          let blanks =
-            (* space between constructor and blanks *)
-            (if args > 0 then " " else "")
-            (* blanks separated by a single space *)
-            ^ (List.initialize args (fun _ -> "___") |> String.join ~sep:" ")
-          in
-          t
-            ("constructor autocomplete works for " ^ con)
-            (EPartial (gid (), con, EBlank (gid ())))
-            (press K.Enter (String.length con))
-            (con ^ blanks, 1 + String.length con) )
-      |> ignore ;
+      t
+        "autocomplete for Just"
+        (EPartial (gid (), "Just", EBlank (gid ())))
+        (press K.Enter 4)
+        ("Just ___", 5) ;
+      t
+        "autocomplete for Ok"
+        (EPartial (gid (), "Ok", EBlank (gid ())))
+        (press K.Enter 2)
+        ("Ok ___", 3) ;
+      t
+        "autocomplete for Nothing"
+        (EPartial (gid (), "Nothing", EBlank (gid ())))
+        (press K.Enter 7)
+        (* TODO: this should be 7 *)
+        ("Nothing", 8) ;
+      t
+        "autocomplete for Error"
+        (EPartial (gid (), "Error", EBlank (gid ())))
+        (press K.Enter 5)
+        ("Error ___", 6) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (backspace (EVariable (5, "request"))). *)
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
