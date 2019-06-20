@@ -29,7 +29,7 @@ let tid (t : token) : id =
   | TIfElseKeyword id
   | TBinOp (id, _)
   | TFieldOp id
-  | TFieldName (id, _)
+  | TFieldName (id, _, _)
   | TVariable (id, _)
   | TFnName (id, _, _)
   | TLambdaVar (id, _, _)
@@ -142,7 +142,7 @@ let isBlank t =
   | TPlaceholder _
   | TRecordField (_, _, "")
   | TVariable (_, "")
-  | TFieldName (_, "")
+  | TFieldName (_, _, "")
   | TLetLHS (_, "")
   | TLambdaVar (_, _, "")
   | TPartial (_, "")
@@ -181,6 +181,7 @@ let isAutocompletable (t : token) : bool =
   match t with
   | TBlank _
   | TPlaceholder _
+  | TFieldName _
   | TPartial _
   | TRightPartial _
   | TPatternBlank _
@@ -249,7 +250,7 @@ let toText (t : token) : string =
       shouldntBeEmpty op
   | TFieldOp _ ->
       "."
-  | TFieldName (_, name) ->
+  | TFieldName (_, _, name) ->
       canBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
