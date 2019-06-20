@@ -142,6 +142,47 @@ https://github.com/chriskempson/tomorrow-theme */
 
   .fluid-fn-name {
     color: $white2;
+
+    .execution-button {
+      position: absolute;
+      font-size: 55%;
+      right: -8px;
+      top: 0px;
+      transition: color linear 0.1s;
+      z-index: 1000;
+
+      &:hover {
+        font-size: 75%;
+        font-weight: strong;
+        margin-top: -2px;
+        cursor: pointer;
+      }
+
+      &.execution-button-unsafe {
+        color: $red;
+      }
+
+      &.execution-button-unavailable {
+        color: grey;
+      }
+
+      &.execution-button-needed {
+        color: green;
+      }
+
+      &.execution-button-repeat {
+        color: green;
+      }
+
+      &.is-executing {
+        color: white;
+        transition: none;
+
+        i {
+          animation: spin 0.75s infinite linear;
+        }
+      }
+    }
   }
 
   .fluid-partial,
