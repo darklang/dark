@@ -2648,7 +2648,99 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
+let viewPlayIcon
+    ~tlid
+    ~currentResults
+    ~executingFunctions
+    ~state
+    (ast : ast)
+    (ti : tokenInfo) : Types.msg Html.html =
+  match ti.token with
+  | TFnName (id, name, _) ->
+      let fn = Functions.findByNameInList name state.ac.functions in
+      let previous =
+        ast
+        |> toExpr
+        |> AST.threadPrevious id
+        |> Option.toList
+        |> List.map ~f:(fromExpr state)
+      in
+      let exprs =
+        match findExpr id ast with
+        | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
+            exprs
+        | _ ->
+            []
+      in
+      (* buttons *)
+      let allExprs = previous @ exprs in
+      let isComplete id =
+        id
+        |> ViewBlankOr.getLiveValue currentResults.liveValues
+        |> fun v ->
+        match v with
+        | None | Some (DError _) | Some DIncomplete ->
+            false
+        | Some _ ->
+            true
+      in
+      let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
+      let buttonUnavailable = not paramsComplete in
+      let showButton = not fn.fnPreviewExecutionSafe in
+      let buttonNeeded = not (isComplete id) in
+      let exeIcon = "play" in
+      let events =
+        [ ViewUtils.eventNoPropagation
+            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+            "click"
+            (fun _ -> ExecuteFunctionButton (tlid, id, name))
+        ; ViewUtils.nothingMouseEvent "mouseup"
+        ; ViewUtils.nothingMouseEvent "mousedown"
+        ; ViewUtils.nothingMouseEvent "dblclick" ]
+      in
+      let class_, event, title, icon =
+        if name = "Password::check" || name = "Password::hash"
+        then
+          ( "execution-button-unsafe"
+          , []
+          , "Cannot run interactively for security reasons."
+          , "times" )
+        else if buttonUnavailable
+        then
+          ( "execution-button-unavailable"
+          , []
+          , "Cannot run: some parameters are incomplete"
+          , exeIcon )
+        else if buttonNeeded
+        then
+          ( "execution-button-needed"
+          , events
+          , "Click to execute function"
+          , exeIcon )
+        else
+          ( "execution-button-repeat"
+          , events
+          , "Click to execute function again"
+          , "redo" )
+      in
+      let executingClass =
+        if List.member ~value:id executingFunctions then "is-executing" else ""
+      in
+      if not showButton
+      then Vdom.noNode
+      else
+        Html.div
+          ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
+            ; Html.title title ]
+          @ event )
+          [ViewUtils.fontAwesome icon]
+  | _ ->
+      Vdom.noNode
+
+
+let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
+    Types.msg Html.html list =
+  let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2667,7 +2759,15 @@ let toHtml ~state (l : tokenInfo list) : Types.msg Html.html list =
           ]
           ([Html.text content] @ nested)
       in
-      [element [dropdown ()]] )
+      [ element
+          [ dropdown ()
+          ; ti
+            |> viewPlayIcon
+                 ~tlid
+                 ~currentResults
+                 ~executingFunctions
+                 ~state
+                 ast ] ] )
   |> List.flatten
 
 
@@ -2705,6 +2805,7 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
 let viewAST
     ~(tlid : tlid)
     ~(currentResults : analysisResults)
+    ~(executingFunctions : id list)
     ~(state : state)
     (ast : ast) : Types.msg Html.html list =
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
@@ -2739,7 +2840,7 @@ let viewAST
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (tokenInfos |> toHtml ~state)
+      (ast |> toHtml ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
 
 

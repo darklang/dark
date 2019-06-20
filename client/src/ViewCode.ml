@@ -483,6 +483,7 @@ let view (vs : viewState) (e : expr) =
       (Fluid.viewAST
          ~tlid:vs.tlid
          ~currentResults:vs.currentResults
+         ~executingFunctions:vs.executingFunctions
          ~state:vs.fluidState
          (Fluid.fromExpr vs.fluidState e))
   else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
