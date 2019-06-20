@@ -2455,13 +2455,32 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
 
 
 let viewPlayIcon
-    ~tlid ~currentResults ~state (ti : tokenInfo) (l : tokenInfo list) :
-    Types.msg Html.html =
+    ~tlid
+    ~currentResults
+    ~executingFunctions
+    ~state
+    (ast : ast)
+    (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
   | TFnName (id, name, _) ->
       let fn = Functions.findByNameInList name state.ac.functions in
-      let showButton = not fn.fnPreviewExecutionSafe in
-      let isComplete =
+      let previous =
+        ast
+        |> toExpr
+        |> AST.threadPrevious id
+        |> Option.toList
+        |> List.map ~f:(fromExpr state)
+      in
+      let exprs =
+        match findExpr id ast with
+        | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
+            exprs
+        | _ ->
+            []
+      in
+      (* buttons *)
+      let allExprs = previous @ exprs in
+      let isComplete id =
         id
         |> ViewBlankOr.getLiveValue currentResults.liveValues
         |> fun v ->
@@ -2471,7 +2490,10 @@ let viewPlayIcon
         | Some _ ->
             true
       in
-      let buttonNeeded = not isComplete in
+      let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
+      let buttonUnavailable = not paramsComplete in
+      let showButton = not fn.fnPreviewExecutionSafe in
+      let buttonNeeded = not (isComplete id) in
       let exeIcon = "play" in
       let events =
         [ ViewUtils.eventNoPropagation
@@ -2481,32 +2503,6 @@ let viewPlayIcon
         ; ViewUtils.nothingMouseEvent "mouseup"
         ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.nothingMouseEvent "dblclick" ]
-      in
-      (* TODO: determine how to check if fn is executing
-        let executingClass = "" in
-      *)
-      let buttonUnavailable =
-        (* filter out irrelevant tokens *)
-        let tiList =
-          l
-          |> List.filter ~f:(fun ti ->
-                 match ti.token with TSep | TIndent _ -> false | _ -> true )
-        in
-        (* parse out set of tokens corresponding to fn parameters *)
-        List.elemIndex ~value:ti tiList
-        |> Option.map ~f:(fun nameIndex ->
-               let argCount = List.length fn.fnParameters in
-               tiList
-               |> List.drop ~count:(nameIndex + 1)
-               |> List.take ~count:argCount )
-        |> Option.withDefault ~default:[]
-        (* check if any of the parameter tokens are blank *)
-        |> List.any ~f:(fun paramTok ->
-               match paramTok.token with
-               | t when Token.isBlank t ->
-                   true
-               | _ ->
-                   false )
       in
       let class_, event, title, icon =
         if name = "Password::check" || name = "Password::hash"
@@ -2533,11 +2529,14 @@ let viewPlayIcon
           , "Click to execute function again"
           , "redo" )
       in
+      let executingClass =
+        if List.member ~value:id executingFunctions then "is-executing" else ""
+      in
       if not showButton
       then Vdom.noNode
       else
         Html.div
-          ( [ Html.class' ("execution-button " ^ class_ (* ^ executingClass *))
+          ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
             ; Html.title title ]
           @ event )
           [ViewUtils.fontAwesome icon]
@@ -2545,8 +2544,9 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
+let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
     Types.msg Html.html list =
+  let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
         if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
@@ -2565,8 +2565,15 @@ let toHtml ~tlid ~currentResults ~state (l : tokenInfo list) :
           ]
           ([Html.text content] @ nested)
       in
-      [element [dropdown (); viewPlayIcon ~tlid ~currentResults ~state ti l]]
-  )
+      [ element
+          [ dropdown ()
+          ; ti
+            |> viewPlayIcon
+                 ~tlid
+                 ~currentResults
+                 ~executingFunctions
+                 ~state
+                 ast ] ] )
   |> List.flatten
 
 
@@ -2604,6 +2611,7 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
 let viewAST
     ~(tlid : tlid)
     ~(currentResults : analysisResults)
+    ~(executingFunctions : id list)
     ~(state : state)
     (ast : ast) : Types.msg Html.html list =
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
@@ -2638,7 +2646,7 @@ let viewAST
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (tokenInfos |> toHtml ~tlid ~currentResults ~state)
+      (ast |> toHtml ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
 
 
