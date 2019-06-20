@@ -2,6 +2,7 @@ $sidebarClosedWidth: 55px;
 $sidebarFullWidth: 320px;
 $yellowFilter: invert(0.08) sepia(1) saturate(4) hue-rotate(316.8deg) brightness(0.96);
 $greyFilter: invert(0.06) sepia(0) saturate(1) hue-rotate(0deg) brightness(0.7);
+$sidebard-preview-shadow: 2px 2px 2px 0 $black1;
 
 $countBoxSize: 15px;
 
@@ -31,6 +32,7 @@ $countBoxSize: 15px;
     min-width: initial;
     .toggle-container {
       justify-content: center;
+      padding-right: 0px;
       &:last-child {
         display: flex;
       }
@@ -82,7 +84,7 @@ $countBoxSize: 15px;
             align-items: center;
             justify-content: center;
             height: $countBoxSize;
-            width: $countBoxSize;
+            min-width: $countBoxSize;
             background: $green;
             border-radius: 2px;
             p {
@@ -138,9 +140,10 @@ $countBoxSize: 15px;
           display: flex;
           flex-direction: column;
           position: absolute;
-          background-color: $black2;
           width: 300px;
           padding: 10px;
+          background-color: darken($canvas-background, 10%);
+          box-shadow: $sidebard-preview-shadow;
           left: $sidebarClosedWidth;
           -webkit-transform: translate(0%, 40%);
           -moz-transform: translate(0%, 40%);
@@ -169,10 +172,10 @@ $countBoxSize: 15px;
     justify-content: flex-end;
     margin-bottom: 5px;
     color: $grey2;
-
+    cursor: pointer;
+    padding-right: 5px;
     .toggle-button {
       display: flex;
-      cursor: pointer;
       .fa {
         font-size: 25px;
         &:nth-child(2) {
@@ -274,6 +277,9 @@ $countBoxSize: 15px;
       height: 24px;
       align-items: center;
       justify-content: center;
+      &.headerSummary {
+        cursor: pointer;
+      }
       &::-webkit-details-marker {
         margin: 2px;
         color: lighten($yellow, 10%);
@@ -311,6 +317,9 @@ $countBoxSize: 15px;
     }
 
     &.empty {
+      .headerSummary {
+        cursor: default;
+      }
       .header-icon {
         margin-left: 16px;
       }
@@ -378,13 +387,21 @@ $countBoxSize: 15px;
 .routing-section.deploys,
 .simple-route.deploy {
   color: $grey3;
-  .header {
-    padding-left: 0px;
-    margin: 0px 5px 0px 10px;
-    background: none;
-    display: flex;
-    flex-direction: column;
+  align-self: flex-start;
+  summary {
+    height: inherit;
+    &::-webkit-details-marker {
+      display: none;
+    }
+    .header {
+      padding-left: 0px;
+      margin: 0px 5px 0px 10px;
+      background: none;
+      display: flex;
+      flex-direction: column;
+    }
   }
+
   &.empty {
     .header-icon {
       margin-left: 0px;
