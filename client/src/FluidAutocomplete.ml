@@ -181,11 +181,17 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
-let dvalForTarget (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+  let id =
+    match ti.token with
+    | TFieldName (_, fieldID, _) ->
+        fieldID
+    | _ ->
+        FluidToken.tid ti.token
+  in
   let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
   match ast with
   | Some ast ->
-      let id = FluidToken.tid ti.token in
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
@@ -368,28 +374,23 @@ let generatePatterns ti a queryString =
       []
 
 
-let generateFields =
-  (*     match dval with *)
-  (* | Some dv when RT.typeOf dv = TObj -> *)
-  (*   ( match a.target with *)
-  (*   | Some (_, pd) when P.typeOf pd = Field -> *)
-  (*       List.map ~f:(fun x -> ACField x) (dvalFields dv) *)
-  (*   | _ -> *)
-  (*       [] ) *)
-  (* | _ -> *)
-  (* [] *)
-  []
+let generateFields dval =
+  match dval with
+  | Some dv when RT.typeOf dv = TObj ->
+      List.map ~f:(fun x -> FACField x) (dvalFields dv)
+  | _ ->
+      []
 
 
 let generate
-    (m : model) (a : autocomplete) ((tl, ti, _, queryString) : fullQuery) :
+    (m : model) (a : autocomplete) ((tl, ti, dval, queryString) : fullQuery) :
     autocomplete =
   let items =
     match ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
         generatePatterns ti a queryString
     | TFieldName _ ->
-        generateFields
+        generateFields dval
     | _ ->
         generateExprs m tl a ti
   in
@@ -497,7 +498,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
     autocomplete =
   let tl = TL.getExn m tlid in
   let queryString = toQueryString ti in
-  let dval = dvalForTarget m tl ti in
+  let dval = dvalForToken m tl ti in
   let query = (tl, ti, dval, queryString) in
   generate m a query |> refilter m query
 
