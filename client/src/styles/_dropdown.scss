@@ -154,6 +154,7 @@ $wrapper-background: $black2;
 
   ul#autocomplete-holder {
     width: 100%;
+    max-height: unset;
     background-color: $wrapper-background;
     overflow-y: visible;
     list-style-type: none;
