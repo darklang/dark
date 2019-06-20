@@ -348,7 +348,7 @@ let generatePatterns ti a queryString =
            match c with FACPattern (FPAVariable _) -> false | _ -> true )
   in
   let isInvalidPatternVar str =
-    [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
+    [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null"]
     |> List.member ~value:str
     || str
        |> String.dropRight ~count:(String.length str - 1)
