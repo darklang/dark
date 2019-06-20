@@ -361,8 +361,8 @@ let generatePatterns ti a queryString =
        |> String.isCapitalized
   in
   let newQueryVariable mid =
-    (* no Query variable if the query is empty or equals to standard constructor
-         * or boolean name *)
+    (* no Query variable if the query is empty or equals to standard
+     * constructor or boolean name *)
     if isInvalidPatternVar queryString
     then []
     else [FACPattern (FPAVariable (mid, gid (), queryString))]
