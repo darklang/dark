@@ -479,8 +479,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
       @ ghost
       @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
-  | EFieldAccess (id, expr, _, fieldname) ->
-      [nested expr; TFieldOp id; TFieldName (id, fieldname)]
+  | EFieldAccess (id, expr, fieldID, fieldname) ->
+      [nested expr; TFieldOp id; TFieldName (id, fieldID, fieldname)]
   | EVariable (id, name) ->
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
@@ -1305,7 +1305,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithPartial (f str) id ast
   | TRightPartial (id, str) ->
       replaceWithRightPartial (f str) id ast
-  | TFieldName (id, str) ->
+  | TFieldName (id, _, str) ->
       replaceFieldName (f str) id ast
   | TTrue id ->
       replaceWithPartial (f "true") id ast
@@ -2097,7 +2097,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else EPartial (newID, letterStr, EBlank (gid ()))
   in
   match ti.token with
-  | (TFieldName (id, _) | TVariable (id, _))
+  | (TFieldName (id, _, _) | TVariable (id, _))
     when pos = ti.endPos && letter = '.' ->
       (exprToFieldAccess id ast, right)
   (* replace blank *)

@@ -181,11 +181,17 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
-let dvalForTarget (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+  let id =
+    match ti.token with
+    | TFieldName (_, fieldID, _) ->
+        fieldID
+    | _ ->
+        FluidToken.tid ti.token
+  in
   let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
   match ast with
   | Some ast ->
-      let id = FluidToken.tid ti.token in
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
@@ -300,122 +306,97 @@ let toQueryString (ti : tokenInfo) : string =
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
-
-let generate
-    (m : model) (a : autocomplete) ((tl, ti, _, queryString) : fullQuery) :
-    autocomplete =
-  let varnames, _dval =
-    let id = FluidToken.tid ti.token in
-    (Analysis.getCurrentAvailableVarnames m tl id, dvalForTarget m tl ti)
-  in
-  let fields =
-    []
-    (*     match dval with *)
-    (* | Some dv when RT.typeOf dv = TObj -> *)
-    (*   ( match a.target with *)
-    (*   | Some (_, pd) when P.typeOf pd = Field -> *)
-    (*       List.map ~f:(fun x -> ACField x) (dvalFields dv) *)
-    (*   | _ -> *)
-    (*       [] ) *)
-    (* | _ -> *)
-    (* [] *)
-  in
-  (* let isExpression = *)
-  (*   match a.target with Some (_, p) -> P.typeOf p = Expr | None -> false *)
-  (* in *)
-  (* functions *)
-  let funcList = a.functions in
-  (* let funcList = if isExpression then a.functions else [] in *)
-  let functions = List.map ~f:(fun x -> FACFunction x) funcList in
+let generateExprs m tl a ti =
+  let functions = List.map ~f:(fun x -> FACFunction x) a.functions in
   let constructors =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
     ; FACConstructorName ("Ok", 1)
     ; FACConstructorName ("Error", 1) ]
   in
-  let extras =
-    []
-    (* match a.target with *)
-    (* | Some (_, p) -> *)
-    (*   ( match P.typeOf p with *)
-    (*   (* autocomplete HTTP verbs if the handler is in the HTTP event space *) *)
-    (*   | Pattern -> *)
-    (*     ( match dval with *)
-    (*     | Some dv when RT.typeOf dv = TResult -> *)
-    (*         [FACConstructorName "Ok"; FACConstructorName "Error"] *)
-    (*     | Some dv when RT.typeOf dv = TOption -> *)
-    (*         [FACConstructorName "Just"; FACConstructorName "Nothing"] *)
-    (*     | _ -> *)
-    (*         constructors ) *)
-    (*   | _ -> *)
-    (*       [] ) *)
-    (* | _ -> *)
-    (*     [] *)
+  let varnames =
+    ti.token
+    |> FluidToken.tid
+    |> Analysis.getCurrentAvailableVarnames m tl
+    |> List.map ~f:(fun x -> FACVariable x)
   in
-  let patterns =
-    let alreadyHasPatterns =
-      List.any
-        ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
-        a.allCompletions
-    in
-    let newStandardPatterns mid =
-      (* if patterns are in the autocomplete already, don't bother creating
+  let keywords =
+    List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KThread]
+  in
+  let literals =
+    List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
+  in
+  varnames @ constructors @ literals @ keywords @ functions
+
+
+let generatePatterns ti a queryString =
+  let alreadyHasPatterns =
+    List.any
+      ~f:(fun v -> match v with FACPattern _ -> true | _ -> false)
+      a.allCompletions
+  in
+  let newStandardPatterns mid =
+    (* if patterns are in the autocomplete already, don't bother creating
         * new FACPatterns with different mids and pids *)
-      ( if alreadyHasPatterns
-      then a.allCompletions
-      else
-        [ FPABool (mid, gid (), true)
-        ; FPABool (mid, gid (), false)
-        ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
-        ; FPAConstructor (mid, gid (), "Nothing", [])
-        ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
-        ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
-        ; FPANull (mid, gid ()) ]
-        |> List.map ~f:(fun p -> FACPattern p) )
-      |> List.filter ~f:(fun c ->
-             (* filter out old query string variable *)
-             match c with FACPattern (FPAVariable _) -> false | _ -> true )
-    in
-    let isInvalidPatternVar str =
-      [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"]
-      |> List.member ~value:str
-      || str
-         |> String.dropRight ~count:(String.length str - 1)
-         |> String.isCapitalized
-    in
-    let newQueryVariable mid =
-      (* no Query variable if the query is empty or equals to standard constructor
-         * or boolean name *)
-      if isInvalidPatternVar queryString
-      then []
-      else [FACPattern (FPAVariable (mid, gid (), queryString))]
-    in
+    ( if alreadyHasPatterns
+    then a.allCompletions
+    else
+      [ FPABool (mid, gid (), true)
+      ; FPABool (mid, gid (), false)
+      ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
+      ; FPAConstructor (mid, gid (), "Nothing", [])
+      ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
+      ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
+      ; FPANull (mid, gid ()) ]
+      |> List.map ~f:(fun p -> FACPattern p) )
+    |> List.filter ~f:(fun c ->
+           (* filter out old query string variable *)
+           match c with FACPattern (FPAVariable _) -> false | _ -> true )
+  in
+  let isInvalidPatternVar str =
+    [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null"]
+    |> List.member ~value:str
+    || str
+       |> String.dropRight ~count:(String.length str - 1)
+       |> String.isCapitalized
+  in
+  let newQueryVariable mid =
+    (* no Query variable if the query is empty or equals to standard
+     * constructor or boolean name *)
+    if isInvalidPatternVar queryString
+    then []
+    else [FACPattern (FPAVariable (mid, gid (), queryString))]
+  in
+  match ti.token with
+  | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
+      newQueryVariable mid @ newStandardPatterns mid
+  | _ ->
+      []
+
+
+let generateFields dval =
+  match dval with
+  | Some dv when RT.typeOf dv = TObj ->
+      List.map ~f:(fun x -> FACField x) (dvalFields dv)
+  | _ ->
+      []
+
+
+let generate
+    (m : model) (a : autocomplete) ((tl, ti, dval, queryString) : fullQuery) :
+    autocomplete =
+  let items =
     match ti.token with
-    | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
-        newQueryVariable mid @ newStandardPatterns mid
+    | TPatternBlank _ | TPatternVariable _ ->
+        generatePatterns ti a queryString
+    | TFieldName _ ->
+        generateFields dval
     | _ ->
-        []
+        generateExprs m tl a ti
   in
-  let exprs =
-    (* if isExpression *)
-    (* then *)
-    let varnames = List.map ~f:(fun x -> FACVariable x) varnames in
-    let keywords =
-      List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KThread]
-    in
-    let literals =
-      List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
-    in
-    varnames @ constructors @ keywords @ literals @ functions
-    (* else [] *)
-  in
-  let items = extras @ exprs @ fields in
-  if patterns == []
-  then {a with allCompletions = items}
-  else
-    { a with
-      allCompletions = patterns
-    ; index = Some (a.index |> Option.withDefault ~default:0) }
+  { a with
+    allCompletions = items
+  ; index = Some (a.index |> Option.withDefault ~default:0) }
 
 
 let filter
@@ -517,7 +498,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
     autocomplete =
   let tl = TL.getExn m tlid in
   let queryString = toQueryString ti in
-  let dval = dvalForTarget m tl ti in
+  let dval = dvalForToken m tl ti in
   let query = (tl, ti, dval, queryString) in
   generate m a query |> refilter m query
 
