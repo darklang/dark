@@ -315,7 +315,7 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
 (* ------------------------------- *)
 (* Blanks *)
 (* ------------------------------- *)
-let toggleBlankTypes
+let selectBlankMod
     (m : model)
     (tlid : tlid)
     (oldPD : pointerData option)
@@ -354,7 +354,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   let nextBlankPd = pd |> TL.getNextBlank tl in
-  nextBlankPd |> Option.map ~f:P.toID |> toggleBlankTypes m tlid pd nextBlankPd
+  nextBlankPd |> Option.map ~f:P.toID |> selectBlankMod m tlid pd nextBlankPd
 
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
@@ -371,7 +371,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   let nextBlankPd = pd |> TL.getPrevBlank tl in
-  nextBlankPd |> Option.map ~f:P.toID |> toggleBlankTypes m tlid pd nextBlankPd
+  nextBlankPd |> Option.map ~f:P.toID |> selectBlankMod m tlid pd nextBlankPd
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =

@@ -2533,23 +2533,15 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             (* if tab is wrapping... *)
             if newState.lastKey = K.Tab && newState.newPos < newState.oldPos
             then
-              (* let newState = recordAction "wrapping" newState in *)
-              let isUnselected id =
-                (* if not currently selected by cursor*)
-                m.cursorState != Selecting (tl.id, Some id)
-              in
               (* toggle through spec headers *)
               (* if on first spec header that is blank
                * set cursor to select that *)
               match (tl.data, m.cursorState) with
-              | TLHandler {spec = {name = Blank id; _}; _}, _
-                when isUnselected id ->
+              | TLHandler {spec = {name = Blank id; _}; _}, _ ->
                   (SetCursorState (Selecting (tl.id, Some id)), ast, s)
-              | TLHandler {spec = {module_ = Blank id; _}; _}, _
-                when isUnselected id ->
+              | TLHandler {spec = {module_ = Blank id; _}; _}, _ ->
                   (SetCursorState (Selecting (tl.id, Some id)), ast, s)
-              | TLHandler {spec = {modifier = Blank id; _}; _}, _
-                when isUnselected id ->
+              | TLHandler {spec = {modifier = Blank id; _}; _}, _ ->
                   (SetCursorState (Selecting (tl.id, Some id)), ast, s)
               | _ ->
                   (NoChange, newAST, newState)
