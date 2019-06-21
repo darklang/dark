@@ -762,6 +762,16 @@ let () =
       () ) ;
   describe "Match" (fun () ->
       t
+        "move to the front of match"
+        emptyMatch
+        (press K.GoToStartOfLine 6)
+        ("match ___\n  *** -> ___", 0) ;
+      t
+        "move to the end of match"
+        emptyMatch
+        (press K.GoToEndOfLine 0)
+        ("match ___\n  *** -> ___", 9) ;
+      t
         "move back over match"
         emptyMatch
         (press K.Left 6)
@@ -805,6 +815,16 @@ let () =
         ("match ___\n  Ok bindingc -> bindingc", 23) ;
       () ) ;
   describe "Lets" (fun () ->
+      t
+        "move to the front of let"
+        emptyLet
+        (press K.GoToStartOfLine 4)
+        ("let *** = ___\n5", 0) ;
+      t
+        "move to the end of let"
+        emptyLet
+        (press K.GoToEndOfLine 4)
+        ("let *** = ___\n5", 13) ;
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
       t
         "move forward over let"
