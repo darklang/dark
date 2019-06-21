@@ -46,7 +46,7 @@ window.stopKeys = stopKeys;
 // Fluid
 // ---------------------------
 
-function isfluidSpecialCase(event) {
+function isHandledByFluid(event) {
   if (window.navigator.platform == "MacIntel") {
     switch (true) {
       // ctrl + d (delete)
@@ -66,9 +66,21 @@ function isfluidSpecialCase(event) {
     return false;
   }
 }
+function doDefaultAction(evt) {
+  switch (true) {
+    case event.metaKey:
+    case event.ctrlKey:
+    case event.altKey:
+      return false;
+      break;
+    default:
+      return true;
+      break;
+  }
+}
 
 function fluidStopKeys(event) {
-  if (!(event.metaKey || event.ctrlKey || event.altKey) || isfluidSpecialCase(event)) {
+  if (doDefaultAction(event) || isHandledByFluid(event)) {
     event.preventDefault();
   }
 }
