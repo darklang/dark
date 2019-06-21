@@ -2547,6 +2547,14 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   (newAST, setPosition s newPos)
 
 
+let shouldDoDefaultAction (key : K.key) : bool =
+  match key with
+  | K.GoToStartOfLine | K.GoToEndOfLine | K.Delete ->
+      false
+  | _ ->
+      true
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -2561,6 +2569,10 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
+    | FluidKeyPress {key; metaKey; ctrlKey}
+      when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
+        (* To make sure no letters are entered if user is doing a browser default action *)
+        (ast, s)
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
         updateKey key ast s
