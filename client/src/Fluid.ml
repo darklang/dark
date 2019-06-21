@@ -1250,6 +1250,17 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
           ERightPartial (gid (), str, oldVal) )
 
 
+let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EThread (id, exprs) ->
+          if List.length exprs = 2
+          then List.head exprs |> deOption "removeThreadPipe"
+          else EThread (id, List.removeAt ~index:(index + 1) exprs)
+      | _ ->
+          e )
+
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1862,7 +1873,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordSep _
   | TSep
-  | TThreadPipe _
   | TLambdaSep _
   | TPatternBlank _
   | TPatternConstructorName _
@@ -1918,6 +1928,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
+  | TThreadPipe (id, i) ->
+      ( removeThreadPipe id ast i
+      , {s with oldPos = s.newPos; newPos = s.newPos - 3} )
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -1948,7 +1961,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep
-  | TThreadPipe _
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
@@ -2014,6 +2026,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, s)
   | TPatternBlank _ ->
       (ast, s)
+  | TThreadPipe (id, i) ->
+      (removeThreadPipe id ast i, s)
 
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
@@ -2471,6 +2485,8 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
+    | Some ({token = TThreadPipe _} as current) ->
+        current.endPos
     | _ ->
         newPos
   in
