@@ -1256,7 +1256,12 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
       | EThread (id, exprs) ->
           if List.length exprs = 2
           then List.head exprs |> deOption "removeThreadPipe"
-          else EThread (id, List.removeAt ~index:(index + 1) exprs)
+          else
+            let index =
+              (* remove expression in front of pipe, not behind it *)
+              index + 1
+            in
+            EThread (id, List.removeAt ~index exprs)
       | _ ->
           e )
 
@@ -1929,8 +1934,18 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
   | TThreadPipe (id, i) ->
-      ( removeThreadPipe id ast i
-      , {s with oldPos = s.newPos; newPos = s.newPos - 3} )
+      let rec getNewPos pos =
+        match getTokensAtPosition ~pos (toTokens s ast) with
+        (* traverse to previous token and go to it's endPos.
+         * if newline, sep or indent, keep traversing *)
+        | Some ({token} as ti), _, _ when Token.tid token = ID "no-id" ->
+            getNewPos ti.startPos
+        | Some ti, _, _ ->
+            ti.endPos
+        | _ ->
+            s.newPos - 3
+      in
+      (removeThreadPipe id ast i, {s with newPos = getNewPos ti.startPos})
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
