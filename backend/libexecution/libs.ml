@@ -53,19 +53,12 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) :
 
 let init (extras : shortfn list) : unit =
   let libs =
-    (* Libdb.fns *)
-    (* @ Libdb2.fns *)
-    (* @ Libevent.fns *)
-    Libhttpclient.fns
-    (* @ Libcrypto.fns *)
-    (* @ Libtwilio.fns *)
-    (* @ Libtwitter.fns *)
     (* client-only *)
+    Libhttpclient.fns
     @ Libstd.fns
     @ Libhttp.fns
+    (* only implemented on server *)
     @ extras
-    (* @ Libdarkinternal.fns *)
-    (* @ Libstaticassets.fns *)
   in
   List.iter ~f:add_short_fn libs ;
   ()

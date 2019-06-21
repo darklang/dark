@@ -11,19 +11,18 @@ let init ~run_side_effects =
       Printexc.record_backtrace true ;
       Exn.initialize_module () ;
       (* libexecution *)
-      let replacements =
-        Libdb.replacements
-        @ Libdb2.replacements
-        @ Libevent.replacements
-        @ Libhttpclient.replacements
-        @ Libcrypto.replacements
-        @ Libtwilio.replacements
-        @ Libdarkinternal.replacements
-        @ Libstaticassets.replacements
-        (* @ Libtwitter.fns  *)
+      let non_client_fns =
+        Libdb.fns
+        @ Libdb2.fns
+        @ Libevent.fns
+        @ Libhttpclient.fns
+        @ Libcrypto.fns
+        @ Libtwilio.fns
+        @ Libdarkinternal.fns
+        @ Libstaticassets.fns
+        (* @ Libtwitter.fns *)
       in
-      Libexecution.Init.init Config.log_level Config.log_format replacements ;
-      Libexecution.Libs.assert_all_libs_available () ;
+      Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
       (* init the Random module, will be seeded from /dev/urandom on Linux *)
       Random.self_init () ;
       (* Dark-specific stuff *)
