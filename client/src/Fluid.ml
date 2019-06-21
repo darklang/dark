@@ -1506,6 +1506,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
 
 
 let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToStartOfLine" s in
   let token =
     toTokens s ast
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
@@ -1513,32 +1514,31 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   in
   let newPos =
     match token.token with
-    (* To prevent the cursor from going to the front of an indent *)
-    | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+    (* To prevent the cursor from going to the front of an indent*)
+    | TIndent _ | TIndentToHere _ ->
         token.endPos
     | _ ->
         token.startPos
   in
-  let s = recordAction ~pos:newPos "moveToStartOfLine" s in
   setPosition s newPos
 
 
 let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToEndOfLine" s in
   let token =
     toTokens s ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
+    |> Option.withDefault ~default:ti
   in
-  let token = match token with Some token -> token | None -> ti in
   let newPos =
     match token.token with
-    (* To prevent the cursor from going to the end of an indent *)
-    | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+    (* To prevent the cursor from going to the end of an indent or to a new line *)
+    | TNewline | TIndent _ | TIndentToHere _ ->
         token.startPos
     | _ ->
         token.endPos
   in
-  let s = recordAction ~pos:newPos "moveToEndOfLine" s in
   setPosition s newPos
 
 
@@ -2408,10 +2408,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, doLeft ~pos ti s |> acShow)
     | K.Right, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acShow)
-    | K.GoToStartOfLine, _, R (_, ti) ->
+    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
         (ast, moveToStartOfLine ast ti s)
-    | K.GoToEndOfLine, L (_, ti), _ ->
-        (ast, moveToEndOfLine ast ti s)
+    | K.GoToEndOfLine, _, R (_, ti) ->
+        (ast, moveToEndOfLine ast ti s |> acShow)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
