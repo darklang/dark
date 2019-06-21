@@ -841,8 +841,17 @@ let () =
       let threadOn expr fns = EThread (gid (), expr :: fns) in
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
+      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
       let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      let aLongThread =
+        threadOn
+          emptyList
+          [ listFn [aListNum 2]
+          ; listFn [aListNum 3]
+          ; listFn [aListNum 4]
+          ; listFn [aListNum 5] ]
+      in
       t
         "threads appear on new lines"
         aThread
@@ -855,7 +864,38 @@ let () =
         "nested threads will indent"
         aNestedThread
         render
-        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ) ;
+        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ;
+      t
+        "deleting a thread's first pipe with backspace works"
+        aLongThread
+        (presses ~wrap:false [K.Backspace] 5)
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 2) ;
+      t
+        "deleting a thread's first pipe with delete works"
+        aLongThread
+        (presses ~wrap:false [K.Delete] 3)
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 3) ;
+      t
+        "deleting a thread's second pipe with backspace works"
+        aLongThread
+        (presses ~wrap:false [K.Backspace] 24)
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
+      t
+        "deleting a thread's second pipe with delete works"
+        aLongThread
+        (presses ~wrap:false [K.Delete] 22)
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
+      t
+        "deleting a thread's last pipe with backspace works"
+        aLongThread
+        (presses ~wrap:false [K.Backspace] 62)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
+      t
+        "deleting a thread's last pipe with delete works"
+        aLongThread
+        (presses ~wrap:false [K.Delete] 60)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 60)
+  ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
