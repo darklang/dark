@@ -66,7 +66,7 @@ function isHandledByFluid(event) {
     return false;
   }
 }
-function doDefaultAction(evt) {
+function preventDefaultAction(evt) {
   switch (true) {
     case event.metaKey:
     case event.ctrlKey:
@@ -80,7 +80,7 @@ function doDefaultAction(evt) {
 }
 
 function fluidStopKeys(event) {
-  if (doDefaultAction(event) || isHandledByFluid(event)) {
+  if (preventDefaultAction(event) || isHandledByFluid(event)) {
     event.preventDefault();
   }
 }
