@@ -8,6 +8,8 @@ let params =
   [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
 
 
+let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
+
 type headers = (string * string) list
 
 let has_form_header (headers : headers) : bool =
@@ -159,62 +161,225 @@ let wrapped_call_no_body verb json_fn =
         fail args)
 
 
-let replacements =
-  [ ( "HttpClient::post"
-    , call Httpclient.POST Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    )
-  ; ( "HttpClient::put"
-    , call Httpclient.PUT Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    )
-  ; ( "HttpClient::get"
-    , call Httpclient.GET Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    )
-  ; ( "HttpClient::delete"
-    , call
-        Httpclient.DELETE
-        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
-  ; ( "HttpClient::options"
-    , call
-        Httpclient.OPTIONS
-        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
-  ; ( "HttpClient::head"
-    , call Httpclient.HEAD Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
-    )
-  ; ( "HttpClient::patch"
-    , call
-        Httpclient.PATCH
-        Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 )
-  ; ("HttpClient::post_v1", call Httpclient.POST Dval.to_pretty_machine_json_v1)
-  ; ("HttpClient::put_v1", call Httpclient.PUT Dval.to_pretty_machine_json_v1)
-  ; ( "HttpClient::get_v1"
-    , call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::delete_v1"
-    , call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::options_v1"
-    , call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::head_v1"
-    , call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::patch_v1"
-    , call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::post_v2"
-    , wrapped_call Httpclient.POST Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::put_v2"
-    , wrapped_call Httpclient.PUT Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::get_v2"
-    , wrapped_call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::delete_v2"
-    , wrapped_call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::options_v2"
-    , wrapped_call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::head_v2"
-    , wrapped_call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::patch_v2"
-    , wrapped_call Httpclient.PATCH Dval.to_pretty_machine_json_v1 )
-  ; ( "HttpClient::basicAuth"
-    , InProcess
-        (function
-        | _, [DStr u; DStr p] ->
-            DObj
-              (DvalMap.singleton "Authorization" (DStr (encode_basic_auth u p)))
-        | args ->
-            fail args) ) ]
+let fns : Lib.shortfn list =
+  [ { pns = ["HttpClient::post"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP POST call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.POST
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::put"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP PUT call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.PUT
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::get"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP GET call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.GET
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::delete"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP DELETE call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.DELETE
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::options"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP OPTIONS call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.OPTIONS
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::head"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP HEAD call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.HEAD
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::patch"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP PATCH call to `uri`. Uses broken JSON format"
+    ; f =
+        call
+          Httpclient.PATCH
+          Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v1"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP POST call to `uri`"
+    ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::put_v1"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP PUT call to `uri`"
+    ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::get_v1"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d = "Make blocking HTTP GET call to `uri`"
+    ; f = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::delete_v1"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; p = params_no_body
+    ; r = TObj
+    ; d = "Make blocking HTTP DELETE call to `uri`"
+    ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::options_v1"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d = "Make blocking HTTP OPTIONS call to `uri`"
+    ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::head_v1"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d = "Make blocking HTTP HEAD call to `uri`"
+    ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::patch_v1"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d = "Make blocking HTTP PATCH call to `uri`"
+    ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::put_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::get_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::delete_v2"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::options_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        wrapped_call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::head_v2"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::patch_v2"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f = wrapped_call Httpclient.PATCH Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::basicAuth"]
+    ; ins = []
+    ; p = [par "username" TStr; par "password" TStr]
+    ; r = TObj
+    ; d =
+        "Returns an object with 'Authorization' created using HTTP basic auth"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr u; DStr p] ->
+              DObj
+                (DvalMap.singleton
+                   "Authorization"
+                   (DStr (encode_basic_auth u p)))
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false } ]
