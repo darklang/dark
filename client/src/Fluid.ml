@@ -1251,17 +1251,15 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
 
 
 let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | EThread (id, exprs) ->
-          if List.length exprs = 2
-          then List.head exprs |> deOption "removeThreadPipe"
-          else
             let index =
               (* remove expression in front of pipe, not behind it *)
               index + 1
-            in
-            EThread (id, List.removeAt ~index exprs)
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EThread (id, [e1, _] as exprs) ->
+          e1
+      | EThread (id, exprs) ->
+          EThread (id, List.removeAt ~index exprs)
       | _ ->
           e )
 
