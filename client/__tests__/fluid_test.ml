@@ -844,6 +844,7 @@ let () =
       let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
       let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      let aThreadInsideIf = EIf (gid (), newB (), aThread, newB ()) in
       let aLongThread =
         threadOn
           emptyList
@@ -894,8 +895,17 @@ let () =
         "deleting a thread's last pipe with delete works"
         aLongThread
         (presses ~wrap:false [K.Delete] 60)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 60)
-  ) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 60) ;
+      t
+        "deleting a thread that isn't in the first column with backspace works"
+        aThreadInsideIf
+        (presses ~wrap:false [K.Backspace] 21)
+        ("if ___\nthen\n  []\n  |>List::append [5]\nelse\n  ___", 16) ;
+      t
+        "deleting a thread that isn't in the first column with delete works"
+        aThreadInsideIf
+        (presses ~wrap:false [K.Delete] 19)
+        ("if ___\nthen\n  []\n  |>List::append [5]\nelse\n  ___", 19) ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
