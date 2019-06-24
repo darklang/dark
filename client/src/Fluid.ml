@@ -1637,7 +1637,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let matchID = gid () in
       (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
   | FACKeyword KThread ->
-      (EThread (gid (), [newB (); newB ()]), 8)
+      (EThread (gid (), [newB (); newB ()]), 6)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
