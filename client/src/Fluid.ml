@@ -2531,7 +2531,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           let newAST, newState = updateMsg m tl.id ast msg s in
           let eventSpecMod, newAST, newState =
             (* if tab is wrapping... *)
-            if newState.lastKey = K.Tab && newState.newPos < newState.oldPos
+            if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
             then
               (* toggle through spec headers *)
               (* if on first spec header that is blank
