@@ -315,19 +315,20 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
 (* ------------------------------- *)
 (* Blanks *)
 (* ------------------------------- *)
-let selectBlankMod
+(* the name here is _awful_, but going to rip all of the glue
+ * out soon so i pinky promise that it'll go away *)
+let maybeEnterFluid
+    ~(nonFluidCursorMod : modification)
     (m : model)
     (tlid : tlid)
     (oldPD : pointerData option)
-    (newPD : pointerData option)
-    (id : id option) : modification =
+    (newPD : pointerData option) : modification =
   let fluidEnteringMod =
     Many
       [ SetCursorState (FluidEntering tlid)
       ; TweakModel
           (fun m -> {m with fluidState = {m.fluidState with newPos = 0}}) ]
   in
-  let selectingMod = Select (tlid, id) in
   if VariantTesting.isFluid m.tests
   then
     let isSpecHeader pd =
@@ -343,10 +344,10 @@ let selectBlankMod
         fluidEnteringMod
     (* from fluid to specheader *)
     | false, true ->
-        selectingMod
+        nonFluidCursorMod
     | _ ->
-        selectingMod
-  else selectingMod
+        nonFluidCursorMod
+  else nonFluidCursorMod
 
 
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
@@ -354,16 +355,28 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   let nextBlankPd = pd |> TL.getNextBlank tl in
-  nextBlankPd |> Option.map ~f:P.toID |> selectBlankMod m tlid pd nextBlankPd
+  let nextId = nextBlankPd |> Option.map ~f:P.toID in
+  maybeEnterFluid
+    ~nonFluidCursorMod:(Select (tlid, nextId))
+    m
+    tlid
+    pd
+    nextBlankPd
 
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> TL.getNextBlank tl
-  |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Option.withDefault ~default:NoChange
+  let nextBlankPd = TL.getNextBlank tl pd in
+  maybeEnterFluid
+    ~nonFluidCursorMod:
+      ( nextBlankPd
+      |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+      |> Option.withDefault ~default:NoChange )
+    m
+    tlid
+    pd
+    nextBlankPd
 
 
 let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
@@ -371,16 +384,28 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
   let nextBlankPd = pd |> TL.getPrevBlank tl in
-  nextBlankPd |> Option.map ~f:P.toID |> selectBlankMod m tlid pd nextBlankPd
+  let nextId = nextBlankPd |> Option.map ~f:P.toID in
+  maybeEnterFluid
+    ~nonFluidCursorMod:(Select (tlid, nextId))
+    m
+    tlid
+    pd
+    nextBlankPd
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   let tl = TL.getExn m tlid in
   let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> TL.getPrevBlank tl
-  |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-  |> Option.withDefault ~default:NoChange
+  let nextBlankPd = TL.getPrevBlank tl pd in
+  maybeEnterFluid
+    ~nonFluidCursorMod:
+      ( nextBlankPd
+      |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+      |> Option.withDefault ~default:NoChange )
+    m
+    tlid
+    pd
+    nextBlankPd
 
 
 (* ------------------------------- *)
