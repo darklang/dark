@@ -1189,16 +1189,48 @@ let () =
         (presses [K.Equals; K.Space] 0)
         ("_________ == _________", 0) ;
       *)
+      (*
+      let emptyThread = EThread (gid (), [EBlank (gid ()); EBlank (gid ())]) in
+      let threadInPlaceholder =
+        EFnCall (gid (), "Http::badRequest", [EBlank (gid ())], NoRail)
+      in
+      let threadInIf = EIf (gid (), newB (), emptyThread, newB ()) in
+      let threadInLambda = ELambda (gid (), [], emptyThread) in
+      let threadInMatch =
+        let mid = gid () in
+        EMatch (mid, EBlank (gid ()), [(FPBlank (mid, gid ()), emptyThread)])
+      in
+      *)
       t
         "variable moves to right place"
         (EPartial (gid (), "req", EBlank (gid ())))
         (press K.Enter 3)
         ("request", 7) ;
       t
-        "thread moves to right place"
-        (EPartial (gid (), "|>", EBlank (gid ())))
-        (press K.Enter 2)
+        "thread moves to right place on blank"
+        (EBlank (gid ()))
+        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         ("___\n|>___", 6) ;
+      t
+        "thread moves to right place on placeholder"
+        aFnCall
+        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        ("Int::add 5 ___\n |>___", 28) ;
+      t
+        "thread moves to right place in if then"
+        emptyIf
+        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
+      t
+        "thread moves to right place in lambda body"
+        aLambda
+        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        ("\\*** -> ___\n        |>___", 22) ;
+      t
+        "thread moves to right place in match body"
+        emptyMatch
+        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        ("match ___\n  *** -> ___\n   |>___", 34) ;
       t
         "autocomplete for Just"
         (EPartial (gid (), "Just", EBlank (gid ())))
