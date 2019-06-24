@@ -2493,6 +2493,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
+    (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
     match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
