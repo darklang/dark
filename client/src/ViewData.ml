@@ -48,7 +48,7 @@ let viewInput
           Js.Date.now () -. Js.Date.parseAsFloat ts
           |> Util.humanReadableTimeElapsed
         in
-        Html.div [] [Html.text ("Made " ^ human ^ " ago")]
+        Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
   Html.li (Html.class' classes :: events) [Html.text {js|•|js}; viewData]
