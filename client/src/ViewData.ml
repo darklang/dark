@@ -9,14 +9,13 @@ let viewInput
     (tlid : tlid)
     (traceID : traceID)
     (value : string)
-    (timestamp : string)
+    (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
     (tipe : tipe) : msg Html.html =
   let activeClass = if isActive then ["active"] else [] in
   let hoverClass = if isHover then ["mouseovered"] else [] in
-  let tipeClassName = "tipe-" ^ Runtime.tipe2str tipe in
-  let tipeClass = [tipeClassName] in
+  let tipeClass = ["tipe-" ^ Runtime.tipe2str tipe] in
   let classes = activeClass @ hoverClass @ tipeClass |> String.join ~sep:" " in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
@@ -29,11 +28,19 @@ let viewInput
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
-  let viewData =
-    Html.div
-      [Html.class' "data"]
-      [Html.text (value ^ "\nMade at: " ^ timestamp ^ " ago")]
+  let valueDiv = Html.div [] [Html.text value] in
+  let timestampDiv =
+    match timestamp with
+    | None | Some "1970-01-01T00:00:00Z" ->
+        Vdom.noNode
+    | Some ts ->
+        let human =
+          Js.Date.now () -. Js.Date.parseAsFloat ts
+          |> Util.humanReadableTimeElapsed
+        in
+        Html.div [] [Html.text ("Made " ^ human ^ " ago")]
   in
+  let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
   Html.li (Html.class' classes :: events) [Html.text {js|•|js}; viewData]
 
 
@@ -52,10 +59,6 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     let timestamp =
       Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
-      |> Option.map ~f:(fun tstr ->
-             Js.Date.now () -. Js.Date.parseAsFloat tstr
-             |> Util.humanReadableTimeElapsed )
-      |> Option.withDefault ~default:""
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
