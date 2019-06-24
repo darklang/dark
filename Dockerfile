@@ -195,7 +195,7 @@ RUN pip install -U crcmod
 # Ocaml
 ############################
 USER dark
-ENV FORCE_OCAML_BUILD 5
+ENV FORCE_OCAML_BUILD 6
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
