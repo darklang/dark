@@ -2170,6 +2170,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | (TFieldName (id, _, _) | TVariable (id, _))
     when pos = ti.endPos && letter = '.' ->
       (exprToFieldAccess id ast, right)
+  (* Dont add space to blanks *)
+  | TBlank _ | TPlaceholder (_, _) when letterStr == " " ->
+      (ast, s)
   (* replace blank *)
   | TBlank id | TPlaceholder (_, id) ->
       (replaceExpr id ~newExpr ast, moveTo (ti.startPos + 1) s)
