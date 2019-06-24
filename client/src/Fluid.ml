@@ -2530,6 +2530,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           let ast = ast |> fromExpr s in
           let newAST, newState = updateMsg m tl.id ast msg s in
           let eventSpecMod, newAST, newState =
+            let enter tl id = Enter (Filling (tl.id, id)) in
             (* if tab is wrapping... *)
             if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
             then
@@ -2538,11 +2539,11 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
                * set cursor to select that *)
               match tl.data with
               | TLHandler {spec = {name = Blank id; _}; _} ->
-                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+                  (enter tl id, ast, s)
               | TLHandler {spec = {module_ = Blank id; _}; _} ->
-                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+                  (enter tl id, ast, s)
               | TLHandler {spec = {modifier = Blank id; _}; _} ->
-                  (SetCursorState (Selecting (tl.id, Some id)), ast, s)
+                  (enter tl id, ast, s)
               | _ ->
                   (NoChange, newAST, newState)
             else (NoChange, newAST, newState)
