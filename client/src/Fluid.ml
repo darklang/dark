@@ -2800,12 +2800,12 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     liveValues
 
 
-let viewAST
-    ~(tlid : tlid)
-    ~(currentResults : analysisResults)
-    ~(executingFunctions : id list)
-    ~(state : state)
-    (ast : ast) : Types.msg Html.html list =
+let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
+    =
+  let ({currentResults; executingFunctions; tlid} : ViewUtils.viewState) =
+    vs
+  in
+  let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
@@ -2831,7 +2831,12 @@ let viewAST
       [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
       indicators
   in
-  [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
+  let liveValue =
+    if tlidOf vs.cursorState = Some tlid
+    then viewLiveValue ~tlid ~currentResults ~state tokenInfos
+    else Vdom.noNode
+  in
+  [ liveValue
   ; Html.div
       [ Attrs.id editorID
       ; Vdom.prop "contentEditable" "true"
