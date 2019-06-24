@@ -2776,21 +2776,19 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
   let liveValues, show, offset =
     getLeftTokenAt state.newPos tis
     |> Option.andThen ~f:(fun ti ->
-           match ti.token with
-           | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-               None
-           | _ ->
-               let liveValuesOfToken =
-                 let id = Token.tid ti.token in
-                 let liveValueString =
-                   StrDict.get ~key:(deID id) currentResults.liveValues
-                   |> Option.map ~f:Runtime.toRepr
-                   |> Option.withDefault ~default:"<loading>"
-                 in
-                 [ Html.text liveValueString
-                 ; viewCopyButton tlid liveValueString ]
-               in
-               Some (liveValuesOfToken, true, ti.startRow) )
+           let id = Token.tid ti.token in
+           if FluidToken.validID id
+           then
+             let liveValuesOfToken =
+               match StrDict.get ~key:(deID id) currentResults.liveValues with
+               | None ->
+                   [ViewUtils.fontAwesome "spinner"]
+               | Some v ->
+                   let str = Runtime.toRepr v in
+                   [Html.text str; viewCopyButton tlid str]
+             in
+             Some (liveValuesOfToken, true, ti.startRow)
+           else None )
     |> Option.withDefault ~default:([Vdom.noNode], false, 0)
   in
   let offset = float_of_int offset +. 1.5 in
