@@ -8,7 +8,7 @@ module B = Blank
 let viewInput
     (tlid : tlid)
     (traceID : traceID)
-    (value : string)
+    (value : inputValueDict option)
     (timestamp : string option)
     (isActive : bool)
     (isHover : bool)
@@ -28,7 +28,17 @@ let viewInput
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
-  let valueDiv = Html.div [] [Html.text value] in
+  let valueDiv =
+    match value with
+    | None ->
+        Html.text "<loading>"
+    | Some v ->
+        let asString =
+          Runtime.inputValueAsString v
+          |> fun s -> if String.length s = 0 then "No input parameters" else s
+        in
+        Html.div [] [Html.text asString]
+  in
   let timestampDiv =
     match timestamp with
     | None | Some "1970-01-01T00:00:00Z" ->
@@ -44,19 +54,11 @@ let viewInput
   Html.li (Html.class' classes :: events) [Html.text {js|•|js}; viewData]
 
 
-let asValue (inputValue : inputValueDict) : string =
-  Runtime.inputValueAsString inputValue
-
-
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
   let hasHover = ViewUtils.isHoverOverTL vs in
   let traceToHtml ((traceID, traceData) : trace) =
-    let value =
-      Option.map ~f:(fun td -> asValue td.input) traceData
-      |> Option.withDefault ~default:"<loading>"
-      |> fun s -> if String.length s = 0 then "No input parameters" else s
-    in
+    let value = Option.map ~f:(fun td -> td.input) traceData in
     let timestamp =
       Option.map ~f:(fun (td : traceData) -> td.timestamp) traceData
     in
