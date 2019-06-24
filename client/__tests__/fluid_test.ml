@@ -701,7 +701,33 @@ let () =
           , EInteger (gid (), 5)
           , NoRail )
       in
-      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar |@ 5", 7) ;
+      let aPartialBinOp =
+        EPartial
+          ( gid ()
+          , "|"
+          , EBinOp
+              ( gid ()
+              , "||"
+              , EVariable (gid (), "myvar")
+              , EInteger (gid (), 5)
+              , NoRail ) )
+      in
+      tp
+        "backspacing shows ghost partial"
+        aFullBinOp
+        (backspace 8)
+        ("myvar |@ 5", 7) ;
+      t
+        "backspacing partial with ghost removes it"
+        aPartialBinOp
+        (backspace 7)
+        ("myvar", 5) ;
+      tp "deleting shows ghost partial" aFullBinOp (delete 6) ("myvar |@ 5", 6) ;
+      t
+        "deleting partial with ghost removes it"
+        aPartialBinOp
+        (delete 6)
+        ("myvar", 5) ;
       (* TODO backspace on empty partial does something *)
       (* TODO support delete on all the backspace commands *)
       (* TODO pressing enter at the end of the partialGhost *)
