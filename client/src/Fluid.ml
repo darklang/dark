@@ -1250,6 +1250,21 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
           ERightPartial (gid (), str, oldVal) )
 
 
+let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
+  let index =
+    (* remove expression in front of pipe, not behind it *)
+    index + 1
+  in
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EThread (_, [e1; _]) ->
+          e1
+      | EThread (id, exprs) ->
+          EThread (id, List.removeAt ~index exprs)
+      | _ ->
+          e )
+
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1821,6 +1836,57 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* -------------------- *)
 (* Code entering/interaction *)
 (* -------------------- *)
+
+let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti ~pos "doLeft" s in
+  if Token.isAtom ti.token
+  then moveToStart ti s
+  else moveOneLeft (min pos ti.endPos) s
+
+
+let doRight
+    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
+    state =
+  let s = recordAction ~ti:current ~pos "doRight" s in
+  if Token.isAtom current.token
+  then
+    match next with
+    | None ->
+        moveToAfter current s
+    | Some nInfo ->
+        moveToStart nInfo s
+  else
+    match next with
+    | Some n when pos + 1 >= current.endPos ->
+        moveToStart n s
+    | _ ->
+        (* When we're in whitespace, current is the next non-whitespace. So we
+         * don't want to use pos, we want to use the startPos of current. *)
+        let startingPos = max pos (current.startPos - 1) in
+        moveOneRight startingPos s
+
+
+let doUp ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doUp" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  if row = 0
+  then moveTo 0 s
+  else
+    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
+    moveTo pos {s with upDownCol = Some col}
+
+
+let doDown ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doDown" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
+  moveTo pos {s with upDownCol = Some col}
+
+
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
@@ -1862,7 +1928,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordSep _
   | TSep
-  | TThreadPipe _
   | TLambdaSep _
   | TPatternBlank _
   | TPatternConstructorName _
@@ -1918,6 +1983,15 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
+  | TThreadPipe (id, i) ->
+      let s =
+        match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+        | Some leftTI, _, _ ->
+            doLeft ~pos:ti.startPos leftTI s
+        | _ ->
+            fail "TThreadPipe should never occur on first line of AST"
+      in
+      (removeThreadPipe id ast i, s)
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -1948,7 +2022,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep
-  | TThreadPipe _
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
@@ -2014,56 +2087,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, s)
   | TPatternBlank _ ->
       (ast, s)
-
-
-let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos "doLeft" s in
-  if Token.isAtom ti.token
-  then moveToStart ti s
-  else moveOneLeft (min pos ti.endPos) s
-
-
-let doRight
-    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
-    state =
-  let s = recordAction ~ti:current ~pos "doRight" s in
-  if Token.isAtom current.token
-  then
-    match next with
-    | None ->
-        moveToAfter current s
-    | Some nInfo ->
-        moveToStart nInfo s
-  else
-    match next with
-    | Some n when pos + 1 >= current.endPos ->
-        moveToStart n s
-    | _ ->
-        (* When we're in whitespace, current is the next non-whitespace. So we
-         * don't want to use pos, we want to use the startPos of current. *)
-        let startingPos = max pos (current.startPos - 1) in
-        moveOneRight startingPos s
-
-
-let doUp ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  if row = 0
-  then moveTo 0 s
-  else
-    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
-    moveTo pos {s with upDownCol = Some col}
-
-
-let doDown ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
-  moveTo pos {s with upDownCol = Some col}
+  | TThreadPipe (id, i) ->
+      (removeThreadPipe id ast i, s)
 
 
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -2468,9 +2493,12 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
+    (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
     match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
+    | Some ({token = TThreadPipe _} as current) ->
+        current.endPos
     | _ ->
         newPos
   in
