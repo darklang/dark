@@ -772,6 +772,16 @@ let () =
         (press K.GoToEndOfLine 0)
         ("match ___\n  *** -> ___", 9) ;
       t
+        "move to the front of match on line 2"
+        emptyMatch
+        (press ~wrap:false K.GoToStartOfLine 15)
+        ("match ___\n  *** -> ___", 12) ;
+      t
+        "move to the end of match on line 2"
+        emptyMatch
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("match ___\n  *** -> ___", 22) ;
+      t
         "move back over match"
         emptyMatch
         (press K.Left 6)
