@@ -1134,6 +1134,16 @@ let () =
         ("{\n  *** : ___\n}", 4) ;
       t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
+        "move to the front of an empty record"
+        emptyRow
+        (press K.GoToStartOfLine ~wrap:false 13)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "move to the end of an empty record"
+        emptyRow
+        (press K.GoToEndOfLine ~wrap:false 4)
+        ("{\n  *** : ___\n}", 13) ;
+      t
         "cant enter invalid fieldname"
         emptyRow
         (insert '^' 4)
@@ -1174,6 +1184,16 @@ let () =
         multi
         (insert ~wrap:false '1' 21)
         ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
+      t
+        "move to the front of a record with multiple values"
+        multi
+        (press K.GoToStartOfLine ~wrap:false 21)
+        ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
+      t
+        "move to the end of a record with multiple values"
+        multi
+        (press K.GoToEndOfLine ~wrap:false 14)
+        ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
