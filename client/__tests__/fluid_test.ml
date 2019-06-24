@@ -1215,7 +1215,7 @@ let () =
         "thread moves to right place on placeholder"
         aFnCall
         (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 ___\n |>___", 28) ;
+        ("Int::add 5 ___\n           |>___", 28) ;
       t
         "thread moves to right place in if then"
         emptyIf
@@ -1230,7 +1230,7 @@ let () =
         "thread moves to right place in match body"
         emptyMatch
         (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 19)
-        ("match ___\n  *** -> ___\n   |>___", 34) ;
+        ("match ___\n  *** -> ___\n         |>___", 34) ;
       t
         "autocomplete for Just"
         (EPartial (gid (), "Just", EBlank (gid ())))
