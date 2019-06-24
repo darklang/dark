@@ -2025,10 +2025,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
-  | TBinOp (id, _) ->
-      (* TODO this should move to the start of the new blank, but we don't know
-       * where it is at the moment. *)
-      (deleteWithArguments id ast, moveToStart ti s |> left)
   | TConstructorName (id, _) | TFnName (id, _, _) ->
       (deleteWithArguments id ast, moveToStart ti s)
   | TFieldOp id ->
@@ -2054,6 +2050,15 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
+  | TBinOp (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteBinOp ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TRightPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteRightPartial ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deletePartial ti ast in
+      (ast, moveBackTo targetID ast s)
   | TRecordField _
   | TInteger _
   | TPatternInteger _
@@ -2069,6 +2074,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternTrue _
   | TPatternFalse _
   | TPatternVariable _
+  | TBinOp _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatPoint id ->
