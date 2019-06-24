@@ -888,16 +888,6 @@ let () =
         (delete ~wrap:false 22)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
       t
-        "backspacing a thread's second pipe works"
-        aLongThread
-        (backspace ~wrap:false 24)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
-      t
-        "deleting a thread's second pipe works"
-        aLongThread
-        (delete ~wrap:false 22)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
-      t
         "backspacing a thread's third pipe works"
         aLongThread
         (backspace ~wrap:false 43)
