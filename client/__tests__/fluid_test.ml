@@ -1195,6 +1195,11 @@ let () =
         (press K.Enter 3)
         ("request", 7) ;
       t
+        "thread moves to right place"
+        (EPartial (gid (), "|>", EBlank (gid ())))
+        (press K.Enter 2)
+        ("___\n|>___", 6) ;
+      t
         "autocomplete for Just"
         (EPartial (gid (), "Just", EBlank (gid ())))
         (press K.Enter 4)
