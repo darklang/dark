@@ -1178,7 +1178,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 
 let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -1196,7 +1196,7 @@ let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -1210,7 +1210,7 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
