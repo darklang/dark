@@ -2529,6 +2529,26 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       | Some ast ->
           let ast = ast |> fromExpr s in
           let newAST, newState = updateMsg m tl.id ast msg s in
+          let eventSpecMod, newAST, newState =
+            let enter tl id = Enter (Filling (tl.id, id)) in
+            (* if tab is wrapping... *)
+            if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
+            then
+              (* toggle through spec headers *)
+              (* if on first spec header that is blank
+               * set cursor to select that *)
+              match tl.data with
+              | TLHandler {spec = {name = Blank id; _}; _} ->
+                  (enter tl id, ast, s)
+              | TLHandler {spec = {module_ = Blank id; _}; _} ->
+                  (enter tl id, ast, s)
+              | TLHandler {spec = {modifier = Blank id; _}; _} ->
+                  (enter tl id, ast, s)
+              | _ ->
+                  (NoChange, newAST, newState)
+            else (NoChange, newAST, newState)
+            (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
+          in
           let cmd =
             let astCmd =
               if newAST <> ast || newState.oldPos <> newState.newPos
@@ -2566,6 +2586,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
           Types.Many
             [ Types.TweakModel (fun m -> {m with fluidState = newState})
             ; astMod
+            ; eventSpecMod
             ; Types.MakeCmd cmd ] ) )
 
 
