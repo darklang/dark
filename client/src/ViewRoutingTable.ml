@@ -602,13 +602,12 @@ let closedDeployStats2html (m : model) : msg Html.html =
               [Html.class' "count-box"]
               [Html.p [] [Html.text (count |> string_of_int)]] ] ]
   in
-  let deployLatest =
-    if count <> 0
-    then entries |> List.take ~count:1 |> List.map ~f:deploy2html
-    else []
-  in
   let hoverView =
-    if count = 0 then [] else [Html.div [Html.class' "hover"] deployLatest]
+    if count > 0
+    then
+      let deploys = List.map ~f:deploy2html entries in
+      [Html.div [Html.class' "hover"] deploys]
+    else [Vdom.noNode]
   in
   let icon =
     Html.div
