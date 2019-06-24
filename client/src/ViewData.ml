@@ -31,7 +31,7 @@ let viewInput
   let valueDiv =
     match value with
     | None ->
-        Html.text "<loading>"
+        ViewUtils.fontAwesome "spinner"
     | Some v ->
         let asString =
           Runtime.inputValueAsString v
