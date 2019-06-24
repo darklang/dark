@@ -841,8 +841,19 @@ let () =
       let threadOn expr fns = EThread (gid (), expr :: fns) in
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
+      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
       let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      let aLongThread =
+        threadOn
+          emptyList
+          [ listFn [aListNum 2]
+          ; listFn [aListNum 3]
+          ; listFn [aListNum 4]
+          ; listFn [aListNum 5] ]
+      in
+      let aThreadInsideIf = EIf (gid (), newB (), aLongThread, newB ()) in
+      (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
       t
         "threads appear on new lines"
         aThread
@@ -855,7 +866,95 @@ let () =
         "nested threads will indent"
         aNestedThread
         render
-        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ) ;
+        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ;
+      t
+        "backspacing a thread's first pipe works"
+        aLongThread
+        (backspace ~wrap:false 5)
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 2) ;
+      t
+        "deleting a thread's first pipe works"
+        aLongThread
+        (delete ~wrap:false 3)
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 3) ;
+      t
+        "backspacing a thread's second pipe works"
+        aLongThread
+        (backspace ~wrap:false 24)
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
+      t
+        "deleting a thread's second pipe works"
+        aLongThread
+        (delete ~wrap:false 22)
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
+      t
+        "backspacing a thread's third pipe works"
+        aLongThread
+        (backspace ~wrap:false 43)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 40) ;
+      t
+        "deleting a thread's third pipe works"
+        aLongThread
+        (delete ~wrap:false 41)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 41) ;
+      t
+        "backspacing a thread's last pipe works"
+        aLongThread
+        (backspace ~wrap:false 62)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
+      t
+        "deleting a thread's last pipe works"
+        aLongThread
+        (delete ~wrap:false 60)
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 60) ;
+      t
+        "backspacing a thread's first pipe that isn't in the first column works"
+        aThreadInsideIf
+        (backspace ~wrap:false 21)
+        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        , 16 ) ;
+      t
+        "deleting a thread's first pipe that isn't in the first column works"
+        aThreadInsideIf
+        (delete ~wrap:false 19)
+        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        , 19 ) ;
+      t
+        "backspacing a thread's second pipe that isn't in the first column works"
+        aThreadInsideIf
+        (backspace ~wrap:false 42)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        , 37 ) ;
+      t
+        "deleting a thread's second pipe that isn't in the first column works"
+        aThreadInsideIf
+        (delete ~wrap:false 40)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        , 40 ) ;
+      t
+        "backspacing a thread's third pipe that isn't in the first column works"
+        aThreadInsideIf
+        (backspace ~wrap:false 63)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
+        , 58 ) ;
+      t
+        "deleting a thread's third pipe that isn't in the first column works"
+        aThreadInsideIf
+        (delete ~wrap:false 61)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
+        , 61 ) ;
+      t
+        "backspacing a thread's fourth pipe that isn't in the first column works"
+        aThreadInsideIf
+        (backspace ~wrap:false 84)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
+        , 79 ) ;
+      t
+        "deleting a thread's fourth pipe that isn't in the first column works"
+        aThreadInsideIf
+        (delete ~wrap:false 82)
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
+        , 82 ) ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
