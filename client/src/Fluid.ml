@@ -1509,17 +1509,19 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   let s = recordAction "moveToStartOfLine" s in
   let token =
     toTokens s ast
-    |> List.find ~f:(fun info -> info.startRow == ti.startRow)
+    |> List.find ~f:(fun info ->
+           if info.startRow == ti.startRow
+           then
+             match info.token with
+             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
+             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+                 false
+             | _ ->
+                 true
+           else false )
     |> Option.withDefault ~default:ti
   in
-  let newPos =
-    match token.token with
-    (* To prevent the cursor from going to the front of an indent*)
-    | TIndent _ | TIndentToHere _ ->
-        token.endPos
-    | _ ->
-        token.startPos
-  in
+  let newPos = token.startPos in
   setPosition s newPos
 
 
