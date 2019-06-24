@@ -57,6 +57,7 @@ function isHandledByFluid(event) {
       case event.ctrlKey && event.key == "e":
       // command + a (select all)
       case event.metaKey && event.key == "a":
+      case !event.metaKey && !event.ctrlKey && !event.altKey:
         return true;
         break;
       default:
@@ -66,21 +67,9 @@ function isHandledByFluid(event) {
     return false;
   }
 }
-function preventDefaultAction(evt) {
-  switch (true) {
-    case event.metaKey:
-    case event.ctrlKey:
-    case event.altKey:
-      return false;
-      break;
-    default:
-      return true;
-      break;
-  }
-}
 
 function fluidStopKeys(event) {
-  if (preventDefaultAction(event) || isHandledByFluid(event)) {
+  if (isHandledByFluid(event)) {
     event.preventDefault();
   }
 }
