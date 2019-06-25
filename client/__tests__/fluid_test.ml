@@ -579,7 +579,7 @@ let () =
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      t "insert blank->space" blank (insert ' ' 0) (b, 0) ;
+      t "insert blank->space" blank (press K.Space 0) (b, 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -620,6 +620,7 @@ let () =
         aField
         (insert '.' 9)
         ("obj.field.***", 10) ;
+      t "insert space in blank " aBlankField (press K.Space 4) ("obj.***", 4) ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -729,9 +730,15 @@ let () =
         aConstructor
         (press K.Delete 0)
         ("___", 0) ;
+      t
+        "space on a constructor blank does nothing"
+        aConstructor
+        (press K.Space 5)
+        ("Just ___", 5) ;
       () ) ;
   describe "Lambdas" (fun () ->
       t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
+      t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
       t
         "backspace non-empty lambda symbol"
         nonEmptyLambda
@@ -835,6 +842,16 @@ let () =
         (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
         (insert ~wrap:false 'c' 22)
         ("match ___\n  Ok bindingc -> bindingc", 23) ;
+      t
+        "insert space in blank match"
+        emptyMatch
+        (press K.Space 6)
+        ("match ___\n  *** -> ___", 6) ;
+      t
+        "insert space in blank match on line 2"
+        emptyMatch
+        (press ~wrap:false K.Space 12)
+        ("match ___\n  *** -> ___", 12) ;
       () ) ;
   describe "Lets" (fun () ->
       t
@@ -861,6 +878,7 @@ let () =
         (backspace 3)
         ("let *** = 6\n5", 3) ;
       t "delete non-empty let" nonEmptyLet (delete 0) ("let *** = 6\n5", 0) ;
+      t "insert space on blank let" emptyLet (press K.Space 4) ("let *** = ___\n5", 4) ;
       t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
       t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
       t "backspace letlhs" letWithLhs (backspace 5) ("let *** = 6\n5", 4) ;
@@ -1126,6 +1144,8 @@ let () =
         nestedIf
         (press ~wrap:false K.GoToEndOfLine 12)
         ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
+      t "try to insert space on blank" emptyIf (press ~wrap:false K.Space 2) ("if ___\nthen\n  ___\nelse\n  ___", 2) ;
+      t "try to insert space on blank indent 2" emptyIf (press ~wrap:false K.Space 14) ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
@@ -1138,7 +1158,8 @@ let () =
         emptyList
         (insert '5' 0)
         ("[]", 0) ;
-      t "insert into empty list" emptyList (insert '5' 1) ("[5]", 2) ;
+      t "insert space into multi list" multi (press K.Space 6) ("[56,78]", 6) ;
+      t "insert space into single list" single (press K.Space 3) ("[56]", 3) ;
       t "insert into existing list item" single (insert '4' 1) ("[456]", 2) ;
       t
         "insert separator before item creates blank"
@@ -1199,6 +1220,21 @@ let () =
         emptyRecord
         (insert '5' 0)
         ("{}", 0) ;
+      t
+        "inserting space between empty record does nothing"
+        emptyRecord
+        (press K.Space 1)
+        ("{}", 1) ;
+      t
+        "inserting space in empty record field does nothing"
+        emptyRow
+        (press K.Space 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "inserting space in empty record value does nothing"
+        emptyRow
+        (press K.Space 10)
+        ("{\n  *** : ___\n}", 10) ;
       t
         "pressing enter in an empty record adds a new line"
         emptyRecord
