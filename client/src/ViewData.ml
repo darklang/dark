@@ -4,9 +4,10 @@ open Types
 
 (* Dark *)
 module B = Blank
+module TL = Toplevel
 
 let viewInput
-    (tlid : tlid)
+    (tl : toplevel)
     (traceID : traceID)
     (value : inputValueDict option)
     (timestamp : string option)
@@ -18,24 +19,26 @@ let viewInput
   let tipeClass = ["tipe-" ^ Runtime.tipe2str tipe] in
   let classes = activeClass @ hoverClass @ tipeClass |> String.join ~sep:" " in
   let eventKey constructor =
-    constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
+    constructor ^ "-" ^ showTLID tl.id ^ "-" ^ traceID
   in
   let events =
     [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
-          TraceClick (tlid, traceID, x) )
+          TraceClick (tl.id, traceID, x) )
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
-          TraceMouseEnter (tlid, traceID, x) )
+          TraceMouseEnter (tl.id, traceID, x) )
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tlid, traceID, x) ) ]
+          TraceMouseLeave (tl.id, traceID, x) ) ]
   in
   let valueDiv =
     match value with
     | None ->
         ViewUtils.fontAwesome "spinner"
     | Some v ->
+        let asString = Runtime.inputValueAsString v in
         let asString =
-          Runtime.inputValueAsString v
-          |> fun s -> if String.length s = 0 then "No input parameters" else s
+          if String.length asString = 0 && TL.spaceOf tl <> Some HSCron
+          then "No input parameters"
+          else asString
         in
         Html.div [] [Html.text asString]
   in
@@ -76,7 +79,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
       |> Option.map ~f:Runtime.typeOf
       |> Option.withDefault ~default:TIncomplete
     in
-    viewInput vs.tl.id traceID value timestamp isActive isHover astTipe
+    viewInput vs.tl traceID value timestamp isActive isHover astTipe
   in
   List.map ~f:traceToHtml vs.traces
 
