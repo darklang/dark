@@ -7,6 +7,53 @@ open Fluid
 module B = Blank
 module K = FluidKeyboard
 
+(*
+ * These tests are all written in a common style: t "delete end of whole"
+ * aFloat (delete 2) ("12.456", 2) ;
+ *
+ * This is a test that takes the fluidExpr called aFloat, and does a delete on
+ * it in position 2. The stringified result is "12.456" and the cursor should
+ * be in position 2.
+ *
+ * There are a handful of functions you can call, including press, presses,
+ * insert, backspace, delete, tab, shiftTab, and render.
+ *
+ * There are a few different ways of running a test:
+ *  - t vs tp:
+ *    - a test case is created by calling t. This also asserts that the result
+ *      does not include a partial.
+ *    - you can also call tp, which asserts that the result _does_ include a
+ *      partial.
+ *  - wrap:
+ *      When I started writing these tests, I discovered that they kept passing
+ *      despite there being a bug. Whenever the cursor went over the end, it
+ *      would stay in the last place, giving a false positive. To avoid this,
+ *      I wrapped all test cases:
+ *         ```
+ *         let request = expression-I-actually-want-to-test
+ *         request
+ *         ```
+ *      There is a downside to this though: the indentation gets screwed up.
+ *      This affects match, if, records - basically anything that applies it's
+ *      own indent. The outcome is that the final position is wrong if it's not
+ *      on the same line. The solution to this is to set ~wrap:false on the
+ *      test.
+ *  - debug:
+ *      When you need more information about a single test, set the ~debug:true
+ *      flag.
+ * There are also certain conventions in the display of text in the output:
+ *  - TBlanks are displayed as `___`
+ *  - TPlaceHolders are displayed as normal but with underscores: for example
+ *    `_a_:_Int_`
+ *  - TPartials are displayed as text - to detect their presence,
+ *    see "t vs tp" above.
+ *  - TGhostPartials are displayed as multiple @ signs
+ *  - Other blanks (see FluidToken.isBlank) are displayed as `***` This is
+ *    controlled by FluidToken.toTestText
+ *
+ *  There are more tests in fluid_pattern_tests for match patterns.
+ *)
+
 let complexExpr =
   EIf
     ( gid ()
