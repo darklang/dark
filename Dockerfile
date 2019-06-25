@@ -221,6 +221,7 @@ RUN opam install -y \
   re2.v0.11.0 \
   conf-libev.4-11 \
   lwt.3.3.0 \
+  lwt_ppx.1.2.0 \
   yojson.1.4.1 \
   postgresql.4.4.0 \
   ppx_deriving_yojson.3.1 \
@@ -251,7 +252,7 @@ RUN opam install -y \
   && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
   && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
   && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
-  && opam pin -y multipart-form-data git+https://github.com/sgrove/multipart-form-data.git#master \
+  && opam pin -y multipart-form-data git+https://github.com/darklang/multipart-form-data.git#master \
   && opam install -y \
   session.0.4.0 \
   session-cohttp.0.4.0 \
