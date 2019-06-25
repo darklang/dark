@@ -47,22 +47,15 @@ window.stopKeys = stopKeys;
 // ---------------------------
 
 function isHandledByFluid(event) {
-  if (window.navigator.platform == "MacIntel") {
-    switch (true) {
-      // ctrl + d (delete)
-      case event.ctrlKey && event.key == "d":
-      // ctrl + a (begining of line)
-      case event.ctrlKey && event.key == "a":
-      // ctrl + e (end of line)
-      case event.ctrlKey && event.key == "e":
-      // command + a (select all)
-      case event.metaKey && event.key == "a":
-      case !event.metaKey && !event.ctrlKey && !event.altKey:
-        return true;
-        break;
-      default:
-        return false;
-    }
+  // Checks if mac
+  var isMac = window.navigator.platform == "MacIntel";
+  // Checks if ctrl + key is handled by fluid
+  var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
+  // Check if key press is handled by fluid
+  var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
+  if (isMac && (isCtrlFluidKeyPress || isFluidKeyPress)) {
+    // If mac and handled with fluid prevent default
+    return true;
   } else {
     return false;
   }
