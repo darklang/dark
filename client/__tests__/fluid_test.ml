@@ -181,6 +181,17 @@ let () =
     EIf
       (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
   in
+  let nestedIf =
+    EIf
+      ( gid ()
+      , EInteger (gid (), 5)
+      , EIf
+          ( gid ()
+          , EInteger (gid (), 5)
+          , EInteger (gid (), 6)
+          , EInteger (gid (), 7) )
+      , EInteger (gid (), 7) )
+  in
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
@@ -932,6 +943,36 @@ let () =
       let aThreadInsideIf = EIf (gid (), newB (), aLongThread, newB ()) in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
       t
+        "move to the front of thread on line 1"
+        aThread
+        (press K.GoToStartOfLine 2)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+      t
+        "move to the end of thread on line 1"
+        aThread
+        (press K.GoToEndOfLine 0)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 2) ;
+      t
+        "move to the front of thread on line 2"
+        aThread
+        (press ~wrap:false K.GoToStartOfLine 8)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 5) ;
+      t
+        "move to the end of thread on line 2"
+        aThread
+        (press ~wrap:false K.GoToEndOfLine 5)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 21) ;
+      t
+        "move to the front of thread on line 3"
+        aThread
+        (press ~wrap:false K.GoToStartOfLine 40)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 24) ;
+      t
+        "move to the end of thread on line 3"
+        aThread
+        (press ~wrap:false K.GoToEndOfLine 24)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 40) ;
+      t
         "threads appear on new lines"
         aThread
         render
@@ -1054,6 +1095,36 @@ let () =
         (backspace ~wrap:false 21)
         ("if 5\nthen\n  6\nelse\n  7", 18) ;
       t "backspace over empty if" emptyIf (backspace 2) ("___", 0) ;
+      t
+        "move to front of line 1"
+        plainIf
+        (press ~wrap:false K.GoToStartOfLine 4)
+        ("if 5\nthen\n  6\nelse\n  7", 0) ;
+      t
+        "move to end of line 1"
+        plainIf
+        (press ~wrap:false K.GoToEndOfLine 0)
+        ("if 5\nthen\n  6\nelse\n  7", 4) ;
+      t
+        "move to front of line 3"
+        plainIf
+        (press ~wrap:false K.GoToStartOfLine 13)
+        ("if 5\nthen\n  6\nelse\n  7", 12) ;
+      t
+        "move to end of line 3"
+        plainIf
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("if 5\nthen\n  6\nelse\n  7", 13) ;
+      t
+        "move to front of line 5 in nested if"
+        nestedIf
+        (press ~wrap:false K.GoToStartOfLine 16)
+        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 12) ;
+      t
+        "move to end of line 5 in nested if"
+        nestedIf
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
