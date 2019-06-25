@@ -6,6 +6,10 @@ open Prelude
 open Fluid
 module K = FluidKeyboard
 
+(* These tests should be synced with the subset of tests in fluid_test.ml that
+ * makes sense for patterns. See the extensive docs there for how this all
+ * works. *)
+
 let tl ast =
   { id = TLID "7"
   ; pos = {x = 0; y = 0}
