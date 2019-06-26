@@ -1,2 +1,2 @@
-(lang dune 1.3)
-(using in_development_do_not_use_variants 0.1)
+(lang dune 1.10)
+(using library_variants 0.1)
