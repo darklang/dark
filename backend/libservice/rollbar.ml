@@ -25,7 +25,7 @@ type err_ctx =
 (* The escaping on this is a bit overkill - it'll do a layer of url-escaping
  * beyond the example above, which we don't need - but the link works *)
 let honeycomb_link_of_execution_id (execution_id : string) : string =
-  let (query : Yojson.Safe.json) =
+  let (query : Yojson.Safe.t) =
     `Assoc
       [ ( "filters"
         , `List
@@ -52,7 +52,7 @@ let error_to_payload
     (e : exn)
     (bt : Caml.Printexc.raw_backtrace)
     (ctx : err_ctx)
-    (execution_id : string) : Yojson.Safe.json =
+    (execution_id : string) : Yojson.Safe.t =
   let e, pageable =
     (* unwrap PageableExn if it is present *)
     match e with
@@ -145,7 +145,7 @@ let create_request
     (e : exn)
     (bt : Caml.Printexc.raw_backtrace)
     (ctx : err_ctx)
-    (execution_id : string) : Curl.t * Buffer.t * Yojson.Safe.json =
+    (execution_id : string) : Curl.t * Buffer.t * Yojson.Safe.t =
   let payload = error_to_payload ~pp ~inspect e bt ctx execution_id in
   let body =
     [ ("access_token", `String Config.rollbar_server_access_token)
@@ -174,7 +174,7 @@ let create_request
 
 
 (* given a response buffer containing a .result.uuid and a payload, log it *)
-let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.json) (e : exn) : unit =
+let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
   let rollbar_link_of_curl_buffer (r : Buffer.t) : string option =
     let body =
       try Some (Yojson.Safe.from_string (Buffer.contents r)) with e ->

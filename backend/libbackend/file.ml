@@ -85,7 +85,7 @@ let writefile ~root (f : string) (str : string) : unit =
 let readjsonfile
     ~root
     ?(stringconv : string -> string = ident)
-    ~(conv : Yojson.Safe.json -> ('a, string) result)
+    ~(conv : Yojson.Safe.t -> ('a, string) result)
     (filename : string) : 'a =
   filename
   |> readfile ~root
@@ -98,7 +98,7 @@ let readjsonfile
 let maybereadjsonfile
     ~root
     ?(stringconv : string -> string = ident)
-    ~(conv : Yojson.Safe.json -> ('a, string) result)
+    ~(conv : Yojson.Safe.t -> ('a, string) result)
     (filename : string) : 'a option =
   if file_exists ~root filename
   then Some (readjsonfile ~root ~stringconv ~conv filename)

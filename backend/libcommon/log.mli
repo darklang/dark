@@ -16,7 +16,7 @@ type level =
 
 val loglevel : level ref
 
-val logkey : (string * Yojson.Safe.json) list Lwt.key ref
+val logkey : (string * Yojson.Safe.t) list Lwt.key ref
 
 val set_level : level -> unit
 
@@ -43,7 +43,7 @@ val init : level:level -> format:format -> unit -> unit
 (* printing *)
 val pP :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> level:level
@@ -56,7 +56,7 @@ val inspect : ?f:('a -> string) -> string -> 'a -> 'a
 
 val debuG :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -64,7 +64,7 @@ val debuG :
 
 val infO :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -72,7 +72,7 @@ val infO :
 
 val warN :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -80,7 +80,7 @@ val warN :
 
 val erroR :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -88,7 +88,7 @@ val erroR :
 
 val fataL :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
@@ -96,11 +96,11 @@ val fataL :
 
 val succesS :
      ?data:string
-  -> ?jsonparams:(string * Yojson.Safe.json) list
+  -> ?jsonparams:(string * Yojson.Safe.t) list
   -> ?params:(string * string) list
   -> ?bt:Caml.Printexc.raw_backtrace
   -> string
   -> unit
 
 val add_log_annotations :
-  (string * Yojson.Safe.json) list -> (unit -> 'a) -> 'a
+  (string * Yojson.Safe.t) list -> (unit -> 'a) -> 'a

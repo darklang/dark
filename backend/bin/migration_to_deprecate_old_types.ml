@@ -28,8 +28,8 @@ value @> '{\"type\": \"id\"}' LIMIT 100"
           let parsed_data = data |> Yojson.Safe.from_string in
           (* if a pair has an id value = `{"type": "id", ...}` - then make it a
            * string instead *)
-          let transform_pair (pair : string * Yojson.Safe.json) :
-              string * Yojson.Safe.json =
+          let transform_pair (pair : string * Yojson.Safe.t) :
+              string * Yojson.Safe.t =
             let key, value = pair in
             let new_value =
               match value with
