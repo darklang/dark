@@ -1,6 +1,5 @@
 (library
   (name libcommon)
-  (modes native)
   (flags (-warn-error +A))
   (libraries core_kernel libtarget yojson lwt)
 )
