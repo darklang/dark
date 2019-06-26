@@ -201,10 +201,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v6-backend-{{ checksum "rundir/today-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v7-backend-{{ checksum "rundir/today-timestamp" }}
+            - v7-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v7-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v7-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -222,7 +222,7 @@ jobs:
       - save_cache:
           name: "Save daily backend cache"
           paths: [ "backend/_build" ]
-          key: v6-backend-{{ checksum "rundir/today-timestamp" }}
+          key: v7-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -274,11 +274,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "rundir/today-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
+            - v9-client-{{ checksum "client/package.json" }}
+            - v9-client-{{ checksum "rundir/today-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
@@ -296,11 +296,11 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "client/package.json" }}
+          key: v9-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           paths: [ "client/node_modules" ]
-          key: v8-client-{{ checksum "rundir/today-timestamp" }}
+          key: v9-client-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -334,11 +334,11 @@ jobs:
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v8-client-{{ checksum "client/package.json" }}
-            - v8-client-{{ checksum "rundir/today-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v8-client-{{ checksum "rundir/minus3-timestamp" }}
+            - v9-client-{{ checksum "client/package.json" }}
+            - v9-client-{{ checksum "rundir/today-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
       - copy-into-container
       - run-background-container
 
