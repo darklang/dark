@@ -38,7 +38,7 @@ let tid (t : token) : id =
   | TLambdaSep id
   | TListOpen id
   | TListClose id
-  | TListSep id
+  | TListSep (id, _)
   | TThreadPipe (id, _)
   | TRecordOpen id
   | TRecordClose id
@@ -100,7 +100,7 @@ let isTextToken token : bool =
       true
   | TListOpen _
   | TListClose _
-  | TListSep _
+  | TListSep (_, _)
   | TSep
   | TLetKeyword _
   | TRecordOpen _
@@ -276,7 +276,7 @@ let toText (t : token) : string =
       "["
   | TListClose _ ->
       "]"
-  | TListSep _ ->
+  | TListSep (_, _) ->
       ","
   | TRecordOpen _ ->
       "{"
@@ -419,7 +419,7 @@ let toTypeName (t : token) : string =
       "list-open"
   | TListClose _ ->
       "list-close"
-  | TListSep _ ->
+  | TListSep (_, _) ->
       "list-sep"
   | TRecordOpen _ ->
       "record-open"
