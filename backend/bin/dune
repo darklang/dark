@@ -32,7 +32,7 @@
   (modules queue_worker)
   (flags (-warn-error +A))
   (libraries libbackend)
-  (preprocess (pps lwt.ppx))
+  (preprocess (pps lwt_ppx))
   (package dark)
 )
 
@@ -42,7 +42,7 @@
   (modules cron_checker)
   (flags (-warn-error +A))
   (libraries libbackend)
-  (preprocess (pps lwt.ppx))
+  (preprocess (pps lwt_ppx))
   (package dark)
 )
 
@@ -52,7 +52,7 @@
   (modules validate_data_loads)
   (flags (-warn-error +A))
   (libraries libbackend libexecution libcommon)
-  (preprocess (pps lwt.ppx))
+  (preprocess (pps lwt_ppx))
   (package dark)
 )
 
@@ -62,7 +62,7 @@
   (modules migration_to_deprecate_old_types)
   (flags (-warn-error +A))
   (libraries libbackend libexecution libcommon)
-  (preprocess (pps lwt.ppx))
+  (preprocess (pps lwt_ppx))
   (package dark)
 )
 
