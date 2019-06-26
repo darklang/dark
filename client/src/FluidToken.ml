@@ -6,6 +6,8 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
+let fakeid = ID "fake-id"
+
 let tid (t : token) : id =
   match t with
   | TInteger (id, _)
@@ -60,8 +62,10 @@ let tid (t : token) : id =
   | TPatternFloatFraction (_, id, _) ->
       id
   | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-      ID "no-id"
+      fakeid
 
+
+let validID id = id <> fakeid
 
 let isTextToken token : bool =
   match token with
