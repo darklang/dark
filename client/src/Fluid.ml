@@ -1178,7 +1178,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 
 let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -1196,7 +1196,7 @@ let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -1210,7 +1210,7 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref (ID "no-id") in
+  let id = ref FluidToken.fakeid in
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -2825,21 +2825,19 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
   let liveValues, show, offset =
     getLeftTokenAt state.newPos tis
     |> Option.andThen ~f:(fun ti ->
-           match ti.token with
-           | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
-               None
-           | _ ->
-               let liveValuesOfToken =
-                 let id = Token.tid ti.token in
-                 let liveValueString =
-                   StrDict.get ~key:(deID id) currentResults.liveValues
-                   |> Option.map ~f:Runtime.toRepr
-                   |> Option.withDefault ~default:"<loading>"
-                 in
-                 [ Html.text liveValueString
-                 ; viewCopyButton tlid liveValueString ]
-               in
-               Some (liveValuesOfToken, true, ti.startRow) )
+           let id = Token.tid ti.token in
+           if FluidToken.validID id
+           then
+             let liveValuesOfToken =
+               match StrDict.get ~key:(deID id) currentResults.liveValues with
+               | None ->
+                   [ViewUtils.fontAwesome "spinner"]
+               | Some v ->
+                   let str = Runtime.toRepr v in
+                   [Html.text str; viewCopyButton tlid str]
+             in
+             Some (liveValuesOfToken, true, ti.startRow)
+           else None )
     |> Option.withDefault ~default:([Vdom.noNode], false, 0)
   in
   let offset = float_of_int offset +. 1.5 in
@@ -2851,12 +2849,12 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     liveValues
 
 
-let viewAST
-    ~(tlid : tlid)
-    ~(currentResults : analysisResults)
-    ~(executingFunctions : id list)
-    ~(state : state)
-    (ast : ast) : Types.msg Html.html list =
+let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
+    =
+  let ({currentResults; executingFunctions; tlid} : ViewUtils.viewState) =
+    vs
+  in
+  let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
     let decodeNothing =
@@ -2882,7 +2880,12 @@ let viewAST
       [Html.classList [("fluid-error-rail", true); ("show", hasMaybeErrors)]]
       indicators
   in
-  [ tokenInfos |> viewLiveValue ~tlid ~currentResults ~state
+  let liveValue =
+    if tlidOf vs.cursorState = Some tlid
+    then viewLiveValue ~tlid ~currentResults ~state tokenInfos
+    else Vdom.noNode
+  in
+  [ liveValue
   ; Html.div
       [ Attrs.id editorID
       ; Vdom.prop "contentEditable" "true"

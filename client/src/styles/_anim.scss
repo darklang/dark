@@ -27,3 +27,7 @@
     transform: rotate(360deg);
   }
 }
+
+i.fa-spinner {
+  animation: spin 0.75s infinite linear;
+}
