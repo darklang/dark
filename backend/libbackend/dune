@@ -4,7 +4,7 @@
   (flags (-warn-error +A))
   (preprocess (pps
                landmarks.ppx
-               lwt.ppx
+               lwt_ppx
                ppx_bin_prot
                ppx_compare
                ppx_deriving.std

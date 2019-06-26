@@ -22,7 +22,7 @@ type err_ctx =
 (* Reports an exn with a backtrace to Rollbar asynchronously *)
 val report_lwt :
      ?pp:(exn -> string)
-  -> ?inspect:(exn -> Yojson.Safe.json)
+  -> ?inspect:(exn -> Yojson.Safe.t)
   -> exn
   -> Caml.Printexc.raw_backtrace
   -> err_ctx
@@ -31,7 +31,7 @@ val report_lwt :
 
 val report :
      ?pp:(exn -> string)
-  -> ?inspect:(exn -> Yojson.Safe.json)
+  -> ?inspect:(exn -> Yojson.Safe.t)
   -> exn
   -> Caml.Printexc.raw_backtrace
   -> err_ctx
@@ -41,7 +41,7 @@ val report :
 (* Just in case *)
 val last_ditch :
      ?pp:(exn -> string)
-  -> ?inspect:(exn -> Yojson.Safe.json)
+  -> ?inspect:(exn -> Yojson.Safe.t)
   -> exn
   -> bt:Caml.Printexc.raw_backtrace
   -> string

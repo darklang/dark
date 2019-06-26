@@ -2,7 +2,7 @@
   (name libservice)
   (modes native)
   (flags (-warn-error +A))
-  (preprocess (pps lwt.ppx))
+  (preprocess (pps lwt_ppx))
   (libraries  libcommon
               core
               lwt
