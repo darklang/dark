@@ -60,4 +60,4 @@ val init : unit -> unit
 
 val init_testing : unit -> unit
 
-val user_info_to_yojson : user_info -> Yojson.Safe.json
+val user_info_to_yojson : user_info -> Yojson.Safe.t

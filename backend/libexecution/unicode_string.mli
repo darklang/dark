@@ -22,9 +22,9 @@ module Character : sig
 
   val unsafe_of_string : string -> t
 
-  val to_yojson : t -> Yojson.Safe.json
+  val to_yojson : t -> Yojson.Safe.t
 
-  val of_yojson : Yojson.Safe.json -> (t, string) Result.t
+  val of_yojson : Yojson.Safe.t -> (t, string) Result.t
 end
 
 val of_utf8_encoded_string : string -> t option
@@ -92,6 +92,6 @@ val compare : t -> t -> int
 
 val equal : t -> t -> bool
 
-val to_yojson : t -> Yojson.Safe.json
+val to_yojson : t -> Yojson.Safe.t
 
-val of_yojson : Yojson.Safe.json -> (t, string) Result.t
+val of_yojson : Yojson.Safe.t -> (t, string) Result.t

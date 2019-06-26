@@ -209,23 +209,27 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
 ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
-ENV FORCE_OCAML_UPDATE 0
+ENV FORCE_OCAML_UPDATE 4
 RUN opam update
 
 #ENV OPAMDEBUG true
-RUN opam install -y \
-  ppx_deriving.4.2.1 \
+RUN opam pin -y nocrypto git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
+  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
+  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
+  && opam pin -y multipart-form-data git+https://github.com/darklang/multipart-form-data.git#master \
+  && opam install -y \
+  ppx_deriving.4.3 \
   core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.6.2 \
+  dune.1.10.0 \
   re2.v0.11.0 \
   conf-libev.4-11 \
-  lwt.3.3.0 \
-  lwt_ppx.1.2.0 \
-  yojson.1.4.1 \
+  lwt.4.2.1 \
+  lwt_ppx.1.2.2 \
+  yojson.1.7.0 \
   postgresql.4.4.0 \
-  ppx_deriving_yojson.3.1 \
-  cohttp-lwt-unix.1.0.2 \
+  ppx_deriving_yojson.3.4 \
+  cohttp-lwt-unix.2.0.0 \
   ocurl.0.8.2 \
   alcotest.0.8.3 \
   merlin.3.2.2 \
@@ -242,23 +246,18 @@ RUN opam install -y \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
   sodium.0.6.0 \
-  utop \
+  utop.2.4.0 \
   ocamlformat.0.8 \
   uuseg.11.0.0 \
   uunf.11.0.0 \
   magic-mime.1.1.1 \
   ezgzip.0.2.1 \
   tablecloth-native.0.0.6 \
-  && opam pin nocrypto -y git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
-  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
-  && opam pin -y multipart-form-data git+https://github.com/darklang/multipart-form-data.git#master \
-  && opam install -y \
-  session.0.4.0 \
-  session-cohttp.0.4.0 \
-  session-cohttp-lwt.0.4.0 \
-  session-postgresql.0.4.0 \
-  session-postgresql-lwt.0.4.0
+  session.0.4.1 \
+  session-cohttp.0.4.1 \
+  session-cohttp-lwt.0.4.1 \
+  session-postgresql.0.4.1 \
+  session-postgresql-lwt.0.4.1
 
 ############################
 # Shellcheck

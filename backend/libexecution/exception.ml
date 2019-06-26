@@ -174,7 +174,7 @@ let rec exn_to_string (e : exn) : string =
       "Unknown Err: " ^ Exn.to_string e
 
 
-let rec exn_to_info (e : exn) : Yojson.Safe.json =
+let rec exn_to_info (e : exn) : Yojson.Safe.t =
   match e with
   | DarkException e ->
       exception_data_to_yojson e

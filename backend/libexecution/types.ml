@@ -16,7 +16,7 @@ let id_of_string = Int63.of_string
 
 let string_of_id = Int63.to_string
 
-let id_of_yojson (json : Yojson.Safe.json) : (id, string) result =
+let id_of_yojson (json : Yojson.Safe.t) : (id, string) result =
   match json with
   (* IDs are strings _everywhere_ on the bucklescript client now.
    * so they'll be sent to us as JSON strings. Bucklescript
@@ -33,7 +33,7 @@ let id_of_yojson (json : Yojson.Safe.json) : (id, string) result =
       Error "Types.id"
 
 
-let id_to_yojson (i : Int63.t) : Yojson.Safe.json = `Intlit (Int63.to_string i)
+let id_to_yojson (i : Int63.t) : Yojson.Safe.t = `Intlit (Int63.to_string i)
 
 module IDTable = Int63.Table
 
@@ -44,7 +44,7 @@ module IDMap = struct
 
   include T
 
-  let to_yojson fn map : Yojson.Safe.json =
+  let to_yojson fn map : Yojson.Safe.t =
     map
     |> T.to_alist
     |> List.map ~f:(fun (k, v) -> (string_of_id k, fn v))

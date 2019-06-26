@@ -26,7 +26,7 @@ type static_deploy =
   ; last_update : Time.t
   ; status : deploy_status }
 
-let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.json =
+let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
   `Assoc
     [ ("deploy_hash", `String sd.deploy_hash)
     ; ("url", `String sd.url)
