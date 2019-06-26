@@ -16,7 +16,7 @@ type level =
   | `Debug
   | `All ]
 
-let logkey : (string * Yojson.Safe.json) list Lwt.key ref =
+let logkey : (string * Yojson.Safe.t) list Lwt.key ref =
   (* This key doesn't need to be unique across threads - it's thread-local. The
    * key there so you could have, say, a logkey and an other-variable-key *)
   ref (Lwt.new_key ())
@@ -229,7 +229,7 @@ let print_json_log
     ~(level : level)
     ~(decorate : bool)
     ?(bt : Caml.Printexc.raw_backtrace option = None)
-    (params : (string * Yojson.Safe.json) list) : unit =
+    (params : (string * Yojson.Safe.t) list) : unit =
   let timestamp = rfc3339_of_float (Unix.gettimeofday ()) in
   let bt_params =
     match bt with
@@ -254,7 +254,7 @@ let print_json_log
 
 let pP
     ?(data : string option)
-    ?(jsonparams : (string * Yojson.Safe.json) list = [])
+    ?(jsonparams : (string * Yojson.Safe.t) list = [])
     ?(params : (string * string) list = [])
     ?(bt : Caml.Printexc.raw_backtrace option)
     ~(level : level)
@@ -316,7 +316,7 @@ let succesS = pP ~level:`Success
 (* Add to the current set of thread-local log annotations. *)
 (* We make no attempt whatsoever to deal with dupe keys, except to put new ones
  * later in the ordering *)
-let add_log_annotations (annotations : (string * Yojson.Safe.json) list) :
+let add_log_annotations (annotations : (string * Yojson.Safe.t) list) :
     (unit -> 'a) -> 'a =
   let existing =
     match Lwt.get !logkey with None -> [] | Some annotations -> annotations

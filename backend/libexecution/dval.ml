@@ -229,11 +229,11 @@ let tipename (dv : dval) : string =
 
 let pretty_tipename (dv : dval) : string = dv |> tipe_of |> tipe_to_string
 
-let unsafe_tipe_to_yojson (t : tipe) : Yojson.Safe.json =
+let unsafe_tipe_to_yojson (t : tipe) : Yojson.Safe.t =
   `String (t |> tipe_to_string |> String.lowercase)
 
 
-let unsafe_tipe_of_yojson (json : Yojson.Safe.json) =
+let unsafe_tipe_of_yojson (json : Yojson.Safe.t) =
   match json with
   | `String s ->
       Ok (s |> String.lowercase |> tipe_of_string)
@@ -254,7 +254,7 @@ let unwrap_from_errorrail (dv : dval) =
 let exception_to_dval exc = DError (Exception.to_string exc)
 
 (* Anytime we create a dlist with the except of list literals,
- we need to make sure that there are no incomplete or error rail 
+ we need to make sure that there are no incomplete or error rail
  values within the list *)
 let is_fake_cf (dv : dval) =
   match dv with DErrorRail _ | DIncomplete -> true | _ -> false
@@ -292,7 +292,7 @@ let empty_dobj : dval = DObj DvalMap.empty
  * and we really need to move off it, but for now we're here. Do not change
  * existing encodings - this will break everything.
  *)
-let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
+let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -376,7 +376,7 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.json) : dval =
       DObj (unsafe_dvalmap_of_yojson json)
 
 
-and unsafe_dvalmap_of_yojson (json : Yojson.Safe.json) : dval_map =
+and unsafe_dvalmap_of_yojson (json : Yojson.Safe.t) : dval_map =
   match json with
   | `Assoc alist ->
       List.fold_left
@@ -388,7 +388,7 @@ and unsafe_dvalmap_of_yojson (json : Yojson.Safe.json) : dval_map =
       Exception.internal "Not a json object"
 
 
-let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.json =
+let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
   let tipe = dv |> tipe_of |> unsafe_tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
   let wrap_constructed_type cons values =

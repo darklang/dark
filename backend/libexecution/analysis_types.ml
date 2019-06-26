@@ -26,7 +26,7 @@ let ht_to_json_dict ds ~f =
 
 type dval_store = dval IDTable.t
 
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.t =
   ht_to_json_dict ds ~f:dval_to_yojson
 
 

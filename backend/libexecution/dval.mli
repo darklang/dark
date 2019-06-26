@@ -23,10 +23,10 @@ val tipe_of : Types.RuntimeT.dval -> Types.tipe_
 
 val tipename : Types.RuntimeT.dval -> string
 
-val unsafe_tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.json
+val unsafe_tipe_to_yojson : Types.RuntimeT.tipe -> Yojson.Safe.t
 
 val unsafe_tipe_of_yojson :
-  Yojson.Safe.json -> (Types.RuntimeT.tipe, 'a) Core_kernel._result
+  Yojson.Safe.t -> (Types.RuntimeT.tipe, 'a) Core_kernel._result
 
 (* ------------------------- *)
 (* Representations *)
@@ -43,7 +43,7 @@ val to_internal_roundtrippable_v0 : Types.RuntimeT.dval -> string
 val of_internal_roundtrippable_v0 : string -> Types.RuntimeT.dval
 
 val of_internal_roundtrippable_json_v0 :
-  Yojson.Safe.json -> (Types.RuntimeT.dval, string) Core_kernel._result
+  Yojson.Safe.t -> (Types.RuntimeT.dval, string) Core_kernel._result
 
 (* This is a format used for roundtripping dvals internally, while still being
  * queryable using jsonb in our DB. v0 has bugs due to a legacy of trying to
@@ -87,8 +87,8 @@ val show : Types.RuntimeT.dval -> string
 (* JSON coming in from the user as part of a known API should have a type which
  * can act as a schema to reconstruct the data perfectly. Redacts passwords. *)
 (* type schema  *)
-(* val of_json_with_schema : schema: schema -> Yojson.Safe.json -> Types.RuntimeT.dval *)
-(* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.json  *)
+(* val of_json_with_schema : schema: schema -> Yojson.Safe.t -> Types.RuntimeT.dval *)
+(* val to_json_with_schema : schema: schema -> Types.RuntimeT.dval -> Yojson.Safe.t  *)
 
 (* Parse our internal literal strings (eg AST Values) *)
 val parse_literal : string -> Types.RuntimeT.dval option
