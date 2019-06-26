@@ -1275,7 +1275,7 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
       | _ ->
           e )
 
-          
+
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -2020,6 +2020,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
+  | TListSep (id, idx) ->
+      (replaceListSepToken id ast idx, s)
   | TBlank _
   | TPlaceholder _
   | TIndent _
@@ -2028,7 +2030,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetAssignment _
   | TListClose _
   | TListOpen _
-  | TListSep (_, _)
   | TNewline
   | TRecordClose _
   | TRecordOpen _

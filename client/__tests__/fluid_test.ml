@@ -1086,6 +1086,11 @@ let () =
         multi
         (backspace 4)
         ("[56]", 3) ;
+      t
+        "delete before separator between items deletes item after separator"
+        multi
+        (delete 3)
+        ("[56]", 3) ;
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
