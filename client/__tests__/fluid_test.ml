@@ -1081,6 +1081,11 @@ let () =
         emptyList
         (press K.RightSquareBracket 1)
         ("[]", 2) ;
+      t
+        "backspace on separator between items deletes item after separator"
+        multi
+        (backspace 4)
+        ("[56]", 3) ;
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in

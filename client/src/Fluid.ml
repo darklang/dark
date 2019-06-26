@@ -498,7 +498,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EList (id, exprs) ->
       let ts =
         exprs
-        |> List.map ~f:(fun expr -> [nested expr; TListSep id])
+        |> List.indexedMap ~f:(fun i expr -> [nested expr; TListSep(id, i)])
         |> List.concat
         (* Remove the extra seperator *)
         |> List.dropRight ~count:1
@@ -1249,6 +1249,17 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
       | oldVal ->
           ERightPartial (gid (), str, oldVal) )
 
+let replaceListSepToken (id : id) (ast : ast) (index : int) :fluidExpr =
+  let index =
+    (* remove expression in front of sep, not behind it *)
+    index + 1
+  in
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EList (id, exprs) ->
+        EList (id, List.removeAt ~index exprs)
+      | _ ->
+        e)
 
 let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
   let index =
@@ -1264,7 +1275,7 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
       | _ ->
           e )
 
-
+          
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
@@ -1909,6 +1920,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TPatternString (mID, id, "") ->
       (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
+  | TListSep (id, idx) ->
+      (replaceListSepToken id ast idx, left s)  
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TRecordField (id, i, "") when pos = ti.startPos ->
@@ -1922,7 +1935,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetAssignment _
   | TListClose _
   | TListOpen _
-  | TListSep _
   | TNewline
   | TRecordOpen _
   | TRecordClose _
@@ -2016,7 +2028,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetAssignment _
   | TListClose _
   | TListOpen _
-  | TListSep _
+  | TListSep (_, _)
   | TNewline
   | TRecordClose _
   | TRecordOpen _
@@ -2231,7 +2243,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIndented _
   | TIndentToHere _
   | TListClose _
-  | TListSep _
+  | TListSep (_, _)
   | TIndent _
   | TRecordOpen _
   | TRecordClose _
