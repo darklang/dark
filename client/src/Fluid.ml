@@ -1637,7 +1637,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let matchID = gid () in
       (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
   | FACKeyword KThread ->
-      (EThread (gid (), [newB (); newB ()]), 8)
+      (EThread (gid (), [newB (); newB ()]), 6)
   | FACVariable name ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
@@ -1788,6 +1788,12 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newPat, acOffset = acToPattern entry in
             let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
+        | TPartial _ when entry = FACKeyword KThread ->
+            let newExpr, _ = acToExpr entry in
+            let newAST = replaceExpr ~newExpr id ast in
+            let tokens = toTokens s newAST in
+            let nextBlank = getNextBlankPos s.newPos tokens in
+            (newAST, nextBlank - ti.startPos)
         | TPartial _ | TRightPartial _ ->
             let newExpr, offset = acUpdateExpr id ast entry in
             let newAST = replaceExpr ~newExpr id ast in
