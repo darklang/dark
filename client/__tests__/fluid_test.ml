@@ -596,7 +596,7 @@ let () =
         ("Int::add 5 _________", 11) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
        * delete because we were switching to partials, but this isn't
-       * implemented. Some tests we need: 
+       * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
       () ) ;
@@ -677,6 +677,11 @@ let () =
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
         ("12345 <= 12345", 8) ;
+      tp
+        "adding binop in `if` works"
+        (EIf (gid (), EBlank (gid ()), EBlank (gid ()), EBlank (gid ())))
+        (press K.Percent 3)
+        ("if %\nthen\n  ___\nelse\n  ___", 4) ;
       let aFullBinOp =
         EBinOp
           ( gid ()
