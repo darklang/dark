@@ -1030,6 +1030,9 @@ let () =
       let single = EList (gid (), [fiftySix]) in
       let multi = EList (gid (), [fiftySix; seventyEight]) in
       let withStr = EList (gid (), [EString (gid (), "ab")]) in
+      let longList = EList (gid (), [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]) in
+      let listWithBlank = EList (gid (), [fiftySix; seventyEight; EBlank (gid ()); fiftySix]) in
+      let multiWithStrs = EList (gid (), [EString (gid (), "ab"); EString (gid (), "cd"); EString (gid (), "ef")]) in
       t "create list" blank (press K.LeftSquareBracket 0) ("[]", 1) ;
       t
         "inserting before the list does nothing"
@@ -1082,15 +1085,55 @@ let () =
         (press K.RightSquareBracket 1)
         ("[]", 2) ;
       t
-        "backspace on separator between items deletes item after separator"
+        "backspace on first separator between items deletes item after separator"
         multi
         (backspace 4)
         ("[56]", 3) ;
       t
-        "delete before separator between items deletes item after separator"
+        "delete before first separator between items deletes item after separator"
         multi
         (delete 3)
         ("[56]", 3) ;
+      t
+        "backspace on middle separator between items deletes item after separator"
+        longList
+        (backspace 10)
+        ("[56,78,56,56,78]", 9) ;
+      t
+        "delete before middle separator between items deletes item after separator"
+        longList
+        (delete 9)
+        ("[56,78,56,56,78]", 9) ;
+      t
+        "backspace on middle separator between items deletes blank after separator"
+        listWithBlank
+        (backspace 7)
+        ("[56,78,56]", 6) ;
+      t
+        "delete before middle separator between items deletes blank after separator"
+        listWithBlank
+        (delete 6)
+        ("[56,78,56]", 6) ;
+      t
+        "backspace on last separator between a blank and item deletes item after separator"
+        listWithBlank
+        (backspace 11)
+        ("[56,78,___]", 10) ;
+      t
+        "delete before last separator between a blank and item deletes item after separator"
+        listWithBlank
+        (delete 10)
+        ("[56,78,___]", 10) ;
+        t
+        "backspace on separator between string items deletes item after separator"
+        multiWithStrs
+        (backspace 6)
+        ("[\"ab\",\"ef\"]", 5) ;
+      t
+        "delete before separator between string items deletes item after separator"
+        multiWithStrs
+        (delete 5)
+        ("[\"ab\",\"ef\"]", 5) ;
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
