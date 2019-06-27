@@ -617,6 +617,11 @@ let () =
         trueBool
         (press K.Plus 4)
         ("true +", 6) ;
+      tp
+        "pressing caret key starts partial"
+        anInt
+        (press K.Caret 5)
+        ("12345 ^", 7) ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
