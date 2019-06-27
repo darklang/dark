@@ -1,5 +1,11 @@
 open Core_kernel
 
+type auth =
+  { consumer_key : string
+  ; consumer_secret : string
+  ; access_token : string
+  ; access_token_secret : string }
+
 let pct_encode_key = Uri.pct_encode ~component:`Userinfo
 
 let pct_encode = Uri.pct_encode ~component:`Userinfo
@@ -48,21 +54,20 @@ let param_to_string (key, value) : string =
   pct_encode key ^ "=\"" ^ pct_encode value ^ "\""
 
 
-let oauth_params
-    (secret : Secret.twitter_secret) url verb (args : (string * string) list) :
+let oauth_params (auth : auth) url verb (args : (string * string) list) :
     (string * string) list =
   let initial_params =
-    [ ("oauth_consumer_key", secret.consumer_key)
+    [ ("oauth_consumer_key", auth.consumer_key)
     ; ("oauth_nonce", nonce ())
     ; ("oauth_signature_method", "HMAC-SHA1")
     ; ("oauth_version", "1.0")
     ; ("oauth_timestamp", ts ())
-    ; ("oauth_token", secret.access_token) ]
+    ; ("oauth_token", auth.access_token) ]
   in
   let signature =
     sign
-      secret.consumer_secret
-      secret.access_token_secret
+      auth.consumer_secret
+      auth.access_token_secret
       url
       verb
       (List.append initial_params args)
@@ -79,6 +84,6 @@ let oauth_header secret url verb (args : (string * string) list) : string =
   |> ( ^ ) "OAuth "
 
 
-let authorization_header url verb (args : (string * string) list) :
-    string * string =
-  ("Authorization", oauth_header Secret.twitter url verb args)
+let authorization_header (auth : auth) url verb (args : (string * string) list)
+    : string * string =
+  ("Authorization", oauth_header auth url verb args)
