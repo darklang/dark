@@ -239,43 +239,22 @@ let () =
       ; paramOptional = opt
       ; paramDescription = "" }
     in
+    let infixFn op tipe rtTipe =
+      { fnName = op
+      ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
+      ; fnReturnTipe = rtTipe
+      ; fnDescription = "Some infix function"
+      ; fnPreviewExecutionSafe = true
+      ; fnDeprecated = false
+      ; fnInfix = true }
+    in
     { Defaults.defaultModel with
       builtInFunctions =
-        [ { fnName = "<"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if a is less than b"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "+"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-          ; fnReturnTipe = TInt
-          ; fnDescription = "Returns sum"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "=="
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if the two value are equal"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "<="
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if the two value are equal"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "||"
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if either value is true"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
+        [ infixFn "<" TInt TBool
+        ; infixFn "+" TInt TInt
+        ; infixFn "==" TAny TBool
+        ; infixFn "<=" TAny TBool
+        ; infixFn "||" TAny TBool
         ; { fnName = "Int::add"
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TInt
