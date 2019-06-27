@@ -83,13 +83,15 @@ type key =
   | F11
   | F12
   | Unknown of string
+  | GoToStartOfLine
+  | GoToEndOfLine
 
 and side =
   | LeftHand
   | RightHand
 [@@deriving show]
 
-let fromKeyboardCode (shift : bool) (code : int) : key =
+let fromKeyboardCode (shift : bool) (ctrl : bool) (code : int) : key =
   match code with
   | 8 ->
       Backspace
@@ -152,15 +154,15 @@ let fromKeyboardCode (shift : bool) (code : int) : key =
   | 57 ->
       if shift then LeftParens else Number '9'
   | 65 ->
-      Letter (if shift then 'A' else 'a')
+      if ctrl then GoToStartOfLine else Letter (if shift then 'A' else 'a')
   | 66 ->
       Letter (if shift then 'B' else 'b')
   | 67 ->
       Letter (if shift then 'C' else 'c')
   | 68 ->
-      Letter (if shift then 'D' else 'd')
+      if ctrl then Delete else Letter (if shift then 'D' else 'd')
   | 69 ->
-      Letter (if shift then 'E' else 'e')
+      if ctrl then GoToEndOfLine else Letter (if shift then 'E' else 'e')
   | 70 ->
       Letter (if shift then 'F' else 'f')
   | 71 ->
@@ -401,7 +403,9 @@ let toChar key : char option =
   | F12
   | Shift _
   | Ctrl _
-  | Unknown _ ->
+  | Unknown _
+  | GoToStartOfLine
+  | GoToEndOfLine ->
       None
 
 
@@ -555,6 +559,10 @@ let toName (key : key) : string =
       "F12"
   | Unknown hint ->
       "Unknown: " ^ hint
+  | GoToStartOfLine ->
+      "GoToStartOfLine"
+  | GoToEndOfLine ->
+      "GoToEndOfLine"
 
 
 let fromChar (char : char) : key =
@@ -674,8 +682,9 @@ type keyEvent =
 
 let keyEvent j =
   let open Json.Decode in
+  let ctrl = field "ctrlKey" bool j in
   let shift = field "shiftKey" bool j in
-  { key = field "keyCode" int j |> fromKeyboardCode shift
+  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j

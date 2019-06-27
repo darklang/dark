@@ -181,6 +181,17 @@ let () =
     EIf
       (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
   in
+  let nestedIf =
+    EIf
+      ( gid ()
+      , EInteger (gid (), 5)
+      , EIf
+          ( gid ()
+          , EInteger (gid (), 5)
+          , EInteger (gid (), 6)
+          , EInteger (gid (), 7) )
+      , EInteger (gid (), 7) )
+  in
   let aLambda = ELambda (gid (), [(gid (), "")], blank) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
@@ -762,6 +773,26 @@ let () =
       () ) ;
   describe "Match" (fun () ->
       t
+        "move to the front of match"
+        emptyMatch
+        (press K.GoToStartOfLine 6)
+        ("match ___\n  *** -> ___", 0) ;
+      t
+        "move to the end of match"
+        emptyMatch
+        (press K.GoToEndOfLine 0)
+        ("match ___\n  *** -> ___", 9) ;
+      t
+        "move to the front of match on line 2"
+        emptyMatch
+        (press ~wrap:false K.GoToStartOfLine 15)
+        ("match ___\n  *** -> ___", 12) ;
+      t
+        "move to the end of match on line 2"
+        emptyMatch
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("match ___\n  *** -> ___", 22) ;
+      t
         "move back over match"
         emptyMatch
         (press K.Left 6)
@@ -805,6 +836,16 @@ let () =
         ("match ___\n  Ok bindingc -> bindingc", 23) ;
       () ) ;
   describe "Lets" (fun () ->
+      t
+        "move to the front of let"
+        emptyLet
+        (press K.GoToStartOfLine 4)
+        ("let *** = ___\n5", 0) ;
+      t
+        "move to the end of let"
+        emptyLet
+        (press K.GoToEndOfLine 4)
+        ("let *** = ___\n5", 13) ;
       t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
       t
         "move forward over let"
@@ -901,6 +942,36 @@ let () =
       in
       let aThreadInsideIf = EIf (gid (), newB (), aLongThread, newB ()) in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
+      t
+        "move to the front of thread on line 1"
+        aThread
+        (press K.GoToStartOfLine 2)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+      t
+        "move to the end of thread on line 1"
+        aThread
+        (press K.GoToEndOfLine 0)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 2) ;
+      t
+        "move to the front of thread on line 2"
+        aThread
+        (press ~wrap:false K.GoToStartOfLine 8)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 5) ;
+      t
+        "move to the end of thread on line 2"
+        aThread
+        (press ~wrap:false K.GoToEndOfLine 5)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 21) ;
+      t
+        "move to the front of thread on line 3"
+        aThread
+        (press ~wrap:false K.GoToStartOfLine 40)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 24) ;
+      t
+        "move to the end of thread on line 3"
+        aThread
+        (press ~wrap:false K.GoToEndOfLine 24)
+        ("[]\n|>List::append [5]\n|>List::append [5]", 40) ;
       t
         "threads appear on new lines"
         aThread
@@ -1024,6 +1095,36 @@ let () =
         (backspace ~wrap:false 21)
         ("if 5\nthen\n  6\nelse\n  7", 18) ;
       t "backspace over empty if" emptyIf (backspace 2) ("___", 0) ;
+      t
+        "move to front of line 1"
+        plainIf
+        (press ~wrap:false K.GoToStartOfLine 4)
+        ("if 5\nthen\n  6\nelse\n  7", 0) ;
+      t
+        "move to end of line 1"
+        plainIf
+        (press ~wrap:false K.GoToEndOfLine 0)
+        ("if 5\nthen\n  6\nelse\n  7", 4) ;
+      t
+        "move to front of line 3"
+        plainIf
+        (press ~wrap:false K.GoToStartOfLine 13)
+        ("if 5\nthen\n  6\nelse\n  7", 12) ;
+      t
+        "move to end of line 3"
+        plainIf
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("if 5\nthen\n  6\nelse\n  7", 13) ;
+      t
+        "move to front of line 5 in nested if"
+        nestedIf
+        (press ~wrap:false K.GoToStartOfLine 16)
+        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 12) ;
+      t
+        "move to end of line 5 in nested if"
+        nestedIf
+        (press ~wrap:false K.GoToEndOfLine 12)
+        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
@@ -1104,6 +1205,16 @@ let () =
         ("{\n  *** : ___\n}", 4) ;
       t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
+        "move to the front of an empty record"
+        emptyRow
+        (press K.GoToStartOfLine ~wrap:false 13)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "move to the end of an empty record"
+        emptyRow
+        (press K.GoToEndOfLine ~wrap:false 4)
+        ("{\n  *** : ___\n}", 13) ;
+      t
         "cant enter invalid fieldname"
         emptyRow
         (insert '^' 4)
@@ -1144,6 +1255,16 @@ let () =
         multi
         (insert ~wrap:false '1' 21)
         ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
+      t
+        "move to the front of a record with multiple values"
+        multi
+        (press K.GoToStartOfLine ~wrap:false 21)
+        ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
+      t
+        "move to the end of a record with multiple values"
+        multi
+        (press K.GoToEndOfLine ~wrap:false 14)
+        ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
