@@ -43,7 +43,11 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let opsParams (ops : op list) : addOpRPCParams = {ops}
+let opsParams (ops : op list) (browserId : string) : addOpRPCParams =
+  let tlidsToUpdateMeta = Introspect.tlidsToUpdateMeta ops in
+  let tlidsToUpdateUsage = Introspect.tlidsToUpdateUsage ops in
+  {ops; browserId; tlidsToUpdateMeta; tlidsToUpdateUsage}
+
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
     =
@@ -55,7 +59,7 @@ let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
       Decoders.addOpRPCResult
       m.csrfToken
       url
-      (Encoders.addOpRPCParams params)
+      (Encoders.addOpRPCParams params m.browserId)
   in
   Tea.Http.send (fun x -> AddOpRPCCallback (focus, params, x)) request
 

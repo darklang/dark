@@ -238,7 +238,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (tl.id, tl.pos, newH)] in
-                   let params = RPC.opsParams ops in
+                   let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
@@ -248,7 +248,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
-                   let params = RPC.opsParams ops in
+                   let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ ->
@@ -449,7 +449,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops) focus
+        handleRPC (RPC.opsParams ops m.browserId) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1402,7 +1402,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateDBStats result ]
   | AddOpRPCCallback (_, params, Error err) ->
       DisplayAndReportHttpError
-        ("RPC", ImportantError, err, Encoders.addOpRPCParams params)
+        ("RPC", ImportantError, err, Encoders.addOpRPCParams params m.browserId)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->

@@ -629,9 +629,10 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
   let t1, params =
     time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
   in
-  let tlids = List.filter_map ~f:Op.tlidOf params.ops in
+  let ops = params.ops in
+  let tlids = List.filter_map ~f:Op.tlidOf ops in
   let t2, maybe_c =
-    time "2-load-saved-ops" (fun _ -> C.load_only_tlids ~tlids host params.ops)
+    time "2-load-saved-ops" (fun _ -> C.load_only_tlids ~tlids host ops)
   in
   match maybe_c with
   | Ok c ->
@@ -645,11 +646,33 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             if Api.causes_any_changes params then C.save_tlids !c tlids else ()
         )
       in
+      let t5, _ =
+        (* To make this work with prodclone, we might want to have it specify
+         * more ... else people's prodclones will stomp on each other ... *)
+        time "5-send-ops-to-stroller" (fun _ ->
+            let owner = Account.for_host_exn host in
+            let canvas_id = Serialize.fetch_canvas_id owner host in
+            if Api.causes_any_changes params
+            then
+              Stroller.push_new_event
+                ~execution_id
+                ~canvas_id
+                ~event:"add_op"
+                ( { result
+                  ; tlidsToUpdateMeta = params.tlidsToUpdateMeta
+                  ; tlidsToUpdateUsage = params.tlidsToUpdateUsage
+                  ; browserId = params.browserId }
+                |> Analysis.add_op_stroller_msg_to_yojson
+                |> Yojson.Safe.to_string )
+            else () )
+      in
       respond
-        ~resp_headers:(server_timing [t1; t2; t3; t4])
+        ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
         ~execution_id
         `OK
-        result
+        ( result
+        |> Analysis.add_op_rpc_result_to_yojson
+        |> Yojson.Safe.to_string )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
