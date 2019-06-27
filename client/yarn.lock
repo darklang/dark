@@ -1630,10 +1630,10 @@ browserslist@^3.2.6:
     caniuse-lite "^1.0.30000844"
     electron-to-chromium "^1.3.47"
 
-bs-fetch@^0.4.0:
-  version "0.4.0"
-  resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.4.0.tgz#355fd0e3c77d283f6735d43b9daa81aa6e75a365"
-  integrity sha512-hoQ/5kxTeIMRJ2S9IrSx5uVzDcrebXv089E+MUJyOjT2P9ux3bJ7hrIPXBQZiErf6uyL1Q5WkdVv9cEw1Hkpuw==
+bs-fetch@^0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.0.tgz#6913b1d1ddfa0b0a4b832357854e9763d61d4b28"
+  integrity sha512-cGjwRpyNcIaX+p2ssy/38zs7BM/miKNgmOR3NEhxKFete5mR05JcvjuV4raG89oGCG281SU1b56TTAKmf9VCug==
 
 bs-platform@6.0.1:
   version "6.0.1"
