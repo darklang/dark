@@ -1189,18 +1189,6 @@ let () =
         (presses [K.Equals; K.Space] 0)
         ("_________ == _________", 0) ;
       *)
-      (*
-      let emptyThread = EThread (gid (), [EBlank (gid ()); EBlank (gid ())]) in
-      let threadInPlaceholder =
-        EFnCall (gid (), "Http::badRequest", [EBlank (gid ())], NoRail)
-      in
-      let threadInIf = EIf (gid (), newB (), emptyThread, newB ()) in
-      let threadInLambda = ELambda (gid (), [], emptyThread) in
-      let threadInMatch =
-        let mid = gid () in
-        EMatch (mid, EBlank (gid ()), [(FPBlank (mid, gid ()), emptyThread)])
-      in
-      *)
       t
         "variable moves to right place"
         (EPartial (gid (), "req", EBlank (gid ())))
