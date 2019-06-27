@@ -2430,6 +2430,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | key, L (TBinOp _, toTheLeft), _
       when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheLeft ast s
+    | key,_ , R (TBlank _, toTheRight)
+      when List.member ~value:key infixKeys ->
+        doInsert ~pos keyChar toTheRight ast s
     | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys
       ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
