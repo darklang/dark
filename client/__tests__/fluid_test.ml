@@ -254,7 +254,7 @@ let () =
         ; infixFn "+" TInt TInt
         ; infixFn "==" TAny TBool
         ; infixFn "<=" TInt TBool
-        ; infixFn "||" TAny TBool
+        ; infixFn "||" TBool TBool
         ; { fnName = "Int::add"
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TInt
@@ -606,12 +606,12 @@ let () =
         "pressing then enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
-        ("true || _________", 7) ;
+        ("true || __________", 7) ;
       t
         "pressing then space completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Space] 4)
-        ("true || _________", 8) ;
+        ("true || __________", 8) ;
       tp
         "pressing plus key starts partial"
         trueBool
@@ -621,7 +621,7 @@ let () =
         "pressing pipe twice then space completes partial"
         trueBool
         (presses [K.Pipe; K.Pipe; K.Space] 4)
-        ("true || _________", 8) ;
+        ("true || __________", 8) ;
       t
         "piping into newline creates thread"
         trueBool
@@ -635,12 +635,12 @@ let () =
       t
         "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
-        (press K.Backspace 11)
+        (press K.Backspace 12)
         ("___", 0) ;
       t
         "deleting an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Backspace 11)
+        (press K.Backspace 12)
         ("___", 0) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
