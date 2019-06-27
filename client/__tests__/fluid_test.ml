@@ -253,7 +253,7 @@ let () =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
         ; infixFn "==" TAny TBool
-        ; infixFn "<=" TAny TBool
+        ; infixFn "<=" TInt TBool
         ; infixFn "||" TAny TBool
         ; { fnName = "Int::add"
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
