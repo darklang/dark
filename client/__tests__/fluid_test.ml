@@ -1144,7 +1144,7 @@ let () =
         nestedIf
         (press ~wrap:false K.GoToEndOfLine 12)
         ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
-      t "try to insert space on blank" emptyIf (press ~wrap:false K.Space 2) ("if ___\nthen\n  ___\nelse\n  ___", 2) ;
+      t "try to insert space on blank" emptyIf (press ~wrap:false K.Space 3) ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t "try to insert space on blank indent 2" emptyIf (press ~wrap:false K.Space 14) ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
       () ) ;
   describe "Lists" (fun () ->

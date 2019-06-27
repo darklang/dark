@@ -2171,7 +2171,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     when pos = ti.endPos && letter = '.' ->
       (exprToFieldAccess id ast, right)
   (* Dont add space to blanks *)
-  | TBlank _ | TPlaceholder (_, _) | TPatternBlank (_, _) | TRecordField (_,_,_) when letterStr == " " ->
+  | ti when (FluidToken.isBlank ti) && letterStr == " " ->
       (ast, s)
   (* replace blank *)
   | TBlank id | TPlaceholder (_, id) ->
