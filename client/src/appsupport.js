@@ -53,12 +53,8 @@ function isHandledByFluid(event) {
   var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
   // Check if key press is handled by fluid
   var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
-  if (isMac && (isCtrlFluidKeyPress || isFluidKeyPress)) {
-    // If mac and handled with fluid prevent default
-    return true;
-  } else {
-    return false;
-  }
+
+  return isMac && (isCtrlFluidKeyPress || isFluidKeyPress);
 }
 
 function fluidStopKeys(event) {
