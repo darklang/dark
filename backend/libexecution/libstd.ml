@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.get o (Unicode_string.to_string s) with
+            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
             | Some d ->
                 d
             | None ->
@@ -79,7 +79,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DObj o; DStr s] ->
-            ( match DvalMap.get o (Unicode_string.to_string s) with
+            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
             | Some d ->
                 DOption (OptJust d)
             | None ->
