@@ -248,7 +248,7 @@ let rec exec
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
-      ( match Symtable.get st name with
+      ( match Symtable.get st ~key:name with
       | None ->
           DError ("There is no variable named: " ^ name)
       | Some other ->
@@ -569,7 +569,7 @@ and exec_fn
   let arglist =
     fn.parameters
     |> List.map ~f:(fun (p : param) -> p.name)
-    |> List.filter_map ~f:(DvalMap.get args)
+    |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
   if paramsIncomplete arglist
