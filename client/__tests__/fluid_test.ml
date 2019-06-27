@@ -250,43 +250,22 @@ let () =
       ; paramOptional = opt
       ; paramDescription = "" }
     in
+    let infixFn op tipe rtTipe =
+      { fnName = op
+      ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
+      ; fnReturnTipe = rtTipe
+      ; fnDescription = "Some infix function"
+      ; fnPreviewExecutionSafe = true
+      ; fnDeprecated = false
+      ; fnInfix = true }
+    in
     { Defaults.defaultModel with
       builtInFunctions =
-        [ { fnName = "<"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if a is less than b"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "+"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-          ; fnReturnTipe = TInt
-          ; fnDescription = "Returns sum"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "=="
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if the two value are equal"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "<="
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if the two value are equal"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
-        ; { fnName = "||"
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
-          ; fnReturnTipe = TBool
-          ; fnDescription = "Returns true if either value is true"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = true }
+        [ infixFn "<" TInt TBool
+        ; infixFn "+" TInt TInt
+        ; infixFn "==" TAny TBool
+        ; infixFn "<=" TInt TBool
+        ; infixFn "||" TBool TBool
         ; { fnName = "Int::add"
           ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
           ; fnReturnTipe = TInt
@@ -630,32 +609,37 @@ let () =
         ("Int::add 5 _________", 11) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
        * delete because we were switching to partials, but this isn't
-       * implemented. Some tests we need: 
+       * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
       t
-        "pressing then enter completes partial"
+        "pressing enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
-        ("true || _________", 7) ;
+        ("true || __________", 7) ;
       t
-        "pressing then space completes partial"
+        "pressing space completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Space] 4)
-        ("true || _________", 8) ;
+        ("true || __________", 8) ;
       tp
         "pressing plus key starts partial"
         trueBool
         (press K.Plus 4)
         ("true +", 6) ;
+      tp
+        "pressing caret key starts partial"
+        anInt
+        (press K.Caret 5)
+        ("12345 ^", 7) ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
         (presses [K.Pipe; K.Pipe; K.Space] 4)
-        ("true || _________", 8) ;
+        ("true || __________", 8) ;
       t
         "piping into newline creates thread"
         trueBool
@@ -669,12 +653,12 @@ let () =
       t
         "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
-        (press K.Backspace 11)
+        (press K.Backspace 12)
         ("___", 0) ;
       t
         "deleting an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Backspace 11)
+        (press K.Backspace 12)
         ("___", 0) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
@@ -706,6 +690,11 @@ let () =
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
         ("12345 <= 12345", 8) ;
+      tp
+        "adding binop in `if` works"
+        (EIf (gid (), EBlank (gid ()), EBlank (gid ()), EBlank (gid ())))
+        (press K.Percent 3)
+        ("if %\nthen\n  ___\nelse\n  ___", 4) ;
       let aFullBinOp =
         EBinOp
           ( gid ()

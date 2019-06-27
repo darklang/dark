@@ -2349,6 +2349,31 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | _ ->
         true
   in
+  (* This expresses whether or not the expression to the left of
+   * the insert should be wrapped in a binary operator, and determines
+   * that face based on the _next_ token *)
+  let wrappableInBinop rightNeighbour =
+    match rightNeighbour with
+    | L _ ->
+        (* This function is only defined in terms of right + no lookahead, so say false if we were accidentally passed an `L` *)
+        false
+    | No ->
+        (* Assume that if we're in a blank and there's nothing to our
+         * right then we must be in an expression blank that can
+         * be safely wrapped *)
+        true
+    | R (token, _) ->
+        (* This almost certainly doesn't catch all cases,
+         * if you find a bug please add a case + test *)
+        (match token with
+        | TLetLHS _
+        | TLetAssignment _
+        | TFieldName _
+        | TLambdaSep _
+        | TLambdaArrow _
+        | TLambdaVar _ -> false
+        | _ -> true)
+  in
   let infixKeys =
     [ K.Plus
     ; K.Percent
@@ -2358,11 +2383,23 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     ; K.LessThan
     ; K.GreaterThan
     ; K.Ampersand
+    ; K.ExclamationMark
+    ; K.Caret
+    ; K.Equals
     ; K.Pipe ]
   in
-  let newAST, newState =
     (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
+  let newAST, newState =
+    (* This match drives a big chunk of the change operations, but is
+     * inconsistent about whether it looks left/right and also about
+     * what conditions it applies to each of the tokens.
+     *
+     * The largest inconsistency is whether or not the case expresses
+     * "in this exact case, do this exact thing" or "in this very general case, do this thing".
+     * The mixing and matching of these two means * the cases are very sensitive to ordering.
+     * If you're adding a case that's sensitive to ordering ADD A TEST, even if it's otherwise
+     * redundant from a product POV. *)
     match (key, toTheLeft, toTheRight) with
     (* Deleting *)
     | K.Backspace, L (TPatternString _, ti), _
@@ -2478,22 +2515,27 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
-    (* Binop specific *)
+    (* Let specific jumping behaviour, this must come before the
+     * more general binop cases or we lose the jumping behaviour *)
+    | K.Equals, _, R (TLetAssignment _, toTheRight) ->
+        (ast, moveTo toTheRight.endPos s)
+    (* Binop specific, all of the specific cases must come before the
+     * big general `key, L (_, toTheLeft), _` case.  *)
     | key, L (TPartial _, toTheLeft), _
     | key, L (TRightPartial _, toTheLeft), _
     | key, L (TBinOp _, toTheLeft), _
       when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheLeft ast s
-    | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys
+    | key, _, R (TBlank _, toTheRight)
+      when List.member ~value:key infixKeys ->
+        doInsert ~pos keyChar toTheRight ast s
+    | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys && wrappableInBinop toTheRight
       ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* End of line *)
     | K.Enter, _, R (TNewline, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
-    (* Let specific *)
-    | K.Equals, _, R (TLetAssignment _, toTheRight) ->
-        (ast, moveTo toTheRight.endPos s)
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
