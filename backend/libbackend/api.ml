@@ -5,7 +5,12 @@ open Analysis_types
 
 type oplist = Op.op list [@@deriving yojson]
 
-type add_op_rpc_params = {ops : oplist} [@@deriving yojson]
+type add_op_rpc_params =
+  { ops : oplist
+  ; browserId : string
+  ; tlidsToUpdateMeta : tlid list
+  ; tlidsToUpdateUsage : tlid list }
+[@@deriving yojson]
 
 type db_stats_rpc_params = {tlids : tlid list} [@@deriving yojson]
 

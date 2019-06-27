@@ -383,6 +383,13 @@ and addOpRPCResult j : addOpRPCResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
+and addOpRPCStrollerMsg j : addOpStrollerMsg =
+  { result = field "result" addOpRPCResult j
+  ; browserId = field "browserId" string j
+  ; tlidsToUpdateMeta = field "tlidsToUpdateMeta" (list tlid) j
+  ; tlidsToUpdateUsage = field "tlidsToUpdateUsage" (list tlid) j }
+
+
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
   j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
