@@ -2303,6 +2303,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     ; K.LessThan
     ; K.GreaterThan
     ; K.Ampersand
+    ; K.ExclamationMark
+    ; K.Caret
     ; K.Pipe ]
   in
   let newAST, newState =
