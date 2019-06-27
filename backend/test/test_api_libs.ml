@@ -41,10 +41,7 @@ let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   Mock.set_string "ts" ts ;
   Mock.set_string "nonce" nonce ;
-  let args =
-    DvalMap.from_list
-      [(k1, Dval.dstr_of_string_exn v1); (k2, Dval.dstr_of_string_exn v2)]
-  in
+  let args = [(k1, v1); (k2, v2)] in
   let expected_header =
     "OAuth oauth_consumer_key=\"xvz1evFS4wEEPTGEFPHBog\", oauth_nonce=\"kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg\", oauth_signature=\"hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"1318622958\", oauth_token=\"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb\", oauth_version=\"1.0\""
   in
