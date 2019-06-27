@@ -1505,6 +1505,45 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
+let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToStartOfLine" s in
+  let token =
+    toTokens s ast
+    |> List.find ~f:(fun info ->
+           if info.startRow == ti.startRow
+           then
+             match info.token with
+             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
+             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+                 false
+             | _ ->
+                 true
+           else false )
+    |> Option.withDefault ~default:ti
+  in
+  let newPos = token.startPos in
+  setPosition s newPos
+
+
+let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToEndOfLine" s in
+  let token =
+    toTokens s ast
+    |> List.reverse
+    |> List.find ~f:(fun info -> info.startRow == ti.startRow)
+    |> Option.withDefault ~default:ti
+  in
+  let newPos =
+    match token.token with
+    (* To prevent the cursor from going to the end of an indent or to a new line *)
+    | TNewline | TIndent _ | TIndentToHere _ ->
+        token.startPos
+    | _ ->
+        token.endPos
+  in
+  setPosition s newPos
+
+
 let moveToEnd (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~ti "moveToEnd" s in
   setPosition ~resetUD:true s (ti.endPos - 1)
@@ -2377,6 +2416,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, doLeft ~pos ti s |> acShow)
     | K.Right, _, R (_, ti) ->
         (ast, doRight ~pos ~next:mNext ti s |> acShow)
+    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
+        (ast, moveToStartOfLine ast ti s)
+    | K.GoToEndOfLine, _, R (_, ti) ->
+        (ast, moveToEndOfLine ast ti s |> acShow)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
@@ -2512,6 +2555,14 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   (newAST, setPosition s newPos)
 
 
+let shouldDoDefaultAction (key : K.key) : bool =
+  match key with
+  | K.GoToStartOfLine | K.GoToEndOfLine | K.Delete ->
+      false
+  | _ ->
+      true
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -2526,6 +2577,10 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
+    | FluidKeyPress {key; metaKey; ctrlKey}
+      when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
+        (* To make sure no letters are entered if user is doing a browser default action *)
+        (ast, s)
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
         updateKey key ast s
@@ -2867,11 +2922,8 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       let open Tea.Json.Decoder in
       succeed Types.IgnoreMsg
     in
-    Html.onWithOptions
-      ~key
-      event
-      {stopPropagation = false; preventDefault = not cmdOpen}
-      decodeNothing
+    (* There is a check to preventDefault() in the appsupport file *)
+    Html.on ~key event decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
   let tokenInfos = ast |> toTokens state in

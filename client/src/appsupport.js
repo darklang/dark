@@ -10,6 +10,11 @@ const mousewheel = function(callback) {
 // Allows us capture certain keys and stop them from affecting the browser.
 // ---------------------------
 function stopKeys(event) {
+  // Fluid
+  if (event.target.id === "fluid-editor") {
+    fluidStopKeys(event);
+  }
+
   if (event.keyCode == 9) {
     // Tab
     event.preventDefault();
@@ -36,6 +41,27 @@ function stopKeys(event) {
   }
 }
 window.stopKeys = stopKeys;
+
+// ---------------------------
+// Fluid
+// ---------------------------
+
+function isHandledByFluid(event) {
+  // Checks if mac
+  var isMac = window.navigator.platform == "MacIntel";
+  // Checks if ctrl + key is handled by fluid
+  var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
+  // Check if key press is handled by fluid
+  var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
+
+  return isMac && (isCtrlFluidKeyPress || isFluidKeyPress);
+}
+
+function fluidStopKeys(event) {
+  if (isHandledByFluid(event)) {
+    event.preventDefault();
+  }
+}
 
 // ---------------------------
 // Rollbar
