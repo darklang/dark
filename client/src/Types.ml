@@ -1054,7 +1054,7 @@ and fluidToken =
   | TLambdaVar of id * int * string
   | TListOpen of id
   | TListClose of id
-  | TListSep of id
+  | TListSep of id * int
   | TThreadPipe of id * int
   | TRecordOpen of id
   | TRecordField of id * int * string
