@@ -603,12 +603,12 @@ let () =
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
       t
-        "pressing then enter completes partial"
+        "pressing enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
         ("true || __________", 7) ;
       t
-        "pressing then space completes partial"
+        "pressing space completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Space] 4)
         ("true || __________", 8) ;
