@@ -2305,6 +2305,9 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     ; K.Ampersand
     ; K.ExclamationMark
     ; K.Caret
+      (* Enabling Equals requires fix from
+     * https://trello.com/c/Eb7dQDjE/1242-pressing-in-the-conditional-blank-of-an-if-binds-the-lhs-of-the-to-the-whole-if-statement *)
+      (* ; K.Equals *)
     ; K.Pipe ]
   in
   let newAST, newState =
