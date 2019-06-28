@@ -194,13 +194,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
           let nameid = id ^ "_name" in
           PExpr (F (ID id, FnCall (F (ID nameid, name), paramExprs, NoRail)))
         in
-        let h =
-          deOption
-            "PointerData is a PExpr and isValidID for this TL"
-            (TL.asHandler tl)
-        in
-        let newAst = AST.replace p replacement h.ast in
-        let newH = {h with ast = newAst} in
+        let astOp = TL.replaceOp p replacement tl in
         let params =
           List.map
             ~f:(fun (id, name_) ->
@@ -226,9 +220,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         let newF =
           {ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body}
         in
-        RPC
-          ( [SetFunction newF; SetHandler (tl.id, tl.pos, newH)]
-          , FocusExact (tl.id, P.toID replacement) )
+        RPC ([SetFunction newF] @ astOp, FocusExact (tl.id, P.toID replacement))
     | _ ->
         NoChange
 
