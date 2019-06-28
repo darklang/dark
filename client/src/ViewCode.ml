@@ -594,7 +594,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   Html.div
     [Html.class' classes]
-    [btnLock; viewEventName; viewEventSpace; viewEventModifier; btnExpCollapse]
+    [btnLock; viewEventSpace; viewEventName; viewEventModifier; btnExpCollapse]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
