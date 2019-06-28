@@ -85,5 +85,5 @@ let oauth_header secret url verb (args : (string * string) list) : string =
 
 
 let authorization_header (auth : auth) url verb (args : (string * string) list)
-    : string * string =
-  ("Authorization", oauth_header auth url verb args)
+    : string =
+  oauth_header auth url verb args

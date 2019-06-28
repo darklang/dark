@@ -27,7 +27,13 @@ let has_json_header (headers : headers) : bool =
 
 
 (* TODO: integrate with dark_request *)
-let send_request uri verb json_fn body query headers =
+let send_request
+    (uri : string)
+    (verb : Httpclient.verb)
+    (json_fn : dval -> string)
+    (body : dval)
+    (query : dval)
+    (headers : dval) : dval =
   let query = Dval.dval_to_query query in
   let headers = Dval.to_string_pairs_exn headers in
   let body =
@@ -114,25 +120,45 @@ let call_no_body verb json_fn =
 (* This isn't great, but we throw a lot of exceptions below this point
  * in the callstack and it'd be a lot of churn to rewrite that to propagate Results,
  * especially given it probably needs a rewrite anyway *)
+let wrapped_send_request
+    (uri : string)
+    (verb : Httpclient.verb)
+    (json_fn : dval -> string)
+    (body : dval)
+    (query : dval)
+    (headers : dval) : dval =
+  Libcommon.Log.inspecT "uri" uri ;
+  Libcommon.Log.inspecT "body" body ;
+  Libcommon.Log.inspecT "query" query ;
+  Libcommon.Log.inspecT "headers" headers ;
+  try
+    DResult
+      (ResOk
+         (send_request
+            uri
+            verb
+            json_fn
+            (Dval.dstr_of_string_exn "")
+            query
+            headers))
+  with
+  | Exception.DarkException ed ->
+      DResult (ResError (Dval.dstr_of_string_exn ed.short))
+  | e ->
+      raise e
+
+
 let wrapped_call verb json_fn =
   InProcess
     (function
     | _, [DStr uri; body; query; headers] ->
-      ( try
-          DResult
-            (ResOk
-               (send_request
-                  (Unicode_string.to_string uri)
-                  verb
-                  json_fn
-                  body
-                  query
-                  headers))
-        with
-      | Exception.DarkException ed ->
-          DResult (ResError (Dval.dstr_of_string_exn ed.short))
-      | e ->
-          raise e )
+        wrapped_send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          body
+          query
+          headers
     | args ->
         fail args)
 
@@ -142,21 +168,13 @@ let wrapped_call_no_body verb json_fn =
   InProcess
     (function
     | _, [DStr uri; query; headers] ->
-      ( try
-          DResult
-            (ResOk
-               (send_request
-                  (Unicode_string.to_string uri)
-                  verb
-                  json_fn
-                  (Dval.dstr_of_string_exn "")
-                  query
-                  headers))
-        with
-      | Exception.DarkException ed ->
-          DResult (ResError (Dval.dstr_of_string_exn ed.short))
-      | e ->
-          raise e )
+        wrapped_send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          (Dval.dstr_of_string_exn "")
+          query
+          headers
     | args ->
         fail args)
 

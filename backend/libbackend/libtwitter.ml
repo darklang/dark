@@ -1,8 +1,8 @@
-open Libexecution
-open Prelude
-open Lib
-open Types
-open Types.RuntimeT
+open Libexecution.Prelude
+open Libexecution.Lib
+open Libexecution.Types
+open Libexecution.Types.RuntimeT
+module Dval = Libexecution.Dval
 
 let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   let prefix = "https://api.twitter.com" in
@@ -28,7 +28,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   let authargs =
     args
     |> StrDict.update ~key:"auth" ~f:(fun _ -> None)
-    |> DvalMap.filter ~f:(( <> ) Types.RuntimeT.DNull)
+    |> DvalMap.filter ~f:(( <> ) DNull)
     |> DvalMap.map ~f:(fun v -> Dval.to_url_string_exn v)
     |> DvalMap.to_list
   in
@@ -41,20 +41,32 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   else if auth.access_token_secret = ""
   then DError "Missing string field `accessTokenSecret`"
   else
-    let result =
-      match verb with
-      | "GET" ->
-          let query = Dval.to_form_encoding (DObj args) in
-          let header = Twitter.authorization_header auth url "GET" authargs in
-          Httpclient.call (url ^ "?" ^ query) GET [header] ""
-      | "POST" ->
-          let body = "" in
-          let header = Twitter.authorization_header auth url "POST" authargs in
-          Httpclient.call url POST [header] body
-      | _ ->
-          Exception.internal ("Invalid Twitter httpMethod: " ^ verb)
+    let header = Twitter.authorization_header auth url verb authargs in
+    let headers =
+      Dval.to_dobj_exn [("Authorization", Dval.dstr_of_string_exn header)]
     in
-    Dval.of_unknown_json_v0 result
+    match verb with
+    | "GET" ->
+        let query = DObj args in
+        let body = Dval.dstr_of_string_exn "" in
+        Libhttpclient.wrapped_send_request
+          url
+          Httpclient.GET
+          Libexecution.Dval.to_pretty_machine_json_v1
+          body
+          query
+          headers
+    | "POST" ->
+        let body = Dval.dstr_of_string_exn "" in
+        Libhttpclient.wrapped_send_request
+          url
+          Httpclient.POST
+          (fun _ -> "")
+          body
+          Dval.empty_dobj
+          headers
+    | _ ->
+        Libexecution.Exception.internal ("Invalid Twitter httpMethod: " ^ verb)
 
 
 let schema = Swagger.parse "twitter.json"
