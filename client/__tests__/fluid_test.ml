@@ -867,7 +867,11 @@ let () =
         (backspace 3)
         ("let *** = 6\n5", 3) ;
       t "delete non-empty let" nonEmptyLet (delete 0) ("let *** = 6\n5", 0) ;
-      t "insert space on blank let" emptyLet (press K.Space 4) ("let *** = ___\n5", 4) ;
+      t
+        "insert space on blank let"
+        emptyLet
+        (press K.Space 4)
+        ("let *** = ___\n5", 4) ;
       t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
       t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
       t "backspace letlhs" letWithLhs (backspace 5) ("let *** = 6\n5", 4) ;
@@ -1133,17 +1137,42 @@ let () =
         nestedIf
         (press ~wrap:false K.GoToEndOfLine 12)
         ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
-      t "try to insert space on blank" emptyIf (press ~wrap:false K.Space 3) ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
-      t "try to insert space on blank indent 2" emptyIf (press ~wrap:false K.Space 14) ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
+      t
+        "try to insert space on blank"
+        emptyIf
+        (press ~wrap:false K.Space 3)
+        ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
+      t
+        "try to insert space on blank indent 2"
+        emptyIf
+        (press ~wrap:false K.Space 14)
+        ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
       let single = EList (gid (), [fiftySix]) in
       let multi = EList (gid (), [fiftySix; seventyEight]) in
       let withStr = EList (gid (), [EString (gid (), "ab")]) in
-      let longList = EList (gid (), [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]) in
-      let listWithBlank = EList (gid (), [fiftySix; seventyEight; EBlank (gid ()); fiftySix]) in
-      let multiWithStrs = EList (gid (), [EString (gid (), "ab"); EString (gid (), "cd"); EString (gid (), "ef")]) in
+      let longList =
+        EList
+          ( gid ()
+          , [ fiftySix
+            ; seventyEight
+            ; fiftySix
+            ; seventyEight
+            ; fiftySix
+            ; seventyEight ] )
+      in
+      let listWithBlank =
+        EList (gid (), [fiftySix; seventyEight; EBlank (gid ()); fiftySix])
+      in
+      let multiWithStrs =
+        EList
+          ( gid ()
+          , [ EString (gid (), "ab")
+            ; EString (gid (), "cd")
+            ; EString (gid (), "ef") ] )
+      in
       t "create list" blank (press K.LeftSquareBracket 0) ("[]", 1) ;
       t
         "inserting before the list does nothing"
@@ -1236,7 +1265,7 @@ let () =
         listWithBlank
         (delete 10)
         ("[56,78,___]", 10) ;
-        t
+      t
         "backspace on separator between string items deletes item after separator"
         multiWithStrs
         (backspace 6)
