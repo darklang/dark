@@ -50,9 +50,12 @@
   color: black;
 }
 
-.version{
+.version {
   opacity: 0.5;
   font-size: 10px;
+  .versionNum {
+    font-size: 13px;
+  }
 }
 
 #fluid-editor {

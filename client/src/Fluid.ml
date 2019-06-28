@@ -2847,9 +2847,9 @@ let viewAutoCompleteNames  (acis : Types.fluidAutocompleteItem) : Types.msg Html
     | FACFunction _ ->
       if Js.String.includes "_" name then
         let idx = Js.String.indexOf "_" name in
-        let version = Js.String.substringToEnd ~from:(idx+1) name in
+        let version = Js.String.substringToEnd ~from:(idx+2) name in
         let name = Js.String.substrAtMost ~from: 0 ~length:idx name in
-        [Html.text name; Html.span [Html.class' "version"] [Html.text version]]
+        [Html.span [] [Html.text name; Html.span [Html.class' "version"] [Html.text ("v"); Html.span [Html.class' "versionNum"] [Html.text (version)]]]]
       else
       [Html.text name]
     | _ ->
@@ -3025,9 +3025,9 @@ let tokenNameToHtml (token: token) : Types.msg Html.html list=
     | TFnName (_, _, _) ->
       if Js.String.includes "_" content then
         let idx = Js.String.indexOf "_v" content in
-        let version = Js.String.substringToEnd ~from:(idx+1) content in
+        let version = Js.String.substringToEnd ~from:(idx+2) content in
         let content = Js.String.substrAtMost ~from: 0 ~length:idx content in
-        [Html.text content; Html.span [Html.class' "version"] [Html.text (version)]]
+        [Html.span [] [Html.text content; Html.span [Html.class' "version"] [Html.text ("v"); Html.span [Html.class' "versionNum"] [Html.text (version)]]]]
       else
         [Html.text content]
     | _ ->

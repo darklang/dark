@@ -132,6 +132,20 @@ function getCursorPosition() {
   return count;
 }
 
+function setRange(range, node, offset, nodeNum) {
+  if (node.childNodes[nodeNum].nodeName == "#text") {
+    let newOffset = offset;
+    if (node.childNodes[nodeNum].length < offset) {
+      newOffset = offset - node.childNodes[nodeNum].length;
+      nodeNum++;
+    }
+    range.setStart(node.childNodes[nodeNum], newOffset);
+    range.setEnd(node.childNodes[nodeNum], newOffset);
+  } else {
+    setRange(range, node.childNodes[nodeNum], offset, nodeNum++);
+  }
+}
+
 function setCursorPosition(pos) {
   editor = document.querySelector(".selected #fluid-editor");
   if (!editor) return;
@@ -142,15 +156,7 @@ function setCursorPosition(pos) {
     let length = node.textContent.length;
     if (pos <= length) {
       let range = document.createRange();
-      if(node.childNodes[0].length < pos){
-        // If the childNodes' length is less than the pos then it has some text nested 
-        let endPos = pos - node.childNodes[0].length 
-        range.setStart(node.childNodes[1].childNodes[0], endPos);
-        range.setEnd(node.childNodes[1].childNodes[0], endPos);
-      }else{
-        range.setStart(node.childNodes[0], pos);
-        range.setEnd(node.childNodes[0], pos);
-      }
+      setRange(range, node, pos, 0);
       range.collapse(true);
       selection = document.getSelection();
       selection.removeAllRanges();
