@@ -599,7 +599,8 @@ let infoize ~(pos : int) tokens : tokenInfo list =
     | [] ->
         []
     | token :: rest ->
-        let length = String.length (Token.toText token) in
+        (* Get the length of the name as it is displayed *)
+        let length = Token.getNameTokenlength token in
         let ti =
           { token
           ; startRow = !row
@@ -2839,6 +2840,21 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
 (* -------------------- *)
 (* View *)
 (* -------------------- *)
+
+let viewAutoCompleteNames  (acis : Types.fluidAutocompleteItem) : Types.msg Html.html list=
+  let name = AC.asName acis in
+  match acis with 
+    | FACFunction _ ->
+      if Js.String.includes "_" name then
+        let idx = Js.String.indexOf "_" name in
+        let version = Js.String.substringToEnd ~from:(idx+1) name in
+        let name = Js.String.substrAtMost ~from: 0 ~length:idx name in
+        [Html.text name; Html.span [Html.class' "version"] [Html.text version]]
+      else
+      [Html.text name]
+    | _ ->
+      [Html.text name]
+
 let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
     =
   let toList acis class' index =
@@ -2846,6 +2862,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
+        let nameView = viewAutoCompleteNames item in
         Html.li
           [ Attrs.classList
               [ ("autocomplete-item", true)
@@ -2856,9 +2873,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick name ) ]
-          [ Html.text name
-          ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
-          ] )
+          (nameView @ [Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]]) )
       acis
   in
   let index = ac.index |> Option.withDefault ~default:(-1) in
@@ -3004,6 +3019,19 @@ let viewPlayIcon
   | _ ->
       Vdom.noNode
 
+let tokenNameToHtml (token: token) : Types.msg Html.html list=
+  let content = Token.toText token in
+  match token with 
+    | TFnName (_, _, _) ->
+      if Js.String.includes "_" content then
+        let idx = Js.String.indexOf "_v" content in
+        let version = Js.String.substringToEnd ~from:(idx+1) content in
+        let content = Js.String.substrAtMost ~from: 0 ~length:idx content in
+        [Html.text content; Html.span [Html.class' "version"] [Html.text (version)]]
+      else
+        [Html.text content]
+    | _ ->
+      [Html.text content]
 
 let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
     Types.msg Html.html list =
@@ -3017,14 +3045,14 @@ let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
         else Vdom.noNode
       in
       let element nested =
-        let content = Token.toText ti.token in
+        let content = tokenNameToHtml ti.token in
         let classes = Token.toCssClasses ti.token in
         let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
           ]
-          ([Html.text content] @ nested)
+          (content @ nested)
       in
       [ element
           [ dropdown ()

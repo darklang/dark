@@ -321,6 +321,17 @@ let toText (t : token) : string =
   | TPatternConstructorName (_, _, name) ->
       canBeEmpty name
 
+(* To get the displayed token's length *)
+let getNameTokenlength (t : token) : int =
+  let name = match t with
+    | TFnName (_, _, _) ->
+        toText t  
+        |> Js.String.replace "_v" "v" ;
+    | t ->
+      toText t
+  in
+  String.length name
+      
 
 let toTestText (t : token) : string =
   let result =

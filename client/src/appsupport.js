@@ -142,8 +142,15 @@ function setCursorPosition(pos) {
     let length = node.textContent.length;
     if (pos <= length) {
       let range = document.createRange();
-      range.setStart(node.childNodes[0], pos);
-      range.setEnd(node.childNodes[0], pos);
+      if(node.childNodes[0].length < pos){
+        // If the childNodes' length is less than the pos then it has some text nested 
+        let endPos = pos - node.childNodes[0].length 
+        range.setStart(node.childNodes[1].childNodes[0], endPos);
+        range.setEnd(node.childNodes[1].childNodes[0], endPos);
+      }else{
+        range.setStart(node.childNodes[0], pos);
+        range.setEnd(node.childNodes[0], pos);
+      }
       range.collapse(true);
       selection = document.getSelection();
       selection.removeAllRanges();
