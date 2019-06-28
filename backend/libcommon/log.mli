@@ -102,5 +102,4 @@ val succesS :
   -> string
   -> unit
 
-val add_log_annotations :
-  (string * Yojson.Safe.t) list -> (unit -> 'a) -> 'a
+val add_log_annotations : (string * Yojson.Safe.t) list -> (unit -> 'a) -> 'a
