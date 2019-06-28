@@ -75,12 +75,12 @@ let defaultModel
 let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
-    ?(module_ : string option = None)
+    ?(space : string option = None)
     () : toplevel =
-  let module_ =
-    match module_ with None -> B.new_ () | Some name -> B.newF name
+  let space =
+    match space with None -> B.new_ () | Some name -> B.newF name
   in
-  let spec = {module_; name = B.new_ (); modifier = B.new_ ()} in
+  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
   {id = tlid; pos = {x = 0; y = 0}; data = TLHandler {ast = expr; spec; tlid}}
 
 
@@ -145,12 +145,12 @@ let enteringDBType
     ()
 
 
-let enteringHandler ?(module_ : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~module_ ()] ()
+let enteringHandler ?(space : string option = None) () : model =
+  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~space ()] ()
 
 
-let enteringEventNameHandler ?(module_ : string option = None) () : model =
-  let handler = aHandler ~module_ () in
+let enteringEventNameHandler ?(space : string option = None) () : model =
+  let handler = aHandler ~space () in
   let id =
     handler
     |> TL.asHandler
@@ -195,8 +195,8 @@ let () =
               |> toThrow ) ;
           () ) ;
       describe "validate httpName varnames" (fun () ->
-          let module_ = Some "HTTP" in
-          let tl = aHandler ~module_ () in
+          let space = Some "HTTP" in
+          let tl = aHandler ~space () in
           let pd = PEventName (Types.F (ID "0", "foo")) in
           test "/foo/bar is valid, no variables" (fun () ->
               let value = "/foo/bar" in
@@ -424,8 +424,8 @@ let () =
               expect (acFor m |> setQuery m "lambda" |> highlighted)
               |> toEqual (Some (ACKeyword KLambda)) ) ;
           test "http handlers have request" (fun () ->
-              let module_ = Some "HTTP" in
-              let m = enteringHandler ~module_ () in
+              let space = Some "HTTP" in
+              let m = enteringHandler ~space () in
               expect
                 ( acFor m
                 |> setQuery m "request"
@@ -467,7 +467,7 @@ let () =
           test
             "autocomplete does not have slash when handler is not HTTP"
             (fun () ->
-              let m = enteringEventNameHandler ~module_:(Some "HANDLER") () in
+              let m = enteringEventNameHandler ~space:(Some "HANDLER") () in
               expect
                 ( acFor m
                 |> setQuery m ""

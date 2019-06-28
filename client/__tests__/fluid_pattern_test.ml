@@ -18,7 +18,7 @@ let tl ast =
         { ast = toExpr ast
         ; tlid = TLID "7"
         ; spec =
-            { module_ = Blank.newF "HTTP"
+            { space = Blank.newF "HTTP"
             ; name = Blank.newF "/test"
             ; modifier = Blank.newF "GET" } } }
 

@@ -225,7 +225,7 @@ and refersTo =
 
 (* handlers *)
 and handlerSpec =
-  { module_ : handlerSpaceName blankOr
+  { space : handlerSpaceName blankOr
   ; name : handlerName blankOr
   ; modifier : handlerModifer blankOr }
 

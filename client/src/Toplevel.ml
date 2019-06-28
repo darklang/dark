@@ -31,7 +31,7 @@ let name (tl : toplevel) : string =
 let sortkey (tl : toplevel) : string =
   match tl.data with
   | TLHandler h ->
-      (h.spec.module_ |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
@@ -181,7 +181,7 @@ let customEventSpaceNames (toplevels : toplevel list) : string list =
     toplevels
     |> List.filter ~f:isCustomEventSpaceHandler
     |> List.filterMap ~f:(fun tl ->
-           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.module_)
+           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
        )
   in
   otherSpaces

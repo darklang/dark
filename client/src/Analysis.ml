@@ -197,7 +197,7 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
   match tl.data with
   | TLHandler h ->
       let extras =
-        match h.spec.module_ with
+        match h.spec.space with
         | F (_, m) when String.toLower m = "http" ->
             let fromRoute =
               h.spec.name

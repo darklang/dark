@@ -500,7 +500,7 @@ let externalLink
 
 let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
-  match (spec.module_, spec.name, spec.modifier) with
+  match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover cron traces on refresh. *)
   | F (_, "CRON"), F (_, ""), F (_, "") ->
@@ -524,7 +524,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let viewEventSpace =
     let configs = (enterable :: idConfigs) @ [wc "module"] in
-    viewText EventSpace vs configs spec.module_
+    viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
     let getBtn = externalLink spec vs.canvasName vs.userContentHost in
@@ -576,7 +576,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let baseClass = "spec-header" in
   let classes =
-    match (spec.module_, spec.modifier) with
+    match (spec.space, spec.modifier) with
     | F (_, "HTTP"), F (_, "GET") ->
         baseClass ^ " http-get"
     | F (_, "HTTP"), F (_, "POST") ->

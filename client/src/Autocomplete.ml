@@ -543,7 +543,7 @@ let tlGotoName (tl : toplevel) : string =
   match tl.data with
   | TLHandler h ->
       "Jump to handler: "
-      ^ (h.spec.module_ |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+      ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ "::"
       ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ " - "

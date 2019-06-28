@@ -79,7 +79,7 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
 
 
 let newHandlerSpec (_ : unit) : handlerSpec =
-  {module_ = B.new_ (); name = B.new_ (); modifier = B.new_ ()}
+  {space = B.new_ (); name = B.new_ (); modifier = B.new_ ()}
 
 
 let createFunction (fn : function_) : expr =
@@ -146,7 +146,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
         { ast = B.new_ ()
         ; spec =
             { name = B.ofOption route
-            ; module_ = B.newF "HTTP"
+            ; space = B.newF "HTTP"
             ; modifier = Blank next }
         ; tlid }
       in
@@ -168,7 +168,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let spec = newHandlerSpec () in
       let handler =
         { ast = B.new_ ()
-        ; spec = {spec with module_ = B.newF name; name = Blank next}
+        ; spec = {spec with space = B.newF name; name = Blank next}
         ; tlid }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))

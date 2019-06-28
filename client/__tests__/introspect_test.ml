@@ -13,7 +13,7 @@ let () =
       let h1data =
         { ast = B.new_ ()
         ; spec =
-            { module_ = B.newF "JOB"
+            { space = B.newF "JOB"
             ; name = B.newF "processOrder"
             ; modifier = B.new_ () }
         ; tlid = h1tlid }
@@ -27,7 +27,7 @@ let () =
                  , [B.newF (Variable "Books")]
                  , NoRail ))
         ; spec =
-            { module_ = B.newF "HTTP"
+            { space = B.newF "HTTP"
             ; name = B.newF "/hello"
             ; modifier = B.newF "GET" }
         ; tlid = h1tlid }
@@ -47,7 +47,7 @@ let () =
         ; {id = h2tlid; pos = {x = 0; y = 0}; data = TLHandler h2data} ]
       in
       test "keyForHandlerSpec" (fun () ->
-          expect (keyForHandlerSpec h1data.spec.module_ h1data.spec.name)
+          expect (keyForHandlerSpec h1data.spec.space h1data.spec.name)
           |> toEqual "JOB:processOrder" ) ;
       test "dbsByName" (fun () ->
           expect (dbsByName toplevels)
