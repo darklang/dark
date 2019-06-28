@@ -498,7 +498,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EList (id, exprs) ->
       let ts =
         exprs
-        |> List.indexedMap ~f:(fun i expr -> [nested expr; TListSep(id, i)])
+        |> List.indexedMap ~f:(fun i expr -> [nested expr; TListSep (id, i)])
         |> List.concat
         (* Remove the extra seperator *)
         |> List.dropRight ~count:1
@@ -1249,7 +1249,8 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
       | oldVal ->
           ERightPartial (gid (), str, oldVal) )
 
-let replaceListSepToken (id : id) (ast : ast) (index : int) :fluidExpr =
+
+let replaceListSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
   let index =
     (* remove expression in front of sep, not behind it *)
     index + 1
@@ -1257,9 +1258,10 @@ let replaceListSepToken (id : id) (ast : ast) (index : int) :fluidExpr =
   wrap id ast ~f:(fun e ->
       match e with
       | EList (id, exprs) ->
-        EList (id, List.removeAt ~index exprs)
+          EList (id, List.removeAt ~index exprs)
       | _ ->
-        e)
+          e )
+
 
 let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
   let index =
@@ -1966,7 +1968,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternString (mID, id, "") ->
       (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
   | TListSep (id, idx) ->
-      (replaceListSepToken id ast idx, left s)  
+      (replaceListSepToken id ast idx, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TRecordField (id, i, "") when pos = ti.startPos ->
@@ -1987,7 +1989,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TSep
   | TLambdaSep _
   | TPatternBlank _
-  | TPatternConstructorName _
   | TPartialGhost _ ->
       (ast, left s)
   | TFieldOp id ->
@@ -2040,6 +2041,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
+  | TPatternConstructorName (mID, id, _) ->
+      (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, moveToStart ti s)
   | TThreadPipe (id, i) ->
       let s =
         match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
@@ -2190,7 +2193,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     when pos = ti.endPos && letter = '.' ->
       (exprToFieldAccess id ast, right)
   (* Dont add space to blanks *)
-  | ti when (FluidToken.isBlank ti) && letterStr == " " ->
+  | ti when FluidToken.isBlank ti && letterStr == " " ->
       (ast, s)
   (* replace blank *)
   | TBlank id | TPlaceholder (_, id) ->
@@ -2369,16 +2372,18 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
          * be safely wrapped *)
         true
     | R (token, _) ->
-        (* This almost certainly doesn't catch all cases,
+      (* This almost certainly doesn't catch all cases,
          * if you find a bug please add a case + test *)
-        (match token with
-        | TLetLHS _
-        | TLetAssignment _
-        | TFieldName _
-        | TLambdaSep _
-        | TLambdaArrow _
-        | TLambdaVar _ -> false
-        | _ -> true)
+      ( match token with
+      | TLetLHS _
+      | TLetAssignment _
+      | TFieldName _
+      | TLambdaSep _
+      | TLambdaArrow _
+      | TLambdaVar _ ->
+          false
+      | _ ->
+          true )
   in
   let infixKeys =
     [ K.Plus
@@ -2394,7 +2399,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     ; K.Equals
     ; K.Pipe ]
   in
-    (* TODO: When changing TVariable and TFieldName and probably TFnName we
+  (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
@@ -2532,11 +2537,12 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | key, L (TBinOp _, toTheLeft), _
       when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheLeft ast s
-    | key, _, R (TBlank _, toTheRight)
-      when List.member ~value:key infixKeys ->
+    | key, _, R (TBlank _, toTheRight) when List.member ~value:key infixKeys ->
         doInsert ~pos keyChar toTheRight ast s
-    | key, L (_, toTheLeft), _ when onEdge && List.member ~value:key infixKeys && wrappableInBinop toTheRight
-      ->
+    | key, L (_, toTheLeft), _
+      when onEdge
+           && List.member ~value:key infixKeys
+           && wrappableInBinop toTheRight ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* End of line *)
