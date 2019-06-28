@@ -98,7 +98,9 @@ all_ocaml_files() {
 }
 
 check_ocamlformat() {
-  while read -r i; do
+  # \0 because the input comes from `find -print0`
+  while read -d $'\0' -r i; do
+    echo checking "$i" > g;
     if ! diff <(cat "$i") <(ocamlformat "$i") &> /dev/null; then
       echo "Failed: $i"
       return 1
