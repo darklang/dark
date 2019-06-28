@@ -215,7 +215,7 @@ let right_number_of_blanks (m : model) : testResult =
 
 let ellen_hello_world_demo (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match ((spec.module_, spec.name), (spec.modifier, onlyExpr m)) with
+  match ((spec.space, spec.name), (spec.modifier, onlyExpr m)) with
   | (F (_, "HTTP"), F (_, "/hello")), (F (_, "GET"), Value "\"Hello world!\"")
     ->
       pass
@@ -238,7 +238,7 @@ let editing_does_not_deselect (m : model) : testResult =
 
 let editing_headers (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
-  match (spec.module_, spec.name, spec.modifier) with
+  match (spec.space, spec.name, spec.modifier) with
   | F (_, "HTTP"), F (_, "/myroute"), F (_, "GET") ->
       pass
   | other ->

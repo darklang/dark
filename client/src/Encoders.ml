@@ -225,7 +225,7 @@ and ops (ops : Types.op list) : Js.Json.t =
 and spec (spec : Types.handlerSpec) : Js.Json.t =
   object_
     [ ("name", blankOr string spec.name)
-    ; ("module", blankOr string spec.module_)
+    ; ("module", blankOr string spec.space)
     ; ("modifier", blankOr string spec.modifier)
     ; ( "types"
       , object_

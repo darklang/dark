@@ -2687,7 +2687,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
               match tl.data with
               | TLHandler {spec = {name = Blank id; _}; _} ->
                   (enter tl id, ast, s)
-              | TLHandler {spec = {module_ = Blank id; _}; _} ->
+              | TLHandler {spec = {space = Blank id; _}; _} ->
                   (enter tl id, ast, s)
               | TLHandler {spec = {modifier = Blank id; _}; _} ->
                   (enter tl id, ast, s)
