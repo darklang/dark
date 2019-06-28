@@ -9,7 +9,8 @@ let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
          | None ->
              false
          | Some avTlid ->
-             avTlid == (tlid |> deTLID))
+             avTlid == (tlid |> deTLID) )
+
 
 let avatarUrl (email : string) (name : string option) : string =
   (* Digest.string is Bucklescript's MD5 *)
@@ -54,8 +55,7 @@ let avatarDiv (avatar : avatar) : msg Html.html =
 
 
 let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
-  let avList = filterAvatarsByTlid avatars tlid
-  in
+  let avList = filterAvatarsByTlid avatars tlid in
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map ~f:renderAvatar avList in
   Html.div [Html.class' "avatars"] avatars
