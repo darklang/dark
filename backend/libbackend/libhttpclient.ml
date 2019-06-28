@@ -131,17 +131,7 @@ let wrapped_send_request
   Libcommon.Log.inspecT "body" body ;
   Libcommon.Log.inspecT "query" query ;
   Libcommon.Log.inspecT "headers" headers ;
-  try
-    DResult
-      (ResOk
-         (send_request
-            uri
-            verb
-            json_fn
-            (Dval.dstr_of_string_exn "")
-            query
-            headers))
-  with
+  try DResult (ResOk (send_request uri verb json_fn body query headers)) with
   | Exception.DarkException ed ->
       DResult (ResError (Dval.dstr_of_string_exn ed.short))
   | e ->

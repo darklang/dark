@@ -32,6 +32,12 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
     |> DvalMap.map ~f:(fun v -> Dval.to_url_string_exn v)
     |> DvalMap.to_list
   in
+  let args =
+    args
+    |> StrDict.update ~key:"auth" ~f:(fun _ -> None)
+    |> DvalMap.filter ~f:(( <> ) DNull)
+    |> DvalMap.to_list
+  in
   if auth.consumer_key = ""
   then DError "Missing string field `consumerKey`"
   else if auth.consumer_secret = ""
@@ -47,7 +53,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
     in
     match verb with
     | "GET" ->
-        let query = DObj args in
+        let query = Dval.to_dobj_exn args in
         let body = Dval.dstr_of_string_exn "" in
         Libhttpclient.wrapped_send_request
           url
@@ -57,11 +63,11 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
           query
           headers
     | "POST" ->
-        let body = Dval.dstr_of_string_exn "" in
+        let body = Dval.to_dobj_exn args in
         Libhttpclient.wrapped_send_request
           url
           Httpclient.POST
-          (fun _ -> "")
+          Libexecution.Dval.to_pretty_machine_json_v1
           body
           Dval.empty_dobj
           headers
