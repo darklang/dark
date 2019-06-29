@@ -784,6 +784,14 @@ let fn_page_to_handler_pos (_m : model) : testResult = pass
 
 let load_with_unnamed_function (_m : model) : testResult = pass
 
+let extract_from_function (m : model) : testResult =
+  match m.cursorState with
+  | Selecting (TLID "123", Some _) ->
+      if List.length m.userFunctions = 2 then pass else fail m.userFunctions
+  | _ ->
+      fail (show_cursorState m.cursorState)
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -904,5 +912,7 @@ let trigger (test_name : string) : integrationTestState =
         autocomplete_visible_height
     | "load_with_unnamed_function" ->
         load_with_unnamed_function
+    | "extract_from_function" ->
+        extract_from_function
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
