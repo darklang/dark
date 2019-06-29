@@ -366,16 +366,16 @@ let exec_userfn (prog : string) : dval =
 
 (* Sample values *)
 let sample_dvals =
-  [ ("int", DInt 5)
-  ; ("int2", DInt (-1))
+  [ ("int", Dval.dint 5)
+  ; ("int2", Dval.dint (-1))
   ; ("float", DFloat 7.2)
   ; ("float2", DFloat (-7.2))
   ; ("true", DBool true)
   ; ("false", DBool false)
   ; ("null", DNull)
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
-  ; ("list", DList [DDB "Visitors"; DInt 4])
-  ; ("obj", DObj (DvalMap.singleton "foo" (DInt 5)))
+  ; ("list", DList [DDB "Visitors"; Dval.dint 4])
+  ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj
         (DvalMap.from_list
@@ -388,7 +388,7 @@ let sample_dvals =
   ; ("incomplete", DIncomplete)
   ; ("error", DError "some error string")
   ; ("block", DBlock (fun _args -> DNull))
-  ; ("errorrail", DErrorRail (DInt 5))
+  ; ("errorrail", DErrorRail (Dval.dint 5))
   ; ("redirect", DResp (Redirect "/home", DNull))
   ; ( "httpresponse"
     , DResp (Response (200, []), Dval.dstr_of_string_exn "success") )
@@ -397,9 +397,9 @@ let sample_dvals =
   ; ("password", DPassword (PasswordBytes.of_string "somebytes"))
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("option", DOption OptNothing)
-  ; ("option2", DOption (OptJust (DInt 15)))
+  ; ("option2", DOption (OptJust (Dval.dint 15)))
   ; ("character", DCharacter (Unicode_string.Character.unsafe_of_string "s"))
-  ; ("result", DResult (ResOk (DInt 15)))
+  ; ("result", DResult (ResOk (Dval.dint 15)))
   ; ( "result2"
     , DResult
         (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))

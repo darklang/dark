@@ -241,7 +241,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a; DInt b] -> DInt (a mod b) | args -> fail args)
+          | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::add"]
@@ -251,7 +251,8 @@ let fns : Lib.shortfn list =
     ; d = "Adds two integers together"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DInt (a + b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.( + ) a b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::subtract"]
@@ -261,7 +262,8 @@ let fns : Lib.shortfn list =
     ; d = "Subtracts two integers"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DInt (a - b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.( - ) a b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::multiply"]
@@ -271,7 +273,8 @@ let fns : Lib.shortfn list =
     ; d = "Multiplies two integers"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DInt (a * b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.( * ) a b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::power"]
@@ -283,7 +286,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DInt base; DInt exp] ->
-              DInt (Int.pow base exp)
+              DInt (Dint.pow base exp)
           | args ->
               fail args)
     ; ps = true
@@ -295,7 +298,8 @@ let fns : Lib.shortfn list =
     ; d = "Divides two integers"
     ; f =
         InProcess
-          (function _, [DInt a; DInt b] -> DInt (a / b) | args -> fail args)
+          (function
+          | _, [DInt a; DInt b] -> DInt (Dint.( / ) a b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::greaterThan"]
@@ -350,7 +354,8 @@ let fns : Lib.shortfn list =
           (function
           (*( +1 as Random.int is exclusive *)
           | _, [DInt a; DInt b] ->
-              DInt (a + 1 + Random.int (b - a))
+              let open Dint in
+              DInt (a + one + Dint.random (b - a))
           | args ->
               fail args)
     ; ps = false
@@ -363,7 +368,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a] -> DFloat (float_of_int a |> sqrt) | args -> fail args)
+          | _, [DInt a] -> DFloat (Dint.to_float a |> sqrt) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::toFloat"]
@@ -374,7 +379,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DInt a] -> DFloat (float_of_int a) | args -> fail args)
+          | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; (* ====================================== *)
@@ -389,7 +394,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DFloat a] ->
-              DInt (Float.round_up a |> int_of_float)
+              DInt (Float.round_up a |> Dint.of_float)
           | args ->
               fail args)
     ; ps = true
@@ -403,7 +408,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DFloat a] ->
-              DInt (Float.round_down a |> int_of_float)
+              DInt (Float.round_down a |> Dint.of_float)
           | args ->
               fail args)
     ; ps = true
@@ -417,7 +422,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DFloat a] ->
-              DInt (Float.round a |> int_of_float)
+              DInt (Float.round a |> Dint.of_float)
           | args ->
               fail args)
     ; ps = true
@@ -487,7 +492,7 @@ let fns : Lib.shortfn list =
           | _, [DList l] ->
               l
               |> list_coerce ~f:Dval.to_int
-              >>| Util.int_sum
+              >>| List.fold_left ~f:Dint.( + ) ~init:Dint.zero
               >>| (fun x -> DInt x)
               |> Result.map_error ~f:(fun (result, example_value) ->
                      RT.error
@@ -786,7 +791,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DInt (int_of_string utf8) with e ->
+              ( try DInt (Dint.of_string_exn utf8) with e ->
                   Exception.code
                     ~actual:utf8
                     ~expected:"\\d+"
@@ -806,7 +811,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DResult (ResOk (DInt (int_of_string utf8))) with e ->
+              ( try DResult (ResOk (DInt (Dint.of_string_exn utf8)))
+                with e ->
                   error_result
                     ("Expected a string with only numbers, got " ^ utf8) )
           | args ->
@@ -915,7 +921,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DInt (String.length (Unicode_string.to_string s))
+              Dval.dint (String.length (Unicode_string.to_string s))
           | args ->
               fail args)
     ; ps = true
@@ -928,7 +934,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] -> DInt (Unicode_string.length s) | args -> fail args)
+          | _, [DStr s] ->
+              Dval.dint (Unicode_string.length s)
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["String::append"]
@@ -1183,9 +1192,11 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DInt l] ->
-              if l < 0
+              if l < Dint.zero
               then Exception.code "l should be a positive integer"
-              else Dval.dstr_of_string_exn (Util.random_string l)
+              else
+                Dval.dstr_of_string_exn
+                  (Util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
     ; ps = false
@@ -1199,11 +1210,13 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DInt l] ->
-              if l < 0
+              if l < Dint.zero
               then error_result "l should be a positive integer"
               else
                 DResult
-                  (ResOk (Dval.dstr_of_string_exn (Util.random_string l)))
+                  (ResOk
+                     (Dval.dstr_of_string_exn
+                        (Util.random_string (Dint.to_int_exn l))))
           | args ->
               fail args)
     ; ps = false
@@ -1426,7 +1439,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DInt t; dv] ->
-              DList (List.init t ~f:(fun _ -> dv))
+              DList (List.init (Dint.to_int_exn t) ~f:(fun _ -> dv))
           | args ->
               fail args)
     ; ps = true
@@ -1438,7 +1451,8 @@ let fns : Lib.shortfn list =
     ; d = "Returns the length of the list"
     ; f =
         InProcess
-          (function _, [DList l] -> DInt (List.length l) | args -> fail args)
+          (function
+          | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["List::range"]
@@ -1454,7 +1468,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt start; DInt stop] ->
               DList
-                (List.range start (stop + 1) |> List.map ~f:(fun i -> DInt i))
+                ( List.range (Dint.to_int_exn start) (Dint.to_int_exn stop + 1)
+                |> List.map ~f:(fun i -> Dval.dint i) )
           | args ->
               fail args)
     ; ps = true
@@ -1632,7 +1647,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DList l; DInt c] -> DList (List.drop l c) | args -> fail args)
+          | _, [DList l; DInt c] ->
+              DList (List.drop l (Dint.to_int_exn c))
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["List::take"]
@@ -1643,7 +1661,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DList l; DInt c] -> DList (List.take l c) | args -> fail args)
+          | _, [DList l; DInt c] ->
+              DList (List.take l (Dint.to_int_exn c))
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["List::foreach"]
@@ -1690,7 +1711,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DList l; DInt index] ->
-              List.nth l index
+              List.nth l (Dint.to_int_exn index)
               |> Option.map ~f:(fun a -> DOption (OptJust a))
               |> Option.value ~default:(DOption OptNothing)
           | args ->
@@ -1735,7 +1756,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DDate d; DInt s] ->
-              DDate (Time.add d (Time.Span.of_int_sec s))
+              DDate (Time.add d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
     ; ps = true
@@ -1749,7 +1770,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DDate d; DInt s] ->
-              DDate (Time.sub d (Time.Span.of_int_sec s))
+              DDate (Time.sub d (Time.Span.of_int_sec (Dint.to_int_exn s)))
           | args ->
               fail args)
     ; ps = true
@@ -1796,7 +1817,7 @@ let fns : Lib.shortfn list =
               |> Time.to_span_since_epoch
               |> Time.Span.to_sec
               |> Float.iround_exn
-              |> DInt
+              |> Dval.dint
           | args ->
               fail args)
     ; ps = true

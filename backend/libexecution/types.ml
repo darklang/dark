@@ -1,4 +1,5 @@
 open Core_kernel
+module Int63 = Prelude.Int63
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type pos =
@@ -8,32 +9,13 @@ type pos =
 
 (* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
  * client generated ids which are uint32, so we need to go bigger. *)
-type id = Int63.t [@@deriving eq, compare, show, bin_io]
+type id = Int63.t [@@deriving eq, compare, show, bin_io, yojson]
 
 let id_of_int = Int63.of_int
 
 let id_of_string = Int63.of_string
 
 let string_of_id = Int63.to_string
-
-let id_of_yojson (json : Yojson.Safe.t) : (id, string) result =
-  match json with
-  (* IDs are strings _everywhere_ on the bucklescript client now.
-   * so they'll be sent to us as JSON strings. Bucklescript
-   * still generates them as ints, and the existing ones in
-   * stored canvases are ints so they'll all parse as ints
-   * fine for us *)
-  | `String i ->
-      Ok (id_of_string i)
-  | `Int i ->
-      Ok (id_of_int i)
-  | `Intlit i ->
-      Ok (id_of_string i)
-  | _ ->
-      Error "Types.id"
-
-
-let id_to_yojson (i : Int63.t) : Yojson.Safe.t = `Intlit (Int63.to_string i)
 
 module IDTable = Int63.Table
 
@@ -281,7 +263,8 @@ module RuntimeT = struct
   let uuid_of_yojson json =
     match json with
     | `String s ->
-        Uuidm.of_string s |> Result.of_option ~error:"can't be parsed"
+        Uuidm.of_string s
+        |> Core_kernel.Result.of_option ~error:"can't be parsed"
     | _ ->
         Error "not a string"
 
@@ -418,7 +401,7 @@ module RuntimeT = struct
 
   and dval =
     (* basic types  *)
-    | DInt of int
+    | DInt of Dint.t
     | DFloat of float
     | DBool of bool
     | DNull

@@ -7,7 +7,7 @@ let t_string_length_v1_works_on_emoji () =
   check_dval
     "stringLength"
     (exec_ast "(String::length_v1 '\xef\xbf\xbd')")
-    (DInt 1)
+    (DInt Dint.one)
 
 
 let t_string_uppercase_works_for_ascii_range () =

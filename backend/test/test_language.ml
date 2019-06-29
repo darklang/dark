@@ -9,7 +9,7 @@ module AT = Alcotest
 (* ---------------- *)
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  check_dval "int_add" (DInt 8) (exec_ast "(+ 5 3)")
+  check_dval "int_add" (Dval.dint 8) (exec_ast "(+ 5 3)")
 
 
 let t_lambda_with_foreach () =
@@ -31,29 +31,38 @@ let t_multiple_copies_of_same_name () =
 
 
 let t_feature_flags_work () =
-  check_dval "flag shows new for true" (DInt 1) (exec_ast "(flag _ true 2 1)") ;
+  check_dval
+    "flag shows new for true"
+    (Dval.dint 1)
+    (exec_ast "(flag _ true 2 1)") ;
   check_dval
     "flag shows old for false"
-    (DInt 2)
+    (Dval.dint 2)
     (exec_ast "(flag _ false 2 1)") ;
   check_dval
     "flag shows old for incomplete cond"
-    (DInt 2)
+    (Dval.dint 2)
     (exec_ast "(flag _ _ 2 1)") ;
-  check_dval "flag shows old for null" (DInt 2) (exec_ast "(flag _ null 2 1)") ;
+  check_dval
+    "flag shows old for null"
+    (Dval.dint 2)
+    (exec_ast "(flag _ null 2 1)") ;
   check_dval
     "flag shows old for error"
-    (DInt 2)
+    (Dval.dint 2)
     (exec_ast "(flag _ (List::head) 2 1)") ;
   check_dval
     "flag shows old for errorrail"
-    (DInt 2)
+    (Dval.dint 2)
     (exec_ast "(flag _ (`List::head []) 2 1)") ;
   check_dval
     "flag shows old for object"
-    (DInt 2)
+    (Dval.dint 2)
     (exec_ast "(flag _ (obj (x true)) 2 1)") ;
-  check_dval "flag shows old for list" (DInt 2) (exec_ast "(flag _ [] 2 1)") ;
+  check_dval
+    "flag shows old for list"
+    (Dval.dint 2)
+    (exec_ast "(flag _ [] 2 1)") ;
   ()
 
 
@@ -73,15 +82,15 @@ let t_incomplete_propagation () =
     (exec_ast "(List::head _)") ;
   check_dval
     "Incompletes stripped from lists"
-    (DList [DInt 5; DInt 6])
+    (DList [Dval.dint 5; Dval.dint 6])
     (exec_ast "(5 6 (List::head _))") ;
   check_dval
     "Blanks stripped from lists"
-    (DList [DInt 5; DInt 6])
+    (DList [Dval.dint 5; Dval.dint 6])
     (exec_ast "(5 6 _)") ;
   check_dval
     "Blanks stripped from objects"
-    (DObj (DvalMap.from_list [("m", DInt 5); ("n", DInt 6)]))
+    (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
     (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
   check_dval
     "incomplete if conds are incomplete"
@@ -89,15 +98,15 @@ let t_incomplete_propagation () =
     (exec_ast "(if _ 5 6)") ;
   check_dval
     "blanks in threads are ignored"
-    (DInt 8)
+    (Dval.dint 8)
     (exec_ast "(| 5 _ (+ 3))") ;
   check_dval
     "incomplete in the middle of a thread is skipped"
-    (DInt 8)
+    (Dval.dint 8)
     (exec_ast "(| 5 (+ _) (+ 3))") ;
   check_dval
     "incomplete at the end of a thread is skipped"
-    (DInt 5)
+    (Dval.dint 5)
     (exec_ast "(| 5 (+ _))") ;
   check_dval "empty thread is incomplete" DIncomplete (exec_ast "(|)") ;
   check_dval
@@ -123,7 +132,7 @@ let t_errorrail_simple () =
   check_dval "no rail" (DOption OptNothing) (exec_ast "(Dict::get_v1 {} 'i')") ;
   check_dval
     "no rail deeply nested"
-    (DInt 8)
+    (Dval.dint 8)
     (exec_ast
        "(| (5)
                   (`List::head_v1)
@@ -207,7 +216,7 @@ let t_errorrail_userfn () =
 (* Type checking *)
 (* ---------------- *)
 let t_basic_typecheck_works_happy () =
-  let args = DvalMap.from_list [("a", DInt 5); ("b", DInt 4)] in
+  let args = DvalMap.from_list [("a", Dval.dint 5); ("b", Dval.dint 4)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -218,7 +227,7 @@ let t_basic_typecheck_works_happy () =
 
 
 let t_basic_typecheck_works_unhappy () =
-  let args = DvalMap.from_list [("a", DInt 5); ("b", DBool true)] in
+  let args = DvalMap.from_list [("a", Dval.dint 5); ("b", DBool true)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -229,7 +238,7 @@ let t_basic_typecheck_works_unhappy () =
 
 
 let t_typecheck_any () =
-  let args = DvalMap.from_list [("v", DInt 5)] in
+  let args = DvalMap.from_list [("v", Dval.dint 5)] in
   let fn = Libs.get_fn_exn ~user_fns:[] "toString" in
   let user_tipes = [] in
   AT.check
