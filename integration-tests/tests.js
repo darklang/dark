@@ -1042,3 +1042,14 @@ test("load_with_unnamed_function", async t => {
     .expect(entryBoxAvailable())
     .ok();
 });
+
+test("extract_from_function", async t => {
+  await t
+    .navigateTo("#fn=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .click(Selector(".user-fn-toplevel .ast > div"))
+    .pressKey(":")
+    .typeText("#entry-box", "extract-function")
+    .pressKey("enter");
+});
