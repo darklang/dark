@@ -278,6 +278,7 @@ test("left_right_works", async t => {
     .pressKey("right")
     .pressKey("right") // stop on final elem
     .pressKey("right")
+    .pressKey("left")
     .pressKey("left");
 });
 
@@ -320,10 +321,11 @@ test("no_request_global_in_non_http_space", async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .click(".module")
+    .click(".space")
     .pressKey("enter")
     .typeText("#entry-box", "NOT_HTTP_SPACE")
     .pressKey("enter")
+    .pressKey("tab") // move to ast
     .typeText("#entry-box", "request")
     .expect(acHighlightedText("Http::badRequest"))
     .ok()
@@ -386,11 +388,11 @@ test("ellen_hello_world_demo", async t => {
 
     // route
     .pressKey("tab")
-    .typeText("#entry-box", "/hello")
+    .typeText("#entry-box", "H")
     .pressKey("enter")
 
     // space
-    .typeText("#entry-box", "H")
+    .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
     // verb
@@ -413,7 +415,7 @@ test("editing_headers", async t => {
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
-    .click(".spec-header > .module")
+    .click(".spec-header > .space")
     .pressKey("enter")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter")
@@ -454,9 +456,9 @@ test("tabbing_through_let", async t => {
     .pressKey("tab")
     .pressKey("tab")
     .pressKey("tab")
-    .typeText("#entry-box", "/route")
-    .pressKey("enter")
     .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+    .typeText("#entry-box", "/route")
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
@@ -508,9 +510,9 @@ test("dont_shift_focus_after_filling_last_blank", async t => {
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
-    .typeText("#entry-box", "/")
-    .pressKey("enter")
     .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+    .typeText("#entry-box", "/")
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
@@ -789,7 +791,8 @@ test("object_literals_work", async t => {
     .pressKey("tab") // Skip the new stuff
     .pressKey("tab")
     .pressKey("tab")
-    .pressKey("tab"); // End right after it
+    .pressKey("tab")
+    .pressKey("tab"); // End on the event name
 });
 
 test("rename_function", async t => {

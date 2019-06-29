@@ -327,7 +327,7 @@ let focus_on_ast_in_new_empty_tl (m : model) : testResult =
 
 
 let focus_on_path_in_new_filled_tl (m : model) : testResult =
-  match (onlyHandler m).spec.name with
+  match (onlyHandler m).spec.space with
   | Blank id ->
       if idOf m.cursorState = Some id
       then pass
