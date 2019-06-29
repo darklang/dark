@@ -1446,11 +1446,20 @@ let addBlankToList (id : id) (ast : ast) : ast =
 
 
 (* Add a row to the record *)
-let addRecordRowToFront (id : id) (ast : ast) : ast =
+let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
-          ERecord (id, (gid (), "", newB ()) :: fields)
+          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
+      | _ ->
+          fail "Not a record" )
+
+
+let addRecordRowToBack (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | ERecord (id, fields) ->
+          ERecord (id, fields @ [(gid (), "", newB ())])
       | _ ->
           fail "Not a record" )
 
@@ -2496,7 +2505,13 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, moveOneRight pos s)
     (* Record-specific insertions *)
     | K.Enter, L (TRecordOpen id, _), _ ->
-        let newAST = addRecordRowToFront id ast in
+        let newAST = addRecordRowAt 0 id ast in
+        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
+    | K.Enter, _, R (TRecordField (id, index, _), _) ->
+        let newAST = addRecordRowAt index id ast in
+        (newAST, s)
+    | K.Enter, _, R (TRecordClose id, _) ->
+        let newAST = addRecordRowToBack id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
