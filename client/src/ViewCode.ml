@@ -523,7 +523,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     viewText EventName vs configs spec.name
   in
   let viewEventSpace =
-    let configs = (enterable :: idConfigs) @ [wc "module"] in
+    let configs = (enterable :: idConfigs) @ [wc "space"] in
     viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
