@@ -1328,6 +1328,9 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
+        | EBinOp (_, _, EThreadTarget _, rhs, _) ->
+            id := eid rhs ;
+            rhs
         | EBinOp (_, _, lhs, _, _) ->
             id := eid lhs ;
             lhs
