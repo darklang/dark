@@ -1390,6 +1390,11 @@ let () =
         multi
         (press K.GoToEndOfLine ~wrap:false 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
+      t
+        "pressing enter at start adds a row"
+        multi
+        (press K.Enter ~wrap:false 1)
+        ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
