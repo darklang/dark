@@ -1869,16 +1869,24 @@ let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
     fluidExpr * int =
   let newExpr, offset = acToExpr entry in
   let oldExpr = findExpr id ast in
-  match (oldExpr, newExpr) with
+  let parent = findParent id ast in
+  match (oldExpr, parent, newExpr) with
   (* A partial - fetch the old nested exprs and put them in place *)
   | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
+    , _
     , EBinOp (id, name, _, _, str) ) ->
       (EBinOp (id, name, lhs, rhs, str), String.length name)
-      (* A right partial - insert the oldExpr into the first slot *)
-  | Some (ERightPartial (_, _, oldExpr)), EThread (id, _head :: tail) ->
+  (* A right partial - insert the oldExpr into the first slot *)
+  | Some (ERightPartial (_, _, oldExpr)), _, EThread (id, _head :: tail) ->
       (EThread (id, oldExpr :: tail), 2)
-  | Some (ERightPartial (_, _, oldExpr)), EBinOp (id, name, _, rhs, str) ->
+  | Some (ERightPartial (_, _, oldExpr)), _, EBinOp (id, name, _, rhs, str) ->
       (EBinOp (id, name, oldExpr, rhs, str), String.length name)
+  | Some (EPartial _), Some (EThread _), EBinOp (id, name, _, rhs, str) ->
+      ( EBinOp (id, name, EThreadTarget (gid ()), rhs, str)
+      , String.length name + 1 )
+  | Some (EPartial _), Some (EThread _), EFnCall (id, name, _ :: args, str) ->
+      ( EFnCall (id, name, EThreadTarget (gid ()) :: args, str)
+      , String.length name + 1 )
   | _ ->
       (newExpr, offset)
 
