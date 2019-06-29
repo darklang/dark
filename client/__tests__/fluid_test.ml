@@ -656,17 +656,7 @@ let () =
         (press K.Backspace 12)
         ("___", 0) ;
       t
-        "pressing delete to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
-        (press K.Delete 6)
-        ("12345", 5) ;
-      t
-        "pressing delete to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
-        (press K.Delete 10)
-        ("___", 0) ;
-      t
-        "using backspace to remove an infix with a placeholder goes to right place"
+        "deleting an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
         (press K.Backspace 12)
         ("___", 0) ;
@@ -679,21 +669,6 @@ let () =
         "pressing backspace on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (press K.Backspace 7)
-        ("12345", 5) ;
-      t
-        "using delete to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Delete 10)
-        ("___", 0) ;
-      t
-        "pressing delete to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", blank))
-        (press K.Delete 4)
-        ("___", 0) ;
-      t
-        "pressing delete on single digit binop leaves lhs"
-        (EBinOp (gid (), "+", anInt, anInt, NoRail))
-        (press K.Delete 6)
         ("12345", 5) ;
       t
         "pressing letters and numbers on a partial completes it"
@@ -728,35 +703,7 @@ let () =
           , EInteger (gid (), 5)
           , NoRail )
       in
-      let aPartialBinOp =
-        EPartial
-          ( gid ()
-          , "|"
-          , EBinOp
-              ( gid ()
-              , "||"
-              , EVariable (gid (), "myvar")
-              , EInteger (gid (), 5)
-              , NoRail ) )
-      in
-      tp
-        "backspacing shows ghost partial"
-        aFullBinOp
-        (backspace 8)
-        ("myvar |@ 5", 7) ;
-      tp "deleting shows ghost partial" aFullBinOp (delete 6) ("myvar |@ 5", 6) ;
-      (* TODO backspacing/deleting partial with ghost
-       * should leave a full partial instead of deleting it *)
-      t
-        "backspacing partial with ghost removes it"
-        aPartialBinOp
-        (backspace 7)
-        ("myvar", 5) ;
-      t
-        "deleting partial with ghost removes it"
-        aPartialBinOp
-        (delete 6)
-        ("myvar", 5) ;
+      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar |@ 5", 7) ;
       (* TODO backspace on empty partial does something *)
       (* TODO support delete on all the backspace commands *)
       (* TODO pressing enter at the end of the partialGhost *)
