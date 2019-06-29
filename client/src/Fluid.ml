@@ -495,6 +495,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TNewline
       ; TIndent 2
       ; nested else' ]
+  | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
+      (* Specifialized for being in a thread *)
+      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
       [ nested ~placeholderFor:(Some (op, 0)) lexpr
       ; TSep
@@ -531,9 +534,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, exprs, ster) ->
+  | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
+      (* Specifialized for being in a thread *)
       [TFnName (id, fnName, ster)]
-      @ ( exprs
+      @ ( args
+        |> List.indexedMap ~f:(fun i e ->
+               [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
+        |> List.concat )
+  | EFnCall (id, fnName, args, ster) ->
+      [TFnName (id, fnName, ster)]
+      @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
         |> List.concat )
@@ -581,7 +591,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    if i == 0 then thread else TNewline :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
-      []
+      fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
