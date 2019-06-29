@@ -228,7 +228,7 @@ let t_event_queue_roundtrip () =
         ( Stored_function_result.load ~canvas_id:!c.id ~trace_id h.tlid
         |> List.length )
         1 ;
-      check_dval "Round tripped value" (DInt 123) result_dval
+      check_dval "Round tripped value" (Dval.dint 123) result_dval
   | Ok None ->
       AT.fail "Failed: expected Some, got None"
   | Error e ->

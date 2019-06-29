@@ -369,7 +369,7 @@ let fns : shortfn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.count ~state db |> DInt
+              User_db.count ~state db |> Dval.dint
           | args ->
               fail args)
     ; ps = false

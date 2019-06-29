@@ -297,7 +297,9 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
   let json = Yojson.Safe.sort json in
   match json with
   | `Int i ->
-      DInt i
+      DInt (Dint.of_int i)
+  | `Intlit i ->
+      DInt (Dint.of_string_exn i)
   | `Float f ->
       DFloat f
   | `Bool b ->
@@ -311,8 +313,6 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
       to_list (List.map ~f:unsafe_dval_of_yojson l)
   | `Variant v ->
       Exception.internal "We dont use variants"
-  | `Intlit v ->
-      dstr_of_string_exn v
   | `Tuple v ->
       Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
@@ -398,7 +398,7 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
   match dv with
   (* basic types *)
   | DInt i ->
-      `Int i
+      Dint.to_yojson i
   | DFloat f ->
       `Float f
   | DBool b ->
@@ -537,7 +537,7 @@ let rec to_enduser_readable_text_v0 dval =
   and reprfn dv =
     match dv with
     | DInt i ->
-        string_of_int i
+        Dint.to_string i
     | DBool true ->
         "true"
     | DBool false ->
@@ -606,7 +606,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
     | DCharacter c ->
         "'" ^ Unicode_string.Character.to_string c ^ "'"
     | DInt i ->
-        string_of_int i
+        Dint.to_string i
     | DBool true ->
         "true"
     | DBool false ->
@@ -668,7 +668,7 @@ let to_pretty_machine_json_v1 dval =
     match dv with
     (* basic types *)
     | DInt i ->
-        `Int i
+        Dint.to_yojson i
     | DFloat f ->
         `Float f
     | DBool b ->
@@ -724,7 +724,7 @@ let of_unknown_json_v0 str =
 let rec show dv =
   match dv with
   | DInt i ->
-      string_of_int i
+      Dint.to_string i
   | DBool true ->
       "true"
   | DBool false ->
@@ -800,10 +800,7 @@ let parse_literal (str : string) : dval option =
   else if str = "false"
   then Some (DBool false)
   else
-    match int_of_string_opt str with
-    | Some v ->
-        Some (DInt v)
-    | None ->
+    try Some (DInt (Dint.of_string_exn str)) with _ ->
       ( match float_of_string_opt str with
       | Some v ->
           Some (DFloat v)
@@ -822,7 +819,9 @@ let to_char dv : string option =
       None
 
 
-let to_int dv : int option = match dv with DInt i -> Some i | _ -> None
+let to_int dv : Dint.t option = match dv with DInt i -> Some i | _ -> None
+
+let dint (i : int) : dval = DInt (Dint.of_int i)
 
 let to_dobj_exn (pairs : (string * dval) list) : dval =
   match DvalMap.from_list_unique pairs with
@@ -862,7 +861,7 @@ let rec to_url_string_exn (dv : dval) : string =
   | DBlock _ | DIncomplete | DPassword _ ->
       "<" ^ (dv |> tipename) ^ ">"
   | DInt i ->
-      string_of_int i
+      Dint.to_string i
   | DBool true ->
       "true"
   | DBool false ->
@@ -969,7 +968,7 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DDB dbname ->
       "<db: " ^ dbname ^ ">"
   | DInt i ->
-      string_of_int i
+      Dint.to_string i
   | DBool true ->
       "true"
   | DBool false ->

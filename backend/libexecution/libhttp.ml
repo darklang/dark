@@ -12,7 +12,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [dv; DInt code] ->
-              DResp (Response (code, []), dv)
+              DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               fail args)
     ; ps = true
@@ -32,7 +32,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
-              DResp (Response (code, pairs), dv)
+              DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
               fail args)
     ; ps = true
@@ -58,7 +58,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [dv; DInt code] ->
-              DResp (Response (code, [("Content-Type", "text/html")]), dv)
+              DResp
+                ( Response
+                    (Dint.to_int_exn code, [("Content-Type", "text/html")])
+                , dv )
           | args ->
               fail args)
     ; ps = true
@@ -73,7 +76,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [dv; DInt code] ->
-              DResp (Response (code, [("Content-Type", "text/plain")]), dv)
+              DResp
+                ( Response
+                    (Dint.to_int_exn code, [("Content-Type", "text/plain")])
+                , dv )
           | args ->
               fail args)
     ; ps = true
@@ -89,7 +95,10 @@ let fns : Lib.shortfn list =
           (function
           | _, [dv; DInt code] ->
               DResp
-                (Response (code, [("Content-Type", "application/json")]), dv)
+                ( Response
+                    ( Dint.to_int_exn code
+                    , [("Content-Type", "application/json")] )
+                , dv )
           | args ->
               fail args)
     ; ps = true
@@ -182,7 +191,7 @@ let fns : Lib.shortfn list =
                              x
                              (Unicode_string.to_string str) ]
                      | "max-age", DInt i | "expires", DInt i ->
-                         [Format.sprintf "%s=%s" x (string_of_int i)]
+                         [Format.sprintf "%s=%s" x (Dint.to_string i)]
                      (* Throw if there's not a good way to transform the k/v pair *)
                      | _ ->
                          y
