@@ -1031,7 +1031,7 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   run ast
 
 
-let replaceFunctionPartial
+let replacePartialWithArguments
     ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
   let getFunctionParams fnname count varExprs =
     List.map
@@ -1320,8 +1320,6 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
           if str = ""
           then fail "replacing with empty partial, use delete partial instead" ;
           EPartial (id, str, oldVal)
-      (* | EConstructor (_, _, name, exprs) | EFnCall (_, name, exprs, _) ->
-          if str = "" then newB () else EPartial (gid (), str, oldVal) *)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1935,7 +1933,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             (newAST, nextBlank - ti.startPos)
         | TPartial _ | TRightPartial _ ->
             let newExpr, offset = acUpdateExpr id ast entry in
-            let newAST = replaceFunctionPartial ~newExpr id s ast in
+            let newAST = replacePartialWithArguments ~newExpr id s ast in
             (newAST, offset)
         | _ ->
             let newExpr, offset = acToExpr entry in
@@ -2174,12 +2172,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
-  | TBinOp (id, _) ->
-      (* TODO this should move to the start of the new blank, but we don't know
-       * where it is at the moment. *)
-      (deleteWithArguments id ast, moveToStart ti s |> left)
-  | TConstructorName (id, _) | TFnName (id, _, _) ->
-      (deleteWithArguments id ast, moveToStart ti s)
+  | TConstructorName (id, str) | TFnName (id, str, _) ->
+      let f str = removeCharAt str offset in
+      (replaceWithPartial (f str) id ast, s)
   | TFieldOp id ->
       (removeField id ast, s)
   | TString (id, str) ->
@@ -2203,6 +2198,15 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
+  | TRightPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteRightPartial ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TPartial (_, str) when String.length str = 1 ->
+      let ast, targetID = deletePartial ti ast in
+      (ast, moveBackTo targetID ast s)
+  | TBinOp (_, str) when String.length str = 1 ->
+      let ast, targetID = deleteBinOp ti ast in
+      (ast, moveBackTo targetID ast s)
   | TRecordField _
   | TInteger _
   | TPatternInteger _
@@ -2218,6 +2222,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternTrue _
   | TPatternFalse _
   | TPatternVariable _
+  | TBinOp _
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, s)
   | TFloatPoint id ->
