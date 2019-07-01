@@ -514,9 +514,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
-                  ; TSep
                   ; TRecordSep (id, i)
-                  ; TSep
                   ; nested expr ] ] )
           |> List.concat
         ; [TNewline; TRecordClose id] ]
@@ -2524,9 +2522,11 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
-    (* Let specific jumping behaviour, this must come before the
+    (* Skipping over specific characters, this must come before the
      * more general binop cases or we lose the jumping behaviour *)
     | K.Equals, _, R (TLetAssignment _, toTheRight) ->
+        (ast, moveTo toTheRight.endPos s)
+    | K.Colon, _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case.  *)
