@@ -49,12 +49,16 @@ window.stopKeys = stopKeys;
 function isHandledByFluid(event) {
   // Checks if mac
   var isMac = window.navigator.platform == "MacIntel";
+  // Check if Linux
+  var isLinux = window.navigator.platform.includes("Linux");
+  // known platform
+  var knownPlatform = isMac || isLinux;
   // Checks if ctrl + key is handled by fluid
   var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
   // Check if key press is handled by fluid
   var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
 
-  return isMac && (isCtrlFluidKeyPress || isFluidKeyPress);
+  return !knownPlatform || (isCtrlFluidKeyPress || isFluidKeyPress);
 }
 
 function fluidStopKeys(event) {
