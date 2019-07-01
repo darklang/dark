@@ -756,6 +756,26 @@ let () =
         (lambdaWithUsed2ndBinding "binding")
         (insert 'c' 17)
         ("\\somevar, bindingc -> bindingc", 18) ;
+      t
+        "dont jump in lambdavars with infix chars"
+        aLambda
+        (press K.Plus 1)
+        ("\\*** -> ___", 1) ;
+      t
+        "dont allow name to start with a number"
+        aLambda
+        (insert '5' 1)
+        ("\\*** -> ___", 1) ;
+      t
+        "dont allow name to start with a number, pt 2"
+        (lambdaWithBinding "test" five)
+        (insert '2' 1)
+        ("\\test -> 5", 1) ;
+      t
+        "dont allow name to start with a number, pt 3"
+        aLambda
+        (insert '5' 3)
+        ("\\*** -> ___", 3) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
@@ -1434,6 +1454,21 @@ let () =
         emptyRow
         (press K.Colon ~wrap:false 7)
         ("{\n  *** : ___\n}", 10) ;
+      t
+        "dont allow key to start with a number"
+        emptyRow
+        (insert '5' ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont allow key to start with a number, pt 2"
+        single
+        (insert '5' ~wrap:false 4)
+        ("{\n  f1 : 56\n}", 4) ;
+      t
+        "dont allow key to start with a number, pt 3"
+        emptyRow
+        (insert '5' ~wrap:false 6)
+        ("{\n  *** : ___\n}", 6) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
