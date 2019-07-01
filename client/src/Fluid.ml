@@ -479,6 +479,18 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
       @ ghost
       @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+  | EPartial (id, newName, EFnCall (_, name, exprs, _))
+  | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
+      let ghostSuffix = String.dropLeft ~count:(String.length newName) name in
+      let ghost =
+        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      in
+      [TPartial (id, newName)]
+      @ ghost
+      @ ( List.indexedMap
+            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (name, i)) e])
+            exprs
+        |> List.flatten )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       [nested expr; TFieldOp id; TFieldName (id, fieldID, fieldname)]
   | EVariable (id, name) ->
@@ -1019,6 +1031,79 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   run ast
 
 
+let replaceFunctionPartial
+    ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
+  let getFunctionParams fnname count varExprs =
+    List.map
+      (Array.range count |> Array.toList)
+      ~f:(fun index ->
+        s.ac.functions
+        |> List.find ~f:(fun f -> f.fnName = fnname)
+        |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
+        |> Option.map ~f:(fun p ->
+               ( p.paramName
+               , Runtime.tipe2str p.paramTipe
+               , List.getAt ~index varExprs
+                 |> Option.withDefault ~default:(EBlank (gid ()))
+               , index ) ) )
+  in
+  let rec wrapWithLets ~expr vars =
+    match vars with
+    | [] | (_, _, EBlank _, _) :: _ ->
+        expr
+    | (name, _, EVariable (_, name'), _) :: _ when name = name' ->
+        expr
+    | (name, _, rhs, _) :: rest ->
+        ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
+  in
+  let exprIsBlank e = match e with EBlank _ -> true | _ -> false in
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      (* preserve partials with arguments *)
+      | EPartial (_, _, EFnCall (_, name, exprs, _))
+      | EPartial (_, _, EConstructor (_, _, name, exprs)) ->
+        ( match newExpr with
+        | EFnCall (id, newName, newExprs, ster)
+          when List.all ~f:exprIsBlank newExprs ->
+            let count = max (List.length exprs) (List.length newExprs) in
+            let newParams = getFunctionParams newName count newExprs in
+            let oldParams = getFunctionParams name count exprs in
+            let alignedParams, unAlignedParams =
+              let isAligned p1 p2 =
+                match (p1, p2) with
+                | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
+                    name = name' && tipe = tipe'
+                | _, _ ->
+                    false
+              in
+              List.partition oldParams ~f:(fun p ->
+                  List.any newParams ~f:(isAligned p) )
+              |> Tuple2.mapAll ~f:Option.values
+            in
+            let newParams =
+              List.foldl
+                alignedParams
+                ~init:newExprs
+                ~f:(fun (_, _, expr, index) exprs ->
+                  List.updateAt ~index ~f:(fun _ -> expr) exprs )
+            in
+            let newExpr = EFnCall (id, newName, newParams, ster) in
+            wrapWithLets ~expr:newExpr unAlignedParams
+        | EConstructor _ ->
+            let oldParams =
+              exprs
+              |> List.indexedMap ~f:(fun i p ->
+                     (* create ugly automatic variable name *)
+                     let name = "var_" ^ string_of_int (Util.random ()) in
+                     (name, Runtime.tipe2str TAny, p, i) )
+            in
+            wrapWithLets ~expr:newExpr oldParams
+        | _ ->
+            newExpr )
+      | _ ->
+          newExpr )
+
+
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun _ -> newExpr)
 
@@ -1235,6 +1320,8 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
           if str = ""
           then fail "replacing with empty partial, use delete partial instead" ;
           EPartial (id, str, oldVal)
+      (* | EConstructor (_, _, name, exprs) | EFnCall (_, name, exprs, _) ->
+          if str = "" then newB () else EPartial (gid (), str, oldVal) *)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1848,7 +1935,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             (newAST, nextBlank - ti.startPos)
         | TPartial _ | TRightPartial _ ->
             let newExpr, offset = acUpdateExpr id ast entry in
-            let newAST = replaceExpr ~newExpr id ast in
+            let newAST = replaceFunctionPartial ~newExpr id s ast in
             (newAST, offset)
         | _ ->
             let newExpr, offset = acToExpr entry in
@@ -1997,8 +2084,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, _) | TFnName (id, _, _) ->
-      (deleteWithArguments id ast, moveToStart ti s)
+  | TConstructorName (id, str) | TFnName (id, str, _) ->
+      let f str = removeCharAt str offset in
+      (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveBackTo targetID ast s)
