@@ -2209,39 +2209,21 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TListOpen id ->
       (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
   (* Ignore invalid situations *)
-  | TString _ when offset < 0 ->
+  | (TString _ | TPatternString _) when offset < 0 ->
       (ast, s)
-  | TPatternString _ when offset < 0 ->
+  | TInteger _
+  | TPatternInteger _
+  | TFloatFraction _
+  | TFloatWhole _
+  | TPatternFloatWhole _
+  | TPatternFloatFraction _
+    when not (isNumber letterStr) ->
       (ast, s)
-  | TInteger _ when not (isNumber letterStr) ->
+  | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+    when '0' = letter && offset = 0 ->
       (ast, s)
-  | TInteger _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TPatternInteger _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternInteger _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TFloatWhole _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TFloatWhole _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TFloatFraction _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternFloatWhole _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternFloatWhole _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TPatternFloatFraction _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TVariable _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TPatternVariable _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TLetLHS _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TFieldName _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TLambdaVar _ when not (isIdentifierChar letterStr) ->
+  | (TVariable _ | TPatternVariable _ | TLetLHS _ | TFieldName _ | TLambdaVar _)
+    when not (isIdentifierChar letterStr) ->
       (ast, s)
   | TFnName _ when not (isFnNameChar letterStr) ->
       (ast, s)
