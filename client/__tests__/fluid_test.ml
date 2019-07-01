@@ -632,11 +632,33 @@ let () =
         (press K.Delete 7)
         ("Int::ad@ 5 _________", 7) ;
       t
-        "renaming a function preserves valid arguments"
+        "renaming a function maintains unaligned params in let scope"
         (EPartial
            (gid (), "Int::", EFnCall (gid (), "Int::add", [five; five], NoRail)))
         (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("let b = 5\nInt::sqrt 5", 10) ;
+      t
+        "renaming a function doesn't maintain unaligned params if they're already set to variables"
+        (EPartial
+           ( gid ()
+           , "Int::"
+           , EFnCall
+               ( gid ()
+               , "Int::add"
+               , [EVariable (gid (), "a"); EVariable (gid (), "b")]
+               , NoRail ) ))
+        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        ("Int::sqrt a", 10) ;
+      t
+        "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
+        (EPartial
+           ( gid ()
+           , "Int::"
+           , EFnCall
+               (gid (), "Int::add", [EBlank (gid ()); EBlank (gid ())], NoRail)
+           ))
+        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        ("Int::sqrt _________", 10) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
        * delete because we were switching to partials, but this isn't
        * implemented. Some tests we need:
@@ -700,6 +722,11 @@ let () =
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
         (press K.Backspace 12)
         ("___", 0) ;
+      t
+        "using backspace to remove an infix with a placeholder goes to right place 2"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", five, newB (), NoRail)))
+        (press K.Backspace 3)
+        ("5", 1) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
         (ERightPartial (gid (), "|", blank))
@@ -765,12 +792,12 @@ let () =
       () ) ;
   describe "Constructors" (fun () ->
       tp
-        "backspace on a constructor deletes the constructor"
+        "backspace on a constructor converts it to a partial with ghost"
         aConstructor
         (press K.Backspace 4)
         ("Jus@ ___", 3) ;
       tp
-        "delete on a constructor deletes the constructor"
+        "backspace on a constructor converts it to a partial with ghost"
         aConstructor
         (press K.Delete 0)
         ("ust@ ___", 0) ;
