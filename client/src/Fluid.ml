@@ -2173,7 +2173,11 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | _ ->
         pos - ti.startPos
   in
-  let right = moveOneRight pos s in
+  let right =
+    if FluidToken.isBlank ti.token
+    then moveTo (ti.startPos + 1) s
+    else moveOneRight pos s
+  in
   let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
   let newExpr =
@@ -2242,8 +2246,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFnName _ when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
-  | TLetLHS (_, "") ->
-      (replaceStringToken ~f ti.token ast, moveTo (ti.startPos + 1) s)
   | TRecordField _
   | TFieldName _
   | TVariable _

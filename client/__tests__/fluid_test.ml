@@ -1328,7 +1328,11 @@ let () =
         emptyRecord
         (press ~wrap:false K.Enter 1)
         ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
+      t
+        "enter fieldname"
+        emptyRow
+        (insert ~wrap:false 'c' 4)
+        ("{\n  c : ___\n}", 5) ;
       t
         "move to the front of an empty record"
         emptyRow
@@ -1390,6 +1394,11 @@ let () =
         multi
         (press K.GoToEndOfLine ~wrap:false 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
+      t
+        "inserting at the end of the key works"
+        emptyRow
+        (insert 'f' ~wrap:false 6)
+        ("{\n  f : ___\n}", 5) ;
       t
         "pressing enter at start adds a row"
         multi
