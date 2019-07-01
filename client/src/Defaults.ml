@@ -99,6 +99,7 @@ let defaultModel : model =
   ; timersEnabled = true (* saved in editor *)
   ; cursorState = Deselected
   ; executingFunctions = []
+  ; executingHandlers = []
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; canvasProps = defaultCanvasProps
