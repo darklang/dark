@@ -93,8 +93,12 @@ and viewPattern (vs : viewState) (c : htmlConfig list) (p : pattern) =
   ViewBlankOr.viewBlankOr viewNPattern Pattern vs configs p
 
 
-let isExecuting (vs : viewState) (id : id) : bool =
+let functionIsExecuting (vs : viewState) (id : id) : bool =
   List.member ~value:id vs.executingFunctions
+
+
+let handlerIsExecuting (vs : viewState) (id : tlid) : bool =
+  List.member ~value:id vs.executingHandlers
 
 
 type ('a, 'b, 'c, 'd) x =
@@ -236,7 +240,7 @@ and viewNExpr
       let buttonUnavailable = not paramsComplete in
       let showButton = not fn.fnPreviewExecutionSafe in
       let buttonNeeded = not resultHasValue in
-      let showExecuting = isExecuting vs id in
+      let showExecuting = functionIsExecuting vs id in
       let exeIcon = "play" in
       let events =
         [ ViewUtils.eventNoPropagation
@@ -500,7 +504,10 @@ let externalLink
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
-  match (spec.space, spec.name, spec.modifier) with
+  let executingClass =
+    if handlerIsExecuting vs vs.tlid then " is-executing" else ""
+  in
+  match (spec.module_, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
   | F (_, a), F (_, b), F (_, c)
