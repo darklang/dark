@@ -2369,6 +2369,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
       | TLetAssignment _
       | TFieldName _
       | TRecordField _
+      | TRecordSep _
       | TLambdaSep _
       | TLambdaArrow _
       | TLambdaVar _ ->
