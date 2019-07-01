@@ -228,10 +228,10 @@ let getUsageFor
       []
 
 
-let usageMod (ops : op list) (toplevels : toplevel list) : modification =
+let usageMod (tlidsToUpdate : tlid list) (toplevels : toplevel list) :
+    modification =
   let databases = dbsByName toplevels in
   let handlers = handlersByName toplevels in
-  let tlidsToUpdate = tlidsToUpdateUsage ops in
   let use =
     toplevels
     |> List.filterMap ~f:(fun tl ->
@@ -280,8 +280,8 @@ let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
       meta
 
 
-let metaMod (ops : op list) (toplevels : toplevel list) : modification =
-  let tlidsToUpdate = tlidsToUpdateMeta ops in
+let metaMod (tlidsToUpdate : tlid list) (toplevels : toplevel list) :
+    modification =
   let withMeta =
     toplevels
     |> List.filterMap ~f:(fun tl ->
