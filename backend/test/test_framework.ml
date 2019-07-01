@@ -204,7 +204,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
  * event handler *)
 let t_event_queue_roundtrip () =
   clear_test_data () ;
-  let h = daily_cron (ast_for "123") in
+  let h = daily_cron (ast_for "(let date (Date::now) 123)") in
   let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
@@ -217,6 +217,17 @@ let t_event_queue_roundtrip () =
   let result = Queue_worker.run execution_id in
   ( match result with
   | Ok (Some result_dval) ->
+      (* should have at least one trace *)
+      let trace_id =
+        Stored_event.load_event_ids ~canvas_id:!c.id ("CRON", "test", "Daily")
+        |> List.hd_exn
+      in
+      AT.check
+        AT.int
+        "should have stored fn result"
+        ( Stored_function_result.load ~canvas_id:!c.id ~trace_id h.tlid
+        |> List.length )
+        1 ;
       check_dval "Round tripped value" (DInt 123) result_dval
   | Ok None ->
       AT.fail "Failed: expected Some, got None"
