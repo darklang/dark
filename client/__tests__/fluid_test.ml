@@ -973,6 +973,26 @@ let () =
               (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
         (insert 'c' 11)
         ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
+      t
+        "dont jump in letlhs with infix chars"
+        emptyLet
+        (press K.Plus 4)
+        ("let *** = ___\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number"
+        emptyLet
+        (insert '5' 4)
+        ("let *** = ___\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number, pt 2"
+        letWithLhs
+        (insert '2' 4)
+        ("let n = 6\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number, pt 3"
+        emptyLet
+        (insert '5' 6)
+        ("let *** = ___\n5", 6) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
