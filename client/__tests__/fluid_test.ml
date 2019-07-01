@@ -1424,6 +1424,11 @@ let () =
         emptyRow
         (press K.RightParens ~wrap:false 4)
         ("{\n  *** : ___\n}", 4) ;
+      t
+        "colon should skip over the record colon"
+        emptyRow
+        (press K.Colon ~wrap:false 7)
+        ("{\n  *** : ___\n}", 10) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
