@@ -474,24 +474,27 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       tipeReplace ()
 
 
-let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
-    modification =
+let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+    op list =
   let newTL = replace pd replacement tl in
   if newTL = tl
-  then NoChange
+  then []
   else
     match newTL.data with
     | TLHandler h ->
-        let ops = [SetHandler (tl.id, tl.pos, h)] in
-        RPC (ops, FocusNoChange)
+        [SetHandler (tl.id, tl.pos, h)]
     | TLFunc f ->
-        let ops = [SetFunction f] in
-        RPC (ops, FocusNoChange)
+        [SetFunction f]
     | TLTipe t ->
-        let ops = [SetType t] in
-        RPC (ops, FocusNoChange)
+        [SetType t]
     | TLDB _ ->
         impossible ("no vars in DBs", tl.data)
+
+
+let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
+    modification =
+  let ops = replaceOp pd replacement tl in
+  if ops = [] then NoChange else RPC (ops, FocusNoChange)
 
 
 (* do nothing for now *)
