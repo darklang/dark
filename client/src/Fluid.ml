@@ -1034,9 +1034,7 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
 let replacePartialWithArguments
     ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
   let getFunctionParams fnname count varExprs =
-    List.map
-      (Array.range count |> Array.toList)
-      ~f:(fun index ->
+    List.map (List.range 0 count) ~f:(fun index ->
         s.ac.functions
         |> List.find ~f:(fun f -> f.fnName = fnname)
         |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
