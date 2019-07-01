@@ -279,6 +279,13 @@ let () =
           ; fnDescription = "Add two ints"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "Int::sqrt"
+          ; fnParameters = [fnParam "a" TAny false]
+          ; fnReturnTipe = TInt
+          ; fnDescription = "Get the square root of an Int"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
   let process
@@ -614,6 +621,22 @@ let () =
         aFnCall
         (press K.Space 10)
         ("Int::add 5 _________", 11) ;
+      tp
+        "backspace on a function converts to partial for renaming"
+        aFnCall
+        (press K.Backspace 8)
+        ("Int::ad@ 5 _________", 7) ;
+      tp
+        "deleting on a function converts to partial for renaming"
+        aFnCall
+        (press K.Delete 7)
+        ("Int::ad@ 5 _________", 7) ;
+      t
+        "renaming a function preserves valid arguments"
+        (EPartial
+           (gid (), "Int::", EFnCall (gid (), "Int::add", [five; five], NoRail)))
+        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        ("let b = 5\nInt::sqrt 5", 10) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
        * delete because we were switching to partials, but this isn't
        * implemented. Some tests we need:
@@ -663,7 +686,17 @@ let () =
         (press K.Backspace 12)
         ("___", 0) ;
       t
-        "deleting an infix with a placeholder goes to right place"
+        "pressing delete to clear partial reverts for blank rhs"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
+        (press K.Delete 6)
+        ("12345", 5) ;
+      t
+        "pressing delete to clear partial reverts for blank rhs, check lhs pos goes to start"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
+        (press K.Delete 11)
+        ("___", 0) ;
+      t
+        "using backspace to remove an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
         (press K.Backspace 12)
         ("___", 0) ;
@@ -676,6 +709,21 @@ let () =
         "pressing backspace on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (press K.Backspace 7)
+        ("12345", 5) ;
+      t
+        "using delete to remove an infix with a placeholder goes to right place"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
+        (press K.Delete 11)
+        ("___", 0) ;
+      t
+        "pressing delete to clear rightpartial reverts for blank rhs"
+        (ERightPartial (gid (), "|", blank))
+        (press K.Delete 4)
+        ("___", 0) ;
+      t
+        "pressing delete on single digit binop leaves lhs"
+        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (press K.Delete 6)
         ("12345", 5) ;
       t
         "pressing letters and numbers on a partial completes it"
@@ -716,21 +764,22 @@ let () =
       (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
-      t
+      tp
         "backspace on a constructor deletes the constructor"
         aConstructor
         (press K.Backspace 4)
-        ("___", 0) ;
-      t
+        ("Jus@ ___", 3) ;
+      tp
         "delete on a constructor deletes the constructor"
         aConstructor
         (press K.Delete 0)
-        ("___", 0) ;
+        ("ust@ ___", 0) ;
       t
         "space on a constructor blank does nothing"
         aConstructor
         (press K.Space 5)
         ("Just ___", 5) ;
+      (* TODO: test renaming constructors *)
       () ) ;
   describe "Lambdas" (fun () ->
       t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
