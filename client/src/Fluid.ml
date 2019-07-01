@@ -1049,9 +1049,11 @@ let replacePartialWithArguments
   in
   let rec wrapWithLets ~expr vars =
     match vars with
+    (* don't wrap parameter who's value is a blank i.e. not set *)
     | [] | (_, _, EBlank _, _) :: _ ->
         expr
-    | (name, _, EVariable (_, name'), _) :: _ when name = name' ->
+    (* don't wrap parameter that's set to a variable *)
+    | (_, _, EVariable _, _) :: _ ->
         expr
     | (name, _, rhs, _) :: rest ->
         ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
