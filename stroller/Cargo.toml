@@ -5,7 +5,7 @@ edition = "2018"
 authors = ["Sam Stokes <me@samstokes.co.uk>", "Dark Developers <ops@darklang.com>"]
 
 [dependencies]
-futures = "0.1.27"
+futures = "0.1.28"
 hmac = "0.7.0"
 hyper = "0.12"
 md5 = "0.6.1"
