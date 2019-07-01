@@ -806,7 +806,11 @@ let () =
         aConstructor
         (press K.Space 5)
         ("Just ___", 5) ;
-      (* TODO: test renaming constructors *)
+      (* TODO: test renaming constructors.
+       * It's not too useful yet because there's only 4 constructors and,
+       * hence, unlikely that anyone will rename them this way.
+       * Also, the names of the temporary variables used to store the old arguments of a changed
+       * constructor are randomly generated and would be hard to test *)
       () ) ;
   describe "Lambdas" (fun () ->
       t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
