@@ -344,11 +344,10 @@ and op (call : Types.op) : Js.Json.t =
       ev "DeleteTypeForever" [tlid t]
 
 
-and addOpRPCParams (params : Types.addOpRPCParams) (browserId : string) :
-    Js.Json.t =
+and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
   object_
     [ ("ops", ops params.ops)
-    ; ("browserId", string browserId)
+    ; ("browserId", string params.browserId)
     ; ("tlidsToUpdateMeta", (list tlid) params.tlidsToUpdateMeta)
     ; ("tlidsToUpdateUsage", (list tlid) params.tlidsToUpdateUsage) ]
 

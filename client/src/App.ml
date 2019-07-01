@@ -1242,35 +1242,43 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, o, Ok r) ->
-      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-      let metaMod = Introspect.metaMod o.ops alltls in
-      let usageMod = Introspect.usageMod o.ops alltls in
-      if focus = FocusNoChange
-      then
-        Many
-          [ UpdateToplevels (r.toplevels, false)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-          ; MakeCmd (Entry.focusEntry m)
-          ; metaMod
-          ; usageMod ]
-      else
-        let m2 = TL.upsertAll m r.toplevels in
-        let m3 = {m2 with userFunctions = r.userFunctions} in
-        let m4 = {m3 with userTipes = r.userTipes} in
-        let newState = processFocus m4 focus in
-        Many
-          [ UpdateToplevels (r.toplevels, true)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
-          ; AutocompleteMod ACReset
-          ; ClearError
-          ; newState
-          ; metaMod
-          ; usageMod ]
+  | AddOpRPCCallback
+      (focus, tlidsToUpdateMeta, tlidsToUpdateUsage, browserId, _, Ok r) ->
+    (* TODO DEBUG MATCH *)
+    ( match browserId with
+    | None ->
+        NoChange
+    | Some browserId when browserId = m.browserId ->
+        NoChange
+    | Some _ ->
+        let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+        let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
+        let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
+        if focus = FocusNoChange
+        then
+          Many
+            [ UpdateToplevels (r.toplevels, false)
+            ; UpdateDeletedToplevels r.deletedToplevels
+            ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
+            ; SetTypes (r.userTipes, r.deletedUserTipes, false)
+            ; MakeCmd (Entry.focusEntry m)
+            ; metaMod
+            ; usageMod ]
+        else
+          let m2 = TL.upsertAll m r.toplevels in
+          let m3 = {m2 with userFunctions = r.userFunctions} in
+          let m4 = {m3 with userTipes = r.userTipes} in
+          let newState = processFocus m4 focus in
+          Many
+            [ UpdateToplevels (r.toplevels, true)
+            ; UpdateDeletedToplevels r.deletedToplevels
+            ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+            ; SetTypes (r.userTipes, r.deletedUserTipes, true)
+            ; AutocompleteMod ACReset
+            ; ClearError
+            ; newState
+            ; metaMod
+            ; usageMod ] )
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1400,9 +1408,18 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
         ; UpdateDBStats result ]
-  | AddOpRPCCallback (_, params, Error err) ->
-      DisplayAndReportHttpError
-        ("RPC", ImportantError, err, Encoders.addOpRPCParams params m.browserId)
+  | AddOpRPCCallback (_, _, _, _, params, Error err) ->
+      let paramsJson =
+        match params with
+        | Some params ->
+            Encoders.addOpRPCParams params
+        | None ->
+            (* Shouldn't happen - the err here is an HTTP error, so we should only
+           * get this from the callback in RPC.ml, in which case params is Some
+           * params *)
+            Js.Json.null
+      in
+      DisplayAndReportHttpError ("RPC", ImportantError, err, paramsJson)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
@@ -1710,7 +1727,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
           ReceiveFetch s )
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
-          NewPresencePush s ) ]
+          NewPresencePush s )
+    ; Analysis.AddOp.listen ~key:"add_op" ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->

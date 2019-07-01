@@ -833,7 +833,13 @@ and msg =
   | FluidMouseClick
   | AutocompleteClick of string
   | AddOpRPCCallback of
-      focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
+      focus
+      * tlid list
+      * tlid list
+      * string option
+      (* browserId *)
+      * addOpRPCParams option
+      * (addOpRPCResult, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
   | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
