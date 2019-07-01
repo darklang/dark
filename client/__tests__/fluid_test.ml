@@ -1417,13 +1417,18 @@ let () =
       t
         "dont allow weird chars in recordFields"
         emptyRow
-        (press K.Plus ~wrap:false 4)
+        (press K.RightParens ~wrap:false 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars"
         emptyRow
-        (press K.RightParens ~wrap:false 4)
+        (press K.Plus ~wrap:false 4)
         ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont jump in recordFields with infix chars, pt 2"
+        single
+        (press K.Plus ~wrap:false 6)
+        ("{\n  f1 : 56\n}", 6) ;
       t
         "colon should skip over the record colon"
         emptyRow
