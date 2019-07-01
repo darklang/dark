@@ -68,6 +68,10 @@ let dequeue_and_process execution_id :
                       ~user_tipes:(!c.user_tipes |> IDMap.data)
                       ~user_fns:(!c.user_functions |> IDMap.data)
                       ~account_id:!c.owner
+                      ~store_fn_arguments:
+                        (Stored_function_arguments.store ~canvas_id ~trace_id)
+                      ~store_fn_result:
+                        (Stored_function_result.store ~canvas_id ~trace_id)
                       ~canvas_id
                   in
                   Stroller.push_new_trace_id
