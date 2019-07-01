@@ -2228,6 +2228,14 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField _
     when not (isIdentifierChar letterStr) ->
       (ast, s)
+  | TVariable _
+  | TPatternVariable _
+  | TLetLHS _
+  | TFieldName _
+  | TLambdaVar _
+  | TRecordField _
+    when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
+      (ast, s)
   | TFnName _ when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
