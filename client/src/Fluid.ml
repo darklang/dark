@@ -2222,7 +2222,12 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
     when '0' = letter && offset = 0 ->
       (ast, s)
-  | (TVariable _ | TPatternVariable _ | TLetLHS _ | TFieldName _ | TLambdaVar _)
+  | TVariable _
+  | TPatternVariable _
+  | TLetLHS _
+  | TFieldName _
+  | TLambdaVar _
+  | TRecordField _
     when not (isIdentifierChar letterStr) ->
       (ast, s)
   | TFnName _ when not (isFnNameChar letterStr) ->

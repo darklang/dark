@@ -1414,6 +1414,16 @@ let () =
         multi
         (press K.Enter ~wrap:false 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+      t
+        "dont allow weird chars in recordFields"
+        emptyRow
+        (press K.Plus ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont jump in recordFields with infix chars"
+        emptyRow
+        (press K.RightParens ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
