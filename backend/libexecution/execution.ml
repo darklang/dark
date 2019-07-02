@@ -95,6 +95,8 @@ let execute_handler
     ~user_tipes
     ~account_id
     ~canvas_id
+    ?(load_fn_result = load_no_results)
+    ?(load_fn_arguments = load_no_arguments)
     ?(store_fn_result = store_no_results)
     ?(store_fn_arguments = store_no_arguments)
     (h : HandlerT.handler) : dval * tlid list =
@@ -108,8 +110,8 @@ let execute_handler
     ; dbs
     ; execution_id
     ; fail_fn = None
-    ; load_fn_result = load_no_results
-    ; load_fn_arguments = load_no_arguments
+    ; load_fn_result
+    ; load_fn_arguments
     ; store_fn_result
     ; store_fn_arguments }
   in

@@ -43,6 +43,8 @@ val execute_handler :
   -> user_tipes:Types.RuntimeT.user_tipe list
   -> account_id:Uuidm.t
   -> canvas_id:Uuidm.t
+  -> ?load_fn_result:Types.RuntimeT.load_fn_result_type
+  -> ?load_fn_arguments:Types.RuntimeT.load_fn_arguments_type
   -> ?store_fn_result:Types.RuntimeT.store_fn_result_type
   -> ?store_fn_arguments:Types.RuntimeT.store_fn_arguments_type
   -> Types.RuntimeT.HandlerT.handler
