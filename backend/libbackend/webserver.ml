@@ -792,7 +792,7 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
   in
   let t4, response =
     time "4-to-frontend" (fun _ ->
-        Analysis.to_trigger_handler_rpc_result touched_tlids )
+        Analysis.to_trigger_handler_rpc_result (params.tlid :: touched_tlids ))
   in
   respond
     ~execution_id
