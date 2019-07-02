@@ -99,6 +99,11 @@ let cookies (headers : (string * string) list) =
   |> Option.value ~default:(Dval.to_dobj_exn [])
   |> fun x -> Dval.to_dobj_exn [("cookies", x)]
 
+let url (uri : Uri.t) =
+  uri
+  |> Uri.to_string
+  |> fun s -> Dval.to_dobj_exn [("url", Dval.dstr_of_string_exn s)]
+
 
 (* ------------------------- *)
 (* Exported *)
@@ -111,6 +116,7 @@ type query_val = string * string list
  * 404 for a request with an unparseable body *)
 let from_request
     ?(allow_unparseable = false)
+    (uri : Uri.t)
     (headers : header list)
     (query : query_val list)
     rbody =
@@ -133,7 +139,9 @@ let from_request
     ; parsed_query_string query
     ; parsed_headers headers
     ; unparsed_body rbody
-    ; cookies headers ]
+    ; cookies headers
+    ; url uri
+  ]
   in
   List.fold_left
     ~init:Dval.empty_dobj
@@ -150,7 +158,8 @@ let sample_request =
     ; Dval.to_dobj_exn [("formBody", DIncomplete)]
     ; Dval.to_dobj_exn [("queryParams", DIncomplete)]
     ; Dval.to_dobj_exn [("headers", DIncomplete)]
-    ; Dval.to_dobj_exn [("fullBody", DIncomplete)] ]
+    ; Dval.to_dobj_exn [("fullBody", DIncomplete)]
+    ; Dval.to_dobj_exn [("url", DIncomplete)] ]
   in
   List.fold_left
     ~init:Dval.empty_dobj
