@@ -88,9 +88,7 @@ let triggerHandler (m : model) (params : triggerHandlerRPCParams) :
       url
       (Encoders.triggerHandlerRPCParams params)
   in
-  Tea.Http.send
-    (fun _ -> TriggerHandlerRPCCallback (Ok (params.thTLID, params.thTraceID)))
-    request
+  Tea.Http.send (fun x -> TriggerHandlerRPCCallback (params, x)) request
 
 
 let getUnlockedDBs (m : model) : msg Tea.Cmd.t =

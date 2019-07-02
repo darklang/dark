@@ -1330,8 +1330,13 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces) ]
-  | TriggerHandlerRPCCallback (Ok (tlid, traceID)) ->
-      let traces = [(deTLID tlid, [(traceID, None)])] |> StrDict.fromList in
+  | TriggerHandlerRPCCallback (params, Ok tlids) ->
+      let traces =
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, None)]))
+          tlids
+        |> StrDict.fromList
+      in
       OverrideTraces traces
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
@@ -1413,7 +1418,7 @@ let update_ (msg : msg) (m : model) : modification =
         , ImportantError
         , err
         , Encoders.executeFunctionRPCParams params )
-  | TriggerHandlerRPCCallback (Error err) ->
+  | TriggerHandlerRPCCallback (_, Error err) ->
       DisplayAndReportHttpError
         ("TriggerHandler", ImportantError, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
