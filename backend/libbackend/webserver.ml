@@ -747,10 +747,10 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
     response
 
 
-let trigger_cron ~(execution_id : Types.id) (host : string) body :
+let trigger_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api-params" (fun _ -> Api.to_trigger_cron_rpc_params body)
+    time "1-read-api-params" (fun _ -> Api.to_trigger_handler_rpc_params body)
   in
   let t2, c =
     time "2-load-saved-ops" (fun _ ->
@@ -771,29 +771,22 @@ let trigger_cron ~(execution_id : Types.id) (host : string) body :
             ()
         | Some (handler, desc) ->
             let canvas_id = !c.id in
-            let trace_id = Util.create_uuid () in
-            ignore (Stored_event.store_event ~trace_id ~canvas_id desc DNull) ;
-            let result, touched_tlids =
-              Libexecution.Execution.execute_handler
-                handler
-                ~execution_id
-                ~tlid:params.tlid
-                ~input_vars:[]
-                ~dbs:(TL.dbs !c.dbs)
-                ~user_tipes:(!c.user_tipes |> Map.data)
-                ~user_fns:(!c.user_functions |> Map.data)
-                ~account_id:!c.owner
-                ~canvas_id
-                ~store_fn_arguments:
-                  (Stored_function_arguments.store ~canvas_id ~trace_id)
-                ~store_fn_result:
-                  (Stored_function_result.store ~canvas_id ~trace_id)
-            in
-            Stroller.push_new_trace_id
-              ~execution_id
-              ~canvas_id
-              trace_id
-              (handler.tlid :: touched_tlids) )
+            let trace_id = params.trace_id in
+            ignore
+              (Libexecution.Execution.execute_handler
+                 handler
+                 ~execution_id
+                 ~tlid:params.tlid
+                 ~input_vars:params.input
+                 ~dbs:(TL.dbs !c.dbs)
+                 ~user_tipes:(!c.user_tipes |> Map.data)
+                 ~user_fns:(!c.user_functions |> Map.data)
+                 ~account_id:!c.owner
+                 ~canvas_id
+                 ~store_fn_arguments:
+                   (Stored_function_arguments.store ~canvas_id ~trace_id)
+                 ~store_fn_result:
+                   (Stored_function_result.store ~canvas_id ~trace_id)) )
   in
   respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK ""
 
@@ -1233,7 +1226,7 @@ let admin_api_handler
           wrap_json_headers (execute_function ~execution_id canvas body) )
   | `POST, ["api"; canvas; "trigger_handler"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (trigger_cron ~execution_id canvas body) )
+          wrap_json_headers (trigger_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_json_headers (get_trace_data ~execution_id canvas body) )

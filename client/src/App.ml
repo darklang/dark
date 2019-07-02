@@ -913,7 +913,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ; panAnimation = true } }
         , Cmd.none )
     | TriggerHandlerRPC tlid ->
-        (m, RPC.triggerHandler m {tcpTLID = tlid})
+      ( match Analysis.getCurrentTrace m tlid with
+      | Some (traceID, Some traceData) ->
+          ( m
+          , RPC.triggerHandler
+              m
+              {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
+          )
+      | _ ->
+          (m, Cmd.none) )
     | InitIntrospect tls ->
         let newM =
           { m with
@@ -1322,8 +1330,9 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces) ]
-  | TriggerHandlerRPCCallback (Ok ()) ->
-      NoChange
+  | TriggerHandlerRPCCallback (Ok (tlid, traceID)) ->
+      let traces = [(deTLID tlid, [(traceID, None)])] |> StrDict.fromList in
+      OverrideTraces traces
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")

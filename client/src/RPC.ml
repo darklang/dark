@@ -76,7 +76,8 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
   Tea.Http.send (fun x -> ExecuteFunctionRPCCallback (params, x)) request
 
 
-let triggerHandler (m : model) (params : triggerHandlerRPCParams) : msg Tea.Cmd.t =
+let triggerHandler (m : model) (params : triggerHandlerRPCParams) :
+    msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler"]
   in
@@ -87,7 +88,9 @@ let triggerHandler (m : model) (params : triggerHandlerRPCParams) : msg Tea.Cmd.
       url
       (Encoders.triggerHandlerRPCParams params)
   in
-  Tea.Http.send (fun _ -> TriggerHandlerRPCCallback (Ok ())) request
+  Tea.Http.send
+    (fun _ -> TriggerHandlerRPCCallback (Ok (params.thTLID, params.thTraceID)))
+    request
 
 
 let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
