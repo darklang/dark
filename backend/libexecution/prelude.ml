@@ -65,7 +65,7 @@ module StrDict = struct
 
   let values = Base.Map.data
 
-  let get ~(key : key) (dict : 'value t) = Base.Map.find dict key
+  let get = Base.Map.find
 
   let filter l ~f = Base.Map.filter l ~f
 
