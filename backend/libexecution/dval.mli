@@ -117,9 +117,6 @@ val to_char : Types.RuntimeT.dval -> string option
 
 val to_int : Types.RuntimeT.dval -> int option
 
-(* Converts a Dark String to an OCaml string. *)
-val to_string_opt : Types.RuntimeT.dval -> string option
-
 (* Converts a Dark String to an OCaml string. Raises an Exception if not a
  * string. *)
 val to_string_exn : Types.RuntimeT.dval -> string

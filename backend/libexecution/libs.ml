@@ -51,14 +51,39 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) :
       Exception.client ("No function named '" ^ name ^ "' exists")
 
 
-let init (extras : shortfn list) : unit =
+type fn_replacement = string * RTT.funcimpl
+
+let replace_implementation ((name, impl) : fn_replacement) : unit =
+  let fn = get_fn_exn ~user_fns:[] name in
+  let fn = {fn with func = impl} in
+  static_fns := add_fn !static_fns fn
+
+
+let assert_all_libs_available () =
+  FnMap.iteri !static_fns ~f:(fun ~key ~data ->
+      match data.func with
+      | NotClientAvailable ->
+          Exception.internal (key ^ " has no implementation in the backend.")
+      | _ ->
+          () ) ;
+  ()
+
+
+let init (replacements : fn_replacement list) : unit =
   let libs =
+    Libdb.fns
+    @ Libdb2.fns
+    @ Libevent.fns
+    @ Libhttpclient.fns
+    @ Libcrypto.fns
+    @ Libtwilio.fns
     (* client-only *)
-    Libhttpclient.fns
     @ Libstd.fns
     @ Libhttp.fns
-    (* only implemented on server *)
-    @ extras
+    @ Libdarkinternal.fns
+    @ Libstaticassets.fns
+    (* @ Libtwitter.fns  *)
   in
   List.iter ~f:add_short_fn libs ;
+  List.iter ~f:replace_implementation replacements ;
   ()

@@ -9,10 +9,6 @@ let isFluid (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
 
 
-let libtwitterAvailable (vts : variantTest list) : bool =
-  List.member ~value:LibtwitterVariant vts
-
-
 let toVariantTest (s : string * bool) : variantTest option =
   match s with
   | _, false ->
@@ -23,21 +19,13 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some StubVariant
     | "fluidv2" ->
         Some FluidVariant
-    | "libtwitter" ->
-        Some LibtwitterVariant
     | _ ->
         None )
 
 
 let toCSSClass (vt : variantTest) : string =
   let test =
-    match vt with
-    | StubVariant ->
-        "stub"
-    | FluidVariant ->
-        "fluid"
-    | LibtwitterVariant ->
-        "libtwitter"
+    match vt with StubVariant -> "stub" | FluidVariant -> "fluid"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
