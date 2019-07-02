@@ -263,7 +263,7 @@ let t_path_gt_route_does_not_crash () =
 
 let t_parsed_request_cookies () =
   let with_headers h =
-    Parsed_request.from_request h [] ""
+    Parsed_request.from_request (Uri.of_string "test") h [] ""
     |> Parsed_request.to_dval
     |> fun v ->
     match v with
