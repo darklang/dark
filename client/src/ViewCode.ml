@@ -511,7 +511,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
           ; ViewUtils.eventNoPropagation
               ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
               "click"
-              (fun _ -> TriggerCron vs.tl.id) ]
+              (fun _ -> TriggerHandler vs.tl.id) ]
           [fontAwesome "redo"] ]
   | _, _, _ ->
       [Vdom.noNode]
