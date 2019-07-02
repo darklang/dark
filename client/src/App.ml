@@ -41,6 +41,7 @@ let init (flagString : string) (location : Web.Location.location) =
   let {Flags.editorState; complete; userContentHost; environment; csrfToken} =
     Flags.fromString flagString
   in
+  let variants = VariantTesting.enabledVariantTests in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
     Url.parseLocation location
@@ -48,15 +49,21 @@ let init (flagString : string) (location : Web.Location.location) =
   in
   (* these saved values may not be valid yet *)
   let savedCursorState = m.cursorState in
+  let functions =
+    List.filter complete ~f:(fun fn ->
+        if String.contains ~substring:"Twitter::" fn.fnName
+        then VariantTesting.libtwitterAvailable variants
+        else true )
+  in
   let m =
     { m with
       cursorState =
         Deselected
         (* deselect for now as the selected blank isn't available yet *)
     ; currentPage = Architecture
-    ; builtInFunctions = complete
+    ; builtInFunctions = functions
     ; complete = AC.init m
-    ; tests = VariantTesting.enabledVariantTests
+    ; tests = variants
     ; toplevels = []
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
