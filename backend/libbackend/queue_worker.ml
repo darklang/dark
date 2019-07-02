@@ -42,7 +42,10 @@ let dequeue_and_process execution_id :
                   Log.infO
                     "queue_worker"
                     ~data:"No handler for event"
-                    ~params:[("host", host); ("event", Log.dump desc)] ;
+                    ~params:
+                      [ ("host", host)
+                      ; ("event", Log.dump desc)
+                      ; ("event_id", string_of_int event.id) ] ;
                   let space, name, modifier = desc in
                   Stroller.push_new_404
                     ~execution_id
@@ -57,6 +60,7 @@ let dequeue_and_process execution_id :
                     ~params:
                       [ ("event", Log.dump desc)
                       ; ("host", host)
+                      ; ("event_id", string_of_int event.id)
                       ; ("handler_id", Types.string_of_id h.tlid) ] ;
                   let result, touched_tlids =
                     Execution.execute_handler
@@ -85,6 +89,7 @@ let dequeue_and_process execution_id :
                     ~params:
                       [ ("host", host)
                       ; ("event", Log.dump desc)
+                      ; ("event_id", string_of_int event.id)
                       ; ("handler_id", Types.string_of_id h.tlid)
                       ; ("result", Dval.show result) ] ;
                   Event_queue.finish transaction event ;
