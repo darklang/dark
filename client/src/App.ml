@@ -912,8 +912,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Viewport.centerCanvasOn (TL.getExn m tlid) m.canvasProps
               ; panAnimation = true } }
         , Cmd.none )
-    | TriggerCronRPC tlid ->
-        (m, RPC.triggerCron m {tcpTLID = tlid})
+    | TriggerHandlerRPC tlid ->
+        (m, RPC.triggerHandler m {tcpTLID = tlid})
     | InitIntrospect tls ->
         let newM =
           { m with
@@ -1027,8 +1027,8 @@ let update_ (msg : msg) (m : model) : modification =
       Many (traceCmd @ [SetHover (tlid, ID traceID)])
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
-  | TriggerCron tlid ->
-      TriggerCronRPC tlid
+  | TriggerHandler tlid ->
+      TriggerHandlerRPC tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -1322,7 +1322,7 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces) ]
-  | TriggerCronRPCCallback (Ok ()) ->
+  | TriggerHandlerRPCCallback (Ok ()) ->
       NoChange
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
@@ -1404,9 +1404,9 @@ let update_ (msg : msg) (m : model) : modification =
         , ImportantError
         , err
         , Encoders.executeFunctionRPCParams params )
-  | TriggerCronRPCCallback (Error err) ->
+  | TriggerHandlerRPCCallback (Error err) ->
       DisplayAndReportHttpError
-        ("TriggerCron", ImportantError, err, Js.Json.null)
+        ("TriggerHandler", ImportantError, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError
         ("InitialLoad", ImportantError, err, Js.Json.null)

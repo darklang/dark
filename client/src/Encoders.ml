@@ -358,7 +358,7 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and triggerCronRPCParams (params : Types.triggerCronRPCParams) : Js.Json.t =
+and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) : Js.Json.t =
   object_ [("tlid", tlid params.tcpTLID)]
 
 
