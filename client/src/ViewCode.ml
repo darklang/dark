@@ -493,8 +493,7 @@ let externalLink
           ; Html.href
               ("//" ^ Tea.Http.encodeUri canvasName ^ "." ^ contentHost ^ name)
           ; Html.target "_blank"
-          ; Html.title "Send a request via your browser in a new tab"
-          ]
+          ; Html.title "Send a request via your browser in a new tab" ]
           [fontAwesome "external-link-alt"] ]
   | _ ->
       []
@@ -508,14 +507,28 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
   | F (_, ""), F (_, ""), F (_, "") ->
       [Vdom.noNode]
   | F _, F _, F _ ->
-      [ Html.div
-          [ Html.classList [("handler-trigger", true)]
-          ; Html.title "Replay this execution"
-          ; ViewUtils.eventNoPropagation
-              ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
-              "click"
-              (fun _ -> TriggerHandler vs.tl.id) ]
-          [fontAwesome "redo"] ]
+      let hasData =
+        Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
+        |> Option.andThen ~f:(fun trace_id ->
+               List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+               |> Option.map ~f:(fun (_, data) -> data) )
+        |> Option.is_some
+      in
+      if hasData
+      then
+        [ Html.div
+            [ Html.classList [("handler-trigger", true)]
+            ; Html.title "Replay this execution"
+            ; ViewUtils.eventNoPropagation
+                ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
+                "click"
+                (fun _ -> TriggerHandler vs.tl.id) ]
+            [fontAwesome "redo"] ]
+      else
+        [ Html.div
+            [ Html.classList [("inactive-handler-trigger", true)]
+            ; Html.title "Need input data to replay execution" ]
+            [fontAwesome "redo"] ]
   | _, _, _ ->
       [Vdom.noNode]
 
