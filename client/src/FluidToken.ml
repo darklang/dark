@@ -289,7 +289,7 @@ let toText (t : token) : string =
   | TRecordField (_, _, name) ->
       canBeEmpty name
   | TRecordSep _ ->
-      ":"
+      " : "
   | TConstructorName (_, name) ->
       canBeEmpty name
   | TThreadPipe _ ->

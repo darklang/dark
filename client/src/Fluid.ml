@@ -526,9 +526,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
-                  ; TSep
                   ; TRecordSep (id, i)
-                  ; TSep
                   ; nested expr ] ] )
           |> List.concat
         ; [TNewline; TRecordClose id] ]
@@ -1531,11 +1529,20 @@ let addBlankToList (id : id) (ast : ast) : ast =
 
 
 (* Add a row to the record *)
-let addRecordRowToFront (id : id) (ast : ast) : ast =
+let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
-          ERecord (id, (gid (), "", newB ()) :: fields)
+          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
+      | _ ->
+          fail "Not a record" )
+
+
+let addRecordRowToBack (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | ERecord (id, fields) ->
+          ERecord (id, fields @ [(gid (), "", newB ())])
       | _ ->
           fail "Not a record" )
 
@@ -2257,7 +2264,11 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | _ ->
         pos - ti.startPos
   in
-  let right = moveOneRight pos s in
+  let right =
+    if FluidToken.isBlank ti.token
+    then moveTo (ti.startPos + 1) s
+    else moveOneRight pos s
+  in
   let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
   let newExpr =
@@ -2289,45 +2300,38 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TListOpen id ->
       (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
   (* Ignore invalid situations *)
-  | TString _ when offset < 0 ->
+  | (TString _ | TPatternString _) when offset < 0 ->
       (ast, s)
-  | TPatternString _ when offset < 0 ->
+  | TInteger _
+  | TPatternInteger _
+  | TFloatFraction _
+  | TFloatWhole _
+  | TPatternFloatWhole _
+  | TPatternFloatFraction _
+    when not (isNumber letterStr) ->
       (ast, s)
-  | TInteger _ when not (isNumber letterStr) ->
+  | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+    when '0' = letter && offset = 0 ->
       (ast, s)
-  | TInteger _ when '0' = letter && offset = 0 ->
+  | TVariable _
+  | TPatternVariable _
+  | TLetLHS _
+  | TFieldName _
+  | TLambdaVar _
+  | TRecordField _
+    when not (isIdentifierChar letterStr) ->
       (ast, s)
-  | TPatternInteger _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternInteger _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TFloatWhole _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TFloatWhole _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TFloatFraction _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternFloatWhole _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TPatternFloatWhole _ when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TPatternFloatFraction _ when not (isNumber letterStr) ->
-      (ast, s)
-  | TVariable _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TPatternVariable _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TLetLHS _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TFieldName _ when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TLambdaVar _ when not (isIdentifierChar letterStr) ->
+  | TVariable _
+  | TPatternVariable _
+  | TLetLHS _
+  | TFieldName _
+  | TLambdaVar _
+  | TRecordField _
+    when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
       (ast, s)
   | TFnName _ when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
-  | TLetLHS (_, "") ->
-      (replaceStringToken ~f ti.token ast, moveTo (ti.startPos + 1) s)
   | TRecordField _
   | TFieldName _
   | TVariable _
@@ -2465,6 +2469,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
       | TLetLHS _
       | TLetAssignment _
       | TFieldName _
+      | TRecordField _
+      | TRecordSep _
       | TLambdaSep _
       | TLambdaArrow _
       | TLambdaVar _ ->
@@ -2589,7 +2595,13 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, moveOneRight pos s)
     (* Record-specific insertions *)
     | K.Enter, L (TRecordOpen id, _), _ ->
-        let newAST = addRecordRowToFront id ast in
+        let newAST = addRecordRowAt 0 id ast in
+        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
+    | K.Enter, _, R (TRecordField (id, index, _), _) ->
+        let newAST = addRecordRowAt index id ast in
+        (newAST, s)
+    | K.Enter, _, R (TRecordClose id, _) ->
+        let newAST = addRecordRowToBack id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
@@ -2613,9 +2625,11 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
-    (* Let specific jumping behaviour, this must come before the
+    (* Skipping over specific characters, this must come before the
      * more general binop cases or we lose the jumping behaviour *)
     | K.Equals, _, R (TLetAssignment _, toTheRight) ->
+        (ast, moveTo toTheRight.endPos s)
+    | K.Colon, _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case.  *)
