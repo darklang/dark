@@ -37,7 +37,7 @@ let () =
               TLHandler
                 { ast
                 ; spec =
-                    { module_ = B.newF "HTTP"
+                    { space = B.newF "HTTP"
                     ; name = B.newF "/src"
                     ; modifier = B.newF "POST" }
                 ; tlid = TLID "handler1" } }
@@ -96,7 +96,7 @@ let () =
           let h =
             { ast = F (ID "ast1", Variable "ElmCode")
             ; spec =
-                { module_ = B.newF "HTTP"
+                { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
             ; tlid = TLID "handler1" }
@@ -135,7 +135,7 @@ let () =
           let h =
             { ast = F (ID "ast1", Variable "request")
             ; spec =
-                { module_ = B.newF "HTTP"
+                { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
             ; tlid = TLID "handler1" }

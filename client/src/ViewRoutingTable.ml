@@ -186,7 +186,7 @@ let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
   let spaceName_ tl =
     tl
     |> TL.asHandler
-    |> Option.map ~f:(fun x -> x.spec.module_)
+    |> Option.map ~f:(fun x -> x.spec.space)
     |> Option.andThen ~f:B.toMaybe
     |> Option.withDefault ~default:missingEventSpaceDesc
   in
