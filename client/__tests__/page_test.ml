@@ -16,12 +16,12 @@ let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
     ?(pos = defaultPos)
-    ?(module_ : string option = None)
+    ?(space : string option = None)
     () : toplevel =
-  let module_ =
-    match module_ with None -> B.new_ () | Some name -> B.newF name
+  let space =
+    match space with None -> B.new_ () | Some name -> B.newF name
   in
-  let spec = {module_; name = B.new_ (); modifier = B.new_ ()} in
+  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
   {id = tlid; pos; data = TLHandler {ast = expr; spec; tlid}}
 
 

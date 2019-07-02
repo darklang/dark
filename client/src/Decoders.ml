@@ -190,7 +190,7 @@ and analysisEnvelope j : traceID * analysisResults =
 
 
 and handlerSpec j : handlerSpec =
-  { module_ = field "module" (blankOr string) j
+  { space = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
   ; modifier = field "modifier" (blankOr string) j }
 

@@ -1454,7 +1454,7 @@ let update_ (msg : msg) (m : model) : modification =
       let aHandler =
         { ast
         ; spec =
-            { module_ = B.newF space
+            { space = B.newF space
             ; name = B.newF path
             ; modifier = B.newF modifier }
         ; tlid }

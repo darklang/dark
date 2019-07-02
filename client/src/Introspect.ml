@@ -31,7 +31,7 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
     ~f:(fun tl res ->
       match tl.data with
       | TLHandler h ->
-          let name = keyForHandlerSpec h.spec.module_ h.spec.name in
+          let name = keyForHandlerSpec h.spec.space h.spec.name in
           if name <> "" then StrDict.insert ~key:name ~value:tl.id res else res
       | _ ->
           res )
@@ -256,7 +256,7 @@ let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
   let key = showTLID tl.id in
   match tl.data with
   | TLHandler h ->
-    ( match (h.spec.module_, h.spec.name) with
+    ( match (h.spec.space, h.spec.name) with
     | F (_, space), F (_, name) ->
         let modifier = B.toMaybe h.spec.modifier in
         StrDict.insert ~key ~value:(HandlerMeta (space, name, modifier)) meta
