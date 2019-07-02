@@ -564,7 +564,7 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
 
-and triggerHandlerRPCResult = traceID * tlid list
+and triggerHandlerRPCResult = tlid list
 
 and unlockedDBs = StrSet.t
 
@@ -842,7 +842,9 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
-  | TriggerHandlerRPCCallback of (tlid * traceID, httpError) Tea.Result.t
+  | TriggerHandlerRPCCallback of
+      triggerHandlerRPCParams
+      * (triggerHandlerRPCResult, httpError) Tea.Result.t
       [@printer opaque "TriggerHandlerRPCCallback"]
   | Delete404RPC of fourOhFour
   | NewPresencePush of avatar list

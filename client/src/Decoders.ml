@@ -420,7 +420,7 @@ and executeFunctionRPCResult j : executeFunctionRPCResult =
 
 
 and triggerHandlerRPCResult j : triggerHandlerRPCResult =
-  (field "trace_id" string j, field "tlid" (list tlid) j)
+  field "touched_tlids" (list tlid) j
 
 
 and saveTestRPCResult j : saveTestRPCResult = string j

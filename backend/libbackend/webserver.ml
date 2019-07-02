@@ -758,7 +758,7 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
         |> Result.map_error ~f:(String.concat ~sep:", ")
         |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
   in
-  let t3, () =
+  let t3, touched_tlids =
     time "3-execute" (fun _ ->
         let handler_and_desc =
           Map.find_exn !c.handlers params.tlid
@@ -768,27 +768,37 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
         in
         match handler_and_desc with
         | None ->
-            ()
+            []
         | Some (handler, desc) ->
             let canvas_id = !c.id in
             let trace_id = params.trace_id in
-            ignore
-              (Libexecution.Execution.execute_handler
-                 handler
-                 ~execution_id
-                 ~tlid:params.tlid
-                 ~input_vars:params.input
-                 ~dbs:(TL.dbs !c.dbs)
-                 ~user_tipes:(!c.user_tipes |> Map.data)
-                 ~user_fns:(!c.user_functions |> Map.data)
-                 ~account_id:!c.owner
-                 ~canvas_id
-                 ~store_fn_arguments:
-                   (Stored_function_arguments.store ~canvas_id ~trace_id)
-                 ~store_fn_result:
-                   (Stored_function_result.store ~canvas_id ~trace_id)) )
+            let _, touched_tlids =
+              Libexecution.Execution.execute_handler
+                handler
+                ~execution_id
+                ~tlid:params.tlid
+                ~input_vars:params.input
+                ~dbs:(TL.dbs !c.dbs)
+                ~user_tipes:(!c.user_tipes |> Map.data)
+                ~user_fns:(!c.user_functions |> Map.data)
+                ~account_id:!c.owner
+                ~canvas_id
+                ~store_fn_arguments:
+                  (Stored_function_arguments.store ~canvas_id ~trace_id)
+                ~store_fn_result:
+                  (Stored_function_result.store ~canvas_id ~trace_id)
+            in
+            touched_tlids )
   in
-  respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK ""
+  let t4, response =
+    time "4-to-frontend" (fun _ ->
+        Analysis.to_trigger_handler_rpc_result touched_tlids )
+  in
+  respond
+    ~execution_id
+    ~resp_headers:(server_timing [t1; t2; t3; t4])
+    `OK
+    response
 
 
 let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
