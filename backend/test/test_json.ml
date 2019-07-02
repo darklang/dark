@@ -40,6 +40,21 @@ let t_dval_yojson_roundtrips () =
     check_dval ("safe: " ^ name) v (safe_rt v) ;
     check_dval ("roundtrippable: " ^ name) v (roundtrippable_rt v) ;
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
+    AT.check
+      AT.string
+      ("safe as string: " ^ name)
+      (Yojson.Safe.to_string (dval_to_yojson v))
+      (Yojson.Safe.to_string (dval_to_yojson (safe_rt v))) ;
+    AT.check
+      AT.string
+      ("safe roundtrippable: " ^ name)
+      (Dval.to_internal_roundtrippable_v0 v)
+      (Dval.to_internal_roundtrippable_v0 (roundtrippable_rt v)) ;
+    AT.check
+      AT.string
+      ("safe queryable: " ^ name)
+      (Dval.to_internal_queryable_v0 v)
+      (Dval.to_internal_queryable_v0 (queryable_rt v)) ;
     ()
   in
   sample_dvals
