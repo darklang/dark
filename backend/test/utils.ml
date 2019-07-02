@@ -368,6 +368,13 @@ let exec_userfn (prog : string) : dval =
 let sample_dvals =
   [ ("int", Dval.dint 5)
   ; ("int2", Dval.dint (-1))
+  ; ("int_max_31_bits", Dval.dint 1073741824)
+  ; ("int_above_31_bits", Dval.dint 1073741825)
+  ; ("int_max_32_bits", Dval.dint 2147483647)
+  ; ("int_above_32_bits", Dval.dint 2147483648)
+  ; ("int_max_53_bits", Dval.dint 4503599627370496)
+  ; ("int_above_53_bits", Dval.dint 4503599627370497)
+  ; ("int_max_63_bits", Dval.dint 4611686018427387903)
   ; ("float", DFloat 7.2)
   ; ("float2", DFloat (-7.2))
   ; ("true", DBool true)
