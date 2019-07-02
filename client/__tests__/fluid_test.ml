@@ -836,6 +836,26 @@ let () =
         (lambdaWithUsed2ndBinding "binding")
         (insert 'c' 17)
         ("\\somevar, bindingc -> bindingc", 18) ;
+      t
+        "dont jump in lambdavars with infix chars"
+        aLambda
+        (press K.Plus 1)
+        ("\\*** -> ___", 1) ;
+      t
+        "dont allow name to start with a number"
+        aLambda
+        (insert '5' 1)
+        ("\\*** -> ___", 1) ;
+      t
+        "dont allow name to start with a number, pt 2"
+        (lambdaWithBinding "test" five)
+        (insert '2' 1)
+        ("\\test -> 5", 1) ;
+      t
+        "dont allow name to start with a number, pt 3"
+        aLambda
+        (insert '5' 3)
+        ("\\*** -> ___", 3) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
@@ -1033,6 +1053,26 @@ let () =
               (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
         (insert 'c' 11)
         ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
+      t
+        "dont jump in letlhs with infix chars"
+        emptyLet
+        (press K.Plus 4)
+        ("let *** = ___\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number"
+        emptyLet
+        (insert '5' 4)
+        ("let *** = ___\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number, pt 2"
+        letWithLhs
+        (insert '2' 4)
+        ("let n = 6\n5", 4) ;
+      t
+        "dont allow letlhs to start with a number, pt 3"
+        emptyLet
+        (insert '5' 6)
+        ("let *** = ___\n5", 6) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
@@ -1408,7 +1448,11 @@ let () =
         emptyRecord
         (press ~wrap:false K.Enter 1)
         ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
+      t
+        "enter fieldname"
+        emptyRow
+        (insert ~wrap:false 'c' 4)
+        ("{\n  c : ___\n}", 5) ;
       t
         "move to the front of an empty record"
         emptyRow
@@ -1470,6 +1514,61 @@ let () =
         multi
         (press K.GoToEndOfLine ~wrap:false 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
+      t
+        "inserting at the end of the key works"
+        emptyRow
+        (insert 'f' ~wrap:false 6)
+        ("{\n  f : ___\n}", 5) ;
+      t
+        "pressing enter at start adds a row"
+        multi
+        (press K.Enter ~wrap:false 1)
+        ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
+      t
+        "pressing enter at the back adds a row"
+        multi
+        (press K.Enter ~wrap:false 22)
+        ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
+      t
+        "pressing enter at the start of a field adds a row"
+        multi
+        (press K.Enter ~wrap:false 14)
+        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+      t
+        "dont allow weird chars in recordFields"
+        emptyRow
+        (press K.RightParens ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont jump in recordFields with infix chars"
+        emptyRow
+        (press K.Plus ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont jump in recordFields with infix chars, pt 2"
+        single
+        (press K.Plus ~wrap:false 6)
+        ("{\n  f1 : 56\n}", 6) ;
+      t
+        "colon should skip over the record colon"
+        emptyRow
+        (press K.Colon ~wrap:false 7)
+        ("{\n  *** : ___\n}", 10) ;
+      t
+        "dont allow key to start with a number"
+        emptyRow
+        (insert '5' ~wrap:false 4)
+        ("{\n  *** : ___\n}", 4) ;
+      t
+        "dont allow key to start with a number, pt 2"
+        single
+        (insert '5' ~wrap:false 4)
+        ("{\n  f1 : 56\n}", 4) ;
+      t
+        "dont allow key to start with a number, pt 3"
+        emptyRow
+        (insert '5' ~wrap:false 6)
+        ("{\n  *** : ___\n}", 6) ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
