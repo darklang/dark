@@ -16,7 +16,8 @@ let () =
     ; ("db-libs", Test_db_libs.suite)
     ; ("api-libs", Test_api_libs.suite)
     ; ("framework", Test_framework.suite)
-    ; ("other-libs", Test_other_libs.suite) ]
+    ; ("other-libs", Test_other_libs.suite)
+    ; ("analysis", Test_analysis.suite) ]
   in
   Init.init ~run_side_effects:true ;
   Log.set_level `All ;
