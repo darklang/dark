@@ -502,12 +502,12 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
   match (spec.module_, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
-   is needed to recover cron traces on refresh. *)
-  | F (_, "CRON"), F (_, ""), F (_, "") ->
+   is needed to recover handler traces on refresh. *)
+  | F (_, ""), F (_, ""), F (_, "") ->
       [Vdom.noNode]
-  | F (_, "CRON"), F _, F _ ->
+  | F _, F _, F _ ->
       [ Html.div
-          [ Html.classList [("cron-trigger", true)]
+          [ Html.classList [("handler-trigger", true)]
           ; ViewUtils.eventNoPropagation
               ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
               "click"
