@@ -167,6 +167,16 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
         color: lighten($cron-color, 10%);
       }
     }
+
+    .inactive-handler-trigger {
+      display: inline;
+      margin-left: 4px;
+      color: $grey2;
+
+      &:hover {
+        cursor: not-allowed;
+      }
+    }
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
