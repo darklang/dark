@@ -492,7 +492,9 @@ let externalLink
           [ Html.class' "external"
           ; Html.href
               ("//" ^ Tea.Http.encodeUri canvasName ^ "." ^ contentHost ^ name)
-          ; Html.target "_blank" ]
+          ; Html.target "_blank"
+          ; Html.title "Send a request via your browser in a new tab"
+          ]
           [fontAwesome "external-link-alt"] ]
   | _ ->
       []
@@ -508,6 +510,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
   | F _, F _, F _ ->
       [ Html.div
           [ Html.classList [("handler-trigger", true)]
+          ; Html.title "Replay this execution"
           ; ViewUtils.eventNoPropagation
               ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
               "click"
