@@ -510,7 +510,10 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and triggerHandlerRPCParams = {tcpTLID : tlid}
+and triggerHandlerRPCParams =
+  { thTLID : tlid
+  ; thTraceID : traceID
+  ; thInput : inputValueDict }
 
 and getTraceDataRPCParams =
   { gtdrpTlid : tlid
@@ -839,7 +842,7 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
-  | TriggerHandlerRPCCallback of (unit, httpError) Tea.Result.t
+  | TriggerHandlerRPCCallback of (tlid * traceID, httpError) Tea.Result.t
       [@printer opaque "TriggerHandlerRPCCallback"]
   | Delete404RPC of fourOhFour
   | NewPresencePush of avatar list
