@@ -498,7 +498,7 @@ let externalLink
       []
 
 
-let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
+let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
   match (spec.module_, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
@@ -512,7 +512,7 @@ let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
               ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
               "click"
               (fun _ -> TriggerCron vs.tl.id) ]
-          [fontAwesome "play"] ]
+          [fontAwesome "redo"] ]
   | _, _, _ ->
       [Vdom.noNode]
 
@@ -528,14 +528,14 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let viewEventModifier =
     let getBtn = externalLink spec vs.canvasName vs.userContentHost in
-    let cronBtn = cronTriggerButton vs spec in
+    let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
     then
       let viewMod = viewText EventModifier vs configs spec.modifier in
       match spec.modifier with
       | F _ ->
-          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ cronBtn))
+          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ triggerBtn))
       | _ ->
           viewMod
     else Vdom.noNode
