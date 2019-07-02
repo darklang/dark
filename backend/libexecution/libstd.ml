@@ -807,7 +807,8 @@ let fns : Lib.shortfn list =
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
               ( try DResult (ResOk (DInt (int_of_string utf8))) with e ->
-                  error_result "Expected a string with only numbers" )
+                  error_result
+                    ("Expected a string with only numbers, got " ^ utf8) )
           | args ->
               fail args)
     ; ps = true
