@@ -537,7 +537,6 @@ module RuntimeT = struct
     | InProcess of (exec_state * dval list -> dval)
     | API of (dval_map -> dval)
     | UserCreated of (tlid * expr)
-    | NotClientAvailable
 
   (* TODO: merge fn and user_fn *)
   type fn =
