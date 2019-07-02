@@ -498,55 +498,57 @@ and call_fn
     (argvals : dval list)
     (send_to_rail : bool) : dval =
   let fn = Libs.get_fn state.user_fns name in
-  match fn with
-  (* Functions which aren't implemented in the client may have results
-   * available, otherwise they just return incomplete. *)
+  match find_derrorrail argvals with
+  | Some er ->
+      er
   | None ->
-      let sfr_desc = (state.tlid, name, id) in
-      ( match state.load_fn_result sfr_desc argvals with
-      | Some (result, _ts) ->
-          result
-      | _ ->
-          DIncomplete )
-  | Some fn ->
-      (* equalize length *)
-      let expected_length = List.length fn.parameters in
-      let actual_length = List.length argvals in
-      let argvals =
-        if expected_length = actual_length
-        then argvals
-        else
-          let actual = Printf.sprintf "%d arguments" actual_length in
-          let expected = Printf.sprintf "%d arguments" expected_length in
-          Exception.internal
-            ~actual
-            ~expected
-            ("Incorrect number of args in fncall to " ^ name)
+      let result =
+        match fn with
+        (* Functions which aren't implemented in the client may have results
+   * available, otherwise they just return incomplete. *)
+        | None ->
+            let sfr_desc = (state.tlid, name, id) in
+            ( match state.load_fn_result sfr_desc argvals with
+            | Some (result, _ts) ->
+                result
+            | _ ->
+                DIncomplete )
+        | Some fn ->
+            (* equalize length *)
+            let expected_length = List.length fn.parameters in
+            let actual_length = List.length argvals in
+            let argvals =
+              if expected_length = actual_length
+              then argvals
+              else
+                let actual = Printf.sprintf "%d arguments" actual_length in
+                let expected = Printf.sprintf "%d arguments" expected_length in
+                Exception.internal
+                  ~actual
+                  ~expected
+                  ("Incorrect number of args in fncall to " ^ name)
+            in
+            let args =
+              fn.parameters
+              |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
+              |> DvalMap.from_list_exn
+            in
+            exec_fn ~engine ~state name id fn args
       in
-      let args =
-        fn.parameters
-        |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
-        |> DvalMap.from_list_exn
-      in
-      ( match find_derrorrail (DvalMap.values args) with
-      | Some er ->
-          er
-      | None ->
-          let result = exec_fn ~engine ~state name id fn args in
-          if send_to_rail
-          then
-            match Dval.unwrap_from_errorrail result with
-            | DOption (OptJust v) ->
-                v
-            | DResult (ResOk v) ->
-                v
-            | DIncomplete ->
-                DIncomplete
-            (* There should only be DOptions and DResults here, but hypothetically we got
+      if send_to_rail
+      then
+        match Dval.unwrap_from_errorrail result with
+        | DOption (OptJust v) ->
+            v
+        | DResult (ResOk v) ->
+            v
+        | DIncomplete ->
+            DIncomplete
+        (* There should only be DOptions and DResults here, but hypothetically we got
         * something else, they would go on the error rail too.  *)
-            | other ->
-                DErrorRail other
-          else result )
+        | other ->
+            DErrorRail other
+      else result
 
 
 and exec_fn
