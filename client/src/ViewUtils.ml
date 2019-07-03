@@ -129,8 +129,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
   ; executingHandlers =
-      List.filter ~f:(fun tlid -> tlid = tl.id) m.executingHandlers
-      |> StrSet.ofList
+      ( if StrSet.member ~value:tl.id m.executingHandlers
+      then StrSet.ofList [tl.id]
+      else StrSet.empty )
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
