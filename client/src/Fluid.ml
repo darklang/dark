@@ -1322,6 +1322,19 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
 
+let replacePatternWithPartial
+    (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun p ->
+      let str = String.trim str in
+      match p with
+      | _ when str = "" ->
+          FPBlank (matchID, gid ())
+      | FPVariable (mID, pID, _) ->
+          FPVariable (mID, pID, str)
+      | _ ->
+          FPVariable (matchID, gid (), str) )
+
+
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       let str = String.trim str in
@@ -2134,8 +2147,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFloatFraction (id, str) ->
       let str = removeCharAt str offset in
       (replaceFloatFraction str id ast, left s)
-  | TPatternConstructorName (mID, id, _) ->
-      (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, moveToStart ti s)
+  | TPatternConstructorName (mID, id, str) ->
+      let f str = removeCharAt str offset in
+      (replacePatternWithPartial (f str) mID id ast, left s)
   | TThreadPipe (id, i) ->
       let s =
         match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
@@ -2244,8 +2258,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternFloatFraction (f str) mID id ast, s)
   | TPatternFloatWhole (mID, id, str) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
-  | TPatternConstructorName (mID, id, _) ->
-      (replacePattern ~newPat:(FPBlank (mID, id)) mID id ast, s)
+  | TPatternConstructorName (mID, id, str) ->
+      let f str = removeCharAt str offset in
+      (replacePatternWithPartial (f str) mID id ast, s)
   | TPatternBlank _ ->
       (ast, s)
   | TThreadPipe (id, i) ->
