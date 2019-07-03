@@ -642,6 +642,95 @@ let toggleSidebar (m : model) : msg Html.html =
   toggleSide
 
 
+let stateInfoTohtml (key : string) (value : msg Html.html) : msg Html.html =
+  Html.div
+    [Html.class' "state-info-row"]
+    [ Html.p [Html.class' "key"] [Html.text key]
+    ; Html.p [Html.class' "sep"] [Html.text ":"]
+    ; Html.p [Html.class' "value"] [value] ]
+
+
+let adminDebuggerView (m : model) : msg Html.html =
+  let environmentName =
+    if m.environment == "prodclone" then "clone" else m.environment
+  in
+  let pageToString pg =
+    match pg with
+    | Architecture ->
+        "Architecture"
+    | FocusedFn tlid ->
+        Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
+    | FocusedHandler (tlid, _) ->
+        Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
+    | FocusedDB (tlid, _) ->
+        Printf.sprintf "DB (TLID %s)" (deTLID tlid)
+    | FocusedType tlid ->
+        Printf.sprintf "Type (TLID %s)" (deTLID tlid)
+  in
+  let flagText =
+    "["
+    ^ (m.tests |> List.map ~f:show_variantTest |> String.join ~sep:", ")
+    ^ "]"
+  in
+  let environment =
+    Html.span [Html.class' "environment"] [Html.text environmentName]
+  in
+  let returnButton =
+    match m.currentPage with
+    | Architecture ->
+        Html.text (pageToString m.currentPage)
+    | _ ->
+        Html.a
+          [ Html.class' "specialButton default-link return-to-canvas"
+          ; Html.href "#" ]
+          [Html.text (pageToString m.currentPage)]
+  in
+  let stateInfo =
+    Html.div
+      [Html.class' "state-info"]
+      [ stateInfoTohtml "env" (Html.text m.environment)
+      ; stateInfoTohtml "flags" (Html.text flagText)
+      ; stateInfoTohtml "cursor" returnButton ]
+  in
+  let toggleTimer =
+    Html.div
+      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
+      ; Html.class' "checkbox-row" ]
+      [ Html.input'
+          [Html.type' "checkbox"; Html.checked (m.timersEnabled == false)]
+          []
+      ; Html.p [] [Html.text "Enable Timers"] ]
+  in
+  let debugger =
+    Html.a
+      [ Html.href (ViewScaffold.debuggerLinkLoc ())
+      ; Html.class' "state-info-row" ]
+      [ Html.text
+          (if Url.isDebugging then "Disable Debugger" else "Enable Debugger")
+      ]
+  in
+  let saveTestButton =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
+            SaveTestButton )
+      ; Html.class' "state-info-row save-state" ]
+      [Html.text "SAVE STATE FOR INTEGRATION TEST"]
+  in
+  let hoverView =
+    [ Html.div
+        [Html.class' "hover admin-state"]
+        [stateInfo; toggleTimer; debugger; saveTestButton] ]
+  in
+  let icon =
+    Html.div [Html.class' "header-icon admin-settings"] [fontAwesome "cog"]
+  in
+  Html.div
+    [Html.class' "collapsed admin"]
+    [ Html.div
+        [Html.class' ("collapsed-icon " ^ m.environment)]
+        ([environment; icon] @ hoverView) ]
+
+
 let viewRoutingTable_ (m : model) : msg Html.html =
   let tls = m.toplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
   let ufns =
@@ -666,11 +755,34 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ eventCategories m tls
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
+  let showAdminDebugger =
+    if isClosed then adminDebuggerView m else Html.div [] []
+  in
   let showCategories =
     if isClosed then closedCategory2html else category2html
   in
   let showDeployStats =
     if isClosed then closedDeployStats2html else deployStats2html
+  in
+  let status =
+    match m.error.message with
+    | None ->
+        Html.div [Html.class' "status"] [Html.text "Dark"]
+    | Some _ ->
+        Html.div
+          [ Html.classList
+              [("status error", true); ("opened", m.error.showDetails)] ]
+          [ Html.a
+              [ Html.class' "link"
+              ; Html.href "#"
+              ; ViewUtils.eventNoPropagation
+                  ~key:(string_of_bool m.error.showDetails)
+                  "mouseup"
+                  (fun _ -> ShowErrorDetails (not m.error.showDetails) ) ]
+              [ Html.text
+                  ( if m.error.showDetails
+                  then "hide details"
+                  else "see details" ) ] ]
   in
   let html =
     Html.div
@@ -683,7 +795,9 @@ let viewRoutingTable_ (m : model) : msg Html.html =
       ( [toggleSidebar m]
       @ [ Html.div
             [Html.classList [("routings", isClosed); ("routes", true)]]
-            (List.map ~f:(showCategories m) cats @ [showDeployStats m]) ] )
+            ( List.map ~f:(showCategories m) cats
+            @ [showDeployStats m; showAdminDebugger] )
+        ; status ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
 
@@ -702,7 +816,11 @@ let rtCacheKey m =
   , m.usedFns
   , m.userTipes |> List.map ~f:(fun t -> t.utName)
   , m.deletedUserTipes |> List.map ~f:(fun t -> t.utName)
-  , tlidOf m.cursorState )
+  , tlidOf m.cursorState
+  , m.environment
+  , m.timersEnabled
+  , m.error
+  , m.currentPage )
 
 
 let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
