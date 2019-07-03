@@ -932,12 +932,12 @@ let () =
         "delete constructor in match pattern"
         matchWithConstructorPattern
         (delete ~wrap:false 12)
-        ("match ___\n  *** -> ___", 12) ;
+        ("match ___\n  ust -> ___", 12) ;
       t
         "backspace constructor in match pattern"
         matchWithConstructorPattern
         (backspace ~wrap:false 16)
-        ("match ___\n  *** -> ___", 12) ;
+        ("match ___\n  Jus -> ___", 15) ;
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (EVariable (gid (), "binding")))
