@@ -229,9 +229,6 @@ $countBoxSize: 15px;
         font-size: 14px;
         text-decoration: none;
       }
-      .no-ext {
-        margin-left: 16px;
-      }
       &.GET a,
       &.GET span {
         color: $http-get;
@@ -251,10 +248,6 @@ $countBoxSize: 15px;
       &.PATCH a,
       &.PATCH span {
         color: $http-patch;
-      }
-
-      &.GET a.external {
-        margin-right: 6px;
       }
     }
   }
