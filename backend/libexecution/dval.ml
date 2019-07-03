@@ -832,11 +832,15 @@ let to_dobj_exn (pairs : (string * dval) list) : dval =
       DError err
 
 
+let to_string_opt dv : string option =
+  match dv with DStr s -> Some (Unicode_string.to_string s) | _ -> None
+
+
 let to_string_exn dv : string =
-  match dv with
-  | DStr s ->
-      Unicode_string.to_string s
-  | _ ->
+  match to_string_opt dv with
+  | Some s ->
+      s
+  | None ->
       Exception.code "expecting str" ~actual:(to_developer_repr_v0 dv)
 
 

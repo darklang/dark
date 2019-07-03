@@ -19,7 +19,19 @@ module AT = Alcotest
 (* ------------------- *)
 (* Misc fns *)
 (* ------------------- *)
+
+(* Allows us to mock analysis *)
+let test_fn_results : ((function_desc * dval list) * (dval * Time.t)) list ref
+    =
+  ref []
+
+
+(* Not wired up yet *)
+let test_fn_arguments : (dval_map * Time.t) list list ref = ref []
+
 let clear_test_data () : unit =
+  test_fn_results := [] ;
+  test_fn_arguments := [] ;
   let owner = Account.for_host_exn "test" in
   let canvas_ids =
     Db.fetch
@@ -255,6 +267,19 @@ let ops2c_exn (host : string) (ops : Op.op list) : C.canvas ref =
   |> Prelude.Result.ok_or_internal_exception "Canvas load error"
 
 
+let add_test_fn_result
+    (desc : function_desc) (args : dval list) (result : dval * Time.t) : unit =
+  test_fn_results := ((desc, args), result) :: !test_fn_results ;
+  ()
+
+
+let load_test_fn_results (desc : function_desc) (args : dval list) :
+    (dval * Time.t) option =
+  List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
+      (desc, args) = (desc', args') )
+  |> Option.map ~f:Tuple2.get2
+
+
 let test_execution_data ?(canvas_name = "test") ops :
     C.canvas ref * exec_state * input_vars =
   let c = ops2c_exn canvas_name ops in
@@ -270,8 +295,10 @@ let test_execution_data ?(canvas_name = "test") ops :
     ; fail_fn = None
     ; dbs = TL.dbs !c.dbs
     ; execution_id
-    ; load_fn_result = Execution.load_no_results
-    ; store_fn_result = Stored_function_result.store ~canvas_id ~trace_id
+    ; load_fn_result = load_test_fn_results
+    ; store_fn_result =
+        Stored_function_result.store ~canvas_id ~trace_id
+        (* TODO: expose this too *)
     ; load_fn_arguments = Execution.load_no_arguments
     ; store_fn_arguments = Stored_function_arguments.store ~canvas_id ~trace_id
     }
@@ -281,7 +308,15 @@ let test_execution_data ?(canvas_name = "test") ops :
 
 let execute_ops (ops : Op.op list) : dval =
   let ( c
-      , {tlid; execution_id; dbs; user_fns; user_tipes; account_id; canvas_id}
+      , { tlid
+        ; load_fn_result
+        ; load_fn_arguments
+        ; execution_id
+        ; dbs
+        ; user_fns
+        ; user_tipes
+        ; account_id
+        ; canvas_id }
       , input_vars ) =
     test_execution_data ops
   in
@@ -295,6 +330,8 @@ let execute_ops (ops : Op.op list) : dval =
       ~user_fns
       ~user_tipes
       ~account_id
+      ~load_fn_result
+      ~load_fn_arguments
       ~canvas_id
       ~input_vars:[]
   in
