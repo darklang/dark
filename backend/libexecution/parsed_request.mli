@@ -7,7 +7,12 @@ type header = string * string
 type query_val = string * string list
 
 val from_request :
-  ?allow_unparseable:bool -> Uri.t -> header list -> query_val list -> string -> t
+     ?allow_unparseable:bool
+  -> Uri.t
+  -> header list
+  -> query_val list
+  -> string
+  -> t
 
 val to_dval : t -> Types.RuntimeT.dval
 

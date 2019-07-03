@@ -391,7 +391,12 @@ let user_page_handler
           options_handler ~execution_id !c req
       | [] ->
           let fof_timestamp =
-            PReq.from_request ~allow_unparseable:true uri headers query body
+            PReq.from_request
+              ~allow_unparseable:true
+              (with_x_forwarded_proto req)
+              headers
+              query
+              body
             |> PReq.to_dval
             |> Stored_event.store_event
                  ~trace_id
@@ -418,7 +423,9 @@ let user_page_handler
                 "500 Internal Server Error: More than one handler for route: "
                 ^ Uri.path uri }
       | [page] ->
-          let input = PReq.from_request uri headers query body in
+          let input =
+            PReq.from_request (with_x_forwarded_proto req) headers query body
+          in
           ( match (Handler.module_for page, Handler.modifier_for page) with
           | Some m, Some mo ->
               (* Store the event with the input path not the event name, because we
