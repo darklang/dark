@@ -504,10 +504,10 @@ let externalLink
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
-  let executingClass =
-    if handlerIsExecuting vs vs.tlid then " is-executing" else ""
+  let isExecutingClasses =
+    if handlerIsExecuting vs vs.tlid then [("is-executing", true)] else []
   in
-  match (spec.module_, spec.name, spec.modifier) with
+  match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
   | F (_, a), F (_, b), F (_, c)
@@ -524,7 +524,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
       if hasData
       then
         [ Html.div
-            [ Html.classList [("handler-trigger", true)]
+            [ Html.classList ([("handler-trigger", true)] @ isExecutingClasses)
             ; Html.title "Replay this execution"
             ; ViewUtils.eventNoPropagation
                 ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
