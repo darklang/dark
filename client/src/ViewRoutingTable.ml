@@ -19,9 +19,7 @@ type entry =
   ; killAction :
       msg option
       (* if this is in the deleted section, what does minus do? *)
-  ; verb : string option
-  ; externalLink : handlerSpec option
-  (* for http handlers to link out *) }
+  ; verb : string option }
 
 and category =
   { count : int
@@ -91,7 +89,6 @@ let httpCategory (_m : model) (tls : toplevel list) : category =
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
-            ; externalLink = Some h.spec
             ; verb = h.spec.modifier |> Blank.toMaybe } ) }
 
 
@@ -115,7 +112,6 @@ let cronCategory (_m : model) (tls : toplevel list) : category =
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
-            ; externalLink = None
             ; verb = None } ) }
 
 
@@ -147,7 +143,6 @@ let dbCategory (m : model) (tls : toplevel list) : category =
           ; destination = Some (FocusedDB (db.dbTLID, true))
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
-          ; externalLink = None
           ; verb = None
           ; plusButton = None } )
   in
@@ -178,7 +173,6 @@ let undefinedCategory (_m : model) (tls : toplevel list) : category =
             ; minusButton = Some (ToplevelDelete tl.id)
             ; killAction = Some (ToplevelDeleteForever tl.id)
             ; plusButton = None
-            ; externalLink = None
             ; verb = None } ) }
 
 
@@ -223,7 +217,6 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
                 ; minusButton = Some (ToplevelDelete tl.id)
                 ; killAction = Some (ToplevelDeleteForever tl.id)
                 ; plusButton = None
-                ; externalLink = None
                 ; verb = None } ) } )
 
 
@@ -245,7 +238,6 @@ let f404Category (m : model) : category =
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
-            ; externalLink = None
             ; verb = Some modifier } ) }
 
 
@@ -269,8 +261,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
           ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
           ; destination = Some (FocusedFn fn.ufTLID)
           ; plusButton = None
-          ; verb = None
-          ; externalLink = None } )
+          ; verb = None } )
   in
   { count = List.length fns
   ; name = "Functions"
@@ -297,8 +288,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
           ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
           ; destination = Some (FocusedType tipe.utTLID)
           ; plusButton = None
-          ; verb = None
-          ; externalLink = None } )
+          ; verb = None } )
   in
   { count = List.length tipes
   ; name = "Types"
@@ -353,8 +343,7 @@ let deletedCategory (m : model) : category =
                         plusButton = Some (RestoreToplevel e.tlid)
                       ; uses = None
                       ; minusButton = e.killAction
-                      ; destination = None
-                      ; externalLink = None }
+                      ; destination = None }
                 | c ->
                     c ) } )
   in
@@ -366,12 +355,6 @@ let deletedCategory (m : model) : category =
 
 
 let entry2html (m : model) (e : entry) : msg Html.html =
-  let ext =
-    Option.map
-      ~f:(fun l -> ViewCode.externalLink l m.canvasName m.userContentHost)
-      e.externalLink
-    |> Option.withDefault ~default:[]
-  in
   let name =
     match e.uses with
     | Some count ->
@@ -395,14 +378,13 @@ let entry2html (m : model) (e : entry) : msg Html.html =
           [Html.text name] )
   in
   let verb =
-    let noExt = if List.isEmpty ext then " no-ext" else "" in
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [destinationLink dest ("verb verb-link" ^ noExt) v]
+        [destinationLink dest "verb verb-link" v]
     | None, Some v ->
-        [Html.span [Html.class' ("verb" ^ noExt)] [Html.text v]]
+        [Html.span [Html.class' "verb"] [Html.text v]]
     | _ ->
-        [Html.span [Html.class' ("verb" ^ noExt)] []]
+        [Html.span [Html.class' "verb"] []]
   in
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
@@ -428,7 +410,7 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let auxViews =
     Html.div
       [Html.classList [("aux", true); (httpMethod, true)]]
-      (ext @ verb @ pluslink)
+      (verb @ pluslink)
   in
   let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
