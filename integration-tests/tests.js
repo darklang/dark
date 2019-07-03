@@ -804,6 +804,7 @@ test("rename_function", async t => {
     .pressKey("enter")
 
     // Return to main canvas to finish tests
+    .hover(".admin")
     .click(".return-to-canvas");
 });
 
@@ -963,7 +964,7 @@ test("function_analysis_works", async t => {
     .eql("10", { timeout: 5000 });
 
   // Return to main canvas to finish tests
-  await t.click(".return-to-canvas");
+  await t.hover(".admin").click(".return-to-canvas");
 });
 
 test("fourohfours_parse", async t => {
@@ -1007,6 +1008,7 @@ test("fn_page_returns_to_lastpos", async t => {
   await t.expect(Selector("#canvas").getStyleProperty("transform")).notEql(archOffset);
 
   await t
+    .hover(".admin")
     .click(".return-to-canvas")
     .expect(available(".tl-123"))
     .ok({ timeout: 1000 });
