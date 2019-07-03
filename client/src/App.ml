@@ -1244,41 +1244,42 @@ let update_ (msg : msg) (m : model) : modification =
                     m.deletedUserTipes } ) ]
   | AddOpRPCCallback
       (focus, tlidsToUpdateMeta, tlidsToUpdateUsage, browserId, _, Ok r) ->
-    (* TODO DEBUG MATCH *)
-    ( match browserId with
-    | None ->
-        NoChange
-    | Some browserId when browserId = m.browserId ->
-        NoChange
-    | Some _ ->
-        let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-        let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
-        let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
-        if focus = FocusNoChange
-        then
-          Many
-            [ UpdateToplevels (r.toplevels, false)
-            ; UpdateDeletedToplevels r.deletedToplevels
-            ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-            ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-            ; MakeCmd (Entry.focusEntry m)
-            ; metaMod
-            ; usageMod ]
-        else
-          let m2 = TL.upsertAll m r.toplevels in
-          let m3 = {m2 with userFunctions = r.userFunctions} in
-          let m4 = {m3 with userTipes = r.userTipes} in
-          let newState = processFocus m4 focus in
-          Many
-            [ UpdateToplevels (r.toplevels, true)
-            ; UpdateDeletedToplevels r.deletedToplevels
-            ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-            ; SetTypes (r.userTipes, r.deletedUserTipes, true)
-            ; AutocompleteMod ACReset
-            ; ClearError
-            ; newState
-            ; metaMod
-            ; usageMod ] )
+      ( match browserId with
+      | Some browserId when browserId = m.browserId ->
+          (* If browserId is set, and it is the same as this client's browserId, t
+         * that means we're processing a pusher msg from this client - so
+         * ignore it, we already handled this op via the HTTP callback *)
+          NoChange
+      | None | Some _ ->
+          let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+          let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
+          let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
+          if focus = FocusNoChange
+          then
+            Many
+              [ UpdateToplevels (r.toplevels, false)
+              ; UpdateDeletedToplevels r.deletedToplevels
+              ; SetUserFunctions
+                  (r.userFunctions, r.deletedUserFunctions, false)
+              ; SetTypes (r.userTipes, r.deletedUserTipes, false)
+              ; MakeCmd (Entry.focusEntry m)
+              ; metaMod
+              ; usageMod ]
+          else
+            let m2 = TL.upsertAll m r.toplevels in
+            let m3 = {m2 with userFunctions = r.userFunctions} in
+            let m4 = {m3 with userTipes = r.userTipes} in
+            let newState = processFocus m4 focus in
+            Many
+              [ UpdateToplevels (r.toplevels, true)
+              ; UpdateDeletedToplevels r.deletedToplevels
+              ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+              ; SetTypes (r.userTipes, r.deletedUserTipes, true)
+              ; AutocompleteMod ACReset
+              ; ClearError
+              ; newState
+              ; metaMod
+              ; usageMod ] )
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
