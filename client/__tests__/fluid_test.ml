@@ -1227,7 +1227,7 @@ let () =
         "adding infix functions adds the right number of blanks"
         emptyThread
         (presses ~wrap:false [K.Plus; K.Enter] 6)
-        ("___\n|> + _________", 9) ;
+        ("___\n|>+ _________", 8) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
