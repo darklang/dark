@@ -492,8 +492,7 @@ let externalLink
           [ Html.class' "external"
           ; Html.href
               ("//" ^ Tea.Http.encodeUri canvasName ^ "." ^ contentHost ^ name)
-          ; Html.target "_blank"
-          ; Html.title "Send a request via your browser in a new tab" ]
+          ; Html.target "_blank" ]
           [fontAwesome "external-link-alt"] ]
   | _ ->
       []
