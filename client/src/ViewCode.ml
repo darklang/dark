@@ -504,7 +504,8 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
   match (spec.module_, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
-  | F (_, ""), F (_, ""), F (_, "") ->
+  | F (_, a), F (_, b), F (_, c)
+    when List.any ~f:(fun s -> String.length s = 0) [a; b; c] ->
       [Vdom.noNode]
   | F _, F _, F _ ->
       let hasData =
