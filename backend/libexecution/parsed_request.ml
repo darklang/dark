@@ -101,16 +101,7 @@ let cookies (headers : (string * string) list) =
 
 
 let url (uri : Uri.t) =
-  let munged_uri =
-    match Uri.scheme uri with
-    | Some _ ->
-        uri
-    | None ->
-        (* Assume we don't have working certs if user content is served on a local
-         * domain *)
-        Uri.with_scheme uri (Some "http")
-  in
-  munged_uri
+  uri
   |> Uri.to_string
   |> fun s -> Dval.to_dobj_exn [("url", Dval.dstr_of_string_exn s)]
 

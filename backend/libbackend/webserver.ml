@@ -187,11 +187,26 @@ let wrap_json_headers =
 
    Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto. *)
 let with_x_forwarded_proto req =
+  let uri = CRequest.uri req in
   match Header.get (CRequest.headers req) "X-Forwarded-Proto" with
   | Some proto ->
-      Uri.with_scheme (CRequest.uri req) (Some proto)
+      Uri.with_scheme uri (Some proto)
   | None ->
-      CRequest.uri req
+    ( match Uri.scheme uri with
+    | Some _ ->
+        uri
+    | None ->
+        Uri.with_scheme uri (Some "http") )
+
+
+(* Currently we just ensure that the Uri scheme is set *)
+let canonicalize_request request =
+  CRequest.make
+    ~meth:(CRequest.meth request)
+    ~version:(CRequest.version request)
+    ~encoding:(CRequest.encoding request)
+    ~headers:(CRequest.headers request)
+    (with_x_forwarded_proto request)
 
 
 (* sanitize both repeated '/' and final '/'.
@@ -391,12 +406,7 @@ let user_page_handler
           options_handler ~execution_id !c req
       | [] ->
           let fof_timestamp =
-            PReq.from_request
-              ~allow_unparseable:true
-              (with_x_forwarded_proto req)
-              headers
-              query
-              body
+            PReq.from_request ~allow_unparseable:true uri headers query body
             |> PReq.to_dval
             |> Stored_event.store_event
                  ~trace_id
@@ -423,9 +433,7 @@ let user_page_handler
                 "500 Internal Server Error: More than one handler for route: "
                 ^ Uri.path uri }
       | [page] ->
-          let input =
-            PReq.from_request (with_x_forwarded_proto req) headers query body
-          in
+          let input = PReq.from_request uri headers query body in
           ( match (Handler.module_for page, Handler.modifier_for page) with
           | Some m, Some mo ->
               (* Store the event with the input path not the event name, because we
@@ -1558,7 +1566,7 @@ let server () =
           ; ("uri", Uri.to_string uri)
           ; ("execution_id", Types.string_of_id execution_id) ] ;
       (* first: if this isn't https and should be, redirect *)
-      match redirect_to (with_x_forwarded_proto req) with
+      match redirect_to (CRequest.uri req) with
       | Some x ->
           S.respond_redirect ~uri:x ()
       | None ->
@@ -1605,6 +1613,7 @@ let server () =
     with e -> handle_error ~include_internals:false e
   in
   let cbwb conn req req_body =
+    let req = canonicalize_request req in
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
     let execution_id = Util.create_id () in
     let request_path = Uri.path_and_query (CRequest.uri req) in
