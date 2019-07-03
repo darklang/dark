@@ -1079,7 +1079,9 @@ let () =
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
       let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
-      let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
+      let listFn args =
+        EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+      in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
       let emptyThread = EThread (gid (), [newB (); newB ()]) in
       let aLongThread =
