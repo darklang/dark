@@ -23,7 +23,7 @@ type viewState =
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
-  ; executingHandlers : tlid list
+  ; executingHandlers : StrSet.t
   ; tlCursors : tlCursors
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
