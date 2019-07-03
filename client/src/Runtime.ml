@@ -397,5 +397,5 @@ let pathFromInputVars (iv : inputValueDict) : string option =
   |> Option.andThen ~f:(fun obj ->
          match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None )
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
-  |> Option.andThen ~f:URL.make
+  |> Option.andThen ~f:WebURL.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
