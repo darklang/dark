@@ -130,6 +130,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       |> List.map ~f:(fun (_, id) -> id)
   ; executingHandlers =
       List.filter ~f:(fun tlid -> tlid = tl.id) m.executingHandlers
+      |> StrSet.ofList
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags

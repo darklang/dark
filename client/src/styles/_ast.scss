@@ -31,6 +31,17 @@ $pipe-color: $blue;
   }
 }
 
+@mixin is-executing() {
+  &.is-executing {
+    color: white;
+    transition: none;
+
+    i {
+      animation: spin 0.75s infinite linear;
+    }
+  }
+}
+
 .highlighted-indent {
   margin-left: $spacing-medium;
   padding-left: $spacing-medium;
@@ -173,15 +184,8 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
       &:hover {
         cursor: pointer;
       }
-    }
 
-    .is-executing {
-      color: white;
-      transition: none;
-
-      i {
-        animation: spin 0.75s infinite linear;
-      }
+      @include is-executing();
     }
 
     .inactive-handler-trigger {
@@ -191,15 +195,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
       &:hover {
         cursor: not-allowed;
-      }
-
-      &.is-executing {
-        color: white;
-        transition: none;
-
-        i {
-          animation: spin 0.75s infinite linear;
-        }
       }
     }
   }
@@ -529,14 +524,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
         color: green;
       }
 
-      &.is-executing {
-        color: white;
-        transition: none;
-
-        i {
-          animation: spin 0.75s infinite linear;
-        }
-      }
+      @include is-executing();
     }
   }
 
