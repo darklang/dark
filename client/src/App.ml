@@ -909,7 +909,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
           ( { m with
-              executingHandlers = StrSet.add ~value:tlid m.executingHandlers }
+              executingHandlers =
+                StrSet.add ~value:(deTLID tlid) m.executingHandlers }
           , RPC.triggerHandler
               m
               {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
@@ -1336,7 +1337,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; TweakModel
             (fun m ->
               let executingHandlers =
-                StrSet.remove ~value:params.thTLID m.executingHandlers
+                StrSet.remove ~value:(deTLID params.thTLID) m.executingHandlers
               in
               {m with executingHandlers} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
