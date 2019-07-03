@@ -66,12 +66,14 @@ let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
   Tea.Http.send
     (fun x ->
       AddOpRPCCallback
-        ( focus
-        , tlidsToUpdateMeta
-        , tlidsToUpdateUsage
-        , Some m.browserId
-        , Some params
-        , x ) )
+        (* We have three cases:
+         * - browserId = None - HTTP callback
+         * - Some browserId, same as current browserId - ignore, this is a
+         * pusher msg from our own browser
+         * - Some browserId, diff from current browserId - process, this is a
+         * pusher msg from a diff browser (or tab)
+         * *)
+        (focus, tlidsToUpdateMeta, tlidsToUpdateUsage, None, Some params, x) )
     request
 
 
