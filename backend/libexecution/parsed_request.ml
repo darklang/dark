@@ -99,8 +99,18 @@ let cookies (headers : (string * string) list) =
   |> Option.value ~default:(Dval.to_dobj_exn [])
   |> fun x -> Dval.to_dobj_exn [("cookies", x)]
 
+
 let url (uri : Uri.t) =
-  uri
+  let munged_uri =
+    match Uri.scheme uri with
+    | Some _ ->
+        uri
+    | None ->
+        (* Assume we don't have working certs if user content is served on a local
+         * domain *)
+        Uri.with_scheme uri (Some "http")
+  in
+  munged_uri
   |> Uri.to_string
   |> fun s -> Dval.to_dobj_exn [("url", Dval.dstr_of_string_exn s)]
 
@@ -140,8 +150,7 @@ let from_request
     ; parsed_headers headers
     ; unparsed_body rbody
     ; cookies headers
-    ; url uri
-  ]
+    ; url uri ]
   in
   List.fold_left
     ~init:Dval.empty_dobj
