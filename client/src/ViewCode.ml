@@ -98,7 +98,7 @@ let functionIsExecuting (vs : viewState) (id : id) : bool =
 
 
 let handlerIsExecuting (vs : viewState) (id : tlid) : bool =
-  StrSet.member ~value:id vs.executingHandlers
+  StrSet.member ~value:(deTLID id) vs.executingHandlers
 
 
 type ('a, 'b, 'c, 'd) x =
