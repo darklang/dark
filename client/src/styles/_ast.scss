@@ -20,6 +20,14 @@ $pipe-color: $blue;
   &.#{$name} {
     color: $color;
     border-bottom-color: $color;
+
+    .modifier {
+      .handler-trigger {
+        &:hover {
+          color: lighten($color, 10%);
+        }
+      }
+    }
   }
 }
 
@@ -158,13 +166,22 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
       color: $green;
     }
 
-    .cron-trigger {
+    .handler-trigger {
       display: inline;
       margin-left: 4px;
 
       &:hover {
         cursor: pointer;
-        color: lighten($cron-color, 10%);
+      }
+    }
+
+    .inactive-handler-trigger {
+      display: inline;
+      margin-left: 4px;
+      color: $grey2;
+
+      &:hover {
+        cursor: not-allowed;
       }
     }
   }

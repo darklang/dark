@@ -358,8 +358,12 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and triggerCronRPCParams (params : Types.triggerCronRPCParams) : Js.Json.t =
-  object_ [("tlid", tlid params.tcpTLID)]
+and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) :
+    Js.Json.t =
+  object_
+    [ ("tlid", tlid params.thTLID)
+    ; ("trace_id", string params.thTraceID)
+    ; ("input", list (tuple2 string dval) (StrDict.toList params.thInput)) ]
 
 
 and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =

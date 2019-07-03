@@ -510,7 +510,10 @@ and executeFunctionRPCParams =
   ; efpArgs : dval list
   ; efpFnName : string }
 
-and triggerCronRPCParams = {tcpTLID : tlid}
+and triggerHandlerRPCParams =
+  { thTLID : tlid
+  ; thTraceID : traceID
+  ; thInput : inputValueDict }
 
 and getTraceDataRPCParams =
   { gtdrpTlid : tlid
@@ -561,7 +564,7 @@ and dvalArgsHash = string
 
 and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
 
-and triggerCronRPCResult = traceID * tlid list
+and triggerHandlerRPCResult = tlid list
 
 and unlockedDBs = StrSet.t
 
@@ -770,7 +773,7 @@ and modification =
   | Many of modification list
   | Drag of tlid * vPos * hasMoved * cursorState
   | TriggerIntegrationTest of string
-  | TriggerCronRPC of tlid
+  | TriggerHandlerRPC of tlid
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
@@ -839,8 +842,10 @@ and msg =
       executeFunctionRPCParams
       * (executeFunctionRPCResult, httpError) Tea.Result.t
       [@printer opaque "ExecuteFunctionRPCCallback"]
-  | TriggerCronRPCCallback of (unit, httpError) Tea.Result.t
-      [@printer opaque "TriggerCronRPCCallback"]
+  | TriggerHandlerRPCCallback of
+      triggerHandlerRPCParams
+      * (triggerHandlerRPCResult, httpError) Tea.Result.t
+      [@printer opaque "TriggerHandlerRPCCallback"]
   | Delete404RPC of fourOhFour
   | NewPresencePush of avatar list
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
@@ -867,7 +872,7 @@ and msg =
   | TraceClick of tlid * traceID * mouseEvent
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent
-  | TriggerCron of tlid
+  | TriggerHandler of tlid
   | CreateRouteHandler of string option
   | ToggleSideBar
   | CreateFunction

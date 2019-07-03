@@ -498,21 +498,37 @@ let externalLink
       []
 
 
-let cronTriggerButton (vs : viewState) (spec : handlerSpec) :
+let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
     msg Html.html list =
   match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
-   is needed to recover cron traces on refresh. *)
-  | F (_, "CRON"), F (_, ""), F (_, "") ->
+   is needed to recover handler traces on refresh. *)
+  | F (_, a), F (_, b), F (_, c)
+    when List.any ~f:(fun s -> String.length s = 0) [a; b; c] ->
       [Vdom.noNode]
-  | F (_, "CRON"), F _, F _ ->
-      [ Html.div
-          [ Html.classList [("cron-trigger", true)]
-          ; ViewUtils.eventNoPropagation
-              ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
-              "click"
-              (fun _ -> TriggerCron vs.tl.id) ]
-          [fontAwesome "play"] ]
+  | F _, F _, F _ ->
+      let hasData =
+        Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
+        |> Option.andThen ~f:(fun trace_id ->
+               List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+               |> Option.andThen ~f:(fun (_, data) -> data) )
+        |> Option.is_some
+      in
+      if hasData
+      then
+        [ Html.div
+            [ Html.classList [("handler-trigger", true)]
+            ; Html.title "Replay this execution"
+            ; ViewUtils.eventNoPropagation
+                ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
+                "click"
+                (fun _ -> TriggerHandler vs.tl.id) ]
+            [fontAwesome "redo"] ]
+      else
+        [ Html.div
+            [ Html.classList [("inactive-handler-trigger", true)]
+            ; Html.title "Need input data to replay execution" ]
+            [fontAwesome "redo"] ]
   | _, _, _ ->
       [Vdom.noNode]
 
@@ -528,14 +544,14 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let viewEventModifier =
     let getBtn = externalLink spec vs.canvasName vs.userContentHost in
-    let cronBtn = cronTriggerButton vs spec in
+    let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec
     then
       let viewMod = viewText EventModifier vs configs spec.modifier in
       match spec.modifier with
       | F _ ->
-          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ cronBtn))
+          Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ triggerBtn))
       | _ ->
           viewMod
     else Vdom.noNode

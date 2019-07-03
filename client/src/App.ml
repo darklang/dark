@@ -905,8 +905,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   Viewport.centerCanvasOn (TL.getExn m tlid) m.canvasProps
               ; panAnimation = true } }
         , Cmd.none )
-    | TriggerCronRPC tlid ->
-        (m, RPC.triggerCron m {tcpTLID = tlid})
+    | TriggerHandlerRPC tlid ->
+      ( match Analysis.getCurrentTrace m tlid with
+      | Some (traceID, Some traceData) ->
+          ( m
+          , RPC.triggerHandler
+              m
+              {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
+          )
+      | _ ->
+          (m, Cmd.none) )
     | InitIntrospect tls ->
         let newM =
           { m with
@@ -1020,8 +1028,8 @@ let update_ (msg : msg) (m : model) : modification =
       Many (traceCmd @ [SetHover (tlid, ID traceID)])
   | TraceMouseLeave (tlid, traceID, _) ->
       ClearHover (tlid, ID traceID)
-  | TriggerCron tlid ->
-      TriggerCronRPC tlid
+  | TriggerHandler tlid ->
+      TriggerHandlerRPC tlid
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->
@@ -1315,8 +1323,14 @@ let update_ (msg : msg) (m : model) : modification =
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces) ]
-  | TriggerCronRPCCallback (Ok ()) ->
-      NoChange
+  | TriggerHandlerRPCCallback (params, Ok tlids) ->
+      let traces =
+        List.map
+          ~f:(fun tlid -> (deTLID tlid, [(params.thTraceID, None)]))
+          tlids
+        |> StrDict.fromList
+      in
+      OverrideTraces traces
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
@@ -1397,9 +1411,9 @@ let update_ (msg : msg) (m : model) : modification =
         , ImportantError
         , err
         , Encoders.executeFunctionRPCParams params )
-  | TriggerCronRPCCallback (Error err) ->
+  | TriggerHandlerRPCCallback (_, Error err) ->
       DisplayAndReportHttpError
-        ("TriggerCron", ImportantError, err, Js.Json.null)
+        ("TriggerHandler", ImportantError, err, Js.Json.null)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError
         ("InitialLoad", ImportantError, err, Js.Json.null)

@@ -302,3 +302,12 @@ let to_execute_function_rpc_result hash touched_tlids dv : string =
   {result = dv; hash; touched_tlids}
   |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
+
+
+type trigger_handler_rpc_result = {touched_tlids : tlid list}
+[@@deriving to_yojson]
+
+let to_trigger_handler_rpc_result touched_tlids : string =
+  {touched_tlids}
+  |> trigger_handler_rpc_result_to_yojson
+  |> Yojson.Safe.to_string ~std:true
