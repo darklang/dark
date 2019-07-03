@@ -419,8 +419,8 @@ and executeFunctionRPCResult j : executeFunctionRPCResult =
   , field "touched_tlids" (list tlid) j )
 
 
-and triggerCronRPCResult j : triggerCronRPCResult =
-  (field "trace_id" string j, field "tlid" (list tlid) j)
+and triggerHandlerRPCResult j : triggerHandlerRPCResult =
+  field "touched_tlids" (list tlid) j
 
 
 and saveTestRPCResult j : saveTestRPCResult = string j
