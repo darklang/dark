@@ -484,14 +484,31 @@ let view (vs : viewState) (e : expr) =
   else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
 
 
-let externalLink
-    (spec : handlerSpec) (canvasName : string) (contentHost : string) =
+let externalLink (vs : viewState) (spec : handlerSpec) =
   match (spec.modifier, spec.name) with
   | F (_, "GET"), F (_, name) ->
+      let urlPath =
+        let currentTraceData =
+          Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
+          |> Option.andThen ~f:(fun trace_id ->
+                 List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+                 |> Option.andThen ~f:(fun (_, data) -> data) )
+        in
+        match currentTraceData with
+        | Some data ->
+            Runtime.pathFromInputVars data.input
+            |> Option.withDefault ~default:name
+        | None ->
+            name
+      in
       [ Html.a
           [ Html.class' "external"
           ; Html.href
-              ("//" ^ Tea.Http.encodeUri canvasName ^ "." ^ contentHost ^ name)
+              ( "//"
+              ^ Tea.Http.encodeUri vs.canvasName
+              ^ "."
+              ^ vs.userContentHost
+              ^ urlPath )
           ; Html.target "_blank" ]
           [fontAwesome "external-link-alt"] ]
   | _ ->
@@ -543,7 +560,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
-    let getBtn = externalLink spec vs.canvasName vs.userContentHost in
+    let getBtn = externalLink vs spec in
     let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     if SpecHeaders.visibleModifier spec

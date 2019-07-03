@@ -390,3 +390,12 @@ let inputValueAsString (iv : inputValueDict) : string =
   |> Option.withDefault ~default:[]
   |> List.map ~f:(String.dropLeft ~count:2)
   |> String.join ~sep:"\n"
+
+
+let pathFromInputVars (iv : inputValueDict) : string option =
+  StrDict.get ~key:"request" iv
+  |> Option.andThen ~f:(fun obj ->
+         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None )
+  |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
+  |> Option.andThen ~f:URL.make
+  |> Option.map ~f:(fun url -> url##pathname ^ url##search)
