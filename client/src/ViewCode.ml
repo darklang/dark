@@ -512,7 +512,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
         Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
         |> Option.andThen ~f:(fun trace_id ->
                List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-               |> Option.map ~f:(fun (_, data) -> data) )
+               |> Option.andThen ~f:(fun (_, data) -> data) )
         |> Option.is_some
       in
       if hasData
