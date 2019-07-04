@@ -10,11 +10,11 @@ let t_on_the_rail () =
   let id = Ast.blank_to_id prog in
   add_test_fn_result
     (tlid, "fake_test_fn", id)
-    [DInt 4; DInt 5]
-    (DOption (OptJust (DInt 12345)), Time.now ()) ;
+    [Dval.dint 4; Dval.dint 5]
+    (DOption (OptJust (Dval.dint 12345)), Time.now ()) ;
   check_dval
     "is on the error rail"
-    (DInt 12345)
+    (Dval.dint 12345)
     (execute_ops [hop (handler prog)])
 
 
