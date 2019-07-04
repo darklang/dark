@@ -14,7 +14,7 @@ module PrettyResponseJsonV0 = struct
     match dv with
     (* basic types *)
     | DInt i ->
-        `Int i
+        `Int (Dint.to_int_exn i)
     | DFloat f ->
         `Float f
     | DBool b ->
@@ -80,7 +80,7 @@ module PrettyRequestJsonV0 = struct
   let as_string (dv : dval) : string =
     match dv with
     | DInt i ->
-        string_of_int i
+        Dint.to_string i
     | DBool true ->
         "true"
     | DBool false ->
