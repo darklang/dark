@@ -115,7 +115,9 @@ val of_form_encoding : string -> Types.RuntimeT.dval
  * and can be longer than a byte. *)
 val to_char : Types.RuntimeT.dval -> string option
 
-val to_int : Types.RuntimeT.dval -> int option
+val to_int : Types.RuntimeT.dval -> Dint.t option
+
+val dint : int -> Types.RuntimeT.dval
 
 (* Converts a Dark String to an OCaml string. *)
 val to_string_opt : Types.RuntimeT.dval -> string option

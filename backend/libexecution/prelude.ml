@@ -92,3 +92,24 @@ module StrDict = struct
   let mapi ~(f : key:key -> value:'value -> 'a) (dict : 'value t) : 'value t =
     Base.Map.mapi ~f:(fun ~key ~data -> f ~key ~value:data) dict
 end
+
+module Int63 = struct
+  include Core_kernel.Int63
+
+  let to_yojson (i : Core_kernel.Int63.t) : Yojson.Safe.t =
+    match Core_kernel.Int63.to_int i with
+    | Some i ->
+        `Int i
+    | None ->
+        `Intlit (Core_kernel.Int63.to_string i)
+
+
+  let of_yojson (json : Yojson.Safe.t) : (Core_kernel.Int63.t, string) result =
+    match json with
+    | `Int i ->
+        Ok (Core_kernel.Int63.of_int i)
+    | `Intlit i | `String i ->
+        Ok (Core_kernel.Int63.of_string i)
+    | _ ->
+        Error "Int63.t of_yojson"
+end

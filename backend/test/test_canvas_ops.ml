@@ -40,22 +40,24 @@ let t_undo () =
   let o5 = v "5" in
   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
   (* Check assumptions *)
-  execute_ops ops |> check_dval "t_undo_1" (DInt 5) ;
+  execute_ops ops |> check_dval "t_undo_1" (Dval.dint 5) ;
   (* First undo *)
-  execute_ops (List.concat [ops; [u]]) |> check_dval "t_undo_3" (DInt 4) ;
+  execute_ops (List.concat [ops; [u]]) |> check_dval "t_undo_3" (Dval.dint 4) ;
   (* Second undo *)
-  execute_ops (List.concat [ops; [u; u]]) |> check_dval "t_undo_4" (DInt 3) ;
+  execute_ops (List.concat [ops; [u; u]])
+  |> check_dval "t_undo_4" (Dval.dint 3) ;
   (* First redo *)
-  execute_ops (List.concat [ops; [u; u; r]]) |> check_dval "t_undo_5" (DInt 4) ;
+  execute_ops (List.concat [ops; [u; u; r]])
+  |> check_dval "t_undo_5" (Dval.dint 4) ;
   (* Second redo *)
   execute_ops (List.concat [ops; [u; u; r; r]])
-  |> check_dval "t_undo_6" (DInt 5) ;
+  |> check_dval "t_undo_6" (Dval.dint 5) ;
   (* Another undo *)
   execute_ops (List.concat [ops; [u; u; r; r; u]])
-  |> check_dval "t_undo_7" (DInt 4) ;
+  |> check_dval "t_undo_7" (Dval.dint 4) ;
   (* Another redo *)
   execute_ops (List.concat [ops; [u; u; r; r; u; r]])
-  |> check_dval "t_undo_8" (DInt 5)
+  |> check_dval "t_undo_8" (Dval.dint 5)
 
 
 let t_db_oplist_roundtrip () =
@@ -158,7 +160,7 @@ let t_set_after_delete () =
   let op1 = Op.SetHandler (tlid, pos, h1) in
   let op2 = Op.DeleteTL tlid in
   let op3 = Op.SetHandler (tlid, pos, h2) in
-  check_dval "first handler is right" (execute_ops [op1]) (DInt 8) ;
+  check_dval "first handler is right" (execute_ops [op1]) (Dval.dint 8) ;
   check_empty "deleted not in handlers" !(ops2c_exn "test" [op1; op2]).handlers ;
   check_single
     "delete in deleted"
@@ -169,7 +171,10 @@ let t_set_after_delete () =
   check_empty
     "deleted not in deleted "
     !(ops2c_exn "test" [op1; op2; op3]).deleted_handlers ;
-  check_dval "second handler is right" (execute_ops [op1; op2; op3]) (DInt 7) ;
+  check_dval
+    "second handler is right"
+    (execute_ops [op1; op2; op3])
+    (Dval.dint 7) ;
   (* same thing for functions *)
   clear_test_data () ;
   let h1 = user_fn "testfn" [] (ast_for "(+ 5 3)") in
