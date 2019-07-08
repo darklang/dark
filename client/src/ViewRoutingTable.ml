@@ -68,7 +68,7 @@ let categoryIcon (name : string) : msg Html.html list =
   | "fof" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
   | _ ->
-      []
+      [ViewUtils.fontAwesome "archive"]
 
 
 let httpCategory (_m : model) (tls : toplevel list) : category =
@@ -675,22 +675,12 @@ let adminDebuggerView (m : model) : msg Html.html =
   let environment =
     Html.span [Html.class' "environment"] [Html.text environmentName]
   in
-  let returnButton =
-    match m.currentPage with
-    | Architecture ->
-        Html.text (pageToString m.currentPage)
-    | _ ->
-        Html.a
-          [ Html.class' "specialButton default-link return-to-canvas"
-          ; Html.href "#" ]
-          [Html.text (pageToString m.currentPage)]
-  in
   let stateInfo =
     Html.div
       [Html.class' "state-info"]
       [ stateInfoTohtml "env" (Html.text m.environment)
       ; stateInfoTohtml "flags" (Html.text flagText)
-      ; stateInfoTohtml "cursor" returnButton ]
+      ; stateInfoTohtml "cursor" (Html.text (pageToString m.currentPage)) ]
   in
   let toggleTimer =
     Html.div
@@ -756,7 +746,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
   let showAdminDebugger =
-    if isClosed then adminDebuggerView m else Html.div [] []
+    if isClosed && m.isAdmin then adminDebuggerView m else Html.div [] []
   in
   let showCategories =
     if isClosed then closedCategory2html else category2html
@@ -766,12 +756,11 @@ let viewRoutingTable_ (m : model) : msg Html.html =
   in
   let status =
     match m.error.message with
-    | None ->
-        Html.div [Html.class' "status"] [Html.text "Dark"]
-    | Some _ ->
+    | Some _ when m.isAdmin ->
         Html.div
           [ Html.classList
-              [("status error", true); ("opened", m.error.showDetails)] ]
+              [("error-status error", true); ("opened", m.error.showDetails)]
+          ]
           [ Html.a
               [ Html.class' "link"
               ; Html.href "#"
@@ -781,8 +770,10 @@ let viewRoutingTable_ (m : model) : msg Html.html =
                   (fun _ -> ShowErrorDetails (not m.error.showDetails) ) ]
               [ Html.text
                   ( if m.error.showDetails
-                  then "hide details"
-                  else "see details" ) ] ]
+                  then "Hide details"
+                  else "See details" ) ] ]
+    | _ ->
+        Html.div [Html.class' "error-status"] [Html.text "Dark"]
   in
   let html =
     Html.div

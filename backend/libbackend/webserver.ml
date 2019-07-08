@@ -934,7 +934,8 @@ let admin_ui_html
     ~(canvas_id : Uuidm.t)
     ~(csrf_token : string)
     ~(local : string option)
-    username =
+    username
+    admin =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   let static_host =
     match local with
@@ -958,6 +959,7 @@ let admin_ui_html
           "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
         else "" )
   >|= Util.string_replace "{{STATIC}}" static_host
+  >|= Util.string_replace "{{IS_ADMIN}}" admin
   >|= Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
   >|= Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
   >|= Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
@@ -1125,6 +1127,7 @@ let admin_ui_handler
     ~(body : string)
     ~(username : string)
     ~(csrf_token : string)
+    ~(admin : string)
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
   let uri = req |> CRequest.uri in
@@ -1176,7 +1179,7 @@ let admin_ui_handler
   in
   let serve_or_error ~(canvas_id : Uuidm.t) =
     Lwt.try_bind
-      (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username)
+      (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username admin)
       (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
       (fun e ->
         let bt = Exception.get_backtrace () in
@@ -1268,6 +1271,7 @@ let admin_handler
     ~(csrf_token : string)
     (req : CRequest.t) =
   let username = Auth.Session.username_for session in
+  let admin = Account.is_admin username |> string_of_bool in
   let path =
     uri
     |> Uri.path
@@ -1295,6 +1299,7 @@ let admin_handler
             ~username
             ~canvasname
             ~csrf_token
+            ~admin
             req )
   | _ ->
       respond ~execution_id `Not_found "Not found"

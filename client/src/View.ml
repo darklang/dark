@@ -304,9 +304,9 @@ let view (m : model) : msg Html.html =
         (Decoders.wrapDecoder
            (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
   in
+  let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
   let footer =
-    [ ViewScaffold.viewError m.error
-    ; ViewScaffold.viewIntegrationTestButton m.integrationTestState ]
+    [ViewScaffold.viewIntegrationTestButton m.integrationTestState] @ errorBar
   in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in
