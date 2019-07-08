@@ -1032,3 +1032,6 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       enableCommandMode a
   | ACSetVisible visible ->
       setVisible visible a
+
+let isOpened (a : autocomplete) : bool =
+  Option.isSome a.target || a.isCommandMode
