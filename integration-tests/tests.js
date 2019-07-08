@@ -30,7 +30,13 @@ fixture`Integration Tests`
     const testname = t.testRun.test.name;
     await fixBrowserSize(t);
     startXvfb(testname);
-    const url = `${BASE_URL}${testname}?integration-test=true`;
+    var url = `${BASE_URL}${testname}?integration-test=true`;
+    /* Quick hack while we have the fluid variant.
+     * All tests that start with fluid_test_name will get the fluid flagged added on to them
+     */
+    if (testname.match(/^fluid_/)) {
+      url += "&fluidv2=1";
+    }
     await t.navigateTo(url);
     await Selector("#finishIntegrationTest").exists;
 
@@ -147,6 +153,10 @@ function available(css) {
 function acHighlightedText() {
   return Selector(".autocomplete-item.highlighted").textContent;
 }
+
+const scrollBy = ClientFunction((id, dx, dy) => {
+  document.getElementById(id).scrollBy(dx, dy);
+});
 
 // ------------------------
 // Tests below here. Don't forget to update client2/src/IntegrationTest.ml
@@ -1055,4 +1065,53 @@ test("extract_from_function", async t => {
     .pressKey(":")
     .typeText("#entry-box", "extract-function")
     .pressKey("enter");
+});
+
+test("scroll_in_autocomplete", async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .expect(entryBoxAvailable())
+    .ok({ timeout: 500 });
+
+  await scrollBy("autocomplete-holder", 0, 100);
+  await t.expect(Selector("#autocomplete-holder").scrollTop).eql(100);
+});
+
+test("fluid_scroll_in_autocomplete", async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .pressKey("h")
+    .expect(available("#fluid-dropdown"))
+    .ok();
+
+  await scrollBy("fluid-dropdown", 0, 100);
+  await t.expect(Selector("#fluid-dropdown").scrollTop).eql(100);
+});
+
+test("scroll_in_command_palette", async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .pressKey("3")
+    .pressKey("enter");
+
+  await t.click(".ast > .blankOr").pressKey(":");
+
+  await scrollBy("autocomplete-holder", 0, 20);
+  await t.expect(Selector("#autocomplete-holder").scrollTop).eql(20);
+});
+
+test("fluid_scroll_in_command_palette", async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .pressKey("3")
+    .pressKey("3")
+    .pressKey("left")
+    .pressKey("alt+x");
+
+  await scrollBy("fluid-dropdown", 0, 20);
+  await t.expect(Selector("#fluid-dropdown").scrollTop).eql(20);
 });
