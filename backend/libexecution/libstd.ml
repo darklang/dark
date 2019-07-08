@@ -106,16 +106,18 @@ let fns : Lib.shortfn list =
     ; dep = true }
   ; { pns = ["Dict::map"]
     ; ins = []
-    ; p = [par "dict" TObj; func ["value"]]
+    ; p = [par "dict" TObj; func ["key"; "value"]]
     ; r = TObj
     ; d =
-        "Iterates each `value` in object `dict` and mutates it according to the provided lambda"
+        "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
     ; f =
         InProcess
           (function
           | _, [DObj o; DBlock fn] ->
-              let f (dv : dval) : dval = fn [dv] in
-              DObj (Map.map ~f o)
+              let f ~key ~(data : dval) : dval =
+                fn [Dval.dstr_of_string_exn key; data]
+              in
+              DObj (Map.mapi ~f o)
           | args ->
               fail args)
     ; ps = true
@@ -124,7 +126,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TObj
-    ; d = "Return an empty object"
+    ; d = "Return an empty dictionary"
     ; f =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; ps = true
@@ -134,7 +136,7 @@ let fns : Lib.shortfn list =
     ; p = [par "left" TObj; par "right" TObj]
     ; r = TObj
     ; d =
-        "Return a combined object with both objects' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
+        "Return a combined dictionary with both dictionarys' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
     ; f =
         InProcess
           (function
@@ -146,9 +148,9 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Dict::toJSON"]
     ; ins = []
-    ; p = [par "obj" TObj]
+    ; p = [par "dict" TObj]
     ; r = TStr
-    ; d = "Dumps `obj` to a JSON string"
+    ; d = "Dumps `dict` to a JSON string"
     ; f =
         InProcess
           (function
@@ -162,9 +164,9 @@ let fns : Lib.shortfn list =
     ; dep = true }
   ; { pns = ["Dict::toJSON_v1"]
     ; ins = []
-    ; p = [par "obj" TObj]
+    ; p = [par "dict" TObj]
     ; r = TStr
-    ; d = "Dumps `obj` to a JSON string"
+    ; d = "Dumps `dict` to a JSON string"
     ; f =
         InProcess
           (function
