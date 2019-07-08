@@ -201,12 +201,18 @@ let with_x_forwarded_proto req =
 
 (* Currently we just ensure that the Uri scheme is set *)
 let canonicalize_request request =
-  CRequest.make
-    ~meth:(CRequest.meth request)
-    ~version:(CRequest.version request)
-    ~encoding:(CRequest.encoding request)
-    ~headers:(CRequest.headers request)
-    (with_x_forwarded_proto request)
+  let new_uri = with_x_forwarded_proto request in
+  let new_req =
+    CRequest.make
+      ~meth:(CRequest.meth request)
+      ~version:(CRequest.version request)
+      ~encoding:(CRequest.encoding request)
+      ~headers:(CRequest.headers request)
+      new_uri
+  in
+  (* Somewhat unbelievable, but CRequest.make strips the scheme (eg https)
+   * from the uri, so we need to add it back in. *)
+  {new_req with resource = Uri.to_string new_uri}
 
 
 (* sanitize both repeated '/' and final '/'.

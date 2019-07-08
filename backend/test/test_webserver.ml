@@ -49,6 +49,47 @@ let t_redirect_to () =
     ; Some "https://test.builtwithdark.com/x/y?z=a" ]
 
 
+let t_canonicalize_maintains_schemes () =
+  (* We don't test the https variants as the request we can't make requests
+   * that have them, and they never occur in either dev or prod. *)
+  let tests =
+    [ ( "//example.com"
+      , ("http://example.com/", "http://example.com/", "https://example.com/")
+      )
+    ; ( "//builtwithdark.com"
+      , ( "http://builtwithdark.com/"
+        , "http://builtwithdark.com/"
+        , "https://builtwithdark.com/" ) )
+    ; ( "http://builtwithdark.com"
+      , ( "http://builtwithdark.com/"
+        , "http://builtwithdark.com/"
+        , "https://builtwithdark.com/" ) )
+    ; ( "http://test.builtwithdark.com"
+      , ( "http://test.builtwithdark.com/"
+        , "http://test.builtwithdark.com/"
+        , "https://test.builtwithdark.com/" ) )
+    ; ( "http://test.builtwithdark.com/x/y?z=a"
+      , ( "http://test.builtwithdark.com/x/y?z=a"
+        , "http://test.builtwithdark.com/x/y?z=a"
+        , "https://test.builtwithdark.com/x/y?z=a" ) ) ]
+  in
+  tests
+  |> List.map ~f:(fun (url, (e1, e2, e3)) ->
+         [ (url, Header.init (), e1)
+         ; (url, Header.init_with "x-forwarded-proto" "http", e2)
+         ; (url, Header.init_with "x-forwarded-proto" "https", e3) ] )
+  |> List.concat
+  |> List.iter ~f:(fun (url, headers, expected) ->
+         AT.check
+           AT.string
+           (url ^ " " ^ Header.to_string headers)
+           expected
+           ( Req.make ~meth:`GET ~headers (Uri.of_string url)
+           |> Webserver.canonicalize_request
+           |> Req.uri
+           |> Uri.to_string ) )
+
+
 let t_bad_ssl_cert _ =
   check_error_contains
     "should get bad_ssl"
@@ -351,4 +392,6 @@ let suite =
   ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
   ; ( "head and get requests are coalsced"
     , `Quick
-    , t_head_and_get_requests_are_coalesced ) ]
+    , t_head_and_get_requests_are_coalesced )
+  ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
+  ]
