@@ -1079,8 +1079,11 @@ let () =
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
       let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
-      let listFn args = EFnCall (gid (), "List::append", args, NoRail) in
+      let listFn args =
+        EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+      in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
+      let emptyThread = EThread (gid (), [newB (); newB ()]) in
       let aLongThread =
         threadOn
           emptyList
@@ -1221,7 +1224,16 @@ let () =
         aThreadInsideIf
         (delete ~wrap:false 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 82 ) ) ;
+        , 82 ) ;
+      t
+        "adding infix functions adds the right number of blanks"
+        emptyThread
+        (presses ~wrap:false [K.Plus; K.Enter] 6)
+        ("___\n|>+ _________", 8) ;
+      (* TODO: test for prefix fns *)
+      (* TODO: test for deleting threaded infix fns *)
+      (* TODO: test for deleting threaded prefix fns *)
+      () ) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"

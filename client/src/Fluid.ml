@@ -59,7 +59,8 @@ type ast = fluidExpr [@@deriving show]
 
 type state = Types.fluidState
 
-let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
+let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
+    fluidExpr =
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
@@ -102,29 +103,31 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
     |> Option.or_ asFloat
     |> Option.withDefault ~default:`Unknown
   in
-  let fromExpr = fromExpr s in
+  let f = fromExpr s in
   match expr with
   | Blank id ->
       EBlank id
   | F (id, nExpr) ->
     ( match nExpr with
     | Let (name, rhs, body) ->
-        ELet (id, Blank.toID name, varToName name, fromExpr rhs, fromExpr body)
+        ELet (id, Blank.toID name, varToName name, f rhs, f body)
     | Variable varname ->
         EVariable (id, varname)
     | If (cond, thenExpr, elseExpr) ->
-        EIf (id, fromExpr cond, fromExpr thenExpr, fromExpr elseExpr)
+        EIf (id, f cond, f thenExpr, f elseExpr)
     | ListLiteral exprs ->
-        EList (id, List.map ~f:fromExpr exprs)
+        EList (id, List.map ~f exprs)
     | ObjectLiteral pairs ->
         ERecord
           ( id
-          , List.map pairs ~f:(fun (k, v) ->
-                (Blank.toID k, varToName k, fromExpr v) ) )
+          , List.map pairs ~f:(fun (k, v) -> (Blank.toID k, varToName k, f v))
+          )
     | FieldAccess (expr, field) ->
-        EFieldAccess (id, fromExpr expr, Blank.toID field, varToName field)
+        EFieldAccess (id, f expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
-        let args = List.map ~f:fromExpr args in
+        let args = List.map ~f args in
+        (* add a threadtarget in the front *)
+        let args = if inThread then EThreadTarget (gid ()) :: args else args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
         let fn =
           List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
@@ -139,12 +142,16 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
         | _ ->
             fnCall )
     | Thread exprs ->
-        EThread (id, List.map ~f:fromExpr exprs)
+      ( match exprs with
+      | head :: tail ->
+          EThread (id, f head :: List.map ~f:(fromExpr s ~inThread:true) tail)
+      | _ ->
+          fail "empty thread" )
     | Lambda (varnames, exprs) ->
         ELambda
           ( id
           , List.map varnames ~f:(fun var -> (Blank.toID var, varToName var))
-          , fromExpr exprs )
+          , f exprs )
     | Value str ->
       ( match parseString str with
       | `Bool b ->
@@ -161,8 +168,7 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
           Js.log2 "Getting old Value that we coudln't parse" expr ;
           EOldExpr expr )
     | Constructor (name, exprs) ->
-        EConstructor
-          (id, Blank.toID name, varToName name, List.map ~f:fromExpr exprs)
+        EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
         let mid = id in
         let rec fromPattern (p : pattern) : fluidPattern =
@@ -193,16 +199,14 @@ let rec fromExpr (s : state) (expr : Types.expr) : fluidExpr =
                     p ;
                   FPOldPattern (mid, p) ) )
         in
-        let pairs =
-          List.map pairs ~f:(fun (p, e) -> (fromPattern p, fromExpr e))
-        in
-        EMatch (id, fromExpr mexpr, pairs)
+        let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
+        EMatch (id, f mexpr, pairs)
     | FeatureFlag _ ->
         EOldExpr expr
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, fromExpr oldExpr)
+        EPartial (id, str, f oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, fromExpr oldExpr) )
+        ERightPartial (id, str, f oldExpr) )
 
 
 let literalToString
@@ -243,9 +247,9 @@ let rec toPattern (p : fluidPattern) : pattern =
       pattern
 
 
-let rec toExpr (expr : fluidExpr) : Types.expr =
-  (* TODO: remove any new generation (gid ()) from this fn, save the old
-   * ones instead *)
+let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
+  (* inThread is whether it's the immediate child of a thread. *)
+  let r = toExpr ~inThread:false in
   match expr with
   | EInteger (id, num) ->
       F (id, Value (literalToString (`Int num)))
@@ -262,17 +266,36 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | EFieldAccess (id, obj, fieldID, fieldname) ->
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
-      F
-        ( id
-        , FnCall
-            (F (ID (deID id ^ "_name"), name), List.map ~f:toExpr args, ster)
-        )
+    ( match args with
+    | EThreadTarget _ :: _ when not inThread ->
+        fail "fn has a thread target but no thread"
+    | EThreadTarget _ :: args when inThread ->
+        F
+          ( id
+          , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
+          )
+    | _nonThreadTarget :: _ when inThread ->
+        fail "fn has a thread but no thread target"
+    | args ->
+        F
+          ( id
+          , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
+          ) )
   | EBinOp (id, name, arg1, arg2, ster) ->
-      F
-        ( id
-        , FnCall
-            (F (ID (deID id ^ "_name"), name), [toExpr arg1; toExpr arg2], ster)
-        )
+    ( match arg1 with
+    | EThreadTarget _ when not inThread ->
+        fail "op has a thread target but no thread"
+    | EThreadTarget _ when inThread ->
+        F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
+    | _nonThreadTarget when inThread ->
+        fail "op has a thread but no thread target"
+    | _ ->
+        F
+          ( id
+          , FnCall
+              ( F (ID (deID id ^ "_name"), name)
+              , [toExpr arg1; toExpr arg2]
+              , ster ) ) )
   | ELambda (id, vars, body) ->
       F
         ( id
@@ -290,7 +313,7 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
   | ERightPartial (id, str, oldVal) ->
       F (id, FluidRightPartial (str, toExpr oldVal))
   | EList (id, exprs) ->
-      F (id, ListLiteral (List.map ~f:toExpr exprs))
+      F (id, ListLiteral (List.map ~f:r exprs))
   | ERecord (id, pairs) ->
       F
         ( id
@@ -298,12 +321,18 @@ let rec toExpr (expr : fluidExpr) : Types.expr =
             (List.map pairs ~f:(fun (id, k, v) -> (Types.F (id, k), toExpr v)))
         )
   | EThread (id, exprs) ->
-      F (id, Thread (List.map ~f:toExpr exprs))
+    ( match exprs with
+    | head :: tail ->
+        F (id, Thread (r head :: List.map ~f:(toExpr ~inThread:true) tail))
+    | [] ->
+        Blank id )
   | EConstructor (id, nameID, name, exprs) ->
-      F (id, Constructor (F (nameID, name), List.map ~f:toExpr exprs))
+      F (id, Constructor (F (nameID, name), List.map ~f:r exprs))
   | EMatch (id, mexpr, pairs) ->
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
       F (id, Match (toExpr mexpr, pairs))
+  | EThreadTarget _ ->
+      fail "Cant convert threadtargets back to exprs"
   | EOldExpr expr ->
       expr
 
@@ -329,6 +358,7 @@ let eid expr : id =
   | EList (id, _)
   | ERecord (id, _)
   | EThread (id, _)
+  | EThreadTarget id
   | EBinOp (id, _, _, _, _)
   | EConstructor (id, _, _, _)
   | EMatch (id, _, _) ->
@@ -465,6 +495,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TNewline
       ; TIndent 2
       ; nested else' ]
+  | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
+      (* Specifialized for being in a thread *)
+      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
       [ nested ~placeholderFor:(Some (op, 0)) lexpr
       ; TSep
@@ -501,9 +534,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.intersperse (TLambdaSep id)
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, exprs, ster) ->
+  | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
+      (* Specifialized for being in a thread *)
       [TFnName (id, fnName, ster)]
-      @ ( exprs
+      @ ( args
+        |> List.indexedMap ~f:(fun i e ->
+               [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
+        |> List.concat )
+  | EFnCall (id, fnName, args, ster) ->
+      [TFnName (id, fnName, ster)]
+      @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
         |> List.concat )
@@ -550,6 +590,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    in
                    if i == 0 then thread else TNewline :: thread )
             |> List.concat ) ] )
+  | EThreadTarget _ ->
+      fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
@@ -853,6 +895,7 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
     | EVariable _
     | EBool _
     | ENull _
+    | EThreadTarget _
     | EFloat _ ->
         None
     | ELet (_, _, _, rhs, next) ->
@@ -913,6 +956,7 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
       | EVariable _
       | EBool _
       | ENull _
+      | EThreadTarget _
       | EFloat _ ->
           None
       | ELet (_, _, _, rhs, next) ->
@@ -960,6 +1004,7 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
   | EVariable _
   | EBool _
   | ENull _
+  | EThreadTarget _
   | EFloat _ ->
       expr
   | ELet (id, lhsID, name, rhs, next) ->
@@ -1283,6 +1328,9 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
   let ast =
     wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
+        | EBinOp (_, _, EThreadTarget _, rhs, _) ->
+            id := eid rhs ;
+            rhs
         | EBinOp (_, _, lhs, _, _) ->
             id := eid lhs ;
             lhs
@@ -1824,16 +1872,24 @@ let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
     fluidExpr * int =
   let newExpr, offset = acToExpr entry in
   let oldExpr = findExpr id ast in
-  match (oldExpr, newExpr) with
+  let parent = findParent id ast in
+  match (oldExpr, parent, newExpr) with
   (* A partial - fetch the old nested exprs and put them in place *)
   | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
+    , _
     , EBinOp (id, name, _, _, str) ) ->
       (EBinOp (id, name, lhs, rhs, str), String.length name)
-      (* A right partial - insert the oldExpr into the first slot *)
-  | Some (ERightPartial (_, _, oldExpr)), EThread (id, _head :: tail) ->
+  (* A right partial - insert the oldExpr into the first slot *)
+  | Some (ERightPartial (_, _, oldExpr)), _, EThread (id, _head :: tail) ->
       (EThread (id, oldExpr :: tail), 2)
-  | Some (ERightPartial (_, _, oldExpr)), EBinOp (id, name, _, rhs, str) ->
+  | Some (ERightPartial (_, _, oldExpr)), _, EBinOp (id, name, _, rhs, str) ->
       (EBinOp (id, name, oldExpr, rhs, str), String.length name)
+  | Some (EPartial _), Some (EThread _), EBinOp (id, name, _, rhs, str) ->
+      ( EBinOp (id, name, EThreadTarget (gid ()), rhs, str)
+      , String.length name + 1 )
+  | Some (EPartial _), Some (EThread _), EFnCall (id, name, _ :: args, str) ->
+      ( EFnCall (id, name, EThreadTarget (gid ()) :: args, str)
+      , String.length name + 1 )
   | _ ->
       (newExpr, offset)
 
@@ -2955,8 +3011,7 @@ let viewPlayIcon
   | TFnName (id, name, _) ->
       let fn = Functions.findByNameInList name state.ac.functions in
       let previous =
-        ast
-        |> toExpr
+        toExpr ast
         |> AST.threadPrevious id
         |> Option.toList
         |> List.map ~f:(fromExpr state)
