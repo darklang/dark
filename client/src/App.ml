@@ -217,6 +217,46 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   ({m with complete}, focus)
 
 
+let applyOpsToClient
+    m focus tlidsToUpdateMeta tlidsToUpdateUsage browserId (r : addOpRPCResult)
+    : Types.modification =
+  match browserId with
+  | Some browserId when browserId = m.browserId ->
+      (* If browserId is set, and it is the same as this client's browserId, t
+         * that means we're processing a pusher msg from this client - so
+         * ignore it, we already handled this op via the HTTP callback *)
+      NoChange
+  | None | Some _ ->
+      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+      let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
+      let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
+      if focus = FocusNoChange
+      then
+        Many
+          [ UpdateToplevels (r.toplevels, false)
+          ; UpdateDeletedToplevels r.deletedToplevels
+          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
+          ; MakeCmd (Entry.focusEntry m)
+          ; metaMod
+          ; usageMod ]
+      else
+        let m2 = TL.upsertAll m r.toplevels in
+        let m3 = {m2 with userFunctions = r.userFunctions} in
+        let m4 = {m3 with userTipes = r.userTipes} in
+        let newState = processFocus m4 focus in
+        Many
+          [ UpdateToplevels (r.toplevels, true)
+          ; UpdateDeletedToplevels r.deletedToplevels
+          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
+          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
+          ; AutocompleteMod ACReset
+          ; ClearError
+          ; newState
+          ; metaMod
+          ; usageMod ]
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -1242,44 +1282,22 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback
-      (focus, tlidsToUpdateMeta, tlidsToUpdateUsage, browserId, _, Ok r) ->
-      ( match browserId with
-      | Some browserId when browserId = m.browserId ->
-          (* If browserId is set, and it is the same as this client's browserId, t
-         * that means we're processing a pusher msg from this client - so
-         * ignore it, we already handled this op via the HTTP callback *)
-          NoChange
-      | None | Some _ ->
-          let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-          let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
-          let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
-          if focus = FocusNoChange
-          then
-            Many
-              [ UpdateToplevels (r.toplevels, false)
-              ; UpdateDeletedToplevels r.deletedToplevels
-              ; SetUserFunctions
-                  (r.userFunctions, r.deletedUserFunctions, false)
-              ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-              ; MakeCmd (Entry.focusEntry m)
-              ; metaMod
-              ; usageMod ]
-          else
-            let m2 = TL.upsertAll m r.toplevels in
-            let m3 = {m2 with userFunctions = r.userFunctions} in
-            let m4 = {m3 with userTipes = r.userTipes} in
-            let newState = processFocus m4 focus in
-            Many
-              [ UpdateToplevels (r.toplevels, true)
-              ; UpdateDeletedToplevels r.deletedToplevels
-              ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-              ; SetTypes (r.userTipes, r.deletedUserTipes, true)
-              ; AutocompleteMod ACReset
-              ; ClearError
-              ; newState
-              ; metaMod
-              ; usageMod ] )
+  | AddOpRPCCallback (focus, _, Ok r) ->
+      applyOpsToClient
+        m
+        focus
+        r.tlidsToUpdateMeta
+        r.tlidsToUpdateUsage
+        None
+        r.result
+  | AddOpStrollerMsg msg ->
+      applyOpsToClient
+        m
+        FocusNoChange
+        msg.tlidsToUpdateMeta
+        msg.tlidsToUpdateUsage
+        (Some msg.browserId)
+        msg.result
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1409,18 +1427,9 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
         ; UpdateDBStats result ]
-  | AddOpRPCCallback (_, _, _, _, params, Error err) ->
-      let paramsJson =
-        match params with
-        | Some params ->
-            Encoders.addOpRPCParams params
-        | None ->
-            (* Shouldn't happen - the err here is an HTTP error, so we should only
-           * get this from the callback in RPC.ml, in which case params is Some
-           * params *)
-            Js.Json.null
-      in
-      DisplayAndReportHttpError ("RPC", ImportantError, err, paramsJson)
+  | AddOpRPCCallback (_, params, Error err) ->
+      DisplayAndReportHttpError
+        ("RPC", ImportantError, err, Encoders.addOpRPCParams params)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
@@ -1729,7 +1738,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ReceiveFetch s )
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
           NewPresencePush s )
-    ; Analysis.AddOp.listen ~key:"add_op" ]
+    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->

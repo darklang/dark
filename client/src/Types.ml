@@ -833,14 +833,9 @@ and msg =
   | FluidMouseClick
   | AutocompleteClick of string
   | AddOpRPCCallback of
-      focus
-      * tlid list
-      * tlid list
-      * string option
-      (* browserId *)
-      * addOpRPCParams option
-      * (addOpRPCResult, httpError) Tea.Result.t
+      focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
+  | AddOpStrollerMsg of addOpStrollerMsg
   | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetUnlockedDBsRPCCallback of

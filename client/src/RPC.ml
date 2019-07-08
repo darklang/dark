@@ -56,25 +56,12 @@ let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
   in
   let request =
     postJson
-      Decoders.addOpRPCResult
+      Decoders.addOpRPCStrollerMsg
       m.csrfToken
       url
       (Encoders.addOpRPCParams params)
   in
-  let tlidsToUpdateMeta = Introspect.tlidsToUpdateMeta params.ops in
-  let tlidsToUpdateUsage = Introspect.tlidsToUpdateUsage params.ops in
-  Tea.Http.send
-    (fun x ->
-      AddOpRPCCallback
-        (* We have three cases:
-         * - browserId = None - HTTP callback
-         * - Some browserId, same as current browserId - ignore, this is a
-         * pusher msg from our own browser
-         * - Some browserId, diff from current browserId - process, this is a
-         * pusher msg from a diff browser (or tab)
-         * *)
-        (focus, tlidsToUpdateMeta, tlidsToUpdateUsage, None, Some params, x) )
-    request
+  Tea.Http.send (fun x -> AddOpRPCCallback (focus, params, x)) request
 
 
 let executeFunction (m : model) (params : executeFunctionRPCParams) :

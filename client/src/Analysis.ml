@@ -289,19 +289,7 @@ module AddOp = struct
     field "detail" (Decoders.wrapDecoder Decoders.addOpRPCStrollerMsg)
 
 
-  let listen ~key =
-    Native.registerGlobal
-      "addOp"
-      key
-      (fun (m : addOpStrollerMsg) ->
-        AddOpRPCCallback
-          ( FocusNoChange
-          , m.tlidsToUpdateMeta
-          , m.tlidsToUpdateUsage
-          , Some m.browserId
-          , None
-          , Ok m.result ) )
-      decode
+  let listen ~key tagger = Native.registerGlobal "addOp" key tagger decode
 end
 
 (* Request analysis *)
