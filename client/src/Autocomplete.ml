@@ -1032,3 +1032,12 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       enableCommandMode a
   | ACSetVisible visible ->
       setVisible visible a
+
+let isOpened (m : model) : bool =
+  if VariantTesting.isFluid m.tests
+  then
+    let acOpened = Option.isSome m.fluidState.ac.index in
+    let cpOpened = m.fluidState.cp.show in
+    acOpened || cpOpened
+  else
+    Option.isSome m.complete.target || m.complete.isCommandMode
