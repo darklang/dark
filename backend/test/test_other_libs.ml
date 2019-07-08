@@ -183,7 +183,7 @@ let t_dict_stdlibs_work () =
     (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
   check_dval
     "dict toJSON"
-    (exec_ast "(Dict::toJSON_v1 (obj (key1 'val1') (key2 'val2')))")
+    (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))")
     (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }") ;
   ()
 
