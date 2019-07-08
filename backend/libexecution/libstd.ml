@@ -136,7 +136,7 @@ let fns : Lib.shortfn list =
     ; p = [par "left" TObj; par "right" TObj]
     ; r = TObj
     ; d =
-        "Return a combined dictionary with both dictionarys' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
+        "Return a combined dictionary with both dictionaries' keys and values. If the same key exists in both `left` and `right`, then use the value from `right`"
     ; f =
         InProcess
           (function
@@ -147,22 +147,6 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false }
   ; { pns = ["Dict::toJSON"]
-    ; ins = []
-    ; p = [par "dict" TObj]
-    ; r = TStr
-    ; d = "Dumps `dict` to a JSON string"
-    ; f =
-        InProcess
-          (function
-          | _, [DObj o] ->
-              DObj o
-              |> Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0
-              |> Dval.dstr_of_string_exn
-          | args ->
-              fail args)
-    ; ps = true
-    ; dep = true }
-  ; { pns = ["Dict::toJSON_v1"]
     ; ins = []
     ; p = [par "dict" TObj]
     ; r = TStr
