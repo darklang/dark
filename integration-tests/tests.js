@@ -1117,7 +1117,5 @@ test("fluid_scroll_in_command_palette", async t => {
 });
 
 test("omnibox_autocomplete_click", async t => {
-  await t
-    .pressKey("enter")
-    .click(Selector("#autocomplete-holder > li:nth-child(2)"));
+  await t.pressKey("enter").click(Selector("#autocomplete-holder > li:nth-child(2)"));
 });
