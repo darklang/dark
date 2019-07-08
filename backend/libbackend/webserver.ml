@@ -646,33 +646,37 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             if Api.causes_any_changes params then C.save_tlids !c tlids else ()
         )
       in
-      let t5, _ =
+      let t5, strollerMsg =
         (* To make this work with prodclone, we might want to have it specify
          * more ... else people's prodclones will stomp on each other ... *)
         time "5-send-ops-to-stroller" (fun _ ->
             let owner = Account.for_host_exn host in
             let canvas_id = Serialize.fetch_canvas_id owner host in
             if Api.causes_any_changes params
-            then
+            then (
+              let strollerMsg =
+                { result
+                ; tlidsToUpdateMeta = params.tlidsToUpdateMeta
+                ; tlidsToUpdateUsage = params.tlidsToUpdateUsage
+                ; browserId = params.browserId }
+                |> Analysis.add_op_stroller_msg_to_yojson
+                |> Yojson.Safe.to_string
+              in
               Stroller.push_new_event
                 ~execution_id
                 ~canvas_id
                 ~event:"add_op"
-                ( { result
-                  ; tlidsToUpdateMeta = params.tlidsToUpdateMeta
-                  ; tlidsToUpdateUsage = params.tlidsToUpdateUsage
-                  ; browserId = params.browserId }
-                |> Analysis.add_op_stroller_msg_to_yojson
-                |> Yojson.Safe.to_string )
-            else () )
+                strollerMsg ;
+              Some strollerMsg )
+            else None )
       in
       respond
         ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
         ~execution_id
         `OK
-        ( result
-        |> Analysis.add_op_rpc_result_to_yojson
-        |> Yojson.Safe.to_string )
+        (* if no changes are made, we return an empty string - does this cause a
+         * client error? *)
+        (Option.value ~default:"" strollerMsg)
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
