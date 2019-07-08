@@ -821,7 +821,7 @@ and msg =
   | GlobalKeyPress of Keyboard.keyEvent
   | FluidKeyPress of FluidKeyboard.keyEvent
   | FluidMouseClick
-  | AutocompleteClick of string
+  | AutocompleteClick of int
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]

@@ -2940,7 +2940,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick name ) ]
+                AutocompleteClick i ) ]
           [ Html.text name
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
           ] )
