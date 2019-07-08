@@ -802,6 +802,14 @@ let scroll_in_command_palette (m : model) : testResult =
   if offset.x = 0 && offset.y = 0 then pass else fail offset
 
 
+let omnibox_autocomplete_click (m : model) : testResult =
+  match onlyTL m with
+  | {data = TLDB _; _} ->
+      pass
+  | _ ->
+      fail (show_cursorState m.cursorState)
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -924,9 +932,14 @@ let trigger (test_name : string) : integrationTestState =
         load_with_unnamed_function
     | "extract_from_function" ->
         extract_from_function
+<<<<<<< HEAD
     | "scroll_in_autocomplete" | "fluid_scroll_in_autocomplete" ->
         scroll_in_autocomplete
     | "scroll_in_command_palette" | "fluid_scroll_in_command_palette" ->
         scroll_in_command_palette
+=======
+    | "omnibox_autocomplete_click" ->
+        omnibox_autocomplete_click
+>>>>>>> add integration tests
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

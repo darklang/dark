@@ -1115,3 +1115,9 @@ test("fluid_scroll_in_command_palette", async t => {
   await scrollBy("fluid-dropdown", 0, 20);
   await t.expect(Selector("#fluid-dropdown").scrollTop).eql(20);
 });
+
+test("omnibox_autocomplete_click", async t => {
+  await t
+    .pressKey("enter")
+    .click(Selector("#autocomplete-holder > li:nth-child(2)"));
+});
