@@ -46,7 +46,7 @@ $prodColor: black;
     }
   }
 
-  .status {
+  .error-status {
     width: 100%;
     display: flex;
     justify-content: center;
@@ -148,6 +148,7 @@ $prodColor: black;
         .header-icon {
           display: flex;
           font-size: 34px;
+          color: white;
           filter: $greyFilter;
           object {
             width: 100%;
@@ -221,6 +222,9 @@ $prodColor: black;
               align-items: center;
               height: 20px;
               cursor: pointer;
+              input {
+                cursor: pointer;
+              }
               p {
                 margin-left: 5px;
               }
