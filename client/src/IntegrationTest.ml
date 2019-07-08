@@ -932,14 +932,11 @@ let trigger (test_name : string) : integrationTestState =
         load_with_unnamed_function
     | "extract_from_function" ->
         extract_from_function
-<<<<<<< HEAD
     | "scroll_in_autocomplete" | "fluid_scroll_in_autocomplete" ->
         scroll_in_autocomplete
     | "scroll_in_command_palette" | "fluid_scroll_in_command_palette" ->
         scroll_in_command_palette
-=======
     | "omnibox_autocomplete_click" ->
         omnibox_autocomplete_click
->>>>>>> add integration tests
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
