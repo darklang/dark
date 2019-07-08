@@ -199,7 +199,11 @@ let valid_user ~(username : username) ~(password : string) : bool =
 let can_access_operations ~(username : username) : bool = is_admin ~username
 
 let special_cases =
-  [("pixelkeet", "laxels"); ("rootvc", "adam"); ("rootvc", "lee")]
+  [ ("pixelkeet", "laxels")
+  ; ("rootvc", "adam")
+  ; ("rootvc", "lee")
+  ; ("talkhiring", "harris")
+  ; ("talkhiring", "anson") ]
 
 
 let special_cased_can_edit_canvas
