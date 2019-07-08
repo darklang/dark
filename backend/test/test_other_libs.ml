@@ -149,6 +149,45 @@ let t_result_stdlibs_work () =
   ()
 
 
+let t_dict_stdlibs_work () =
+  let dstr = Dval.dstr_of_string_exn in
+  check_dval
+    "dict keys"
+    (exec_ast "(Dict::keys (obj (key1 'val1')))")
+    (DList [dstr "key1"]) ;
+  check_dval
+    "dict values"
+    (exec_ast "(Dict::values (obj (key1 'val1')))")
+    (DList [dstr "val1"]) ;
+  check_dval
+    "dict get"
+    (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')")
+    (DOption (OptJust (dstr "val1"))) ;
+  check_dval
+    "dict foreach"
+    (exec_ast
+       "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))")
+    (DObj
+       (DvalMap.from_list
+          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")])) ;
+  check_dval
+    "dict map"
+    (exec_ast
+       "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))")
+    (DObj
+       (DvalMap.from_list [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
+  check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
+  check_dval
+    "dict merge"
+    (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))")
+    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
+  check_dval
+    "dict toJSON"
+    (exec_ast "(Dict::toJSON_v1 (obj (key1 'val1') (key2 'val2')))")
+    (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }") ;
+  ()
+
+
 let t_password_hashing_and_checking_works () =
   let ast =
     "(let password 'password'
@@ -165,6 +204,7 @@ let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
   ; ("Result stdlibs work", `Quick, t_result_stdlibs_work)
+  ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works ) ]
