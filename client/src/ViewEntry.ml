@@ -112,7 +112,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; defaultPasteHandler
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick name ) ]
+                AutocompleteClick i ) ]
           [ view item
           ; Html.span
               [Html.class' "types"]

@@ -995,10 +995,10 @@ let update_ (msg : msg) (m : model) : modification =
           ; MakeCmd (Entry.focusEntry m) ]
   | EntrySubmitMsg ->
       NoChange
-  | AutocompleteClick value ->
+  | AutocompleteClick index ->
     ( match unwrapCursorState m.cursorState with
     | Entering cursor ->
-        let newcomplete = AC.setQuery m value m.complete in
+        let newcomplete = {m.complete with index} in
         let newm = {m with complete = newcomplete} in
         Entry.submit newm cursor Entry.StayHere
     | _ ->
@@ -1023,7 +1023,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvasProps.enablePan && (not (AC.isOpened m))
+      if m.canvasProps.enablePan && not (AC.isOpened m)
       then Viewport.moveCanvasBy m x y
       else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
