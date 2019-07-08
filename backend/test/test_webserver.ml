@@ -265,8 +265,7 @@ let admin_handler_code
   let test_id = Types.id_of_int 1234 in
   let session = Lwt_main.run (Auth.Session.new_for_username username) in
   Lwt_main.run
-    (let stop, stopper = Lwt.wait () in
-     let uri =
+    (let uri =
        Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint)
      in
      let headers =
@@ -280,7 +279,6 @@ let admin_handler_code
        Webserver.admin_handler
          ~execution_id:test_id
          ~uri
-         ~stopper
          ~body
          ~session
          ~csrf_token:(Auth.Session.csrf_token_for session)
@@ -378,6 +376,43 @@ let t_head_and_get_requests_are_coalesced () =
     ; (200, (expected_content_length, "")) ]
 
 
+let t_http_request_redirects () =
+  let setup_canvas () =
+    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let canvas = ops2c_exn "test" [n1] in
+    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    C.save_all !canvas ;
+    canvas
+  in
+  let respond (req : Req.t) : int =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let test_id = Types.id_of_int 1234 in
+       ignore (setup_canvas ()) ;
+       let%lwt resp, body =
+         Webserver.callback
+           ~k8s_callback:(fun _ ~execution_id ->
+             Cohttp_lwt_unix.Server.respond_string
+               ~status:(Cohttp.Code.status_of_code 911)
+               ~body:""
+               () )
+           ""
+           req
+           ""
+           test_id
+       in
+       resp |> Resp.status |> Code.code_of_status |> return)
+  in
+  AT.check
+    AT.int
+    "http requests redirect"
+    302
+    (respond
+       (Req.make
+          ?meth:(Some `GET)
+          (Uri.of_string "http://test.builtwithdark.com/test")))
+
+
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
@@ -394,4 +429,4 @@ let suite =
     , `Quick
     , t_head_and_get_requests_are_coalesced )
   ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
-  ]
+  ; ("http requests redirect", `Quick, t_http_request_redirects) ]

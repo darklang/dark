@@ -1148,7 +1148,6 @@ let admin_ui_handler
     ~(execution_id : Types.id)
     ~(path : string list)
     ~(canvasname : string)
-    ~stopper
     ~(body : string)
     ~(username : string)
     ~(csrf_token : string)
@@ -1223,7 +1222,6 @@ let admin_ui_handler
 let admin_api_handler
     ~(execution_id : Types.id)
     ~(path : string list)
-    ~stopper
     ~(body : string)
     ~(username : string)
     (req : CRequest.t) =
@@ -1240,9 +1238,6 @@ let admin_api_handler
   match (verb, path) with
   (* Operational APIs.... maybe these shouldn't be here, but
      they start with /api so they need to be. *)
-  | `POST, ["api"; "shutdown"] when Config.allow_server_shutdown ->
-      Lwt.wakeup stopper () ;
-      respond ~execution_id `OK "Disembowelment"
   | `POST, ["api"; "clear-benchmarking-data"] ->
       Db.delete_benchmarking_data () ;
       respond ~execution_id `OK "Cleared"
@@ -1290,7 +1285,6 @@ let admin_api_handler
 let admin_handler
     ~(execution_id : Types.id)
     ~(uri : Uri.t)
-    ~stopper
     ~(body : string)
     ~session
     ~(csrf_token : string)
@@ -1310,7 +1304,7 @@ let admin_handler
       check_csrf_then_handle
         ~execution_id
         ~session
-        (admin_api_handler ~execution_id ~path ~stopper ~body ~username)
+        (admin_api_handler ~execution_id ~path ~body ~username)
         req
   | "a" :: canvasname :: _ ->
       Log.add_log_annotations
@@ -1319,7 +1313,6 @@ let admin_handler
           admin_ui_handler
             ~execution_id
             ~path
-            ~stopper
             ~body
             ~username
             ~canvasname
@@ -1514,117 +1507,116 @@ let canvas_handler
       |> respond_or_redirect
 
 
+let callback ~k8s_callback ip req body execution_id =
+  let req = canonicalize_request req in
+  let uri = CRequest.uri req in
+  let handle_error ~(include_internals : bool) (e : exn) =
+    try
+      let bt = Exception.get_backtrace () in
+      let%lwt _ =
+        Rollbar.report_lwt
+          e
+          bt
+          (Remote (request_to_rollbar body req))
+          (Types.show_id execution_id)
+      in
+      let real_err =
+        try
+          match e with
+          | Pageable.PageableExn (Exception.DarkException e)
+          | Exception.DarkException e ->
+              e
+              |> Exception.exception_data_to_yojson
+              |> Yojson.Safe.pretty_to_string
+          | Yojson.Json_error msg ->
+              "Not a valid JSON value: '" ^ msg ^ "'"
+          | _ ->
+              "Dark Internal Error: " ^ Exn.to_string e
+        with _ -> "UNHANDLED ERROR: real_err"
+      in
+      let real_err =
+        real_err
+        (* Commented out because API handlers need to be JSON decoded *)
+        (* ^ (Exception.get_backtrace () *)
+        (*             |> Exception.backtrace_to_string) *)
+      in
+      Log.erroR
+        real_err
+        ~bt
+        ~params:[("execution_id", Types.string_of_id execution_id)] ;
+      match e with
+      | Exception.DarkException e when e.tipe = EndUser ->
+          respond ~execution_id `Bad_request e.short
+      | _ ->
+          let body =
+            if include_internals || Config.show_stacktrace
+            then real_err
+            else "Dark Internal Error"
+          in
+          respond ~execution_id `Internal_server_error body
+    with e ->
+      let bt = Exception.get_backtrace () in
+      Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+      respond ~execution_id `Internal_server_error "unhandled error"
+  in
+  try
+    Log.infO
+      "request"
+      ~params:
+        [ ("ip", ip)
+        ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
+        ; ("uri", Uri.to_string uri)
+        ; ("execution_id", Types.string_of_id execution_id) ] ;
+    (* first: if this isn't https and should be, redirect *)
+    match redirect_to (CRequest.uri req) with
+    | Some x ->
+        S.respond_redirect ~uri:x ()
+    | None ->
+      ( match
+          ( CRequest.meth req
+          , Cohttp.Header.get (CRequest.headers req) "content-type" )
+        with
+      | `POST, Some s when String.lowercase s = "text/ping" ->
+          (* I'm a teapot! We don't support text/ping:
+           * https://dev.w3.org/html5/pf-summary/structured-client-side-storage.html#hyperlink-auditing *)
+          (* Impl'd here since it doesn't matter which canvas we hit, or if it
+           * exists at all *)
+          respond ~execution_id (Cohttp.Code.status_of_code 418) ""
+      | _ ->
+        ( match Uri.to_string uri with
+        | "/sitemap.xml" | "/favicon.ico" ->
+            respond ~execution_id `OK ""
+        | _ ->
+          (* figure out what handler to dispatch to... *)
+          ( match route_host req with
+          | Some (Canvas canvas) ->
+              canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
+          | Some Static ->
+              static_handler uri
+          | Some Admin ->
+            ( try
+                authenticate_then_handle
+                  ~execution_id
+                  (fun ~session ~csrf_token r ->
+                    try
+                      admin_handler
+                        ~execution_id
+                        ~uri
+                        ~body
+                        ~session
+                        ~csrf_token
+                        r
+                    with e -> handle_error ~include_internals:true e )
+                  req
+              with e -> handle_error ~include_internals:false e )
+          | None ->
+              k8s_callback req ~execution_id ) ) )
+  with e -> handle_error ~include_internals:false e
+
+
 let server () =
   let stop, stopper = Lwt.wait () in
-  let callback (ch, conn) req body execution_id =
-    let uri = CRequest.uri req in
-    let ip = get_ip_address ch in
-    let handle_error ~(include_internals : bool) (e : exn) =
-      try
-        let bt = Exception.get_backtrace () in
-        let%lwt _ =
-          Rollbar.report_lwt
-            e
-            bt
-            (Remote (request_to_rollbar body req))
-            (Types.show_id execution_id)
-        in
-        let real_err =
-          try
-            match e with
-            | Pageable.PageableExn (Exception.DarkException e)
-            | Exception.DarkException e ->
-                e
-                |> Exception.exception_data_to_yojson
-                |> Yojson.Safe.pretty_to_string
-            | Yojson.Json_error msg ->
-                "Not a valid JSON value: '" ^ msg ^ "'"
-            | _ ->
-                "Dark Internal Error: " ^ Exn.to_string e
-          with _ -> "UNHANDLED ERROR: real_err"
-        in
-        let real_err =
-          real_err
-          (* Commented out because API handlers need to be JSON decoded *)
-          (* ^ (Exception.get_backtrace () *)
-          (*             |> Exception.backtrace_to_string) *)
-        in
-        Log.erroR
-          real_err
-          ~bt
-          ~params:[("execution_id", Types.string_of_id execution_id)] ;
-        match e with
-        | Exception.DarkException e when e.tipe = EndUser ->
-            respond ~execution_id `Bad_request e.short
-        | _ ->
-            let body =
-              if include_internals || Config.show_stacktrace
-              then real_err
-              else "Dark Internal Error"
-            in
-            respond ~execution_id `Internal_server_error body
-      with e ->
-        let bt = Exception.get_backtrace () in
-        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond ~execution_id `Internal_server_error "unhandled error"
-    in
-    try
-      Log.infO
-        "request"
-        ~params:
-          [ ("ip", ip)
-          ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
-          ; ("uri", Uri.to_string uri)
-          ; ("execution_id", Types.string_of_id execution_id) ] ;
-      (* first: if this isn't https and should be, redirect *)
-      match redirect_to (CRequest.uri req) with
-      | Some x ->
-          S.respond_redirect ~uri:x ()
-      | None ->
-        ( match
-            ( CRequest.meth req
-            , Cohttp.Header.get (CRequest.headers req) "content-type" )
-          with
-        | `POST, Some s when String.lowercase s = "text/ping" ->
-            (* I'm a teapot! We don't support text/ping:
-           * https://dev.w3.org/html5/pf-summary/structured-client-side-storage.html#hyperlink-auditing *)
-            (* Impl'd here since it doesn't matter which canvas we hit, or if it
-           * exists at all *)
-            respond ~execution_id (Cohttp.Code.status_of_code 418) ""
-        | _ ->
-          ( match Uri.to_string uri with
-          | "/sitemap.xml" | "/favicon.ico" ->
-              respond ~execution_id `OK ""
-          | _ ->
-            (* figure out what handler to dispatch to... *)
-            ( match route_host req with
-            | Some (Canvas canvas) ->
-                canvas_handler ~execution_id ~canvas ~ip ~uri ~body req
-            | Some Static ->
-                static_handler uri
-            | Some Admin ->
-              ( try
-                  authenticate_then_handle
-                    ~execution_id
-                    (fun ~session ~csrf_token r ->
-                      try
-                        admin_handler
-                          ~execution_id
-                          ~uri
-                          ~body
-                          ~stopper
-                          ~session
-                          ~csrf_token
-                          r
-                      with e -> handle_error ~include_internals:true e )
-                    req
-                with e -> handle_error ~include_internals:false e )
-            | None ->
-                k8s_handler req ~execution_id ~stopper ) ) )
-    with e -> handle_error ~include_internals:false e
-  in
   let cbwb conn req req_body =
-    let req = canonicalize_request req in
     let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
     let execution_id = Util.create_id () in
     let request_path = Uri.path_and_query (CRequest.uri req) in
@@ -1642,7 +1634,13 @@ let server () =
       ; ("method", `String (Cohttp.Code.string_of_method (CRequest.meth req)))
       ; ("host", `String (Uri.host_with_default ~default:"" (CRequest.uri req)))
       ; ("ip", `String ip) ]
-      (fun _ -> callback conn req body_string execution_id)
+      (fun _ ->
+        callback
+          ~k8s_callback:(k8s_handler ~stopper)
+          ip
+          req
+          body_string
+          execution_id )
   in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
 
