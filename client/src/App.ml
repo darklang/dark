@@ -915,7 +915,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerRPC tlid ->
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
-          ( m
+          ( { m with
+              executingHandlers =
+                StrSet.add ~value:(deTLID tlid) m.executingHandlers }
           , RPC.triggerHandler
               m
               {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
@@ -1337,7 +1339,14 @@ let update_ (msg : msg) (m : model) : modification =
           tlids
         |> StrDict.fromList
       in
-      OverrideTraces traces
+      Many
+        [ OverrideTraces traces
+        ; TweakModel
+            (fun m ->
+              let executingHandlers =
+                StrSet.remove ~value:(deTLID params.thTLID) m.executingHandlers
+              in
+              {m with executingHandlers} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
