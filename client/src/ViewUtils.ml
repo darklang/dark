@@ -23,6 +23,7 @@ type viewState =
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
+  ; executingHandlers : StrSet.t
   ; tlCursors : tlCursors
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
@@ -127,6 +128,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; executingFunctions =
       List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
+  ; executingHandlers =
+      ( if StrSet.member ~value:(deTLID tl.id) m.executingHandlers
+      then StrSet.ofList [deTLID tl.id]
+      else StrSet.empty )
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
