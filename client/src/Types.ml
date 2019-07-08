@@ -1012,6 +1012,9 @@ and fluidExpr =
   | EConstructor of id * id * fluidName * fluidExpr list
   (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
+  (* Placeholder that indicates the target of the Thread. May be movable at
+   * some point *)
+  | EThreadTarget of id
   | EOldExpr of expr
 
 and placeholder = string * string
