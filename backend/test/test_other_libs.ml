@@ -91,6 +91,14 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
     (DResult (ResOk (Dval.dint 4))) ;
   check_dval
+    "Int::random_v1 results in Ok"
+    (exec_ast "(Int::random_v1 0 1)")
+    (DResult (ResOk (Dval.dint 1))) ;
+  check_dval
+    "Int::random_v1 results in Error"
+    (exec_ast "(Int::random_v1 1 0)")
+    (DResult (ResError (Dval.dstr_of_string_exn "invalid range, start < end"))) ;
+  check_dval
     "maperror error"
     (exec_ast
        "(Result::mapError (Error 'test') (\\x -> (String::append x '-appended')))")
