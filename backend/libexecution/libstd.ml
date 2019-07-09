@@ -418,6 +418,26 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = false
     ; dep = false }
+  ; { pns = ["Int::random_v1"]
+    ; ins = []
+    ; p = [par "start" TInt; par "end" TInt]
+    ; r = TResult
+    ; d =
+        "Returns a random integer between `start` and `end` (inclusive), wrapped in a `Ok`, or `Error <msg>` if the `end` <= `start`."
+    ; f =
+        InProcess
+          (function
+          (*( +1 as Random.int is exclusive *)
+          | _, [DInt a; DInt b] when a < b ->
+              let open Dint in
+              let res = DInt (a + one + Dint.random (b - a)) in
+              DResult (ResOk res)
+          | _, [DInt a; DInt b] ->
+              error_result "invalid range, start < end"
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["Int::sqrt"]
     ; ins = []
     ; p = [par "a" TInt]
