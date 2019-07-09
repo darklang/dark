@@ -694,7 +694,7 @@ let adminDebuggerView (m : model) : msg Html.html =
   let debugger =
     Html.a
       [ Html.href (ViewScaffold.debuggerLinkLoc ())
-      ; Html.class' "state-info-row" ]
+      ; Html.class' "state-info-row debugger" ]
       [ Html.text
           (if Url.isDebugging then "Disable Debugger" else "Enable Debugger")
       ]
@@ -746,7 +746,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
     @ [undefinedCategory m tls; f404Category m; deletedCategory m]
   in
   let showAdminDebugger =
-    if isClosed && m.isAdmin then adminDebuggerView m else Html.div [] []
+    if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode
   in
   let showCategories =
     if isClosed then closedCategory2html else category2html
