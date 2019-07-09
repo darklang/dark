@@ -1210,7 +1210,8 @@ and model =
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
   ; browserId : string
-  ; sidebarOpen : bool }
+  ; sidebarOpen : bool
+  ; isAdmin : bool }
 
 (* Values that we serialize *)
 and serializableEditor =

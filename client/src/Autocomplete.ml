@@ -876,9 +876,10 @@ let reset (m : model) : autocomplete =
     |> List.filter ~f:(fun f ->
            (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
   in
+  let admin = m.isAdmin in
   let functions = functions @ userFunctionMetadata in
   { Defaults.defaultModel.complete with
-    functions; visible = VariantTesting.defaultAutocompleteVisible m }
+    admin; functions; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 
 
