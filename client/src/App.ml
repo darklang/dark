@@ -218,8 +218,11 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 
 let applyOpsToClient
-    m focus tlidsToUpdateMeta tlidsToUpdateUsage browserId (r : addOpRPCResult)
-    : Types.modification =
+    m
+    focus
+    (p : addOpRPCParams)
+    (browserId : string option)
+    (r : addOpRPCResult) : Types.modification =
   match browserId with
   | Some browserId when browserId = m.browserId ->
       (* If browserId is set, and it is the same as this client's browserId, t
@@ -231,8 +234,8 @@ let applyOpsToClient
          * to roundtrip focus through the server *)
   | None | Some _ ->
       let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-      let metaMod = Introspect.metaMod tlidsToUpdateMeta alltls in
-      let usageMod = Introspect.usageMod tlidsToUpdateUsage alltls in
+      let metaMod = Introspect.metaMod p.ops alltls in
+      let usageMod = Introspect.usageMod p.ops alltls in
       if focus = FocusNoChange
       then
         Many
@@ -1285,21 +1288,14 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, _, Ok r) ->
-      applyOpsToClient
-        m
-        focus
-        r.tlidsToUpdateMeta
-        r.tlidsToUpdateUsage
-        None
-        r.result
+  | AddOpRPCCallback (focus, params, Ok r) ->
+      applyOpsToClient m focus params None r.result
   | AddOpStrollerMsg msg ->
       applyOpsToClient
         m
         FocusNoChange
-        msg.tlidsToUpdateMeta
-        msg.tlidsToUpdateUsage
-        (Some msg.browserId)
+        msg.params
+        (Some msg.params.browserId)
         msg.result
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->

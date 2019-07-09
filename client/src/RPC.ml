@@ -44,9 +44,7 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
 
 
 let opsParams (ops : op list) (browserId : string) : addOpRPCParams =
-  let tlidsToUpdateMeta = Introspect.tlidsToUpdateMeta ops in
-  let tlidsToUpdateUsage = Introspect.tlidsToUpdateUsage ops in
-  {ops; browserId; tlidsToUpdateMeta; tlidsToUpdateUsage}
+  {ops; browserId}
 
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t

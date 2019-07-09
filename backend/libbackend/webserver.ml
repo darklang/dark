@@ -655,10 +655,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             if Api.causes_any_changes params
             then (
               let strollerMsg =
-                { result
-                ; tlidsToUpdateMeta = params.tlidsToUpdateMeta
-                ; tlidsToUpdateUsage = params.tlidsToUpdateUsage
-                ; browserId = params.browserId }
+                {result; params}
                 |> Analysis.add_op_stroller_msg_to_yojson
                 |> Yojson.Safe.to_string
               in

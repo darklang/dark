@@ -246,9 +246,7 @@ type add_op_rpc_result =
 
 type add_op_stroller_msg =
   { result : add_op_rpc_result
-  ; tlidsToUpdateMeta : tlid list
-  ; tlidsToUpdateUsage : tlid list
-  ; browserId : string }
+  ; params : Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
 let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =

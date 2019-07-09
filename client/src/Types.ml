@@ -503,8 +503,6 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpRPCParams =
   { ops : op list
-  ; tlidsToUpdateMeta : tlid list
-  ; tlidsToUpdateUsage : tlid list
   ; browserId : string }
 
 and executeFunctionRPCParams =
@@ -566,9 +564,7 @@ and addOpRPCResult =
 
 and addOpStrollerMsg =
   { result : addOpRPCResult
-  ; tlidsToUpdateMeta : tlid list
-  ; tlidsToUpdateUsage : tlid list
-  ; browserId : string }
+  ; params: addOpRPCParams }
 
 and dvalArgsHash = string
 
