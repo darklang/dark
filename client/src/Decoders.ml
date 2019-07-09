@@ -374,6 +374,81 @@ and userTipe j =
   ; utDefinition = field "definition" userTipeDefinition j }
 
 
+and op j : op =
+  variants
+    [ ( "SetHandler"
+      , variant3 (fun t p h -> SetHandler (t, p, h)) tlid pos handler )
+    ; ( "CreateDB"
+      , variant3 (fun t p name -> CreateDB (t, p, name)) tlid pos string )
+    ; ("AddDBCol", variant3 (fun t cn ct -> AddDBCol (t, cn, ct)) tlid id id)
+    ; ( "SetDBColName"
+      , variant3 (fun t i name -> SetDBColName (t, i, name)) tlid id string )
+    ; ( "ChangeDBColName"
+      , variant3 (fun t i name -> ChangeDBColName (t, i, name)) tlid id string
+      )
+    ; ( "SetDBColType"
+      , variant3 (fun t i tipe -> SetDBColType (t, i, tipe)) tlid id string )
+    ; ( "ChangeDBColType"
+      , variant3 (fun t i tipe -> ChangeDBColName (t, i, tipe)) tlid id string
+      )
+    ; ("DeleteDBCol", variant2 (fun t i -> DeleteDBCol (t, i)) tlid id)
+      (* deprecated, can't happen *)
+    ; ("DeprecatedInitDbm", variant1 (fun _ -> UndoTL (TLID "")) tlid)
+    ; ( "CreateDBMigration"
+      , variant4
+          (fun t rbid rfid cols -> CreateDBMigration (t, rbid, rfid, cols))
+          tlid
+          id
+          id
+          dbColList )
+    ; ( "AddDBColToDBMigration"
+      , variant3
+          (fun t colnameid coltypeid ->
+            AddDBColToDBMigration (t, colnameid, coltypeid) )
+          tlid
+          id
+          id )
+    ; ( "SetDBColNameInDBMigration"
+      , variant3
+          (fun t i name -> SetDBColNameInDBMigration (t, i, name))
+          tlid
+          id
+          string )
+    ; ( "SetDBColTypeInDBMigration"
+      , variant3
+          (fun t i tipe -> SetDBColTypeInDBMigration (t, i, tipe))
+          tlid
+          id
+          string )
+    ; ("AbandonDBMigration", variant1 (fun t -> AbandonDBMigration t) tlid)
+    ; ( "DeleteColInDBMigration"
+      , variant2 (fun t i -> DeleteColInDBMigration (t, i)) tlid id )
+    ; ("TLSavepoint", variant1 (fun t -> TLSavepoint t) tlid)
+    ; ("UndoTL", variant1 (fun t -> UndoTL t) tlid)
+    ; ("RedoTL", variant1 (fun t -> RedoTL t) tlid)
+    ; ("DeleteTL", variant1 (fun t -> DeleteTL t) tlid)
+    ; ("MoveTL", variant2 (fun t p -> MoveTL (t, p)) tlid pos)
+    ; ("SetFunction", variant1 (fun uf -> SetFunction uf) userFunction)
+    ; ("DeleteFunction", variant1 (fun t -> DeleteFunction t) tlid)
+    ; ("SetExpr", variant3 (fun t i e -> SetExpr (t, i, e)) tlid id expr)
+    ; ( "RenameDBname"
+      , variant2 (fun t name -> RenameDBname (t, name)) tlid string )
+    ; ( "CreateDBWithBlankOr"
+      , variant4
+          (fun t p i name -> CreateDBWithBlankOr (t, p, i, name))
+          tlid
+          pos
+          id
+          string )
+    ; ( "DeleteFunctionForever"
+      , variant1 (fun t -> DeleteFunctionForever t) tlid )
+    ; ("DeleteTLForever", variant1 (fun t -> DeleteTLForever t) tlid)
+    ; ("SetType", variant1 (fun t -> SetType t) userTipe)
+    ; ("DeleteType", variant1 (fun t -> DeleteType t) tlid)
+    ; ("DeleteTypeForever", variant1 (fun t -> DeleteTypeForever t) tlid) ]
+    j
+
+
 and addOpRPCResult j : addOpRPCResult =
   { toplevels = field "toplevels" (list toplevel) j
   ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
