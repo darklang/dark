@@ -153,7 +153,7 @@ let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
       let events = SE.load_event_ids ~canvas_id:c.id desc in
       events
       |> List.filter_map ~f:(fun (trace_id, path) ->
-             if String.Caseless.equal hmodule "http"
+             if String.Caseless.equal hmodule "HTTP"
              then
                (* Ensure we only return trace_ids that would bind to this handler
               * if the trace was executed for real now *)
