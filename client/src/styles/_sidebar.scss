@@ -246,6 +246,10 @@ $prodColor: black;
               margin: 5px;
               margin-left: 17px;
 
+              &.debugger:hover {
+                color: $white3;
+              }
+
               &.save-state {
                 border: 1px solid;
                 border-radius: 2px;
@@ -254,6 +258,11 @@ $prodColor: black;
                 margin-bottom: 20px;
                 width: fit-content;
                 cursor: pointer;
+
+                &:hover {
+                  background: $grey3;
+                  color: darken($canvas-background, 10%);
+                }
               }
 
               .key {
