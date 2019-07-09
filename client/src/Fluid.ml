@@ -544,9 +544,10 @@ let rec toTokens' (s : state) (e : ast) : token list =
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
+      let futurePartialName = ViewUtils.fnPartialName fnName in
       let mod_, name, version = ViewUtils.splitFnName fnName in
-      let versionToken = if version = "0" then [] else [TFnVersion (id, fnName, version)] in
-      [TFnName (id, fnName, mod_, name, ster)] @ versionToken
+      let versionToken = if version = "0" then [] else [TFnVersion (id, futurePartialName, version)] in
+      [TFnName (id, futurePartialName, mod_, name, ster)] @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -1822,6 +1823,10 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
       let name = fn.fnName in
+      let removeUnderscore = 
+        let version = ViewUtils.fnVersion name in
+        if version = "0" then 0 else -1
+      in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Types.Rail
@@ -1835,7 +1840,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
             (EBinOp (gid (), name, lhs, rhs, r), 0)
         | _ ->
             fail "BinOp doesn't have 2 args"
-      else (EFnCall (gid (), name, args, r), String.length name + 1)
+      else (EFnCall (gid (), name, args, r), String.length name + 1 + removeUnderscore)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
