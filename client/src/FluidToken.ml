@@ -33,7 +33,8 @@ let tid (t : token) : id =
   | TFieldOp id
   | TFieldName (id, _, _)
   | TVariable (id, _)
-  | TFnName (id, _, _)
+  | TFnName (id, _, _, _, _)
+  | TFnVersion (id, _, _)
   | TLambdaVar (id, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
@@ -76,6 +77,7 @@ let isTextToken token : bool =
   | TVariable _
   | TConstructorName _
   | TFnName _
+  | TFnVersion _
   | TBlank _
   | TPlaceholder _
   | TPartial _
@@ -258,8 +260,14 @@ let toText (t : token) : string =
       canBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
-  | TFnName (_, name, _) ->
-      shouldntBeEmpty name
+  | TFnName (_, _, mod_, name, _) ->
+      (match mod_ with 
+        | Some mod_-> 
+          shouldntBeEmpty mod_ ^ "::" ^ shouldntBeEmpty name
+        | None ->
+          shouldntBeEmpty name)
+  | TFnVersion (_, _, version) ->
+      shouldntBeEmpty version
   | TLambdaVar (_, _, name) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
@@ -409,8 +417,10 @@ let toTypeName (t : token) : string =
       "field-name"
   | TVariable _ ->
       "variable"
-  | TFnName (_, _, _) ->
+  | TFnName _ ->
       "fn-name"
+  | TFnVersion _ ->
+      "fn-version"
   | TLambdaVar (_, _, _) ->
       "lambda-var"
   | TLambdaSymbol _ ->
@@ -479,7 +489,7 @@ let toCategoryName (t : token) : string =
       "boolean"
   | TNullToken _ ->
       "null"
-  | TFnName _ | TBinOp _ ->
+  | TFnName _ | TFnVersion _ | TBinOp _ ->
       "function"
   | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
       "let"

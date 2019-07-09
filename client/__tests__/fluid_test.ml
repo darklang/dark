@@ -283,7 +283,14 @@ let () =
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false } ] }
+          ; fnInfix = false }
+        ; { fnName = "DB::getAll_v1"
+        ; fnParameters = [fnParam "db" TDB false]
+        ; fnReturnTipe = TList
+        ; fnDescription = "get all"
+        ; fnPreviewExecutionSafe = false
+        ; fnDeprecated = false
+        ; fnInfix = false } ] }
   in
   let process
       ~(debug : bool)
@@ -661,6 +668,12 @@ let () =
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
+      t 
+        "adding function with version goes to the right place"
+        blank
+        (presses ~wrap:false [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        ("DB::getAllv1 _________", 13) ;
+
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;

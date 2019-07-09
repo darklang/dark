@@ -536,13 +536,17 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
       (* Specifialized for being in a thread *)
-      [TFnName (id, fnName, ster)]
+      let mod_, name, version = ViewUtils.splitFnName fnName in
+      let versionToken = if version = "0" then [] else [TFnVersion (id, fnName, version)] in
+      [TFnName (id, fnName, mod_, name, ster)] @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
-      [TFnName (id, fnName, ster)]
+      let mod_, name, version = ViewUtils.splitFnName fnName in
+      let versionToken = if version = "0" then [] else [TFnVersion (id, fnName, version)] in
+      [TFnName (id, fnName, mod_, name, ster)] @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -2158,7 +2162,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, str) | TFnName (id, str, _) ->
+  | TConstructorName (id, str) | TFnName (id, str, _, _, _) | TFnVersion (id, str, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
@@ -2249,7 +2253,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
-  | TConstructorName (id, str) | TFnName (id, str, _) ->
+  | TConstructorName (id, str) | TFnName (id, str, _, _, _) | TFnVersion (id, str, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
   | TFieldOp id ->
@@ -2400,6 +2404,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField _
     when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
       (ast, s)
+  | TFnVersion _ 
   | TFnName _ when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
@@ -2457,6 +2462,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIfElseKeyword _
   | TFieldOp _
   | TFnName _
+  | TFnVersion _
   | TLetKeyword _
   | TLetAssignment _
   | TSep
@@ -2986,9 +2992,9 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
         ""
   in
   match ti.token with
-  | TFnName (id, name, Rail) ->
+  | TFnName (id, fnName, _, _, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
-      let cls = ["error-indicator"; returnTipe name; sentToRail id] in
+      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
       Html.div
         [ Html.class' (String.join ~sep:" " cls)
         ; Html.styles [("top", offset)]
@@ -3009,8 +3015,8 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnName (id, name, _) ->
-      let fn = Functions.findByNameInList name state.ac.functions in
+  | TFnName (id, fnName, _, _, _) ->
+      let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
         |> AST.threadPrevious id
@@ -3043,15 +3049,15 @@ let viewPlayIcon
       let exeIcon = "play" in
       let events =
         [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ fnName)
             "click"
-            (fun _ -> ExecuteFunctionButton (tlid, id, name))
+            (fun _ -> ExecuteFunctionButton (tlid, id, fnName))
         ; ViewUtils.nothingMouseEvent "mouseup"
         ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.nothingMouseEvent "dblclick" ]
       in
       let class_, event, title, icon =
-        if name = "Password::check" || name = "Password::hash"
+        if fnName = "Password::check" || fnName = "Password::hash"
         then
           ( "execution-button-unsafe"
           , []
