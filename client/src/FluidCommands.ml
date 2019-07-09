@@ -209,3 +209,6 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
       FluidCommandsClose
   | _ ->
       NoChange
+
+
+let isOpened (cp : fluidCommandState) : bool = cp.show

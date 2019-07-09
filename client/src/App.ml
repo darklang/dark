@@ -243,6 +243,14 @@ let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
   ; usageMod ]
 
 
+let isACOpened (m : model) : bool =
+  if VariantTesting.isFluid m.tests
+  then
+    FluidAutocomplete.isOpened m.fluidState.ac
+    || FluidCommands.isOpened m.fluidState.cp
+  else AC.isOpened m.complete
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -1042,7 +1050,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvasProps.enablePan && not (AC.isOpened m)
+      if m.canvasProps.enablePan && not (isACOpened m)
       then Viewport.moveCanvasBy m x y
       else NoChange
   | TraceMouseEnter (tlid, traceID, _) ->
