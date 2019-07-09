@@ -14,19 +14,26 @@
   ul.request-cursor {
     float: none;
     margin-top: 10px;
-
     li {
-      float: none;
-      display: block;
       font-size: 30px;
-      line-height: 15px;
+      height: 15px;
+      display: flex;
+      overflow: hidden;
+      align-items: center;
+      justify-content: center;
       color: $grey2;
 
       &.tipe-Error {
         color: $red;
       }
 
-      &.mouseovered,
+      &.mouseovered .empty-dot {
+        width: 6px;
+        height: 6px;
+        border: solid 2px $live-value-foreground;
+        border-radius: 50%;
+      }
+
       &.active {
         color: $live-value-foreground;
       }
@@ -44,7 +51,7 @@
         padding: $spacing-medium;
 
         background-color: $live-value-background;
-
+        line-height: 15px;
         color: $live-value-foreground;
         font-size: 0.7rem;
         overflow-wrap: break-word;
