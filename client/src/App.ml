@@ -217,50 +217,17 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   ({m with complete}, focus)
 
 
-let applyOpsToClient
-    m
-    focus
-    (p : addOpRPCParams)
-    (browserId : string option)
-    (r : addOpRPCResult) : Types.modification =
-  match browserId with
-  | Some browserId when browserId = m.browserId ->
-      (* If browserId is set, and it is the same as this client's browserId, t
-         * that means we're processing a pusher msg from this client - so
-         * ignore it, we already handled this op via the HTTP callback *)
-      NoChange
-      (* None browserId is the "this came from AddOpRPCCallback" case. We use
-         * that so we have access to the client's focus param, instead of having
-         * to roundtrip focus through the server *)
-  | None | Some _ ->
-      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-      let metaMod = Introspect.metaMod p.ops alltls in
-      let usageMod = Introspect.usageMod p.ops alltls in
-      if focus = FocusNoChange
-      then
-        Many
-          [ UpdateToplevels (r.toplevels, false)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-          ; MakeCmd (Entry.focusEntry m)
-          ; metaMod
-          ; usageMod ]
-      else
-        let m2 = TL.upsertAll m r.toplevels in
-        let m3 = {m2 with userFunctions = r.userFunctions} in
-        let m4 = {m3 with userTipes = r.userTipes} in
-        let newState = processFocus m4 focus in
-        Many
-          [ UpdateToplevels (r.toplevels, true)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
-          ; AutocompleteMod ACReset
-          ; ClearError
-          ; newState
-          ; metaMod
-          ; usageMod ]
+let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
+    Types.modification list =
+  let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+  let metaMod = Introspect.metaMod p.ops alltls in
+  let usageMod = Introspect.usageMod p.ops alltls in
+  [ UpdateToplevels (r.toplevels, updateCurrent)
+  ; UpdateDeletedToplevels r.deletedToplevels
+  ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
+  ; SetTypes (r.userTipes, r.deletedUserTipes, updateCurrent)
+  ; metaMod
+  ; usageMod ]
 
 
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
@@ -1289,14 +1256,29 @@ let update_ (msg : msg) (m : model) : modification =
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
   | AddOpRPCCallback (focus, params, Ok r) ->
-      applyOpsToClient m focus params None r.result
+      let initialMods =
+        applyOpsToClient (focus != FocusNoChange) params r.result
+      in
+      let focusMods =
+        if focus = FocusNoChange
+        then []
+        else
+          let m2 = TL.upsertAll m r.result.toplevels in
+          let m3 = {m2 with userFunctions = r.result.userFunctions} in
+          let m4 = {m3 with userTipes = r.result.userTipes} in
+          let newState = processFocus m4 focus in
+          [AutocompleteMod ACReset; ClearError; newState]
+      in
+      Many (initialMods @ focusMods)
   | AddOpStrollerMsg msg ->
-      applyOpsToClient
-        m
-        FocusNoChange
-        msg.params
-        (Some msg.params.browserId)
-        msg.result
+      if msg.params.browserId = m.browserId
+      then
+        NoChange
+        (* msg was sent from this client, we've already handled it
+                       in AddOpRPCCallback *)
+      else
+        let initialMods = applyOpsToClient false msg.params msg.result in
+        Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
