@@ -226,7 +226,7 @@ let applyOpsToClient
          * that means we're processing a pusher msg from this client - so
          * ignore it, we already handled this op via the HTTP callback *)
       NoChange
-        (* None browserId is the "this came from AddOpRPCCallback" case. We use
+      (* None browserId is the "this came from AddOpRPCCallback" case. We use
          * that so we have access to the client's focus param, instead of having
          * to roundtrip focus through the server *)
   | None | Some _ ->
