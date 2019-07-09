@@ -814,10 +814,7 @@ test("rename_function", async t => {
     .click(Selector(fnNameBlankOr))
     .pressKey("backspace")
     .typeText("#entry-box", "hello")
-    .pressKey("enter")
-
-    // Return to main canvas to finish tests
-    .click(".return-to-canvas");
+    .pressKey("enter");
 });
 
 test("rename_pattern_variable", async t => {
@@ -974,9 +971,6 @@ test("function_analysis_works", async t => {
     .click(Selector(".user-fn-toplevel .ast > div"))
     .expect(Selector(".selected .live-value").textContent)
     .eql("10", { timeout: 5000 });
-
-  // Return to main canvas to finish tests
-  await t.click(".return-to-canvas");
 });
 
 test("fourohfours_parse", async t => {
@@ -1002,27 +996,6 @@ test("return_to_architecture_on_deselect", async t => {
     .ok({ timeout: 1000 });
 
   await t.pressKey("esc");
-});
-
-test("fn_page_returns_to_lastpos", async t => {
-  await t
-    .navigateTo("#handler=123&center=true")
-    .expect(available(".tl-123"))
-    .ok({ timeout: 1000 });
-
-  const archOffset = await Selector("#canvas").getStyleProperty("transform");
-
-  await t
-    .navigateTo("#fn=890")
-    .expect(available(".user-fn-toplevel"))
-    .ok({ timeout: 1000 });
-
-  await t.expect(Selector("#canvas").getStyleProperty("transform")).notEql(archOffset);
-
-  await t
-    .click(".return-to-canvas")
-    .expect(available(".tl-123"))
-    .ok({ timeout: 1000 });
 });
 
 test("fn_page_to_handler_pos", async t => {

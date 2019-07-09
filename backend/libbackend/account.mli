@@ -51,6 +51,8 @@ val username_of_id : Uuidm.t -> string option
 (* Get an id from a username *)
 val id_of_username : string -> Uuidm.t option
 
+val is_admin : username:string -> bool
+
 (* get the id of the domain, for accounting/storage. Note that we need
  * this even for unauthenticated access, as all data and compute need a
  * Dark user to own them (pay for them, etc). *)

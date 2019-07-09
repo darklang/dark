@@ -122,4 +122,5 @@ let defaultModel : model =
   ; dbStats = StrDict.empty
   ; avatarsList = []
   ; browserId = ""
-  ; sidebarOpen = false }
+  ; sidebarOpen = false
+  ; isAdmin = false }

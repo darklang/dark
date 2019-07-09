@@ -6,6 +6,10 @@ $sidebard-preview-shadow: 2px 2px 2px 0 $black1;
 
 $countBoxSize: 15px;
 
+$devColor: $blue;
+$prodcloneColor: $magenta;
+$prodColor: black;
+
 #sidebar-left {
   width: max-content;
   height: 100%;
@@ -42,10 +46,32 @@ $countBoxSize: 15px;
     }
   }
 
+  .error-status {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    height: 110px;
+    align-items: flex-end;
+    &.opened {
+      a {
+        margin-bottom: 50px;
+      }
+    }
+    &.error {
+      font-size: 12px;
+      text-align: center;
+      a {
+        text-decoration: none;
+        color: $grey3;
+        outline: none;
+      }
+    }
+  }
+
   .routes {
     display: flex;
     flex-direction: column;
-    height: calc(#{"100% - 60px"});
+    height: calc(#{"100% - 160px"});
     overflow-y: scroll;
     width: 100%;
     &.routings {
@@ -71,12 +97,12 @@ $countBoxSize: 15px;
         margin: 10px 0px;
         width: 80%;
         height: 100%;
-        .count {
+        .count,
+        .environment {
           height: max-content;
           display: flex;
           left: 10%;
           position: absolute;
-          color: $white1;
           z-index: 2;
           margin-top: -10px;
           .count-box {
@@ -87,12 +113,20 @@ $countBoxSize: 15px;
             min-width: $countBoxSize;
             background: $green;
             border-radius: 2px;
+            color: $white1;
             p {
               font-size: 10px;
               margin: 0px;
             }
           }
+          &.environment {
+            background: #fff;
+            font-size: 8px;
+            border-radius: 2px;
+            padding: 0px 2px;
+          }
         }
+
         .button-link {
           cursor: pointer;
           margin-top: 5px;
@@ -113,6 +147,8 @@ $countBoxSize: 15px;
 
         .header-icon {
           display: flex;
+          font-size: 34px;
+          color: white;
           filter: $greyFilter;
           object {
             width: 100%;
@@ -130,6 +166,22 @@ $countBoxSize: 15px;
             cursor: pointer;
             filter: $yellowFilter;
           }
+        }
+
+        &.dev .environment,
+        &.dev .header-icon:hover {
+          color: $devColor;
+          filter: none;
+        }
+        &.prodclone .environment,
+        &.prodclone .header-icon:hover {
+          color: $prodcloneColor;
+          filter: none;
+        }
+        &.prod .environment,
+        &.prod .header-icon:hover {
+          color: $prodColor;
+          filter: none;
         }
       }
 
@@ -156,6 +208,76 @@ $countBoxSize: 15px;
 
           .GET a.external {
             font-size: 12px;
+          }
+
+          &.admin-state {
+            padding: 5px 0px;
+            color: $grey3;
+            font-size: 13px;
+            a {
+              color: $grey3;
+            }
+            .checkbox-row {
+              display: flex;
+              align-items: center;
+              height: 20px;
+              cursor: pointer;
+              input {
+                cursor: pointer;
+              }
+              p {
+                margin-left: 5px;
+              }
+            }
+            .state-info {
+              display: flex;
+              flex-direction: column;
+              margin-bottom: 10px;
+              .state-info-row {
+                margin-top: 0px;
+                margin-bottom: 0px;
+              }
+            }
+            .state-info-row {
+              display: flex;
+              height: 20px;
+              align-items: center;
+              justify-content: flex-start;
+              margin: 5px;
+              margin-left: 17px;
+
+              &.debugger:hover {
+                color: $white3;
+              }
+
+              &.save-state {
+                border: 1px solid;
+                border-radius: 2px;
+                padding: 4px 8px;
+                height: 10px;
+                margin-bottom: 20px;
+                width: fit-content;
+                cursor: pointer;
+
+                &:hover {
+                  background: $grey3;
+                  color: darken($canvas-background, 10%);
+                }
+              }
+
+              .key {
+                width: 55px;
+              }
+              .sep {
+                width: 15px;
+              }
+              .value {
+                max-width: 210px;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+                overflow: hidden;
+              }
+            }
           }
         }
       }

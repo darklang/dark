@@ -21,9 +21,10 @@ let debuggerLinkLoc () =
     loc.hash
 
 
-let viewButtons (m : model) : msg Html.html =
+let viewIntegrationTestButton (testState : integrationTestState) :
+    msg Html.html =
   let integrationTestButton =
-    match m.integrationTestState with
+    match testState with
     | IntegrationTestExpectation _ ->
         [ Html.a
             [ ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ ->
@@ -45,99 +46,7 @@ let viewButtons (m : model) : msg Html.html =
     | NoIntegrationTest ->
         []
   in
-  let returnButton =
-    match m.currentPage with
-    | Architecture ->
-        []
-    | _ ->
-        [ Html.a
-            [ Html.class' "specialButton default-link return-to-canvas"
-            ; Html.href "#" ]
-            [Html.text "Return to Canvas"] ]
-  in
-  let status =
-    match m.error.message with
-    | None ->
-        Html.div [Html.class' "status"] [Html.text "Dark"]
-    | Some _ ->
-        Html.div
-          [Html.class' "status error"]
-          [ Html.text "Error: "
-          ; Html.a
-              [ Html.class' "link"
-              ; Html.href "#"
-              ; ViewUtils.eventNoPropagation
-                  ~key:(string_of_bool m.error.showDetails)
-                  "mouseup"
-                  (fun _ -> ShowErrorDetails (not m.error.showDetails) ) ]
-              [ Html.text
-                  ( if m.error.showDetails
-                  then "hide details"
-                  else "see details" ) ] ]
-  in
-  let pageToString pg =
-    match pg with
-    | Architecture ->
-        "Architecture"
-    | FocusedFn tlid ->
-        Printf.sprintf "Fn (TLID %s)" (deTLID tlid)
-    | FocusedHandler (tlid, _) ->
-        Printf.sprintf "Handler (TLID %s)" (deTLID tlid)
-    | FocusedDB (tlid, _) ->
-        Printf.sprintf "DB (TLID %s)" (deTLID tlid)
-    | FocusedType tlid ->
-        Printf.sprintf "Type (TLID %s)" (deTLID tlid)
-  in
-  let saveTestButton =
-    Html.a
-      [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
-            SaveTestButton )
-      ; Html.src ""
-      ; Html.class' "specialButton" ]
-      [Html.text "SaveTest"]
-  in
-  let toggleTimersButton =
-    Html.a
-      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
-      ; Html.src ""
-      ; Html.class' "specialButton" ]
-      [Html.text (if m.timersEnabled then "DisableTimers" else "EnableTimers")]
-  in
-  let currentPage =
-    Html.span
-      [Html.class' "specialButton"]
-      [Html.text (pageToString m.currentPage)]
-  in
-  let variants =
-    Html.span
-      [Html.class' "specialButton"]
-      [ Html.text
-          ( "Tests: ["
-          ^ (m.tests |> List.map ~f:show_variantTest |> String.join ~sep:", ")
-          ^ "]" ) ]
-  in
-  let environment =
-    Html.span
-      [Html.class' ("specialButton environment " ^ m.environment)]
-      [Html.text m.environment]
-  in
-  let debugger =
-    Html.a
-      [Html.href (debuggerLinkLoc ()); Html.src ""; Html.class' "specialButton"]
-      [ Html.text
-          (if Url.isDebugging then "DisableDebugger" else "EnableDebugger") ]
-  in
-  Html.div
-    [Html.id "buttons"]
-    ( integrationTestButton
-    @ [ saveTestButton
-      ; toggleTimersButton
-      ; currentPage
-      ; variants
-      ; environment
-      ; debugger ]
-    @ returnButton
-    @ [status] )
+  Html.div [Html.id "buttons"] integrationTestButton
 
 
 let viewError (err : darkError) : msg Html.html =
