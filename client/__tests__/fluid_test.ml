@@ -668,11 +668,13 @@ let () =
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
+      
+      (* Test insert in function  *)
       t 
         "adding function with version goes to the right place"
         blank
         (presses ~wrap:false [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
-        ("DB::getAllv1 _________", 13) ;
+        ("DB::getAllv1 ________________", 13) ;
 
       () ) ;
   describe "Binops" (fun () ->

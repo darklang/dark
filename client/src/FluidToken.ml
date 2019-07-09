@@ -267,7 +267,7 @@ let toText (t : token) : string =
         | None ->
           shouldntBeEmpty name)
   | TFnVersion (_, _, version) ->
-      shouldntBeEmpty version
+      "v" ^ shouldntBeEmpty version
   | TLambdaVar (_, _, name) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
