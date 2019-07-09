@@ -11,6 +11,9 @@ val dbs_as_input_vars :
 val http_route_input_vars :
   Types.RuntimeT.HandlerT.handler -> string -> Types.RuntimeT.input_vars
 
+val sample_route_input_vars :
+  Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
+
 val sample_input_vars :
   Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.input_vars
 

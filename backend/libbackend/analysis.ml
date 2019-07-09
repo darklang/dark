@@ -98,7 +98,19 @@ let saved_input_vars
   | `Http ->
       let with_r = [("request", event)] in
       let bound =
-        Libexecution.Execution.http_route_input_vars h request_path
+        match Handler.event_name_for h with
+        | Some route ->
+            (* Check the trace actually matches the route, if not the client has made a
+             * mistake in matching the traceid to this handler, but that might happen due
+             * to a race condition. If it does, carry on, if it doesn't -- just don't
+             * do any bindings and inject the sample variables.
+             * Communicating to the frontend that this trace doesn't
+             * match the handler should be done in the future somehow. *)
+            if Http.request_path_matches_route ~route request_path
+            then Execution.http_route_input_vars h request_path
+            else Execution.sample_route_input_vars h
+        | None ->
+            []
       in
       with_r @ bound
   | `Event ->
