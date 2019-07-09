@@ -458,11 +458,13 @@ and addOpRPCResult j : addOpRPCResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
+and addOpRPCParams j : addOpRPCParams =
+  {ops = field "ops" (list op) j; browserId = field "browserId" string j}
+
+
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
   { result = field "result" addOpRPCResult j
-  ; browserId = field "browserId" string j
-  ; tlidsToUpdateMeta = field "tlidsToUpdateMeta" (list tlid) j
-  ; tlidsToUpdateUsage = field "tlidsToUpdateUsage" (list tlid) j }
+  ; params = field "params" addOpRPCParams j }
 
 
 and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
