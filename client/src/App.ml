@@ -1050,9 +1050,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvasProps.enablePan && not (isACOpened m)
-      then Viewport.moveCanvasBy m x y
-      else NoChange
+      Viewport.moveCanvasBy m x y
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
@@ -1736,8 +1734,11 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           else PageVisibilityChange Hidden ) ]
   in
   let mousewheelSubs =
-    [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) -> MouseWheel (dx, dy)
-      ) ]
+    if m.canvasProps.enablePan && not (isACOpened m)
+    then
+      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
+            MouseWheel (dx, dy) ) ]
+    else []
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
