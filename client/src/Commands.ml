@@ -1,5 +1,4 @@
 open Types
-open Tc
 
 (* Dark *)
 module TL = Toplevel
@@ -79,65 +78,14 @@ let commands : command list =
         (fun m tl pd ->
           let id = Pointer.toID pd in
           let lv = Analysis.getCurrentLiveValue m tl.id id in
-          match lv with
-          | Some (DObj dvalmap) ->
-              let userTipeDefinition =
-                dvalmap
-                |> StrDict.toList
-                |> List.map ~f:(fun (k, v) ->
-                       let isUuid (dstr : dval) : bool =
-                         match dstr with
-                         | DStr s ->
-                             Util.Regex.exactly
-                               ~re:
-                                 "[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}"
-                               s
-                         | _ ->
-                             false
-                       in
-                       let isDate (dstr : dval) : bool =
-                         match dstr with
-                         | DStr s ->
-                             let parsedDate = Js.Date.fromString s in
-                             ( try
-                                 (* toISOString will raise Invalid Date if date
-                                  * is invalid; bucklescript doesn't expose this
-                                  * to us otherwise *)
-                                 ignore (Js.Date.toISOString parsedDate) ;
-                                 true
-                               with _ -> false )
-                         | _ ->
-                             false
-                       in
-                       let tipe = v |> Runtime.typeOf in
-                       let tipe =
-                         match tipe with
-                         | TStr ->
-                           ( match (isUuid v, isDate v) with
-                           | true, _ ->
-                               TUuid
-                           | false, true ->
-                               TDate
-                           | false, false ->
-                               TStr )
-                         | _ ->
-                             tipe
-                       in
-                       {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF}
-                   )
-              in
-              let tipe =
-                { (Refactor.generateEmptyUserType ()) with
-                  utDefinition = UTRecord userTipeDefinition }
-              in
+          let tipe = Refactor.generateUserType lv in
+          match tipe with
+          | Ok tipe ->
               let nameId =
                 match tipe.utName with F (id, _) -> Some id | _ -> None
               in
               RPC ([SetType tipe], FocusNext (tipe.utTLID, nameId))
-          | Some _ ->
-              DisplayError
-                "Live value is not an object, can't create-type here."
-          | _ ->
-              DisplayError "No live value, can't create-type here." )
+          | Error s ->
+              DisplayError ("Can't create-type: " ^ s) )
     ; doc = "Create a type from a live value"
     ; shortcut = "" } ]
