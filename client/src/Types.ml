@@ -564,7 +564,7 @@ and addOpRPCResult =
 
 and addOpStrollerMsg =
   { result : addOpRPCResult
-  ; params: addOpRPCParams }
+  ; params : addOpRPCParams }
 
 and dvalArgsHash = string
 
@@ -818,7 +818,6 @@ and msg =
   (* but by the time we use it the proper node will be changed *)
   | ToplevelMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
-  | ToplevelDoubleClick of tlid
   | ToplevelDelete of tlid
   | ToplevelDeleteForever of tlid
   | DragToplevel of tlid * Tea.Mouse.position [@printer opaque "DragToplevel"]
