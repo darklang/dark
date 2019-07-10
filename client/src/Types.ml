@@ -451,8 +451,7 @@ and staticDeploy =
 
 and dbStats =
   { count : int
-  ; example : (dval * string) option
-  }
+  ; example : (dval * string) option }
 
 and dbStatsStore = dbStats StrDict.t
 
@@ -565,7 +564,7 @@ and addOpRPCResult =
 
 and addOpStrollerMsg =
   { result : addOpRPCResult
-  ; params: addOpRPCParams }
+  ; params : addOpRPCParams }
 
 and dvalArgsHash = string
 

@@ -351,9 +351,10 @@ let delete_all ~state (db : db) =
 (* stats/locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 let stats_pluck ~account_id ~canvas_id (db : db) : (dval * string) option =
-  let latest = Db.fetch
-    ~name:"stats_pluck"
-    "SELECT data, key
+  let latest =
+    Db.fetch
+      ~name:"stats_pluck"
+      "SELECT data, key
      FROM user_data
      WHERE table_tlid = $1
      AND account_id = $2
@@ -362,18 +363,20 @@ let stats_pluck ~account_id ~canvas_id (db : db) : (dval * string) option =
      AND dark_version = $5
      ORDER BY created_at DESC
      LIMIT 1"
-    ~params:
-      [ ID db.tlid
-      ; Uuid account_id
-      ; Uuid canvas_id
-      ; Int db.version
-      ; Int current_dark_version ]
-  |> List.hd
+      ~params:
+        [ ID db.tlid
+        ; Uuid account_id
+        ; Uuid canvas_id
+        ; Int db.version
+        ; Int current_dark_version ]
+    |> List.hd
   in
   match latest with
-  | Some [data ; key] ->
+  | Some [data; key] ->
       Some (to_obj db [data], key)
-  | _ -> None
+  | _ ->
+      None
+
 
 let stats_count ~account_id ~canvas_id (db : db) : int =
   Db.fetch
