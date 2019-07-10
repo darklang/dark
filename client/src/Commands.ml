@@ -1,4 +1,5 @@
 open Types
+open Tc
 
 (* Dark *)
 module TL = Toplevel
@@ -72,4 +73,33 @@ let commands : command list =
     ; doc = "Clone expression as Case A in a feature flag"
     ; shortcut = "Alt-F" }
   ; putFunctionOnRail
-  ; takeFunctionOffRail ]
+  ; takeFunctionOffRail
+  ; { commandName = "create-type"
+    ; action =
+        (fun m tl pd ->
+          let id = Pointer.toID pd in
+          let lv = Analysis.getCurrentLiveValue m tl.id id in
+          match lv with
+          | Some (DObj dvalmap) ->
+              let userTipeDefinition =
+                dvalmap
+                |> StrDict.toList
+                |> List.map ~f:(fun (k, v) ->
+                       { urfName = k |> Blank.newF
+                       ; urfTipe = v |> Runtime.typeOf |> Blank.newF } )
+              in
+              let tipe =
+                { (Refactor.generateEmptyUserType ()) with
+                  utDefinition = UTRecord userTipeDefinition }
+              in
+              let nameId =
+                match tipe.utName with F (id, _) -> Some id | _ -> None
+              in
+              RPC ([SetType tipe], FocusNext (tipe.utTLID, nameId))
+          | Some _ ->
+              DisplayError
+                "Live value is not an object, can't create-type here."
+          | _ ->
+              DisplayError "No live value, can't create-type here." )
+    ; doc = "Create a type from a live value"
+    ; shortcut = "" } ]
