@@ -1836,7 +1836,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let name = fn.fnName in
       let removeUnderscore =
         let version = ViewUtils.fnVersion name in
-        if version = "0" then 0 else -1
+        if version = "" then 0 else -1
       in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
