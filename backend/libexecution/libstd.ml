@@ -417,7 +417,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Int::random_v1"]
     ; ins = []
     ; p = [par "start" TInt; par "end" TInt]
