@@ -55,11 +55,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; ViewUtils.eventNoPropagation
         ~key:("tlc-" ^ showTLID tl.id)
         "click"
-        (fun x -> ToplevelClick (tl.id, x))
-    ; ViewUtils.eventNoPropagation
-        ~key:("tldblc-" ^ showTLID vs.tl.id)
-        "dblclick"
-        (fun _ -> ToplevelDoubleClick vs.tl.id) ]
+        (fun x -> ToplevelClick (tl.id, x)) ]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tl.id in
   let selected = Some tl.id = tlidOf m.cursorState in
