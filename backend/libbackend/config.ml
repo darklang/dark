@@ -103,8 +103,6 @@ let dir root =
 (* ------------------------- *)
 let port = int "DARK_CONFIG_HTTP_PORT"
 
-let allow_server_shutdown = bool "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
-
 let allow_test_routes = bool "DARK_CONFIG_ALLOW_TEST_ROUTES"
 
 let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
