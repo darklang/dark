@@ -8,7 +8,7 @@ type self
 
 external self : self = "self" [@@bs.val]
 
-external onmessage : self -> (event -> unit) -> unit = "" [@@bs.set]
+external onmessage : self -> (event -> unit) -> unit = "onmessage" [@@bs.set]
 
 external postMessage :
   self -> Types.performAnalysisResult -> unit
