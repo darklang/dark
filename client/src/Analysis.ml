@@ -283,6 +283,15 @@ module NewPresencePush = struct
     Native.registerGlobal "newPresencePush" key tagger decode
 end
 
+module AddOp = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    field "detail" (Decoders.wrapDecoder Decoders.addOpRPCStrollerMsg)
+
+
+  let listen ~key tagger = Native.registerGlobal "addOp" key tagger decode
+end
+
 (* Request analysis *)
 module RequestAnalysis = struct
   external send : performAnalysisParams -> unit = "requestAnalysis"

@@ -230,6 +230,19 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
   ({m with complete}, focus)
 
 
+let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
+    Types.modification list =
+  let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+  let metaMod = Introspect.metaMod p.ops alltls in
+  let usageMod = Introspect.usageMod p.ops alltls in
+  [ UpdateToplevels (r.toplevels, updateCurrent)
+  ; UpdateDeletedToplevels r.deletedToplevels
+  ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
+  ; SetTypes (r.userTipes, r.deletedUserTipes, updateCurrent)
+  ; metaMod
+  ; usageMod ]
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -251,7 +264,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (tl.id, tl.pos, newH)] in
-                   let params = RPC.opsParams ops in
+                   let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
@@ -261,7 +274,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
-                   let params = RPC.opsParams ops in
+                   let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ ->
@@ -462,7 +475,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops) focus
+        handleRPC (RPC.opsParams ops m.browserId) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1259,35 +1272,30 @@ let update_ (msg : msg) (m : model) : modification =
                   List.filter
                     ~f:(fun ut -> ut.utTLID <> tlid)
                     m.deletedUserTipes } ) ]
-  | AddOpRPCCallback (focus, o, Ok r) ->
-      let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-      let metaMod = Introspect.metaMod o.ops alltls in
-      let usageMod = Introspect.usageMod o.ops alltls in
-      if focus = FocusNoChange
+  | AddOpRPCCallback (focus, params, Ok r) ->
+      let initialMods =
+        applyOpsToClient (focus != FocusNoChange) params r.result
+      in
+      let focusMods =
+        if focus = FocusNoChange
+        then []
+        else
+          let m2 = TL.upsertAll m r.result.toplevels in
+          let m3 = {m2 with userFunctions = r.result.userFunctions} in
+          let m4 = {m3 with userTipes = r.result.userTipes} in
+          let newState = processFocus m4 focus in
+          [AutocompleteMod ACReset; ClearError; newState]
+      in
+      Many (initialMods @ focusMods)
+  | AddOpStrollerMsg msg ->
+      if msg.params.browserId = m.browserId
       then
-        Many
-          [ UpdateToplevels (r.toplevels, false)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, false)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, false)
-          ; MakeCmd (Entry.focusEntry m)
-          ; metaMod
-          ; usageMod ]
+        NoChange
+        (* msg was sent from this client, we've already handled it
+                       in AddOpRPCCallback *)
       else
-        let m2 = TL.upsertAll m r.toplevels in
-        let m3 = {m2 with userFunctions = r.userFunctions} in
-        let m4 = {m3 with userTipes = r.userTipes} in
-        let newState = processFocus m4 focus in
-        Many
-          [ UpdateToplevels (r.toplevels, true)
-          ; UpdateDeletedToplevels r.deletedToplevels
-          ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
-          ; SetTypes (r.userTipes, r.deletedUserTipes, true)
-          ; AutocompleteMod ACReset
-          ; ClearError
-          ; newState
-          ; metaMod
-          ; usageMod ]
+        let initialMods = applyOpsToClient false msg.params msg.result in
+        Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
@@ -1734,7 +1742,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
           ReceiveFetch s )
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
-          NewPresencePush s ) ]
+          NewPresencePush s )
+    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
