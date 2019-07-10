@@ -1035,5 +1035,8 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       setVisible visible a
 
 
+(* Checks to see if autocomplete or command palette is opened
+ * but not omnibox since it's not scrollable 
+*)
 let isOpened (ac : autocomplete) : bool =
   Option.isSome ac.target || ac.isCommandMode
