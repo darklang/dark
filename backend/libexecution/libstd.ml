@@ -90,7 +90,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Dict::foreach"]
     ; ins = []
-    ; p = [par "dict" TObj; func ["value"]]
+    ; p = [par "dict" TObj; func ["val"]]
     ; r = TObj
     ; d =
         "Iterates each `value` in object `dict` and mutates it according to the provided lambda"
@@ -1573,7 +1573,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["List::uniqueBy"]
     ; ins = []
-    ; p = [par "l" TList; par "f" TBlock]
+    ; p = [par "l" TList; func ["val"]]
     ; r = TList
     ; d =
         "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained"
@@ -1615,7 +1615,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["List::sortBy"]
     ; ins = []
-    ; p = [par "list" TList; par "f" TBlock]
+    ; p = [par "list" TList; func ["val"]]
     ; r = TList
     ; d = "Returns `list`, sorted using the results of `f`"
     ; f =
@@ -1948,7 +1948,7 @@ let fns : Lib.shortfn list =
     (* ====================================== *)
     { pns = ["Option::map"]
     ; ins = []
-    ; p = [par "option" TOption; par "f" TBlock]
+    ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
         "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
@@ -1967,7 +1967,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Option::andThen"]
     ; ins = []
-    ; p = [par "option" TOption; par "f" TBlock]
+    ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
         "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
@@ -2011,7 +2011,7 @@ let fns : Lib.shortfn list =
     (* ====================================== *)
     { pns = ["Result::map"]
     ; ins = []
-    ; p = [par "result" TResult; par "f" TBlock]
+    ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
@@ -2030,7 +2030,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Result::mapError"]
     ; ins = []
-    ; p = [par "result" TResult; par "f" TBlock]
+    ; p = [par "result" TResult; func ["val"]]
     ; r = TAny
     ; d =
         "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
@@ -2101,7 +2101,7 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Result::andThen"]
     ; ins = []
-    ; p = [par "result" TResult; par "f" TBlock]
+    ; p = [par "result" TResult; func ["val"]]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
