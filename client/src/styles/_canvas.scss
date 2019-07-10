@@ -1,4 +1,4 @@
-/* Mixins */
+/* Helper Classes */
 
 .default {
   margin: 0;
@@ -26,6 +26,11 @@
   font-size: 0.6rem;
   color: $blue;
   text-align: left;
+}
+
+.font-awesome {
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
 }
 
 .parameter-btn {
@@ -66,6 +71,8 @@
     }
   }
 }
+
+/* Mixins */
 
 @mixin border-radius-bottom($radius) {
   border-bottom-left-radius: $radius;
