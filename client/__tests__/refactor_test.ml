@@ -150,4 +150,62 @@ let () =
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           expect ops |> toEqual [] ) ;
       () ) ;
-  ()
+  describe "generateUserType" (fun () ->
+      test "with None input" (fun () ->
+          expect
+            ( match R.generateUserType None with
+            | Ok _ ->
+                false
+            | Error _ ->
+                true )
+          |> toBe true ) ;
+      test "with Some non-DObj input" (fun () ->
+          expect
+            ( match R.generateUserType (Some (DStr "foo")) with
+            | Ok _ ->
+                false
+            | Error _ ->
+                true )
+          |> toBe true ) ;
+      test "with Some DObj input" (fun () ->
+          let dobj =
+            DObj
+              ( [ ("str", DStr "foo")
+                ; ("int", DInt 1)
+                ; ("float", DFloat 1.0)
+                ; ("obj", DObj StrDict.empty)
+                ; ("date", DDate "2019-07-10T20:42:11Z")
+                ; ("datestr", DStr "2019-07-10T20:42:11Z")
+                ; ("uuid", DUuid "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
+                ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b") ]
+              |> StrDict.fromList )
+          in
+          let expectedFields =
+            (* Note: datestr and uuidstr are TDate and TUuid respectively, _not_ TStr *)
+            [ ("str", TStr)
+            ; ("int", TInt)
+            ; ("float", TFloat)
+            ; ("obj", TObj)
+            ; ("date", TDate)
+            ; ("datestr", TDate)
+            ; ("uuid", TUuid)
+            ; ("uuidstr", TUuid) ]
+            |> List.map ~f:(fun (k, v) -> (Some k, Some v))
+            (* sortBy here because the dobj gets sorted - not sure exactly
+               where, but order doesn't matter except in this test *)
+            |> List.sortBy ~f:(fun (k, _) -> k)
+          in
+          let _ = (dobj, expectedFields) in
+          let tipe = R.generateUserType (Some dobj) in
+          let fields =
+            match tipe with
+            | Error _ ->
+                []
+            | Ok ut ->
+              ( match ut.utDefinition with UTRecord utr ->
+                  utr
+                  |> List.map ~f:(fun urf ->
+                         ( urf.urfName |> Blank.toMaybe
+                         , urf.urfTipe |> Blank.toMaybe ) ) )
+          in
+          expect fields |> toEqual expectedFields ) )
