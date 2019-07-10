@@ -2248,7 +2248,14 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doDelete" s in
   let left s = moveOneLeft pos s in
-  let offset = pos - ti.startPos in
+  let offset =
+    match ti.token with
+    | TFnVersion (_, fnName, _) ->
+        let startPos = pos - String.length fnName in
+        pos - startPos - 1
+    | _ ->
+        pos - ti.startPos
+  in
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
