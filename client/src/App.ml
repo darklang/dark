@@ -1149,8 +1149,6 @@ let update_ (msg : msg) (m : model) : modification =
             None
       in
       Selection.dblclick m targetExnID targetID offset
-  | ToplevelDoubleClick tlid ->
-      CenterCanvasOn tlid
   | ToplevelClick (targetExnID, _) ->
       let click =
         match m.cursorState with
