@@ -29,21 +29,21 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
             ; Html.div
                 [Html.class' "dbexample"]
                 [ Html.div [Html.class' "key"] [Html.text key]
-                ; Html.div [Html.class' "value"] [Html.text (Runtime.toRepr example)]
-                ] ]
+                ; Html.div
+                    [Html.class' "value"]
+                    [Html.text (Runtime.toRepr example)] ] ]
         | None ->
             [Vdom.noNode; Vdom.noNode]
       in
       Html.div
         [Html.class' "db dbdata"]
-        ( (Html.div
+        ( Html.div
             [Html.class' "title"]
             [ Html.text "Latest Entry"
             ; Html.span
-              [Html.class' "dbcount"]
-              [Html.text ("# Entries: " ^ string_of_int stats.count)] ])
-          :: exampleHtml
-        )
+                [Html.class' "dbcount"]
+                [Html.text ("# Entries: " ^ string_of_int stats.count)] ]
+        :: exampleHtml )
   | _ ->
       Vdom.noNode
 
