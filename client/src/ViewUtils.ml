@@ -365,35 +365,32 @@ let splitFnName (fnName : fnName) : string option * string * string =
           Debug.crash "invalid fn name" )
   | None ->
       (None, fnName, "0")
+
+
 (* Get just the function mod and name  *)
 let fnName (fnName : fnName) : string =
   let mod_, name, _ = splitFnName fnName in
-  match mod_ with
-    | Some mod_->
-      mod_ ^ "::" ^ name
-    | None ->
-      name
+  match mod_ with Some mod_ -> mod_ ^ "::" ^ name | None -> name
+
+
 (* Get just the function version *)
 let fnVersion (fnName : fnName) : string =
   let _, _, version = splitFnName fnName in
-  if version == "0" then "" else "v" ^ version 
-  
+  if version = "0" then "" else "v" ^ version
+
+
 (* Get the function mod, name and version (without underscore) *)
-let fnPartialName (fnName : fnName) : string =
-  let mod_, name, version = splitFnName fnName in
-  let mod_ = mod_  |> Option.map ~f:(fun m -> m ^ "::")
-  |> Option.withDefault ~default: ""
-  in
-  let version = fnVersion fnName
-  in
-  mod_ ^ name ^ version
+let fnPartialName (name : fnName) : string =
+  let version = fnVersion name in
+  let name = fnName name in
+  name ^ version
 
 
 let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
   let mod_, name, version = splitFnName fnName in
   let name = if parens then "(" ^ name ^ ")" else name in
   let classes = if mod_ = None then ["atom"] else [] in
-  let versionTxt = if version = "0" then "" else "v" ^ version in
+  let versionTxt = if version = "0" then "" else version in
   let modHtml =
     match mod_ with
     | Some name ->

@@ -285,12 +285,12 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
-        ; fnParameters = [fnParam "db" TDB false]
-        ; fnReturnTipe = TList
-        ; fnDescription = "get all"
-        ; fnPreviewExecutionSafe = false
-        ; fnDeprecated = false
-        ; fnInfix = false } ] }
+          ; fnParameters = [fnParam "db" TDB false]
+          ; fnReturnTipe = TList
+          ; fnDescription = "get all"
+          ; fnPreviewExecutionSafe = false
+          ; fnDeprecated = false
+          ; fnInfix = false } ] }
   in
   let process
       ~(debug : bool)
@@ -670,12 +670,11 @@ let () =
          * same with delete *)
       
       (* Test insert in function  *)
-      t 
+      t
         "adding function with version goes to the right place"
         blank
         (presses ~wrap:false [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ________________", 13) ;
-
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
