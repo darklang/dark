@@ -98,7 +98,19 @@ let saved_input_vars
   | `Http ->
       let with_r = [("request", event)] in
       let bound =
-        Libexecution.Execution.http_route_input_vars h request_path
+        match Handler.event_name_for h with
+        | Some route ->
+            (* Check the trace actually matches the route, if not the client has made a
+             * mistake in matching the traceid to this handler, but that might happen due
+             * to a race condition. If it does, carry on, if it doesn't -- just don't
+             * do any bindings and inject the sample variables.
+             * Communicating to the frontend that this trace doesn't
+             * match the handler should be done in the future somehow. *)
+            if Http.request_path_matches_route ~route request_path
+            then Execution.http_route_input_vars h request_path
+            else Execution.sample_route_input_vars h
+        | None ->
+            []
       in
       with_r @ bound
   | `Event ->
@@ -148,12 +160,30 @@ let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
 
 let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
     =
-  h
-  |> Handler.event_desc_for
-  |> Option.map ~f:(SE.load_event_ids ~canvas_id:c.id)
-  (* if it has no events, add a default *)
-  |> (function Some [] -> None | x -> x)
-  |> Option.value ~default:[Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
+  match Handler.event_desc_for h with
+  | Some ((hmodule, _, _) as desc) ->
+      let events = SE.load_event_ids ~canvas_id:c.id desc in
+      events
+      |> List.filter_map ~f:(fun (trace_id, path) ->
+             if String.Caseless.equal hmodule "HTTP"
+             then
+               (* Ensure we only return trace_ids that would bind to this handler
+              * if the trace was executed for real now *)
+               c.handlers
+               |> Toplevel.handlers
+               (* Filter and order the handlers that would match the trace's path *)
+               |> Http.filter_matching_handlers path
+               |> List.hd
+               |> Option.bind ~f:(fun matching ->
+                      if matching.tlid = h.tlid then Some trace_id else None )
+             else
+               (* Don't use HTTP filtering stack for non-HTTP traces *)
+               Some trace_id )
+      (* If there's no matching traces, add the default trace *)
+      |> (function [] -> [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)] | x -> x)
+  | None ->
+      (* If the event description isn't complete, add the default trace *)
+      [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
 let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =
