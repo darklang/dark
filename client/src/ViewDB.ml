@@ -28,8 +28,7 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
             [ Html.hr [] []
             ; Html.div
                 [Html.class' "dbexample"]
-                [ Html.div [Html.class' "label"] [Html.text "Latest Entry"] 
-                ; Html.div [Html.class' "key"] [Html.text key]
+                [ Html.div [Html.class' "key"] [Html.text key]
                 ; Html.div [Html.class' "value"] [Html.text (Runtime.toRepr example)]
                 ] ]
         | None ->
@@ -37,10 +36,14 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
       in
       Html.div
         [Html.class' "db dbdata"]
-        [ Html.div
-            [Html.class' "dbcount"]
-            ( Html.text ("# Entries: " ^ string_of_int stats.count)
-            :: exampleHtml) ]
+        ( (Html.div
+            [Html.class' "title"]
+            [ Html.text "Latest Entry"
+            ; Html.span
+              [Html.class' "dbcount"]
+              [Html.text ("# Entries: " ^ string_of_int stats.count)] ])
+          :: exampleHtml
+        )
   | _ ->
       Vdom.noNode
 
