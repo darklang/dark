@@ -39,8 +39,18 @@
     background-color: $toplevel-background;
     outline: 0.4px $grey2 dotted;
 
-    .title .dbcount {
-      float: right;
+    .title {
+      .label {
+        display: none;
+
+        &.show {
+          display: inline;
+        }
+      }
+
+      .dbcount {
+        float: right;
+      }
     }
 
     .dbexample {
