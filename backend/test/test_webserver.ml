@@ -49,6 +49,47 @@ let t_redirect_to () =
     ; Some "https://test.builtwithdark.com/x/y?z=a" ]
 
 
+let t_canonicalize_maintains_schemes () =
+  (* We don't test the https variants as the request we can't make requests
+   * that have them, and they never occur in either dev or prod. *)
+  let tests =
+    [ ( "//example.com"
+      , ("http://example.com/", "http://example.com/", "https://example.com/")
+      )
+    ; ( "//builtwithdark.com"
+      , ( "http://builtwithdark.com/"
+        , "http://builtwithdark.com/"
+        , "https://builtwithdark.com/" ) )
+    ; ( "http://builtwithdark.com"
+      , ( "http://builtwithdark.com/"
+        , "http://builtwithdark.com/"
+        , "https://builtwithdark.com/" ) )
+    ; ( "http://test.builtwithdark.com"
+      , ( "http://test.builtwithdark.com/"
+        , "http://test.builtwithdark.com/"
+        , "https://test.builtwithdark.com/" ) )
+    ; ( "http://test.builtwithdark.com/x/y?z=a"
+      , ( "http://test.builtwithdark.com/x/y?z=a"
+        , "http://test.builtwithdark.com/x/y?z=a"
+        , "https://test.builtwithdark.com/x/y?z=a" ) ) ]
+  in
+  tests
+  |> List.map ~f:(fun (url, (e1, e2, e3)) ->
+         [ (url, Header.init (), e1)
+         ; (url, Header.init_with "x-forwarded-proto" "http", e2)
+         ; (url, Header.init_with "x-forwarded-proto" "https", e3) ] )
+  |> List.concat
+  |> List.iter ~f:(fun (url, headers, expected) ->
+         AT.check
+           AT.string
+           (url ^ " " ^ Header.to_string headers)
+           expected
+           ( Req.make ~meth:`GET ~headers (Uri.of_string url)
+           |> Webserver.canonicalize_request
+           |> Req.uri
+           |> Uri.to_string ) )
+
+
 let t_bad_ssl_cert _ =
   check_error_contains
     "should get bad_ssl"
@@ -224,8 +265,7 @@ let admin_handler_code
   let test_id = Types.id_of_int 1234 in
   let session = Lwt_main.run (Auth.Session.new_for_username username) in
   Lwt_main.run
-    (let stop, stopper = Lwt.wait () in
-     let uri =
+    (let uri =
        Uri.of_string ("http://builtwithdark.localhost:8000" ^ endpoint)
      in
      let headers =
@@ -239,7 +279,6 @@ let admin_handler_code
        Webserver.admin_handler
          ~execution_id:test_id
          ~uri
-         ~stopper
          ~body
          ~session
          ~csrf_token:(Auth.Session.csrf_token_for session)
@@ -337,6 +376,43 @@ let t_head_and_get_requests_are_coalesced () =
     ; (200, (expected_content_length, "")) ]
 
 
+let t_http_request_redirects () =
+  let setup_canvas () =
+    let n1 = hop (http_handler (ast_for "'test_body'")) in
+    let canvas = ops2c_exn "test" [n1] in
+    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    C.save_all !canvas ;
+    canvas
+  in
+  let respond (req : Req.t) : int =
+    Lwt_main.run
+      (let%lwt () = Nocrypto_entropy_lwt.initialize () in
+       let test_id = Types.id_of_int 1234 in
+       ignore (setup_canvas ()) ;
+       let%lwt resp, body =
+         Webserver.callback
+           ~k8s_callback:(fun _ ~execution_id ->
+             Cohttp_lwt_unix.Server.respond_string
+               ~status:(Cohttp.Code.status_of_code 911)
+               ~body:""
+               () )
+           ""
+           req
+           ""
+           test_id
+       in
+       resp |> Resp.status |> Code.code_of_status |> return)
+  in
+  AT.check
+    AT.int
+    "http requests redirect"
+    302
+    (respond
+       (Req.make
+          ?meth:(Some `GET)
+          (Uri.of_string "http://test.builtwithdark.com/test")))
+
+
 let suite =
   [ ("Webserver.should_use_https works", `Quick, t_should_use_https)
   ; ("Webserver.redirect_to works", `Quick, t_redirect_to) (* errorrail *)
@@ -351,4 +427,6 @@ let suite =
   ; ("/api/ routes in admin_handler work ", `Quick, t_admin_handler_api)
   ; ( "head and get requests are coalsced"
     , `Quick
-    , t_head_and_get_requests_are_coalesced ) ]
+    , t_head_and_get_requests_are_coalesced )
+  ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
+  ; ("http requests redirect", `Quick, t_http_request_redirects) ]

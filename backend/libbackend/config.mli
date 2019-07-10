@@ -23,8 +23,6 @@ val log_level : Libcommon.Log.level
 
 val should_write_shape_data : bool
 
-val allow_server_shutdown : bool
-
 val allow_test_routes : bool
 
 val create_accounts : bool
