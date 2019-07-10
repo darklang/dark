@@ -32,12 +32,17 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
         | None ->
             [Vdom.noNode; Vdom.noNode]
       in
+      let keyHtml =
+        match stats.latestKey with
+        | Some key -> Html.text key
+        | None -> Vdom.noNode
+      in
       Html.div
         [Html.class' "db dbdata"]
         [ Html.div
             [Html.class' "dbcount"]
-            ( [Html.text ("# Entries: " ^ string_of_int stats.count)]
-            @ exampleHtml ) ]
+            ( Html.text ("# Entries: " ^ string_of_int stats.count)
+            :: (keyHtml :: exampleHtml) ) ]
   | _ ->
       Vdom.noNode
 

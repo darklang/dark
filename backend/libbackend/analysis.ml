@@ -24,7 +24,8 @@ let unlocked (c : canvas) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : RTT.dval option }
+  ; example : RTT.dval option
+  ; latest_key : string option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
@@ -38,8 +39,13 @@ let db_stats (c : canvas) (tlids : tlid list) : db_stat_map =
       | Some db, None ->
           let account_id, canvas_id = (c.owner, c.id) in
           let count = User_db.stats_count ~account_id ~canvas_id db in
-          let example = User_db.stats_pluck ~account_id ~canvas_id db in
-          IDMap.add_exn ~data:{count; example} ~key:tlid map
+          let example, latest_key = 
+            (match User_db.stats_pluck ~account_id ~canvas_id db with
+            | Some (d, k) -> (Some d, Some k)
+            | None -> (None, None)
+            )
+          in
+          IDMap.add_exn ~data:{count; example; latest_key} ~key:tlid map
       | _ ->
           map )
     tlids
