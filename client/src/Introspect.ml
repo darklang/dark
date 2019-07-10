@@ -229,9 +229,9 @@ let getUsageFor
 
 
 let usageMod (ops : op list) (toplevels : toplevel list) : modification =
+  let tlidsToUpdate = tlidsToUpdateUsage ops in
   let databases = dbsByName toplevels in
   let handlers = handlersByName toplevels in
-  let tlidsToUpdate = tlidsToUpdateUsage ops in
   let use =
     toplevels
     |> List.filterMap ~f:(fun tl ->

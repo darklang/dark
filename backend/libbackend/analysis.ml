@@ -244,7 +244,12 @@ type add_op_rpc_result =
   (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
-let to_add_op_rpc_result (c : canvas) : string =
+type add_op_stroller_msg =
+  { result : add_op_rpc_result
+  ; params : Api.add_op_rpc_params }
+[@@deriving to_yojson]
+
+let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels =
       IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
@@ -252,8 +257,6 @@ let to_add_op_rpc_result (c : canvas) : string =
   ; deleted_user_functions = IDMap.data c.deleted_user_functions
   ; user_tipes = IDMap.data c.user_tipes
   ; deleted_user_tipes = IDMap.data c.deleted_user_tipes }
-  |> add_op_rpc_result_to_yojson
-  |> Yojson.Safe.to_string ~std:true
 
 
 (* Initial load *)

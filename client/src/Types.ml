@@ -501,7 +501,9 @@ and op =
 (* params *)
 and sendPresenceParams = avatarModelMessage
 
-and addOpRPCParams = {ops : op list}
+and addOpRPCParams =
+  { ops : op list
+  ; browserId : string }
 
 and executeFunctionRPCParams =
   { efpTLID : tlid
@@ -559,6 +561,10 @@ and addOpRPCResult =
   ; deletedUserFunctions : userFunction list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list }
+
+and addOpStrollerMsg =
+  { result : addOpRPCResult
+  ; params: addOpRPCParams }
 
 and dvalArgsHash = string
 
@@ -823,8 +829,9 @@ and msg =
   | FluidMouseClick
   | AutocompleteClick of int
   | AddOpRPCCallback of
-      focus * addOpRPCParams * (addOpRPCResult, httpError) Tea.Result.t
+      focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
+  | AddOpStrollerMsg of addOpStrollerMsg
   | SaveTestRPCCallback of (saveTestRPCResult, httpError) Tea.Result.t
       [@printer opaque "SavetestRPCCallback"]
   | GetUnlockedDBsRPCCallback of
