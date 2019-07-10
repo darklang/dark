@@ -1695,7 +1695,7 @@ bucklescript-tea@darklang/bucklescript-tea#master:
   version "0.11.1"
   resolved "https://codeload.github.com/darklang/bucklescript-tea/tar.gz/4144d2543dffd3d090dd9c202d5c0aaa44ca0a66"
 
-buffer-from@^1.0.0:
+buffer-from@>=1.1, buffer-from@^1.0.0:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/buffer-from/-/buffer-from-1.1.1.tgz#32713bc028f75c02fdb710d7c7bcec1f2c6070ef"
   integrity sha512-MQcXEUbCKtEo7bhqEs6560Hyd4XaovZlO/k9V3hjVUF/zwW7KBVdSK4gIt/bzwS9MbR5qob+F5jusZsb0YQK2A==
@@ -5583,18 +5583,20 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^3.0.0"
     inherits "^2.0.1"
 
-rollbar@^2.7.1:
-  version "2.7.1"
-  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.7.1.tgz#4de388f76b69081a8ff0db68c98c2668f3f77492"
-  integrity sha512-xYKTyjgqUjObu8dMkmKqLuyfuJuTnRAJj8E2BIFZtUHdBHmHaZB3JFMgdJ9fHGMN26sN69eV2/gSZlNKVS1wfA==
+rollbar@^2.8.1:
+  version "2.8.1"
+  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.8.1.tgz#f2a3edc58a8d00d4e1aab22d51ce9705858853cd"
+  integrity sha512-Va/cdaZfLUbp7ZvHhWV/PY+HZLBcOghtKd/w64G/NC60Qpl7QM/xzZKLkDhwx3Z0kLtSMonqwE3l7p0fgL9gOQ==
   dependencies:
     async "~1.2.1"
+    buffer-from ">=1.1"
     console-polyfill "0.3.0"
     debug "2.6.9"
     error-stack-parser "1.3.3"
     json-stringify-safe "~5.0.0"
     lru-cache "~2.2.1"
     request-ip "~2.0.1"
+    source-map ">=0.5.0"
     uuid "3.0.x"
   optionalDependencies:
     decache "^3.0.5"
@@ -5849,6 +5851,11 @@ source-map-url@^0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/source-map-url/-/source-map-url-0.4.0.tgz#3e935d7ddd73631b97659956d55128e87b5084a3"
   integrity sha1-PpNdfd1zYxuXZZlW1VEo6HtQhKM=
+
+source-map@>=0.5.0:
+  version "0.7.3"
+  resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.7.3.tgz#5302f8169031735226544092e64981f751750383"
+  integrity sha512-CkCj6giN3S+n9qrYiBTX5gystlENnRW5jZeNLHpe6aue+SrHcG5VYwujhW9s4dY31mEGsxBDrHR6oI69fTXsaQ==
 
 source-map@^0.1.38:
   version "0.1.43"
