@@ -53,13 +53,17 @@ let viewInput
         in
         Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
+  let dotHtml =
+    if isHover && not isActive
+    then [Html.div [Html.class' "empty-dot"] []]
+    else [Html.div [] [Html.text {js|•|js}]]
+  in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  Html.li (Html.class' classes :: events) [Html.text {js|•|js}; viewData]
+  Html.li (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     =
-  let hasHover = ViewUtils.isHoverOverTL vs in
   let traceToHtml ((traceID, traceData) : trace) =
     let value = Option.map ~f:(fun td -> td.input) traceData in
     let timestamp =
@@ -67,9 +71,7 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      if hasHover
-      then false
-      else Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
+      Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tl.id, ID traceID) in
     let astTipe =
