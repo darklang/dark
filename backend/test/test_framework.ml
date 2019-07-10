@@ -84,7 +84,9 @@ let t_stored_event_roundtrip () =
     "list host events"
     (List.sort ~compare [t1; t3; t4])
     (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
-  let loaded = SE.load_event_ids ~canvas_id:id2 desc4 in
+  let loaded =
+    SE.load_event_ids ~canvas_id:id2 desc4 |> List.map ~f:Tuple.T2.get1
+  in
   AT.check
     (AT.list at_trace_id)
     "list desc events"
@@ -221,6 +223,7 @@ let t_event_queue_roundtrip () =
       let trace_id =
         Stored_event.load_event_ids ~canvas_id:!c.id ("CRON", "test", "Daily")
         |> List.hd_exn
+        |> Tuple.T2.get1
       in
       AT.check
         AT.int

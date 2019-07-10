@@ -125,7 +125,7 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
 
 let load_event_ids
     ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
-    Uuidm.t list =
+    (Uuidm.t * string) list =
   let route =
     (* Only munge the route for HTTP events, as they have wildcards, whereas
      * background events are completely concrete.
@@ -140,7 +140,7 @@ let load_event_ids
   in
   Db.fetch
     ~name:"load_events"
-    "SELECT trace_id FROM stored_events_v2
+    "SELECT trace_id, path FROM stored_events_v2
     WHERE canvas_id = $1
       AND module = $2
       AND path LIKE $3
@@ -149,8 +149,8 @@ let load_event_ids
     LIMIT 10"
     ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
-         | [trace_id] ->
-             Util.uuid_of_string trace_id
+         | [trace_id; path] ->
+             (Util.uuid_of_string trace_id, path)
          | _ ->
              Exception.internal "Bad DB format for stored_events" )
 
