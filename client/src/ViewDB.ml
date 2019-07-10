@@ -39,7 +39,10 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
         [Html.class' "db dbdata"]
         ( Html.div
             [Html.class' "title"]
-            [ Html.text "Latest Entry"
+            [ Html.span
+                [ Html.classList
+                    [("label", true); ("show", Option.isSome stats.example)] ]
+                [Html.text "Latest Entry"]
             ; Html.span
                 [Html.class' "dbcount"]
                 [Html.text ("# Entries: " ^ string_of_int stats.count)] ]
