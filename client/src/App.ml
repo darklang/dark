@@ -248,6 +248,7 @@ let isACOpened (m : model) : bool =
   then
     FluidAutocomplete.isOpened m.fluidState.ac
     || FluidCommands.isOpened m.fluidState.cp
+    || AC.isOpened m.complete
   else AC.isOpened m.complete
 
 
