@@ -24,25 +24,23 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
   | Some stats when tlidOf vs.cursorState = Some db.dbTLID ->
       let exampleHtml =
         match stats.example with
-        | Some example ->
+        | Some (example, key) ->
             [ Html.hr [] []
             ; Html.div
                 [Html.class' "dbexample"]
-                [Html.text (Runtime.toRepr example)] ]
+                [ Html.div [Html.class' "label"] [Html.text "Latest Entry"] 
+                ; Html.div [Html.class' "key"] [Html.text key]
+                ; Html.div [Html.class' "value"] [Html.text (Runtime.toRepr example)]
+                ] ]
         | None ->
             [Vdom.noNode; Vdom.noNode]
-      in
-      let keyHtml =
-        match stats.latestKey with
-        | Some key -> Html.text key
-        | None -> Vdom.noNode
       in
       Html.div
         [Html.class' "db dbdata"]
         [ Html.div
             [Html.class' "dbcount"]
             ( Html.text ("# Entries: " ^ string_of_int stats.count)
-            :: (keyHtml :: exampleHtml) ) ]
+            :: exampleHtml) ]
   | _ ->
       Vdom.noNode
 
