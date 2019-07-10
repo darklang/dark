@@ -514,6 +514,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EPartial (id, newName, EFnCall (_, name, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
+      (* If this is a constructor it will be ignored *)
+      let name = ViewUtils.fnPartialName name in
       let ghostSuffix = String.dropLeft ~count:(String.length newName) name in
       let ghost =
         if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
@@ -536,18 +538,27 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
       (* Specifialized for being in a thread *)
-      let mod_, name, version = ViewUtils.splitFnName fnName in
-      let versionToken = if version = "0" then [] else [TFnVersion (id, fnName, version)] in
-      [TFnName (id, fnName, mod_, name, ster)] @ versionToken
+      let name = ViewUtils.fnName fnName in
+      let version = ViewUtils.fnVersion fnName in
+      let partialName = ViewUtils.fnPartialName fnName in
+      let versionToken =
+        if version = "" then [] else [TFnVersion (id, partialName, version)]
+      in
+      [TFnName (id, partialName, name, fnName, ster)]
+      @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
-      let futurePartialName = ViewUtils.fnPartialName fnName in
-      let mod_, name, version = ViewUtils.splitFnName fnName in
-      let versionToken = if version = "0" then [] else [TFnVersion (id, futurePartialName, version)] in
-      [TFnName (id, futurePartialName, mod_, name, ster)] @ versionToken
+      let name = ViewUtils.fnName fnName in
+      let version = ViewUtils.fnVersion fnName in
+      let partialName = ViewUtils.fnPartialName fnName in
+      let versionToken =
+        if version = "" then [] else [TFnVersion (id, partialName, version)]
+      in
+      [TFnName (id, partialName, name, fnName, ster)]
+      @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -1823,7 +1834,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
       let name = fn.fnName in
-      let removeUnderscore = 
+      let removeUnderscore =
         let version = ViewUtils.fnVersion name in
         if version = "0" then 0 else -1
       in
@@ -1840,7 +1851,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
             (EBinOp (gid (), name, lhs, rhs, r), 0)
         | _ ->
             fail "BinOp doesn't have 2 args"
-      else (EFnCall (gid (), name, args, r), String.length name + 1 + removeUnderscore)
+      else
+        ( EFnCall (gid (), name, args, r)
+        , String.length name + 1 + removeUnderscore )
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -2123,6 +2136,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
+    | TFnVersion (_, fnName, _) ->
+        let startPos = pos - String.length fnName in
+        pos - startPos - 1
     | _ ->
         pos - ti.startPos - 1
   in
@@ -2167,7 +2183,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, str) | TFnName (id, str, _, _, _) | TFnVersion (id, str, _) ->
+  | TConstructorName (id, str)
+  | TFnName (id, str, _, _, _)
+  | TFnVersion (id, str, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
@@ -2258,7 +2276,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
-  | TConstructorName (id, str) | TFnName (id, str, _, _, _) | TFnVersion (id, str, _) ->
+  | TConstructorName (id, str)
+  | TFnName (id, str, _, _, _)
+  | TFnVersion (id, str, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
   | TFieldOp id ->
@@ -2409,8 +2429,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField _
     when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
       (ast, s)
-  | TFnVersion _ 
-  | TFnName _ when not (isFnNameChar letterStr) ->
+  | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
   | TRecordField _
