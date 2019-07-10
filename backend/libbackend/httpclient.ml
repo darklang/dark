@@ -143,14 +143,6 @@ let http_call_with_code
       C.set_writefunction c responsefn ;
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
-      (* This tells CURL to send an Accept-Encoding header including all
-       * of the encodings it supports *and* tells it to automagically decode
-       * responses in those encodings. This works even if someone manually specifies
-       * the encoding in the header, as libcurl will still appropriately decode it
-       *
-       * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
-       * *)
-      C.set_encoding c C.CURL_ENCODING_ANY ;
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
       (* Seems like redirects can be used to get around the above list... *)
