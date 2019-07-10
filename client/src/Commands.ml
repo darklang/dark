@@ -85,8 +85,46 @@ let commands : command list =
                 dvalmap
                 |> StrDict.toList
                 |> List.map ~f:(fun (k, v) ->
-                       { urfName = k |> Blank.newF
-                       ; urfTipe = v |> Runtime.typeOf |> Blank.newF } )
+                       let isUuid (dstr : dval) : bool =
+                         match dstr with
+                         | DStr s ->
+                             Util.Regex.exactly
+                               ~re:
+                                 "[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}"
+                               s
+                         | _ ->
+                             false
+                       in
+                       let isDate (dstr : dval) : bool =
+                         match dstr with
+                         | DStr s ->
+                             let parsedDate = Js.Date.fromString s in
+                             ( try
+                                 (* toISOString will raise Invalid Date if date
+                                  * is invalid; bucklescript doesn't expose this
+                                  * to us otherwise *)
+                                 ignore (Js.Date.toISOString parsedDate) ;
+                                 true
+                               with _ -> false )
+                         | _ ->
+                             false
+                       in
+                       let tipe = v |> Runtime.typeOf in
+                       let tipe =
+                         match tipe with
+                         | TStr ->
+                           ( match (isUuid v, isDate v) with
+                           | true, _ ->
+                               TUuid
+                           | false, true ->
+                               TDate
+                           | false, false ->
+                               TStr )
+                         | _ ->
+                             tipe
+                       in
+                       {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF}
+                   )
               in
               let tipe =
                 { (Refactor.generateEmptyUserType ()) with
