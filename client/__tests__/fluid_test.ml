@@ -211,6 +211,9 @@ let () =
       , EVariable (gid (), bindingName) )
   in
   let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
+  let aFnCallWithVersion =
+    EFnCall (gid (), "DB::getAll_v1", [blank], NoRail)
+  in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
@@ -668,8 +671,16 @@ let () =
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
-      
-      (* Test insert in function  *)
+      tp
+        "delete on function with version"
+        aFnCallWithVersion
+        (press K.Delete 11)
+        ("DB::getAllv@ ___", 11) ;
+      tp
+        "backspace on function with version"
+        aFnCallWithVersion
+        (press K.Backspace 12)
+        ("DB::getAllv@ ___", 11) ;
       t
         "adding function with version goes to the right place"
         blank
