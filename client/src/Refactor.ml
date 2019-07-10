@@ -543,6 +543,59 @@ let generateEmptyUserType () : userTipe =
   ; utDefinition = definition }
 
 
+let generateUserType (dv : dval option) : (string, userTipe) Result.t =
+  match dv with
+  | Some (DObj dvalmap) ->
+      let userTipeDefinition =
+        dvalmap
+        |> StrDict.toList
+        |> List.map ~f:(fun (k, v) ->
+               let isUuid (dstr : dval) : bool =
+                 match dstr with
+                 | DStr s ->
+                     Util.Regex.exactly
+                       ~re:
+                         "[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}"
+                       s
+                 | _ ->
+                     false
+               in
+               let isDate (dstr : dval) : bool =
+                 match dstr with
+                 | DStr s ->
+                     let parsedDate = Js.Date.fromString s in
+                     ( try
+                         (* toISOString will raise Invalid Date if date
+                          * is invalid; bucklescript doesn't expose this
+                          * to us otherwise *)
+                         ignore (Js.Date.toISOString parsedDate) ;
+                         true
+                       with _ -> false )
+                 | _ ->
+                     false
+               in
+               let tipe = v |> Runtime.typeOf in
+               let tipe =
+                 match tipe with
+                 | TStr ->
+                     if isUuid v
+                     then TUuid
+                     else if isDate v
+                     then TDate
+                     else TStr
+                 | _ ->
+                     tipe
+               in
+               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF} )
+      in
+      Ok
+        { (generateEmptyUserType ()) with
+          utDefinition = UTRecord userTipeDefinition }
+  | Some _ ->
+      Error "Live value is not an object."
+  | None ->
+      Error "No live value."
+
 
 let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
     op list =
