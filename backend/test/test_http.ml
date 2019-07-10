@@ -261,6 +261,17 @@ let t_path_gt_route_does_not_crash () =
     bound
 
 
+let t_incomplete_handler_doesnt_throw () =
+  let filled = http_route_handler ~route:"/:foo" () in
+  let empty = handler (ast_for "5") in
+  let ordered = Http.filter_matching_handlers "/a" [filled; empty] in
+  AT.check
+    (AT.list testable_handler)
+    "incomplete handler is filtered out without throwing"
+    [filled]
+    ordered
+
+
 let t_parsed_request_cookies () =
   let with_headers h =
     Parsed_request.from_request (Uri.of_string "test") h [] ""
@@ -345,4 +356,7 @@ let suite =
   ; ( "Query strings behave properly given multiple duplicate keys"
     , `Quick
     , t_query_params_with_duplicate_keys )
-  ; ("Cookies are parsed correctly", `Quick, t_parsed_request_cookies) ]
+  ; ("Cookies are parsed correctly", `Quick, t_parsed_request_cookies)
+  ; ( "Incomplete handler is filtered out safely"
+    , `Quick
+    , t_incomplete_handler_doesnt_throw ) ]

@@ -187,5 +187,6 @@ let filter_matching_handlers
     ~(path : string) (pages : RT.HandlerT.handler list) :
     RT.HandlerT.handler list =
   pages
+  |> List.filter ~f:Handler.is_complete
   |> filter_invalid_handler_matches ~path
   |> filter_matching_handlers_by_specificity
