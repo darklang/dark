@@ -476,7 +476,9 @@ and getTraceDataRPCResult j : getTraceDataRPCResult =
 
 
 and dbStats j : dbStats =
-  {count = field "count" int j; example = field "example" (optional dval) j; latestKey = field "latest_key" (optional string) j }
+  { count = field "count" int j
+  ; example = field "example" (optional (tuple2 dval string)) j
+  }
 
 
 and dbStatsStore j : dbStatsStore = dict dbStats j
