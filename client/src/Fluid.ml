@@ -2141,8 +2141,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
     | TFnVersion (_, fnName, _, _) ->
-        let startPos = pos - String.length fnName in
-        pos - startPos - 1
+        (String.length fnName) - 1
     | _ ->
         pos - ti.startPos - 1
   in
@@ -2255,8 +2254,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let offset =
     match ti.token with
     | TFnVersion (_, fnName, _, _) ->
-        let startPos = pos - String.length fnName in
-        pos - startPos - 1
+        (String.length fnName) - 1
     | _ ->
         pos - ti.startPos
   in
