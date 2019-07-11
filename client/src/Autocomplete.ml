@@ -418,6 +418,10 @@ let cleanEventName (s : string) : string =
   s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
 
 
+let cleanHTTPname (s : string) : string =
+  "/" ^ s |> stripChars nonEventNameSafeCharacters |> removeExtraSlashes
+
+
 let cleanDBName (s : string) : string =
   s
   |> stripChars "[^a-zA-Z0-9_]"
@@ -513,11 +517,9 @@ let toDynamicItems
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
       let isHttpHandler = space == Some HSHTTP in
-      if q == ""
-      then if isHttpHandler then [ACEventName "/"] else []
-      else
-        let q = if isHttpHandler then "/" ^ q else q in
-        [ACEventName (cleanEventName q)]
+      if isHttpHandler
+      then [ACEventName (cleanHTTPname q)]
+      else [ACEventName (cleanEventName q)]
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
