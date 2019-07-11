@@ -512,9 +512,12 @@ let toDynamicItems
   | Some (_, PEventSpace _) ->
       if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
+      let isHttpHandler = space == Some HSHTTP in
       if q == ""
-      then if space == Some HSHTTP then [ACEventName "/"] else []
-      else [ACEventName (cleanEventName q)]
+      then if isHttpHandler then [ACEventName "/"] else []
+      else
+        let q = if isHttpHandler then "/" ^ q else q in
+        [ACEventName (cleanEventName q)]
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
