@@ -256,7 +256,7 @@ let rec exec
            * because it gives a horrible user experience *)
           DIncomplete
       | None, Real ->
-          Exception.internal ("There is no variable named: " ^ name)
+          DError ("There is no variable named: " ^ name)
       | Some other, _ ->
           other )
     | Filled (id, FnCallSendToRail (name, exprs)) ->
