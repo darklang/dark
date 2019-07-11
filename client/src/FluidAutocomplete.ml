@@ -597,3 +597,6 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
         documentationForItem (FACLiteral (string_of_bool var))
     | FPANull _ ->
         Some "A 'null' literal" )
+
+
+let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index

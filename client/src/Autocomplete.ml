@@ -1035,10 +1035,8 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
       setVisible visible a
 
 
-let isOpened (m : model) : bool =
-  if VariantTesting.isFluid m.tests
-  then
-    let acOpened = Option.isSome m.fluidState.ac.index in
-    let cpOpened = m.fluidState.cp.show in
-    acOpened || cpOpened
-  else Option.isSome m.complete.target || m.complete.isCommandMode
+(* Checks to see if autocomplete or command palette is opened
+ * but not omnibox since it's not scrollable 
+*)
+let isOpened (ac : autocomplete) : bool =
+  Option.isSome ac.target || ac.isCommandMode
