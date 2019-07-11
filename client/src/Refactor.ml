@@ -550,6 +550,12 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
         dvalmap
         |> StrDict.toList
         |> List.map ~f:(fun (k, v) ->
+               let tipe = v |> Runtime.typeOf in
+               (*
+                * In the future, we may want to recognize stringified UUIDs and
+                * Dates, but we decided that today is not that day. See
+                * discussion at
+                * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                let isUuid (dstr : dval) : bool =
                  match dstr with
                  | DStr s ->
@@ -574,7 +580,6 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                  | _ ->
                      false
                in
-               let tipe = v |> Runtime.typeOf in
                let tipe =
                  match tipe with
                  | TStr ->
@@ -586,6 +591,7 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                  | _ ->
                      tipe
                in
+                  *)
                {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF} )
       in
       Ok

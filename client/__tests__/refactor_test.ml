@@ -187,9 +187,14 @@ let () =
             ; ("float", TFloat)
             ; ("obj", TObj)
             ; ("date", TDate)
-            ; ("datestr", TDate)
+            ; ("datestr", TStr)
+              (* for now, TStr; in future, maybe we coerce to
+                                   TDate *)
             ; ("uuid", TUuid)
-            ; ("uuidstr", TUuid) ]
+            ; ("uuidstr", TStr)
+            (* for now, TStr; in future, maybe we coerce to
+                                   TUuid *)
+             ]
             |> List.map ~f:(fun (k, v) -> (Some k, Some v))
             (* sortBy here because the dobj gets sorted - not sure exactly
                where, but order doesn't matter except in this test *)
