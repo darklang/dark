@@ -417,6 +417,25 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["Int::random_v1"]
+    ; ins = []
+    ; p = [par "start" TInt; par "end" TInt]
+    ; r = TInt
+    ; d = "Returns a random integer between `start` and `end` (inclusive)."
+    ; f =
+        InProcess
+          (function
+          | _, [DInt a; DInt b] ->
+              let open Dint in
+              (* upper+1 because as Random.int is exclusive *)
+              let lower, upper =
+                if a > b then (b, a + one) else (a, b + one)
+              in
+              DInt (lower + Dint.random (upper - lower))
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["Int::sqrt"]
     ; ins = []
