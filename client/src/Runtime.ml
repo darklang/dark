@@ -381,8 +381,72 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
 
-let inputValueAsString (iv : inputValueDict) : string =
-  DObj iv
+(* TODO: copied from Libexecution/http.ml *)
+let route_variables (route : string) : string list =
+  let split_uri_path (path : string) : string list =
+    let subs = String.split ~on:"/" path in
+    List.filter ~f:(fun x -> String.length x > 0) subs
+  in
+  route
+  |> split_uri_path
+  |> List.filter ~f:(String.startsWith ~prefix:":")
+  |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
+
+
+let inputVariables (tl : toplevel) : varName list =
+  match tl.data with
+  | TLHandler h ->
+    ( match h.spec.space with
+    | F (_, m) when String.toLower m = "http" ->
+        let fromRoute =
+          h.spec.name
+          |> Blank.toMaybe
+          |> Option.map ~f:route_variables
+          |> Option.withDefault ~default:[]
+        in
+        ["request"] @ fromRoute
+    | F (_, m) when String.toLower m = "cron" ->
+        []
+    | F (_, _) ->
+        ["event"]
+    | _ ->
+        ["request"; "event"] )
+  | TLFunc f ->
+      f.ufMetadata.ufmParameters
+      |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
+  | TLTipe _ | TLDB _ ->
+      []
+
+
+let sampleInputValue (tl : toplevel) : inputValueDict =
+  tl
+  |> inputVariables
+  |> List.map ~f:(fun v -> (v, DIncomplete))
+  |> StrDict.fromList
+
+
+let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
+  let dval =
+    (* Merge sample + trace, preferring trace.
+     *
+     * This ensures newly added parameters show as incomplete.
+     * *)
+    StrDict.merge
+      ~f:(fun _key sampleVal traceVal ->
+        match (sampleVal, traceVal) with
+        | None, None ->
+            None
+        | Some v, None ->
+            Some v
+        | None, Some v ->
+            Some v
+        | Some _sample, Some trace ->
+            Some trace )
+      (sampleInputValue tl)
+      iv
+    |> fun dict -> DObj dict
+  in
+  dval
   |> toRepr
   |> String.split ~on:"\n"
   |> List.drop ~count:1
