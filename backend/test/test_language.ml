@@ -248,6 +248,27 @@ let t_typecheck_any () =
     (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
 
 
+let t_int_functions_works () =
+  check_condition
+    "Int::random_v1 0 3 returns a number between [0,3]"
+    (exec_ast "(Int::random_v1 0 3)")
+    ~f:(fun dv ->
+      match dv with
+      | DInt i ->
+        (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
+      | _ ->
+          false ) ;
+  check_condition
+    "Int::random_v1 3 0, will swap 3 0 and returns a number between [0,3]"
+    (exec_ast "(Int::random_v1 3 0)")
+    ~f:(fun dv ->
+      match dv with
+      | DInt i ->
+        (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
+      | _ ->
+          false )
+
+
 (* ---------------- *)
 (* Dark internal *)
 (* ---------------- *)

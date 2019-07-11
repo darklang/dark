@@ -96,6 +96,10 @@ let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
+let check_condition msg dval ~(f : dval -> bool) =
+  AT.check AT.bool msg (f dval) true
+
+
 let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 
 let testable_string_dval_pair =
