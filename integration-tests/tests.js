@@ -1039,14 +1039,3 @@ test("extract_from_function", async t => {
     .typeText("#entry-box", "extract-function")
     .pressKey("enter");
 });
-
-test("varnames_are_incomplete", async t => {
-  await t
-    .click(".toplevel")
-    .click(Selector(".spec-header > .name"))
-    .pressKey("enter")
-    .typeText("#entry-box", ":a")
-    .pressKey("enter");
-
-  await t.expect(Selector(".data").textContent).contains("a: <Incomplete>");
-});
