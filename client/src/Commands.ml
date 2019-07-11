@@ -81,10 +81,8 @@ let commands : command list =
           let tipe = Refactor.generateUserType lv in
           match tipe with
           | Ok tipe ->
-              let nameId =
-                match tipe.utName with F (id, _) -> Some id | _ -> None
-              in
-              RPC ([SetType tipe], FocusNext (tipe.utTLID, nameId))
+              let nameId = Blank.toID tipe.utName in
+              RPC ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
               DisplayError ("Can't create-type: " ^ s) )
     ; doc = "Create a type from a live value"
