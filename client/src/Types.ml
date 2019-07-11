@@ -1103,7 +1103,8 @@ and fluidToken =
   | TVariable of id * string
   (* id, partial name, display name, actual name *)
   | TFnName of id * string * string * string * sendToRail
-  | TFnVersion of id * string * string
+  (* id, partial fnName, version, actual fnName *)
+  | TFnVersion of id * string * string * string
   | TLambdaSep of id
   | TLambdaArrow of id
   | TLambdaSymbol of id
