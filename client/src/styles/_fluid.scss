@@ -270,8 +270,7 @@ since they are essentially both commands just acting upon different things. */
         height: 16px;
 
         .version {
-          opacity: 0.5;
-          vertical-align: bottom;
+          @extend .fluid-fn-version;
         }
 
         .types {
