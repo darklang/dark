@@ -181,7 +181,11 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let parseAst (item : autocompleteItem) (str : string) : expr option =
+let parseAst
+    (ast : expr option)
+    (complete : autocomplete)
+    (item : autocompleteItem)
+    (str : string) : expr option =
   let eid = gid () in
   let b1 = B.new_ () in
   let b2 = B.new_ () in
@@ -200,7 +204,32 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
   | ACKeyword KLet ->
       Some (F (eid, Let (b1, b2, b3)))
   | ACKeyword KLambda ->
-      Some (F (eid, Lambda ([B.newF "var"], b2)))
+    ( match complete.target with
+    | Some (_, pd) ->
+        let parent =
+          ast |> Option.map ~f:(AST.findParentOfWithin (P.toID pd))
+        in
+        (* Function name and param index *)
+        let fnname, index =
+          match parent with
+          | Some (F (_, FnCall (name, exprs, _))) ->
+              ( B.toMaybe name
+              , List.findIndex ~f:(fun e -> B.toID e = P.toID pd) exprs
+                |> Option.withDefault ~default:(-1) )
+          | _ ->
+              (None, -1)
+        in
+        let lambdaArgs =
+          complete.functions
+          |> List.find ~f:(fun f -> Some f.fnName = fnname)
+          |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
+          |> Option.map ~f:(fun p -> p.paramBlock_args)
+          |> Option.withDefault ~default:["var"]
+          |> List.map ~f:(fun str -> B.newF str)
+        in
+        Some (F (eid, Lambda (lambdaArgs, b2)))
+    | None ->
+        Some (F (eid, Lambda ([B.newF "var"], b2))) )
   | ACKeyword KMatch ->
       Some (F (eid, Match (b1, [(b2, b3)])))
   | ACLiteral str ->
@@ -225,6 +254,18 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
           Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
       | _ ->
           None )
+
+
+let getAstFromTopLevel tl =
+  match tl.data with
+  | TLHandler h ->
+      h.ast
+  | TLFunc f ->
+      f.ufAST
+  | TLDB _ ->
+      impossible ("No ASTs in DBs", tl.data)
+  | TLTipe _ ->
+      impossible ("No ASTs in Types", tl.data)
 
 
 (* Assumes PD is within AST. Returns (new AST, new Expr) *)
@@ -258,7 +299,11 @@ let replaceExpr
           (FieldAccess
              (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
       )
-    else (old_, parseAst item value |> Option.withDefault ~default:old_)
+    else
+      let ast = TL.selectedAST m in
+      ( old_
+      , parseAst ast m.complete item value |> Option.withDefault ~default:old_
+      )
   in
   let newAst =
     match move with
@@ -298,18 +343,6 @@ let parsePattern (str : string) : pattern option =
       else if Regex.exactly ~re:variablePattern str
       then Some (B.newF (PVariable str))
       else None
-
-
-let getAstFromTopLevel tl =
-  match tl.data with
-  | TLHandler h ->
-      h.ast
-  | TLFunc f ->
-      f.ufAST
-  | TLDB _ ->
-      impossible ("No ASTs in DBs", tl.data)
-  | TLTipe _ ->
-      impossible ("No ASTs in Types", tl.data)
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
