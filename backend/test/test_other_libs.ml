@@ -90,14 +90,6 @@ let t_result_stdlibs_work () =
     "maperror ok"
     (exec_ast "(Result::mapError (Ok 4) (\\x -> (Int::divide x 2)))")
     (DResult (ResOk (Dval.dint 4))) ;
-  check_result_ok
-    "Int::random_v1 results in Ok"
-    (exec_ast "(Int::random_v1 0 1)")
-    true ;
-  check_result_ok
-    "Int::random_v1 results in Error"
-    (exec_ast "(Int::random_v1 1 0)")
-    false ;
   check_dval
     "maperror error"
     (exec_ast
