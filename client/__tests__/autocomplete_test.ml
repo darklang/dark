@@ -84,11 +84,12 @@ let aHandler
   {id = tlid; pos = {x = 0; y = 0}; data = TLHandler {ast = expr; spec; tlid}}
 
 
-let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
+let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
+    userFunction =
   { ufTLID = tlid
   ; ufMetadata =
       { ufmName = B.newF "myFunc"
-      ; ufmParameters = []
+      ; ufmParameters = params
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
@@ -212,6 +213,30 @@ let () =
               |> toEqual
                    (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
       ) ;
+      describe "validate functions" (fun () ->
+          let fnAsTL =
+            aFunction
+              ~params:
+                [ { ufpName = B.newF "title"
+                  ; ufpTipe = B.newF TStr
+                  ; ufpBlock_args = []
+                  ; ufpOptional = false
+                  ; ufpDescription = "" }
+                ; { ufpName = B.newF "author"
+                  ; ufpTipe = B.newF TStr
+                  ; ufpBlock_args = []
+                  ; ufpOptional = false
+                  ; ufpDescription = "" } ]
+              ()
+            |> TL.ufToTL
+          in
+          test "don't allow duplicate param names" (fun () ->
+              expect (validateFnParamNameFree fnAsTL "title")
+              |> toEqual
+                   (Some "`title` is already declared. Use another name.") ) ;
+          test "allow unused names" (fun () ->
+              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None
+          ) ) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
