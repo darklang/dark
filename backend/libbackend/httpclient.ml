@@ -85,6 +85,7 @@ let recode_latin1 (src : string) =
 
 
 let http_call_with_code
+    ?(raw_bytes = false)
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
@@ -150,7 +151,7 @@ let http_call_with_code
        *
        * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
        * *)
-      C.set_encoding c C.CURL_ENCODING_ANY ;
+      if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY ;
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
       (* Seems like redirects can be used to get around the above list... *)
@@ -214,15 +215,41 @@ let http_call_with_code
 
 
 let http_call
+    ?(raw_bytes = false)
     (url : string)
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
     (body : string) : string * (string * string) list * int =
-  let resp_body, code, resp_headers, _ =
-    http_call_with_code url query_params verb headers body
+  let resp_body, code, resp_headers, error =
+    http_call_with_code ~raw_bytes url query_params verb headers body
   in
-  (resp_body, resp_headers, code)
+  if code < 200 || code > 299
+  then
+    let info =
+      [ ("url", url)
+      ; ("code", string_of_int code)
+      ; ("error", error)
+      ; ("response", resp_body) ]
+    in
+    Exception.code
+      ~info
+      ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
+  else (resp_body, resp_headers, code)
+
+
+let call
+    ?(raw_bytes = false)
+    (url : string)
+    (verb : verb)
+    (headers : (string * string) list)
+    (body : string) : string =
+  Log.debuG
+    "HTTP"
+    ~params:[("verb", show_verb verb); ("url", url)]
+    ~jsonparams:[("body", `Int (body |> String.length))] ;
+  let results, _, _ = http_call ~raw_bytes url [] verb headers body in
+  results
 
 
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL
