@@ -34,7 +34,7 @@ let tid (t : token) : id =
   | TFieldName (id, _, _)
   | TVariable (id, _)
   | TFnName (id, _, _, _, _)
-  | TFnVersion (id, _, _)
+  | TFnVersion (id, _, _, _)
   | TLambdaVar (id, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
@@ -262,7 +262,7 @@ let toText (t : token) : string =
       canBeEmpty name
   | TFnName (_, _, name, _, _) ->
       shouldntBeEmpty name
-  | TFnVersion (_, _, version) ->
+  | TFnVersion (_, _, version, _) ->
       shouldntBeEmpty version
   | TLambdaVar (_, _, name) ->
       canBeEmpty name

@@ -542,7 +542,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
       let version = ViewUtils.fnVersion fnName in
       let partialName = ViewUtils.fnPartialName fnName in
       let versionToken =
-        if version = "" then [] else [TFnVersion (id, partialName, version)]
+        if version = ""
+        then []
+        else [TFnVersion (id, partialName, version, fnName)]
       in
       [TFnName (id, partialName, name, fnName, ster)]
       @ versionToken
@@ -555,7 +557,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
       let version = ViewUtils.fnVersion fnName in
       let partialName = ViewUtils.fnPartialName fnName in
       let versionToken =
-        if version = "" then [] else [TFnVersion (id, partialName, version)]
+        if version = ""
+        then []
+        else [TFnVersion (id, partialName, version, fnName)]
       in
       [TFnName (id, partialName, name, fnName, ster)]
       @ versionToken
@@ -2136,7 +2140,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
-    | TFnVersion (_, fnName, _) ->
+    | TFnVersion (_, fnName, _, _) ->
         let startPos = pos - String.length fnName in
         pos - startPos - 1
     | _ ->
@@ -2185,7 +2189,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePatternPointFromFloat mID id ast, left s)
   | TConstructorName (id, str)
   | TFnName (id, str, _, _, _)
-  | TFnVersion (id, str, _) ->
+  | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
@@ -2250,7 +2254,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft pos s in
   let offset =
     match ti.token with
-    | TFnVersion (_, fnName, _) ->
+    | TFnVersion (_, fnName, _, _) ->
         let startPos = pos - String.length fnName in
         pos - startPos - 1
     | _ ->
@@ -2285,7 +2289,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, s)
   | TConstructorName (id, str)
   | TFnName (id, str, _, _, _)
-  | TFnVersion (id, str, _) ->
+  | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
   | TFieldOp id ->
@@ -2969,6 +2973,13 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
+        let fnName = ViewUtils.fnName name in
+        let version = ViewUtils.fnVersion name in
+        let versionView =
+          if String.length version > 0
+          then Html.span [Html.class' "version"] [Html.text version]
+          else Vdom.noNode
+        in
         Html.li
           [ Attrs.classList
               [ ("autocomplete-item", true)
@@ -2979,7 +2990,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick i ) ]
-          [ Html.text name
+          [ Html.text fnName
+          ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
           ] )
       acis
@@ -3046,7 +3058,7 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnName (id, fnName, _, _, _) ->
+  | TFnVersion (id, _, name, fnName) | TFnName (id, name, _, fnName, _) ->
       let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
@@ -3114,6 +3126,12 @@ let viewPlayIcon
       in
       let executingClass =
         if List.member ~value:id executingFunctions then "is-executing" else ""
+      in
+      (* Dont show button on the function token if it has a version, show on version token *)
+      let showButton =
+        if String.length name == String.length fnName - 1
+        then false
+        else showButton
       in
       if not showButton
       then Vdom.noNode

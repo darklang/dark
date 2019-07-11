@@ -140,7 +140,13 @@ https://github.com/chriskempson/tomorrow-theme */
     color: $green;
   }
 
-  .fluid-fn-name {
+  .fluid-fn-version {
+    opacity: 0.5;
+    vertical-align: bottom;
+  }
+
+  .fluid-fn-name,
+  .fluid-fn-version {
     color: $white2;
 
     .execution-button {
@@ -262,6 +268,11 @@ since they are essentially both commands just acting upon different things. */
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
         height: 16px;
+
+        .version {
+          opacity: 0.5;
+          vertical-align: bottom;
+        }
 
         .types {
           float: right;
