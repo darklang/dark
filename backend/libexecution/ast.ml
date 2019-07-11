@@ -248,16 +248,10 @@ let rec exec
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
     | Filled (_, Variable name) ->
-      ( match (Symtable.get st ~key:name, ctx) with
-      | None, Preview ->
-          (* The trace is wrong/we have a bug --
-           * we guarantee to users that variables they can lookup have been
-           * bound. However, we shouldn't crash out here when running analysis
-           * because it gives a horrible user experience *)
-          DIncomplete
-      | None, Real ->
-          Exception.internal ("There is no variable named: " ^ name)
-      | Some other, _ ->
+      ( match Symtable.get st ~key:name with
+      | None ->
+          DError ("There is no variable named: " ^ name)
+      | Some other ->
           other )
     | Filled (id, FnCallSendToRail (name, exprs)) ->
         let argvals = List.map ~f:(exe st) exprs in
