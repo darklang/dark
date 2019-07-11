@@ -394,6 +394,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.constructorNameValidator "constructor name"
   | PParamName _ ->
       v AC.paramNameValidator "param name"
+      |> Option.orElse (AC.validateFnParamNameFree tl value)
   | PParamTipe _ ->
       v AC.paramTypeValidator "param type"
   | PTypeName _ ->

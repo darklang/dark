@@ -384,6 +384,15 @@ let validateHttpNameValidVarnames (httpName : string) =
   then None
   else Some ("route variables must match /" ^ varnameValidator ^ "/")
 
+let validateFnParamNameFree (tl : toplevel) (value : string) : string option =
+  match tl.data with
+  | TLFunc fn ->
+    let params = Functions.allParamNames fn in
+    if List.member ~value params
+    then Some ("`" ^ value ^ "` is already declared. Use another name.")
+    else None
+  | _ -> None
+
 
 (* ------------------------------------ *)
 (* Omniactions *)
