@@ -171,6 +171,18 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
       Some (RT.typeOf dv)
 
 
+(* TODO: copied from Libexecution/http.ml *)
+let route_variables (route : string) : string list =
+  let split_uri_path (path : string) : string list =
+    let subs = String.split ~on:"/" path in
+    List.filter ~f:(fun x -> String.length x > 0) subs
+  in
+  route
+  |> split_uri_path
+  |> List.filter ~f:(String.startsWith ~prefix:":")
+  |> List.map ~f:(String.dropLeft ~count:1 (* ":" *))
+
+
 let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     varName list =
   (* TODO: Calling out is so slow that calculating on the fly is faster. But we
@@ -182,12 +194,32 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     |> Option.withDefault ~default:[]
   in
   let glob = TL.allGloballyScopedVarnames m.toplevels in
-  let inputVariables = RT.inputVariables tl in
   match tl.data with
   | TLHandler h ->
-      varsFor h.ast @ glob @ inputVariables
+      let extras =
+        match h.spec.space with
+        | F (_, m) when String.toLower m = "http" ->
+            let fromRoute =
+              h.spec.name
+              |> Blank.toMaybe
+              |> Option.map ~f:route_variables
+              |> Option.withDefault ~default:[]
+            in
+            ["request"] @ fromRoute
+        | F (_, m) when String.toLower m = "cron" ->
+            []
+        | F (_, _) ->
+            ["event"]
+        | _ ->
+            ["request"; "event"]
+      in
+      varsFor h.ast @ glob @ extras
   | TLFunc fn ->
-      varsFor fn.ufAST @ glob @ inputVariables
+      let params =
+        fn.ufMetadata.ufmParameters
+        |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
+      in
+      varsFor fn.ufAST @ glob @ params
   | TLDB _ | TLTipe _ ->
       []
 
