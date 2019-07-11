@@ -243,6 +243,15 @@ let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
   ; usageMod ]
 
 
+let isACOpened (m : model) : bool =
+  if VariantTesting.isFluid m.tests
+  then
+    FluidAutocomplete.isOpened m.fluidState.ac
+    || FluidCommands.isOpened m.fluidState.cp
+    || AC.isOpened m.complete
+  else AC.isOpened m.complete
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -1042,9 +1051,7 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      if m.canvasProps.enablePan && not (AC.isOpened m)
-      then Viewport.moveCanvasBy m x y
-      else NoChange
+      Viewport.moveCanvasBy m x y
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
@@ -1726,8 +1733,11 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           else PageVisibilityChange Hidden ) ]
   in
   let mousewheelSubs =
-    [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) -> MouseWheel (dx, dy)
-      ) ]
+    if m.canvasProps.enablePan && not (isACOpened m)
+    then
+      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
+            MouseWheel (dx, dy) ) ]
+    else []
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
