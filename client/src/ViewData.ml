@@ -34,7 +34,7 @@ let viewInput
     | None ->
         ViewUtils.fontAwesome "spinner"
     | Some v ->
-        let asString = Runtime.inputValueAsString v in
+        let asString = Runtime.inputValueAsString tl v in
         let asString =
           if String.length asString = 0 && TL.spaceOf tl <> Some HSCron
           then "No input parameters"
