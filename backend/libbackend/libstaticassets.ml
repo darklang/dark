@@ -126,7 +126,7 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let response =
-                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                Httpclient.call ~raw_bytes:true url Httpclient.GET [] ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
@@ -184,7 +184,7 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let response =
-                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                Httpclient.call ~raw_bytes:true url Httpclient.GET [] ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
@@ -262,7 +262,13 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _error =
-                Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+                Httpclient.http_call_with_code
+                  ~raw_bytes:true
+                  url
+                  []
+                  Httpclient.GET
+                  []
+                  ""
               in
               let headers =
                 headers
@@ -312,7 +318,13 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _error =
-                Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+                Httpclient.http_call_with_code
+                  ~raw_bytes:true
+                  url
+                  []
+                  Httpclient.GET
+                  []
+                  ""
               in
               let headers =
                 headers
@@ -361,7 +373,13 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let body, code, headers, _error =
-                Httpclient.http_call_with_code url [] Httpclient.GET [] ""
+                Httpclient.http_call_with_code
+                  ~raw_bytes:true
+                  url
+                  []
+                  Httpclient.GET
+                  []
+                  ""
               in
               let headers =
                 headers
