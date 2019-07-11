@@ -123,6 +123,11 @@ let replaceFnName
     {uf with ufMetadata = newMetadata}
   else uf
 
+let allParamNames (uf : userFunction) : string list =
+  uf
+  |> allParamData
+  |> List.filterMap ~f:(fun p ->
+          match p with PParamName (F (_, n)) -> Some n | _ -> None )
 
 let replaceParamName
     (search : pointerData) (replacement : pointerData) (uf : userFunction) :
