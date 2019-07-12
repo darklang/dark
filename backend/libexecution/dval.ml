@@ -605,7 +605,8 @@ let to_internal_roundtrippable_v0 dval : string =
 
 
 let of_internal_roundtrippable_json_v0 j =
-  Result.try_with (fun _ -> unsafe_dval_of_yojson_v0 j)
+  (* Switched to v1 cause it was a bug fix *)
+  Result.try_with (fun _ -> unsafe_dval_of_yojson_v1 j)
   |> Result.map_error ~f:Exception.to_string
 
 
