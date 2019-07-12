@@ -515,7 +515,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EPartial (id, newName, EFnCall (_, name, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
       (* If this is a constructor it will be ignored *)
-      let partialName = ViewUtils.fnPartialName name in
+      let partialName = ViewUtils.partialName name in
       let ghostSuffix = String.dropLeft ~count:(String.length newName) partialName in
       let ghost =
         if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
@@ -538,13 +538,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
       (* Specifialized for being in a thread *)
-      let displayName = ViewUtils.displayName fnName in
-      let version = ViewUtils.fnVersion fnName in
-      let partialName = ViewUtils.fnPartialName fnName in
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
       let versionToken =
-        if version = ""
+        if versionDisplayName = ""
         then []
-        else [TFnVersion (id, partialName, version, fnName)]
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
       [TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
@@ -553,13 +553,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
-      let displayName = ViewUtils.displayName fnName in
-      let version = ViewUtils.fnVersion fnName in
-      let partialName = ViewUtils.fnPartialName fnName in
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
       let versionToken =
-        if version = ""
+        if versionDisplayName = ""
         then []
-        else [TFnVersion (id, partialName, version, fnName)]
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
       [TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
@@ -1839,8 +1839,8 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let count = List.length fn.fnParameters in
       let name = fn.fnName in
       let removeUnderscore =
-        let version = ViewUtils.fnVersion name in
-        if version = "" then 0 else -1
+        let versionDisplayName = ViewUtils.versionDisplayName name in
+        if versionDisplayName = "" then 0 else -1
       in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
@@ -2189,6 +2189,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
   | TConstructorName (id, str)
+  (* str is the partialName: *)
   | TFnName (id, str, _, _, _)
   | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
@@ -2290,6 +2291,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartialGhost _ ->
       (ast, s)
   | TConstructorName (id, str)
+  (* str is the partialName: *)
   | TFnName (id, str, _, _, _)
   | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
@@ -2975,11 +2977,11 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
-        let fnName = ViewUtils.displayName name in
-        let version = ViewUtils.fnVersion name in
+        let fnDisplayName = ViewUtils.fnDisplayName name in
+        let versionDisplayName = ViewUtils.versionDisplayName name in
         let versionView =
-          if String.length version > 0
-          then Html.span [Html.class' "version"] [Html.text version]
+          if String.length versionDisplayName > 0
+          then Html.span [Html.class' "version"] [Html.text versionDisplayName]
           else Vdom.noNode
         in
         Html.li
@@ -2992,7 +2994,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick i ) ]
-          [ Html.text fnName
+          [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
           ] )
@@ -3060,7 +3062,7 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnVersion (id, _, name, fnName) | TFnName (id, name, _, fnName, _) ->
+  | TFnVersion (id, _, str, fnName) | TFnName (id, str, _, fnName, _) ->
       let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
@@ -3090,7 +3092,7 @@ let viewPlayIcon
       let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
       let buttonUnavailable = not paramsComplete in
       (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton = if String.length name == String.length fnName - 1
+      let showButton = if String.length str == String.length fnName - 1
       then false
       else not fn.fnPreviewExecutionSafe in
       let buttonNeeded = not (isComplete id) in

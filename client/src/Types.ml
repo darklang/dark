@@ -1101,9 +1101,9 @@ and fluidToken =
   | TFieldOp of id
   | TFieldName of id * id * string
   | TVariable of id * string
-  (* id, partial name, display name, actual name *)
+  (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of id * string * string * string * sendToRail
-  (* id, partial fnName, version, actual fnName *)
+  (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of id * string * string * string
   | TLambdaSep of id
   | TLambdaArrow of id
