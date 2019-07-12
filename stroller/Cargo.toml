@@ -6,7 +6,7 @@ authors = ["Sam Stokes <me@samstokes.co.uk>", "Dark Developers <ops@darklang.com
 
 [dependencies]
 futures = "0.1.28"
-hmac = "0.7.0"
+hmac = "0.7.1"
 hyper = "0.12"
 md5 = "0.6.1"
 serde = { version = "1.0.94", features = ["derive"] }
