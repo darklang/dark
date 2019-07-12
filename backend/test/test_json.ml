@@ -13,13 +13,13 @@ let t_internal_roundtrippable_doesnt_care_about_order () =
     "internal_roundtrippable doesn't care about key order"
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"type\": \"weird\",
-         \"value\": \"x\"
+         \"type\": \"option\",
+         \"value\": 5
         }")
     (Dval.of_internal_roundtrippable_v0
        "{
-         \"value\": \"x\",
-         \"type\": \"weird\"
+         \"value\": 5,
+         \"type\": \"option\"
         }")
 
 
