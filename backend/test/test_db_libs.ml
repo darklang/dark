@@ -77,7 +77,7 @@ let t_db_get_all_with_keys_works () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
-let t_db_get_many_works () =
+let t_db_get_many_with_keys_works () =
   clear_test_data () ;
   let ops =
     [ Op.CreateDB (dbid, pos, "MyDB")
@@ -88,7 +88,46 @@ let t_db_get_many_works () =
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
               (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
-               (let fetched (DB::getMany_v1 ('first' 'second') MyDB)
+               (let fetched (DB::getManyWithKeys ('first' 'second') MyDB)
+                (== (('first' one) ('second' two)) fetched))))"
+  in
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+
+
+let t_db_get_many_v2_works () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "MyDB")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "x")
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+  in
+  let ast =
+    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+                (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+                  (let fetched (DB::getMany_v2 ('first' 'second') MyDB)
+                  fetched)))"
+  in
+  check_dval
+    "equal_after_roundtrip"
+    (DList
+       [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
+       ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])
+    (exec_handler ~ops ast)
+
+
+let t_db_get_many_v1_works () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "MyDB")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid)
+    ; Op.SetDBColName (dbid, colnameid, "x")
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+  in
+  let ast =
+    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+                (let fetched (DB::getManyWithKeys ('first' 'second') MyDB)
                 (== (('first' one) ('second' two)) fetched))))"
   in
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
@@ -273,7 +312,9 @@ let suite =
   ; ("New query function works", `Quick, t_db_new_query_v2_works)
   ; ("DB::set_v1 upserts", `Quick, t_db_set_does_upsert)
   ; ("DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works)
-  ; ("DB::getMany_v1 works", `Quick, t_db_get_many_works)
+  ; ("DB::getManyWithKeys works", `Quick, t_db_get_many_with_keys_works)
+  ; ("DB::getMany_v1 works", `Quick, t_db_get_many_v1_works)
+  ; ("DB::getMany_v2 works", `Quick, t_db_get_many_v2_works)
   ; ( "DB::queryWithKey_v1 works with many items"
     , `Quick
     , t_db_queryWithKey_works_with_many )

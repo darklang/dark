@@ -91,6 +91,58 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::getMany_v2"]
+    ; ins = []
+    ; p = [par "keys" TList; par "table" TDB]
+    ; r = TList
+    ; d =
+        "Finds many values in `table` by `keys, returning a [value] list of values"
+    ; f =
+        InProcess
+          (function
+          | state, [DList keys; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              let skeys =
+                List.map
+                  ~f:(function
+                    | DStr s ->
+                        Unicode_string.to_string s
+                    | t ->
+                        Exception.code "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                  keys
+              in
+              User_db.get_many_v2 ~state db skeys
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::getManyWithKeys"]
+    ; ins = []
+    ; p = [par "keys" TList; par "table" TDB]
+    ; r = TList
+    ; d =
+        "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
+    ; f =
+        InProcess
+          (function
+          | state, [DList keys; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              let skeys =
+                List.map
+                  ~f:(function
+                    | DStr s ->
+                        Unicode_string.to_string s
+                    | t ->
+                        Exception.code "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                  keys
+              in
+              User_db.get_many_with_keys ~state db skeys
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::delete_v1"]
     ; ins = []
