@@ -29,9 +29,6 @@ let t_dval_yojson_roundtrips () =
     |> Dval.to_internal_roundtrippable_v0
     |> Dval.of_internal_roundtrippable_v0
   in
-  let queryable_rt v =
-    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v0
-  in
   (* Don't really need to check this but what harm *)
   let safe_rt v =
     v |> dval_to_yojson |> dval_of_yojson |> Result.ok_or_failwith
@@ -39,7 +36,6 @@ let t_dval_yojson_roundtrips () =
   let check name (v : dval) =
     check_dval ("safe: " ^ name) v (safe_rt v) ;
     check_dval ("roundtrippable: " ^ name) v (roundtrippable_rt v) ;
-    check_dval ("queryable: " ^ name) v (queryable_rt v) ;
     AT.check
       AT.string
       ("safe as string: " ^ name)
@@ -50,11 +46,6 @@ let t_dval_yojson_roundtrips () =
       ("safe roundtrippable: " ^ name)
       (Dval.to_internal_roundtrippable_v0 v)
       (Dval.to_internal_roundtrippable_v0 (roundtrippable_rt v)) ;
-    AT.check
-      AT.string
-      ("safe queryable: " ^ name)
-      (Dval.to_internal_queryable_v0 v)
-      (Dval.to_internal_queryable_v0 (queryable_rt v)) ;
     ()
   in
   sample_dvals
@@ -63,6 +54,24 @@ let t_dval_yojson_roundtrips () =
              false
          | _ ->
              true )
+  |> List.iter ~f:(fun (name, dv) -> check name dv)
+
+
+let t_dval_user_db_json_roundtrips () =
+  let queryable_rt v =
+    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v0
+  in
+  let check name (v : dval) =
+    check_dval ("queryable: " ^ name) v (queryable_rt v) ;
+    AT.check
+      AT.string
+      ("safe queryable: " ^ name)
+      (Dval.to_internal_queryable_v0 v)
+      (Dval.to_internal_queryable_v0 (queryable_rt v)) ;
+    ()
+  in
+  sample_dvals
+  |> List.filter ~f:(function _, DObj _ -> true | _ -> false)
   |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
@@ -274,6 +283,9 @@ let suite =
     , `Quick
     , t_internal_roundtrippable_doesnt_care_about_order )
   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
+  ; ( "UserDB values roundtrip to yojson correctly"
+    , `Quick
+    , t_dval_user_db_json_roundtrips )
   ; ( "Dvals get converted to web responses correctly"
     , `Quick
     , t_result_to_response_works )
