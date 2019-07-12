@@ -669,6 +669,14 @@ let () =
                      (ACOmniAction (NewHTTPHandler (Some "/12/345/6789/12")))
                 )
               |> toEqual true ) ;
+          test "fix route name " (fun () ->
+              expect
+                ( acFor ~target:None m
+                |> setQuery m "^hello/[]world"
+                |> itemPresent
+                     (ACOmniAction (NewHTTPHandler (Some "/hello/world")))
+                )
+              |> toEqual true ) ;
           test "create DB from route name" (fun () ->
               expect
                 ( acFor ~target:None m
