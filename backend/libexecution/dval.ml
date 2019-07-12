@@ -721,6 +721,37 @@ let of_unknown_json_v0 str =
     Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
+let of_unknown_json_v1 str =
+  let rec convert json =
+    match json with
+    | `Int i ->
+        DInt (Dint.of_int i)
+    | `Intlit i ->
+        DInt (Dint.of_string_exn i)
+    | `Float f ->
+        DFloat f
+    | `Bool b ->
+        DBool b
+    | `Null ->
+        DNull
+    | `String s ->
+        dstr_of_string_exn s
+    | `List l ->
+        to_list (List.map ~f:convert l)
+    | `Variant v ->
+        Exception.internal "We dont use variants"
+    | `Tuple v ->
+        Exception.internal "We dont use tuples"
+    | `Assoc alist ->
+        DObj
+          (List.fold_left
+             alist
+             ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
+             ~init:DvalMap.empty)
+  in
+  str |> Yojson.Safe.from_string |> convert
+
+
 let rec show dv =
   match dv with
   | DInt i ->
