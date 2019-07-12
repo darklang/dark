@@ -634,9 +634,68 @@ let of_internal_queryable_v0 (str : string) : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
-let of_internal_queryable_v1 (str : string) (shape : (string * tipe) list) :
-    dval =
-  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
+let to_internal_queryable_v1 dval : string =
+  match dval with
+  | DObj _ ->
+      dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
+  | _ ->
+      Exception.internal
+        "trying to serialize non-objects using an object-serializer"
+
+
+let of_internal_queryable_v1 (str : string) : dval =
+  (* The first level _must_ be an object at the moment *)
+  let rec convert_top_level (json : Yojson.Safe.t) : dval =
+    match json with
+    | `Assoc alist ->
+        DObj
+          (List.fold_left
+             alist
+             ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
+             ~init:DvalMap.empty)
+    | _ ->
+        Exception.internal "Value that isn't an object"
+  and convert (json : Yojson.Safe.t) : dval =
+    (* sort so this isn't key-order-dependent. *)
+    let json = Yojson.Safe.sort json in
+    match json with
+    | `Int i ->
+        DInt (Dint.of_int i)
+    | `Intlit i ->
+        DInt (Dint.of_string_exn i)
+    | `Float f ->
+        DFloat f
+    | `Bool b ->
+        DBool b
+    | `Null ->
+        DNull
+    | `String s ->
+        dstr_of_string_exn s
+    | `List l ->
+        (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
+        to_list (List.map ~f:convert l)
+    | `Variant v ->
+        Exception.internal "We dont use variants"
+    | `Tuple v ->
+        Exception.internal "We dont use tuples"
+    (* These are the only types that are allowed in the queryable
+     * representation. We may allow more in the future, but the real thing to
+     * do is to use the DB's type and version to encode/decode them correctly
+     * *)
+    | `Assoc [("type", `String "date"); ("value", `String v)] ->
+        DDate (Util.date_of_isostring v)
+    | `Assoc [("type", `String "password"); ("value", `String v)] ->
+        v |> B64.decode |> Bytes.of_string |> DPassword
+    | `Assoc [("type", `String "uuid"); ("value", `String v)] ->
+        DUuid (Uuidm.of_string v |> Option.value_exn)
+    | `Assoc alist ->
+        DObj
+          (List.fold_left
+             alist
+             ~f:(fun m (k, v) -> DvalMap.insert m ~key:k ~value:(convert v))
+             ~init:DvalMap.empty)
+  in
+  str |> Yojson.Safe.from_string |> convert_top_level
 
 
 (* ------------------------- *)

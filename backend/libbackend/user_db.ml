@@ -83,7 +83,7 @@ and (* PG returns lists of strings. This converts them to types using the
   match db_strings with
   | [obj] ->
       let p_obj =
-        match Dval.of_internal_queryable_v0 obj with
+        match Dval.of_internal_queryable_v1 obj with
         | DObj o ->
             (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
          * data object itself. they got in the database on the `update` of
