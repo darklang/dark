@@ -214,9 +214,6 @@ let () =
       , EVariable (gid (), bindingName) )
   in
   let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
-  let aFnCallWithBlockArg =
-    EFnCall (gid (), "Dict::map", [blank; EBlank (gid ())], NoRail)
-  in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
@@ -253,11 +250,10 @@ let () =
       , EVariable (gid (), "var") )
   in
   let m =
-    let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
-        Types.parameter =
+    let fnParam (name : string) (t : tipe) (opt : bool) : Types.parameter =
       { paramName = name
       ; paramTipe = t
-      ; paramBlock_args = blockArgs
+      ; paramBlock_args = []
       ; paramOptional = opt
       ; paramDescription = "" }
     in
@@ -288,16 +284,6 @@ let () =
           ; fnParameters = [fnParam "a" TAny false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "Dict::map"
-          ; fnParameters =
-              [ fnParam "dict" TObj false
-              ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-          ; fnReturnTipe = TObj
-          ; fnDescription =
-              "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = false } ] }
@@ -870,11 +856,6 @@ let () =
         aLambda
         (insert '5' 3)
         ("\\*** -> ___", 3) ;
-      t
-        "creating lambda in block placeholder should set arguments"
-        aFnCallWithBlockArg
-        (press ~wrap:false (K.Letter '\\') 23)
-        ("Dict::map ____________ \\key, value -> ___", 24) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
