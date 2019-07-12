@@ -159,7 +159,7 @@ const scrollBy = ClientFunction((id, dx, dy) => {
 });
 
 // ------------------------
-// Tests below here. Don't forget to update client2/src/IntegrationTest.ml
+// Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
 
 test("enter_changes_state", async t => {
