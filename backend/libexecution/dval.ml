@@ -483,7 +483,7 @@ and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : dval_map =
       Exception.internal "Not a json object"
 
 
-let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
+let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
   let tipe = dv |> tipe_of |> unsafe_tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
   let wrap_constructed_type cons values =
@@ -503,11 +503,11 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
   | DStr s ->
       Unicode_string.to_yojson s
   | DList l ->
-      `List (List.map l (unsafe_dval_to_yojson ~redact))
+      `List (List.map l (unsafe_dval_to_yojson_v0 ~redact))
   | DObj o ->
       o
       |> DvalMap.to_list
-      |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
+      |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson_v0 ~redact v))
       |> fun x -> `Assoc x
   | DBlock _ | DIncomplete ->
       wrap_user_type `Null
@@ -517,7 +517,7 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
       wrap_user_str msg
   | DResp (h, hdv) ->
       wrap_user_type
-        (`List [dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv])
+        (`List [dhttp_to_yojson h; unsafe_dval_to_yojson_v0 ~redact hdv])
   | DDB dbname ->
       wrap_user_str dbname
   | DDate date ->
@@ -533,19 +533,25 @@ let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
     | OptNothing ->
         wrap_user_type `Null
     | OptJust dv ->
-        wrap_user_type (unsafe_dval_to_yojson ~redact dv) )
+        wrap_user_type (unsafe_dval_to_yojson_v0 ~redact dv) )
   | DErrorRail dv ->
-      wrap_user_type (unsafe_dval_to_yojson ~redact dv)
+      wrap_user_type (unsafe_dval_to_yojson_v0 ~redact dv)
   | DResult res ->
     ( match res with
     | ResOk dv ->
-        wrap_constructed_type (`String "Ok") [unsafe_dval_to_yojson ~redact dv]
+        wrap_constructed_type
+          (`String "Ok")
+          [unsafe_dval_to_yojson_v0 ~redact dv]
     | ResError dv ->
         wrap_constructed_type
           (`String "Error")
-          [unsafe_dval_to_yojson ~redact dv] )
+          [unsafe_dval_to_yojson_v0 ~redact dv] )
   | DBytes bytes ->
       bytes |> RawBytes.to_string |> B64.encode |> wrap_user_str
+
+
+let unsafe_dval_to_yojson_v1 ?(redact = true) (dv : dval) : Yojson.Safe.t =
+  unsafe_dval_to_yojson_v0 ~redact dv
 
 
 (* ------------------------- *)
@@ -601,7 +607,7 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
 
 
 let to_internal_roundtrippable_v0 dval : string =
-  unsafe_dval_to_yojson ~redact:false dval |> Yojson.Safe.to_string
+  unsafe_dval_to_yojson_v1 ~redact:false dval |> Yojson.Safe.to_string
 
 
 let of_internal_roundtrippable_json_v0 j =
@@ -611,11 +617,11 @@ let of_internal_roundtrippable_json_v0 j =
 
 
 let of_internal_roundtrippable_v0 str : dval =
-  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
+  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
 
 
 let to_internal_queryable_v0 dval : string =
-  dval |> unsafe_dval_to_yojson ~redact:false |> Yojson.Safe.to_string
+  dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
 
 
 let of_internal_queryable_v0 str : dval =
