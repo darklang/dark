@@ -260,10 +260,9 @@ let toText (t : token) : string =
       canBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
-  | TFnName (_, _, name, _, _) ->
-      shouldntBeEmpty name
-  | TFnVersion (_, _, version, _) ->
-      shouldntBeEmpty version
+  | TFnName (_, _, displayName, _, _) 
+  | TFnVersion (_, _, displayName, _) ->
+      shouldntBeEmpty displayName
   | TLambdaVar (_, _, name) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
