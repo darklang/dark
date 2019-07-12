@@ -288,7 +288,7 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
-          ; fnParameters = [fnParam "db" TDB false]
+          ; fnParameters = [fnParam "table" TDB false]
           ; fnReturnTipe = TList
           ; fnDescription = "get all"
           ; fnPreviewExecutionSafe = false
@@ -675,17 +675,37 @@ let () =
         "delete on function with version"
         aFnCallWithVersion
         (press K.Delete 11)
-        ("DB::getAllv@ ___", 11) ;
+        ("DB::getAllv@ ___________________", 11) ;
       tp
         "backspace on function with version"
         aFnCallWithVersion
         (press K.Backspace 12)
-        ("DB::getAllv@ ___", 11) ;
+        ("DB::getAllv@ ___________________", 11) ;
+      tp
+        "delete on function with version in between the version and function name"
+        aFnCallWithVersion
+        (press K.Delete 10)
+        ("DB::getAll1@ ___________________", 10) ;
+      tp
+        "backspace on function with version in between the version and function name"
+        aFnCallWithVersion
+        (press K.Backspace 10)
+        ("DB::getAlv1@ ___________________", 9) ;
+      tp
+        "delete on function with version in function name"
+        aFnCallWithVersion
+        (press K.Delete 7)
+        ("DB::getllv1@ ___________________", 7) ;
+      tp
+        "backspace on function with version in function name"
+        aFnCallWithVersion
+        (press K.Backspace 8)
+        ("DB::getllv1@ ___________________", 7) ;
       t
         "adding function with version goes to the right place"
         blank
-        (presses ~wrap:false [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
-        ("DB::getAllv1 ________________", 13) ;
+        (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        ("DB::getAllv1 ___________________", 13) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
