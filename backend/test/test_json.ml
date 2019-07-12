@@ -60,20 +60,19 @@ let t_dval_yojson_roundtrips () =
 
 let t_dval_user_db_json_roundtrips () =
   let queryable_rt v =
-    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v0
+    v |> Dval.to_internal_queryable_v1 |> Dval.of_internal_queryable_v1
   in
   let check name (v : dval) =
     check_dval ("queryable: " ^ name) v (queryable_rt v) ;
-    AT.check
-      AT.string
-      ("safe queryable: " ^ name)
-      (Dval.to_internal_queryable_v0 v)
-      (Dval.to_internal_queryable_v0 (queryable_rt v)) ;
     ()
   in
-  sample_dvals
-  |> List.filter ~f:(function _, DObj _ -> true | _ -> false)
-  |> List.iter ~f:(fun (name, dv) -> check name dv)
+  let dvals =
+    [ ( "looks like an option but isn't"
+      , Dval.to_dobj_exn
+          [("type", Dval.dstr_of_string_exn "option"); ("value", Dval.dint 5)]
+      ) ]
+  in
+  List.iter dvals ~f:(fun (name, dv) -> check name dv)
 
 
 let t_result_to_response_works () =
