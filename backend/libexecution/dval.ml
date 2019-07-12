@@ -292,7 +292,7 @@ let empty_dobj : dval = DObj DvalMap.empty
  * and we really need to move off it, but for now we're here. Do not change
  * existing encodings - this will break everything.
  *)
-let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
+let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
   (* sort so this isn't key-order-dependent. *)
   let json = Yojson.Safe.sort json in
   match json with
@@ -310,30 +310,36 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
       dstr_of_string_exn s
   | `List l ->
       (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
-      to_list (List.map ~f:unsafe_dval_of_yojson l)
+      to_list (List.map ~f:unsafe_dval_of_yojson_v0 l)
   | `Variant v ->
       Exception.internal "We dont use variants"
   | `Tuple v ->
       Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
-      DResp (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson b)
+      DResp
+        (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v0 b)
   | `Assoc
       [ ("constructor", `String constructor)
       ; ("type", `String tipe)
       ; ("values", `List vs) ] ->
       let expectOne ~f vs =
-        match vs with [v] -> f v | _ -> DObj (unsafe_dvalmap_of_yojson json)
+        match vs with
+        | [v] ->
+            f v
+        | _ ->
+            DObj (unsafe_dvalmap_of_yojson_v0 json)
       in
       ( match (tipe, constructor) with
       | "result", "Ok" ->
           vs
-          |> expectOne ~f:(fun v -> DResult (ResOk (unsafe_dval_of_yojson v)))
+          |> expectOne ~f:(fun v ->
+                 DResult (ResOk (unsafe_dval_of_yojson_v0 v)) )
       | "result", "Error" ->
           vs
           |> expectOne ~f:(fun v ->
-                 DResult (ResError (unsafe_dval_of_yojson v)) )
+                 DResult (ResError (unsafe_dval_of_yojson_v0 v)) )
       | _ ->
-          DObj (unsafe_dvalmap_of_yojson json) )
+          DObj (unsafe_dvalmap_of_yojson_v0 json) )
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     ( match tipe with
     | "incomplete" ->
@@ -345,7 +351,7 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
     | "errorrail" ->
         DErrorRail DNull
     | _ ->
-        DObj (unsafe_dvalmap_of_yojson json) )
+        DObj (unsafe_dvalmap_of_yojson_v0 json) )
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     ( match tipe with
     | "date" ->
@@ -367,22 +373,22 @@ let rec unsafe_dval_of_yojson (json : Yojson.Safe.t) : dval =
     | "bytes" ->
         DBytes (v |> B64.decode |> RawBytes.of_string)
     | _ ->
-        DObj (unsafe_dvalmap_of_yojson json) )
+        DObj (unsafe_dvalmap_of_yojson_v0 json) )
   | `Assoc [("type", `String "option"); ("value", dv)] ->
-      DOption (OptJust (unsafe_dval_of_yojson dv))
+      DOption (OptJust (unsafe_dval_of_yojson_v0 dv))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
-      DErrorRail (unsafe_dval_of_yojson dv)
+      DErrorRail (unsafe_dval_of_yojson_v0 dv)
   | `Assoc _ ->
-      DObj (unsafe_dvalmap_of_yojson json)
+      DObj (unsafe_dvalmap_of_yojson_v0 json)
 
 
-and unsafe_dvalmap_of_yojson (json : Yojson.Safe.t) : dval_map =
+and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
   match json with
   | `Assoc alist ->
       List.fold_left
         alist
         ~f:(fun m (k, v) ->
-          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson v) )
+          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v0 v) )
         ~init:DvalMap.empty
   | _ ->
       Exception.internal "Not a json object"
@@ -510,12 +516,12 @@ let to_internal_roundtrippable_v0 dval : string =
 
 
 let of_internal_roundtrippable_json_v0 j =
-  Result.try_with (fun _ -> unsafe_dval_of_yojson j)
+  Result.try_with (fun _ -> unsafe_dval_of_yojson_v0 j)
   |> Result.map_error ~f:Exception.to_string
 
 
 let of_internal_roundtrippable_v0 str : dval =
-  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson
+  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
 let to_internal_queryable_v0 dval : string =
@@ -523,7 +529,7 @@ let to_internal_queryable_v0 dval : string =
 
 
 let of_internal_queryable_v0 str : dval =
-  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson
+  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
 let rec to_enduser_readable_text_v0 dval =
@@ -717,7 +723,7 @@ let to_pretty_machine_json_v1 dval =
 
 
 let of_unknown_json_v0 str =
-  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson with e ->
+  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0 with e ->
     Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
