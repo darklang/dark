@@ -606,6 +606,9 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
   inner 0 dv
 
 
+(* ------------------------- *)
+(* Roundtrippable - for events and traces *)
+(* ------------------------- *)
 let to_internal_roundtrippable_v0 dval : string =
   unsafe_dval_to_yojson_v1 ~redact:false dval |> Yojson.Safe.to_string
 
@@ -620,14 +623,25 @@ let of_internal_roundtrippable_v0 str : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
 
 
+(* ------------------------- *)
+(* Queryable - for the DB *)
+(* ------------------------- *)
 let to_internal_queryable_v0 dval : string =
   dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
 
 
-let of_internal_queryable_v0 str : dval =
+let of_internal_queryable_v0 (str : string) : dval =
   str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
 
 
+let of_internal_queryable_v1 (str : string) (shape : (string * tipe) list) :
+    dval =
+  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v1
+
+
+(* ------------------------- *)
+(* Other formats *)
+(* ------------------------- *)
 let rec to_enduser_readable_text_v0 dval =
   let rec nestedreprfn dv =
     (* If nesting inside an object or a list, wrap strings in quotes *)
