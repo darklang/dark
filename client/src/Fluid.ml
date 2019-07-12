@@ -515,8 +515,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EPartial (id, newName, EFnCall (_, name, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
       (* If this is a constructor it will be ignored *)
-      let name = ViewUtils.fnPartialName name in
-      let ghostSuffix = String.dropLeft ~count:(String.length newName) name in
+      let partialName = ViewUtils.fnPartialName name in
+      let ghostSuffix = String.dropLeft ~count:(String.length newName) partialName in
       let ghost =
         if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
       in
@@ -538,7 +538,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
       (* Specifialized for being in a thread *)
-      let name = ViewUtils.fnName fnName in
+      let displayName = ViewUtils.displayName fnName in
       let version = ViewUtils.fnVersion fnName in
       let partialName = ViewUtils.fnPartialName fnName in
       let versionToken =
@@ -546,14 +546,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, version, fnName)]
       in
-      [TFnName (id, partialName, name, fnName, ster)]
+      [TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
-      let name = ViewUtils.fnName fnName in
+      let displayName = ViewUtils.displayName fnName in
       let version = ViewUtils.fnVersion fnName in
       let partialName = ViewUtils.fnPartialName fnName in
       let versionToken =
@@ -561,7 +561,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, version, fnName)]
       in
-      [TFnName (id, partialName, name, fnName, ster)]
+      [TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
@@ -2140,8 +2140,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
-    | TFnVersion (_, fnName, _, _) ->
-        (String.length fnName) - 1
+    | TFnVersion (_, partialName, _, _) ->
+        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
+        let startPos = ti.endPos - (String.length partialName) in
+        pos - startPos - 1
     | _ ->
         pos - ti.startPos - 1
   in
@@ -2253,8 +2255,10 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft pos s in
   let offset =
     match ti.token with
-    | TFnVersion (_, fnName, _, _) ->
-        (String.length fnName) - 1
+    | TFnVersion (_, partialName, _, _) ->
+        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
+        let startPos = ti.endPos - (String.length partialName) in
+        pos - startPos
     | _ ->
         pos - ti.startPos
   in
@@ -2971,7 +2975,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
-        let fnName = ViewUtils.fnName name in
+        let fnName = ViewUtils.displayName name in
         let version = ViewUtils.fnVersion name in
         let versionView =
           if String.length version > 0
@@ -3033,7 +3037,7 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
         ""
   in
   match ti.token with
-  | TFnName (id, fnName, _, _, Rail) ->
+  | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
       Html.div
@@ -3085,7 +3089,10 @@ let viewPlayIcon
       in
       let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
       let buttonUnavailable = not paramsComplete in
-      let showButton = not fn.fnPreviewExecutionSafe in
+      (* Dont show button on the function token if it has a version, show on version token *)
+      let showButton = if String.length name == String.length fnName - 1
+      then false
+      else not fn.fnPreviewExecutionSafe in
       let buttonNeeded = not (isComplete id) in
       let exeIcon = "play" in
       let events =
@@ -3124,12 +3131,6 @@ let viewPlayIcon
       in
       let executingClass =
         if List.member ~value:id executingFunctions then "is-executing" else ""
-      in
-      (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton =
-        if String.length name == String.length fnName - 1
-        then false
-        else showButton
       in
       if not showButton
       then Vdom.noNode
