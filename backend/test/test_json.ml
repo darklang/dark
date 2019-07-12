@@ -24,29 +24,30 @@ let t_internal_roundtrippable_doesnt_care_about_order () =
 
 
 let t_dval_yojson_roundtrips () =
-  let roundtrippable_rt v =
-    v
-    |> Dval.to_internal_roundtrippable_v0
-    |> Dval.of_internal_roundtrippable_v0
-  in
-  (* Don't really need to check this but what harm *)
-  let safe_rt v =
-    v |> dval_to_yojson |> dval_of_yojson |> Result.ok_or_failwith
+  let checks =
+    [ ( "roundtrippable"
+      , Dval.to_internal_roundtrippable_v0
+      , Dval.of_internal_roundtrippable_v0 )
+    ; ( "safe"
+      , (fun v -> v |> dval_to_yojson |> Yojson.Safe.to_string)
+      , fun v ->
+          v
+          |> Yojson.Safe.from_string
+          |> dval_of_yojson
+          |> Result.ok_or_failwith ) ]
   in
   let check name (v : dval) =
-    check_dval ("safe: " ^ name) v (safe_rt v) ;
-    check_dval ("roundtrippable: " ^ name) v (roundtrippable_rt v) ;
-    AT.check
-      AT.string
-      ("safe as string: " ^ name)
-      (Yojson.Safe.to_string (dval_to_yojson v))
-      (Yojson.Safe.to_string (dval_to_yojson (safe_rt v))) ;
-    AT.check
-      AT.string
-      ("safe roundtrippable: " ^ name)
-      (Dval.to_internal_roundtrippable_v0 v)
-      (Dval.to_internal_roundtrippable_v0 (roundtrippable_rt v)) ;
-    ()
+    List.iter
+      checks
+      ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
+         ->
+        check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
+        AT.check
+          AT.string
+          (test_name ^ " as string: " ^ name)
+          (v |> encode)
+          (v |> encode |> decode |> encode) ;
+        () )
   in
   sample_dvals
   |> List.filter ~f:(function
