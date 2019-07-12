@@ -72,4 +72,18 @@ let commands : command list =
     ; doc = "Clone expression as Case A in a feature flag"
     ; shortcut = "Alt-F" }
   ; putFunctionOnRail
-  ; takeFunctionOffRail ]
+  ; takeFunctionOffRail
+  ; { commandName = "create-type"
+    ; action =
+        (fun m tl pd ->
+          let id = Pointer.toID pd in
+          let lv = Analysis.getCurrentLiveValue m tl.id id in
+          let tipe = Refactor.generateUserType lv in
+          match tipe with
+          | Ok tipe ->
+              let nameId = Blank.toID tipe.utName in
+              RPC ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
+          | Error s ->
+              DisplayError ("Can't create-type: " ^ s) )
+    ; doc = "Create a type from a live value"
+    ; shortcut = "" } ]
