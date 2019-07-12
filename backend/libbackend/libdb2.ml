@@ -97,7 +97,7 @@ let fns : shortfn list =
     ; p = [par "keys" TList; par "table" TDB]
     ; r = TList
     ; d =
-        "Finds many values in `table` by `keys, returning a [[value]] list of lists"
+        "Finds many values in `table` by `keys, returning a [value] list of values"
     ; f =
         InProcess
           (function
@@ -113,7 +113,7 @@ let fns : shortfn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many ~state db skeys
+              User_db.get_many_v2 ~state db skeys
           | args ->
               fail args)
     ; ps = false
@@ -139,7 +139,7 @@ let fns : shortfn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.getManyWithKeys ~state db skeys
+              User_db.get_many_with_keys ~state db skeys
           | args ->
               fail args)
     ; ps = false

@@ -14,7 +14,9 @@ val get : state:exec_state -> DbT.db -> string -> dval
 
 val get_many : state:exec_state -> DbT.db -> string list -> dval
 
-val getManyWithKeys : state:exec_state -> DbT.db -> string list -> dval
+val get_many_v2 : state:exec_state -> DbT.db -> string list -> dval
+
+val get_many_with_keys : state:exec_state -> DbT.db -> string list -> dval
 
 val get_all : state:exec_state -> DbT.db -> dval
 
