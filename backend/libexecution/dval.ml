@@ -394,6 +394,95 @@ and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
       Exception.internal "Not a json object"
 
 
+let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
+  (* sort so this isn't key-order-dependent. *)
+  let json = Yojson.Safe.sort json in
+  match json with
+  | `Int i ->
+      DInt (Dint.of_int i)
+  | `Intlit i ->
+      DInt (Dint.of_string_exn i)
+  | `Float f ->
+      DFloat f
+  | `Bool b ->
+      DBool b
+  | `Null ->
+      DNull
+  | `String s ->
+      dstr_of_string_exn s
+  | `List l ->
+      (* We shouldnt have saved dlist that have incompletes or error rails but we might have *)
+      to_list (List.map ~f:unsafe_dval_of_yojson_v1 l)
+  | `Variant v ->
+      Exception.internal "We dont use variants"
+  | `Tuple v ->
+      Exception.internal "We dont use tuples"
+  | `Assoc [("type", `String "response"); ("value", `List [a; b])] ->
+      DResp
+        (Result.ok_or_failwith (dhttp_of_yojson a), unsafe_dval_of_yojson_v1 b)
+  | `Assoc
+      [ ("constructor", `String constructor)
+      ; ("type", `String tipe)
+      ; ("values", `List vs) ] ->
+      let expectOne ~f vs =
+        match vs with
+        | [v] ->
+            f v
+        | _ ->
+            DObj (unsafe_dvalmap_of_yojson_v1 json)
+      in
+      ( match (tipe, constructor) with
+      | "result", "Ok" ->
+          vs
+          |> expectOne ~f:(fun v ->
+                 DResult (ResOk (unsafe_dval_of_yojson_v1 v)) )
+      | "result", "Error" ->
+          vs
+          |> expectOne ~f:(fun v ->
+                 DResult (ResError (unsafe_dval_of_yojson_v1 v)) )
+      | _ ->
+          DObj (unsafe_dvalmap_of_yojson_v1 json) )
+  | `Assoc [("type", `String "incomplete"); ("value", `Null)] ->
+      DIncomplete
+  | `Assoc [("type", `String "option"); ("value", dv)] ->
+      if dv = `Null
+      then DOption OptNothing
+      else DOption (OptJust (unsafe_dval_of_yojson_v1 dv))
+  | `Assoc [("type", `String "block"); ("value", `Null)] ->
+      DBlock (fun _ -> DError "Can't deserialize blocks")
+  | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
+      DErrorRail (unsafe_dval_of_yojson_v1 dv)
+  | `Assoc [("type", `String "date"); ("value", `String v)] ->
+      DDate (Util.date_of_isostring v)
+  | `Assoc [("type", `String "error"); ("value", `String v)] ->
+      DError v
+  | `Assoc [("type", `String "password"); ("value", `String v)] ->
+      v |> B64.decode |> Bytes.of_string |> DPassword
+  | `Assoc [("type", `String "datastore"); ("value", `String v)] ->
+      DDB v
+  | `Assoc [("type", `String "uuid"); ("value", `String v)] ->
+      DUuid (Uuidm.of_string v |> Option.value_exn)
+  | `Assoc [("type", `String "char"); ("value", `String v)]
+  | `Assoc [("type", `String "character"); ("value", `String v)] ->
+      DCharacter (Unicode_string.Character.unsafe_of_string v)
+  | `Assoc [("type", `String "bytes"); ("value", `String v)] ->
+      DBytes (v |> B64.decode |> RawBytes.of_string)
+  | `Assoc _ ->
+      DObj (unsafe_dvalmap_of_yojson_v1 json)
+
+
+and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : dval_map =
+  match json with
+  | `Assoc alist ->
+      List.fold_left
+        alist
+        ~f:(fun m (k, v) ->
+          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v1 v) )
+        ~init:DvalMap.empty
+  | _ ->
+      Exception.internal "Not a json object"
+
+
 let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
   let tipe = dv |> tipe_of |> unsafe_tipe_to_yojson in
   let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
