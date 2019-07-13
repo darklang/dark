@@ -211,4 +211,165 @@ let () =
                          ( urf.urfName |> Blank.toMaybe
                          , urf.urfTipe |> Blank.toMaybe ) ) )
           in
-          expect fields |> toEqual expectedFields ) )
+          expect fields |> toEqual expectedFields ) ) ;
+  describe "extractVarInAst" (fun () ->
+      let par
+          ?(paramDescription = "")
+          ?(args = [])
+          ?(paramOptional = false)
+          paramName
+          paramTipe : parameter =
+        { paramName
+        ; paramTipe
+        ; paramOptional
+        ; paramBlock_args = args
+        ; paramDescription }
+      in
+      let builtInFunctions =
+        [ { fnName = "Int::add"
+          ; fnParameters = [par "a" TInt; par "b" TInt]
+          ; fnDescription = ""
+          ; fnReturnTipe = TInt
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "Dict::map"
+          ; fnParameters =
+              [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
+          ; fnDescription = ""
+          ; fnReturnTipe = TObj
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "DB::set_v1"
+          ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
+          ; fnDescription = ""
+          ; fnReturnTipe = TObj
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false } ]
+      in
+      let modelAndTl (ast : expr) =
+        let hTLID = TLID "handler1" in
+        let tl =
+          { hTLID
+          ; ast
+          ; pos = {x = 0; y = 0}
+          ; spec =
+              { space = B.newF "HTTP"
+              ; name = B.newF "/src"
+              ; modifier = B.newF "POST" } }
+        in
+        let model =
+          { D.defaultModel with
+            builtInFunctions; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
+        in
+        (model, tl)
+      in
+      test "with sole expression" (fun () ->
+          let expr = B.newF (Value "4") in
+          let ast = expr in
+          let m, tl = modelAndTl ast in
+          expect
+            ( match R.extractVarInAst m (TLHandler tl) expr ast with
+            | ( F
+                  ( _
+                  , Let
+                      ( F (_, extractedBinding)
+                      , extractedExpr
+                      , F (_, Variable var) ) )
+              , _ )
+              when extractedBinding = var && expr = extractedExpr ->
+                true
+            | _, _ ->
+                false )
+          |> toBe true ) ;
+      let wrapInLet (name : string) (rhs : expr) (expr : expr) =
+        Let (B.newF name, rhs, expr) |> B.newF
+      in
+      test "with expression inside let" (fun () ->
+          let outerBinding = "b" in
+          let outerExpr = Variable "5" |> B.newF in
+          let expr =
+            B.newF
+              (FnCall
+                 ( B.newF "Int::add"
+                 , [B.newF (Variable "b"); B.newF (Value "4")]
+                 , NoRail ))
+          in
+          let ast = expr |> wrapInLet outerBinding outerExpr in
+          let m, tl = modelAndTl ast in
+          expect
+            ( match R.extractVarInAst m (TLHandler tl) expr ast with
+            | ( F
+                  ( _
+                  , Let
+                      ( F (_, outerBinding')
+                      , outerExpr'
+                      , F
+                          ( _
+                          , Let
+                              ( F (_, extractedBinding)
+                              , extractedExpr
+                              , F (_, Variable extractedBinding') ) ) ) )
+              , _ )
+              when outerExpr' = outerExpr
+                   && outerBinding' = outerBinding
+                   && extractedExpr = expr
+                   && extractedBinding = extractedBinding' ->
+                true
+            | _, _ ->
+                false )
+          |> toBe true ) ;
+      test "with expression inside thread inside let" (fun () ->
+          let expr =
+            FnCall
+              ( B.newF "DB::set_v1"
+              , [ B.newF
+                    (FieldAccess (B.newF (Variable "request"), B.newF "body"))
+                ; B.newF
+                    (FnCall
+                       (B.newF "toString", [B.newF (Variable "id")], NoRail))
+                ; B.new_ () ]
+              , NoRail )
+            |> B.newF
+          in
+          let threadedExpr =
+            B.newF
+              (FnCall
+                 ( B.newF "assoc"
+                 , [B.newF (Value "id"); B.newF (Variable "id")]
+                 , NoRail ))
+          in
+          let exprInThread = Thread [expr; threadedExpr] |> B.newF in
+          let outerExpr =
+            FnCall (B.newF "Uuid::generate", [], NoRail) |> B.newF
+          in
+          let ast = exprInThread |> wrapInLet "id" outerExpr in
+          let m, tl = modelAndTl ast in
+          expect
+            ( match R.extractVarInAst m (TLHandler tl) expr ast with
+            | ( F
+                  ( _
+                  , Let
+                      ( _
+                      , outerExpr'
+                      , F
+                          ( _
+                          , Let
+                              ( F (_, extractedBinding)
+                              , extractedExpr
+                              , F
+                                  ( _
+                                  , Thread
+                                      [ F (_, Variable extractedBinding')
+                                      ; threadedExpr' ] ) ) ) ) )
+              , _ )
+              when outerExpr' = outerExpr
+                   && extractedExpr = expr
+                   && threadedExpr = threadedExpr'
+                   && extractedBinding = extractedBinding' ->
+                true
+            | _, _ ->
+                false )
+          |> toBe true ) )
