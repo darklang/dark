@@ -42,7 +42,7 @@ let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
 (* Toplevels *)
 (* ------------------------------- *)
 let selectNextToplevel (m : model) (cur : tlid option) : modification =
-  let tls = List.map ~f:(fun x -> x.id) m.toplevels in
+  let tls = TLIDDict.tlids m.toplevels in
   let next =
     cur |> Option.andThen ~f:(fun value -> Util.listNextWrap ~value tls)
   in

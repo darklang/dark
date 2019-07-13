@@ -5,6 +5,7 @@ open Types
 (* Dark *)
 module TL = Toplevel
 module P = Pointer
+module TD = TLIDDict
 
 type viewState = ViewUtils.viewState
 
@@ -219,6 +220,7 @@ let viewCanvas (m : model) : msg Html.html =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ ->
         m.toplevels
+        |> TD.values
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
@@ -226,13 +228,13 @@ let viewCanvas (m : model) : msg Html.html =
         |> List.sortBy ~f:(fun tl -> deTLID tl.id)
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->
-      ( match List.find ~f:(fun f -> f.ufTLID = tlid) m.userFunctions with
+      ( match TD.get ~tlid m.userFunctions with
       | Some func ->
           [viewTL m (TL.ufToTL func)]
       | None ->
           [] )
     | FocusedType tlid ->
-      ( match List.find ~f:(fun t -> t.utTLID = tlid) m.userTipes with
+      ( match TD.get ~tlid m.userTipes with
       | Some tipe ->
           [viewTL m (TL.utToTL tipe)]
       | None ->

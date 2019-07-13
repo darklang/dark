@@ -6,6 +6,7 @@ open Types
 module B = Blank
 module P = Pointer
 module TL = Toplevel
+module TD = TLIDDict
 
 let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
@@ -91,7 +92,7 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
         let allFunctions =
           let ufs =
             m.userFunctions
-            |> List.map ~f:(fun uf -> uf.ufMetadata)
+            |> TD.mapValues ~f:(fun uf -> uf.ufMetadata)
             |> List.filterMap ~f:Functions.ufmToF
           in
           m.builtInFunctions @ ufs
@@ -263,7 +264,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   in
   let newHandlers =
     m.toplevels
-    |> List.filterMap ~f:(fun tl ->
+    |> TD.filterMapValues ~f:(fun tl ->
            match TL.asHandler tl with
            | None ->
                None
@@ -275,7 +276,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
   in
   let newFunctions =
     m.userFunctions
-    |> List.filterMap ~f:(fun uf ->
+    |> TD.filterMapValues ~f:(fun uf ->
            let newAst = renameFnCalls uf.ufAST old new_ in
            if newAst <> uf.ufAST
            then Some (SetFunction {uf with ufAST = newAst})
@@ -364,7 +365,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
   in
   let newFunctions =
     m.userFunctions
-    |> List.filterMap ~f:(fun uf ->
+    |> TD.filterMapValues ~f:(fun uf ->
            let newFn = renameUserTipeInFnParameters uf old new_ in
            if newFn <> uf then Some (SetFunction newFn) else None )
   in
@@ -388,9 +389,9 @@ let dbUseCount (m : model) (name : string) : int =
 
 
 let updateUsageCounts (m : model) : model =
-  let tldata = m.toplevels |> List.map ~f:TL.allData in
+  let tldata = m.toplevels |> TD.mapValues ~f:TL.allData in
   let fndata =
-    m.userFunctions |> List.map ~f:(fun fn -> AST.allData fn.ufAST)
+    m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
   in
   let all = List.concat (fndata @ tldata) in
   let countFromList names =
@@ -421,7 +422,7 @@ let updateUsageCounts (m : model) : model =
   in
   let usedTipes =
     m.userFunctions
-    |> List.map ~f:Functions.allParamData
+    |> TD.mapValues ~f:Functions.allParamData
     |> List.concat
     |> List.filterMap ~f:(function
            (* Note: this does _not_ currently handle multiple versions *)
@@ -465,7 +466,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   in
   let newHandlers =
     m.toplevels
-    |> List.filterMap ~f:(fun tl ->
+    |> TD.filterMapValues ~f:(fun tl ->
            match TL.asHandler tl with
            | None ->
                None
@@ -477,7 +478,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   in
   let newFunctions =
     m.userFunctions
-    |> List.filterMap ~f:(fun uf_ ->
+    |> TD.filterMapValues ~f:(fun uf_ ->
            let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
@@ -612,9 +613,9 @@ let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
       ~init:ast
       usedInExprs
   in
-  let toplevels = m.toplevels @ List.map ~f:TL.ufToTL m.userFunctions in
-  toplevels
-  |> List.filterMap ~f:(fun tl ->
+  m.toplevels
+  |> TD.mergeRight (TD.map ~f:TL.ufToTL m.userFunctions)
+  |> TD.filterMapValues ~f:(fun tl ->
          match tl.data with
          | TLHandler h ->
              let newAST = transform h.ast in
