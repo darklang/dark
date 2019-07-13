@@ -278,6 +278,25 @@ let t_password_serialization () =
   ()
 
 
+(* put it in an object too *)
+let t_password_serialization2 () =
+  let roundtrips name serialize deserialize =
+    let bytes = Bytes.of_string "encryptedbytes" in
+    let password = DObj (DvalMap.singleton "x" (DPassword bytes)) in
+    AT.check
+      at_dval
+      ("Passwords serialize in non-redaction function: " ^ name)
+      password
+      (password |> serialize |> deserialize |> serialize |> deserialize)
+  in
+  (* roundtrips *)
+  roundtrips
+    "to_internal_queryable_v1"
+    Dval.to_internal_queryable_v1
+    Dval.of_internal_queryable_v1 ;
+  ()
+
+
 let suite =
   [ ( "Parsing JSON to Dvals doesn't care about key order"
     , `Quick
@@ -293,6 +312,9 @@ let suite =
     , `Quick
     , date_migration_has_correct_formats )
   ; ( "Passwords serialize correctly and redact (or not) correctly"
+    , `Quick
+    , t_password_serialization )
+  ; ( "Passwords in objects roundtrip correctly"
     , `Quick
     , t_password_serialization )
   ; ( "Passwords serialize when not redacting"
