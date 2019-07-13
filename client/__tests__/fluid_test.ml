@@ -311,7 +311,7 @@ let () =
     in
     let newAST, newState =
       let tl = tl ast in
-      let m = {m with toplevels = [tl]} in
+      let m = {m with toplevels = TL.fromList [tl]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
@@ -1799,7 +1799,7 @@ let () =
              moveTo 14 s
              |> (fun s ->
                   let tl = tl ast in
-                  let m = {m with toplevels = [tl]} in
+                  let m = {m with toplevels = TL.fromList [tl]} in
                   updateAutocomplete m tl.id ast s )
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, s) ->

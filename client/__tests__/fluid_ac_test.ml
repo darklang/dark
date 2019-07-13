@@ -115,9 +115,9 @@ let defaultModel
     () : model =
   let default = Defaults.defaultModel in
   { default with
-    toplevels = dbs @ handlers
-  ; userFunctions
-  ; userTipes
+    toplevels = TL.fromList (dbs @ handlers)
+  ; userFunctions = Functions.fromList userFunctions
+  ; userTipes = UserTypes.fromList userTipes
   ; cursorState
   ; builtInFunctions = sampleFunctions }
 

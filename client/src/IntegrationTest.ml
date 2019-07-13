@@ -6,6 +6,7 @@ open Types
 module B = Blank
 module P = Pointer
 module TL = Toplevel
+module TD = TLIDDict
 
 let pass : testResult = Ok ()
 
@@ -13,17 +14,17 @@ let fail ?(f : 'a -> string = Js.String.make) (v : 'a) : testResult =
   Error (f v)
 
 
+let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
+
 let onlyTL (m : model) : toplevel =
-  let len = List.length m.toplevels in
+  let len = StrDict.count m.toplevels in
   ignore
     ( if len = 0
     then Debug.crash "no toplevels"
     else if len > 1
-    then
-      Debug.crash
-        ("too many toplevels: " ^ show_list ~f:show_toplevel m.toplevels)
+    then Debug.crash ("too many toplevels: " ^ showToplevels m.toplevels)
     else "nothing to see here" ) ;
-  m.toplevels |> List.head |> deOption "onlytl1"
+  m.toplevels |> StrDict.values |> List.head |> deOption "onlytl1"
 
 
 let onlyHandler (m : model) : handler =
@@ -189,7 +190,7 @@ let no_request_global_in_non_http_space (m : model) : testResult =
 
 
 let hover_values_for_varnames (m : model) : testResult =
-  ignore (m.toplevels |> List.head |> deOption "test" |> fun x -> x.id) ;
+  ignore (m.toplevels |> TD.keys |> List.head |> deOption "test") ;
   pass
 
 
@@ -254,11 +255,11 @@ let tabbing_through_let (m : model) : testResult =
 
 
 let case_sensitivity (m : model) : testResult =
-  if List.length m.toplevels <> 3
-  then fail ~f:(show_list ~f:show_toplevel) m.toplevels
+  if TD.count m.toplevels <> 3
+  then fail ~f:showToplevels m.toplevels
   else
     m.toplevels
-    |> List.map ~f:(fun tl ->
+    |> TD.mapValues ~f:(fun tl ->
            match tl.data with
            | TLDB {dbName; cols} ->
              ( match (dbName, cols) with
@@ -358,20 +359,14 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
            |> fun x -> Some x )
       then pass
       else
-        fail
-          ( show_list ~f:show_toplevel m.toplevels
-          ^ ", "
-          ^ show_cursorState m.cursorState )
+        fail (showToplevels m.toplevels ^ ", " ^ show_cursorState m.cursorState)
   | _ ->
-      fail
-        ( show_list ~f:show_toplevel m.toplevels
-        ^ ", "
-        ^ show_cursorState m.cursorState )
+      fail (showToplevels m.toplevels ^ ", " ^ show_cursorState m.cursorState)
 
 
 let rename_db_fields (m : model) : testResult =
   m.toplevels
-  |> List.map ~f:(fun tl ->
+  |> TD.mapValues ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -393,7 +388,7 @@ let rename_db_fields (m : model) : testResult =
 
 let rename_db_type (m : model) : testResult =
   m.toplevels
-  |> List.map ~f:(fun tl ->
+  |> TD.mapValues ~f:(fun tl ->
          match tl.data with
          | TLDB {cols} ->
            ( match cols with
@@ -422,7 +417,7 @@ let rename_db_type (m : model) : testResult =
 
 let paste_right_number_of_blanks (m : model) : testResult =
   m.toplevels
-  |> List.map ~f:(fun tl ->
+  |> TD.mapValues ~f:(fun tl ->
          match tl.data with
          | TLHandler {ast} ->
            ( match ast with
@@ -496,7 +491,7 @@ let feature_flag_works (m : model) : testResult =
 
 
 let feature_flag_in_function (m : model) : testResult =
-  let fun_ = List.head m.userFunctions in
+  let fun_ = m.userFunctions |> TD.values |> List.head in
   match fun_ with
   | Some f ->
     ( match f.ufAST with
@@ -698,7 +693,7 @@ let delete_db_col (m : model) : testResult =
 let cant_delete_locked_col (m : model) : testResult =
   let db =
     m.toplevels
-    |> List.filterMap ~f:(fun a ->
+    |> TD.filterMapValues ~f:(fun a ->
            match a.data with TLDB data -> Some data | _ -> None )
     |> fun dbs ->
     if List.length dbs > 1
@@ -787,7 +782,7 @@ let load_with_unnamed_function (_m : model) : testResult = pass
 let extract_from_function (m : model) : testResult =
   match m.cursorState with
   | Selecting (TLID "123", Some _) ->
-      if List.length m.userFunctions = 2 then pass else fail m.userFunctions
+      if TD.count m.userFunctions = 2 then pass else fail m.userFunctions
   | _ ->
       fail (show_cursorState m.cursorState)
 

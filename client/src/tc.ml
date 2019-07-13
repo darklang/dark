@@ -13,8 +13,8 @@ include (
   Tablecloth :
     module type of Tablecloth
     (* with module StrSet := Tablecloth.StrSet *)
-    (*  and module IntSet := Tablecloth.IntSet *)
-    (*  and module StrDict := Tablecloth.StrDict *)
+    (* with module IntSet := Tablecloth.IntSet *)
+    with module StrDict := Tablecloth.StrDict
     with module Option := Tablecloth.Option
     with module Int := Tablecloth.Int
     with module String := Tablecloth.String
@@ -83,4 +83,50 @@ module String = struct
 
 
   let left ~(count : int) (s : string) : string = slice ~from:0 ~to_:count s
+end
+
+module StrDict = struct
+  include Tablecloth.StrDict
+
+  let values (dict : 'a t) : 'a list =
+    Belt.Map.String.valuesToArray dict |> Array.toList
+
+
+  let updateIfPresent ~(key : key) ~(f : 'v -> 'v) (dict : 'value t) : 'value t
+      =
+    update ~key ~f:(Option.map ~f) dict
+
+
+  let mergeLeft (dict1 : 'v t) (dict2 : 'v t) : 'v t =
+    Tablecloth.StrDict.merge
+      ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
+        match (v1, v2) with Some _, _ -> v1 | None, _ -> v2 )
+      dict1
+      dict2
+
+
+  let mergeRight (dict1 : 'v t) (dict2 : 'v t) : 'v t =
+    Tablecloth.StrDict.merge
+      ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
+        match (v1, v2) with _, Some _ -> v2 | _, None -> v1 )
+      dict1
+      dict2
+
+
+  let count (dict : 'v t) = Belt.Map.String.size dict
+
+  let mapValues (dict : 'v t) ~(f : 'v -> 'x) : 'x list =
+    dict |> values |> List.map ~f
+
+
+  let filterMapValues (dict : 'v t) ~(f : 'v -> 'x option) : 'x list =
+    dict |> values |> List.filterMap ~f
+
+
+  let remove (dict : 'v t) ~(key : key) : 'v t =
+    Belt.Map.String.remove dict key
+
+
+  let removeMany (dict : 'v t) ~(keys : key list) : 'v t =
+    Belt.Map.String.removeMany dict (Belt.List.toArray keys)
 end

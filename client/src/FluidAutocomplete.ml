@@ -8,6 +8,7 @@ module RT = Runtime
 module TL = Toplevel
 module B = Blank
 module Regex = Util.Regex
+module TD = TLIDDict
 
 type autocomplete = fluidAutocompleteState [@@deriving show]
 
@@ -509,7 +510,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 let reset (m : model) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
-    |> List.map ~f:(fun x -> x.ufMetadata)
+    |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:Functions.ufmToF
   in
   let functions =

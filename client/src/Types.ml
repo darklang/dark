@@ -39,13 +39,50 @@ and id = ID of string
 and 'a blankOr =
   | Blank of id
   | F of id * 'a
+[@@deriving show {with_path = false}]
+
+module TLIDDict = struct
+  include Tc.StrDict
+
+  let get ~(tlid : tlid) (dict : 'value t) : 'value option =
+    let (TLID key) = tlid in
+    get ~key dict
+
+
+  let insert ~(tlid : tlid) ~(value : 'value) (dict : 'value t) : 'value t =
+    let (TLID key) = tlid in
+    insert ~key ~value dict
+
+
+  let tlids (dict : 'value t) : tlid list =
+    dict |> keys |> Tc.List.map ~f:(fun key -> TLID key)
+
+
+  let update ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) : 'value t =
+    let (TLID key) = tlid in
+    updateIfPresent ~key ~f dict
+
+
+  let remove ~(tlid : tlid) (dict : 'value t) : 'value t =
+    let (TLID key) = tlid in
+    remove ~key dict
+
+
+  let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
+    let keys = List.map tlids ~f:(fun (TLID key) -> key) in
+    removeMany ~keys dict
+
+
+  let fromList (values : (tlid * 'value) list) : 'value t =
+    values |> List.map ~f:(fun (TLID key, v) -> (key, v)) |> fromList
+end
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
 (* within the viewport and we map Absolute positions back to the *)
 (* viewport to display in the browser. *)
 (* TODO: Can we depreciate VPos? *)
-and pos =
+type pos =
   { x : int
   ; y : int }
 
@@ -1168,17 +1205,19 @@ and model =
   ; lastMod : modification
   ; tests : variantTest list
   ; complete : autocomplete
-  ; userFunctions : userFunction list
-  ; deletedUserFunctions : userFunction list
   ; builtInFunctions : function_ list
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (tlid * id) list
   ; toplevels :
-      toplevel list
+      toplevel TLIDDict.t
       (* These are read direct from the server. The ones that are *)
       (* analysed are in analysis *)
-  ; deletedToplevels : toplevel list
+  ; deletedToplevels : toplevel TLIDDict.t
+  ; userFunctions : userFunction TLIDDict.t
+  ; deletedUserFunctions : userFunction TLIDDict.t
+  ; userTipes : userTipe TLIDDict.t
+  ; deletedUserTipes : userTipe TLIDDict.t
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list
@@ -1208,8 +1247,6 @@ and model =
   ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
-  ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list
   ; tlUsages : usage list
   ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState

@@ -5,6 +5,7 @@ open Types
 open Prelude
 open Fluid
 module K = FluidKeyboard
+module TL = Toplevel
 
 (* These tests should be synced with the subset of tests in fluid_test.ml that
  * makes sense for patterns. See the extensive docs there for how this all
@@ -56,7 +57,7 @@ let () =
     in
     let newAST, newState =
       let tl = tl ast in
-      let m = {m with toplevels = [tl]} in
+      let m = {m with toplevels = TL.fromList [tl]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
