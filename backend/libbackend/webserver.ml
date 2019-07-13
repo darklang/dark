@@ -1408,8 +1408,11 @@ let route_host req =
   (* Specific Dark canvas: darksingleinstance *)
   | ["darksingleinstance"; "com"] ->
       Some (Canvas "darksingleinstance")
+  (* Customers *)
   | [a; "dabblefox"; "com"] ->
       Some (Canvas ("dabblefox-" ^ a))
+  | ["www"; "hellobirb"; "com"] | ["hellobirb"; "com"] ->
+      Some (Canvas "pixelkeet")
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"] | ["darklang"; "localhost"] | ["dark_dev"; "com"] ->
       Some Admin
