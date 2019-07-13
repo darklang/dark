@@ -626,14 +626,6 @@ let of_internal_roundtrippable_v0 str : dval =
 (* ------------------------- *)
 (* Queryable - for the DB *)
 (* ------------------------- *)
-let to_internal_queryable_v0 dval : string =
-  dval |> unsafe_dval_to_yojson_v0 ~redact:false |> Yojson.Safe.to_string
-
-
-let of_internal_queryable_v0 (str : string) : dval =
-  str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
-
-
 let to_internal_queryable_v1 dval : string =
   match dval with
   | DObj _ ->

@@ -243,16 +243,11 @@ let t_password_serialization () =
     "to_internal_roundtrippable_v0"
     true
     Dval.to_internal_roundtrippable_v0 ;
-  does_serialize "to_internal_queryable_v0" true Dval.to_internal_queryable_v0 ;
   (* roundtrips *)
   roundtrips
     "to_internal_roundtrippable_v0"
     Dval.to_internal_roundtrippable_v0
     Dval.of_internal_roundtrippable_v0 ;
-  roundtrips
-    "to_internal_queryable_v0"
-    Dval.to_internal_queryable_v0
-    Dval.of_internal_queryable_v0 ;
   (* redacting *)
   does_serialize
     "to_enduser_readable_text_v0"
