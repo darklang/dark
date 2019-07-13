@@ -252,7 +252,7 @@ let t_password_serialization () =
   roundtrips
     "to_internal_queryable_v0"
     Dval.to_internal_queryable_v0
-    Dval.of_internal_roundtrippable_v0 ;
+    Dval.of_internal_queryable_v0 ;
   (* redacting *)
   does_serialize
     "to_enduser_readable_text_v0"
