@@ -4,6 +4,7 @@ open Types
 open ViewUtils
 module B = Blank
 module TL = Toplevel
+module TD = TLIDDict
 
 let missingEventSpaceDesc : string = "Undefined"
 
@@ -306,9 +307,12 @@ let rec count (s : item) : int =
 
 
 let deletedCategory (m : model) : category =
-  let tls = m.deletedToplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
+  let tls =
+    m.deletedToplevels |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey tl)
+  in
   let ufns =
     m.deletedUserFunctions
+    |> TD.values
     |> List.sortBy ~f:(fun fn ->
            fn.ufMetadata.ufmName
            |> Blank.toMaybe
@@ -316,6 +320,7 @@ let deletedCategory (m : model) : category =
   in
   let tipes =
     m.deletedUserTipes
+    |> TD.values
     |> List.sortBy ~f:(fun t ->
            t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
   in
@@ -704,9 +709,12 @@ let adminDebuggerView (m : model) : msg Html.html =
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
-  let tls = m.toplevels |> List.sortBy ~f:(fun tl -> TL.sortkey tl) in
+  let tls =
+    m.toplevels |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey tl)
+  in
   let ufns =
     m.userFunctions
+    |> TD.values
     |> List.sortBy ~f:(fun fn ->
            fn.ufMetadata.ufmName
            |> Blank.toMaybe
@@ -714,6 +722,7 @@ let viewRoutingTable_ (m : model) : msg Html.html =
   in
   let uts =
     m.userTipes
+    |> TD.values
     |> List.sortBy ~f:(fun t ->
            t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
   in
@@ -776,19 +785,19 @@ let viewRoutingTable_ (m : model) : msg Html.html =
 
 
 let rtCacheKey m =
-  ( m.toplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
-  , m.userFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
+  ( m.toplevels |> TD.mapValues ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  , m.userFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
   , m.f404s
   , m.sidebarOpen
-  , m.deletedToplevels |> List.map ~f:(fun tl -> (tl.pos, TL.sortkey tl))
-  , m.deletedUserFunctions |> List.map ~f:(fun f -> f.ufMetadata.ufmName)
+  , m.deletedToplevels |> TD.mapValues ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  , m.deletedUserFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
   , m.routingTableOpenDetails
   , m.staticDeploys
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
-  , m.userTipes |> List.map ~f:(fun t -> t.utName)
-  , m.deletedUserTipes |> List.map ~f:(fun t -> t.utName)
+  , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
+  , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , tlidOf m.cursorState
   , m.environment
   , m.timersEnabled

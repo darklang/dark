@@ -65,9 +65,9 @@ let defaultModel
     () : model =
   let default = Defaults.defaultModel in
   { default with
-    toplevels = dbs @ handlers
-  ; userFunctions
-  ; userTipes
+    toplevels = TL.fromList (dbs @ handlers)
+  ; userFunctions = Functions.fromList userFunctions
+  ; userTipes = UserTypes.fromList userTipes
   ; cursorState
   ; builtInFunctions = sampleFunctions }
 
@@ -699,8 +699,7 @@ let () =
                 ( acFor ~target:None m
                 |> setQuery m "^hello/[]world"
                 |> itemPresent
-                     (ACOmniAction (NewHTTPHandler (Some "/hello/world")))
-                )
+                     (ACOmniAction (NewHTTPHandler (Some "/hello/world"))) )
               |> toEqual true ) ;
           test "create DB from route name" (fun () ->
               expect

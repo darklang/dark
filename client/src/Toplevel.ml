@@ -5,6 +5,7 @@ open Types
 (* Dark *)
 module B = Blank
 module P = Pointer
+module TD = TLIDDict
 
 type predecessor = pointerData option
 
@@ -44,45 +45,22 @@ let sortkey (tl : toplevel) : string =
       t.utName |> B.toMaybe |> Option.withDefault ~default:"Unnamed"
 
 
-let containsByTLID (tls : toplevel list) (elem : toplevel) : bool =
-  List.find ~f:(fun tl -> tl.id = elem.id) tls <> None
+let fromList (tls : toplevel list) : toplevel TLIDDict.t =
+  tls |> List.map ~f:(fun tl -> (tl.id, tl)) |> TD.fromList
 
 
-let removeByTLID ~(toBeRemoved : toplevel list) (origTls : toplevel list) :
-    toplevel list =
-  List.filter
-    ~f:(fun origTl -> not (containsByTLID toBeRemoved origTl))
-    origTls
-
-
-let upsertByTLID (tls : toplevel list) (tl : toplevel) : toplevel list =
-  removeByTLID tls ~toBeRemoved:[tl] @ [tl]
-
+let toID (tl : toplevel) : tlid = tl.id
 
 let upsert (m : model) (tl : toplevel) : model =
-  {m with toplevels = upsertByTLID m.toplevels tl}
+  {m with toplevels = TD.insert ~tlid:tl.id ~value:tl m.toplevels}
 
 
-let upsertAllByTLID (tls : toplevel list) ~(newTLs : toplevel list) :
-    toplevel list =
-  List.foldl ~f:(fun tl tls -> upsertByTLID tls tl) ~init:tls newTLs
-
-
-let upsertAll (m : model) (tls : toplevel list) : model =
-  List.foldl ~f:(fun tl m -> upsert m tl) ~init:m tls
+let update (m : model) ~(tlid : tlid) ~(f : toplevel -> toplevel) : model =
+  {m with toplevels = TD.update ~tlid ~f m.toplevels}
 
 
 let remove (m : model) (tl : toplevel) : model =
-  {m with toplevels = removeByTLID m.toplevels ~toBeRemoved:[tl]}
-
-
-let updateByTLID (tls : toplevel list) (tlid : tlid) (f : toplevel -> toplevel)
-    : toplevel list =
-  tls |> List.map ~f:(fun t -> if t.id <> tlid then t else f t)
-
-
-let update (m : model) (tlid : tlid) ~(f : toplevel -> toplevel) : model =
-  {m with toplevels = updateByTLID m.toplevels tlid f}
+  {m with toplevels = TD.remove ~tlid:tl.id m.toplevels}
 
 
 let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
@@ -91,7 +69,7 @@ let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
 
 
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  update m tlid ~f:(moveTL xOffset yOffset)
+  update m ~tlid ~f:(moveTL xOffset yOffset)
 
 
 let ufToTL (uf : userFunction) : toplevel =
@@ -144,7 +122,7 @@ let astOf (tl : toplevel) : expr option =
       None
 
 
-let dbs (tls : toplevel list) : dB list = List.filterMap ~f:asDB tls
+let dbs (tls : toplevel TD.t) : dB list = tls |> TD.filterMapValues ~f:asDB
 
 let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
 
@@ -176,9 +154,10 @@ let toOp (tl : toplevel) : op list =
       impossible "This isn't how database ops work"
 
 
-let customEventSpaceNames (toplevels : toplevel list) : string list =
+let customEventSpaceNames (toplevels : toplevel TD.t) : string list =
   let otherSpaces =
     toplevels
+    |> TD.values
     |> List.filter ~f:isCustomEventSpaceHandler
     |> List.filterMap ~f:(fun tl ->
            asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
@@ -504,16 +483,13 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   replace p replacement tl
 
 
-let all (m : model) : toplevel list =
+let all (m : model) : toplevel TD.t =
   m.toplevels
-  @ List.map ~f:ufToTL m.userFunctions
-  @ List.map ~f:utToTL m.userTipes
+  |> TD.mergeLeft (TD.map ~f:ufToTL m.userFunctions)
+  |> TD.mergeLeft (TD.map ~f:utToTL m.userTipes)
 
 
-let get (m : model) (id : tlid) : toplevel option =
-  let tls = all m in
-  List.find ~f:(fun tl -> tl.id = id) tls
-
+let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
 let getExn (m : model) (id : tlid) : toplevel =
   get m id |> deOption "TL.getExn"
@@ -541,9 +517,9 @@ let getCurrent (m : model) : (toplevel * pointerData) option =
       None
 
 
-let allDBNames (toplevels : toplevel list) : string list =
+let allDBNames (toplevels : toplevel TD.t) : string list =
   toplevels
-  |> List.filterMap ~f:(fun tl ->
+  |> TD.filterMapValues ~f:(fun tl ->
          match tl.data with
          | TLDB db ->
            (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
@@ -551,7 +527,7 @@ let allDBNames (toplevels : toplevel list) : string list =
              None )
 
 
-let allGloballyScopedVarnames (toplevels : toplevel list) : string list =
+let allGloballyScopedVarnames (toplevels : toplevel TD.t) : string list =
   allDBNames toplevels
 
 
@@ -602,7 +578,7 @@ let getAST (tl : toplevel) : expr option =
 
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
-  update m tlid ~f:(fun tl ->
+  update m ~tlid ~f:(fun tl ->
       let data =
         match tl.data with
         | TLHandler h ->

@@ -10,6 +10,7 @@ module B = Blank
 module P = Pointer
 module RT = Runtime
 module TL = Toplevel
+module TD = TLIDDict
 
 (* "current" in this indicates that it uses the cursor to pick the right inputValue *)
 
@@ -341,8 +342,8 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
 
 let requestAnalysis m tlid traceID : msg Cmd.t =
   let dbs = TL.dbs m.toplevels in
-  let userFns = m.userFunctions in
-  let userTipes = m.userTipes in
+  let userFns = TD.values m.userFunctions in
+  let userTipes = TD.values m.userTipes in
   let trace = getTrace m tlid traceID in
   let tl = TL.getExn m tlid in
   match (tl.data, trace) with

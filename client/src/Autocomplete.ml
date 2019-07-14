@@ -7,6 +7,7 @@ module RT = Runtime
 module TL = Toplevel
 module B = Blank
 module Regex = Util.Regex
+module TD = TLIDDict
 
 (* ---------------------------- *)
 (* Focus *)
@@ -578,18 +579,18 @@ let tlGotoName (tl : toplevel) : string =
 let tlDestinations (m : model) : autocompleteItem list =
   let tls =
     m.toplevels
+    |> TD.values
     |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl -> Goto (TL.asPage tl true, tl.id, tlGotoName tl))
   in
   let ufs =
-    List.filterMap
-      ~f:(fun fn ->
-        match fn.ufMetadata.ufmName with
-        | Blank _ ->
-            None
-        | F (_, name) ->
-            Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )
-      m.userFunctions
+    m.userFunctions
+    |> TD.filterMapValues ~f:(fun fn ->
+           match fn.ufMetadata.ufmName with
+           | Blank _ ->
+               None
+           | F (_, name) ->
+               Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
@@ -703,7 +704,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
       | ParamTipe ->
           let userTypes =
             m.userTipes
-            |> List.filterMap ~f:UserTypes.toTUserType
+            |> TD.filterMapValues ~f:UserTypes.toTUserType
             |> List.map ~f:(fun t -> ACParamTipe t)
           in
           [ ACParamTipe TAny
@@ -884,7 +885,7 @@ let regenerate (m : model) (a : autocomplete) : autocomplete =
 let reset (m : model) : autocomplete =
   let userFunctionMetadata =
     m.userFunctions
-    |> List.map ~f:(fun x -> x.ufMetadata)
+    |> TD.mapValues ~f:(fun x -> x.ufMetadata)
     |> List.filterMap ~f:Functions.ufmToF
   in
   let functions =

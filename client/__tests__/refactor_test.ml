@@ -5,6 +5,7 @@ open Types
 module B = Blank
 module D = Defaults
 module R = Refactor
+module TL = Toplevel
 
 let () =
   describe "takeOffRail & putOnRail" (fun () ->
@@ -27,7 +28,8 @@ let () =
         ; fnInfix = false }
       in
       let model tls =
-        {D.defaultModel with builtInFunctions = [f1; f2]; toplevels = tls}
+        { D.defaultModel with
+          builtInFunctions = [f1; f2]; toplevels = TL.fromList tls }
       in
       let handlerWithPointer fnName fnRail =
         let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
@@ -114,9 +116,11 @@ let () =
           let model =
             { D.defaultModel with
               toplevels =
-                [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
-                ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h} ]
-            ; userFunctions = [f] }
+                TL.fromList
+                  [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
+                  ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h}
+                  ]
+            ; userFunctions = Functions.fromList [f] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           let res =
@@ -143,9 +147,10 @@ let () =
           let model =
             { D.defaultModel with
               toplevels =
-                [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
-                ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h} ]
-            }
+                TL.fromList
+                  [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
+                  ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h}
+                  ] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           expect ops |> toEqual [] ) ;

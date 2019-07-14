@@ -5,9 +5,16 @@ open Types
 (* Dark *)
 module B = Blank
 module P = Pointer
+module TD = TLIDDict
 
-let allNames (fns : userFunction list) : string list =
-  List.filter_map ~f:(fun fn -> B.toMaybe fn.ufMetadata.ufmName) fns
+let allNames (fns : userFunction TLIDDict.t) : string list =
+  fns |> TD.filterMapValues ~f:(fun fn -> B.toMaybe fn.ufMetadata.ufmName)
+
+
+let toID (uf : userFunction) : tlid = uf.ufTLID
+
+let fromList (ufs : userFunction list) : userFunction TLIDDict.t =
+  ufs |> List.map ~f:(fun uf -> (uf.ufTLID, uf)) |> TLIDDict.fromList
 
 
 let ufpToP (ufp : userFunctionParameter) : parameter option =
@@ -40,46 +47,9 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       None
 
 
-let find (m : model) (id : tlid) : userFunction option =
-  List.find ~f:(fun f -> id = f.ufTLID) m.userFunctions
-
-
-let findExn (m : model) (id : tlid) : userFunction =
-  find m id |> deOption "Functions.findExn"
-
-
 let upsert (m : model) (f : userFunction) : model =
-  match find m f.ufTLID with
-  | Some old ->
-      { m with
-        userFunctions =
-          m.userFunctions
-          |> List.filter ~f:(fun uf -> uf.ufTLID <> old.ufTLID)
-          |> List.cons f }
-  | None ->
-      {m with userFunctions = f :: m.userFunctions}
-
-
-let containsByTLID (fns : userFunction list) (elem : userFunction) : bool =
-  List.find ~f:(fun fn -> fn.ufTLID = elem.ufTLID) fns <> None
-
-
-let removeByTLID
-    ~(toBeRemoved : userFunction list) (origfns : userFunction list) :
-    userFunction list =
-  List.filter
-    ~f:(fun origfn -> not (containsByTLID toBeRemoved origfn))
-    origfns
-
-
-let upsertByTLID (fns : userFunction list) (fn : userFunction) :
-    userFunction list =
-  removeByTLID fns ~toBeRemoved:[fn] @ [fn]
-
-
-let upsertAllByTLID (fns : userFunction list) ~(newFns : userFunction list) :
-    userFunction list =
-  List.foldl ~f:(fun fn fns -> upsertByTLID fns fn) ~init:fns newFns
+  { m with
+    userFunctions = TLIDDict.insert ~tlid:f.ufTLID ~value:f m.userFunctions }
 
 
 let sameName (name : string) (uf : userFunction) : bool =
@@ -87,7 +57,7 @@ let sameName (name : string) (uf : userFunction) : bool =
 
 
 let findByName (m : model) (s : string) : userFunction option =
-  List.find ~f:(sameName s) m.userFunctions
+  List.find ~f:(sameName s) (TLIDDict.values m.userFunctions)
 
 
 let findByNameExn (m : model) (s : string) : userFunction =
