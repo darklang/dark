@@ -625,11 +625,11 @@ let object_literals_work (m : model) : testResult =
 
 
 let rename_function (m : model) : testResult =
-  match onlyExpr m with
-  | FnCall (F (_, "hello"), _, _) ->
+  match m.handlers |> TD.values |> List.head with
+  | Some {ast = F (_, FnCall (F (_, "hello"), _, _))} ->
       pass
   | other ->
-      fail ~f:show_nExpr other
+      fail other
 
 
 let rename_pattern_variable (m : model) : testResult =
