@@ -14,6 +14,7 @@ module RT = Runtime
 module TL = Toplevel
 module Key = Keyboard
 module Regex = Util.Regex
+module TD = TLIDDict
 
 let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
   let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
@@ -69,7 +70,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; builtInFunctions = functions
     ; complete = AC.init m
     ; tests = variants
-    ; toplevels = []
+    ; toplevels = TLIDDict.empty
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; origin = location.origin
@@ -640,7 +641,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (tls, updateCurrent) ->
-        let m2 = {m with toplevels = tls} in
+        let m2 = {m with toplevels = TL.fromList tls} in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m3 =
@@ -663,31 +664,34 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          { m3 with
-            deletedToplevels =
-              TL.removeByTLID m3.deletedToplevels ~toBeRemoved:tls }
+          let tlids = List.map ~f:(fun tl -> tl.id) tls in
+          {m3 with deletedToplevels = TD.removeMany m3.deletedToplevels ~tlids}
         in
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
     | UpdateToplevels (tls, updateCurrent) ->
-        let m = TL.upsertAll m tls in
+        let m =
+          {m with toplevels = TD.mergeRight m.toplevels (TL.fromList tls)}
+        in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (m.toplevels, updateCurrent))
+          (SetToplevels (TD.values m.toplevels, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels dtls ->
         let m2 =
           { m with
             deletedToplevels =
-              TL.upsertAllByTLID m.deletedToplevels ~newTLs:dtls
-          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
+              TD.mergeRight m.deletedToplevels (TL.fromList dtls)
+          ; toplevels =
+              TD.removeMany m.toplevels ~tlids:(List.map ~f:TL.toID dtls) }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | SetDeletedToplevels dtls ->
         let m2 =
           { m with
-            deletedToplevels = dtls
-          ; toplevels = TL.removeByTLID m.toplevels ~toBeRemoved:dtls }
+            deletedToplevels = TL.fromList dtls
+          ; toplevels =
+              TD.removeMany m.toplevels ~tlids:(List.map ~f:TL.toID dtls) }
         in
         processAutocompleteMods m2 [ACRegenerate]
     | UpdateAnalysis (id, analysis) ->
@@ -762,16 +766,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
+        (* TODO: note: this updates existing, despite not being called update *)
         let m2 =
           { m with
             userFunctions =
-              Functions.upsertAllByTLID m.userFunctions ~newFns:userFuncs
-              |> Functions.removeByTLID ~toBeRemoved:deletedUserFuncs
+              TD.mergeRight m.userFunctions (Functions.fromList userFuncs)
+              |> TD.removeMany
+                   ~tlids:(List.map ~f:Functions.toID deletedUserFuncs)
           ; deletedUserFunctions =
-              Functions.upsertAllByTLID
+              TD.mergeRight
                 m.deletedUserFunctions
-                ~newFns:deletedUserFuncs
-              |> Functions.removeByTLID ~toBeRemoved:userFuncs }
+                (Functions.fromList deletedUserFuncs)
+              |> TD.removeMany ~tlids:(List.map ~f:Functions.toID userFuncs) }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -796,13 +802,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2 =
           { m with
             userTipes =
-              UserTypes.upsertAllByTLID m.userTipes ~newTipes:userTipes
-              |> UserTypes.removeByTLID ~toBeRemoved:deletedUserTipes
+              TD.mergeRight m.userTipes (UserTypes.fromList userTipes)
+              |> TD.removeMany
+                   ~tlids:(List.map ~f:UserTypes.toID deletedUserTipes)
           ; deletedUserTipes =
-              UserTypes.upsertAllByTLID
+              TD.mergeRight
                 m.deletedUserTipes
-                ~newTipes:deletedUserTipes
-              |> UserTypes.removeByTLID ~toBeRemoved:userTipes }
+                (UserTypes.fromList deletedUserTipes)
+              |> TD.removeMany ~tlids:(List.map ~f:UserTypes.toID userTipes) }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -1074,7 +1081,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (m2.toplevels, true)
+          [ SetToplevels (TD.values m2.toplevels, true)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1247,10 +1254,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC ([DeleteTLForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
-              { m with
-                deletedToplevels =
-                  List.filter ~f:(fun tl -> tl.id <> tlid) m.deletedToplevels
-              } ) ]
+              {m with deletedToplevels = TD.remove ~tlid m.deletedToplevels} )
+        ]
   | DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusSame)
   | RestoreToplevel tlid ->
@@ -1261,10 +1266,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; TweakModel
             (fun m ->
               { m with
-                deletedUserFunctions =
-                  List.filter
-                    ~f:(fun uf -> uf.ufTLID <> tlid)
-                    m.deletedUserFunctions } ) ]
+                deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
+              } ) ]
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
   | DeleteUserTypeForever tlid ->
@@ -1272,11 +1275,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
-              { m with
-                deletedUserTipes =
-                  List.filter
-                    ~f:(fun ut -> ut.utTLID <> tlid)
-                    m.deletedUserTipes } ) ]
+              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
+        ]
   | AddOpRPCCallback (focus, params, Ok r) ->
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
@@ -1285,9 +1285,25 @@ let update_ (msg : msg) (m : model) : modification =
         if focus = FocusNoChange
         then []
         else
-          let m2 = TL.upsertAll m r.result.toplevels in
-          let m3 = {m2 with userFunctions = r.result.userFunctions} in
-          let m4 = {m3 with userTipes = r.result.userTipes} in
+          let m2 =
+            { m with
+              toplevels =
+                TD.mergeRight m.toplevels (TL.fromList r.result.toplevels) }
+          in
+          let m3 =
+            { m2 with
+              userFunctions =
+                TD.mergeRight
+                  m.userFunctions
+                  (Functions.fromList r.result.userFunctions) }
+          in
+          let m4 =
+            { m3 with
+              userTipes =
+                TD.mergeRight
+                  m.userTipes
+                  (UserTypes.fromList r.result.userTipes) }
+          in
           let newState = processFocus m4 focus in
           [AutocompleteMod ACReset; ClearError; newState]
       in
@@ -1305,12 +1321,17 @@ let update_ (msg : msg) (m : model) : modification =
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
-          toplevels = r.toplevels
-        ; userFunctions = r.userFunctions
+          toplevels = TL.fromList r.toplevels
+        ; userFunctions = Functions.fromList r.userFunctions
+        ; userTipes = UserTypes.fromList r.userTipes
         ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
       in
       let newState = processFocus pfM focus in
-      let allTLs = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
+      let allTLs =
+        List.map ~f:TL.ufToTL r.userFunctions
+        @ List.map ~f:TL.utToTL r.userTipes
+        @ r.toplevels
+      in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, None) in

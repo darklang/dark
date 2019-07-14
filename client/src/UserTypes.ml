@@ -1,9 +1,12 @@
 open Tc
 open Types
 
+(* open Prelude *)
+
 (* Dark *)
 module B = Blank
 module P = Pointer
+module TD = TLIDDict
 
 let allData (t : userTipe) : pointerData list =
   let namePointer = PTypeName t.utName in
@@ -18,8 +21,14 @@ let allData (t : userTipe) : pointerData list =
   namePointer :: definitionPointers
 
 
-let allNames (tipes : userTipe list) : string list =
-  tipes |> List.filter_map ~f:(fun t -> B.toMaybe t.utName)
+let toID (ut : userTipe) : tlid = ut.utTLID
+
+let fromList (uts : userTipe list) : userTipe TLIDDict.t =
+  uts |> List.map ~f:(fun ut -> (ut.utTLID, ut)) |> TLIDDict.fromList
+
+
+let allNames (tipes : userTipe TLIDDict.t) : string list =
+  tipes |> TLIDDict.filterMapValues ~f:(fun t -> B.toMaybe t.utName)
 
 
 let toTUserType (tipe : userTipe) : tipe option =
@@ -28,38 +37,8 @@ let toTUserType (tipe : userTipe) : tipe option =
   |> Option.map ~f:(fun n -> TUserType (n, tipe.utVersion))
 
 
-let find (m : model) (id : tlid) : userTipe option =
-  List.find ~f:(fun t -> id = t.utTLID) m.userTipes
-
-
 let upsert (m : model) (t : userTipe) : model =
-  match find m t.utTLID with
-  | Some old ->
-      { m with
-        userTipes =
-          m.userTipes
-          |> List.filter ~f:(fun ut -> ut.utTLID <> old.utTLID)
-          |> List.cons t }
-  | None ->
-      {m with userTipes = t :: m.userTipes}
-
-
-let containsByTLID (tipes : userTipe list) (elem : userTipe) : bool =
-  List.find ~f:(fun t -> t.utTLID = elem.utTLID) tipes <> None
-
-
-let removeByTLID ~(toBeRemoved : userTipe list) (origTipes : userTipe list) :
-    userTipe list =
-  List.filter ~f:(fun orig -> not (containsByTLID toBeRemoved orig)) origTipes
-
-
-let upsertByTLID (tipes : userTipe list) (t : userTipe) : userTipe list =
-  removeByTLID tipes ~toBeRemoved:[t] @ [t]
-
-
-let upsertAllByTLID (tipes : userTipe list) ~(newTipes : userTipe list) :
-    userTipe list =
-  List.foldl ~f:(fun t acc -> upsertByTLID acc t) ~init:tipes newTipes
+  {m with userTipes = TD.insert ~tlid:t.utTLID ~value:t m.userTipes}
 
 
 let replaceDefinitionElement
