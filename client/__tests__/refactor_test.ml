@@ -27,32 +27,29 @@ let () =
         ; fnDeprecated = false
         ; fnInfix = false }
       in
-      let model tls =
+      let model hs =
         { D.defaultModel with
-          builtInFunctions = [f1; f2]; toplevels = TL.fromList tls }
+          builtInFunctions = [f1; f2]; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
         let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
-        ( { id = TLID "handler1"
+        ( { hTLID = TLID "handler1"
           ; pos = {x = 0; y = 0}
-          ; data =
-              TLHandler
-                { ast
-                ; spec =
-                    { space = B.newF "HTTP"
-                    ; name = B.newF "/src"
-                    ; modifier = B.newF "POST" }
-                ; tlid = TLID "handler1" } }
+          ; ast
+          ; spec =
+              { space = B.newF "HTTP"
+              ; name = B.newF "/src"
+              ; modifier = B.newF "POST" } }
         , PExpr ast )
       in
       let init fnName fnRail =
-        let tl, pd = handlerWithPointer fnName fnRail in
-        let m = model [tl] in
-        (m, tl, pd)
+        let h, pd = handlerWithPointer fnName fnRail in
+        let m = model [h] in
+        (m, h, pd)
       in
       test "toggles any fncall off rail" (fun () ->
-          let m, tl, pd = init "Int::notResulty" Rail in
-          let op = Refactor.takeOffRail m tl pd in
+          let m, h, pd = init "Int::notResulty" Rail in
+          let op = Refactor.takeOffRail m (TLHandler h) pd in
           let res =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
@@ -66,8 +63,8 @@ let () =
           in
           expect res |> toEqual true ) ;
       test "toggles error-rail-y function onto rail" (fun () ->
-          let m, tl, pd = init "Result::resulty" NoRail in
-          let op = Refactor.putOnRail m tl pd in
+          let m, h, pd = init "Result::resulty" NoRail in
+          let op = Refactor.putOnRail m (TLHandler h) pd in
           let res =
             match op with
             | RPC ([SetHandler (_, _, h)], _) ->
@@ -81,8 +78,8 @@ let () =
           in
           expect res |> toEqual true ) ;
       test "does not put non-error-rail-y function onto rail" (fun () ->
-          let m, tl, pd = init "Int::notResulty" NoRail in
-          let op = Refactor.putOnRail m tl pd in
+          let m, h, pd = init "Int::notResulty" NoRail in
+          let op = Refactor.putOnRail m (TLHandler h) pd in
           let res = match op with NoChange -> true | _ -> false in
           expect res |> toEqual true ) ) ;
   describe "renameDBReferences" (fun () ->
@@ -92,7 +89,8 @@ let () =
         ; cols = []
         ; version = 0
         ; oldMigrations = []
-        ; activeMigration = None }
+        ; activeMigration = None
+        ; pos = {x = 0; y = 0} }
       in
       test "database renamed, handler updates variable" (fun () ->
           let h =
@@ -101,7 +99,8 @@ let () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; tlid = TLID "handler1" }
+            ; hTLID = TLID "handler1"
+            ; pos = {x = 0; y = 0} }
           in
           let f =
             { ufTLID = TLID "tl-3"
@@ -115,11 +114,8 @@ let () =
           in
           let model =
             { D.defaultModel with
-              toplevels =
-                TL.fromList
-                  [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
-                  ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h}
-                  ]
+              dbs = DB.fromList [db0]
+            ; handlers = Handlers.fromList [h]
             ; userFunctions = Functions.fromList [f] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
@@ -142,15 +138,12 @@ let () =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
                 ; modifier = B.newF "POST" }
-            ; tlid = TLID "handler1" }
+            ; hTLID = TLID "handler1"
+            ; pos = {x = 0; y = 0} }
           in
           let model =
             { D.defaultModel with
-              toplevels =
-                TL.fromList
-                  [ {id = TLID "tl-1"; pos = D.origin; data = TLDB db0}
-                  ; {id = TLID "tl-2"; pos = D.centerPos; data = TLHandler h}
-                  ] }
+              dbs = DB.fromList [db0]; handlers = Handlers.fromList [h] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           expect ops |> toEqual [] ) ;

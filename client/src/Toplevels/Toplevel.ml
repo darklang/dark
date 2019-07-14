@@ -11,13 +11,13 @@ type predecessor = pointerData option
 
 type successor = pointerData option
 
-type dbReference = tlid * dBColumn list
+type dbReference = tlid * dbColumn list
 
 (* ------------------------- *)
 (* Toplevel manipulation *)
 (* ------------------------- *)
 let name (tl : toplevel) : string =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       "H: " ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
   | TLDB db ->
@@ -30,7 +30,7 @@ let name (tl : toplevel) : string =
 
 
 let sortkey (tl : toplevel) : string =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
       ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
@@ -38,74 +38,90 @@ let sortkey (tl : toplevel) : string =
   | TLDB db ->
       db.dbName |> B.toMaybe |> Option.withDefault ~default:"Undefined"
   | TLFunc f ->
-      f.ufMetadata.ufmName
-      |> B.toMaybe
-      |> Option.withDefault ~default:"Unnamed"
+      f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:""
   | TLTipe t ->
-      t.utName |> B.toMaybe |> Option.withDefault ~default:"Unnamed"
+      t.utName |> B.toMaybe |> Option.withDefault ~default:""
 
 
-let fromList (tls : toplevel list) : toplevel TLIDDict.t =
-  tls |> List.map ~f:(fun tl -> (tl.id, tl)) |> TD.fromList
+let id tl =
+  match tl with
+  | TLHandler h ->
+      h.hTLID
+  | TLDB db ->
+      db.dbTLID
+  | TLFunc f ->
+      f.ufTLID
+  | TLTipe t ->
+      t.utTLID
 
 
-let toID (tl : toplevel) : tlid = tl.id
-
-let upsert (m : model) (tl : toplevel) : model =
-  {m with toplevels = TD.insert ~tlid:tl.id ~value:tl m.toplevels}
-
-
-let update (m : model) ~(tlid : tlid) ~(f : toplevel -> toplevel) : model =
-  {m with toplevels = TD.update ~tlid ~f m.toplevels}
+let pos tl =
+  match tl with
+  | TLHandler h ->
+      h.pos
+  | TLDB db ->
+      db.pos
+  | TLFunc _ ->
+      Debug.crash "no pos in a func"
+  | TLTipe _ ->
+      Debug.crash "no pos in a tipe"
 
 
 let remove (m : model) (tl : toplevel) : model =
-  {m with toplevels = TD.remove ~tlid:tl.id m.toplevels}
+  match tl with
+  | TLHandler h ->
+      Handlers.remove m h
+  | TLDB db ->
+      DB.remove m db
+  | TLFunc f ->
+      Functions.remove m f
+  | TLTipe ut ->
+      UserTypes.remove m ut
 
 
-let moveTL (xOffset : int) (yOffset : int) (tl : toplevel) : toplevel =
-  let newPos = {x = tl.pos.x + xOffset; y = tl.pos.y + yOffset} in
-  {tl with pos = newPos}
+let fromList (tls : toplevel list) : toplevel TLIDDict.t =
+  tls |> List.map ~f:(fun tl -> (id tl, tl)) |> TD.fromList
 
 
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  update m ~tlid ~f:(moveTL xOffset yOffset)
+  let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
+  { m with
+    handlers =
+      TD.update m.handlers ~tlid ~f:(fun (h : handler) ->
+          {h with pos = newPos h.pos} )
+  ; dbs =
+      TD.update m.dbs ~tlid ~f:(fun (db : db) -> {db with pos = newPos db.pos})
+  }
 
 
-let ufToTL (uf : userFunction) : toplevel =
-  {id = uf.ufTLID; pos = Defaults.centerPos; data = TLFunc uf}
+let ufToTL (uf : userFunction) : toplevel = TLFunc uf
 
-
-let utToTL (ut : userTipe) : toplevel =
-  {id = ut.utTLID; pos = Defaults.centerPos; data = TLTipe ut}
-
+let utToTL (ut : userTipe) : toplevel = TLTipe ut
 
 let asUserFunction (tl : toplevel) : userFunction option =
-  match tl.data with TLFunc f -> Some f | _ -> None
+  match tl with TLFunc f -> Some f | _ -> None
 
 
 let asUserTipe (tl : toplevel) : userTipe option =
-  match tl.data with TLTipe t -> Some t | _ -> None
+  match tl with TLTipe t -> Some t | _ -> None
 
 
 let isUserTipe (tl : toplevel) : bool =
-  match tl.data with TLTipe _ -> true | _ -> false
+  match tl with TLTipe _ -> true | _ -> false
 
 
 let asHandler (tl : toplevel) : handler option =
-  match tl.data with TLHandler h -> Some h | _ -> None
+  match tl with TLHandler h -> Some h | _ -> None
 
 
-let asDB (tl : toplevel) : dB option =
-  match tl.data with TLDB h -> Some h | _ -> None
+let asDB (tl : toplevel) : db option =
+  match tl with TLDB h -> Some h | _ -> None
 
 
-let isDB (tl : toplevel) : bool =
-  match tl.data with TLDB _ -> true | _ -> false
-
+let isDB (tl : toplevel) : bool = match tl with TLDB _ -> true | _ -> false
 
 let isHandler (tl : toplevel) : bool =
-  match tl.data with TLHandler _ -> true | _ -> false
+  match tl with TLHandler _ -> true | _ -> false
 
 
 let handlers (tls : toplevel list) : handler list =
@@ -113,16 +129,16 @@ let handlers (tls : toplevel list) : handler list =
 
 
 let astOf (tl : toplevel) : expr option =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       Some h.ast
   | TLFunc f ->
       Some f.ufAST
-  | _ ->
+  | TLTipe _ | TLDB _ ->
       None
 
 
-let dbs (tls : toplevel TD.t) : dB list = tls |> TD.filterMapValues ~f:asDB
+let dbs (tls : toplevel TD.t) : db list = tls |> TD.filterMapValues ~f:asDB
 
 let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
 
@@ -143,9 +159,9 @@ let isUndefinedEventSpaceHandler (tl : toplevel) : bool =
 
 
 let toOp (tl : toplevel) : op list =
-  match tl.data with
+  match tl with
   | TLHandler h ->
-      [SetHandler (tl.id, tl.pos, h)]
+      [SetHandler (h.hTLID, h.pos, h)]
   | TLFunc fn ->
       [SetFunction fn]
   | TLTipe t ->
@@ -154,10 +170,10 @@ let toOp (tl : toplevel) : op list =
       impossible "This isn't how database ops work"
 
 
-let customEventSpaceNames (toplevels : toplevel TD.t) : string list =
+let customEventSpaceNames (handlers : handler TD.t) : string list =
   let otherSpaces =
-    toplevels
-    |> TD.values
+    handlers
+    |> TD.mapValues ~f:(fun h -> TLHandler h)
     |> List.filter ~f:isCustomEventSpaceHandler
     |> List.filterMap ~f:(fun tl ->
            asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
@@ -170,7 +186,7 @@ let customEventSpaceNames (toplevels : toplevel TD.t) : string list =
 (* Generic *)
 (* ------------------------- *)
 let allData (tl : toplevel) : pointerData list =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       SpecHeaders.allData h.spec @ AST.allData h.ast
   | TLDB db ->
@@ -270,7 +286,7 @@ let getPrevBlank (tl : toplevel) (next : successor) : predecessor =
 (* ------------------------- *)
 let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   (* TODO SpecTypePointerDataRefactor *)
-  match tl.data with
+  match tl with
   | TLHandler h ->
       AST.findParentOfWithin_ (P.toID p) h.ast
       |> Option.map ~f:(fun x -> PExpr x)
@@ -292,7 +308,7 @@ let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
   let pid = P.toID pd in
   let astChildren () =
-    match tl.data with
+    match tl with
     | TLHandler h ->
         AST.childrenOf pid h.ast
     | TLFunc f ->
@@ -353,7 +369,7 @@ let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
 
 let rootExpr (tl : toplevel) : expr option =
   (* TODO SpecTypePointerDataRefactor *)
-  match tl.data with
+  match tl with
   | TLHandler h ->
       Some h.ast
   | TLFunc f ->
@@ -374,30 +390,30 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
   let tipe () = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
   let id = P.toID p in
   let astReplace () =
-    match tl.data with
+    match tl with
     | TLHandler h ->
         let newAST = AST.replace p replacement h.ast in
-        {tl with data = TLHandler {h with ast = newAST}}
+        TLHandler {h with ast = newAST}
     | TLFunc f ->
         let newAST = AST.replace p replacement f.ufAST in
-        {tl with data = TLFunc {f with ufAST = newAST}}
+        TLFunc {f with ufAST = newAST}
     | TLDB _ | TLTipe _ ->
-        impossible ("no AST here", tl.data)
+        impossible ("no AST here", tl)
   in
   let specHeaderReplace bo =
     let h = ha () in
     let newSpec = SpecHeaders.replace id bo h.spec in
-    {tl with data = TLHandler {h with spec = newSpec}}
+    TLHandler {h with spec = newSpec}
   in
   let fnMetadataReplace () =
     let f = fn () in
     let newF = Functions.replaceMetadataField p replacement f in
-    {tl with data = TLFunc newF}
+    TLFunc newF
   in
   let tipeReplace () =
     let t = tipe () in
     let newTipe = UserTypes.replace p replacement t in
-    {tl with data = TLTipe newTipe}
+    TLTipe newTipe
   in
   match replacement with
   | PVarBind _ ->
@@ -423,14 +439,14 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       tl
   (* SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name") *)
   | PFFMsg bo ->
-    ( match tl.data with
+    ( match tl with
     | TLHandler h ->
         let spec2 = SpecHeaders.replace id bo h.spec in
         let ast = AST.replace p replacement h.ast in
-        {tl with data = TLHandler {h with spec = spec2; ast}}
+        TLHandler {h with spec = spec2; ast}
     | TLFunc f ->
         let ast = AST.replace p replacement f.ufAST in
-        {tl with data = TLFunc {f with ufAST = ast}}
+        TLFunc {f with ufAST = ast}
     | TLDB _ | TLTipe _ ->
         tl )
   | PFnName _ ->
@@ -459,15 +475,15 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
   if newTL = tl
   then []
   else
-    match newTL.data with
+    match newTL with
     | TLHandler h ->
-        [SetHandler (tl.id, tl.pos, h)]
+        [SetHandler (h.hTLID, h.pos, h)]
     | TLFunc f ->
         [SetFunction f]
     | TLTipe t ->
         [SetType t]
     | TLDB _ ->
-        impossible ("no vars in DBs", tl.data)
+        impossible ("no vars in DBs", tl)
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -483,10 +499,24 @@ let delete (tl : toplevel) (p : pointerData) (newID : id) : toplevel =
   replace p replacement tl
 
 
+let combine
+    (handlers : handler TD.t)
+    (dbs : db TD.t)
+    (userFunctions : userFunction TD.t)
+    (userTipes : userTipe TD.t) : toplevel TD.t =
+  TD.map ~f:(fun h -> TLHandler h) handlers
+  |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) dbs)
+  |> TD.mergeLeft (TD.map ~f:ufToTL userFunctions)
+  |> TD.mergeLeft (TD.map ~f:utToTL userTipes)
+
+
 let all (m : model) : toplevel TD.t =
-  m.toplevels
-  |> TD.mergeLeft (TD.map ~f:ufToTL m.userFunctions)
-  |> TD.mergeLeft (TD.map ~f:utToTL m.userTipes)
+  combine m.handlers m.dbs m.userFunctions m.userTipes
+
+
+let structural (m : model) : toplevel TD.t =
+  TD.map ~f:(fun h -> TLHandler h) m.handlers
+  |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) m.dbs)
 
 
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
@@ -517,30 +547,24 @@ let getCurrent (m : model) : (toplevel * pointerData) option =
       None
 
 
-let allDBNames (toplevels : toplevel TD.t) : string list =
-  toplevels
-  |> TD.filterMapValues ~f:(fun tl ->
-         match tl.data with
-         | TLDB db ->
-           (match db.dbName with F (_, name) -> Some name | Blank _ -> None)
-         | _ ->
-             None )
+let allDBNames (dbs : db TD.t) : string list =
+  dbs
+  |> TD.filterMapValues ~f:(fun db ->
+         match db.dbName with F (_, name) -> Some name | Blank _ -> None )
 
 
-let allGloballyScopedVarnames (toplevels : toplevel TD.t) : string list =
-  allDBNames toplevels
-
+let allGloballyScopedVarnames (dbs : db TD.t) : string list = allDBNames dbs
 
 let asPage (tl : toplevel) (center : bool) : page =
-  match tl.data with
+  match tl with
   | TLHandler _ ->
-      FocusedHandler (tl.id, center)
+      FocusedHandler (id tl, center)
   | TLDB _ ->
-      FocusedDB (tl.id, center)
+      FocusedDB (id tl, center)
   | TLFunc _ ->
-      FocusedFn tl.id
+      FocusedFn (id tl)
   | TLTipe _ ->
-      FocusedType tl.id
+      FocusedType (id tl)
 
 
 let selected (m : model) : toplevel option =
@@ -556,19 +580,19 @@ let setSelectedAST (m : model) (ast : expr) : modification =
   | None ->
       NoChange
   | Some tl ->
-    ( match tl.data with
+    ( match tl with
     | TLHandler h ->
-        RPC ([SetHandler (tl.id, tl.pos, {h with ast})], FocusNoChange)
+        RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
     | TLFunc f ->
         RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
     | TLTipe _ ->
-        impossible ("no ast in Tipes", tl.data)
+        impossible ("no ast in Tipes", tl)
     | TLDB _ ->
-        impossible ("no ast in DBs", tl.data) )
+        impossible ("no ast in DBs", tl) )
 
 
 let getAST (tl : toplevel) : expr option =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       Some h.ast
   | TLFunc f ->
@@ -578,16 +602,7 @@ let getAST (tl : toplevel) : expr option =
 
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
-  update m ~tlid ~f:(fun tl ->
-      let data =
-        match tl.data with
-        | TLHandler h ->
-            TLHandler {h with ast}
-        | TLFunc f ->
-            TLFunc {f with ufAST = ast}
-        | TLTipe _ ->
-            impossible ("no ast in Tipes", tl.data)
-        | TLDB _ ->
-            impossible ("no ast in DBs", tl.data)
-      in
-      {tl with data} )
+  { m with
+    handlers = TD.update m.handlers ~tlid ~f:(fun h -> {h with ast})
+  ; userFunctions =
+      TD.update m.userFunctions ~tlid ~f:(fun uf -> {uf with ufAST = ast}) }

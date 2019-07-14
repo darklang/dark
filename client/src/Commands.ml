@@ -77,7 +77,7 @@ let commands : command list =
     ; action =
         (fun m tl pd ->
           let id = Pointer.toID pd in
-          let lv = Analysis.getCurrentLiveValue m tl.id id in
+          let lv = Analysis.getCurrentLiveValue m (TL.id tl) id in
           let tipe = Refactor.generateUserType lv in
           match tipe with
           | Ok tipe ->

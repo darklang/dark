@@ -2,6 +2,7 @@ open Tc
 open Types
 open Prelude
 module B = Blank
+module TL = Toplevel
 
 let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
     =
@@ -13,11 +14,11 @@ let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
 let dbsByName (toplevels : toplevel list) : tlid StrDict.t =
   List.foldl
     ~f:(fun tl res ->
-      match tl.data with
+      match tl with
       | TLDB db ->
         ( match db.dbName with
         | F (_, name) ->
-            StrDict.insert ~key:name ~value:tl.id res
+            StrDict.insert ~key:name ~value:db.dbTLID res
         | Blank _ ->
             res )
       | _ ->
@@ -29,10 +30,12 @@ let dbsByName (toplevels : toplevel list) : tlid StrDict.t =
 let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
   List.foldl
     ~f:(fun tl res ->
-      match tl.data with
+      match tl with
       | TLHandler h ->
           let name = keyForHandlerSpec h.spec.space h.spec.name in
-          if name <> "" then StrDict.insert ~key:name ~value:tl.id res else res
+          if name <> ""
+          then StrDict.insert ~key:name ~value:h.hTLID res
+          else res
       | _ ->
           res )
     ~init:StrDict.empty
@@ -217,13 +220,13 @@ let findUsagesInAST
 let getUsageFor
     (tl : toplevel) (databases : tlid StrDict.t) (handlers : tlid StrDict.t) :
     usage list =
-  match tl.data with
+  match tl with
   | TLHandler h ->
-      findUsagesInAST tl.id databases handlers h.ast
+      findUsagesInAST h.hTLID databases handlers h.ast
   | TLDB _ ->
       []
   | TLFunc f ->
-      findUsagesInAST tl.id databases handlers f.ufAST
+      findUsagesInAST f.ufTLID databases handlers f.ufAST
   | TLTipe _ ->
       []
 
@@ -235,7 +238,9 @@ let usageMod (ops : op list) (toplevels : toplevel list) : modification =
   let use =
     toplevels
     |> List.filterMap ~f:(fun tl ->
-           if List.member ~value:tl.id tlidsToUpdate then Some tl else None )
+           if List.member ~value:(TL.id tl) tlidsToUpdate
+           then Some tl
+           else None )
     |> List.foldl
          ~f:(fun tl refs -> refs @ getUsageFor tl databases handlers)
          ~init:[]
@@ -253,8 +258,8 @@ let initUsages (tls : toplevel list) : usage list =
 
 
 let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
-  let key = showTLID tl.id in
-  match tl.data with
+  let key = showTLID (TL.id tl) in
+  match tl with
   | TLHandler h ->
     ( match (h.spec.space, h.spec.name) with
     | F (_, space), F (_, name) ->
@@ -285,7 +290,9 @@ let metaMod (ops : op list) (toplevels : toplevel list) : modification =
   let withMeta =
     toplevels
     |> List.filterMap ~f:(fun tl ->
-           if List.member ~value:tl.id tlidsToUpdate then Some tl else None )
+           if List.member ~value:(TL.id tl) tlidsToUpdate
+           then Some tl
+           else None )
     |> List.foldl ~f:updateMeta ~init:StrDict.empty
   in
   if withMeta = StrDict.empty then NoChange else UpdateTLMeta withMeta

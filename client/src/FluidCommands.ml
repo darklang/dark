@@ -1,5 +1,6 @@
 open Tc
 open Types
+module TL = Toplevel
 
 module Html = struct
   include Tea.Html
@@ -144,7 +145,7 @@ let filter (query : string) (s : fluidCommandState) : fluidCommandState =
 
 let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
   if s.show
-  then match s.cmdOnTL with Some tl -> tl.id = tlid | None -> false
+  then match s.cmdOnTL with Some tl -> TL.id tl = tlid | None -> false
   else false
 
 

@@ -93,17 +93,14 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
-let tl ast =
-  { id = TLID "7"
+let h ast : handler =
+  { ast = toExpr ast
+  ; hTLID = TLID "7"
   ; pos = {x = 0; y = 0}
-  ; data =
-      TLHandler
-        { ast = toExpr ast
-        ; tlid = TLID "7"
-        ; spec =
-            { space = Blank.newF "HTTP"
-            ; name = Blank.newF "/test"
-            ; modifier = Blank.newF "GET" } } }
+  ; spec =
+      { space = Blank.newF "HTTP"
+      ; name = Blank.newF "/test"
+      ; modifier = Blank.newF "GET" } }
 
 
 type testResult = (string * int) * bool
@@ -310,12 +307,12 @@ let () =
         ac = AC.reset m; oldPos = pos; newPos = pos }
     in
     let newAST, newState =
-      let tl = tl ast in
-      let m = {m with toplevels = TL.fromList [tl]} in
+      let h = h ast in
+      let m = {m with handlers = Handlers.fromList [h]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
-            tl.id
+            h.hTLID
             ast
             (FluidKeyPress
                { key
@@ -1798,9 +1795,9 @@ let () =
              in
              moveTo 14 s
              |> (fun s ->
-                  let tl = tl ast in
-                  let m = {m with toplevels = TL.fromList [tl]} in
-                  updateAutocomplete m tl.id ast s )
+                  let h = h ast in
+                  let m = {m with handlers = Handlers.fromList [h]} in
+                  updateAutocomplete m h.hTLID ast s )
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, s) ->
              match ast with

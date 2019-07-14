@@ -70,7 +70,8 @@ let init (flagString : string) (location : Web.Location.location) =
     ; builtInFunctions = functions
     ; complete = AC.init m
     ; tests = variants
-    ; toplevels = TLIDDict.empty
+    ; handlers = TLIDDict.empty
+    ; dbs = TLIDDict.empty
     ; canvasName = Url.parseCanvasName location
     ; userContentHost
     ; origin = location.origin
@@ -142,7 +143,7 @@ let processFocus (m : model) (focus : focus) : modification =
       let noTarget = ACSetTarget None in
       let target tuple = ACSetTarget (Some tuple) in
       let tlOnPage tl =
-        match tl.data with
+        match tl with
         | TLHandler _ ->
             true
         | TLDB _ ->
@@ -233,11 +234,15 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
     Types.modification list =
-  let alltls = List.map ~f:TL.ufToTL r.userFunctions @ r.toplevels in
-  let metaMod = Introspect.metaMod p.ops alltls in
-  let usageMod = Introspect.usageMod p.ops alltls in
-  [ UpdateToplevels (r.toplevels, updateCurrent)
-  ; UpdateDeletedToplevels r.deletedToplevels
+  let handlers = Handlers.fromList r.handlers in
+  let dbs = DB.fromList r.dbs in
+  let userFunctions = Functions.fromList r.userFunctions in
+  let userTipes = UserTypes.fromList r.userTipes in
+  let alltls = TL.combine handlers dbs userFunctions userTipes in
+  let metaMod = Introspect.metaMod p.ops (TD.values alltls) in
+  let usageMod = Introspect.usageMod p.ops (TD.values alltls) in
+  [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
+  ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
   ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
   ; SetTypes (r.userTipes, r.deletedUserTipes, updateCurrent)
   ; metaMod
@@ -266,14 +271,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       |> tlidOf
       |> Option.andThen ~f:(TL.get m)
       |> Option.map ~f:(fun tl ->
-             match tl.data with
+             match tl with
              | TLHandler h ->
                  let replacement = AST.closeBlanks h.ast in
                  if replacement = h.ast
                  then []
                  else
                    let newH = {h with ast = replacement} in
-                   let ops = [SetHandler (tl.id, tl.pos, newH)] in
+                   let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -318,8 +323,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           List.foldl
             ~f:(fun call m ->
               match call with
-              | SetHandler (tlid, pos, h) ->
-                  TL.upsert m {id = tlid; pos; data = TLHandler h}
+              | SetHandler (_tlid, _pos, h) ->
+                  Handlers.upsert m h
               | SetFunction f ->
                   Functions.upsert m f
               | SetType t ->
@@ -640,8 +645,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (tls, updateCurrent) ->
-        let m2 = {m with toplevels = TL.fromList tls} in
+    | SetToplevels (handlers, dbs, updateCurrent) ->
+        let m2 =
+          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
+        in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
         let m3 =
@@ -651,11 +658,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getExn m tlid in
-                ( match tl.data with
-                | TLDB _ ->
-                    TL.upsert m2 tl
-                | TLHandler _ ->
-                    TL.upsert m2 tl
+                ( match tl with
+                | TLDB db ->
+                    DB.upsert m2 db
+                | TLHandler h ->
+                    Handlers.upsert m2 h
                 | TLTipe _ ->
                     m2
                 | TLFunc _ ->
@@ -664,36 +671,43 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               m2
         in
         let m4 =
-          let tlids = List.map ~f:(fun tl -> tl.id) tls in
-          {m3 with deletedToplevels = TD.removeMany m3.deletedToplevels ~tlids}
+          let hTLIDs = List.map ~f:(fun h -> h.hTLID) handlers in
+          let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
+          { m3 with
+            deletedHandlers = TD.removeMany m3.deletedHandlers ~tlids:hTLIDs
+          ; deletedDBs = TD.removeMany m3.deletedDBs ~tlids:dbTLIDs }
         in
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
-    | UpdateToplevels (tls, updateCurrent) ->
+    | UpdateToplevels (handlers, dbs, updateCurrent) ->
         let m =
-          {m with toplevels = TD.mergeRight m.toplevels (TL.fromList tls)}
+          { m with
+            handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
+          ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (TD.values m.toplevels, updateCurrent))
+          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
-    | UpdateDeletedToplevels dtls ->
-        let m2 =
-          { m with
-            deletedToplevels =
-              TD.mergeRight m.deletedToplevels (TL.fromList dtls)
-          ; toplevels =
-              TD.removeMany m.toplevels ~tlids:(List.map ~f:TL.toID dtls) }
+    | UpdateDeletedToplevels (dhandlers, ddbs) ->
+        let dhandlers =
+          TD.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
         in
-        processAutocompleteMods m2 [ACRegenerate]
-    | SetDeletedToplevels dtls ->
-        let m2 =
+        let ddbs = TD.mergeRight m.deletedDBs (DB.fromList ddbs) in
+        updateMod
+          (SetDeletedToplevels (TD.values dhandlers, TD.values ddbs))
+          (m, cmd)
+    | SetDeletedToplevels (dhandlers, ddbs) ->
+        let hTLIDs = List.map ~f:(fun h -> h.hTLID) dhandlers in
+        let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) ddbs in
+        let m =
           { m with
-            deletedToplevels = TL.fromList dtls
-          ; toplevels =
-              TD.removeMany m.toplevels ~tlids:(List.map ~f:TL.toID dtls) }
+            deletedHandlers = Handlers.fromList dhandlers
+          ; deletedDBs = DB.fromList ddbs
+          ; handlers = TD.removeMany m.handlers ~tlids:hTLIDs
+          ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs }
         in
-        processAutocompleteMods m2 [ACRegenerate]
+        processAutocompleteMods m [ACRegenerate]
     | UpdateAnalysis (id, analysis) ->
         let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
         processAutocompleteMods m2 [ACRegenerate]
@@ -788,7 +802,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getExn m tlid in
-                ( match tl.data with
+                ( match tl with
                 | TLFunc f ->
                     Functions.upsert m2 f
                 | TLTipe _ | TLDB _ | TLHandler _ ->
@@ -820,7 +834,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               then m2
               else
                 let tl = TL.getExn m tlid in
-                ( match tl.data with
+                ( match tl with
                 | TLTipe t ->
                     UserTypes.upsert m2 t
                 | TLFunc _ ->
@@ -1081,7 +1095,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (TD.values m2.toplevels, true)
+          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, true)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1093,7 +1107,7 @@ let update_ (msg : msg) (m : model) : modification =
       if event.button = Defaults.leftButton
       then
         let tl = TL.getExn m targetTLID in
-        match tl.data with
+        match tl with
         | TLFunc _ | TLTipe _ ->
             NoChange
         | TLHandler _ | TLDB _ ->
@@ -1117,7 +1131,7 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               Many
                 [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, tl.pos)], FocusNoChange) ]
+                ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -1248,14 +1262,15 @@ let update_ (msg : msg) (m : model) : modification =
       RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
   | ToplevelDelete tlid ->
       let tl = TL.getExn m tlid in
-      Many [RemoveToplevel tl; RPC ([DeleteTL tl.id], FocusSame)]
+      Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)]
   | ToplevelDeleteForever tlid ->
       Many
         [ RPC ([DeleteTLForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
-              {m with deletedToplevels = TD.remove ~tlid m.deletedToplevels} )
-        ]
+              { m with
+                deletedHandlers = TD.remove ~tlid m.deletedHandlers
+              ; deletedDBs = TD.remove ~tlid m.deletedDBs } ) ]
   | DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusSame)
   | RestoreToplevel tlid ->
@@ -1285,26 +1300,21 @@ let update_ (msg : msg) (m : model) : modification =
         if focus = FocusNoChange
         then []
         else
-          let m2 =
+          let m =
             { m with
-              toplevels =
-                TD.mergeRight m.toplevels (TL.fromList r.result.toplevels) }
-          in
-          let m3 =
-            { m2 with
-              userFunctions =
+              handlers =
+                TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
+            ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
+            ; userFunctions =
                 TD.mergeRight
                   m.userFunctions
-                  (Functions.fromList r.result.userFunctions) }
-          in
-          let m4 =
-            { m3 with
-              userTipes =
+                  (Functions.fromList r.result.userFunctions)
+            ; userTipes =
                 TD.mergeRight
                   m.userTipes
                   (UserTypes.fromList r.result.userTipes) }
           in
-          let newState = processFocus m4 focus in
+          let newState = processFocus m focus in
           [AutocompleteMod ACReset; ClearError; newState]
       in
       Many (initialMods @ focusMods)
@@ -1321,17 +1331,14 @@ let update_ (msg : msg) (m : model) : modification =
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
-          toplevels = TL.fromList r.toplevels
+          handlers = Handlers.fromList r.handlers
+        ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
-        ; handlerProps = ViewUtils.createHandlerProp r.toplevels }
+        ; handlerProps = ViewUtils.createHandlerProp r.handlers }
       in
       let newState = processFocus pfM focus in
-      let allTLs =
-        List.map ~f:TL.ufToTL r.userFunctions
-        @ List.map ~f:TL.utToTL r.userTipes
-        @ r.toplevels
-      in
+      let allTLs = TL.all pfM in
       let traces : traces =
         List.foldl r.traces ~init:StrDict.empty ~f:(fun (tlid, traceid) dict ->
             let trace = (traceid, None) in
@@ -1343,8 +1350,8 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.toplevels, true)
-        ; SetDeletedToplevels r.deletedToplevels
+        [ SetToplevels (r.handlers, r.dbs, true)
+        ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
@@ -1355,7 +1362,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; extraMod
         ; newState
         ; UpdateTraces traces
-        ; InitIntrospect allTLs ]
+        ; InitIntrospect (TD.values allTLs) ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids)) ->
@@ -1497,7 +1504,7 @@ let update_ (msg : msg) (m : model) : modification =
     | RefreshAnalysis ->
       ( match Toplevel.selected m with
       | Some tl when Toplevel.isDB tl ->
-          Many [UpdateDBStatsRPC tl.id; GetUnlockedDBsRPC]
+          Many [UpdateDBStatsRPC (TL.id tl); GetUnlockedDBsRPC]
       | _ ->
           GetUnlockedDBsRPC )
     | RefreshAvatars ->
@@ -1514,7 +1521,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
       let center = findCenter m in
       let tlid = gtlid () in
-      let aPos = center in
+      let pos = center in
       let ast = B.new_ () in
       let aHandler =
         { ast
@@ -1522,7 +1529,8 @@ let update_ (msg : msg) (m : model) : modification =
             { space = B.newF space
             ; name = B.newF path
             ; modifier = B.newF modifier }
-        ; tlid }
+        ; hTLID = tlid
+        ; pos }
       in
       let traces =
         List.foldl
@@ -1553,7 +1561,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         ( traceMods
         @ [ RPC
-              ( [SetHandler (tlid, aPos, aHandler)]
+              ( [SetHandler (tlid, pos, aHandler)]
               , FocusExact (tlid, B.toID ast) )
           ; Delete404 fof ] )
   | Delete404RPC fof ->

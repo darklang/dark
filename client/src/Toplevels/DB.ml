@@ -4,8 +4,27 @@ open Prelude
 
 (* Dark *)
 module B = Blank
+module TD = TLIDDict
 
-let astsFor (db : dB) : expr list =
+let toID (db : db) : tlid = db.dbTLID
+
+let upsert (m : model) (db : db) : model =
+  {m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs}
+
+
+let update (m : model) ~(tlid : tlid) ~(f : db -> db) : model =
+  {m with dbs = TD.update ~tlid ~f m.dbs}
+
+
+let remove (m : model) (db : db) : model =
+  {m with dbs = TD.remove ~tlid:db.dbTLID m.dbs}
+
+
+let fromList (dbs : db list) : db TLIDDict.t =
+  dbs |> List.map ~f:(fun db -> (db.dbTLID, db)) |> TLIDDict.fromList
+
+
+let astsFor (db : db) : expr list =
   match db.activeMigration with
   | None ->
       []
@@ -13,7 +32,7 @@ let astsFor (db : dB) : expr list =
       [am.rollforward; am.rollback]
 
 
-let allData (db : dB) : pointerData list =
+let allData (db : db) : pointerData list =
   let cols, rolls =
     match db.activeMigration with
     | Some migra ->
@@ -32,7 +51,7 @@ let allData (db : dB) : pointerData list =
   (name :: colpointers) @ rolls
 
 
-let hasCol (db : dB) (name : string) : bool =
+let hasCol (db : db) (name : string) : bool =
   db.cols
   |> List.any ~f:(fun (colname, _) ->
          match colname with Blank _ -> false | F (_, n) -> name = n )
@@ -42,7 +61,7 @@ let isLocked (m : model) (TLID tlid : tlid) : bool =
   not (StrSet.has ~value:tlid m.unlockedDBs)
 
 
-let isMigrationCol (db : dB) (id : id) : bool =
+let isMigrationCol (db : db) (id : id) : bool =
   match db.activeMigration with
   | Some schema ->
       let inCols =
@@ -54,11 +73,11 @@ let isMigrationCol (db : dB) (id : id) : bool =
       false
 
 
-let isMigrationLockReady (m : dBMigration) : bool =
+let isMigrationLockReady (m : dbMigration) : bool =
   B.isF m.rollforward && B.isF m.rollback
 
 
-let startMigration (tlid : tlid) (cols : dBColumn list) : modification =
+let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   let newCols =
     cols |> List.map ~f:(fun (n, t) -> (B.clone identity n, B.clone identity t))
   in

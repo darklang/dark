@@ -65,7 +65,8 @@ let defaultModel
     () : model =
   let default = Defaults.defaultModel in
   { default with
-    toplevels = TL.fromList (dbs @ handlers)
+    handlers = Handlers.fromList handlers
+  ; dbs = DB.fromList dbs
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
@@ -76,12 +77,12 @@ let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
     ?(space : string option = None)
-    () : toplevel =
+    () : handler =
   let space =
     match space with None -> B.new_ () | Some name -> B.newF name
   in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {id = tlid; pos = {x = 0; y = 0}; data = TLHandler {ast = expr; spec; tlid}}
+  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
@@ -97,17 +98,14 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
-    : toplevel =
-  { id = tlid
-  ; pos = {x = 0; y = 0}
-  ; data =
-      TLDB
-        { dbTLID = tlid
-        ; dbName = B.newF "MyDB"
-        ; cols = [(Blank fieldid, Blank typeid)]
-        ; version = 0
-        ; oldMigrations = []
-        ; activeMigration = None } }
+    : db =
+  { dbTLID = tlid
+  ; dbName = B.newF "MyDB"
+  ; cols = [(Blank fieldid, Blank typeid)]
+  ; version = 0
+  ; oldMigrations = []
+  ; activeMigration = None
+  ; pos = {x = 0; y = 0} }
 
 
 let enteringFunction
@@ -152,12 +150,7 @@ let enteringHandler ?(space : string option = None) () : model =
 
 let enteringEventNameHandler ?(space : string option = None) () : model =
   let handler = aHandler ~space () in
-  let id =
-    handler
-    |> TL.asHandler
-    |> deOption "should have created a handler"
-    |> fun h -> B.toID h.spec.name
-  in
+  let id = B.toID handler.spec.name in
   defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[handler] ()
 
 
@@ -197,7 +190,7 @@ let () =
           () ) ;
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
-          let tl = aHandler ~space () in
+          let tl = TLHandler (aHandler ~space ()) in
           let pd = PEventName (Types.F (ID "0", "foo")) in
           test "/foo/bar is valid, no variables" (fun () ->
               let value = "/foo/bar" in

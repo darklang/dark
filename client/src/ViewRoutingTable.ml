@@ -70,61 +70,56 @@ let categoryIcon (name : string) : msg Html.html list =
       [ViewUtils.fontAwesome "archive"]
 
 
-let httpCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> List.filter ~f:TL.isHTTPHandler in
+let httpCategory (handlers : handler list) : category =
   { count = List.length handlers
   ; name = "HTTP"
   ; plusButton = Some (CreateRouteHandler (Some "HTTP"))
   ; classname = "http"
   ; entries =
-      List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "httpCategory/entry" in
+      List.map handlers ~f:(fun h ->
+          let tlid = h.hTLID in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
-            ; tlid = h.tlid
-            ; destination = Some (FocusedHandler (tl.id, true))
-            ; minusButton = Some (ToplevelDelete tl.id)
-            ; killAction = Some (ToplevelDeleteForever tl.id)
+            ; tlid
+            ; destination = Some (FocusedHandler (tlid, true))
+            ; minusButton = Some (ToplevelDelete tlid)
+            ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
             ; verb = h.spec.modifier |> Blank.toMaybe } ) }
 
 
-let cronCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> List.filter ~f:TL.isCronHandler in
+let cronCategory (hs : handler list) : category =
+  let handlers =
+    hs |> List.filter ~f:(fun h -> TL.isCronHandler (TLHandler h))
+  in
   { count = List.length handlers
   ; name = "CRON"
   ; plusButton = Some (CreateRouteHandler (Some "CRON"))
   ; classname = "cron"
   ; entries =
-      List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "cronCategory/entry" in
+      List.map handlers ~f:(fun h ->
+          let tlid = h.hTLID in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
-            ; tlid = h.tlid
-            ; destination = Some (FocusedHandler (tl.id, true))
-            ; minusButton = Some (ToplevelDelete tl.id)
-            ; killAction = Some (ToplevelDeleteForever tl.id)
+            ; tlid
+            ; destination = Some (FocusedHandler (tlid, true))
+            ; minusButton = Some (ToplevelDelete tlid)
+            ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
             ; verb = None } ) }
 
 
-let dbCategory (m : model) (tls : toplevel list) : category =
-  let dbs =
-    tls
-    |> List.filter ~f:(fun tl -> TL.asDB tl <> None)
-    |> List.map ~f:(fun tl -> (TL.asDB tl |> deOption "dbCategory", tl.pos))
-    |> List.sortBy ~f:(fun (db, _) -> B.valueWithDefault "" db.dbName)
-  in
+let dbCategory (m : model) (dbs : db list) : category =
   let entries =
-    List.map dbs ~f:(fun (db, _) ->
+    List.map dbs ~f:(fun db ->
         let uses =
           match db.dbName with
           | Blank _ ->
@@ -154,50 +149,51 @@ let dbCategory (m : model) (tls : toplevel list) : category =
   ; entries }
 
 
-let undefinedCategory (_m : model) (tls : toplevel list) : category =
-  let handlers = tls |> List.filter ~f:TL.isUndefinedEventSpaceHandler in
+let undefinedCategory (hs : handler list) : category =
+  let handlers =
+    hs
+    |> List.filter ~f:(fun h -> TL.isUndefinedEventSpaceHandler (TLHandler h))
+  in
   { count = List.length handlers
   ; name = missingEventSpaceDesc
   ; plusButton = Some (CreateRouteHandler None)
   ; classname = missingEventSpaceDesc
   ; entries =
-      List.map handlers ~f:(fun tl ->
-          let h = tl |> TL.asHandler |> deOption "undefinedCategory/entry" in
+      List.map handlers ~f:(fun h ->
+          let tlid = h.hTLID in
           Entry
             { name =
                 h.spec.name
                 |> Blank.toMaybe
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
-            ; tlid = h.tlid
-            ; destination = Some (FocusedHandler (tl.id, true))
-            ; minusButton = Some (ToplevelDelete tl.id)
-            ; killAction = Some (ToplevelDeleteForever tl.id)
+            ; tlid
+            ; destination = Some (FocusedHandler (tlid, true))
+            ; minusButton = Some (ToplevelDelete tlid)
+            ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
             ; verb = None } ) }
 
 
-let splitBySpace (tls : toplevel list) : (string * toplevel list) list =
-  let spaceName_ tl =
-    tl
-    |> TL.asHandler
-    |> Option.map ~f:(fun x -> x.spec.space)
-    |> Option.andThen ~f:B.toMaybe
+let splitBySpace (handlers : handler list) : (string * handler list) list =
+  let spaceName h =
+    h.spec.space
+    |> B.toMaybe
     |> Option.withDefault ~default:missingEventSpaceDesc
   in
-  tls
-  |> List.sortBy ~f:spaceName_
-  |> List.groupWhile ~f:(fun a b -> spaceName_ a = spaceName_ b)
+  handlers
+  |> List.sortBy ~f:spaceName
+  |> List.groupWhile ~f:(fun a b -> spaceName a = spaceName b)
   |> List.map ~f:(fun hs ->
-         let space =
-           hs |> List.head |> deOption "splitBySpace" |> spaceName_
-         in
+         let space = hs |> List.head |> deOption "splitBySpace" |> spaceName in
          (space, hs) )
 
 
-let eventCategories (_m : model) (tls : toplevel list) : category list =
+let eventCategories (handlers : handler list) : category list =
   let groups =
-    tls |> List.filter ~f:TL.isCustomEventSpaceHandler |> splitBySpace
+    handlers
+    |> List.filter ~f:(fun h -> TL.isCustomEventSpaceHandler (TLHandler h))
+    |> splitBySpace
   in
   List.map groups ~f:(fun (name, handlers) ->
       { count = List.length handlers
@@ -205,18 +201,18 @@ let eventCategories (_m : model) (tls : toplevel list) : category list =
       ; plusButton = Some (CreateRouteHandler (Some name))
       ; classname = name
       ; entries =
-          List.map handlers ~f:(fun tl ->
-              let h = tl |> TL.asHandler |> deOption "eventCategories/entry" in
+          List.map handlers ~f:(fun h ->
+              let tlid = h.hTLID in
               Entry
                 { name =
                     h.spec.name
                     |> Blank.toMaybe
                     |> Option.withDefault ~default:missingEventRouteDesc
                 ; uses = None
-                ; tlid = h.tlid
-                ; destination = Some (FocusedHandler (tl.id, true))
-                ; minusButton = Some (ToplevelDelete tl.id)
-                ; killAction = Some (ToplevelDeleteForever tl.id)
+                ; tlid
+                ; destination = Some (FocusedHandler (tlid, true))
+                ; minusButton = Some (ToplevelDelete tlid)
+                ; killAction = Some (ToplevelDeleteForever tlid)
                 ; plusButton = None
                 ; verb = None } ) } )
 
@@ -307,31 +303,32 @@ let rec count (s : item) : int =
 
 
 let deletedCategory (m : model) : category =
-  let tls =
-    m.deletedToplevels |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey tl)
+  let hs =
+    m.deletedHandlers
+    |> TD.values
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
+  in
+  let dbs =
+    m.deletedDBs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
   in
   let ufns =
     m.deletedUserFunctions
     |> TD.values
-    |> List.sortBy ~f:(fun fn ->
-           fn.ufMetadata.ufmName
-           |> Blank.toMaybe
-           |> Option.withDefault ~default:"" )
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
   in
   let tipes =
     m.deletedUserTipes
     |> TD.values
-    |> List.sortBy ~f:(fun t ->
-           t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
   let cats =
-    [ httpCategory m tls
-    ; dbCategory m tls
+    [ httpCategory hs
+    ; dbCategory m dbs
     ; userFunctionCategory m ufns
     ; userTipeCategory m tipes
-    ; cronCategory m tls ]
-    @ eventCategories m tls
-    @ [undefinedCategory m tls]
+    ; cronCategory hs ]
+    @ eventCategories hs
+    @ [undefinedCategory hs]
   in
   let cats =
     List.map cats ~f:(fun c ->
@@ -709,32 +706,33 @@ let adminDebuggerView (m : model) : msg Html.html =
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
-  let tls =
-    m.toplevels |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey tl)
+  let hs =
+    m.handlers
+    |> TD.values
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
+  in
+  let dbs =
+    m.dbs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
   in
   let ufns =
     m.userFunctions
     |> TD.values
-    |> List.sortBy ~f:(fun fn ->
-           fn.ufMetadata.ufmName
-           |> Blank.toMaybe
-           |> Option.withDefault ~default:"" )
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
   in
-  let uts =
+  let tipes =
     m.userTipes
     |> TD.values
-    |> List.sortBy ~f:(fun t ->
-           t.utName |> Blank.toMaybe |> Option.withDefault ~default:"" )
+    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
   let isClosed : bool = not m.sidebarOpen in
   let cats =
-    [ httpCategory m tls
-    ; dbCategory m tls
+    [ httpCategory hs
+    ; dbCategory m dbs
     ; userFunctionCategory m ufns
-    ; userTipeCategory m uts
-    ; cronCategory m tls ]
-    @ eventCategories m tls
-    @ [undefinedCategory m tls; f404Category m; deletedCategory m]
+    ; userTipeCategory m tipes
+    ; cronCategory hs ]
+    @ eventCategories hs
+    @ [undefinedCategory hs; f404Category m; deletedCategory m]
   in
   let showAdminDebugger =
     if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode
@@ -785,12 +783,19 @@ let viewRoutingTable_ (m : model) : msg Html.html =
 
 
 let rtCacheKey m =
-  ( m.toplevels |> TD.mapValues ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  ( m.handlers
+    |> TD.mapValues ~f:(fun (h : handler) -> (h.pos, TL.sortkey (TLHandler h)))
+  , m.dbs |> TD.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
   , m.userFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
+  , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.f404s
   , m.sidebarOpen
-  , m.deletedToplevels |> TD.mapValues ~f:(fun tl -> (tl.pos, TL.sortkey tl))
+  , m.deletedHandlers
+    |> TD.mapValues ~f:(fun (h : handler) -> TL.sortkey (TLHandler h))
+  , m.deletedDBs
+    |> TD.mapValues ~f:(fun (db : db) -> (db.pos, TL.sortkey (TLDB db)))
   , m.deletedUserFunctions |> TD.mapValues ~f:(fun f -> f.ufMetadata.ufmName)
+  , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.routingTableOpenDetails
   , m.staticDeploys
   , m.unlockedDBs
