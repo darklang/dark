@@ -46,13 +46,13 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
           let replacement_ = PExpr (B.newF (If (e, thenBlank, B.new_ ()))) in
           (replacement_, FocusExact (tlid, B.toID thenBlank))
       | WIfThen ->
-          let condblank = B.new_ () in
-          let replacement_ = PExpr (B.newF (If (condblank, e, B.new_ ()))) in
-          (replacement_, FocusExact (tlid, B.toID condblank))
+          let condBlank = B.new_ () in
+          let replacement_ = PExpr (B.newF (If (condBlank, e, B.new_ ()))) in
+          (replacement_, FocusExact (tlid, B.toID condBlank))
       | WIfElse ->
-          let condblank = B.new_ () in
-          let replacement_ = PExpr (B.newF (If (condblank, B.new_ (), e))) in
-          (replacement_, FocusExact (tlid, B.toID condblank))
+          let condBlank = B.new_ () in
+          let replacement_ = PExpr (B.newF (If (condBlank, B.new_ (), e))) in
+          (replacement_, FocusExact (tlid, B.toID condBlank))
     in
     (AST.replace (PExpr e) replacement ast, focus)
   in
