@@ -27,10 +27,10 @@ let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
   let msgId = gid () in
   let newPd = P.exprmap (toFlagged msgId) pd in
   let newTL = TL.replace pd newPd tl in
-  let focus = FocusExact (tl.id, msgId) in
-  match newTL.data with
+  let focus = FocusExact (TL.id tl, msgId) in
+  match newTL with
   | TLHandler h ->
-      RPC ([SetHandler (tl.id, tl.pos, h)], focus)
+      RPC ([SetHandler (h.hTLID, h.pos, h)], focus)
   | TLFunc f ->
       RPC ([SetFunction f], focus)
   | _ ->
@@ -56,10 +56,10 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
       let pd = TL.findExn tl id in
       let newPd = P.exprmap (fromFlagged pick) pd in
       let newTL = TL.replace pd newPd tl in
-      let focus = FocusExact (tl.id, P.toID newPd) in
-      ( match newTL.data with
+      let focus = FocusExact (TL.id tl, P.toID newPd) in
+      ( match newTL with
       | TLHandler h ->
-          RPC ([SetHandler (tl.id, tl.pos, h)], focus)
+          RPC ([SetHandler (h.hTLID, h.pos, h)], focus)
       | TLFunc f ->
           RPC ([SetFunction f], focus)
       | _ ->

@@ -182,9 +182,9 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     |> StrDict.get ~key:id
     |> Option.withDefault ~default:[]
   in
-  let glob = TL.allGloballyScopedVarnames m.toplevels in
+  let glob = TL.allGloballyScopedVarnames m.dbs in
   let inputVariables = RT.inputVariables tl in
-  match tl.data with
+  match tl with
   | TLHandler h ->
       varsFor h.ast @ glob @ inputVariables
   | TLFunc fn ->
@@ -341,12 +341,12 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
 
 
 let requestAnalysis m tlid traceID : msg Cmd.t =
-  let dbs = TL.dbs m.toplevels in
+  let dbs = TD.values m.dbs in
   let userFns = TD.values m.userFunctions in
   let userTipes = TD.values m.userTipes in
   let trace = getTrace m tlid traceID in
   let tl = TL.getExn m tlid in
-  match (tl.data, trace) with
+  match (tl, trace) with
   | TLHandler h, Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send

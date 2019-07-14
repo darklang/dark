@@ -234,19 +234,19 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
 
 
 and handler (h : Types.handler) : Js.Json.t =
-  object_ [("tlid", tlid h.tlid); ("spec", spec h.spec); ("ast", expr h.ast)]
+  object_ [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", expr h.ast)]
 
 
-and dbMigrationKind (k : Types.dBMigrationKind) : Js.Json.t =
+and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
   let ev = variant in
   match k with DeprecatedMigrationKind -> ev "DeprecatedMigrationKind" []
 
 
-and colList (cols : Types.dBColumn list) : Js.Json.t =
+and colList (cols : Types.dbColumn list) : Js.Json.t =
   list (pair (blankOr string) (blankOr string)) cols
 
 
-and dbMigrationState (s : Types.dBMigrationState) : Js.Json.t =
+and dbMigrationState (s : Types.dbMigrationState) : Js.Json.t =
   let ev = variant in
   match s with
   | DBMigrationAbandoned ->
@@ -255,7 +255,7 @@ and dbMigrationState (s : Types.dBMigrationState) : Js.Json.t =
       ev "DBMigrationInitialized" []
 
 
-and dbMigration (dbm : Types.dBMigration) : Js.Json.t =
+and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
   object_
     [ ("starting_version", int dbm.startingVersion)
     ; ("version", int dbm.version)
@@ -265,7 +265,7 @@ and dbMigration (dbm : Types.dBMigration) : Js.Json.t =
     ; ("rollback", expr dbm.rollback) ]
 
 
-and db (db : Types.dB) : Js.Json.t =
+and db (db : Types.db) : Js.Json.t =
   object_
     [ ("tlid", tlid db.dbTLID)
     ; ("name", blankOr string db.dbName)

@@ -17,21 +17,22 @@ let fail ?(f : 'a -> string = Js.String.make) (v : 'a) : testResult =
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
 let onlyTL (m : model) : toplevel =
-  let len = StrDict.count m.toplevels in
+  let tls = TL.all m in
+  let len = TD.count tls in
   ignore
     ( if len = 0
     then Debug.crash "no toplevels"
     else if len > 1
-    then Debug.crash ("too many toplevels: " ^ showToplevels m.toplevels)
+    then Debug.crash ("too many toplevels: " ^ showToplevels tls)
     else "nothing to see here" ) ;
-  m.toplevels |> StrDict.values |> List.head |> deOption "onlytl1"
+  tls |> StrDict.values |> List.head |> deOption "onlytl1"
 
 
 let onlyHandler (m : model) : handler =
   m |> onlyTL |> TL.asHandler |> deOption "onlyhandler"
 
 
-let onlyDB (m : model) : dB = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
+let onlyDB (m : model) : db = m |> onlyTL |> TL.asDB |> deOption "onlyDB"
 
 let onlyExpr (m : model) : nExpr =
   m |> onlyHandler |> (fun x -> x.ast) |> B.asF |> deOption "onlyast4"
@@ -190,7 +191,7 @@ let no_request_global_in_non_http_space (m : model) : testResult =
 
 
 let hover_values_for_varnames (m : model) : testResult =
-  ignore (m.toplevels |> TD.keys |> List.head |> deOption "test") ;
+  ignore (TL.all m |> TD.values |> List.head |> deOption "test") ;
   pass
 
 
@@ -255,12 +256,13 @@ let tabbing_through_let (m : model) : testResult =
 
 
 let case_sensitivity (m : model) : testResult =
-  if TD.count m.toplevels <> 3
-  then fail ~f:showToplevels m.toplevels
+  let tls = TL.all m in
+  if TD.count tls <> 3
+  then fail ~f:showToplevels tls
   else
-    m.toplevels
+    tls
     |> TD.mapValues ~f:(fun tl ->
-           match tl.data with
+           match tl with
            | TLDB {dbName; cols} ->
              ( match (dbName, cols) with
              | ( F (_, "TestUnicode")
@@ -303,7 +305,7 @@ let case_sensitivity (m : model) : testResult =
                                  , FieldAccess
                                      ( F (_, Variable "var")
                                      , F (_, "cOlUmNnAmE") ) ) ) ) ] ) ->
-                 Analysis.getCurrentLiveValue m tl.id id
+                 Analysis.getCurrentLiveValue m (TL.id tl) id
                  |> Option.map ~f:(fun lv ->
                         if lv = DStr "some value"
                         then pass
@@ -312,7 +314,7 @@ let case_sensitivity (m : model) : testResult =
              | _ ->
                  fail ~f:show_expr h.ast )
            | other ->
-               fail ~f:show_tlData other )
+               fail ~f:show_toplevel other )
     |> Result.combine
     |> Result.map (fun _ -> ())
 
@@ -348,6 +350,7 @@ let focus_on_cond_in_new_tl_with_if (m : model) : testResult =
 
 
 let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
+  let tls = TL.all m in
   match m.cursorState with
   | Selecting (_, mId) ->
       if mId
@@ -358,77 +361,64 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
            |> B.toID
            |> fun x -> Some x )
       then pass
-      else
-        fail (showToplevels m.toplevels ^ ", " ^ show_cursorState m.cursorState)
+      else fail (showToplevels tls ^ ", " ^ show_cursorState m.cursorState)
   | _ ->
-      fail (showToplevels m.toplevels ^ ", " ^ show_cursorState m.cursorState)
+      fail (showToplevels tls ^ ", " ^ show_cursorState m.cursorState)
 
 
 let rename_db_fields (m : model) : testResult =
-  m.toplevels
-  |> TD.mapValues ~f:(fun tl ->
-         match tl.data with
-         | TLDB {cols} ->
-           ( match cols with
-           | [ (F (_, "field6"), F (_, "String"))
-             ; (F (_, "field2"), F (_, "String"))
-             ; (Blank _, Blank _) ] ->
-             ( match m.cursorState with
-             | Selecting (_, None) ->
-                 pass
-             | _ ->
-                 fail ~f:show_cursorState m.cursorState )
+  m.dbs
+  |> TD.mapValues ~f:(fun {cols} ->
+         match cols with
+         | [ (F (_, "field6"), F (_, "String"))
+           ; (F (_, "field2"), F (_, "String"))
+           ; (Blank _, Blank _) ] ->
+           ( match m.cursorState with
+           | Selecting (_, None) ->
+               pass
            | _ ->
-               fail ~f:(show_list ~f:show_dBColumn) cols )
+               fail ~f:show_cursorState m.cursorState )
          | _ ->
-             pass )
+             fail ~f:(show_list ~f:show_dbColumn) cols )
   |> Result.combine
   |> Result.map (fun _ -> ())
 
 
 let rename_db_type (m : model) : testResult =
-  m.toplevels
-  |> TD.mapValues ~f:(fun tl ->
-         match tl.data with
-         | TLDB {cols} ->
-           ( match cols with
-           (* this was previously an Int *)
-           | [ (F (_, "field1"), F (_, "String"))
-             ; (F (_, "field2"), F (_, "Int"))
-             ; (Blank _, Blank _) ] ->
-             ( match m.cursorState with
-             | Selecting (tlid, None) ->
-                 if tlid = tl.id
-                 then pass
-                 else
-                   fail
-                     ( show_list ~f:show_dBColumn cols
-                     ^ ", "
-                     ^ show_cursorState m.cursorState )
-             | _ ->
-                 fail ~f:show_cursorState m.cursorState )
+  m.dbs
+  |> TD.mapValues ~f:(fun {cols; dbTLID} ->
+         match cols with
+         (* this was previously an Int *)
+         | [ (F (_, "field1"), F (_, "String"))
+           ; (F (_, "field2"), F (_, "Int"))
+           ; (Blank _, Blank _) ] ->
+           ( match m.cursorState with
+           | Selecting (tlid, None) ->
+               if tlid = dbTLID
+               then pass
+               else
+                 fail
+                   ( show_list ~f:show_dbColumn cols
+                   ^ ", "
+                   ^ show_cursorState m.cursorState )
            | _ ->
-               fail ~f:(show_list ~f:show_dBColumn) cols )
+               fail ~f:show_cursorState m.cursorState )
          | _ ->
-             pass )
+             fail ~f:(show_list ~f:show_dbColumn) cols )
   |> Result.combine
   |> Result.map (fun _ -> ())
 
 
 let paste_right_number_of_blanks (m : model) : testResult =
-  m.toplevels
-  |> TD.mapValues ~f:(fun tl ->
-         match tl.data with
-         | TLHandler {ast} ->
-           ( match ast with
-           | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
-               pass
-           | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
-               pass (* ignore this TL *)
-           | _ ->
-               fail ~f:show_expr ast )
+  m.handlers
+  |> TD.mapValues ~f:(fun {ast} ->
+         match ast with
+         | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
+             pass
+         | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
+             pass (* ignore this TL *)
          | _ ->
-             fail ("Shouldn't be other handlers here" ^ show_tlData tl.data) )
+             fail ~f:show_expr ast )
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -480,7 +470,7 @@ let feature_flag_works (m : model) : testResult =
                           , _ ) )
                   , F (_, Value "\"A\"")
                   , F (_, Value "\"B\"") ) ) ) ) ->
-      let res = Analysis.getCurrentLiveValue m h.tlid id in
+      let res = Analysis.getCurrentLiveValue m h.hTLID id in
       ( match res with
       | Some val_ ->
           if val_ = DStr "B" then pass else fail (show_expr ast, val_)
@@ -635,11 +625,11 @@ let object_literals_work (m : model) : testResult =
 
 
 let rename_function (m : model) : testResult =
-  match onlyExpr m with
-  | FnCall (F (_, "hello"), _, _) ->
+  match m.handlers |> TD.values |> List.head with
+  | Some {ast = F (_, FnCall (F (_, "hello"), _, _))} ->
       pass
   | other ->
-      fail ~f:show_nExpr other
+      fail other
 
 
 let rename_pattern_variable (m : model) : testResult =
@@ -687,25 +677,25 @@ let delete_db_col (m : model) : testResult =
   | [(Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list ~f:show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dbColumn) cols
 
 
 let cant_delete_locked_col (m : model) : testResult =
   let db =
-    m.toplevels
-    |> TD.filterMapValues ~f:(fun a ->
-           match a.data with TLDB data -> Some data | _ -> None )
+    m.dbs
     |> fun dbs ->
-    if List.length dbs > 1
+    if TD.count dbs > 1
     then Debug.crash "More than one db!"
     else
-      List.head dbs |> deOption "Somehow got zero dbs after checking length?"
+      TD.values dbs
+      |> List.head
+      |> deOption "Somehow got zero dbs after checking length?"
   in
   match db.cols with
   | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
       pass
   | cols ->
-      fail ~f:(show_list ~f:show_dBColumn) cols
+      fail ~f:(show_list ~f:show_dbColumn) cols
 
 
 let result_ok_roundtrips (m : model) : testResult =

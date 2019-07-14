@@ -1,4 +1,5 @@
 open Types
+module TL = Toplevel
 
 let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 
@@ -58,10 +59,10 @@ let centerCanvasOn (tl : toplevel) (props : canvasProps) : pos =
   in
   let tlWidth =
     let tle =
-      Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID tl.id)
+      Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID (TL.id tl))
     in
     match tle with Some e -> Native.Ext.clientWidth e | None -> 245
   in
   let availWidth = (windowWidth - tlWidth) / 3 in
   let offsetLeft = sidebarWidth + availWidth in
-  {x = tl.pos.x - offsetLeft; y = tl.pos.y - 200}
+  {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}

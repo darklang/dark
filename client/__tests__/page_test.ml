@@ -22,7 +22,7 @@ let aHandler
     match space with None -> B.new_ () | Some name -> B.newF name
   in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {id = tlid; pos; data = TLHandler {ast = expr; spec; tlid}}
+  TLHandler {ast = expr; spec; hTLID = tlid; pos}
 
 
 let () =

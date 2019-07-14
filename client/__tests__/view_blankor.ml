@@ -25,7 +25,7 @@ let () =
                   ; ufmReturnTipe = Blank (gid ())
                   ; ufmInfix = false } }
           in
-          let tl = {id = gtlid (); data = tlFunc; pos = {x = 0; y = 0}} in
+          let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
             ; cursorState = Deselected
@@ -45,8 +45,6 @@ let () =
                 ; targetDval = None
                 ; isCommandMode = false
                 ; visible = true }
-            ; handlerSpace =
-                Toplevel.spaceOf tl |> Option.withDefault ~default:HSOther
             ; showEntry = false
             ; showLivevalue = false
             ; dbLocked = false

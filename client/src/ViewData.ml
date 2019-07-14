@@ -14,20 +14,21 @@ let viewInput
     (isActive : bool)
     (isHover : bool)
     (tipe : tipe) : msg Html.html =
+  let tlid = TL.id tl in
   let activeClass = if isActive then ["active"] else [] in
   let hoverClass = if isHover then ["mouseovered"] else [] in
   let tipeClass = ["tipe-" ^ Runtime.tipe2str tipe] in
   let classes = activeClass @ hoverClass @ tipeClass |> String.join ~sep:" " in
   let eventKey constructor =
-    constructor ^ "-" ^ showTLID tl.id ^ "-" ^ traceID
+    constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
   let events =
     [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
-          TraceClick (tl.id, traceID, x) )
+          TraceClick (tlid, traceID, x) )
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
-          TraceMouseEnter (tl.id, traceID, x) )
+          TraceMouseEnter (tlid, traceID, x) )
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tl.id, traceID, x) ) ]
+          TraceMouseLeave (tlid, traceID, x) ) ]
   in
   let valueDiv =
     match value with
@@ -71,9 +72,9 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      Analysis.cursor' vs.tlCursors vs.traces vs.tl.id = Some traceID
+      Analysis.cursor' vs.tlCursors vs.traces vs.tlid = Some traceID
     in
-    let isHover = vs.hovering = Some (vs.tl.id, ID traceID) in
+    let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
     let astTipe =
       StrDict.get ~key:traceID vs.analyses
       |> Option.map ~f:(fun x -> x.liveValues)

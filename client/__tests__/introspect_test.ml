@@ -16,7 +16,8 @@ let () =
             { space = B.newF "JOB"
             ; name = B.newF "processOrder"
             ; modifier = B.new_ () }
-        ; tlid = h1tlid }
+        ; hTLID = h1tlid
+        ; pos = {x = 0; y = 0} }
       in
       let h2tlid = gtlid () in
       let h2data =
@@ -30,7 +31,8 @@ let () =
             { space = B.newF "HTTP"
             ; name = B.newF "/hello"
             ; modifier = B.newF "GET" }
-        ; tlid = h1tlid }
+        ; hTLID = h1tlid
+        ; pos = {x = 0; y = 0} }
       in
       let dbtlid = gtlid () in
       let dbdata =
@@ -39,13 +41,10 @@ let () =
         ; cols = []
         ; version = 0
         ; oldMigrations = []
-        ; activeMigration = None }
+        ; activeMigration = None
+        ; pos = {x = 0; y = 0} }
       in
-      let toplevels =
-        [ {id = h1tlid; pos = {x = 0; y = 0}; data = TLHandler h1data}
-        ; {id = dbtlid; pos = {x = 0; y = 0}; data = TLDB dbdata}
-        ; {id = h2tlid; pos = {x = 0; y = 0}; data = TLHandler h2data} ]
-      in
+      let toplevels = [TLHandler h1data; TLDB dbdata; TLHandler h2data] in
       test "keyForHandlerSpec" (fun () ->
           expect (keyForHandlerSpec h1data.spec.space h1data.spec.name)
           |> toEqual "JOB:processOrder" ) ;

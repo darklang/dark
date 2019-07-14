@@ -387,7 +387,7 @@ let validateHttpNameValidVarnames (httpName : string) =
 
 
 let validateFnParamNameFree (tl : toplevel) (value : string) : string option =
-  match tl.data with
+  match tl with
   | TLFunc fn ->
       let params = Functions.allParamNames fn in
       if List.member ~value params
@@ -557,7 +557,7 @@ let withDynamicItems
 let fnGotoName (name : string) : string = "Just to function: " ^ name
 
 let tlGotoName (tl : toplevel) : string =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       "Jump to handler: "
       ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
@@ -578,10 +578,11 @@ let tlGotoName (tl : toplevel) : string =
 
 let tlDestinations (m : model) : autocompleteItem list =
   let tls =
-    m.toplevels
+    m
+    |> TL.structural
     |> TD.values
     |> List.sortBy ~f:tlGotoName
-    |> List.map ~f:(fun tl -> Goto (TL.asPage tl true, tl.id, tlGotoName tl))
+    |> List.map ~f:(fun tl -> Goto (TL.asPage tl true, TL.id tl, tlGotoName tl))
   in
   let ufs =
     m.userFunctions
@@ -691,7 +692,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             [] )
       | EventSpace ->
           let otherSpaces =
-            TL.customEventSpaceNames m.toplevels
+            TL.customEventSpaceNames m.handlers
             |> List.map ~f:(fun x -> ACEventSpace x)
           in
           [ACEventSpace "HTTP"; ACEventSpace "CRON"] @ otherSpaces
@@ -810,7 +811,7 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  let dbnames = TL.allDBNames m.toplevels in
+  let dbnames = TL.allDBNames m.dbs in
   let isThreadMemberVal =
     Option.map ~f:(isThreadMember m) a.target
     |> Option.withDefault ~default:false
