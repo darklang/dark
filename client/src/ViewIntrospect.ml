@@ -4,7 +4,7 @@ open Types
 
 let idOfRefersTo = Introspect.idOfRefersTo
 
-let dbColsView (cols : dBColumn list) : msg Html.html =
+let dbColsView (cols : dbColumn list) : msg Html.html =
   let colView col =
     match col with
     | F (_, nm), F (_, ty) ->
@@ -22,7 +22,7 @@ let dbColsView (cols : dBColumn list) : msg Html.html =
 
 
 let dbView
-    (originTLID : tlid) (tlid : tlid) (name : string) (cols : dBColumn list) :
+    (originTLID : tlid) (tlid : tlid) (name : string) (cols : dbColumn list) :
     msg Html.html =
   Html.div
     [ Html.class' "ref-block db"

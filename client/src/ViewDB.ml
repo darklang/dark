@@ -17,9 +17,9 @@ let wc = ViewBlankOr.wc
 
 let enterable = ViewBlankOr.Enterable
 
-let dbName2String (name : dBName blankOr) : dBName = B.valueWithDefault "" name
+let dbName2String (name : dbName blankOr) : dbName = B.valueWithDefault "" name
 
-let viewDBData (vs : viewState) (db : dB) : msg Html.html =
+let viewDBData (vs : viewState) (db : db) : msg Html.html =
   match StrDict.get ~key:(deTLID db.dbTLID) vs.dbStats with
   | Some stats when tlidOf vs.cursorState = Some db.dbTLID ->
       let exampleHtml =
@@ -42,7 +42,7 @@ let viewDBData (vs : viewState) (db : dB) : msg Html.html =
       Vdom.noNode
 
 
-let viewDBName (vs : viewState) (db : dB) : msg Html.html =
+let viewDBName (vs : viewState) (db : db) : msg Html.html =
   let nameField =
     if vs.dbLocked
     then Html.span [Html.class' "name"] [Html.text (dbName2String db.dbName)]
@@ -75,7 +75,7 @@ let viewDBColType (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
 
 
 let viewDBCol
-    (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dBColumn) :
+    (vs : viewState) (isMigra : bool) (tlid : tlid) ((n, t) : dbColumn) :
     msg Html.html =
   let deleteButton =
     if isMigra || not vs.dbLocked
@@ -108,7 +108,7 @@ let viewMigraFuncs
     ; ViewCode.view vs expr ]
 
 
-let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
+let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
     msg Html.html =
   let name = Html.text (dbName2String db.dbName) in
   let cols = List.map ~f:(viewDBCol vs true db.dbTLID) migra.cols in
@@ -149,7 +149,7 @@ let viewDBMigration (migra : dBMigration) (db : dB) (vs : viewState) :
     (name :: (cols @ funcs @ errorMsg @ actions))
 
 
-let viewDB (vs : viewState) (db : dB) : msg Html.html list =
+let viewDB (vs : viewState) (db : db) : msg Html.html list =
   let locked =
     if vs.dbLocked && db.activeMigration = None
     then

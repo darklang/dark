@@ -247,7 +247,7 @@ and toTLID = tlid
 and usage = inTLID * toTLID * id option
 
 and tlMeta =
-  | DBMeta of dBName * dBColumn list
+  | DBMeta of dbName * dbColumn list
   | HandlerMeta of handlerSpaceName * handlerName * handlerModifer option
   | FunctionMeta of fnName * userFunctionParameter list
 
@@ -257,7 +257,7 @@ and usedIn =
   | InFunction of inTLID * fnName * userFunctionParameter list
 
 and refersTo =
-  | ToDB of toTLID * dBName * dBColumn list * id
+  | ToDB of toTLID * dbName * dbColumn list * id
   | ToEvent of toTLID * handlerSpaceName * handlerName * id
 
 (* handlers *)
@@ -275,38 +275,40 @@ and handlerSpace =
 and handler =
   { ast : expr
   ; spec : handlerSpec
-  ; tlid : tlid }
+  ; hTLID : tlid
+  ; pos : pos }
 
 (* dbs *)
-and dBName = string
+and dbName = string
 
-and dBColName = string
+and dbColName = string
 
-and dBColType = string
+and dbColType = string
 
-and dBColumn = dBColName blankOr * dBColType blankOr
+and dbColumn = dbColName blankOr * dbColType blankOr
 
-and dBMigrationKind = DeprecatedMigrationKind
+and dbMigrationKind = DeprecatedMigrationKind
 
-and dBMigrationState =
+and dbMigrationState =
   | DBMigrationAbandoned
   | DBMigrationInitialized
 
-and dBMigration =
+and dbMigration =
   { startingVersion : int
   ; version : int
-  ; state : dBMigrationState
+  ; state : dbMigrationState
   ; rollforward : expr
   ; rollback : expr
-  ; cols : dBColumn list }
+  ; cols : dbColumn list }
 
-and dB =
+and db =
   { dbTLID : tlid
-  ; dbName : dBName blankOr
-  ; cols : dBColumn list
+  ; dbName : dbName blankOr
+  ; cols : dbColumn list
   ; version : int
-  ; oldMigrations : dBMigration list
-  ; activeMigration : dBMigration option }
+  ; oldMigrations : dbMigration list
+  ; activeMigration : dbMigration option
+  ; pos : pos }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -341,16 +343,11 @@ and userTipe =
   ; utDefinition : userTipeDefinition }
 
 (* toplevels *)
-and tlData =
+and toplevel =
   | TLHandler of handler
-  | TLDB of dB
+  | TLDB of db
   | TLFunc of userFunction
   | TLTipe of userTipe
-
-and toplevel =
-  { id : tlid
-  ; pos : pos
-  ; data : tlData }
 
 (* ---------------------- *)
 (* dvals *)
@@ -501,10 +498,10 @@ and rollforwardID = id
 
 and op =
   | SetHandler of tlid * pos * handler
-  | CreateDB of tlid * pos * dBName
+  | CreateDB of tlid * pos * dbName
   | AddDBCol of tlid * id * id
-  | SetDBColName of tlid * id * dBColName
-  | SetDBColType of tlid * id * dBColType
+  | SetDBColName of tlid * id * dbColName
+  | SetDBColType of tlid * id * dbColType
   | DeleteTL of tlid
   | MoveTL of tlid * pos
   | TLSavepoint of tlid
@@ -512,20 +509,20 @@ and op =
   | RedoTL of tlid
   | SetFunction of userFunction
   | DeleteFunction of tlid
-  | ChangeDBColName of tlid * id * dBColName
-  | ChangeDBColType of tlid * id * dBColType
+  | ChangeDBColName of tlid * id * dbColName
+  | ChangeDBColType of tlid * id * dbColType
   | DeprecatedInitDbm of
-      tlid * id * rollbackID * rollforwardID * dBMigrationKind
+      tlid * id * rollbackID * rollforwardID * dbMigrationKind
   | SetExpr of tlid * id * expr
-  | CreateDBMigration of tlid * rollbackID * rollforwardID * dBColumn list
+  | CreateDBMigration of tlid * rollbackID * rollforwardID * dbColumn list
   | AddDBColToDBMigration of tlid * id * id
-  | SetDBColNameInDBMigration of tlid * id * dBColName
-  | SetDBColTypeInDBMigration of tlid * id * dBColType
+  | SetDBColNameInDBMigration of tlid * id * dbColName
+  | SetDBColTypeInDBMigration of tlid * id * dbColType
   | DeleteColInDBMigration of tlid * id
   | AbandonDBMigration of tlid
   | DeleteDBCol of tlid * id
-  | RenameDBname of tlid * dBName
-  | CreateDBWithBlankOr of tlid * pos * id * dBName
+  | RenameDBname of tlid * dbName
+  | CreateDBWithBlankOr of tlid * pos * id * dbName
   | DeleteTLForever of tlid
   | DeleteFunctionForever of tlid
   | SetType of userTipe
@@ -564,7 +561,7 @@ and performHandlerAnalysisParams =
   { handler : handler
   ; traceID : traceID
   ; traceData : traceData
-  ; dbs : dB list
+  ; dbs : db list
   ; userFns : userFunction list
   ; userTipes : userTipe list }
 
@@ -572,7 +569,7 @@ and performFunctionAnalysisParams =
   { func : userFunction
   ; traceID : traceID
   ; traceData : traceData
-  ; dbs : dB list
+  ; dbs : db list
   ; userFns : userFunction list
   ; userTipes : userTipe list }
 
@@ -592,8 +589,10 @@ and delete404RPCParams = fourOhFour
 
 (* results *)
 and addOpRPCResult =
-  { toplevels : toplevel list
-  ; deletedToplevels : toplevel list
+  { handlers : handler list
+  ; deletedHandlers : handler list
+  ; dbs : db list
+  ; deletedDBs : db list
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
   ; userTipes : userTipe list
@@ -618,8 +617,10 @@ and getTraceDataRPCResult = {trace : trace}
 and dbStatsRPCResult = dbStatsStore
 
 and initialLoadRPCResult =
-  { toplevels : toplevel list
-  ; deletedToplevels : toplevel list
+  { handlers : handler list
+  ; deletedHandlers : handler list
+  ; dbs : db list
+  ; deletedDBs : db list
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
   ; unlockedDBs : unlockedDBs
@@ -668,7 +669,7 @@ and command =
   ; shortcut : string }
 
 and omniAction =
-  | NewDB of dBName option
+  | NewDB of dbName option
   | NewHandler of string option
   | NewFunction of string option
   | NewHTTPHandler of string option
@@ -796,10 +797,10 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of toplevel list * bool
-  | UpdateToplevels of toplevel list * bool
-  | SetDeletedToplevels of toplevel list
-  | UpdateDeletedToplevels of toplevel list
+  | SetToplevels of handler list * db list * bool
+  | UpdateToplevels of handler list * db list * bool
+  | SetDeletedToplevels of handler list * db list
+  | UpdateDeletedToplevels of handler list * db list
   | UpdateAnalysis of traceID * analysisResults
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of unlockedDBs
@@ -1209,11 +1210,10 @@ and model =
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (tlid * id) list
-  ; toplevels :
-      toplevel TLIDDict.t
-      (* These are read direct from the server. The ones that are *)
-      (* analysed are in analysis *)
-  ; deletedToplevels : toplevel TLIDDict.t
+  ; handlers : handler TLIDDict.t
+  ; deletedHandlers : handler TLIDDict.t
+  ; dbs : db TLIDDict.t
+  ; deletedDBs : db TLIDDict.t
   ; userFunctions : userFunction TLIDDict.t
   ; deletedUserFunctions : userFunction TLIDDict.t
   ; userTipes : userTipe TLIDDict.t

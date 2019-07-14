@@ -29,37 +29,38 @@ type wrapLoc =
 
 let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
     modification =
+  let tlid = TL.id tl in
   let wrapAst e ast wl_ =
     let replacement, focus =
       match wl_ with
       | WLetRHS ->
           let lhs = B.new_ () in
           let replacement_ = PExpr (B.newF (Let (lhs, e, B.new_ ()))) in
-          (replacement_, FocusExact (tl.id, B.toID lhs))
+          (replacement_, FocusExact (tlid, B.toID lhs))
       | WLetBody ->
           let lhs = B.new_ () in
           let replacement_ = PExpr (B.newF (Let (lhs, B.new_ (), e))) in
-          (replacement_, FocusExact (tl.id, B.toID lhs))
+          (replacement_, FocusExact (tlid, B.toID lhs))
       | WIfCond ->
           let thenBlank = B.new_ () in
           let replacement_ = PExpr (B.newF (If (e, thenBlank, B.new_ ()))) in
-          (replacement_, FocusExact (tl.id, B.toID thenBlank))
+          (replacement_, FocusExact (tlid, B.toID thenBlank))
       | WIfThen ->
           let condBlank = B.new_ () in
           let replacement_ = PExpr (B.newF (If (condBlank, e, B.new_ ()))) in
-          (replacement_, FocusExact (tl.id, B.toID condBlank))
+          (replacement_, FocusExact (tlid, B.toID condBlank))
       | WIfElse ->
           let condBlank = B.new_ () in
           let replacement_ = PExpr (B.newF (If (condBlank, B.new_ (), e))) in
-          (replacement_, FocusExact (tl.id, B.toID condBlank))
+          (replacement_, FocusExact (tlid, B.toID condBlank))
     in
     (AST.replace (PExpr e) replacement ast, focus)
   in
-  match (p, tl.data) with
+  match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, focus = wrapAst e h.ast wl in
       let newH = {h with ast = newAst} in
-      RPC ([SetHandler (tl.id, tl.pos, newH)], focus)
+      RPC ([SetHandler (tlid, h.pos, newH)], focus)
   | PExpr e, TLFunc f ->
       let newAst, focus = wrapAst e f.ufAST wl in
       let newF = {f with ufAST = newAst} in
@@ -117,6 +118,7 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
 
 let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
     modification =
+  let tlid = TL.id tl in
   let extractVarInAst e ast =
     let varname = "var" ^ string_of_int (Util.random ()) in
     let freeVariables =
@@ -157,32 +159,33 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
         in
         (B.newF (Let (newVar, e, newAST)), B.toID newVar)
   in
-  match (p, tl.data) with
+  match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, enterTarget = extractVarInAst e h.ast in
       let newHandler = {h with ast = newAst} in
       Many
-        [ RPC ([SetHandler (tl.id, tl.pos, newHandler)], FocusNoChange)
-        ; Enter (Filling (tl.id, enterTarget)) ]
+        [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
+        ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
       let newAst, enterTarget = extractVarInAst e f.ufAST in
       let newF = {f with ufAST = newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)
-        ; Enter (Filling (tl.id, enterTarget)) ]
+        ; Enter (Filling (tlid, enterTarget)) ]
   | _ ->
       NoChange
 
 
 let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
     modification =
+  let tlid = TL.id tl in
   if not (TL.isValidID tl (P.toID p))
   then NoChange
   else
     match p with
     | PExpr body ->
         let name = generateFnName () in
-        let glob = TL.allGloballyScopedVarnames m.toplevels in
+        let glob = TL.allGloballyScopedVarnames m.dbs in
         let freeVars =
           AST.freeVariables body
           |> List.filter ~f:(fun (_id, v) -> not (List.member ~value:v glob))
@@ -200,7 +203,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
           List.map
             ~f:(fun (id, name_) ->
               let tipe =
-                Analysis.getCurrentTipeOf m tl.id id
+                Analysis.getCurrentTipeOf m tlid id
                 |> Option.withDefault ~default:TAny
                 |> convertTipe
               in
@@ -221,7 +224,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         let newF =
           {ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body}
         in
-        RPC ([SetFunction newF] @ astOp, FocusExact (tl.id, P.toID replacement))
+        RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
     | _ ->
         NoChange
 
@@ -263,16 +266,12 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
         ast
   in
   let newHandlers =
-    m.toplevels
-    |> TD.filterMapValues ~f:(fun tl ->
-           match TL.asHandler tl with
-           | None ->
-               None
-           | Some h ->
-               let newAst = renameFnCalls h.ast old new_ in
-               if newAst <> h.ast
-               then Some (SetHandler (tl.id, tl.pos, {h with ast = newAst}))
-               else None )
+    m.handlers
+    |> TD.filterMapValues ~f:(fun h ->
+           let newAst = renameFnCalls h.ast old new_ in
+           if newAst <> h.ast
+           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
+           else None )
   in
   let newFunctions =
     m.userFunctions
@@ -389,7 +388,7 @@ let dbUseCount (m : model) (name : string) : int =
 
 
 let updateUsageCounts (m : model) : model =
-  let tldata = m.toplevels |> TD.mapValues ~f:TL.allData in
+  let tldata = m |> TL.all |> TD.mapValues ~f:TL.allData in
   let fndata =
     m.userFunctions |> TD.mapValues ~f:(fun fn -> AST.allData fn.ufAST)
   in
@@ -465,16 +464,12 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
         ast
   in
   let newHandlers =
-    m.toplevels
-    |> TD.filterMapValues ~f:(fun tl ->
-           match TL.asHandler tl with
-           | None ->
-               None
-           | Some h ->
-               let newAst = transformCallsInAst f h.ast uf in
-               if newAst <> h.ast
-               then Some (SetHandler (tl.id, tl.pos, {h with ast = newAst}))
-               else None )
+    m.handlers
+    |> TD.filterMapValues ~f:(fun h ->
+           let newAst = transformCallsInAst f h.ast uf in
+           if newAst <> h.ast
+           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
+           else None )
   in
   let newFunctions =
     m.userFunctions
@@ -603,7 +598,7 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
       Error "No live value."
 
 
-let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
+let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
     op list =
   let newPd () = PExpr (B.newF (Variable newName)) in
   let transform ast =
@@ -613,14 +608,14 @@ let renameDBReferences (m : model) (oldName : dBName) (newName : dBName) :
       ~init:ast
       usedInExprs
   in
-  m.toplevels
-  |> TD.mergeRight (TD.map ~f:TL.ufToTL m.userFunctions)
+  m
+  |> TL.all
   |> TD.filterMapValues ~f:(fun tl ->
-         match tl.data with
+         match tl with
          | TLHandler h ->
              let newAST = transform h.ast in
              if newAST <> h.ast
-             then Some (SetHandler (tl.id, tl.pos, {h with ast = newAST}))
+             then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))
              else None
          | TLFunc f ->
              let newAST = transform f.ufAST in

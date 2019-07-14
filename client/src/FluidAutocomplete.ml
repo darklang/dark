@@ -183,6 +183,7 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
 
 
 let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
+  let tlid = TL.id tl in
   let id =
     match ti.token with
     | TFieldName (_, fieldID, _) ->
@@ -190,13 +191,14 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
     | _ ->
         FluidToken.tid ti.token
   in
+  (* TODO: missing function *)
   let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
   match ast with
   | Some ast ->
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
-      |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tl.id)
+      |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
              if dv_ = DIncomplete then None else Some dv_ )
@@ -442,7 +444,7 @@ let filter
     |> List.concat
   in
   (* Now split list by type validity *)
-  let dbnames = TL.allDBNames m.toplevels in
+  let dbnames = TL.allDBNames m.dbs in
   let isThreadMemberVal = isThreadMember tl ti in
   let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
   let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt dval in
@@ -490,7 +492,7 @@ let refilter
   in
   { old with
     index
-  ; query = Some (tl.id, ti)
+  ; query = Some (TL.id tl, ti)
   ; completions = newCompletions
   ; invalidCompletions }
 

@@ -175,25 +175,26 @@ let div
     @ mouseoverClass
   in
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
+  let tlid = TL.id vs.tl in
   let events =
     match clickAs with
     | Some id ->
         [ ViewUtils.eventNoPropagation
             "click"
-            ~key:("bcc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
-            (fun x -> BlankOrClick (vs.tl.id, id, x))
+            ~key:("bcc-" ^ showTLID tlid ^ "-" ^ showID id)
+            (fun x -> BlankOrClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "dblclick"
-            ~key:("bcdc-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
-            (fun x -> BlankOrDoubleClick (vs.tl.id, id, x))
+            ~key:("bcdc-" ^ showTLID tlid ^ "-" ^ showID id)
+            (fun x -> BlankOrDoubleClick (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseenter"
-            ~key:("me-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
-            (fun x -> BlankOrMouseEnter (vs.tl.id, id, x))
+            ~key:("me-" ^ showTLID tlid ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseEnter (tlid, id, x))
         ; ViewUtils.eventNoPropagation
             "mouseleave"
-            ~key:("ml-" ^ showTLID vs.tl.id ^ "-" ^ showID id)
-            (fun x -> BlankOrMouseLeave (vs.tl.id, id, x)) ]
+            ~key:("ml-" ^ showTLID tlid ^ "-" ^ showID id)
+            (fun x -> BlankOrMouseLeave (tlid, id, x)) ]
     | _ ->
         (* Rather than relying on property lengths changing, we should use
          * noProp to indicate that the property at idx N has changed. *)
@@ -205,8 +206,7 @@ let div
     then
       [ Html.div
           [Html.class' "live-value"]
-          [Html.text liveValueString; viewCopyButton vs.tl.id liveValueString]
-      ]
+          [Html.text liveValueString; viewCopyButton tlid liveValueString] ]
     else []
   in
   let leftSideHtml = liveValueHtml @ showParamName in
@@ -270,7 +270,7 @@ let getLiveValue (lvs : lvDict) (ID id : id) : dval option =
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
     string =
   let paramPlaceholder =
-    ( match vs.tl.data with
+    ( match vs.tl with
     | TLHandler h ->
         Some h.ast
     | TLFunc f ->
@@ -295,7 +295,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
   | VarBind ->
       "varname"
   | EventName ->
-    ( match vs.handlerSpace with
+    ( match TL.spaceOf vs.tl |> Option.withDefault ~default:HSOther with
     | HSHTTP ->
         "route"
     | HSCron ->
@@ -305,7 +305,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
     | HSEmpty ->
         "event name" )
   | EventModifier ->
-    ( match vs.handlerSpace with
+    ( match TL.spaceOf vs.tl |> Option.withDefault ~default:HSOther with
     | HSHTTP ->
         "verb"
     | HSCron ->

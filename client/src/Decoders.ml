@@ -1,6 +1,7 @@
 open Tc
 open Types
 open Json_decode_extended
+module TL = Toplevel
 
 (* Dark *)
 module RT = Runtime
@@ -195,19 +196,20 @@ and handlerSpec j : handlerSpec =
   ; modifier = field "modifier" (blankOr string) j }
 
 
-and handler j : handler =
+and handler pos j : handler =
   { ast = field "ast" expr j
   ; spec = field "spec" handlerSpec j
-  ; tlid = field "tlid" tlid j }
+  ; hTLID = field "tlid" tlid j
+  ; pos }
 
 
 and tipeString j : string = map RT.tipe2str tipe j
 
-and dbColList j : dBColumn list =
+and dbColList j : dbColumn list =
   list (tuple2 (blankOr string) (blankOr tipeString)) j
 
 
-and dbMigrationState j : dBMigrationState =
+and dbMigrationState j : dbMigrationState =
   let dv0 = variant0 in
   variants
     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
@@ -215,7 +217,7 @@ and dbMigrationState j : dBMigrationState =
     j
 
 
-and dbMigration j : dBMigration =
+and dbMigration j : dbMigration =
   { startingVersion = field "starting_version" int j
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
@@ -224,24 +226,24 @@ and dbMigration j : dBMigration =
   ; rollback = field "rollback" expr j }
 
 
-and db j : dB =
+and db pos j : db =
   { dbTLID = field "tlid" tlid j
   ; dbName = field "name" (blankOr string) j
   ; cols = field "cols" dbColList j
   ; version = field "version" int j
   ; oldMigrations = field "old_migrations" (list dbMigration) j
-  ; activeMigration = field "active_migration" (optional dbMigration) j }
+  ; activeMigration = field "active_migration" (optional dbMigration) j
+  ; pos }
 
 
 and toplevel j : toplevel =
+  let pos = field "pos" pos j in
   let variant =
     variants
-      [ ("Handler", variant1 (fun x -> TLHandler x) handler)
-      ; ("DB", variant1 (fun x -> TLDB x) db) ]
+      [ ("Handler", variant1 (fun x -> TLHandler x) (handler pos))
+      ; ("DB", variant1 (fun x -> TLDB x) (db pos)) ]
   in
-  { id = field "tlid" tlid j
-  ; pos = field "pos" pos j
-  ; data = field "data" variant j }
+  field "data" variant j
 
 
 and tipe j : tipe =
@@ -377,7 +379,11 @@ and userTipe j =
 and op j : op =
   variants
     [ ( "SetHandler"
-      , variant3 (fun t p h -> SetHandler (t, p, h)) tlid pos handler )
+      , variant3
+          (fun t p h -> SetHandler (t, p, {h with pos = p}))
+          tlid
+          pos
+          (handler {x = -1286; y = -467}) )
     ; ( "CreateDB"
       , variant3 (fun t p name -> CreateDB (t, p, name)) tlid pos string )
     ; ("AddDBCol", variant3 (fun t cn ct -> AddDBCol (t, cn, ct)) tlid id id)
@@ -450,8 +456,12 @@ and op j : op =
 
 
 and addOpRPCResult j : addOpRPCResult =
-  { toplevels = field "toplevels" (list toplevel) j
-  ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
+  let tls = field "toplevels" (list toplevel) j in
+  let dtls = field "deleted_toplevels" (list toplevel) j in
+  { handlers = List.filterMap ~f:TL.asHandler tls
+  ; deletedHandlers = List.filterMap ~f:TL.asHandler dtls
+  ; dbs = List.filterMap ~f:TL.asDB tls
+  ; deletedDBs = List.filterMap ~f:TL.asDB dtls
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; userTipes = field "user_tipes" (list userTipe) j
@@ -484,8 +494,12 @@ and dbStatsStore j : dbStatsStore = dict dbStats j
 and dbStatsRPCResult j = dbStatsStore j
 
 and initialLoadRPCResult j : initialLoadRPCResult =
-  { toplevels = field "toplevels" (list toplevel) j
-  ; deletedToplevels = field "deleted_toplevels" (list toplevel) j
+  let tls = field "toplevels" (list toplevel) j in
+  let dtls = field "deleted_toplevels" (list toplevel) j in
+  { handlers = List.filterMap ~f:TL.asHandler tls
+  ; deletedHandlers = List.filterMap ~f:TL.asHandler dtls
+  ; dbs = List.filterMap ~f:TL.asDB tls
+  ; deletedDBs = List.filterMap ~f:TL.asDB dtls
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; unlockedDBs =

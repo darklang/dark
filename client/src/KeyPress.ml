@@ -88,7 +88,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Key.Enter ->
             if event.shiftKey
             then
-              match tl.data with
+              match tl with
               | TLTipe t ->
                 ( match mId with
                 | Some id ->
@@ -117,7 +117,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                       else
                         RPC
                           ( [ SetHandler
-                                (tl.id, tl.pos, {h with ast = replacement}) ]
+                                (tlid, h.pos, {h with ast = replacement}) ]
                           , FocusExact (tlid, B.toID blank) )
                   | PVarBind _ ->
                     ( match AST.findParentOfWithin_ id h.ast with
@@ -125,7 +125,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                         let replacement = AST.addLambdaBlank id h.ast in
                         RPC
                           ( [ SetHandler
-                                (tl.id, tl.pos, {h with ast = replacement}) ]
+                                (tlid, h.pos, {h with ast = replacement}) ]
                           , FocusNext (tlid, Some id) )
                     | _ ->
                         NoChange )
@@ -134,16 +134,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                         AST.addObjectLiteralBlanks id h.ast
                       in
                       RPC
-                        ( [ SetHandler
-                              (tl.id, tl.pos, {h with ast = replacement}) ]
+                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                         , FocusExact (tlid, nextid) )
                   | PPattern _ ->
                       let nextid, _, replacement =
                         AST.addPatternBlanks id h.ast
                       in
                       RPC
-                        ( [ SetHandler
-                              (tl.id, tl.pos, {h with ast = replacement}) ]
+                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                         , FocusExact (tlid, nextid) )
                   | _ ->
                       NoChange )
@@ -359,7 +357,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           match cursor with
           | Filling (tlid, _) ->
               let tl = TL.getExn m tlid in
-              ( match tl.data with
+              ( match tl with
               | TLTipe _ ->
                   NoChange
               | TLDB _ ->
@@ -445,7 +443,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
                 let tl = TL.getExn m tlid in
-                ( match tl.data with
+                ( match tl with
                 | TLHandler h ->
                     let replacement = AST.closeBlanks h.ast in
                     if replacement = h.ast
@@ -454,9 +452,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                       (* TODO: in this case, when filling a keyname on an
                            * object, nothing happens which is unexpected *)
                       RPC
-                        ( [ SetHandler
-                              (tl.id, tl.pos, {h with ast = replacement}) ]
-                        , FocusNext (tl.id, None) )
+                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
+                        , FocusNext (tlid, None) )
                 | _ ->
                     Many [Select (tlid, Some p); AutocompleteMod ACReset] ) )
           | Key.Up ->

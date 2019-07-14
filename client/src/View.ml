@@ -30,9 +30,10 @@ let atom = ViewBlankOr.atom
 let keyword = ViewBlankOr.keyword
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
+  let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
   let body, data =
-    match tl.data with
+    match tl with
     | TLHandler h ->
         (ViewCode.viewHandler vs h, ViewData.viewData vs h.ast)
     | TLDB db ->
@@ -42,42 +43,42 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
   in
-  let refs = ViewIntrospect.refersToViews tl.id vs.toReferences in
+  let refs = ViewIntrospect.refersToViews tlid vs.toReferences in
   let uses = ViewIntrospect.usedInViews vs.inReferences in
   let events =
     [ ViewUtils.eventNoPropagation
-        ~key:("tlmd-" ^ showTLID tl.id)
+        ~key:("tlmd-" ^ showTLID tlid)
         "mousedown"
-        (fun x -> ToplevelMouseDown (tl.id, x))
+        (fun x -> ToplevelMouseDown (tlid, x))
     ; ViewUtils.eventNoPropagation
-        ~key:("tlmu-" ^ showTLID tl.id)
+        ~key:("tlmu-" ^ showTLID tlid)
         "mouseup"
-        (fun x -> ToplevelMouseUp (tl.id, x))
+        (fun x -> ToplevelMouseUp (tlid, x))
     ; ViewUtils.eventNoPropagation
-        ~key:("tlc-" ^ showTLID tl.id)
+        ~key:("tlc-" ^ showTLID tlid)
         "click"
-        (fun x -> ToplevelClick (tl.id, x)) ]
+        (fun x -> ToplevelClick (tlid, x)) ]
   in
-  let avatars = Avatar.viewAvatars m.avatarsList tl.id in
-  let selected = Some tl.id = tlidOf m.cursorState in
+  let avatars = Avatar.viewAvatars m.avatarsList tlid in
+  let selected = Some tlid = tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
   let boxClasses =
     let dragging =
       match m.cursorState with
       | Dragging (tlid_, _, _, _) ->
-          tlid_ = tl.id
+          tlid_ = tlid
       | _ ->
           false
     in
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
   let class_ =
-    ["toplevel"; "tl-" ^ deTLID tl.id; (if selected then "selected" else "")]
+    ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else "")]
     |> String.join ~sep:" "
   in
   let documentation =
     match (tlidOf m.cursorState, idOf m.cursorState) with
-    | Some tlid, Some id when tlid = tl.id ->
+    | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
           m.complete
           |> Autocomplete.highlighted
@@ -89,7 +90,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         in
         let selectedFnDocString =
           let fn =
-            TL.get m tlid
+            TL.get m tlid_
             |> Option.andThen ~f:TL.asHandler
             |> Option.map ~f:(fun x -> x.ast)
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
@@ -148,7 +149,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let pos =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ ->
-        tl.pos
+        TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
   in
@@ -170,42 +171,45 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
 
 
 let tlCacheKey (m : model) tl =
-  if Some tl.id = tlidOf m.cursorState
+  let tlid = TL.id tl in
+  if Some tlid = tlidOf m.cursorState
   then None
   else
     let hovered =
       match List.head m.hovering with
-      | Some (tlid, id) when tlid = tl.id ->
+      | Some (tlid_, id) when tlid_ = tlid ->
           Some id
       | _ ->
           None
     in
     let tracesLoaded =
-      Analysis.getTraces m tl.id
+      Analysis.getTraces m tlid
       |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
     in
-    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id in
-    Some (tl, Analysis.cursor m tl.id, hovered, tracesLoaded, avatarsList)
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
+    Some (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList)
 
 
 let tlCacheKeyDB (m : model) tl =
-  if Some tl.id = tlidOf m.cursorState
+  let tlid = TL.id tl in
+  if Some tlid = tlidOf m.cursorState
   then None
   else
-    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id in
-    Some (tl, DB.isLocked m tl.id, avatarsList)
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
+    Some (tl, DB.isLocked m tlid, avatarsList)
 
 
 let tlCacheKeyTipe (m : model) tl =
-  if Some tl.id = tlidOf m.cursorState
+  let tlid = TL.id tl in
+  if Some tlid = tlidOf m.cursorState
   then None
   else
-    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tl.id in
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     Some (tl, avatarsList)
 
 
 let viewTL m tl =
-  match tl.data with
+  match tl with
   | TLTipe _ ->
       Cache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
@@ -219,13 +223,14 @@ let viewCanvas (m : model) : msg Html.html =
   let asts =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ ->
-        m.toplevels
+        m
+        |> TL.structural
         |> TD.values
         (* TEA's vdom assumes lists have the same ordering, and diffs incorrectly
        * if not (though only when using our Util cache). This leads to the
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
-        |> List.sortBy ~f:(fun tl -> deTLID tl.id)
+        |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->
       ( match TD.get ~tlid m.userFunctions with
