@@ -42,7 +42,7 @@ let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
 (* Toplevels *)
 (* ------------------------------- *)
 let selectNextToplevel (m : model) (cur : tlid option) : modification =
-  let tls = TLIDDict.tlids m.toplevels in
+  let tls = TLIDDict.tlids (TL.structural m) in
   let next =
     cur |> Option.andThen ~f:(fun value -> Util.listNextWrap ~value tls)
   in
@@ -197,13 +197,14 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
   |> fun id -> Select (tlid, id)
 
 
-let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
-  let isLocked = DB.isLocked m tl.id in
+let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
+  let tlid = TL.id tl in
+  let isLocked = DB.isLocked m tlid in
   let isMigrationCol = DB.isMigrationCol db id in
   let pd = TL.findExn tl id in
   let enterField =
     Many
-      [ Enter (Filling (tl.id, id))
+      [ Enter (Filling (tlid, id))
       ; AutocompleteMod
           (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
   in
@@ -224,7 +225,7 @@ let enterDB (m : model) (db : dB) (tl : toplevel) (id : id) : modification =
 let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
     modification =
   let tl = TL.getExn m tlid in
-  match tl.data with
+  match tl with
   | TLDB db ->
       enterDB m db tl id
   | _ ->
@@ -267,7 +268,8 @@ let moveAndEnter
 
 let body (m : model) (tlid : tlid) : id option =
   let tl = TL.getExn m tlid in
-  match tl.data with TLHandler h -> Some (B.toID h.ast) | _ -> None
+  (* TODO: function *)
+  match tl with TLHandler h -> Some (B.toID h.ast) | _ -> None
 
 
 let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
@@ -427,23 +429,23 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
           NoChange
       | VarBind ->
           let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
-          ( match newTL.data with
+          ( match newTL with
           | TLHandler h ->
-              RPC ([SetHandler (tlid, tl.pos, h)], focus)
+              RPC ([SetHandler (tlid, h.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
           | TLTipe _ | TLDB _ ->
-              impossible ("pointer type mismatch", newTL.data, pd) )
+              impossible ("pointer type mismatch", newTL, pd) )
       | DBName | FnName | TypeName ->
           Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
       | _ ->
           let newTL = TL.delete tl pd newID in
-          ( match newTL.data with
+          ( match newTL with
           | TLHandler h ->
-              RPC ([SetHandler (tlid, tl.pos, h)], focus)
+              RPC ([SetHandler (tlid, h.pos, h)], focus)
           | TLFunc f ->
               RPC ([SetFunction f], focus)
           | TLTipe t ->
               RPC ([SetType t], focus)
           | TLDB _ ->
-              impossible ("pointer type mismatch", newTL.data, pd) ) )
+              impossible ("pointer type mismatch", newTL, pd) ) )

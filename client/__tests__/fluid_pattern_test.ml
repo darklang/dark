@@ -11,17 +11,14 @@ module TL = Toplevel
  * makes sense for patterns. See the extensive docs there for how this all
  * works. *)
 
-let tl ast =
-  { id = TLID "7"
-  ; pos = {x = 0; y = 0}
-  ; data =
-      TLHandler
-        { ast = toExpr ast
-        ; tlid = TLID "7"
-        ; spec =
-            { space = Blank.newF "HTTP"
-            ; name = Blank.newF "/test"
-            ; modifier = Blank.newF "GET" } } }
+let h ast =
+  { ast = toExpr ast
+  ; hTLID = TLID "7"
+  ; spec =
+      { space = Blank.newF "HTTP"
+      ; name = Blank.newF "/test"
+      ; modifier = Blank.newF "GET" }
+  ; pos = {x = 0; y = 0} }
 
 
 let () =
@@ -56,12 +53,12 @@ let () =
         ac = AC.reset m; oldPos = pos; newPos = pos }
     in
     let newAST, newState =
-      let tl = tl ast in
-      let m = {m with toplevels = TL.fromList [tl]} in
+      let h = h ast in
+      let m = {m with handlers = Handlers.fromList [h]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
-            tl.id
+            h.hTLID
             ast
             (FluidKeyPress
                { key

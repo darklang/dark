@@ -23,6 +23,18 @@ let allData (t : userTipe) : pointerData list =
 
 let toID (ut : userTipe) : tlid = ut.utTLID
 
+let upsert (m : model) (ut : userTipe) : model =
+  {m with userTipes = TD.insert ~tlid:ut.utTLID ~value:ut m.userTipes}
+
+
+let update (m : model) ~(tlid : tlid) ~(f : userTipe -> userTipe) : model =
+  {m with userTipes = TD.update ~tlid ~f m.userTipes}
+
+
+let remove (m : model) (ut : userTipe) : model =
+  {m with userTipes = TD.remove ~tlid:ut.utTLID m.userTipes}
+
+
 let fromList (uts : userTipe list) : userTipe TLIDDict.t =
   uts |> List.map ~f:(fun ut -> (ut.utTLID, ut)) |> TLIDDict.fromList
 
@@ -35,10 +47,6 @@ let toTUserType (tipe : userTipe) : tipe option =
   tipe.utName
   |> B.toMaybe
   |> Option.map ~f:(fun n -> TUserType (n, tipe.utVersion))
-
-
-let upsert (m : model) (t : userTipe) : model =
-  {m with userTipes = TD.insert ~tlid:t.utTLID ~value:t m.userTipes}
 
 
 let replaceDefinitionElement

@@ -203,7 +203,7 @@ and viewNExpr
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
       let previous =
-        match vs.tl.data with
+        match vs.tl with
         | TLHandler h ->
             h.ast |> AST.threadPrevious id |> Option.toList
         | TLFunc f ->
@@ -244,9 +244,9 @@ and viewNExpr
       let exeIcon = "play" in
       let events =
         [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID vs.tl.id ^ "-" ^ showID id ^ "-" ^ name)
+            ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
             "click"
-            (fun _ -> ExecuteFunctionButton (vs.tl.id, id, name))
+            (fun _ -> ExecuteFunctionButton (vs.tlid, id, name))
         ; ViewUtils.nothingMouseEvent "mouseup"
         ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.nothingMouseEvent "dblclick" ]
@@ -493,7 +493,7 @@ let externalLink (vs : viewState) (spec : handlerSpec) =
   | F (_, "GET"), F (_, name) ->
       let urlPath =
         let currentTraceData =
-          Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
+          Analysis.cursor' vs.tlCursors vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
                  |> Option.andThen ~f:(fun (_, data) -> data) )
@@ -532,7 +532,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
       [Vdom.noNode]
   | F _, F _, F _ ->
       let hasData =
-        Analysis.cursor' vs.tlCursors vs.traces vs.tl.id
+        Analysis.cursor' vs.tlCursors vs.traces vs.tlid
         |> Option.andThen ~f:(fun trace_id ->
                List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
                |> Option.andThen ~f:(fun (_, data) -> data) )
@@ -544,9 +544,9 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) :
             [ Html.classList ([("handler-trigger", true)] @ isExecutingClasses)
             ; Html.title "Replay this execution"
             ; ViewUtils.eventNoPropagation
-                ~key:("lh" ^ "-" ^ showTLID vs.tl.id)
+                ~key:("lh" ^ "-" ^ showTLID vs.tlid)
                 "click"
-                (fun _ -> TriggerHandler vs.tl.id) ]
+                (fun _ -> TriggerHandler vs.tlid) ]
             [fontAwesome "redo"] ]
       else
         [ Html.div

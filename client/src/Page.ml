@@ -33,14 +33,14 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
       match TL.find tl id with Some _ -> Some id | None -> None
     in
     match m.cursorState with
-    | Selecting (tlid, sid) when tlid = tl.id ->
+    | Selecting (tlid, sid) when tlid = TL.id tl ->
       (match sid with Some id -> idInToplevel id | None -> None)
     | _ ->
         None
   in
   { m with
     currentPage = page
-  ; cursorState = Selecting (tl.id, boId)
+  ; cursorState = Selecting (TL.id tl, boId)
   ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
   }
 
@@ -90,7 +90,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; cursorState = Selecting (tlid, None)
       ; canvasProps =
           { m.canvasProps with
-            offset = Viewport.toCenteredOn tl.pos; lastOffset = None } }
+            offset = Viewport.toCenteredOn (TL.pos tl); lastOffset = None } }
   | Architecture, FocusedHandler (tlid, _) | Architecture, FocusedDB (tlid, _)
     ->
       (* Going from Architecture to focused db/handler

@@ -394,7 +394,7 @@ let route_variables (route : string) : string list =
 
 
 let inputVariables (tl : toplevel) : varName list =
-  match tl.data with
+  match tl with
   | TLHandler h ->
     ( match h.spec.space with
     | F (_, m) when String.toLower m = "http" ->

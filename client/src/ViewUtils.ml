@@ -3,6 +3,8 @@ open Types
 open Prelude
 module Svg = Tea.Svg
 module Regex = Util.Regex
+module TL = Toplevel
+module TD = TLIDDict
 
 type viewState =
   { tl : toplevel
@@ -10,7 +12,6 @@ type viewState =
   ; tlid : tlid
   ; hovering : (tlid * id) option
   ; ac : autocomplete
-  ; handlerSpace : handlerSpace
   ; showEntry : bool
   ; showLivevalue : bool
   ; dbLocked : bool
@@ -79,7 +80,7 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
 
 let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
     id list =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       let body = h.ast in
       hp
@@ -92,19 +93,16 @@ let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
 
 
 let createVS (m : model) (tl : toplevel) : viewState =
+  let tlid = TL.id tl in
   let hp =
-    match tl.data with
-    | TLHandler _ ->
-        StrDict.get ~key:(showTLID tl.id) m.handlerProps
-    | _ ->
-        None
+    match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
   { tl
   ; cursorState = unwrapCursorState m.cursorState
-  ; tlid = tl.id
+  ; tlid
   ; hovering =
       m.hovering
-      |> List.filter ~f:(fun (tlid, _) -> tlid = tl.id)
+      |> List.filter ~f:(fun (tlid, _) -> tlid = tlid)
       |> List.head
       |> Option.andThen ~f:(fun ((_, i) as res) ->
              match idOf m.cursorState with
@@ -115,22 +113,21 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; ac = m.complete
   ; showEntry = true
   ; showLivevalue = true
-  ; handlerSpace = Toplevel.spaceOf tl |> Option.withDefault ~default:HSOther
-  ; dbLocked = DB.isLocked m tl.id
+  ; dbLocked = DB.isLocked m tlid
   ; ufns = m.userFunctions |> TLIDDict.values
   ; fns = m.builtInFunctions
-  ; currentResults = Analysis.getCurrentAnalysisResults m tl.id
-  ; traces = Analysis.getTraces m tl.id
+  ; currentResults = Analysis.getCurrentAnalysisResults m tlid
+  ; traces = Analysis.getTraces m tlid
   ; analyses = m.analyses
   ; dbStats = m.dbStats
   ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
-      List.filter ~f:(fun (tlid, _) -> tlid = tl.id) m.executingFunctions
+      List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
   ; executingHandlers =
-      ( if StrSet.member ~value:(deTLID tl.id) m.executingHandlers
-      then StrSet.ofList [deTLID tl.id]
+      ( if StrSet.member ~value:(deTLID tlid) m.executingHandlers
+      then StrSet.ofList [deTLID tlid]
       else StrSet.empty )
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
@@ -140,13 +137,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; userContentHost = m.userContentHost
   ; inReferences =
       ( match m.currentPage with
-      | FocusedDB (tlid_, _) when tlid_ = tl.id ->
+      | FocusedDB (tlid_, _) when tlid_ = tlid ->
           Introspect.allIn tlid_ m
       | _ ->
           [] )
   ; toReferences =
       ( match m.currentPage with
-      | FocusedHandler (tlid_, _) when tlid_ = tl.id ->
+      | FocusedHandler (tlid_, _) when tlid_ = tlid ->
           Introspect.allTo tlid_ m
       | _ ->
           [] )
@@ -158,7 +155,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedType tlid_
       | FocusedFn tlid_
       | FocusedDB (tlid_, _)
-        when tlid_ = tl.id ->
+        when tlid_ = tlid ->
           Introspect.presentAvatars m
       | _ ->
           [] ) }
@@ -413,20 +410,10 @@ let svgIconFn (color : string) : msg Html.html =
             [] ] ]
 
 
-let createHandlerProp (tls : toplevel list) : handlerProp StrDict.t =
-  let insertProps tlid props =
-    props
-    |> StrDict.insert ~key:(showTLID tlid) ~value:Defaults.defaultHandlerProp
-  in
-  tls
-  |> List.foldl
-       ~f:(fun tl props ->
-         match tl.data with
-         | TLHandler _ ->
-             insertProps tl.id props
-         | _ ->
-             props )
-       ~init:StrDict.empty
+let createHandlerProp (hs : handler list) : handlerProp StrDict.t =
+  hs
+  |> List.map ~f:(fun h -> (h.hTLID, Defaults.defaultHandlerProp))
+  |> TD.fromList
 
 
 let isHandlerLocked (vs : viewState) : bool =
@@ -452,7 +439,7 @@ let isHandlerExpanded (vs : viewState) : bool =
 
 let isHoverOverTL (vs : viewState) : bool =
   match vs.hovering with
-  | Some (tlid, _id) when tlid = vs.tl.id ->
+  | Some (tlid, _id) when tlid = TL.id vs.tl ->
       true
   | _ ->
       false

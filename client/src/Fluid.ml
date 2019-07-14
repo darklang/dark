@@ -2503,7 +2503,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
          |> getCurrentToken
          |> Option.andThen ~f:(fun ti ->
                 let id = Token.tid ti.token in
-                Some (FluidCommandsFor (tl.id, id)) ) )
+                Some (FluidCommandsFor (TL.id tl, id)) ) )
   |> Option.withDefault ~default:NoChange
 
 
@@ -2858,23 +2858,24 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       | None ->
           NoChange
       | Some ast ->
+          let tlid = TL.id tl in
           let ast = ast |> fromExpr s in
-          let newAST, newState = updateMsg m tl.id ast msg s in
+          let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
-            let enter tl id = Enter (Filling (tl.id, id)) in
+            let enter id = Enter (Filling (tlid, id)) in
             (* if tab is wrapping... *)
             if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
             then
               (* toggle through spec headers *)
               (* if on first spec header that is blank
                * set cursor to select that *)
-              match tl.data with
+              match tl with
               | TLHandler {spec = {name = Blank id; _}; _} ->
-                  (enter tl id, ast, s)
+                  (enter id, ast, s)
               | TLHandler {spec = {space = Blank id; _}; _} ->
-                  (enter tl id, ast, s)
+                  (enter id, ast, s)
               | TLHandler {spec = {modifier = Blank id; _}; _} ->
-                  (enter tl id, ast, s)
+                  (enter id, ast, s)
               | _ ->
                   (NoChange, newAST, newState)
             else (NoChange, newAST, newState)
@@ -2901,15 +2902,15 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             then
               let asExpr = toExpr newAST in
               let requestAnalysis =
-                match Analysis.cursor m tl.id with
+                match Analysis.cursor m tlid with
                 | Some traceID ->
-                    let m = TL.withAST m tl.id asExpr in
-                    MakeCmd (Analysis.requestAnalysis m tl.id traceID)
+                    let m = TL.withAST m tlid asExpr in
+                    MakeCmd (Analysis.requestAnalysis m tlid traceID)
                 | None ->
                     NoChange
               in
               Many
-                [ Types.TweakModel (fun m -> TL.withAST m tl.id asExpr)
+                [ Types.TweakModel (fun m -> TL.withAST m tlid asExpr)
                 ; Toplevel.setSelectedAST m asExpr
                 ; requestAnalysis ]
             else Types.NoChange

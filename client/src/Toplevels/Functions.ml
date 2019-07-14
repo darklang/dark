@@ -13,6 +13,22 @@ let allNames (fns : userFunction TLIDDict.t) : string list =
 
 let toID (uf : userFunction) : tlid = uf.ufTLID
 
+let upsert (m : model) (userFunction : userFunction) : model =
+  { m with
+    userFunctions =
+      TD.insert ~tlid:userFunction.ufTLID ~value:userFunction m.userFunctions
+  }
+
+
+let update (m : model) ~(tlid : tlid) ~(f : userFunction -> userFunction) :
+    model =
+  {m with userFunctions = TD.update ~tlid ~f m.userFunctions}
+
+
+let remove (m : model) (userFunction : userFunction) : model =
+  {m with userFunctions = TD.remove ~tlid:userFunction.ufTLID m.userFunctions}
+
+
 let fromList (ufs : userFunction list) : userFunction TLIDDict.t =
   ufs |> List.map ~f:(fun uf -> (uf.ufTLID, uf)) |> TLIDDict.fromList
 
@@ -45,11 +61,6 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       |> fun x -> Some x
   | _ ->
       None
-
-
-let upsert (m : model) (f : userFunction) : model =
-  { m with
-    userFunctions = TLIDDict.insert ~tlid:f.ufTLID ~value:f m.userFunctions }
 
 
 let sameName (name : string) (uf : userFunction) : bool =

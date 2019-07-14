@@ -112,7 +112,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let tlid = gtlid () in
       let spec = newHandlerSpec () in
       let spec = {spec with name = B.ofOption name} in
-      let handler = {ast = Blank next; spec; tlid} in
+      let handler = {ast = Blank next; spec; hTLID = tlid; pos} in
       let fluidMods =
         if VariantTesting.isFluid m.tests
         then
@@ -148,7 +148,8 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
             { name = B.ofOption route
             ; space = B.newF "HTTP"
             ; modifier = Blank next }
-        ; tlid }
+        ; hTLID = tlid
+        ; pos }
       in
       let fluidMods =
         if VariantTesting.isFluid m.tests
@@ -169,7 +170,8 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let handler =
         { ast = B.new_ ()
         ; spec = {spec with space = B.newF name; name = Blank next}
-        ; tlid }
+        ; hTLID = tlid
+        ; pos }
       in
       RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
   | Goto (page, tlid, _) ->
@@ -301,15 +303,15 @@ let parsePattern (str : string) : pattern option =
 
 
 let getAstFromTopLevel tl =
-  match tl.data with
+  match tl with
   | TLHandler h ->
       h.ast
   | TLFunc f ->
       f.ufAST
   | TLDB _ ->
-      impossible ("No ASTs in DBs", tl.data)
+      impossible ("No ASTs in DBs", tl)
   | TLTipe _ ->
-      impossible ("No ASTs in Types", tl.data)
+      impossible ("No ASTs in Types", tl)
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -446,8 +448,8 @@ let submitACItem
               | None ->
                   FocusSame
               | Some nextID ->
-                  FocusExact (tl.id, nextID)
-            else FocusNext (tl.id, next)
+                  FocusExact (tlid, nextID)
+            else FocusNext (tlid, next)
           in
           RPC (ops, focus)
         in
@@ -457,27 +459,27 @@ let submitACItem
           if newtl = tl
           then NoChange
           else
-            match newtl.data with
+            match newtl with
             | TLHandler h ->
-                wrapNew [SetHandler (tlid, tl.pos, h)] next
+                wrapNew [SetHandler (tlid, h.pos, h)] next
             | TLFunc f ->
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
             | TLDB _ ->
-                impossible ("no vars in DBs", tl.data)
+                impossible ("no vars in DBs", tl)
         in
-        let saveH h next = save {tl with data = TLHandler h} next in
+        let saveH h next = save (TLHandler h) next in
         let saveAst ast next =
-          match tl.data with
+          match tl with
           | TLHandler h ->
               saveH {h with ast} next
           | TLFunc f ->
-              save {tl with data = TLFunc {f with ufAST = ast}} next
+              save (TLFunc {f with ufAST = ast}) next
           | TLDB _ ->
-              impossible ("no ASTs in DBs", tl.data)
+              impossible ("no ASTs in DBs", tl)
           | TLTipe _ ->
-              impossible ("no ASTs in Tipes", tl.data)
+              impossible ("no ASTs in Tipes", tl)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -490,7 +492,7 @@ let submitACItem
                 ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
             else if oldName = value (* leave as is *)
             then Select (tlid, Some id)
-            else if List.member ~value (TL.allDBNames m.toplevels)
+            else if List.member ~value (TL.allDBNames m.dbs)
             then DisplayError ("There is already a DB named " ^ value)
             else
               let varrefs = Refactor.renameDBReferences m oldName value in
@@ -596,7 +598,7 @@ let submitACItem
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
         | PExpr e, item ->
-          ( match tl.data with
+          ( match tl with
           | TLHandler h ->
               let newast, newexpr = replaceExpr m h.ast e move item in
               saveAst newast (PExpr newexpr)
@@ -615,13 +617,13 @@ let submitACItem
                   let newast, newexpr =
                     replaceExpr m am.rollback e move item
                   in
-                  wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
+                  wrapNew [SetExpr (tlid, id, newast)] (PExpr newexpr)
                 else if List.member ~value:pd (AST.allData am.rollforward)
                 then
                   let newast, newexpr =
                     replaceExpr m am.rollforward e move item
                   in
-                  wrapNew [SetExpr (tl.id, id, newast)] (PExpr newexpr)
+                  wrapNew [SetExpr (tlid, id, newast)] (PExpr newexpr)
                 else NoChange ) )
         | PFFMsg _, ACExtra value ->
             replace (PFFMsg (B.newF value))
