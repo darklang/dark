@@ -523,23 +523,17 @@ and call_fn
             (* equalize length *)
             let expected_length = List.length fn.parameters in
             let actual_length = List.length argvals in
-            let argvals =
-              if expected_length = actual_length
-              then argvals
-              else
-                let actual = Printf.sprintf "%d arguments" actual_length in
-                let expected = Printf.sprintf "%d arguments" expected_length in
-                Exception.internal
-                  ~actual
-                  ~expected
-                  ("Incorrect number of args in fncall to " ^ name)
-            in
-            let args =
-              fn.parameters
-              |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
-              |> DvalMap.from_list_exn
-            in
-            exec_fn ~engine ~state name id fn args
+            if expected_length = actual_length
+            then
+              let args =
+                fn.parameters
+                |> List.map2_exn
+                     ~f:(fun dv (p : param) -> (p.name, dv))
+                     argvals
+                |> DvalMap.from_list_exn
+              in
+              exec_fn ~engine ~state name id fn args
+            else DError ("Incorrect number of args in fncall to " ^ name)
       in
       if send_to_rail
       then
