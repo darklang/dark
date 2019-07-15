@@ -259,3 +259,9 @@ let findByNameInList (name : string) (functions : function_ list) : function_ =
          ; fnPreviewExecutionSafe = true
          ; fnInfix = false
          ; fnDeprecated = false }
+
+
+let idOfLastBlankor (f : userFunction) : id =
+  List.last f.ufMetadata.ufmParameters
+  |> Option.andThen ~f:(fun p -> Some (B.toID p.ufpTipe))
+  |> Option.withDefault ~default:(B.toID f.ufMetadata.ufmName)
