@@ -217,12 +217,6 @@ let can_edit_canvas ~(auth_domain : string) ~(username : username) : bool =
   || special_cased_can_edit_canvas auth_domain username
   || is_admin username
 
-
-type permissions =
-  | CanEdit
-  | CanAccessOperations
-  | NoPermission
-
 let authenticate ~(username : username) ~(password : string) : bool =
   valid_user ~username ~password
 

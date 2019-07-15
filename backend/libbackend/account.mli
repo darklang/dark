@@ -8,11 +8,6 @@ type user_info =
   ; name : string
   ; admin : bool }
 
-type permissions =
-  | CanEdit
-  | CanAccessOperations
-  | NoPermission
-
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
 
