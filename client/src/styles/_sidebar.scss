@@ -169,17 +169,17 @@ $prodColor: black;
         }
 
         &.dev .environment,
-        &.dev .header-icon:hover {
+        &.dev .header-icon {
           color: $devColor;
           filter: none;
         }
         &.prodclone .environment,
-        &.prodclone .header-icon:hover {
+        &.prodclone .header-icon {
           color: $prodcloneColor;
           filter: none;
         }
         &.prod .environment,
-        &.prod .header-icon:hover {
+        &.prod .header-icon {
           color: $prodColor;
           filter: none;
         }
