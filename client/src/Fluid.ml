@@ -514,7 +514,11 @@ let rec toTokens' (s : state) (e : ast) : token list =
       @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EPartial (id, newName, EFnCall (_, name, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
-      let ghostSuffix = String.dropLeft ~count:(String.length newName) name in
+      (* If this is a constructor it will be ignored *)
+      let partialName = ViewUtils.partialName name in
+      let ghostSuffix =
+        String.dropLeft ~count:(String.length newName) partialName
+      in
       let ghost =
         if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
       in
@@ -536,13 +540,31 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
       (* Specifialized for being in a thread *)
-      [TFnName (id, fnName, ster)]
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
+      in
+      [TFnName (id, partialName, displayName, fnName, ster)]
+      @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
-      [TFnName (id, fnName, ster)]
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
+      in
+      [TFnName (id, partialName, displayName, fnName, ster)]
+      @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
@@ -1818,6 +1840,10 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
       let name = fn.fnName in
+      let removeUnderscore =
+        let versionDisplayName = ViewUtils.versionDisplayName name in
+        if versionDisplayName = "" then 0 else -1
+      in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Types.Rail
@@ -1831,7 +1857,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
             (EBinOp (gid (), name, lhs, rhs, r), 0)
         | _ ->
             fail "BinOp doesn't have 2 args"
-      else (EFnCall (gid (), name, args, r), String.length name + 1)
+      else
+        ( EFnCall (gid (), name, args, r)
+        , String.length name + 1 + removeUnderscore )
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -2114,6 +2142,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | TPatternString _ | TString _ ->
         pos - ti.startPos - 2
+    | TFnVersion (_, partialName, _, _) ->
+        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
+        let startPos = ti.endPos - String.length partialName in
+        pos - startPos - 1
     | _ ->
         pos - ti.startPos - 1
   in
@@ -2158,7 +2190,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removePointFromFloat id ast, left s)
   | TPatternFloatPoint (mID, id) ->
       (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, str) | TFnName (id, str, _) ->
+  | TConstructorName (id, str)
+  (* str is the partialName: *)
+  | TFnName (id, str, _, _, _)
+  | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
@@ -2221,7 +2256,15 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doDelete" s in
   let left s = moveOneLeft pos s in
-  let offset = pos - ti.startPos in
+  let offset =
+    match ti.token with
+    | TFnVersion (_, partialName, _, _) ->
+        (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
+        let startPos = ti.endPos - String.length partialName in
+        pos - startPos
+    | _ ->
+        pos - ti.startPos
+  in
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
@@ -2249,7 +2292,10 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
-  | TConstructorName (id, str) | TFnName (id, str, _) ->
+  | TConstructorName (id, str)
+  (* str is the partialName: *)
+  | TFnName (id, str, _, _, _)
+  | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
   | TFieldOp id ->
@@ -2400,7 +2446,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField _
     when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
       (ast, s)
-  | TFnName _ when not (isFnNameChar letterStr) ->
+  | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
   | TRecordField _
@@ -2457,6 +2503,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIfElseKeyword _
   | TFieldOp _
   | TFnName _
+  | TFnVersion _
   | TLetKeyword _
   | TLetAssignment _
   | TSep
@@ -2932,6 +2979,13 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = AC.asName item in
+        let fnDisplayName = ViewUtils.fnDisplayName name in
+        let versionDisplayName = ViewUtils.versionDisplayName name in
+        let versionView =
+          if String.length versionDisplayName > 0
+          then Html.span [Html.class' "version"] [Html.text versionDisplayName]
+          else Vdom.noNode
+        in
         Html.li
           [ Attrs.classList
               [ ("autocomplete-item", true)
@@ -2942,7 +2996,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick i ) ]
-          [ Html.text name
+          [ Html.text fnDisplayName
+          ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
           ] )
       acis
@@ -2986,9 +3041,9 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
         ""
   in
   match ti.token with
-  | TFnName (id, name, Rail) ->
+  | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
-      let cls = ["error-indicator"; returnTipe name; sentToRail id] in
+      let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
       Html.div
         [ Html.class' (String.join ~sep:" " cls)
         ; Html.styles [("top", offset)]
@@ -3009,8 +3064,9 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnName (id, name, _) ->
-      let fn = Functions.findByNameInList name state.ac.functions in
+  | TFnVersion (id, _, displayName, fnName)
+  | TFnName (id, _, displayName, fnName, _) ->
+      let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
         |> AST.threadPrevious id
@@ -3038,20 +3094,28 @@ let viewPlayIcon
       in
       let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
       let buttonUnavailable = not paramsComplete in
-      let showButton = not fn.fnPreviewExecutionSafe in
+      (* Dont show button on the function token if it has a version, show on version token *)
+      let showButton =
+        match ti.token with
+        | TFnVersion _ ->
+            not fn.fnPreviewExecutionSafe
+        | TFnName _ | _ ->
+            (* displayName and fnName will be equal if there is no version *)
+            displayName == fnName && not fn.fnPreviewExecutionSafe
+      in
       let buttonNeeded = not (isComplete id) in
       let exeIcon = "play" in
       let events =
         [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ fnName)
             "click"
-            (fun _ -> ExecuteFunctionButton (tlid, id, name))
+            (fun _ -> ExecuteFunctionButton (tlid, id, fnName))
         ; ViewUtils.nothingMouseEvent "mouseup"
         ; ViewUtils.nothingMouseEvent "mousedown"
         ; ViewUtils.nothingMouseEvent "dblclick" ]
       in
       let class_, event, title, icon =
-        if name = "Password::check" || name = "Password::hash"
+        if fnName = "Password::check" || fnName = "Password::hash"
         then
           ( "execution-button-unsafe"
           , []

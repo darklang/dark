@@ -211,6 +211,9 @@ let () =
       , EVariable (gid (), bindingName) )
   in
   let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
+  let aFnCallWithVersion =
+    EFnCall (gid (), "DB::getAll_v1", [blank], NoRail)
+  in
   let aBinOp =
     EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
   in
@@ -282,6 +285,13 @@ let () =
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "DB::getAll_v1"
+          ; fnParameters = [fnParam "table" TDB false]
+          ; fnReturnTipe = TList
+          ; fnDescription = "get all"
+          ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
@@ -661,6 +671,41 @@ let () =
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with delete *)
+      tp
+        "delete on function with version"
+        aFnCallWithVersion
+        (press K.Delete 11)
+        ("DB::getAllv@ ___________________", 11) ;
+      tp
+        "backspace on function with version"
+        aFnCallWithVersion
+        (press K.Backspace 12)
+        ("DB::getAllv@ ___________________", 11) ;
+      tp
+        "delete on function with version in between the version and function name"
+        aFnCallWithVersion
+        (press K.Delete 10)
+        ("DB::getAll1@ ___________________", 10) ;
+      tp
+        "backspace on function with version in between the version and function name"
+        aFnCallWithVersion
+        (press K.Backspace 10)
+        ("DB::getAlv1@ ___________________", 9) ;
+      tp
+        "delete on function with version in function name"
+        aFnCallWithVersion
+        (press K.Delete 7)
+        ("DB::getllv1@ ___________________", 7) ;
+      tp
+        "backspace on function with version in function name"
+        aFnCallWithVersion
+        (press K.Backspace 8)
+        ("DB::getllv1@ ___________________", 7) ;
+      t
+        "adding function with version goes to the right place"
+        blank
+        (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        ("DB::getAllv1 ___________________", 13) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
