@@ -1221,7 +1221,7 @@ let admin_ui_handler
      only make changes in promises .*)
   let when_can_edit ~canvas f =
     let auth_domain = Account.auth_domain_for canvas in
-    if Account.can_edit_canvas ~auth_domain ~username
+    if Authorization.can_edit_canvas ~canvas ~username
     then
       match Account.owner ~auth_domain with
       | Some owner ->
@@ -1263,8 +1263,8 @@ let admin_api_handler
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_edit ~canvas f =
-    if Account.can_edit_canvas
-         ~auth_domain:(Account.auth_domain_for canvas)
+    if Authorization.can_edit_canvas
+         ~canvas
          ~username
     then Log.add_log_annotations [("canvas", `String canvas)] f
     else respond ~execution_id `Unauthorized "Unauthorized"
