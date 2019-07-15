@@ -266,9 +266,6 @@ let () =
         in
         (model, TLHandler tl)
       in
-      let wrapInLet (name : string) (rhs : expr) (expr : expr) =
-        Let (B.newF name, rhs, expr) |> B.newF
-      in
       let exprToString expr : string =
         expr
         |> Tuple2.first
@@ -289,7 +286,7 @@ let () =
                  , [B.newF (Variable "b"); B.newF (Value "4")]
                  , NoRail ))
           in
-          let ast = expr |> wrapInLet "b" (B.newF (Value "5")) in
+          let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar" ) ;
@@ -315,10 +312,11 @@ let () =
           in
           let exprInThread = Thread [expr; threadedExpr] |> B.newF in
           let ast =
-            exprInThread
-            |> wrapInLet
-                 "id"
-                 (B.newF (FnCall (B.newF "Uuid::generate", [], NoRail)))
+            Let
+              ( B.newF "id"
+              , B.newF (FnCall (B.newF "Uuid::generate", [], NoRail))
+              , exprInThread )
+            |> B.newF
           in
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
