@@ -384,8 +384,9 @@ let sample_dvals =
   ; ("true", DBool true)
   ; ("false", DBool false)
   ; ("null", DNull)
+  ; ("datastore", DDB "Visitors")
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
-  ; ("list", DList [DDB "Visitors"; Dval.dint 4])
+  ; ("list", DList [Dval.dint 4])
   ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj
@@ -409,12 +410,14 @@ let sample_dvals =
   ; ("uuid", DUuid (Util.uuid_of_string "7d9e5495-b068-4364-a2cc-3633ab4d13e6"))
   ; ("option", DOption OptNothing)
   ; ("option2", DOption (OptJust (Dval.dint 15)))
+  ; ("option3", DOption (OptJust (Dval.dstr_of_string_exn "a string")))
   ; ("character", DCharacter (Unicode_string.Character.unsafe_of_string "s"))
   ; ("result", DResult (ResOk (Dval.dint 15)))
   ; ( "result2"
     , DResult
         (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
     )
+  ; ("result3", DResult (ResOk (Dval.dstr_of_string_exn "a string")))
   ; ("bytes", DBytes ("JyIoXCg=" |> B64.decode |> RawBytes.of_string))
   ; ( "bytes2"
     , DBytes

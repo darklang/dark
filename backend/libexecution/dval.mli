@@ -56,6 +56,18 @@ val to_internal_queryable_v0 : Types.RuntimeT.dval -> string
  * parse incorrectly without error. Throws on Json bugs. *)
 val of_internal_queryable_v0 : string -> Types.RuntimeT.dval
 
+(* This is a format used for roundtripping dvals internally, while still being
+ * queryable using jsonb in our DB. This reduces some of the v0 bugs, but at
+ * the cost of not supporting many typed that we'll want to put in it.  Also
+ * roundtrippable. Does not redact. *)
+val to_internal_queryable_v1 : Types.RuntimeT.dval -> string
+
+(* This is a format used for roundtripping dvals internally, while still being
+ * queryable using jsonb in our DB. There are some rare cases where it will
+ * parse incorrectly without error. Throws on Json bugs. *)
+
+val of_internal_queryable_v1 : string -> Types.RuntimeT.dval
+
 (* When printing to grand-users (our users' users) using text/plain, print a
  * human-readable format. TODO: this should probably be part of the functions
  * generating the responses. Redacts passwords. *)
@@ -78,8 +90,13 @@ val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 val to_pretty_machine_json_v1 : Types.RuntimeT.dval -> string
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
- * convert everything into reasonable types, in the absense of a schema.  *)
+ * convert everything into reasonable types, in the absense of a schema.
+ * This does type conversion, which it shouldn't and should be avoided for new code. *)
 val of_unknown_json_v0 : string -> Types.RuntimeT.dval
+
+(* When receiving unknown json from the user, or via a HTTP API, attempt to
+ * convert everything into reasonable types, in the absense of a schema.  *)
+val of_unknown_json_v1 : string -> Types.RuntimeT.dval
 
 (* For debugging internally, redacts passwords. Never throws. *)
 val show : Types.RuntimeT.dval -> string
