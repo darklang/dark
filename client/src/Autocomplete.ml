@@ -360,7 +360,7 @@ let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
 
 let httpVerbValidator = "[A-Z]+"
 
-let eventSpaceValidator = "[A-Z0-9_]+"
+let eventSpaceValidator = "(CRON|HTTP|REPL|WORKER)"
 
 let fieldNameValidator = ".+"
 
