@@ -257,7 +257,7 @@ let exception_to_dval exc = DError (Exception.to_string exc)
  we need to make sure that there are no incomplete or error rail
  values within the list *)
 let is_fake_cf (dv : dval) =
-  match dv with DErrorRail _ | DIncomplete -> true | _ -> false
+  match dv with DErrorRail _ | DIncomplete | DError _ -> true | _ -> false
 
 
 let to_list (l : dval list) : dval =

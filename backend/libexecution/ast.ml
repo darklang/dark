@@ -384,16 +384,24 @@ let rec exec
                 dv
             | None ->
                 let filled = List.filter ~f:(Fn.compose not is_blank) vars in
-                List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
-                    trace_blank var dv st ) ;
-                let new_st =
-                  vars
-                  |> List.filter_map ~f:blank_to_option
-                  |> (fun varnames -> List.zip_exn varnames args)
-                  |> Symtable.from_list_exn
-                  |> fun bindings -> Util.merge_left bindings st
-                in
-                exe new_st body )
+                if List.length filled <> List.length args
+                then
+                  DError
+                    ( "Expected: "
+                    ^ string_of_int (List.length filled)
+                    ^ " arguments, got: "
+                    ^ string_of_int (List.length args) )
+                else (
+                  List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
+                      trace_blank var dv st ) ;
+                  let new_st =
+                    filled
+                    |> List.filter_map ~f:blank_to_option
+                    |> (fun varnames -> List.zip_exn varnames args)
+                    |> Symtable.from_list_exn
+                    |> fun bindings -> Util.merge_left bindings st
+                  in
+                  exe new_st body ) )
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
