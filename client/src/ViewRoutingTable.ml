@@ -112,7 +112,14 @@ let replCategory (handlers : handler list) : category =
 
 
 let workerCategory (handlers : handler list) : category =
-  handlerCategory TL.isWorkerHandler "WORKER" (NewWorkerHandler None) handlers
+  handlerCategory
+    (fun tl ->
+      TL.isWorkerHandler tl
+      || (* Show the old workers here for now *)
+         TL.isDeprecatedCustomHandler tl )
+    "WORKER"
+    (NewWorkerHandler None)
+    handlers
 
 
 let dbCategory (m : model) (dbs : db list) : category =
@@ -145,73 +152,6 @@ let dbCategory (m : model) (dbs : db list) : category =
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; entries }
-
-
-let customCategory (hs : handler list) : category =
-  let handlers =
-    hs |> List.filter ~f:(fun h -> TL.isDeprecatedCustomHandler (TLHandler h))
-  in
-  { count = List.length handlers
-  ; name = missingEventSpaceDesc
-  ; plusButton = Some (CreateRouteHandler (NewReplHandler None))
-  ; classname = missingEventSpaceDesc
-  ; entries =
-      List.map handlers ~f:(fun h ->
-          let tlid = h.hTLID in
-          Entry
-            { name =
-                h.spec.name
-                |> Blank.toMaybe
-                |> Option.withDefault ~default:missingEventRouteDesc
-            ; uses = None
-            ; tlid
-            ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
-            ; killAction = Some (ToplevelDeleteForever tlid)
-            ; plusButton = None
-            ; verb = None } ) }
-
-
-let splitBySpace (handlers : handler list) : (string * handler list) list =
-  let spaceName h =
-    h.spec.space
-    |> B.toMaybe
-    |> Option.withDefault ~default:missingEventSpaceDesc
-  in
-  handlers
-  |> List.sortBy ~f:spaceName
-  |> List.groupWhile ~f:(fun a b -> spaceName a = spaceName b)
-  |> List.map ~f:(fun hs ->
-         let space = hs |> List.head |> deOption "splitBySpace" |> spaceName in
-         (space, hs) )
-
-
-let deprecatedEventCategories (handlers : handler list) : category list =
-  let groups =
-    handlers
-    |> List.filter ~f:(fun h -> TL.isDeprecatedCustomHandler (TLHandler h))
-    |> splitBySpace
-  in
-  List.map groups ~f:(fun (name, handlers) ->
-      { count = List.length handlers
-      ; name
-      ; plusButton = Some (CreateRouteHandler (NewWorkerHandler None))
-      ; classname = name
-      ; entries =
-          List.map handlers ~f:(fun h ->
-              let tlid = h.hTLID in
-              Entry
-                { name =
-                    h.spec.name
-                    |> Blank.toMaybe
-                    |> Option.withDefault ~default:missingEventRouteDesc
-                ; uses = None
-                ; tlid
-                ; destination = Some (FocusedHandler (tlid, true))
-                ; minusButton = Some (ToplevelDelete tlid)
-                ; killAction = Some (ToplevelDeleteForever tlid)
-                ; plusButton = None
-                ; verb = None } ) } )
 
 
 let f404Category (m : model) : category =
@@ -319,7 +259,6 @@ let standardCategories m hs dbs ufns tipes =
   ; workerCategory hs
   ; cronCategory hs
   ; replCategory hs ]
-  @ deprecatedEventCategories hs
 
 
 let deletedCategory (m : model) : category =
