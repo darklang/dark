@@ -3062,7 +3062,7 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnVersion (id, _, str, fnName) | TFnName (id, str, _, fnName, _) ->
+  | TFnVersion (id, _, displayName, fnName) | TFnName (id, _, displayName, fnName, _) ->
       let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
@@ -3092,9 +3092,14 @@ let viewPlayIcon
       let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
       let buttonUnavailable = not paramsComplete in
       (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton = if String.length str == String.length fnName - 1
-      then false
-      else not fn.fnPreviewExecutionSafe in
+      let showButton = match ti.token with 
+        | TFnVersion _ ->
+            not fn.fnPreviewExecutionSafe
+        | TFnName _ 
+        | _ ->
+            (* displayName and fnName will be equal if there is no version *)
+            if displayName == fnName then not fn.fnPreviewExecutionSafe else false 
+      in
       let buttonNeeded = not (isComplete id) in
       let exeIcon = "play" in
       let events =
