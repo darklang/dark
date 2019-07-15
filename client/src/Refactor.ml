@@ -116,58 +116,60 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
     RPC (TL.toOp newtl, FocusSame)
 
 
+let extractVarInAst
+    (m : model) (tl : toplevel) (e : expr) (ast : expr) (varname : string) =
+  let freeVariables =
+    AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
+  in
+  let ancestors = AST.ancestors (B.toID e) ast in
+  let lastPlaceWithSameVarsAndValues =
+    e :: ancestors
+    |> List.takeWhile ~f:(fun elem ->
+           let id = B.toID elem in
+           let availableVars =
+             Analysis.getCurrentAvailableVarnames m tl id |> StrSet.fromList
+           in
+           let allRequiredVariablesAvailable =
+             StrSet.diff freeVariables availableVars |> StrSet.isEmpty
+           in
+           let noVariablesAreRedefined =
+             freeVariables
+             |> StrSet.toList
+             |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
+           in
+           allRequiredVariablesAvailable && noVariablesAreRedefined )
+    |> List.last
+  in
+  let newVar = B.newF varname in
+  match lastPlaceWithSameVarsAndValues with
+  | Some p ->
+      let nbody =
+        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
+      in
+      let nlet = B.newF (Let (newVar, e, nbody)) in
+      (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
+  | None ->
+      (* something weird is happening because we couldn't find anywhere to *)
+      (* extract to, we can just wrap the entire AST in a Let *)
+      let newAST =
+        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
+      in
+      (B.newF (Let (newVar, e, newAST)), B.toID newVar)
+
+
 let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
     modification =
   let tlid = TL.id tl in
-  let extractVarInAst e ast =
-    let varname = "var" ^ string_of_int (Util.random ()) in
-    let freeVariables =
-      AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
-    in
-    let ancestors = AST.ancestors (B.toID e) ast in
-    let lastPlaceWithSameVarsAndValues =
-      ancestors
-      |> List.takeWhile ~f:(fun elem ->
-             let id = B.toID elem in
-             let availableVars =
-               Analysis.getCurrentAvailableVarnames m tl id |> StrSet.fromList
-             in
-             let allRequiredVariablesAvailable =
-               StrSet.diff freeVariables availableVars |> StrSet.isEmpty
-             in
-             let noVariablesAreRedefined =
-               freeVariables
-               |> StrSet.toList
-               |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
-             in
-             allRequiredVariablesAvailable && noVariablesAreRedefined )
-      |> List.last
-    in
-    let newVar = B.newF varname in
-    match lastPlaceWithSameVarsAndValues with
-    | Some p ->
-        let nbody =
-          AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
-        in
-        let nlet = B.newF (Let (newVar, e, nbody)) in
-        (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
-    | None ->
-        (* something weird is happening because we couldn't find anywhere to *)
-        (* extract to, we can just wrap the entire AST in a Let *)
-        let newAST =
-          AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
-        in
-        (B.newF (Let (newVar, e, newAST)), B.toID newVar)
-  in
+  let varname = "var" ^ string_of_int (Util.random ()) in
   match (p, tl) with
   | PExpr e, TLHandler h ->
-      let newAst, enterTarget = extractVarInAst e h.ast in
+      let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
       let newHandler = {h with ast = newAst} in
       Many
         [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
-      let newAst, enterTarget = extractVarInAst e f.ufAST in
+      let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
       let newF = {f with ufAST = newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)

@@ -211,4 +211,115 @@ let () =
                          ( urf.urfName |> Blank.toMaybe
                          , urf.urfTipe |> Blank.toMaybe ) ) )
           in
-          expect fields |> toEqual expectedFields ) )
+          expect fields |> toEqual expectedFields ) ) ;
+  describe "extractVarInAst" (fun () ->
+      let par
+          ?(paramDescription = "")
+          ?(args = [])
+          ?(paramOptional = false)
+          paramName
+          paramTipe : parameter =
+        { paramName
+        ; paramTipe
+        ; paramOptional
+        ; paramBlock_args = args
+        ; paramDescription }
+      in
+      let builtInFunctions =
+        [ { fnName = "Int::add"
+          ; fnParameters = [par "a" TInt; par "b" TInt]
+          ; fnDescription = ""
+          ; fnReturnTipe = TInt
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "Dict::map"
+          ; fnParameters =
+              [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
+          ; fnDescription = ""
+          ; fnReturnTipe = TObj
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "DB::set_v1"
+          ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
+          ; fnDescription = ""
+          ; fnReturnTipe = TObj
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false } ]
+      in
+      let modelAndTl (ast : expr) =
+        let hTLID = TLID "handler1" in
+        let tl =
+          { hTLID
+          ; ast
+          ; pos = {x = 0; y = 0}
+          ; spec =
+              { space = B.newF "HTTP"
+              ; name = B.newF "/src"
+              ; modifier = B.newF "POST" } }
+        in
+        let model =
+          { D.defaultModel with
+            builtInFunctions; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
+        in
+        (model, TLHandler tl)
+      in
+      let exprToString expr : string =
+        expr
+        |> Tuple2.first
+        |> Fluid.fromExpr Defaults.defaultFluidState
+        |> Fluid.eToString Defaults.defaultFluidState
+      in
+      test "with sole expression" (fun () ->
+          let expr = B.newF (Value "4") in
+          let ast = expr in
+          let m, tl = modelAndTl ast in
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual "let var = 4\nvar" ) ;
+      test "with expression inside let" (fun () ->
+          let expr =
+            B.newF
+              (FnCall
+                 ( B.newF "Int::add"
+                 , [B.newF (Variable "b"); B.newF (Value "4")]
+                 , NoRail ))
+          in
+          let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
+          let m, tl = modelAndTl ast in
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual "let b = 5\nlet var = Int::add b 4\nvar" ) ;
+      test "with expression inside thread inside let" (fun () ->
+          let expr =
+            FnCall
+              ( B.newF "DB::set_v1"
+              , [ B.newF
+                    (FieldAccess (B.newF (Variable "request"), B.newF "body"))
+                ; B.newF
+                    (FnCall
+                       (B.newF "toString", [B.newF (Variable "id")], NoRail))
+                ; B.new_ () ]
+              , NoRail )
+            |> B.newF
+          in
+          let threadedExpr =
+            B.newF
+              (FnCall
+                 ( B.newF "assoc"
+                 , [B.newF (Value "\"id\""); B.newF (Variable "id")]
+                 , NoRail ))
+          in
+          let exprInThread = Thread [expr; threadedExpr] |> B.newF in
+          let ast =
+            Let
+              ( B.newF "id"
+              , B.newF (FnCall (B.newF "Uuid::generate", [], NoRail))
+              , exprInThread )
+            |> B.newF
+          in
+          let m, tl = modelAndTl ast in
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual
+               "let id = Uuid::generate\nlet var = DB::set_v1 request.body toString id ___\nvar\n|>assoc \"id\" id"
+      ) )
