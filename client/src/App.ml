@@ -1576,17 +1576,8 @@ let update_ (msg : msg) (m : model) : modification =
               else StrSet.remove ~value:key m.routingTableOpenDetails ) } )
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
-  | CreateRouteHandler space ->
+  | CreateRouteHandler action ->
       let center = findCenter m in
-      let action =
-        match space with
-        | Some "HTTP" ->
-            NewHTTPHandler None
-        | Some spacename ->
-            NewEventSpace spacename
-        | None ->
-            NewHandler None
-      in
       Entry.submitOmniAction m center action
   | CreateDBTable ->
       let center = findCenter m
