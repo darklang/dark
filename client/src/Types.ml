@@ -269,8 +269,9 @@ and handlerSpec =
 and handlerSpace =
   | HSHTTP
   | HSCron
-  | HSOther
-  | HSEmpty
+  | HSWorker
+  | HSRepl
+  | HSDeprecatedOther
 
 and handler =
   { ast : expr
@@ -670,10 +671,11 @@ and command =
 
 and omniAction =
   | NewDB of dbName option
-  | NewHandler of string option
   | NewFunction of string option
   | NewHTTPHandler of string option
-  | NewEventSpace of string
+  | NewWorkerHandler of string option
+  | NewCronHandler of string option
+  | NewReplHandler of string option
   | Goto of page * tlid * string
 
 and autocompleteItem =
@@ -917,7 +919,7 @@ and msg =
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent
   | TriggerHandler of tlid
-  | CreateRouteHandler of string option
+  | CreateRouteHandler of omniAction
   | ToggleSideBar
   | CreateFunction
   | ExtractFunction
