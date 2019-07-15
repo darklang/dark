@@ -96,7 +96,10 @@ let handlerCategory
             ; minusButton = Some (ToplevelDelete tlid)
             ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
-            ; verb = None } ) }
+            ; verb =
+                ( if TL.isHTTPHandler (TLHandler h)
+                then B.toMaybe h.spec.modifier
+                else None ) } ) }
 
 
 let httpCategory (handlers : handler list) : category =
