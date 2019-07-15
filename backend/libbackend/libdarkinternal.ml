@@ -655,24 +655,6 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args )
     ; ps = false
     ; dep = false }
-  ; { pns = ["DarkInternal::canEditCanvas"]
-    ; ins = []
-    ; p = [par "host" TStr; par "username" TStr]
-    ; r = TBool
-    ; d = "Returns true if username can edit host"
-    ; f =
-        internal_fn (function
-            | _, [DStr host; DStr username] ->
-                let host = Unicode_string.to_string host in
-                let username = Unicode_string.to_string username in
-                Account.can_edit_canvas
-                  ~auth_domain:(Account.auth_domain_for host)
-                  ~username
-                |> DBool
-            | args ->
-                fail args )
-    ; ps = false
-    ; dep = false }
   ; { pns = ["DarkInternal::canvasIdOfCanvasName"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -716,6 +698,79 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     |> DObj
                     |> OptJust
                     |> DOption )
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::grant"]
+    ; ins = []
+    ; p = [par "username" TStr; par "org" TStr; par "permission" TStr]
+    ; r = TResult
+    ; d = "Set a user's permissions for a particular auth_domain."
+    ; f =
+        internal_fn (function
+            | _, [DStr username; DStr org; DStr permission] ->
+                let result_to_dval r =
+                  match r with
+                  | Ok x ->
+                      DResult (ResOk x)
+                  | Error x ->
+                      DResult (ResError (Dval.dstr_of_string_exn x))
+                in
+                let user_id =
+                  username
+                  |> Unicode_string.to_string
+                  |> Account.id_of_username
+                  |> Result.of_option ~error:"no such user?"
+                in
+                let org_id =
+                  org
+                  |> Unicode_string.to_string
+                  |> Account.id_of_username
+                  |> Result.of_option ~error:"no such org?"
+                in
+                let permission =
+                  match Unicode_string.to_string permission with
+                  | "rw" ->
+                      Ok (Some Authorization.ReadWrite)
+                  | "r" ->
+                      Ok (Some Authorization.Read)
+                  | "" ->
+                      Ok None
+                  | _ ->
+                      Error "can't decode permission string"
+                in
+                ( match (user_id, org_id, permission) with
+                | Ok user_id, Ok org_id, Ok permission ->
+                    Authorization.set_user_access user_id org_id permission ;
+                    Ok (Dval.dstr_of_string_exn "success!")
+                | Error e, _, _ | _, Error e, _ | _, _, Error e ->
+                    Error e )
+                |> result_to_dval
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::checkPermission"]
+    ; ins = []
+    ; p = [par "username" TStr; par "canvas" TStr]
+    ; r = TBool
+    ; d = "Check a user's permissions for a particular canvas."
+    ; f =
+        internal_fn (function
+            | _, [DStr username; DStr canvas] ->
+                let auth_domain =
+                  Account.auth_domain_for (Unicode_string.to_string canvas)
+                in
+                let username = Unicode_string.to_string username in
+                ( match Authorization.permission ~auth_domain ~username with
+                | Some ReadWrite ->
+                    "rw"
+                | Some Read ->
+                    "r"
+                | None ->
+                    "" )
+                |> Dval.dstr_of_string_exn
             | args ->
                 fail args )
     ; ps = false

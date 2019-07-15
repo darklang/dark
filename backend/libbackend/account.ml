@@ -152,10 +152,6 @@ let get_users () =
   |> List.map ~f:List.hd_exn
 
 
-(************************)
-(* Check access *)
-(************************)
-
 let is_admin ~username : bool =
   Db.exists
     ~subject:username
@@ -195,27 +191,6 @@ let valid_user ~(username : username) ~(password : string) : bool =
 
 
 let can_access_operations ~(username : username) : bool = is_admin ~username
-
-let special_cases =
-  [ ("pixelkeet", "laxels")
-  ; ("rootvc", "adam")
-  ; ("rootvc", "lee")
-  ; ("talkhiring", "harris")
-  ; ("talkhiring", "anson") ]
-
-
-let special_cased_can_edit_canvas
-    ~(auth_domain : string) ~(username : username) : bool =
-  Tablecloth.List.any special_cases ~f:(fun (dom, user) ->
-      String.Caseless.equal dom auth_domain
-      && String.Caseless.equal user username )
-
-
-let can_edit_canvas ~(auth_domain : string) ~(username : username) : bool =
-  String.Caseless.equal username auth_domain
-  || String.Caseless.equal "sample" auth_domain
-  || special_cased_can_edit_canvas auth_domain username
-  || is_admin username
 
 let authenticate ~(username : username) ~(password : string) : bool =
   valid_user ~username ~password
