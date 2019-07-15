@@ -176,24 +176,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                       RPC
                         ( [SetFunction {f with ufAST = replacement}]
                         , FocusExact (tlid, nextid) )
-                  | PParamTipe _ ->
-                      let replacement = Functions.extend f in
-                      let newCalls = Refactor.addNewFunctionParameter m f in
-                      RPC
-                        ( [SetFunction replacement] @ newCalls
-                        , FocusNext (tlid, Some id) )
-                  | PParamName _ ->
-                      let replacement = Functions.extend f in
-                      let newCalls = Refactor.addNewFunctionParameter m f in
-                      RPC
-                        ( [SetFunction replacement] @ newCalls
-                        , FocusNext (tlid, Some id) )
-                  | PFnName _ ->
-                      let replacement = Functions.extend f in
-                      let newCalls = Refactor.addNewFunctionParameter m f in
-                      RPC
-                        ( [SetFunction replacement] @ newCalls
-                        , FocusNext (tlid, Some id) )
+                  | PParamTipe _ | PParamName _ | PFnName _ ->
+                      Refactor.addFunctionParameter m f id
                   | _ ->
                       NoChange )
                 | None ->

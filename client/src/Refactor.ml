@@ -482,17 +482,6 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
   newHandlers @ newFunctions
 
 
-let addNewFunctionParameter (m : model) (old : userFunction) : op list =
-  let fn e =
-    match e with
-    | FnCall (name, params, r) ->
-        FnCall (name, params @ [B.new_ ()], r)
-    | _ ->
-        e
-  in
-  transformFnCalls m old fn
-
-
 let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
   let indexInList =
@@ -507,6 +496,25 @@ let removeFunctionParameter
         e
   in
   transformFnCalls m uf fn
+
+
+let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
+    modification =
+  let transformOp old =
+    let fn e =
+      match e with
+      | FnCall (name, params, r) ->
+          FnCall (name, params @ [B.new_ ()], r)
+      | _ ->
+          e
+    in
+    transformFnCalls m old fn
+  in
+  let replacement = Functions.extend f in
+  let newCalls = transformOp f in
+  RPC
+    ( SetFunction replacement :: newCalls
+    , FocusNext (f.ufTLID, Some currentBlankId) )
 
 
 let generateEmptyFunction (_ : unit) : userFunction =
