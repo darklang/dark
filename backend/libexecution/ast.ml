@@ -169,7 +169,7 @@ let rec exec
           | DBlock blk ->
               blk [param]
           | _ ->
-              Exception.internal "Should have got a block" )
+              DError "Internal type error: lambda did not produce a block" )
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
           let send_to_rail = should_send_to_rail fncall in
