@@ -516,7 +516,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
       (* If this is a constructor it will be ignored *)
       let partialName = ViewUtils.partialName name in
-      let ghostSuffix = String.dropLeft ~count:(String.length newName) partialName in
+      let ghostSuffix =
+        String.dropLeft ~count:(String.length newName) partialName
+      in
       let ghost =
         if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
       in
@@ -2142,7 +2144,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos - 2
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
-        let startPos = ti.endPos - (String.length partialName) in
+        let startPos = ti.endPos - String.length partialName in
         pos - startPos - 1
     | _ ->
         pos - ti.startPos - 1
@@ -2258,7 +2260,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
-        let startPos = ti.endPos - (String.length partialName) in
+        let startPos = ti.endPos - String.length partialName in
         pos - startPos
     | _ ->
         pos - ti.startPos
@@ -3062,7 +3064,8 @@ let viewPlayIcon
     (ast : ast)
     (ti : tokenInfo) : Types.msg Html.html =
   match ti.token with
-  | TFnVersion (id, _, displayName, fnName) | TFnName (id, _, displayName, fnName, _) ->
+  | TFnVersion (id, _, displayName, fnName)
+  | TFnName (id, _, displayName, fnName, _) ->
       let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
@@ -3092,13 +3095,13 @@ let viewPlayIcon
       let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
       let buttonUnavailable = not paramsComplete in
       (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton = match ti.token with 
+      let showButton =
+        match ti.token with
         | TFnVersion _ ->
             not fn.fnPreviewExecutionSafe
-        | TFnName _ 
-        | _ ->
+        | TFnName _ | _ ->
             (* displayName and fnName will be equal if there is no version *)
-            if displayName == fnName then not fn.fnPreviewExecutionSafe else false 
+            displayName == fnName && not fn.fnPreviewExecutionSafe
       in
       let buttonNeeded = not (isComplete id) in
       let exeIcon = "play" in
