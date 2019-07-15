@@ -384,8 +384,9 @@ let sample_dvals =
   ; ("true", DBool true)
   ; ("false", DBool false)
   ; ("null", DNull)
+  ; ("datastore", DDB "Visitors")
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
-  ; ("list", DList [DDB "Visitors"; Dval.dint 4])
+  ; ("list", DList [Dval.dint 4])
   ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj
