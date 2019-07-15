@@ -116,8 +116,8 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
     RPC (TL.toOp newtl, FocusSame)
 
 
-let extractVarInAst (m : model) (tl : toplevel) (e : expr) (ast : expr) =
-  let varname = "var" ^ string_of_int (Util.random ()) in
+let extractVarInAst
+    (m : model) (tl : toplevel) (e : expr) (ast : expr) (varname : string) =
   let freeVariables =
     AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
   in
@@ -160,15 +160,16 @@ let extractVarInAst (m : model) (tl : toplevel) (e : expr) (ast : expr) =
 let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
     modification =
   let tlid = TL.id tl in
+  let varname = "var" ^ string_of_int (Util.random ()) in
   match (p, tl) with
   | PExpr e, TLHandler h ->
-      let newAst, enterTarget = extractVarInAst m tl e h.ast in
+      let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
       let newHandler = {h with ast = newAst} in
       Many
         [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
-      let newAst, enterTarget = extractVarInAst m tl e f.ufAST in
+      let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
       let newF = {f with ufAST = newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)

@@ -264,32 +264,24 @@ let () =
           { D.defaultModel with
             builtInFunctions; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
         in
-        (model, tl)
+        (model, TLHandler tl)
+      in
+      let wrapInLet (name : string) (rhs : expr) (expr : expr) =
+        Let (B.newF name, rhs, expr) |> B.newF
+      in
+      let exprToString expr : string =
+        expr
+        |> Tuple2.first
+        |> Fluid.fromExpr Defaults.defaultFluidState
+        |> Fluid.eToString Defaults.defaultFluidState
       in
       test "with sole expression" (fun () ->
           let expr = B.newF (Value "4") in
           let ast = expr in
           let m, tl = modelAndTl ast in
-          expect
-            ( match R.extractVarInAst m (TLHandler tl) expr ast with
-            | ( F
-                  ( _
-                  , Let
-                      ( F (_, extractedBinding)
-                      , extractedExpr
-                      , F (_, Variable var) ) )
-              , _ )
-              when extractedBinding = var && expr = extractedExpr ->
-                true
-            | _, _ ->
-                false )
-          |> toBe true ) ;
-      let wrapInLet (name : string) (rhs : expr) (expr : expr) =
-        Let (B.newF name, rhs, expr) |> B.newF
-      in
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual "let var = 4\nvar" ) ;
       test "with expression inside let" (fun () ->
-          let outerBinding = "b" in
-          let outerExpr = Variable "5" |> B.newF in
           let expr =
             B.newF
               (FnCall
@@ -297,30 +289,10 @@ let () =
                  , [B.newF (Variable "b"); B.newF (Value "4")]
                  , NoRail ))
           in
-          let ast = expr |> wrapInLet outerBinding outerExpr in
+          let ast = expr |> wrapInLet "b" (B.newF (Value "5")) in
           let m, tl = modelAndTl ast in
-          expect
-            ( match R.extractVarInAst m (TLHandler tl) expr ast with
-            | ( F
-                  ( _
-                  , Let
-                      ( F (_, outerBinding')
-                      , outerExpr'
-                      , F
-                          ( _
-                          , Let
-                              ( F (_, extractedBinding)
-                              , extractedExpr
-                              , F (_, Variable extractedBinding') ) ) ) )
-              , _ )
-              when outerExpr' = outerExpr
-                   && outerBinding' = outerBinding
-                   && extractedExpr = expr
-                   && extractedBinding = extractedBinding' ->
-                true
-            | _, _ ->
-                false )
-          |> toBe true ) ;
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual "let b = 5\nlet var = Int::add b 4\nvar" ) ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
             FnCall
@@ -338,38 +310,18 @@ let () =
             B.newF
               (FnCall
                  ( B.newF "assoc"
-                 , [B.newF (Value "id"); B.newF (Variable "id")]
+                 , [B.newF (Value "\"id\""); B.newF (Variable "id")]
                  , NoRail ))
           in
           let exprInThread = Thread [expr; threadedExpr] |> B.newF in
-          let outerExpr =
-            FnCall (B.newF "Uuid::generate", [], NoRail) |> B.newF
+          let ast =
+            exprInThread
+            |> wrapInLet
+                 "id"
+                 (B.newF (FnCall (B.newF "Uuid::generate", [], NoRail)))
           in
-          let ast = exprInThread |> wrapInLet "id" outerExpr in
           let m, tl = modelAndTl ast in
-          expect
-            ( match R.extractVarInAst m (TLHandler tl) expr ast with
-            | ( F
-                  ( _
-                  , Let
-                      ( _
-                      , outerExpr'
-                      , F
-                          ( _
-                          , Let
-                              ( F (_, extractedBinding)
-                              , extractedExpr
-                              , F
-                                  ( _
-                                  , Thread
-                                      [ F (_, Variable extractedBinding')
-                                      ; threadedExpr' ] ) ) ) ) )
-              , _ )
-              when outerExpr' = outerExpr
-                   && extractedExpr = expr
-                   && threadedExpr = threadedExpr'
-                   && extractedBinding = extractedBinding' ->
-                true
-            | _, _ ->
-                false )
-          |> toBe true ) )
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          |> toEqual
+               "let id = Uuid::generate\nlet var = DB::set_v1 request.body toString id ___\nvar\n|>assoc \"id\" id"
+      ) )
