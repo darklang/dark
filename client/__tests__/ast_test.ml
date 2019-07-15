@@ -9,6 +9,29 @@ type ('a, 'b) transformation_test_result =
   | Pass
   | Fail of 'a * 'b
 
+let completion =
+  let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
+      Types.parameter =
+    { paramName = name
+    ; paramTipe = t
+    ; paramBlock_args = blockArgs
+    ; paramOptional = opt
+    ; paramDescription = "" }
+  in
+  { Defaults.defaultModel.complete with
+    functions =
+      [ { fnName = "Dict::map"
+        ; fnParameters =
+            [ fnParam "dict" TObj false
+            ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
+        ; fnReturnTipe = TObj
+        ; fnDescription =
+            "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
+        ; fnPreviewExecutionSafe = true
+        ; fnDeprecated = false
+        ; fnInfix = false } ] }
+
+
 let () =
   describe "ast" (fun () ->
       let id1 = ID "5" in
@@ -128,5 +151,22 @@ let () =
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
              usesRail expr)
           |> toEqual false ) ;
+      test "parseAst completes lambda in blank Ast" (fun () ->
+          expect
+            (let initAst = B.new_ () in
+             let finalAst =
+               Entry.parseAst initAst completion (ACKeyword KLambda) "lambda"
+             in
+             match finalAst with
+             | Some (F (_, Lambda ([F (_, "var")], Blank _))) ->
+                 Pass
+             | _ ->
+                 Fail (initAst, finalAst))
+          |> toEqual Pass ) ;
+      test
+        "parseAst completes lambda in function argument inside thread"
+        (fun () ->
+          (* This doesn't really work in non-fluid because so, instead the operation just returns a lambda with a single default "var" binding*)
+          expect Pass |> toEqual Pass ) ;
       () ) ;
   ()
