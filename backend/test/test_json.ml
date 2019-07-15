@@ -75,6 +75,40 @@ let t_dval_user_db_json_roundtrips () =
   List.iter dvals ~f:(fun (name, dv) -> check name dv)
 
 
+let t_dval_user_db_v1_migration () =
+  let forward v =
+    (* Saved with old version, can be read with new version *)
+    v |> Dval.to_internal_queryable_v0 |> Dval.of_internal_queryable_v1
+  in
+  let backwards v =
+    (* Saved with new version, can be read with old version *)
+    v |> Dval.to_internal_queryable_v1 |> Dval.of_internal_queryable_v0
+  in
+  let check name (v : dval) =
+    check_dval ("forward: " ^ name) v (forward v) ;
+    check_dval ("backwards: " ^ name) v (backwards v) ;
+    ()
+  in
+  let fields =
+    sample_dvals
+    (* These are the field types allowed in the DB *)
+    |> List.filter ~f:(fun (_, dv) ->
+           Prelude.List.member
+             (Dval.tipe_of dv)
+             [ TInt
+             ; TFloat
+             ; TBool
+             ; TNull
+             ; TStr
+             ; TList
+             ; TDate
+             ; TPassword
+             ; TUuid
+             ; TObj ] )
+  in
+  check "regular old object" (Dval.to_dobj_exn fields)
+
+
 let t_result_to_response_works () =
   let req =
     Req.make
@@ -297,6 +331,9 @@ let suite =
     , `Quick
     , t_internal_roundtrippable_doesnt_care_about_order )
   ; ("Dvals roundtrip to yojson correctly", `Quick, t_dval_yojson_roundtrips)
+  ; ( "UserDB values migrate from v0 to v1 safely"
+    , `Quick
+    , t_dval_user_db_v1_migration )
   ; ( "UserDB values roundtrip to yojson correctly"
     , `Quick
     , t_dval_user_db_json_roundtrips )
