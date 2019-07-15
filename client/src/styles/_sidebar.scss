@@ -97,7 +97,6 @@ $prodColor: black;
         margin: 10px 0px;
         width: 80%;
         height: 100%;
-        .count,
         .environment {
           height: max-content;
           display: flex;
@@ -105,26 +104,10 @@ $prodColor: black;
           position: absolute;
           z-index: 2;
           margin-top: -10px;
-          .count-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: $countBoxSize;
-            min-width: $countBoxSize;
-            background: $green;
-            border-radius: 2px;
-            color: $white1;
-            p {
-              font-size: 10px;
-              margin: 0px;
-            }
-          }
-          &.environment {
-            background: #fff;
-            font-size: 8px;
-            border-radius: 2px;
-            padding: 0px 2px;
-          }
+          background: #fff;
+          font-size: 8px;
+          border-radius: 2px;
+          padding: 0px 2px;
         }
 
         .button-link {

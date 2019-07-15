@@ -548,16 +548,6 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     | None ->
         []
   in
-  let count =
-    if c.count = 0
-    then []
-    else
-      [ Html.div
-          [Html.class' "count"]
-          [ Html.div
-              [Html.class' "count-box"]
-              [Html.p [] [Html.text (c.count |> string_of_int)]] ] ]
-  in
   let routes = List.map ~f:(item2html m) c.entries in
   let hoverView =
     if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
@@ -569,23 +559,12 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   in
   Html.div
     [Html.class' "collapsed"]
-    ( [Html.div [Html.class' "collapsed-icon"] (count @ (icon :: plusButton))]
-    @ hoverView )
+    ([Html.div [Html.class' "collapsed-icon"] (icon :: plusButton)] @ hoverView)
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
   let entries = m.staticDeploys in
   let count = List.length entries in
-  let countView =
-    if count = 0
-    then []
-    else
-      [ Html.div
-          [Html.class' "count"]
-          [ Html.div
-              [Html.class' "count-box"]
-              [Html.p [] [Html.text (count |> string_of_int)]] ] ]
-  in
   let hoverView =
     if count > 0
     then
@@ -600,7 +579,7 @@ let closedDeployStats2html (m : model) : msg Html.html =
   in
   Html.div
     [Html.class' "collapsed"]
-    ([Html.div [Html.class' "collapsed-icon"] (countView @ [icon])] @ hoverView)
+    ([Html.div [Html.class' "collapsed-icon"] [icon]] @ hoverView)
 
 
 let toggleSidebar (m : model) : msg Html.html =
