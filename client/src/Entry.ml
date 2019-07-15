@@ -94,13 +94,15 @@ let createFunction (fn : function_) : expr =
         , r ) )
 
 
-let newHandler m space name pos =
-  let next = gid () in
+let newHandler m space name modifier pos =
   let tlid = gtlid () in
+  let spaceid = gid () in
   let handler =
     { ast = B.new_ ()
     ; spec =
-        {name = B.ofOption name; space = B.newF space; modifier = Blank next}
+        { space = F (spaceid, space)
+        ; name = B.ofOption name
+        ; modifier = B.ofOption modifier }
     ; hTLID = tlid
     ; pos }
   in
@@ -114,13 +116,14 @@ let newHandler m space name pos =
     else []
   in
   Many
-    ( RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+    ( RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
     :: fluidMods )
 
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
+  let unused = Some "_" in
   match action with
   | NewDB maybeName ->
       let name =
@@ -142,18 +145,18 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
         [ RPC ([SetFunction newfn], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
   | NewHTTPHandler route ->
-      newHandler m "HTTP" route pos
+      newHandler m "HTTP" route None pos
   | NewWorkerHandler name ->
-      newHandler m "WORKER" name pos
+      newHandler m "WORKER" name unused pos
   | NewCronHandler name ->
-      newHandler m "CRON" name pos
+      newHandler m "CRON" name None pos
   | NewReplHandler name ->
       let generateREPLName (_ : unit) : string =
         "REPL_" ^ (() |> Util.random |> string_of_int)
       in
       (* When creating a repl, dont ask the user for a name *)
       let name = Option.withDefault name ~default:(generateREPLName ()) in
-      newHandler m "REPL" (Some name) pos
+      newHandler m "REPL" (Some name) unused pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 
