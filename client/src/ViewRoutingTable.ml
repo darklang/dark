@@ -47,7 +47,7 @@ let htmlObject (src : string) =
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  match name with
+  match String.toLower name with
   | "http" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
   | "dbs" ->
@@ -62,12 +62,14 @@ let categoryIcon (name : string) : msg Html.html list =
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
   | "cron" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
-  | "Undefined" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+  | "repl" ->
+      [fontAwesome "terminal"]
+  | "worker" ->
+      [fontAwesome "wrench"]
   | "fof" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
   | _ ->
-      [ViewUtils.fontAwesome "archive"]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
 
 
 let handlerCategory
