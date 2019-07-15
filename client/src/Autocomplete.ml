@@ -537,10 +537,8 @@ let toDynamicItems
       Option.values [qLiteral q]
   | Some (_, PField _) ->
       [ACField q]
-  | Some (_, PEventSpace _) ->
-      if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
-      let isHttpHandler = space == Some HSHTTP in
+      let isHttpHandler = space = Some HSHTTP in
       if isHttpHandler
       then [ACEventName (cleanHTTPname q)]
       else [ACEventName (cleanEventName q)]
@@ -1006,10 +1004,15 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some "This handler will respond to HTTP requests"
   | ACEventSpace "CRON" ->
       Some "This handler will periodically trigger"
-  | ACEventSpace name ->
-      Some ("This handler will respond when events are emitted to " ^ name)
+  | ACEventSpace "WORKER" ->
+      Some "This handler will run emited events in the background"
+  | ACEventSpace "REPL" ->
+      Some "This handler will run emited events in the background"
+  | ACEventSpace _ ->
+      Some
+        "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
   | ACEventName name ->
-      Some ("Respond to events or HTTP requests named " ^ name)
+      Some ("Respond to events/HTTP requests named " ^ name)
   | ACDBName name ->
       Some ("Set the DB's name to " ^ name)
   | ACDBColType tipe ->
