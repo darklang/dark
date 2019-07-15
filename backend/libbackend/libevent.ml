@@ -22,4 +22,21 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["emit_v1"]
+    ; ins = []
+    ; p = [par "event" TAny; par "Name" TStr]
+    ; r = TAny
+    ; d = "Emit a `event` to the `name` worker"
+    ; f =
+        InProcess
+          (function
+          | {canvas_id; account_id}, [data; DStr name] ->
+              (* See client/src/Entry.ml for the "_" *)
+              let name = Unicode_string.to_string name in
+              Event_queue.enqueue ~canvas_id ~account_id "WORKER" name "_" data ;
+              data
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
