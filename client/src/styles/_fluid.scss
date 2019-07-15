@@ -141,7 +141,7 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-fn-version {
-    opacity: 0.5;
+    color: lighten($grey2, 2%) !important;
     vertical-align: bottom;
   }
 
