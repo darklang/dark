@@ -2388,6 +2388,32 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
+  let lambdaArgs ti =
+    let placeholderName =
+      match ti.token with
+      | TPlaceholder ((name, _), _) ->
+          Some name
+      | _ ->
+          None
+    in
+    let fnname =
+      let id = FluidToken.tid ti.token in
+      match findParent id ast with
+      | Some (EFnCall (_, name, _, _)) ->
+          Some name
+      | _ ->
+          None
+    in
+    s.ac.functions
+    |> List.find ~f:(fun f -> Some f.fnName = fnname)
+    |> Option.andThen ~f:(fun fn ->
+           List.find
+             ~f:(fun {paramName; _} -> Some paramName = placeholderName)
+             fn.fnParameters )
+    |> Option.map ~f:(fun p -> p.paramBlock_args)
+    |> Option.withDefault ~default:[""]
+    |> List.map ~f:(fun str -> (gid (), str))
+  in
   let newExpr =
     if letter = '"'
     then EString (newID, "")
@@ -2396,7 +2422,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = '{'
     then ERecord (newID, [])
     else if letter = '\\'
-    then ELambda (newID, [(gid (), "")], EBlank (gid ()))
+    then ELambda (newID, lambdaArgs ti, EBlank (gid ()))
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr

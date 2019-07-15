@@ -183,7 +183,11 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let parseAst (item : autocompleteItem) (str : string) : expr option =
+let parseAst
+    (ast : expr)
+    (complete : autocomplete)
+    (item : autocompleteItem)
+    (str : string) : expr option =
   let eid = gid () in
   let b1 = B.new_ () in
   let b2 = B.new_ () in
@@ -202,7 +206,40 @@ let parseAst (item : autocompleteItem) (str : string) : expr option =
   | ACKeyword KLet ->
       Some (F (eid, Let (b1, b2, b3)))
   | ACKeyword KLambda ->
-      Some (F (eid, Lambda ([B.newF "var"], b2)))
+    ( match (complete.target, ast) with
+    | _, Blank _ | None, _ ->
+        Some (F (eid, Lambda ([B.newF "var"], b2)))
+    | Some (_, pd), _ ->
+        let parent = ast |> AST.findParentOfWithin (P.toID pd) in
+        (* Function name and param index *)
+        let fnname, index =
+          match parent with
+          | F (_, FnCall (name, exprs, _)) ->
+              let paramIndex =
+                List.findIndex ~f:(fun e -> B.toID e = P.toID pd) exprs
+                |> Option.withDefault ~default:(-1)
+              in
+              (B.toMaybe name, paramIndex)
+          | _ ->
+              (None, -1)
+        in
+        let lambdaArgs =
+          complete.functions
+          |> List.find ~f:(fun f -> Some f.fnName = fnname)
+          |> Option.andThen ~f:(fun fn ->
+                 Js.log2 "fnParams" fn.fnParameters ;
+                 let x = List.getAt ~index fn.fnParameters in
+                 Js.log2 "p" x ;
+                 x )
+          |> (function
+               | None | Some {paramBlock_args = []} ->
+                   (* add default value if empty or not found*)
+                   ["var"]
+               | Some {paramBlock_args} ->
+                   paramBlock_args)
+          |> List.map ~f:(fun str -> B.newF str)
+        in
+        Some (F (eid, Lambda (lambdaArgs, b2))) )
   | ACKeyword KMatch ->
       Some (F (eid, Match (b1, [(b2, b3)])))
   | ACLiteral str ->
@@ -260,7 +297,10 @@ let replaceExpr
           (FieldAccess
              (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
       )
-    else (old_, parseAst item value |> Option.withDefault ~default:old_)
+    else
+      ( old_
+      , parseAst ast m.complete item value |> Option.withDefault ~default:old_
+      )
   in
   let newAst =
     match move with
