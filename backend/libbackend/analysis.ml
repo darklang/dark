@@ -113,9 +113,11 @@ let saved_input_vars
             []
       in
       with_r @ bound
-  | `Event ->
+  | `Worker ->
       [("event", event)]
   | `Cron ->
+      []
+  | `Repl ->
       []
   | `Unknown ->
       []
