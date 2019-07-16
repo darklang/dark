@@ -36,9 +36,7 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
             h.spec.name |> B.toMaybe |> Option.withDefault ~default:"_"
           in
           let name = keyForHandlerSpec space name in
-          if name <> ""
-          then StrDict.insert ~key:name ~value:h.hTLID res
-          else res
+          StrDict.insert ~key:name ~value:h.hTLID res
       | _ ->
           res )
     ~init:StrDict.empty
