@@ -253,15 +253,19 @@ let unwrap_from_errorrail (dv : dval) =
 
 let exception_to_dval exc = DError (Exception.to_string exc)
 
+(* A dval is a `fake marker` if it is a {DErrorRail, DIncomplete, DError}.
+ * These types of values are stand-ins/markers for some static property about the
+ * code. They should be propagated through the programs execution whenever they are
+ * found.*)
+let is_fake_marker_dval (dv : dval) =
+  match dv with DErrorRail _ | DIncomplete | DError _ -> true | _ -> false
+
+
 (* Anytime we create a dlist with the except of list literals,
- we need to make sure that there are no incomplete or error rail
- values within the list *)
-let is_fake_cf (dv : dval) =
-  match dv with DErrorRail _ | DIncomplete -> true | _ -> false
-
-
+ * we need to make sure that there are no incomplete, error rail
+ * values within the list *)
 let to_list (l : dval list) : dval =
-  let found = List.find l ~f:is_fake_cf in
+  let found = List.find l ~f:is_fake_marker_dval in
   match found with Some v -> v | None -> DList l
 
 
