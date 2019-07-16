@@ -124,6 +124,33 @@ fixture`Integration Tests`
 //********************************
 // Utilities
 //********************************
+async function createHTTPHandler(t) {
+  await t
+    .pressKey("enter")
+    .pressKey("down")
+    .pressKey("enter");
+}
+
+async function createWorkerHandler(t) {
+  await t
+    .pressKey("enter")
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("enter");
+}
+
+async function createRepl(t) {
+  await t.pressKey("enter").pressKey("enter");
+}
+
+async function gotoAST(t) {
+  await t
+    .doubleClick(".ast .blankOr")
+    .expect(entryBoxAvailable())
+    .ok();
+}
 
 function user_content_url(t, endpoint) {
   return (
@@ -170,9 +197,9 @@ test("enter_changes_state", async t => {
 });
 
 test("field_access", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "req")
     .expect(acHighlightedText("requestvariable"))
     .ok()
@@ -185,9 +212,9 @@ test("field_access", async t => {
 });
 
 test("field_access_closes", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "req")
     .expect(acHighlightedText("requestvariable"))
     .ok()
@@ -202,11 +229,9 @@ test("field_access_closes", async t => {
 
 // This has a race condition somewhere
 test("field_access_pipes", async t => {
-  const astAvailable = Selector(".ast").exists;
+  await createHTTPHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
-
     .typeText("#entry-box", "req")
     .expect(acHighlightedText())
     .eql("requestvariable")
@@ -219,9 +244,9 @@ test("field_access_pipes", async t => {
 });
 
 test("field_access_nested", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
 
     .typeText("#entry-box", "req")
     .expect(acHighlightedText())
@@ -239,9 +264,8 @@ test("field_access_nested", async t => {
 });
 
 test("pipeline_let_equals", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
     .typeText("#entry-box", "=value")
@@ -249,9 +273,8 @@ test("pipeline_let_equals", async t => {
 });
 
 test("pipe_within_let", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
     .typeText("#entry-box", "=value")
@@ -264,10 +287,9 @@ test("pipe_within_let", async t => {
 });
 
 test("tabbing_works", async t => {
+  await createRepl(t);
   // Fill in "then" box in if stmt
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "if")
     .pressKey("enter")
     .pressKey("esc")
@@ -275,21 +297,6 @@ test("tabbing_works", async t => {
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter");
-});
-
-test("left_right_works", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("tab")
-    .pressKey("right")
-    .pressKey("right")
-    .pressKey("right")
-    .pressKey("right") // stop on final elem
-    .pressKey("right")
-    .pressKey("left")
-    .pressKey("left");
 });
 
 test("varbinds_are_editable", async t => {
@@ -304,9 +311,9 @@ test("editing_does_not_deselect", async t => {
 });
 
 test("editing_request_edits_request", async t => {
+  await createHTTPHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "req")
     .expect(acHighlightedText("requestvariable"))
     .ok()
@@ -318,9 +325,8 @@ test("editing_request_edits_request", async t => {
 });
 
 test("autocomplete_highlights_on_partial_match", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "nt::add")
     .expect(acHighlightedText("Int::add"))
     .ok()
@@ -328,14 +334,9 @@ test("autocomplete_highlights_on_partial_match", async t => {
 });
 
 test("no_request_global_in_non_http_space", async t => {
+  await createWorkerHandler(t);
+  await gotoAST(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .click(".space")
-    .pressKey("enter")
-    .typeText("#entry-box", "NOT_HTTP_SPACE")
-    .pressKey("enter")
-    .pressKey("tab") // move to ast
     .typeText("#entry-box", "request")
     .expect(acHighlightedText("Http::badRequest"))
     .ok()
@@ -343,9 +344,8 @@ test("no_request_global_in_non_http_space", async t => {
 });
 
 test("hover_values_for_varnames", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
     .typeText("#entry-box", "myvar")
@@ -355,9 +355,8 @@ test("hover_values_for_varnames", async t => {
 });
 
 test("pressing_up_doesnt_return_to_start", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "Int::")
     .expect(acHighlightedText("Int::add"))
     .ok()
@@ -370,9 +369,8 @@ test("pressing_up_doesnt_return_to_start", async t => {
 });
 
 test("deleting_selects_the_blank", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
     .click(".ast .value")
@@ -382,26 +380,16 @@ test("deleting_selects_the_blank", async t => {
 });
 
 test("right_number_of_blanks", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "assoc")
-    .pressKey("enter");
+  await createRepl(t);
+  await t.typeText("#entry-box", "assoc").pressKey("enter");
 });
 
 // This is how Ellen demos, and should be kept in sync with that if she
 // changes.
 test("ellen_hello_world_demo", async t => {
+  await createHTTPHandler(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
-
     // route
-    .pressKey("tab")
-    .typeText("#entry-box", "H")
-    .pressKey("enter")
-
-    // space
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
@@ -415,23 +403,12 @@ test("ellen_hello_world_demo", async t => {
 });
 
 test("editing_headers", async t => {
+  await createHTTPHandler(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
-
     // add headers
-    .click(".spec-header > .name")
-    .pressKey("enter")
     .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
-    .click(".spec-header > .space")
-    .pressKey("enter")
-    .typeText("#entry-box", "HTTP")
-    .pressKey("enter")
-
-    .click(".spec-header > .modifier")
-    .pressKey("enter")
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST"))
     .ok()
@@ -456,21 +433,9 @@ test("editing_headers", async t => {
 });
 
 test("tabbing_through_let", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "let")
-    .pressKey("enter")
-
-    // fill in the headers first
-    .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab")
-    .typeText("#entry-box", "HTTP")
-    .pressKey("enter")
-    .typeText("#entry-box", "/route")
-    .pressKey("enter")
-    .typeText("#entry-box", "GET")
     .pressKey("enter")
 
     // round trip through the let blanks once
@@ -495,36 +460,22 @@ test("tabbing_through_let", async t => {
 });
 
 test("focus_on_ast_in_new_empty_tl", async t => {
-  await t.pressKey("enter").pressKey("enter");
-});
-
-test("focus_on_path_in_new_filled_tl", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
+  await createRepl(t);
 });
 
 test("focus_on_cond_in_new_tl_with_if", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "if")
-    .pressKey("enter");
+  await createRepl(t);
+  await t.typeText("#entry-box", "if").pressKey("enter");
 });
 
 test("dont_shift_focus_after_filling_last_blank", async t => {
+  await createHTTPHandler(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
-    .typeText("#entry-box", "HTTP")
-    .pressKey("enter")
     .typeText("#entry-box", "/")
     .pressKey("enter")
     .typeText("#entry-box", "GET")
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
     .pressKey("enter");
 });
 
@@ -726,9 +677,8 @@ test("feature_flag_in_function", async t => {
 });
 */
 test("simple_tab_ordering", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
     .pressKey("tab")
@@ -746,11 +696,8 @@ test("variable_extraction", async t => {
 
 // Entering text with invalid syntax leaves things the same
 test("invalid_syntax", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "in:valid")
-    .pressKey("enter");
+  await createRepl(t);
+  await t.typeText("#entry-box", "in:valid").pressKey("enter");
 });
 
 // When you edit, stay in the same place after pressing Enter
@@ -781,9 +728,8 @@ test("editing_starts_a_thread_with_shift_enter", async t => {
 });
 
 test("object_literals_work", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "{")
     .pressKey("enter")
     .typeText("#entry-box", "k1")
@@ -800,9 +746,7 @@ test("object_literals_work", async t => {
     .typeText("#entry-box", "k4") // Check that this opens a new row
     .pressKey("tab") // Skip the new stuff
     .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab"); // End on the event name
+    .pressKey("tab");
 });
 
 test("rename_function", async t => {
@@ -837,9 +781,8 @@ test("rename_pattern_variable", async t => {
 });
 
 test("taking_off_rail_works", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "List::head_v1")
     .pressKey("enter")
     .pressKey("esc")
@@ -848,9 +791,8 @@ test("taking_off_rail_works", async t => {
 });
 
 test("execute_function_works", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "Uuid::gen")
     .pressKey("enter")
     .click(Selector(".execution-button-needed"))
@@ -869,9 +811,8 @@ test("execute_function_works", async t => {
 });
 
 test("function_version_renders", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "DB::del")
     .expect(
       Selector(".autocomplete-item.highlighted .versioned-function").withText(
@@ -882,16 +823,15 @@ test("function_version_renders", async t => {
 });
 
 test("only_backspace_out_of_strings_on_last_char", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", '"t')
     .pressKey("backspace")
     .pressKey("tab") // moved selection to a different blank
     // test that it's an empty string. Note this needs to not be selected or
     // the livevalue will be in textcontent occasionally, breaking the test.
     .expect(Selector(".ast .tstr").textContent)
-    .eql("")
+    .eql('""')
     .click(Selector(".ast .tstr"))
     .pressKey("enter")
     .pressKey("backspace");
@@ -903,11 +843,8 @@ test("delete_db_col", async t => {
 });
 
 test("result_ok_roundtrips", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "Ok")
-    .pressKey("enter");
+  await createRepl(t);
+  await t.typeText("#entry-box", "Ok").pressKey("enter");
 });
 
 test("cant_delete_locked_col", async t => {
@@ -1014,9 +951,8 @@ test("fn_page_to_handler_pos", async t => {
 });
 
 test("autocomplete_visible_height", async t => {
+  await createRepl(t);
   await t
-    .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "r")
     .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
     .ok();

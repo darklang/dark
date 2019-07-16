@@ -78,10 +78,6 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
       Tea.Cmd.none
 
 
-let newHandlerSpec (_ : unit) : handlerSpec =
-  {space = B.new_ (); name = B.new_ (); modifier = B.new_ ()}
-
-
 let createFunction (fn : function_) : expr =
   let blanks count = List.initialize count (fun _ -> B.new_ ()) in
   let r =
@@ -98,33 +94,42 @@ let createFunction (fn : function_) : expr =
         , r ) )
 
 
+let newHandler m space name modifier pos =
+  let tlid = gtlid () in
+  let spaceid = gid () in
+  let handler =
+    { ast = B.new_ ()
+    ; spec =
+        { space = F (spaceid, space)
+        ; name = B.ofOption name
+        ; modifier = B.ofOption modifier }
+    ; hTLID = tlid
+    ; pos }
+  in
+  let fluidMods =
+    if VariantTesting.isFluid m.tests
+    then
+      let s = m.fluidState in
+      let newS = {s with newPos = 0} in
+      [ TweakModel (fun m -> {m with fluidState = newS})
+      ; SetCursorState (FluidEntering tlid) ]
+    else []
+  in
+  Many
+    ( RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
+    :: fluidMods )
+
+
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
+  let unused = Some "_" in
   match action with
   | NewDB maybeName ->
       let name =
         match maybeName with Some n -> n | None -> DB.generateDBName ()
       in
       DB.createDB name pos
-  | NewHandler name ->
-      let next = gid () in
-      let tlid = gtlid () in
-      let spec = newHandlerSpec () in
-      let spec = {spec with name = B.ofOption name} in
-      let handler = {ast = Blank next; spec; hTLID = tlid; pos} in
-      let fluidMods =
-        if VariantTesting.isFluid m.tests
-        then
-          let s = m.fluidState in
-          let newS = {s with newPos = 0} in
-          [ TweakModel (fun m -> {m with fluidState = newS})
-          ; SetCursorState (FluidEntering tlid) ]
-        else []
-      in
-      Many
-        ( RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
-        :: fluidMods )
   | NewFunction name ->
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
@@ -140,40 +145,18 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
         [ RPC ([SetFunction newfn], FocusNothing)
         ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
   | NewHTTPHandler route ->
-      let next = gid () in
-      let tlid = gtlid () in
-      let handler =
-        { ast = B.new_ ()
-        ; spec =
-            { name = B.ofOption route
-            ; space = B.newF "HTTP"
-            ; modifier = Blank next }
-        ; hTLID = tlid
-        ; pos }
+      newHandler m "HTTP" route None pos
+  | NewWorkerHandler name ->
+      newHandler m "WORKER" name unused pos
+  | NewCronHandler name ->
+      newHandler m "CRON" name None pos
+  | NewReplHandler name ->
+      let generateREPLName (_ : unit) : string =
+        "REPL_" ^ (() |> Util.random |> string_of_int)
       in
-      let fluidMods =
-        if VariantTesting.isFluid m.tests
-        then
-          let s = m.fluidState in
-          let newS = {s with newPos = 0} in
-          [ TweakModel (fun m -> {m with fluidState = newS})
-          ; SetCursorState (FluidEntering tlid) ]
-        else []
-      in
-      Many
-        ( RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
-        :: fluidMods )
-  | NewEventSpace name ->
-      let next = gid () in
-      let tlid = gtlid () in
-      let spec = newHandlerSpec () in
-      let handler =
-        { ast = B.new_ ()
-        ; spec = {spec with space = B.newF name; name = Blank next}
-        ; hTLID = tlid
-        ; pos }
-      in
-      RPC ([SetHandler (tlid, pos, handler)], FocusExact (tlid, next))
+      (* When creating a repl, dont ask the user for a name *)
+      let name = Option.withDefault name ~default:(generateREPLName ()) in
+      newHandler m "REPL" (Some name) unused pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 
@@ -692,7 +675,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
         submitOmniAction m pos act
     (* If empty, create an empty handler *)
     | None when m.complete.value = "" ->
-        submitOmniAction m pos (NewHandler None)
+        submitOmniAction m pos (NewReplHandler None)
     | _ ->
         NoChange )
   | _ ->

@@ -295,25 +295,23 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
   | VarBind ->
       "varname"
   | EventName ->
-    ( match TL.spaceOf vs.tl |> Option.withDefault ~default:HSOther with
+    ( match
+        TL.spaceOf vs.tl |> Option.withDefault ~default:HSDeprecatedOther
+      with
     | HSHTTP ->
         "route"
-    | HSCron ->
-        "event name"
-    | HSOther ->
-        "event name"
-    | HSEmpty ->
-        "event name" )
+    | HSWorker | HSDeprecatedOther | HSRepl | HSCron ->
+        "name" )
   | EventModifier ->
-    ( match TL.spaceOf vs.tl |> Option.withDefault ~default:HSOther with
+    ( match
+        TL.spaceOf vs.tl |> Option.withDefault ~default:HSDeprecatedOther
+      with
     | HSHTTP ->
         "verb"
     | HSCron ->
-        "event interval"
-    | HSOther ->
-        "event modifier"
-    | HSEmpty ->
-        "event modifier" )
+        "interval"
+    | HSWorker | HSDeprecatedOther | HSRepl ->
+        "modifier" )
   | EventSpace ->
       "event space"
   | Expr ->
