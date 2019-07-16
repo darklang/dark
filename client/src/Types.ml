@@ -248,15 +248,6 @@ and toTLID = tlid
  * inTL that has the reference. *)
 and usage = inTLID * toTLID * id
 
-and usedIn =
-  | InHandler of
-      inTLID * handlerSpaceName * handlerName * handlerModifer option
-  | InFunction of inTLID * fnName * userFunctionParameter list
-
-and refersTo =
-  | ToDB of toTLID * dbName * dbColumn list * id
-  | ToEvent of toTLID * handlerSpaceName * handlerName * id
-
 (* handlers *)
 and handlerSpec =
   { space : handlerSpaceName blankOr

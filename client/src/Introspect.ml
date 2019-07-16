@@ -43,10 +43,6 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
     toplevels
 
 
-let idOfRefersTo (r : refersTo) : id =
-  match r with ToDB (_, _, _, id) -> id | ToEvent (_, _, _, id) -> id
-
-
 let tlidsToUpdateMeta (ops : op list) : tlid list =
   ops
   |> List.filterMap ~f:(fun op ->
@@ -126,41 +122,20 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
-let allTo (tlid : tlid) (m : model) : refersTo list =
-  let asRefersTo id tl =
-    match tl with
-    | TLDB {dbTLID; dbName = F (_, name); cols} ->
-        Some (ToDB (dbTLID, name, cols, id))
-    | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
-        Some (ToEvent (hTLID, space, name, id))
-    | _ ->
-        None
-  in
+let allTo (tlid : tlid) (m : model) : toplevel list =
   m.tlUsages
   (* Filter for all outgoing references in given toplevel *)
   |> List.filter ~f:(fun (intlid, _, _) -> tlid = intlid)
   (* Match all outgoing references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun (_, outtlid, id) ->
-         TL.get m outtlid |> Option.andThen ~f:(asRefersTo id) )
+  |> List.filterMap ~f:(fun (_, outtlid, _) -> TL.get m outtlid)
 
 
-let allIn (tlid : tlid) (m : model) : usedIn list =
-  let asUsedIn tl =
-    match tl with
-    | TLHandler
-        {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
-        Some (InHandler (hTLID, space, name, B.toMaybe modifier))
-    | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
-        Some (InFunction (ufTLID, name, ufmParameters))
-    | _ ->
-        None
-  in
+let allIn (tlid : tlid) (m : model) : toplevel list =
   m.tlUsages
   (* Filter for all places where given tl is used  *)
   |> List.filter ~f:(fun (_, outtlid, _) -> outtlid = tlid)
   (* Match all used in references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun (intlid, _, _) ->
-         TL.get m intlid |> Option.andThen ~f:asUsedIn )
+  |> List.filterMap ~f:(fun (intlid, _, _) -> TL.get m intlid)
 
 
 let presentAvatars (m : model) : avatar list =
