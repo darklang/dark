@@ -357,6 +357,7 @@ setTimeout(function() {
     environment: environmentName,
     csrfToken: csrfToken,
     isAdmin: isAdmin,
+    buildHash: buildHash,
   });
   var urlParams = new URLSearchParams(window.location.search);
   var enableDebugger = urlParams.get("debugger");

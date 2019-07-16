@@ -1060,6 +1060,7 @@ let admin_ui_html
             |> Yojson.Safe.to_string )
             instr )
   >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
+  >|= Util.string_replace "{{BUILD_HASH}}" Config.build_hash
 
 
 let save_test_handler ~(execution_id : Types.id) host =
