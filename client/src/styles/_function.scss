@@ -21,6 +21,24 @@
     }
   }
 
+  .parameter-btn.add {
+    &:hover {
+      .helper-text {
+        color: $grey3;
+      }
+    }
+
+    i {
+      margin-right: 6px;
+    }
+
+    .helper-text {
+      color: $grey2;
+      font-style: italic;
+      font-size: 0.7 * $code-font-size;
+    }
+  }
+
   .col {
     display: flex;
     flex-direction: row;
