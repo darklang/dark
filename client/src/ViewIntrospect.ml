@@ -1,8 +1,8 @@
 open Tc
 open Prelude
 open Types
-
-let idOfRefersTo = Introspect.idOfRefersTo
+module TL = Toplevel
+module B = Blank
 
 let dbColsView (cols : dbColumn list) : msg Html.html =
   let colView col =
@@ -107,20 +107,22 @@ let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
-let refersToViews (tlid : tlid) (refs : refersTo list) : msg Html.html =
+let refersToViews (tlid : tlid) (refs : toplevel list) : msg Html.html =
   let topOffset =
     List.head refs
-    |> Option.andThen ~f:(fun r ->
-           let id = idOfRefersTo r in
-           Native.Ext.querySelector (".id-" ^ showID id) )
+    |> Option.andThen ~f:(fun tl ->
+           let id = tl |> TL.id |> showTLID in
+           Native.Ext.querySelector (".id-" ^ id) )
     |> Option.andThen ~f:(fun e -> Some (Native.Ext.offsetTop e))
     |> Option.withDefault ~default:0
-  and renderView r =
-    match r with
-    | ToDB (dbid, name, cols, _) ->
-        dbView tlid dbid name cols
-    | ToEvent (eid, space, name, _) ->
-        eventView eid space name
+  and renderView tl =
+    match tl with
+    | TLDB {dbTLID; dbName = F (_, name); cols} ->
+        dbView tlid dbTLID name cols
+    | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
+        eventView hTLID space name
+    | _ ->
+        Vdom.noNode
   in
   Html.div
     [ Html.class' "usages"
@@ -128,12 +130,15 @@ let refersToViews (tlid : tlid) (refs : refersTo list) : msg Html.html =
     (List.map ~f:renderView refs)
 
 
-let usedInViews (uses : usedIn list) : msg Html.html =
+let usedInViews (uses : toplevel list) : msg Html.html =
   let renderView r =
     match r with
-    | InHandler (tlid, space, name, modifier) ->
-        handlerView tlid space name modifier
-    | InFunction (tlid, name, params) ->
-        fnView tlid name params
+    | TLHandler
+        {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
+        handlerView hTLID space name (B.toMaybe modifier)
+    | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
+        fnView ufTLID name ufmParameters
+    | _ ->
+        Vdom.noNode
   in
   Html.div [Html.class' "used-in"] (List.map ~f:renderView uses)

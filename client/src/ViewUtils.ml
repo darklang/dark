@@ -31,8 +31,8 @@ type viewState =
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; inReferences : usedIn list
-  ; toReferences : refersTo list
+  ; inReferences : toplevel list
+  ; toReferences : toplevel list
   ; usagesOfHoveredReference : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list }
