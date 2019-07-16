@@ -300,9 +300,9 @@ let fns : shortfn list =
   ; { pns = ["DB::queryOneWithKey_v1"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
-    ; r = TList
+    ; r = TOption
     ; d =
-        "Fetch exactly one value table` which have the same fields and values that `spec` has, returning a [[key, value]] list of lists"
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
     ; f =
         InProcess
           (function
