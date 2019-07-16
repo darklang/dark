@@ -57,10 +57,10 @@ let handlerView
     msg Html.html =
   let modifier_ =
     match modifier with
+    | Some "_" | None ->
+        []
     | Some m ->
         [Html.div [Html.class' "spec"] [Html.text m]]
-    | None ->
-        []
   in
   Html.div
     [ Html.class' "ref-block handler"
