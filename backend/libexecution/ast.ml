@@ -169,6 +169,8 @@ let rec exec
           | DBlock blk ->
               blk [param]
           | _ ->
+              (* This should never happen, but the user should be allowed to
+               * recover so this shouldn't be an exception *)
               DError "Internal type error: lambda did not produce a block" )
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
