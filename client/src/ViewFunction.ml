@@ -83,14 +83,15 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     Html.div
-      [ Html.class' "parameter-btn allowed add"
-      ; ViewUtils.eventNoPropagation
-          ~key:("aufp-" ^ showTLID fn.ufTLID)
-          "click"
-          (fun _ -> AddUserFunctionParameter fn) ]
-      [ fontAwesome "plus-circle"
-      ; Html.span [Html.class' "helper-text"] [Html.text "add new parameter"]
-      ]
+      [Html.class' "col new-parameter"]
+      [ Html.div
+          [ Html.class' "parameter-btn allowed add"
+          ; ViewUtils.eventNoPropagation
+              ~key:("aufp-" ^ showTLID fn.ufTLID)
+              "click"
+              (fun _ -> AddUserFunctionParameter fn) ]
+          [fontAwesome "plus-circle"]
+      ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
   in
   let namediv =
     Html.div
