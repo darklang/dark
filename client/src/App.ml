@@ -1257,6 +1257,9 @@ let update_ (msg : msg) (m : model) : modification =
       let replacement = Functions.removeParameter uf upf in
       let newCalls = Refactor.removeFunctionParameter m uf upf in
       RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+  | AddUserFunctionParameter f ->
+      let nextId = Functions.idOfLastBlankor f in
+      Refactor.addFunctionParameter m f nextId
   | DeleteUserTypeField (tipe, field) ->
       let replacement = UserTypes.removeField tipe field in
       RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
