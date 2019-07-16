@@ -38,8 +38,6 @@ let sample_request_input_vars = [("request", PReq.to_dval PReq.sample_request)]
 
 let sample_event_input_vars = [("event", DIncomplete)]
 
-let sample_cron_input_vars = []
-
 let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars
 
@@ -48,10 +46,12 @@ let sample_module_input_vars h : input_vars =
   match Handler.module_type h with
   | `Http ->
       sample_request_input_vars
-  | `Event ->
-      sample_event_input_vars
   | `Cron ->
-      sample_cron_input_vars
+      []
+  | `Repl ->
+      []
+  | `Worker ->
+      sample_event_input_vars
   | `Unknown ->
       sample_unknown_handler_input_vars
 
