@@ -127,13 +127,13 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
 
 
 let allTo (tlid : tlid) (m : model) : refersTo list =
-  let asRefersTo tlid_ id m =
-    match m with
-    | DBMeta (dBName, col) ->
-        Some (ToDB (tlid_, dBName, col, id))
-    | HandlerMeta (space, name, _) ->
-        Some (ToEvent (tlid_, space, name, id))
-    | FunctionMeta _ ->
+  let asRefersTo id tl =
+    match tl with
+    | TLDB {dbTLID; dbName = F (_, name); cols} ->
+        Some (ToDB (dbTLID, name, cols, id))
+    | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
+        Some (ToEvent (hTLID, space, name, id))
+    | _ ->
         None
   in
   m.tlUsages
@@ -141,8 +141,7 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
   |> List.filter ~f:(fun (intlid, _, _) -> tlid = intlid)
   (* Match all outgoing references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (_, outtlid, id) ->
-         TLIDDict.get ~tlid:outtlid m.tlMeta
-         |> Option.andThen ~f:(asRefersTo outtlid id) )
+         TL.get m outtlid |> Option.andThen ~f:(asRefersTo id) )
 
 
 let allIn (tlid : tlid) (m : model) : usedIn list =
