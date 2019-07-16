@@ -156,7 +156,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedFn tlid_
       | FocusedDB (tlid_, _)
         when tlid_ = tlid ->
-          Introspect.presentAvatars m
+          m.avatarsList
       | _ ->
           [] ) }
 

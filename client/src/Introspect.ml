@@ -138,11 +138,6 @@ let allIn (tlid : tlid) (m : model) : toplevel list =
   |> List.filterMap ~f:(fun (intlid, _, _) -> TL.get m intlid)
 
 
-let presentAvatars (m : model) : avatar list =
-  let avatars = m.avatarsList in
-  avatars
-
-
 let replaceUsages (oldUsages : usage list) (newUsages : usage list) :
     usage list =
   let tlids =
