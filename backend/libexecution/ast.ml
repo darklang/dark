@@ -387,9 +387,9 @@ let rec exec
                 if List.length filled <> List.length args
                 then
                   DError
-                    ( "Expected: "
+                    ( "Expected "
                     ^ string_of_int (List.length filled)
-                    ^ " arguments, got: "
+                    ^ " arguments, got "
                     ^ string_of_int (List.length args) )
                 else (
                   List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
