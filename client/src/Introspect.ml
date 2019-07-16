@@ -139,10 +139,9 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
   let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all outgoing references in given toplevel *)
-  |> List.filterMap ~f:(fun (intlid, outtlid, id) ->
-         if tlid = intlid then Some (outtlid, id) else None )
+  |> List.filter ~f:(fun (intlid, _, _) -> tlid = intlid)
   (* Match all outgoing references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun (outtlid, id) ->
+  |> List.filterMap ~f:(fun (_, outtlid, id) ->
          let tlid = Prelude.showTLID outtlid in
          StrDict.get ~key:tlid meta
          |> Option.andThen ~f:(asRefersTo outtlid id) )
@@ -161,10 +160,9 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
   let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all places where given tl is used  *)
-  |> List.filterMap ~f:(fun (intlid, outtlid, _) ->
-         if outtlid = tlid then Some intlid else None )
+  |> List.filter ~f:(fun (_, outtlid, _) -> outtlid = tlid)
   (* Match all used in references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun intlid ->
+  |> List.filterMap ~f:(fun (intlid, _, _) ->
          let tlid = Prelude.showTLID intlid in
          StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn intlid) )
 
