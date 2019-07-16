@@ -4,11 +4,8 @@ open Prelude
 module B = Blank
 module TL = Toplevel
 
-let keyForHandlerSpec (space : string blankOr) (name : string blankOr) : string
-    =
-  let space_ = match space with F (_, s) -> s | Blank _ -> "_" in
-  let name_ = match name with F (_, n) -> n | Blank _ -> "_" in
-  space_ ^ ":" ^ name_
+let keyForHandlerSpec (space : string) (name : string) : string =
+  space ^ ":" ^ name
 
 
 let dbsByName (toplevels : toplevel list) : tlid StrDict.t =
@@ -32,7 +29,13 @@ let handlersByName (toplevels : toplevel list) : tlid StrDict.t =
     ~f:(fun tl res ->
       match tl with
       | TLHandler h ->
-          let name = keyForHandlerSpec h.spec.space h.spec.name in
+          let space =
+            h.spec.space |> B.toMaybe |> Option.withDefault ~default:"_"
+          in
+          let name =
+            h.spec.name |> B.toMaybe |> Option.withDefault ~default:"_"
+          in
+          let name = keyForHandlerSpec space name in
           if name <> ""
           then StrDict.insert ~key:name ~value:h.hTLID res
           else res
@@ -205,11 +208,18 @@ let findUsagesInAST
                ( id
                , FnCall
                    ( F (_, "emit")
-                   , [_; F (sid, Value space_); F (nid, Value name_)]
+                   , [_; F (_, Value space_); F (_, Value name_)]
                    , _ ) )) ->
              let name = Util.removeQuotes name_ in
              let space = Util.removeQuotes space_ in
-             let key = keyForHandlerSpec (F (sid, space)) (F (nid, name)) in
+             let key = keyForHandlerSpec space name in
+             StrDict.get ~key handlers
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+         | PExpr
+             (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
+             let name = Util.removeQuotes name_ in
+             let space = "WORKER" in
+             let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
              |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
          | _ ->

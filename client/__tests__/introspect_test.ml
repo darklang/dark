@@ -45,9 +45,6 @@ let () =
         ; pos = {x = 0; y = 0} }
       in
       let toplevels = [TLHandler h1data; TLDB dbdata; TLHandler h2data] in
-      test "keyForHandlerSpec" (fun () ->
-          expect (keyForHandlerSpec h1data.spec.space h1data.spec.name)
-          |> toEqual "JOB:processOrder" ) ;
       test "dbsByName" (fun () ->
           expect (dbsByName toplevels)
           |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)
