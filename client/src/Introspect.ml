@@ -139,13 +139,13 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
   let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all outgoing references in given toplevel *)
-  |> List.filterMap ~f:(fun (tlid_, otlid, id) ->
-         if tlid = tlid_ then Some (otlid, id) else None )
+  |> List.filterMap ~f:(fun (intlid, outtlid, id) ->
+         if tlid = intlid then Some (outtlid, id) else None )
   (* Match all outgoing references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun (tlid_, id) ->
-         let tlid = Prelude.showTLID tlid_ in
-         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asRefersTo tlid_ id)
-     )
+  |> List.filterMap ~f:(fun (outtlid, id) ->
+         let tlid = Prelude.showTLID outtlid in
+         StrDict.get ~key:tlid meta
+         |> Option.andThen ~f:(asRefersTo outtlid id) )
 
 
 let allIn (tlid : tlid) (m : model) : usedIn list =
@@ -164,9 +164,9 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
   |> List.filterMap ~f:(fun (intlid, outtlid, _) ->
          if outtlid = tlid then Some intlid else None )
   (* Match all used in references with their relevant display meta data *)
-  |> List.filterMap ~f:(fun tlid_ ->
-         let tlid = Prelude.showTLID tlid_ in
-         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn tlid_) )
+  |> List.filterMap ~f:(fun intlid ->
+         let tlid = Prelude.showTLID intlid in
+         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn intlid) )
 
 
 let presentAvatars (m : model) : avatar list =
