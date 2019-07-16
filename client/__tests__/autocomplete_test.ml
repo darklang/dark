@@ -635,14 +635,6 @@ let () =
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asdkkasd"))) )
               |> toEqual true ) ;
-          test
-            "can create handlers for spaces that are substrings of HTTP"
-            (fun () ->
-              expect
-                ( acFor ~target:None m
-                |> setQuery m "HTT"
-                |> itemPresent (ACOmniAction (NewEventSpace "HTT")) )
-              |> toEqual true ) ;
           test "can create routes #1 (base case)" (fun () ->
               expect
                 ( acFor ~target:None m
@@ -706,10 +698,20 @@ let () =
                 |> setQuery m ":[]'/31234MyFn[]"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myFn"))) )
               |> toEqual true ) ;
-          test "new handler option available by default" (fun () ->
+          test "new worker option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
-                |> itemPresent (ACOmniAction (NewHandler None)) )
+                |> itemPresent (ACOmniAction (NewWorkerHandler None)) )
+              |> toEqual true ) ;
+          test "new repl option available by default" (fun () ->
+              expect
+                ( acFor ~target:None m
+                |> itemPresent (ACOmniAction (NewReplHandler None)) )
+              |> toEqual true ) ;
+          test "new cron option available by default" (fun () ->
+              expect
+                ( acFor ~target:None m
+                |> itemPresent (ACOmniAction (NewCronHandler None)) )
               |> toEqual true ) ;
           test "new function option available by default" (fun () ->
               expect

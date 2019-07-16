@@ -47,7 +47,7 @@ let htmlObject (src : string) =
 
 
 let categoryIcon (name : string) : msg Html.html list =
-  match name with
+  match String.toLower name with
   | "http" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
   | "dbs" ->
@@ -62,59 +62,67 @@ let categoryIcon (name : string) : msg Html.html list =
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
   | "cron" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
-  | "Undefined" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+  | "repl" ->
+      [fontAwesome "terminal"]
+  | "worker" ->
+      [fontAwesome "wrench"]
   | "fof" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
   | _ ->
-      [ViewUtils.fontAwesome "archive"]
+      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+
+
+let handlerCategory
+    (filter : toplevel -> bool)
+    (name : string)
+    (action : omniAction)
+    (hs : handler list) : category =
+  let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
+  { count = List.length handlers
+  ; name = String.toUpper name
+  ; plusButton = Some (CreateRouteHandler action)
+  ; classname = String.toLower name
+  ; entries =
+      List.map handlers ~f:(fun h ->
+          let tlid = h.hTLID in
+          Entry
+            { name =
+                h.spec.name
+                |> Blank.toMaybe
+                |> Option.withDefault ~default:missingEventRouteDesc
+            ; uses = None
+            ; tlid
+            ; destination = Some (FocusedHandler (tlid, true))
+            ; minusButton = Some (ToplevelDelete tlid)
+            ; killAction = Some (ToplevelDeleteForever tlid)
+            ; plusButton = None
+            ; verb =
+                ( if TL.isHTTPHandler (TLHandler h)
+                then B.toMaybe h.spec.modifier
+                else None ) } ) }
 
 
 let httpCategory (handlers : handler list) : category =
-  { count = List.length handlers
-  ; name = "HTTP"
-  ; plusButton = Some (CreateRouteHandler (Some "HTTP"))
-  ; classname = "http"
-  ; entries =
-      List.map handlers ~f:(fun h ->
-          let tlid = h.hTLID in
-          Entry
-            { name =
-                h.spec.name
-                |> Blank.toMaybe
-                |> Option.withDefault ~default:missingEventRouteDesc
-            ; uses = None
-            ; tlid
-            ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
-            ; killAction = Some (ToplevelDeleteForever tlid)
-            ; plusButton = None
-            ; verb = h.spec.modifier |> Blank.toMaybe } ) }
+  handlerCategory TL.isHTTPHandler "HTTP" (NewHTTPHandler None) handlers
 
 
-let cronCategory (hs : handler list) : category =
-  let handlers =
-    hs |> List.filter ~f:(fun h -> TL.isCronHandler (TLHandler h))
-  in
-  { count = List.length handlers
-  ; name = "CRON"
-  ; plusButton = Some (CreateRouteHandler (Some "CRON"))
-  ; classname = "cron"
-  ; entries =
-      List.map handlers ~f:(fun h ->
-          let tlid = h.hTLID in
-          Entry
-            { name =
-                h.spec.name
-                |> Blank.toMaybe
-                |> Option.withDefault ~default:missingEventRouteDesc
-            ; uses = None
-            ; tlid
-            ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
-            ; killAction = Some (ToplevelDeleteForever tlid)
-            ; plusButton = None
-            ; verb = None } ) }
+let cronCategory (handlers : handler list) : category =
+  handlerCategory TL.isCronHandler "CRON" (NewCronHandler None) handlers
+
+
+let replCategory (handlers : handler list) : category =
+  handlerCategory TL.isReplHandler "REPL" (NewReplHandler None) handlers
+
+
+let workerCategory (handlers : handler list) : category =
+  handlerCategory
+    (fun tl ->
+      TL.isWorkerHandler tl
+      || (* Show the old workers here for now *)
+         TL.isDeprecatedCustomHandler tl )
+    "WORKER"
+    (NewWorkerHandler None)
+    handlers
 
 
 let dbCategory (m : model) (dbs : db list) : category =
@@ -147,74 +155,6 @@ let dbCategory (m : model) (dbs : db list) : category =
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; entries }
-
-
-let undefinedCategory (hs : handler list) : category =
-  let handlers =
-    hs
-    |> List.filter ~f:(fun h -> TL.isUndefinedEventSpaceHandler (TLHandler h))
-  in
-  { count = List.length handlers
-  ; name = missingEventSpaceDesc
-  ; plusButton = Some (CreateRouteHandler None)
-  ; classname = missingEventSpaceDesc
-  ; entries =
-      List.map handlers ~f:(fun h ->
-          let tlid = h.hTLID in
-          Entry
-            { name =
-                h.spec.name
-                |> Blank.toMaybe
-                |> Option.withDefault ~default:missingEventRouteDesc
-            ; uses = None
-            ; tlid
-            ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
-            ; killAction = Some (ToplevelDeleteForever tlid)
-            ; plusButton = None
-            ; verb = None } ) }
-
-
-let splitBySpace (handlers : handler list) : (string * handler list) list =
-  let spaceName h =
-    h.spec.space
-    |> B.toMaybe
-    |> Option.withDefault ~default:missingEventSpaceDesc
-  in
-  handlers
-  |> List.sortBy ~f:spaceName
-  |> List.groupWhile ~f:(fun a b -> spaceName a = spaceName b)
-  |> List.map ~f:(fun hs ->
-         let space = hs |> List.head |> deOption "splitBySpace" |> spaceName in
-         (space, hs) )
-
-
-let eventCategories (handlers : handler list) : category list =
-  let groups =
-    handlers
-    |> List.filter ~f:(fun h -> TL.isCustomEventSpaceHandler (TLHandler h))
-    |> splitBySpace
-  in
-  List.map groups ~f:(fun (name, handlers) ->
-      { count = List.length handlers
-      ; name
-      ; plusButton = Some (CreateRouteHandler (Some name))
-      ; classname = name
-      ; entries =
-          List.map handlers ~f:(fun h ->
-              let tlid = h.hTLID in
-              Entry
-                { name =
-                    h.spec.name
-                    |> Blank.toMaybe
-                    |> Option.withDefault ~default:missingEventRouteDesc
-                ; uses = None
-                ; tlid
-                ; destination = Some (FocusedHandler (tlid, true))
-                ; minusButton = Some (ToplevelDelete tlid)
-                ; killAction = Some (ToplevelDeleteForever tlid)
-                ; plusButton = None
-                ; verb = None } ) } )
 
 
 let f404Category (m : model) : category =
@@ -302,52 +242,54 @@ let rec count (s : item) : int =
       c.entries |> List.map ~f:count |> List.sum
 
 
-let deletedCategory (m : model) : category =
+let standardCategories m hs dbs ufns tipes =
   let hs =
-    m.deletedHandlers
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
+    hs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
   in
   let dbs =
-    m.deletedDBs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
+    dbs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
   in
   let ufns =
-    m.deletedUserFunctions
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
+    ufns |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
   in
   let tipes =
-    m.deletedUserTipes
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
+    tipes |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
+  [ httpCategory hs
+  ; dbCategory m dbs
+  ; userFunctionCategory m ufns
+  ; userTipeCategory m tipes
+  ; workerCategory hs
+  ; cronCategory hs
+  ; replCategory hs ]
+
+
+let deletedCategory (m : model) : category =
   let cats =
-    [ httpCategory hs
-    ; dbCategory m dbs
-    ; userFunctionCategory m ufns
-    ; userTipeCategory m tipes
-    ; cronCategory hs ]
-    @ eventCategories hs
-    @ [undefinedCategory hs]
-  in
-  let cats =
-    List.map cats ~f:(fun c ->
-        { c with
-          plusButton = None (* only allow new entries on the main category *)
-        ; classname =
-            (* dont open/close in lockstep with parent *)
-            "deleted-" ^ c.classname
-        ; entries =
-            List.map c.entries ~f:(function
-                | Entry e ->
-                    Entry
-                      { e with
-                        plusButton = Some (RestoreToplevel e.tlid)
-                      ; uses = None
-                      ; minusButton = e.killAction
-                      ; destination = None }
-                | c ->
-                    c ) } )
+    standardCategories
+      m
+      m.deletedHandlers
+      m.deletedDBs
+      m.deletedUserFunctions
+      m.deletedUserTipes
+    |> List.map ~f:(fun c ->
+           { c with
+             plusButton =
+               None (* only allow new entries on the main category *)
+           ; classname =
+               (* dont open/close in lockstep with parent *)
+               "deleted-" ^ c.classname
+           ; entries =
+               List.map c.entries ~f:(function
+                   | Entry e ->
+                       Entry
+                         { e with
+                           plusButton = Some (RestoreToplevel e.tlid)
+                         ; uses = None
+                         ; minusButton = e.killAction
+                         ; destination = None }
+                   | c ->
+                       c ) } )
   in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
@@ -672,33 +614,10 @@ let adminDebuggerView (m : model) : msg Html.html =
 
 
 let viewRoutingTable_ (m : model) : msg Html.html =
-  let hs =
-    m.handlers
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
-  in
-  let dbs =
-    m.dbs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLDB tl))
-  in
-  let ufns =
-    m.userFunctions
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLFunc tl))
-  in
-  let tipes =
-    m.userTipes
-    |> TD.values
-    |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
-  in
   let isClosed : bool = not m.sidebarOpen in
   let cats =
-    [ httpCategory hs
-    ; dbCategory m dbs
-    ; userFunctionCategory m ufns
-    ; userTipeCategory m tipes
-    ; cronCategory hs ]
-    @ eventCategories hs
-    @ [undefinedCategory hs; f404Category m; deletedCategory m]
+    standardCategories m m.handlers m.dbs m.userFunctions m.userTipes
+    @ [f404Category m; deletedCategory m]
   in
   let showAdminDebugger =
     if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode

@@ -51,12 +51,12 @@ let asName (aci : autocompleteItem) : string =
           "New DB named " ^ name
       | None ->
           "New DB" )
-    | NewHandler maybeName ->
+    | NewWorkerHandler maybeName ->
       ( match maybeName with
       | Some name ->
-          "New event handler named " ^ name
+          "New WORKER handler named " ^ name
       | None ->
-          "New event handler" )
+          "New WORKER handler" )
     | NewFunction maybeName ->
       ( match maybeName with
       | Some name ->
@@ -69,8 +69,18 @@ let asName (aci : autocompleteItem) : string =
           "New HTTP handler named " ^ name
       | None ->
           "New HTTP handler" )
-    | NewEventSpace name ->
-        "New handler in the " ^ name ^ " space"
+    | NewCronHandler maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New CRON handler named " ^ name
+      | None ->
+          "New CRON handler" )
+    | NewReplHandler maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New REPL named " ^ name
+      | None ->
+          "New REPL handler" )
     | Goto (_, _, desc) ->
         desc )
   | ACConstructorName name ->
@@ -350,7 +360,7 @@ let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
 
 let httpVerbValidator = "[A-Z]+"
 
-let eventSpaceValidator = "[A-Z0-9_]+"
+let eventSpaceValidator = "(CRON|HTTP|REPL|WORKER)"
 
 let fieldNameValidator = ".+"
 
@@ -441,13 +451,11 @@ let cleanDBName (s : string) : string =
   |> String.capitalize
 
 
-let qNewDB (s : string) : omniAction option =
+let qNewDB (s : string) : omniAction =
   let name = cleanDBName s in
   if name = ""
-  then Some (NewDB None)
-  else
-    let validName = assertValid dbNameValidator name in
-    Some (NewDB (Some validName))
+  then NewDB None
+  else NewDB (Some (assertValid dbNameValidator name))
 
 
 let qFunction (s : string) : omniAction =
@@ -462,11 +470,25 @@ let qFunction (s : string) : omniAction =
   else NewFunction (Some (assertValid fnNameValidator name))
 
 
-let qHandler (s : string) : omniAction =
+let qWorkerHandler (s : string) : omniAction =
   let name = s |> cleanEventName |> String.uncapitalize in
   if name = ""
-  then NewHandler None
-  else NewHandler (Some (assertValid eventNameValidator name))
+  then NewWorkerHandler None
+  else NewWorkerHandler (Some (assertValid eventNameValidator name))
+
+
+let qCronHandler (s : string) : omniAction =
+  let name = s |> cleanEventName |> String.uncapitalize in
+  if name = ""
+  then NewCronHandler None
+  else NewCronHandler (Some (assertValid eventNameValidator name))
+
+
+let qReplHandler (s : string) : omniAction =
+  let name = s |> cleanEventName |> String.uncapitalize in
+  if name = ""
+  then NewReplHandler None
+  else NewReplHandler (Some (assertValid eventNameValidator name))
 
 
 let qHTTPHandler (s : string) : omniAction =
@@ -476,13 +498,6 @@ let qHTTPHandler (s : string) : omniAction =
   else if String.startsWith ~prefix:"/" name
   then NewHTTPHandler (Some (assertValid httpNameValidator name))
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
-
-
-let qEventSpace (s : string) : omniAction option =
-  let name = s |> String.toUpper |> stripChars "[^A-Z0-9_]" in
-  if name = ""
-  then None
-  else Some (NewEventSpace (assertValid eventSpaceValidator name))
 
 
 let isDynamicItem (item : autocompleteItem) : bool =
@@ -511,24 +526,19 @@ let toDynamicItems
   match target with
   | None ->
       (* omnicompletion *)
-      let omnis =
-        if q = ""
-        then
-          (qHTTPHandler q :: Option.values [qNewDB q])
-          @ [qFunction q; qHandler q]
-        else
-          [qHTTPHandler q; qFunction q; qHandler q]
-          @ Option.values [qNewDB q; qEventSpace q]
-      in
-      List.map ~f:(fun o -> ACOmniAction o) omnis
+      [ qHTTPHandler q
+      ; qNewDB q
+      ; qFunction q
+      ; qWorkerHandler q
+      ; qCronHandler q
+      ; qReplHandler q ]
+      |> List.map ~f:(fun o -> ACOmniAction o)
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
       [ACField q]
-  | Some (_, PEventSpace _) ->
-      if q == "" then [] else [ACEventSpace (String.toUpper q)]
   | Some (_, PEventName _) ->
-      let isHttpHandler = space == Some HSHTTP in
+      let isHttpHandler = space = Some HSHTTP in
       if isHttpHandler
       then [ACEventName (cleanHTTPname q)]
       else [ACEventName (cleanEventName q)]
@@ -684,18 +694,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACCronTiming "Every 1hr"
             ; ACCronTiming "Every 12hrs"
             ; ACCronTiming "Every 1min" ]
-        | Some HSOther ->
-            []
-        | Some HSEmpty ->
-            []
-        | None ->
+        | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
             [] )
       | EventSpace ->
-          let otherSpaces =
-            TL.customEventSpaceNames m.handlers
-            |> List.map ~f:(fun x -> ACEventSpace x)
-          in
-          [ACEventSpace "HTTP"; ACEventSpace "CRON"] @ otherSpaces
+          (* Other spaces aren't allowed anymore *)
+          [ ACEventSpace "HTTP"
+          ; ACEventSpace "CRON"
+          ; ACEventSpace "WORKER"
+          ; ACEventSpace "REPL" ]
       | DBColType ->
           let builtins =
             ["String"; "Int"; "Boolean"; "Float"; "Password"; "Date"; "UUID"]
@@ -998,10 +1004,15 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some "This handler will respond to HTTP requests"
   | ACEventSpace "CRON" ->
       Some "This handler will periodically trigger"
-  | ACEventSpace name ->
-      Some ("This handler will respond when events are emitted to " ^ name)
+  | ACEventSpace "WORKER" ->
+      Some "This handler will run emited events in the background"
+  | ACEventSpace "REPL" ->
+      Some "This handler allows you run code in it"
+  | ACEventSpace _ ->
+      Some
+        "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
   | ACEventName name ->
-      Some ("Respond to events or HTTP requests named " ^ name)
+      Some ("Respond to events/HTTP requests named " ^ name)
   | ACDBName name ->
       Some ("Set the DB's name to " ^ name)
   | ACDBColType tipe ->

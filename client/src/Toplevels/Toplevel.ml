@@ -150,12 +150,14 @@ let isHTTPHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSHTTP)
 
 let isCronHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSCron)
 
-let isCustomEventSpaceHandler (tl : toplevel) : bool =
-  tl |> spaceOf |> ( = ) (Some HSOther)
+let isWorkerHandler (tl : toplevel) : bool =
+  tl |> spaceOf |> ( = ) (Some HSWorker)
 
 
-let isUndefinedEventSpaceHandler (tl : toplevel) : bool =
-  tl |> spaceOf |> ( = ) (Some HSEmpty)
+let isReplHandler (tl : toplevel) : bool = tl |> spaceOf |> ( = ) (Some HSRepl)
+
+let isDeprecatedCustomHandler (tl : toplevel) : bool =
+  tl |> spaceOf |> ( = ) (Some HSDeprecatedOther)
 
 
 let toOp (tl : toplevel) : op list =
@@ -174,7 +176,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
   let otherSpaces =
     handlers
     |> TD.mapValues ~f:(fun h -> TLHandler h)
-    |> List.filter ~f:isCustomEventSpaceHandler
+    |> List.filter ~f:isDeprecatedCustomHandler
     |> List.filterMap ~f:(fun tl ->
            asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
        )

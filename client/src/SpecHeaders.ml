@@ -7,22 +7,28 @@ module P = Pointer
 
 let spaceOf (hs : handlerSpec) : handlerSpace =
   let spaceOfStr s =
-    let lwr = String.toLower s in
-    if lwr = "http" then HSHTTP else if lwr = "cron" then HSCron else HSOther
+    let lwr = String.toUpper s in
+    match lwr with
+    | "HTTP" ->
+        HSHTTP
+    | "CRON" ->
+        HSCron
+    | "WORKER" ->
+        HSWorker
+    | "REPL" ->
+        HSRepl
+    | _ ->
+        HSDeprecatedOther
   in
-  match hs.space with Blank _ -> HSEmpty | F (_, s) -> spaceOfStr s
+  match hs.space with Blank _ -> HSDeprecatedOther | F (_, s) -> spaceOfStr s
 
 
 let visibleModifier (hs : handlerSpec) : bool =
   match spaceOf hs with
-  | HSHTTP ->
+  | HSHTTP | HSCron ->
       true
-  | HSCron ->
-      true
-  | HSOther ->
+  | HSRepl | HSDeprecatedOther | HSWorker ->
       false
-  | HSEmpty ->
-      true
 
 
 let replaceEventModifier
