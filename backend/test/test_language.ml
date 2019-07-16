@@ -120,6 +120,14 @@ let t_incomplete_propagation () =
   ()
 
 
+let t_derror_propagation () =
+  check_dval
+    "Mapping error results in error"
+    (DError "Expected 2 arguments, got 1")
+    (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))") ;
+  ()
+
+
 (* ---------------- *)
 (* Errorrail *)
 (* ---------------- *)
@@ -420,4 +428,5 @@ let suite =
     , t_unicode_string_length_works_with_emojis )
   ; ( "Unicode_string.regex_replace_works_with_emojis"
     , `Quick
-    , t_unicode_string_regex_replace_works_with_emojis ) ]
+    , t_unicode_string_regex_replace_works_with_emojis )
+  ; ("DError propagation", `Quick, t_derror_propagation) ]

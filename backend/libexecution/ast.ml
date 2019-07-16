@@ -169,7 +169,9 @@ let rec exec
           | DBlock blk ->
               blk [param]
           | _ ->
-              Exception.internal "Should have got a block" )
+              (* This should never happen, but the user should be allowed to
+               * recover so this shouldn't be an exception *)
+              DError "Internal type error: lambda did not produce a block" )
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
           let send_to_rail = should_send_to_rail fncall in
@@ -376,24 +378,32 @@ let rec exec
         (* TODO: this will error if the number of args and vars arent equal *)
         DBlock
           (fun args ->
-            (* If one of the args is fakeCF, return it instead of executing.
-             * This is the same behaviour as in fn calls. *)
-            let fakecf = List.find args ~f:Dval.is_fake_cf in
-            match fakecf with
+            (* If one of the args is fake value used as a marker,
+             * return it instead of executing. This is the same behaviour as in fn calls. *)
+            let first_marker = List.find args ~f:Dval.is_fake_marker_dval in
+            match first_marker with
             | Some dv ->
                 dv
             | None ->
                 let filled = List.filter ~f:(Fn.compose not is_blank) vars in
-                List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
-                    trace_blank var dv st ) ;
-                let new_st =
-                  vars
-                  |> List.filter_map ~f:blank_to_option
-                  |> (fun varnames -> List.zip_exn varnames args)
-                  |> Symtable.from_list_exn
-                  |> fun bindings -> Util.merge_left bindings st
-                in
-                exe new_st body )
+                if List.length filled <> List.length args
+                then
+                  DError
+                    ( "Expected "
+                    ^ string_of_int (List.length filled)
+                    ^ " arguments, got "
+                    ^ string_of_int (List.length args) )
+                else (
+                  List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
+                      trace_blank var dv st ) ;
+                  let new_st =
+                    filled
+                    |> List.filter_map ~f:blank_to_option
+                    |> (fun varnames -> List.zip_exn varnames args)
+                    |> Symtable.from_list_exn
+                    |> fun bindings -> Util.merge_left bindings st
+                  in
+                  exe new_st body ) )
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
@@ -523,23 +533,17 @@ and call_fn
             (* equalize length *)
             let expected_length = List.length fn.parameters in
             let actual_length = List.length argvals in
-            let argvals =
-              if expected_length = actual_length
-              then argvals
-              else
-                let actual = Printf.sprintf "%d arguments" actual_length in
-                let expected = Printf.sprintf "%d arguments" expected_length in
-                Exception.internal
-                  ~actual
-                  ~expected
-                  ("Incorrect number of args in fncall to " ^ name)
-            in
-            let args =
-              fn.parameters
-              |> List.map2_exn ~f:(fun dv (p : param) -> (p.name, dv)) argvals
-              |> DvalMap.from_list_exn
-            in
-            exec_fn ~engine ~state name id fn args
+            if expected_length = actual_length
+            then
+              let args =
+                fn.parameters
+                |> List.map2_exn
+                     ~f:(fun dv (p : param) -> (p.name, dv))
+                     argvals
+                |> DvalMap.from_list_exn
+              in
+              exec_fn ~engine ~state name id fn args
+            else DError ("Incorrect number of args in fncall to " ^ name)
       in
       if send_to_rail
       then

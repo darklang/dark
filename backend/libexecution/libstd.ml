@@ -779,7 +779,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; (* ====================================== *)
     (* String *)
     (* ====================================== *)

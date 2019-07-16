@@ -335,6 +335,12 @@ let result_to_response
         ; execution_id
         ; status = `Internal_server_error
         ; body = "Program error: program was incomplete" }
+  | RTT.DError _ ->
+      Respond
+        { resp_headers = Header.init ()
+        ; execution_id
+        ; status = `Internal_server_error
+        ; body = "Program error: program was invalid" }
   | RTT.DResp (Redirect url, value) ->
       Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
