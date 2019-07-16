@@ -257,51 +257,6 @@ let initUsages (tls : toplevel list) : usage list =
     tls
 
 
-let updateMeta (tl : toplevel) (meta : tlMeta StrDict.t) : tlMeta StrDict.t =
-  let key = showTLID (TL.id tl) in
-  match tl with
-  | TLHandler h ->
-    ( match (h.spec.space, h.spec.name) with
-    | F (_, space), F (_, name) ->
-        let modifier = B.toMaybe h.spec.modifier in
-        StrDict.insert ~key ~value:(HandlerMeta (space, name, modifier)) meta
-    | _ ->
-        meta )
-  | TLDB dB ->
-    ( match dB.dbName with
-    | F (_, dbname) ->
-        let value = DBMeta (dbname, dB.cols) in
-        StrDict.insert ~key ~value meta
-    | Blank _ ->
-        meta )
-  | TLFunc f ->
-    ( match f.ufMetadata.ufmName with
-    | F (_, name) ->
-        let value = FunctionMeta (name, f.ufMetadata.ufmParameters) in
-        StrDict.insert ~key ~value meta
-    | Blank _ ->
-        meta )
-  | TLTipe _ ->
-      meta
-
-
-let metaMod (ops : op list) (toplevels : toplevel list) : modification =
-  let tlidsToUpdate = tlidsToUpdateMeta ops in
-  let withMeta =
-    toplevels
-    |> List.filterMap ~f:(fun tl ->
-           if List.member ~value:(TL.id tl) tlidsToUpdate
-           then Some tl
-           else None )
-    |> List.foldl ~f:updateMeta ~init:StrDict.empty
-  in
-  if withMeta = StrDict.empty then NoChange else UpdateTLMeta withMeta
-
-
-let initTLMeta (toplevels : toplevel list) : tlMeta StrDict.t =
-  List.foldl ~f:updateMeta ~init:StrDict.empty toplevels
-
-
 let setHoveringVarName (tlid : tlid) (name : varName option) : modification =
   let new_props x =
     match x with

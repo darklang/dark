@@ -241,13 +241,11 @@ let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
   let userFunctions = Functions.fromList r.userFunctions in
   let userTipes = UserTypes.fromList r.userTipes in
   let alltls = TL.combine handlers dbs userFunctions userTipes in
-  let metaMod = Introspect.metaMod p.ops (TD.values alltls) in
   let usageMod = Introspect.usageMod p.ops (TD.values alltls) in
   [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
   ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
   ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
   ; SetTypes (r.userTipes, r.deletedUserTipes, updateCurrent)
-  ; metaMod
   ; usageMod ]
 
 
@@ -884,26 +882,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | _ ->
           (m, Cmd.none) )
     | InitIntrospect tls ->
-        let newM =
-          { m with
-            tlUsages = Introspect.initUsages tls
-          ; tlMeta = Introspect.initTLMeta tls }
-        in
+        let newM = {m with tlUsages = Introspect.initUsages tls} in
         (newM, Cmd.none)
-    | UpdateTLMeta newMeta ->
-        let mergedMeta =
-          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid oldMeta newMeta ->
-              match (oldMeta, newMeta) with
-              | None, None ->
-                  None
-              | Some o, None ->
-                  Some o
-              | None, Some n ->
-                  Some n
-              | Some _, Some n ->
-                  Some n )
-        in
-        ({m with tlMeta = mergedMeta}, Cmd.none)
     | UpdateTLUsage usages ->
         ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
         , Cmd.none )
