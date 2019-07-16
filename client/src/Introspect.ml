@@ -145,12 +145,13 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
 
 
 let allIn (tlid : tlid) (m : model) : usedIn list =
-  let asUsedIn tlid_ m =
-    match m with
-    | HandlerMeta (space, name, modifier) ->
-        Some (InHandler (tlid_, space, name, modifier))
-    | FunctionMeta (name, params) ->
-        Some (InFunction (tlid_, name, params))
+  let asUsedIn tl =
+    match tl with
+    | TLHandler
+        {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
+        Some (InHandler (hTLID, space, name, B.toMaybe modifier))
+    | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
+        Some (InFunction (ufTLID, name, ufmParameters))
     | _ ->
         None
   in
@@ -159,8 +160,7 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
   |> List.filter ~f:(fun (_, outtlid, _) -> outtlid = tlid)
   (* Match all used in references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (intlid, _, _) ->
-         TLIDDict.get ~tlid:intlid m.tlMeta
-         |> Option.andThen ~f:(asUsedIn intlid) )
+         TL.get m intlid |> Option.andThen ~f:asUsedIn )
 
 
 let presentAvatars (m : model) : avatar list =
