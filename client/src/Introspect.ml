@@ -139,10 +139,8 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
   let meta = m.tlMeta in
   m.tlUsages
   (* Filter for all outgoing references in given toplevel *)
-  |> List.filterMap ~f:(fun (tlid_, otlid, mid) ->
-         if tlid = tlid_
-         then match mid with Some id -> Some (otlid, id) | None -> None
-         else None )
+  |> List.filterMap ~f:(fun (tlid_, otlid, id) ->
+         if tlid = tlid_ then Some (otlid, id) else None )
   (* Match all outgoing references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (tlid_, id) ->
          let tlid = Prelude.showTLID tlid_ in
@@ -200,7 +198,7 @@ let findUsagesInAST
          match pd with
          | PExpr (F (id, Variable name)) ->
              StrDict.get ~key:name databases
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
          | PExpr
              (F
                ( id
@@ -212,14 +210,14 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
          | PExpr
              (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, Some id))
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
          | _ ->
              None )
   |> List.uniqueBy ~f:(fun (_, TLID tlid, _) -> tlid)

@@ -244,7 +244,9 @@ and inTLID = tlid
 
 and toTLID = tlid
 
-and usage = inTLID * toTLID * id option
+(* inTLID is the TL that has a reference to the toTLID. id is the id in the
+ * inTL that has the reference. *)
+and usage = inTLID * toTLID * id
 
 and tlMeta =
   | DBMeta of dbName * dbColumn list
