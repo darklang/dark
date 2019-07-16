@@ -142,8 +142,7 @@ let allTo (tlid : tlid) (m : model) : refersTo list =
   |> List.filter ~f:(fun (intlid, _, _) -> tlid = intlid)
   (* Match all outgoing references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (_, outtlid, id) ->
-         let tlid = Prelude.showTLID outtlid in
-         StrDict.get ~key:tlid meta
+         TLIDDict.get ~tlid:outtlid meta
          |> Option.andThen ~f:(asRefersTo outtlid id) )
 
 
@@ -163,8 +162,8 @@ let allIn (tlid : tlid) (m : model) : usedIn list =
   |> List.filter ~f:(fun (_, outtlid, _) -> outtlid = tlid)
   (* Match all used in references with their relevant display meta data *)
   |> List.filterMap ~f:(fun (intlid, _, _) ->
-         let tlid = Prelude.showTLID intlid in
-         StrDict.get ~key:tlid meta |> Option.andThen ~f:(asUsedIn intlid) )
+         TLIDDict.get ~tlid:intlid meta |> Option.andThen ~f:(asUsedIn intlid)
+     )
 
 
 let presentAvatars (m : model) : avatar list =
