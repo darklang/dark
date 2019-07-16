@@ -21,24 +21,6 @@
     }
   }
 
-  .parameter-btn.add {
-    &:hover {
-      .helper-text {
-        color: $grey3;
-      }
-    }
-
-    i {
-      margin-right: 6px;
-    }
-
-    .helper-text {
-      color: $grey2;
-      font-style: italic;
-      font-size: 0.7 * $code-font-size;
-    }
-  }
-
   .col {
     display: flex;
     flex-direction: row;
@@ -83,6 +65,24 @@
           margin-top: 0;
           position: relative;
         }
+      }
+    }
+  }
+
+  .col.new-parameter {
+    .parameter-btn.add i {
+      margin-right: 8px;
+    }
+
+    .btn-label {
+      color: $grey2;
+      font-style: italic;
+      font-size: 0.7 * $code-font-size;
+    }
+
+    &:hover {
+      .btn-label {
+        color: $grey3;
       }
     }
   }
