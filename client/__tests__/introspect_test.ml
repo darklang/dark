@@ -97,18 +97,5 @@ let () =
                 ; ufAST = B.new_ () } ]
           in
           expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid] ) ;
-      test "updateMeta should not update tlMeta if fn name is Blank" (fun () ->
-          let metaDict = StrDict.empty in
-          let ufn =
-            { ufTLID = gtlid ()
-            ; ufMetadata =
-                { ufmName = B.new_ ()
-                ; ufmParameters = []
-                ; ufmDescription = "can users put docs here?"
-                ; ufmReturnTipe = B.new_ ()
-                ; ufmInfix = false }
-            ; ufAST = B.new_ () }
-          in
-          expect (updateMeta (TL.ufToTL ufn) metaDict) |> toEqual metaDict ) ;
       () ) ;
   ()

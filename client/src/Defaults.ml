@@ -120,7 +120,6 @@ let defaultModel : model =
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
   ; tlUsages = []
-  ; tlMeta = StrDict.empty
   ; fluidState = defaultFluidState
   ; dbStats = StrDict.empty
   ; avatarsList = []

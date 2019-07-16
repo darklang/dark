@@ -248,11 +248,6 @@ and toTLID = tlid
  * inTL that has the reference. *)
 and usage = inTLID * toTLID * id
 
-and tlMeta =
-  | DBMeta of dbName * dbColumn list
-  | HandlerMeta of handlerSpaceName * handlerName * handlerModifer option
-  | FunctionMeta of fnName * userFunctionParameter list
-
 and usedIn =
   | InHandler of
       inTLID * handlerSpaceName * handlerName * handlerModifer option
@@ -845,7 +840,6 @@ and modification =
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
-  | UpdateTLMeta of tlMeta StrDict.t
   | UpdateTLUsage of usage list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
@@ -1261,7 +1255,6 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys : staticDeploy list
   ; tlUsages : usage list
-  ; tlMeta : tlMeta StrDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
