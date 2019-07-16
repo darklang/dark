@@ -1007,7 +1007,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACEventSpace "WORKER" ->
       Some "This handler will run emited events in the background"
   | ACEventSpace "REPL" ->
-      Some "This handler will run emited events in the background"
+      Some "This handler allows you run code in it"
   | ACEventSpace _ ->
       Some
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
