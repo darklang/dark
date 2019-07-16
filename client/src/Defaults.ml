@@ -125,4 +125,5 @@ let defaultModel : model =
   ; avatarsList = []
   ; browserId = ""
   ; sidebarOpen = false
-  ; isAdmin = false }
+  ; isAdmin = false
+  ; buildHash = "" }
