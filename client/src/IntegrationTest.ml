@@ -133,20 +133,6 @@ let tabbing_works (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let left_right_works (m : model) : testResult =
-  ignore (onlyHandler m) ;
-  match m.cursorState with
-  | Selecting (tlid, Some id) ->
-      let pd = TL.getExn m tlid |> fun tl -> TL.find tl id in
-      ( match pd with
-      | Some (PEventSpace _) ->
-          pass
-      | _ ->
-          fail ~f:show_cursorState m.cursorState )
-  | _ ->
-      fail ~f:show_cursorState m.cursorState
-
-
 let varbinds_are_editable (m : model) : testResult =
   match onlyExpr m with
   | Let (F (id1, "var"), Blank _, Blank _) as l ->
@@ -329,16 +315,6 @@ let focus_on_ast_in_new_empty_tl (m : model) : testResult =
       fail ~f:show_expr e
 
 
-let focus_on_path_in_new_filled_tl (m : model) : testResult =
-  match (onlyHandler m).spec.space with
-  | Blank id ->
-      if idOf m.cursorState = Some id
-      then pass
-      else fail (show_id id ^ ", " ^ show_cursorState m.cursorState)
-  | e ->
-      fail e
-
-
 let focus_on_cond_in_new_tl_with_if (m : model) : testResult =
   match onlyExpr m with
   | If (cond, _, _) ->
@@ -354,12 +330,7 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
   match m.cursorState with
   | Selecting (_, mId) ->
       if mId
-         = ( m
-           |> onlyHandler
-           |> (fun x -> x.spec)
-           |> (fun x -> x.modifier)
-           |> B.toID
-           |> fun x -> Some x )
+         = (m |> onlyHandler |> (fun x -> x.ast) |> B.toID |> fun x -> Some x)
       then pass
       else fail (showToplevels tls ^ ", " ^ show_cursorState m.cursorState)
   | _ ->
@@ -606,20 +577,16 @@ let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
 
 let object_literals_work (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
-  | ( Entering (Filling (tlid, id))
+  | ( Entering (Filling (_, id))
     , ObjectLiteral
         [ (F (_, "k1"), Blank _)
         ; (F (_, "k2"), F (_, Value "2"))
         ; (F (_, "k3"), F (_, Value "3"))
         ; (F (_, "k4"), Blank _)
-        ; (Blank _, Blank _) ] ) ->
-      let tl = TL.getExn m tlid in
-      let target = TL.findExn tl id in
-      ( match target with
-      | PEventName _ ->
-          pass
-      | _ ->
-          fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m)) )
+        ; (Blank _, Blank id2) ] ) ->
+      if id = id2
+      then pass
+      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
   | _ ->
       fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
@@ -802,8 +769,6 @@ let trigger (test_name : string) : integrationTestState =
         pipe_within_let
     | "tabbing_works" ->
         tabbing_works
-    | "left_right_works" ->
-        left_right_works
     | "varbinds_are_editable" ->
         varbinds_are_editable
     | "editing_request_edits_request" ->
@@ -832,8 +797,6 @@ let trigger (test_name : string) : integrationTestState =
         case_sensitivity
     | "focus_on_ast_in_new_empty_tl" ->
         focus_on_ast_in_new_empty_tl
-    | "focus_on_path_in_new_filled_tl" ->
-        focus_on_path_in_new_filled_tl
     | "focus_on_cond_in_new_tl_with_if" ->
         focus_on_cond_in_new_tl_with_if
     | "dont_shift_focus_after_filling_last_blank" ->
