@@ -393,9 +393,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           else Cmd.none
         in
         let newM =
-          if ApiError.shouldDisplayToUser apiError && not shouldReload
-          then {m with error = updateError m.error (ApiError.msg apiError)}
-          else m
+          let error =
+            if ApiError.shouldDisplayToUser apiError
+            then updateError m.error (ApiError.msg apiError)
+            else m.error
+          in
+          let lastReload = if shouldReload then Some now else m.lastReload in
+          {m with error; lastReload}
         in
         (newM, cmd)
     | ClearError ->
