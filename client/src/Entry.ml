@@ -226,11 +226,7 @@ let parseAst
         let lambdaArgs =
           complete.functions
           |> List.find ~f:(fun f -> Some f.fnName = fnname)
-          |> Option.andThen ~f:(fun fn ->
-                 Js.log2 "fnParams" fn.fnParameters ;
-                 let x = List.getAt ~index fn.fnParameters in
-                 Js.log2 "p" x ;
-                 x )
+          |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
           |> (function
                | None | Some {paramBlock_args = []} ->
                    (* add default value if empty or not found*)
