@@ -64,8 +64,8 @@ let () =
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
-            ; inReferences = []
-            ; toReferences = []
+            ; usedInRefs = []
+            ; refersToRefs = []
             ; usagesOfHoveredReference = []
             ; avatarsList = [] }
           in

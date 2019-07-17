@@ -252,12 +252,12 @@ and handlerName = string
 
 and handlerModifer = string
 
-and inTLID = tlid
+and usedInTLID = tlid
 
-and outTLID = tlid
+and refersToTLID = tlid
 
-(* inTLID is the TL that is pointed to by the outTLID. *)
-and usage = inTLID * outTLID
+(* usedTLID is the TL whose name is used in refersToTLID. *)
+and usage = usedInTLID * refersToTLID
 
 (* handlers *)
 and handlerSpec =
@@ -1257,27 +1257,22 @@ and model =
   ; handlerProps : handlerProp StrDict.t
   ; staticDeploys :
       staticDeploy list
-      (* tlUsages: to answer the question "what TLs does this TL use". eg if
-   * myFunc was called in Repl2 at the FnCall at id, then the dict would be:
+      (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
+   * if myFunc was called in Repl2, then the dict would be:
    *
-   *   { repl2.tlid: { myFunc.tlid: { id }}}
+   *   { repl2.tlid: { myFunc.tlid } }
    *
-   * which you can read as "repl2 uses myfunc at id". So the outer key is the
-   * tlid you want to know about, which points to the TLs used by the outer
-   * TL, which points at a set of ids in the outer TL that point to the inner
-   * one. *)
-  ; tlUsages :
+   * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
+   * it uses. *)
+  ; tlRefersTo :
       TLIDSet.t TLIDDict.t
-      (* tlUsedBy: to answer the question "what TLs is this TL used by".  eg if
-   * myFunc was called in Repl2, the dict would
+      (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
+   * if myFunc was called in Repl2, the dict would
    *
    *   { myfunc.tlid: { repl2.tlid }} 
    *
-   * which you can read as "myfunc is used by repl2". So the outer key is the
-   * tlid you want to know about, and the inner set is all the TLs that point
-   * to it.
-   * *)
-  ; tlUsageBy : TLIDSet.t TLIDDict.t
+   * which you can read as "myfunc is used in repl2".  *)
+  ; tlUsedIn : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
