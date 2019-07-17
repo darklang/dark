@@ -136,17 +136,13 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
   ; refersToRefs =
-      ( match m.currentPage with
-      | FocusedDB (tlid_, _) when tlid_ = tlid ->
-          Introspect.allRefersTo tlid_ m
-      | _ ->
-          [] )
+      ( if tlidOf m.cursorState = Some tlid
+      then Introspect.allRefersTo tlid m
+      else [] )
   ; usedInRefs =
-      ( match m.currentPage with
-      | FocusedHandler (tlid_, _) when tlid_ = tlid ->
-          Introspect.allUsedIn tlid_ m
-      | _ ->
-          [] )
+      ( if tlidOf m.cursorState = Some tlid
+      then Introspect.allUsedIn tlid m
+      else [] )
   ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
   ; fluidState = m.fluidState
   ; avatarsList =
