@@ -45,6 +45,20 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   }
 
 
+let maintainActiveTrace (oldPage : page) (newPage : page) (m : model) : model =
+  match (oldPage, newPage) with
+  | FocusedFn oldtlid, FocusedHandler (newtlid, _)
+  | FocusedHandler (oldtlid, _), FocusedFn newtlid ->
+      let trace = Analysis.getCurrentTrace m oldtlid in
+      ( match trace with
+      | Some (traceID, _) ->
+          Analysis.setCursor m newtlid traceID
+      | _ ->
+          m )
+  | _, _ ->
+      m
+
+
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
   | Architecture, FocusedFn _
@@ -62,6 +76,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
           { m.canvasProps with
             lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
       ; cursorState = Deselected }
+      |> maintainActiveTrace oldPage newPage
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
   | FocusedFn oldtlid, FocusedType newtlid
@@ -91,6 +106,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; canvasProps =
           { m.canvasProps with
             offset = Viewport.toCenteredOn (TL.pos tl); lastOffset = None } }
+      |> maintainActiveTrace oldPage newPage
   | Architecture, FocusedHandler (tlid, _) | Architecture, FocusedDB (tlid, _)
     ->
       (* Going from Architecture to focused db/handler
