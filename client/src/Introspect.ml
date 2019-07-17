@@ -114,7 +114,7 @@ let findUsagesInAST
          match pd with
          | PExpr (F (id, Variable name)) ->
              StrDict.get ~key:name databases
-             |> Option.map ~f:(fun dbTLID -> (tlid, dbTLID, id))
+             |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
          | PExpr
              (F
                ( id
@@ -126,19 +126,22 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | PExpr
              (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | PExpr (F (id, FnCall (F (_, name), _, _))) ->
              StrDict.get ~key:name functions
-             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
+             |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | _ ->
              None )
+  |> List.map ~f:(fun (tlUsedIn, id) ->
+         let tlRefersTo = tlid in
+         (tlUsedIn, tlRefersTo, id) )
 
 
 let getUsageFor
@@ -161,30 +164,30 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   let databases = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
   let functions = functionsByName m.userFunctions in
-  let tlRefersTo, tlUsedIn =
+  let tlUsedIn, tlRefersTo =
     tlids
     |> List.map ~f:(fun tlid ->
            let tl = TL.getExn m tlid in
            getUsageFor tl databases handlers functions )
     |> List.concat
     |> List.foldl
-         ~init:(m.tlRefersTo, m.tlUsedIn)
-         ~f:(fun (refersToTLID, usedInTLID, id) (refersTo, usedIn) ->
+         ~init:(m.tlUsedIn, m.tlRefersTo)
+         ~f:(fun (tlUsedIn, tlRefersTo, id) (usedIn, refersTo) ->
            let newRefersTo =
-             TD.get ~tlid:refersToTLID refersTo
+             TD.get ~tlid:tlRefersTo refersTo
              |> Option.withDefault ~default:TLIDSet.empty
-             |> IDPairSet.add ~value:(usedInTLID, id)
-             |> fun value -> TD.insert ~tlid:refersToTLID ~value refersTo
+             |> IDPairSet.add ~value:(tlUsedIn, id)
+             |> fun value -> TD.insert ~tlid:tlRefersTo ~value refersTo
            in
            let newUsedIn =
-             TD.get ~tlid:usedInTLID usedIn
+             TD.get ~tlid:tlUsedIn usedIn
              |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:refersToTLID
-             |> fun value -> TD.insert ~tlid:usedInTLID ~value usedIn
+             |> TLIDSet.add ~value:tlRefersTo
+             |> fun value -> TD.insert ~tlid:tlUsedIn ~value usedIn
            in
-           (newRefersTo, newUsedIn) )
+           (newUsedIn, newRefersTo) )
   in
-  {m with tlRefersTo; tlUsedIn}
+  {m with tlUsedIn; tlRefersTo}
 
 
 let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
