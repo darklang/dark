@@ -42,8 +42,12 @@ let module_type (h : handler) =
       `Http
   | Filled (_, m) when String.Caseless.equal "cron" m ->
       `Cron
+  | Filled (_, m) when String.Caseless.equal "worker" m ->
+      `Worker
+  | Filled (_, m) when String.Caseless.equal "repl" m ->
+      `Repl
   | Filled (_, m) ->
-      `Event
+      `Worker
   | _ ->
       `Unknown
 

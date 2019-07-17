@@ -407,9 +407,15 @@ let inputVariables (tl : toplevel) : varName list =
         ["request"] @ fromRoute
     | F (_, m) when String.toLower m = "cron" ->
         []
-    | F (_, _) ->
+    | F (_, m) when String.toLower m = "repl" ->
+        []
+    | F (_, m) when String.toLower m = "worker" ->
         ["event"]
-    | _ ->
+    | F (_, _) ->
+        (* workers, including old names *)
+        ["event"]
+    | Blank _ ->
+        (* we used to be allowed unknown *)
         ["request"; "event"] )
   | TLFunc f ->
       f.ufMetadata.ufmParameters
