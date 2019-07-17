@@ -129,7 +129,10 @@ let createVS (m : model) (tl : toplevel) : viewState =
       ( if tlidOf m.cursorState = Some tlid
       then Introspect.allUsedIn tlid m
       else [] )
-  ; hoveringRefs = []
+  ; hoveringRefs =
+      TD.get ~tlid m.handlerProps
+      |> Option.map ~f:(fun x -> x.hoveringReferences)
+      |> Option.withDefault ~default:[]
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with
