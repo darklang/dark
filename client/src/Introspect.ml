@@ -106,7 +106,6 @@ let findUsagesInAST
          match pd with
          | PExpr (F (_, Variable name)) ->
              StrDict.get ~key:name databases
-             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | PExpr
              (F
                ( _
@@ -118,20 +117,18 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | PExpr (F (_, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _)))
            ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | PExpr (F (_, FnCall (F (_, name), _, _))) ->
              StrDict.get ~key:name functions
-             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | _ ->
              None )
-  |> List.uniqueBy ~f:(fun (_, TLID tlid) -> tlid)
+  |> List.uniqueBy ~f:(fun (TLID str) -> str)
+  |> List.map ~f:(fun t -> (tlid_, t))
 
 
 let getUsageFor
