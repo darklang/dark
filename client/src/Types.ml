@@ -69,7 +69,13 @@ module TLIDDict = struct
 
   let tlids (dict : 'value t) : tlid list = dict |> keys
 
-  let update ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) : 'value t =
+  let updateIfPresent ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) :
+      'value t =
+    updateIfPresent ~key:tlid ~f dict
+
+
+  let update ~(tlid : tlid) ~(f : 'v option -> 'v option) (dict : 'value t) :
+      'value t =
     update ~key:tlid ~f dict
 
 

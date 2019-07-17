@@ -17,7 +17,7 @@ let upsert (m : model) (h : handler) : model =
 
 
 let update (m : model) ~(tlid : tlid) ~(f : handler -> handler) : model =
-  {m with handlers = TD.update ~tlid ~f m.handlers}
+  {m with handlers = TD.updateIfPresent ~tlid ~f m.handlers}
 
 
 let remove (m : model) (h : handler) : model =

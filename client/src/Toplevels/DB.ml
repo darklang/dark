@@ -13,7 +13,7 @@ let upsert (m : model) (db : db) : model =
 
 
 let update (m : model) ~(tlid : tlid) ~(f : db -> db) : model =
-  {m with dbs = TD.update ~tlid ~f m.dbs}
+  {m with dbs = TD.updateIfPresent ~tlid ~f m.dbs}
 
 
 let remove (m : model) (db : db) : model =
