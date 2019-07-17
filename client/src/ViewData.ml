@@ -37,7 +37,7 @@ let viewInput
     | Some v ->
         let asString = Runtime.inputValueAsString tl v in
         let asString =
-          if String.length asString = 0 && TL.spaceOf tl <> Some HSCron
+          if String.length asString = 0
           then "No input parameters"
           else asString
         in
