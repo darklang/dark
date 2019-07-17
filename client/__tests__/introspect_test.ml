@@ -62,7 +62,7 @@ let () =
           let databases = dbsByName dbs in
           let usages =
             match findUsagesInAST h2tlid databases handlers h2data.ast with
-            | [(tlid, toTLID, _)] ->
+            | [(tlid, toTLID)] ->
                 tlid = h2tlid && toTLID = dbtlid
             | _ ->
                 false
