@@ -28,7 +28,7 @@ let upsert (m : model) (ut : userTipe) : model =
 
 
 let update (m : model) ~(tlid : tlid) ~(f : userTipe -> userTipe) : model =
-  {m with userTipes = TD.update ~tlid ~f m.userTipes}
+  {m with userTipes = TD.updateIfPresent ~tlid ~f m.userTipes}
 
 
 let remove (m : model) (ut : userTipe) : model =

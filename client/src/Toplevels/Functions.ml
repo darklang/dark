@@ -22,7 +22,7 @@ let upsert (m : model) (userFunction : userFunction) : model =
 
 let update (m : model) ~(tlid : tlid) ~(f : userFunction -> userFunction) :
     model =
-  {m with userFunctions = TD.update ~tlid ~f m.userFunctions}
+  {m with userFunctions = TD.updateIfPresent ~tlid ~f m.userFunctions}
 
 
 let remove (m : model) (userFunction : userFunction) : model =
