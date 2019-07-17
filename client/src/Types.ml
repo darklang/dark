@@ -1266,7 +1266,8 @@ and model =
   ; browserId : string
   ; sidebarOpen : bool
   ; isAdmin : bool
-  ; buildHash : string }
+  ; buildHash : string
+  ; lastReload : (Js.Date.t[@opaque]) option }
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -1276,5 +1277,6 @@ and serializableEditor =
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp StrDict.t
-  ; canvasPos : pos }
+  ; canvasPos : pos
+  ; lastReload : (Js.Date.t[@opaque]) option }
 [@@deriving show {with_path = false}]

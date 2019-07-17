@@ -48,7 +48,8 @@ let editor2model (e : serializableEditor) : model =
   ; tlCursors = e.tlCursors
   ; featureFlags = e.featureFlags
   ; handlerProps = finalHandlerStates e.handlerProps
-  ; canvasProps = {m.canvasProps with offset = e.canvasPos} }
+  ; canvasProps = {m.canvasProps with offset = e.canvasPos}
+  ; lastReload = e.lastReload }
 
 
 let model2editor (m : model) : serializableEditor =
@@ -59,7 +60,8 @@ let model2editor (m : model) : serializableEditor =
   ; tlCursors = m.tlCursors (* what trace cursor is selected *)
   ; featureFlags = m.featureFlags (* which flags are expanded *)
   ; handlerProps = m.handlerProps
-  ; canvasPos = m.canvasProps.offset }
+  ; canvasPos = m.canvasProps.offset
+  ; lastReload = m.lastReload }
 
 
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
