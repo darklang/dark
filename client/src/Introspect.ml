@@ -31,6 +31,15 @@ let handlersByName (hs : handler TD.t) : tlid StrDict.t =
   |> StrDict.fromList
 
 
+let functionsByName (fns : userFunction TD.t) : tlid StrDict.t =
+  fns
+  |> TD.filterMapValues ~f:(fun fn ->
+         fn.ufMetadata.ufmName
+         |> B.toMaybe
+         |> Option.map ~f:(fun name -> (name, fn.ufTLID)) )
+  |> StrDict.fromList
+
+
 let tlidsToUpdateUsage (ops : op list) : tlid list =
   ops
   |> List.filterMap ~f:(fun op ->
@@ -90,13 +99,14 @@ let findUsagesInAST
     (tlid_ : tlid)
     (databases : tlid StrDict.t)
     (handlers : tlid StrDict.t)
+    (functions : tlid StrDict.t)
     (ast : expr) : usage list =
   AST.allData ast
   |> List.filterMap ~f:(fun pd ->
          match pd with
          | PExpr (F (_, Variable name)) ->
              StrDict.get ~key:name databases
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
+             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | PExpr
              (F
                ( _
@@ -108,29 +118,34 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
+             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | PExpr (F (_, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _)))
            ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
+             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
+         | PExpr (F (_, FnCall (F (_, name), _, _))) ->
+             StrDict.get ~key:name functions
+             |> Option.map ~f:(fun tlid -> (tlid_, tlid))
          | _ ->
              None )
   |> List.uniqueBy ~f:(fun (_, TLID tlid) -> tlid)
 
 
 let getUsageFor
-    (tl : toplevel) (databases : tlid StrDict.t) (handlers : tlid StrDict.t) :
-    usage list =
+    (tl : toplevel)
+    (databases : tlid StrDict.t)
+    (handlers : tlid StrDict.t)
+    (functions : tlid StrDict.t) : usage list =
   match tl with
   | TLHandler h ->
-      findUsagesInAST h.hTLID databases handlers h.ast
+      findUsagesInAST h.hTLID databases handlers functions h.ast
   | TLDB _ ->
       []
   | TLFunc f ->
-      findUsagesInAST f.ufTLID databases handlers f.ufAST
+      findUsagesInAST f.ufTLID databases handlers functions f.ufAST
   | TLTipe _ ->
       []
 
@@ -138,11 +153,12 @@ let getUsageFor
 let refreshUsages (m : model) (tlids : tlid list) : model =
   let databases = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
+  let functions = functionsByName m.userFunctions in
   let tlRefersTo, tlUsedIn =
     tlids
     |> List.map ~f:(fun tlid ->
            let tl = TL.getExn m tlid in
-           getUsageFor tl databases handlers )
+           getUsageFor tl databases handlers functions )
     |> List.concat
     |> List.foldl
          ~init:(m.tlRefersTo, m.tlUsedIn)
