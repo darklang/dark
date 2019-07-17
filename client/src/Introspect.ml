@@ -79,12 +79,20 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
-let allRefersTo (tlid : tlid) (m : model) : toplevel list =
+let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
   m.tlRefersTo
   |> TLIDDict.get ~tlid
-  |> Option.withDefault ~default:TLIDSet.empty
-  |> TLIDSet.toList
-  |> List.filterMap ~f:(fun tlid -> TL.get m tlid)
+  |> Option.withDefault ~default:IDPairSet.empty
+  |> IDPairSet.toList
+  |> List.foldl ~init:TLIDDict.empty ~f:(fun (tlid, id) dict ->
+         ( TLIDDict.update ~tlid dict ~f:(function
+               | None ->
+                   Some (IDSet.fromList [id])
+               | Some set ->
+                   Some (IDSet.add ~value:id set) )
+           : IDSet.t TLIDDict.t ) )
+  |> TD.toList
+  |> List.map ~f:(fun (tlid, ids) -> (TL.getExn m tlid, IDSet.toList ids))
 
 
 let allUsedIn (tlid : tlid) (m : model) : toplevel list =
@@ -161,11 +169,11 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
     |> List.concat
     |> List.foldl
          ~init:(m.tlRefersTo, m.tlUsedIn)
-         ~f:(fun (refersToTLID, usedInTLID, _) (refersTo, usedIn) ->
+         ~f:(fun (refersToTLID, usedInTLID, id) (refersTo, usedIn) ->
            let newRefersTo =
              TD.get ~tlid:refersToTLID refersTo
              |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:usedInTLID
+             |> IDPairSet.add ~value:(usedInTLID, id)
              |> fun value -> TD.insert ~tlid:refersToTLID ~value refersTo
            in
            let newUsedIn =

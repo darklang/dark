@@ -1281,14 +1281,14 @@ and model =
   ; staticDeploys :
       staticDeploy list
       (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
-   * if myFunc was called in Repl2, then the dict would be:
+   * if myFunc was called in Repl2 at id, then the dict would be:
    *
-   *   { repl2.tlid: { myFunc.tlid } }
+   *   { repl2.tlid: { (myFunc.tlid, id) } }
    *
    * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
    * it uses. *)
   ; tlRefersTo :
-      TLIDSet.t TLIDDict.t
+      IDPairSet.t TLIDDict.t
       (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *

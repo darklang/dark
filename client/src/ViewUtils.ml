@@ -31,7 +31,7 @@ type viewState =
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; refersToRefs : toplevel list
+  ; refersToRefs : (toplevel * id list) list
   ; usedInRefs : toplevel list
   ; hoveringRefs : id list
   ; fluidState : Types.fluidState
