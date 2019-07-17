@@ -41,40 +41,48 @@ and 'a blankOr =
   | F of id * 'a
 [@@deriving show {with_path = false}]
 
+module TLID = struct
+  type t = tlid
+
+  let toString (TLID str) = str
+
+  let fromString str = TLID str
+end
+
+module ID = struct
+  type t = id
+
+  let toString (ID str) = str
+
+  let fromString str = ID str
+end
+
 module TLIDDict = struct
-  include Tc.StrDict
+  include Tc.Dict (TLID)
 
-  let get ~(tlid : tlid) (dict : 'value t) : 'value option =
-    let (TLID key) = tlid in
-    get ~key dict
-
+  (* TODO: convert the tlid key back to being called key *)
+  let get ~(tlid : tlid) (dict : 'value t) : 'value option = get ~key:tlid dict
 
   let insert ~(tlid : tlid) ~(value : 'value) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    insert ~key ~value dict
+    insert ~key:tlid ~value dict
 
 
-  let tlids (dict : 'value t) : tlid list =
-    dict |> keys |> Tc.List.map ~f:(fun key -> TLID key)
-
+  let tlids (dict : 'value t) : tlid list = dict |> keys
 
   let update ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    updateIfPresent ~key ~f dict
+    update ~key:tlid ~f dict
 
 
   let remove ~(tlid : tlid) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    remove ~key dict
+    remove ~key:tlid dict
 
 
   let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
-    let keys = List.map tlids ~f:(fun (TLID key) -> key) in
-    removeMany ~keys dict
+    removeMany ~keys:tlids dict
+end
 
-
-  let fromList (values : (tlid * 'value) list) : 'value t =
-    values |> List.map ~f:(fun (TLID key, v) -> (key, v)) |> fromList
+module IDSet = struct
+  include Tc.Set (ID)
 end
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
