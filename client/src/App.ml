@@ -356,17 +356,30 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with error = updateError m.error error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
-        (* Reload if it's a CSRF failure. *)
-        if ApiError.isCSRF apiError then Native.Location.reload true ;
-        let cmds =
-          if ApiError.shouldRollbar apiError
-          then [Tea.Cmd.call (fun _ -> Rollbar.sendApiError m apiError)]
-          else []
+        let shouldReload =
+          let buildHashMismatch =
+            ApiError.serverVersionOf apiError
+            |> Option.map ~f:(fun hash -> hash <> m.buildHash)
+            |> Option.withDefault ~default:false
+          in
+          (* TODO: stick something in local storage *)
+          let reloadAllowed = true in
+          (* Reload if it's a CSRF failure or the frontend is out of date *)
+          ApiError.isCSRF apiError || (buildHashMismatch && reloadAllowed)
         in
-        ( ( if ApiError.shouldDisplayToUser apiError
+        let cmd =
+          if shouldReload
+          then Cmd.call (fun _ -> Native.Location.reload true)
+          else if ApiError.shouldRollbar apiError
+          then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
+          else Cmd.none
+        in
+        let newM =
+          if ApiError.shouldDisplayToUser apiError && not shouldReload
           then {m with error = updateError m.error (ApiError.msg apiError)}
-          else m )
-        , Cmd.batch cmds )
+          else m
+        in
+        (newM, cmd)
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
