@@ -257,7 +257,7 @@ and usedInTLID = tlid
 and refersToTLID = tlid
 
 (* usedTLID is the TL whose name is used in refersToTLID. *)
-and usage = usedInTLID * refersToTLID
+and usage = usedInTLID * refersToTLID * id
 
 (* handlers *)
 and handlerSpec =

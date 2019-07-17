@@ -20,12 +20,13 @@ let () =
         ; pos = {x = 0; y = 0} }
       in
       let h2tlid = gtlid () in
+      let dbRefID = gid () in
       let h2data =
         { ast =
             B.newF
               (FnCall
                  ( B.newF "DB::deleteAll_v1"
-                 , [B.newF (Variable "Books")]
+                 , [F (dbRefID, Variable "Books")]
                  , NoRail ))
         ; spec =
             { space = B.newF "HTTP"
@@ -65,8 +66,8 @@ let () =
             match
               findUsagesInAST h2tlid databases handlers functions h2data.ast
             with
-            | [(tlid, toTLID)] ->
-                tlid = h2tlid && toTLID = dbtlid
+            | [(tlid, toTLID, id)] ->
+                tlid = h2tlid && toTLID = dbtlid && id == dbRefID
             | _ ->
                 false
           in

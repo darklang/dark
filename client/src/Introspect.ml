@@ -96,7 +96,7 @@ let allUsedIn (tlid : tlid) (m : model) : toplevel list =
 
 
 let findUsagesInAST
-    (tlid_ : tlid)
+    (tlid : tlid)
     (databases : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t)
@@ -104,11 +104,12 @@ let findUsagesInAST
   AST.allData ast
   |> List.filterMap ~f:(fun pd ->
          match pd with
-         | PExpr (F (_, Variable name)) ->
+         | PExpr (F (id, Variable name)) ->
              StrDict.get ~key:name databases
+             |> Option.map ~f:(fun dbTLID -> (tlid, dbTLID, id))
          | PExpr
              (F
-               ( _
+               ( id
                , FnCall
                    ( F (_, "emit")
                    , [_; F (_, Value space_); F (_, Value name_)]
@@ -117,18 +118,19 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-         | PExpr (F (_, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _)))
-           ->
+             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
+         | PExpr
+             (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-         | PExpr (F (_, FnCall (F (_, name), _, _))) ->
+             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
+         | PExpr (F (id, FnCall (F (_, name), _, _))) ->
              StrDict.get ~key:name functions
+             |> Option.map ~f:(fun fnTLID -> (tlid, fnTLID, id))
          | _ ->
              None )
-  |> List.uniqueBy ~f:(fun (TLID str) -> str)
-  |> List.map ~f:(fun t -> (tlid_, t))
 
 
 let getUsageFor
@@ -159,7 +161,7 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
     |> List.concat
     |> List.foldl
          ~init:(m.tlRefersTo, m.tlUsedIn)
-         ~f:(fun (refersToTLID, usedInTLID) (refersTo, usedIn) ->
+         ~f:(fun (refersToTLID, usedInTLID, _) (refersTo, usedIn) ->
            let newRefersTo =
              TD.get ~tlid:refersToTLID refersTo
              |> Option.withDefault ~default:TLIDSet.empty
