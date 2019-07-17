@@ -131,20 +131,21 @@ let fnView
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
-let refersToViews (tlid : tlid) (refs : toplevel list) : msg Html.html =
+let refersToViews (tlid : tlid) (refs : (toplevel * id list) list) :
+    msg Html.html =
   let topOffset =
     List.head refs
-    |> Option.andThen ~f:(fun tl ->
+    |> Option.andThen ~f:(fun (tl, _) ->
            let id = tl |> TL.id |> showTLID in
            Native.Ext.querySelector (".id-" ^ id) )
     |> Option.andThen ~f:(fun e -> Some (Native.Ext.offsetTop e))
     |> Option.withDefault ~default:0
-  and renderView tl =
+  and renderView (tl, ids) =
     match tl with
     | TLDB {dbTLID; dbName = F (_, name); cols} ->
-        dbView tlid [] dbTLID name cols
+        dbView tlid ids dbTLID name cols
     | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
-        eventView tlid [] hTLID space name
+        eventView tlid ids hTLID space name
     | _ ->
         Vdom.noNode
   in
