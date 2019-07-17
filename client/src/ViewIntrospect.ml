@@ -49,23 +49,6 @@ let dbView
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
-let eventView
-    (originTLID : tlid)
-    (originIDs : id list)
-    (tlid : tlid)
-    (space : string)
-    (name : string) : msg Html.html =
-  Html.div
-    ( [ Html.class' "ref-block emit"
-      ; ViewUtils.eventNoPropagation
-          ~key:("ref-emit-link" ^ showTLID tlid)
-          "click"
-          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
-    @ hoveringRefProps originTLID originIDs ~key:"ref-event-hover" )
-    [ Html.div [Html.class' "spec"] [Html.text space]
-    ; Html.div [Html.class' "spec"] [Html.text name] ]
-
-
 let handlerView
     (originTLID : tlid)
     (originIDs : id list)
@@ -131,6 +114,25 @@ let fnView
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
+let renderView originalTLID (tl, originalIDs) =
+  match tl with
+  | TLDB {dbTLID; dbName = F (_, name); cols} ->
+      dbView originalTLID originalIDs dbTLID name cols
+  | TLHandler
+      {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
+      handlerView
+        originalTLID
+        originalIDs
+        hTLID
+        space
+        name
+        (B.toMaybe modifier)
+  | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
+      fnView originalTLID originalIDs ufTLID name ufmParameters
+  | _ ->
+      Vdom.noNode
+
+
 let refersToViews (tlid : tlid) (refs : (toplevel * id list) list) :
     msg Html.html =
   let topOffset =
@@ -140,30 +142,13 @@ let refersToViews (tlid : tlid) (refs : (toplevel * id list) list) :
            Native.Ext.querySelector (".id-" ^ id) )
     |> Option.andThen ~f:(fun e -> Some (Native.Ext.offsetTop e))
     |> Option.withDefault ~default:0
-  and renderView (tl, ids) =
-    match tl with
-    | TLDB {dbTLID; dbName = F (_, name); cols} ->
-        dbView tlid ids dbTLID name cols
-    | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
-        eventView tlid ids hTLID space name
-    | _ ->
-        Vdom.noNode
   in
   Html.div
     [ Html.class' "usages"
     ; Html.styles [("top", string_of_int (topOffset - 16) ^ "px")] ]
-    (List.map ~f:renderView refs)
+    (List.map ~f:(renderView tlid) refs)
 
 
 let usedInViews (tlid : tlid) (uses : toplevel list) : msg Html.html =
-  let renderView r =
-    match r with
-    | TLHandler
-        {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
-        handlerView tlid [] hTLID space name (B.toMaybe modifier)
-    | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
-        fnView tlid [] ufTLID name ufmParameters
-    | _ ->
-        Vdom.noNode
-  in
-  Html.div [Html.class' "used-in"] (List.map ~f:renderView uses)
+  let uses = List.map ~f:(fun use -> (use, [])) uses in
+  Html.div [Html.class' "used-in"] (List.map ~f:(renderView tlid) uses)

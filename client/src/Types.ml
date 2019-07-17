@@ -272,12 +272,13 @@ and handlerName = string
 
 and handlerModifer = string
 
-and usedInTLID = tlid
+and tlUsedIn = tlid
 
-and refersToTLID = tlid
+and tlRefersTo = tlid
 
-(* usedTLID is the TL whose name is used in refersToTLID. *)
-and usage = usedInTLID * refersToTLID * id
+(* tlUsedIn is used in tlRefersTo at id *)
+(* tlRefers to uses tlUsedIn at id *)
+and usage = tlUsedIn * tlRefersTo * id
 
 (* handlers *)
 and handlerSpec =
