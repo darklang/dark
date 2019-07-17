@@ -5,6 +5,15 @@ open Types
 module Cmd = Tea.Cmd
 module Http = Tea.Http
 
+let serverVersionOf (e : apiError) : string option =
+  match e.originalError with
+  | BadUrl _ | Timeout | NetworkError | Aborted ->
+      None
+  | BadStatus response | BadPayload (_, response) ->
+      let module StringMap = Map.Make (Caml.String) in
+      StringMap.find_opt "X-Darklang-Server-Version" response.headers
+
+
 let urlOf (e : apiError) : string option =
   match e.originalError with
   | Http.BadUrl url ->

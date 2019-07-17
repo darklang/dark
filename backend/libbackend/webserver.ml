@@ -180,7 +180,7 @@ let over_headers_promise
 let wrap_editor_api_headers =
   let headers =
     [ ("Content-type", "application/json; charset=utf-8")
-    ; ("X-Darklang-Editor-Version", Config.build_hash) ]
+    ; ("X-Darklang-Server-Version", Config.build_hash) ]
   in
   over_headers_promise ~f:(fun h -> Header.add_list h headers)
 
