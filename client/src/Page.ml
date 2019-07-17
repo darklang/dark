@@ -1,4 +1,6 @@
+open Tc
 open Types
+open Prelude
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
@@ -46,15 +48,54 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
 
 
 let maintainActiveTrace (oldPage : page) (newPage : page) (m : model) : model =
+  let validateCallerCallee fnTLID hTLID : bool =
+    let fnname =
+      match TL.get m fnTLID with
+      | Some (TLFunc f) ->
+          f.ufMetadata.ufmName
+          |> Blank.toMaybe
+          |> Option.withDefault ~default:""
+      | _ ->
+          ""
+    in
+    TL.get m hTLID
+    |> Option.andThen ~f:TL.getAST
+    |> Option.map ~f:(AST.allCallsToFn fnname)
+    |> fun x -> x <> None && x <> Some []
+  in
+  let setCursorOrAddTrace m oldtlid newtlid =
+    let trace = Analysis.getCurrentTrace m oldtlid in
+    match trace with
+    | Some (traceID, _) ->
+        let newPageHasCurrentTrace =
+          Analysis.getTrace m newtlid traceID <> None
+        in
+        let m =
+          if newPageHasCurrentTrace
+          then m
+          else
+            let traces =
+              m.traces
+              |> StrDict.update ~key:(deTLID newtlid) ~f:(function
+                     | Some ts ->
+                         Some ((traceID, None) :: ts)
+                         (* insert traceID w no data*)
+                     | _ ->
+                         None )
+            in
+            {m with traces}
+        in
+        Analysis.setCursor m newtlid traceID
+    | _ ->
+        m
+  in
   match (oldPage, newPage) with
   | FocusedFn oldtlid, FocusedHandler (newtlid, _)
-  | FocusedHandler (oldtlid, _), FocusedFn newtlid ->
-      let trace = Analysis.getCurrentTrace m oldtlid in
-      ( match trace with
-      | Some (traceID, _) ->
-          Analysis.setCursor m newtlid traceID
-      | _ ->
-          m )
+    when validateCallerCallee oldtlid newtlid ->
+      setCursorOrAddTrace m oldtlid newtlid
+  | FocusedHandler (oldtlid, _), FocusedFn newtlid
+    when validateCallerCallee newtlid oldtlid ->
+      setCursorOrAddTrace m oldtlid newtlid
   | _, _ ->
       m
 
