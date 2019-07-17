@@ -102,9 +102,10 @@ let match_permission ~(username : Account.username) ~(auth_domain : string) =
   if String.Caseless.equal username auth_domain then Some ReadWrite else None
 
 
-(* Everyone should have read access to 'sample' *)
+(* Everyone should have access to 'sample'. Soon (when we have UI support for read-only canvases)
+   this will be read-only access. *)
 let sample_permission ~(auth_domain : string) =
-  if String.Caseless.equal "sample" auth_domain then Some Read else None
+  if String.Caseless.equal "sample" auth_domain then Some ReadWrite else None
 
 
 (* What's the highest level of access a particular user has to a
