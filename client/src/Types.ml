@@ -71,7 +71,9 @@ module Pair (K1 : Key) (K2 : Key) = struct
     | [v1; v2] ->
         (K1.fromString v1, K2.fromString v2)
     | _ ->
-        failwith "Pair cannot be separated"
+        failwith
+          ( "Pair cannot be separated. This probably means you're using the wrong module for this dict/set: "
+          ^ str )
 end
 
 module TLIDDict = struct
