@@ -355,7 +355,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         then Native.Location.reload true ;
         ( {m with error = updateError m.error error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
-    | DisplayAndReportHttpError apiError ->
+    | HandleAPIError apiError ->
         (* Reload if it's a CSRF failure. *)
         if ApiError.isCSRF apiError then Native.Location.reload true ;
         let cmds =
@@ -1349,7 +1349,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
         ; UpdateDBStats result ]
   | AddOpRPCCallback (_, params, Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make
            ~context:"RPC"
            ~importance:ImportantError
@@ -1358,28 +1358,28 @@ let update_ (msg : msg) (m : model) : modification =
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make
            ~context:"ExecuteFunction"
            ~importance:ImportantError
            ~requestParams:(Encoders.executeFunctionRPCParams params)
            err)
   | TriggerHandlerRPCCallback (_, Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make ~context:"TriggerHandler" ~importance:ImportantError err)
   | InitialLoadRPCCallback (_, _, Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make ~context:"InitialLoad" ~importance:ImportantError err)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
-        ; DisplayAndReportHttpError
+        ; HandleAPIError
             (ApiError.make
                ~context:"GetUnlockedDBs"
                ~importance:IgnorableError
                err) ]
   | Delete404RPCCallback (params, Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make
            ~context:"Delete404"
            ~importance:ImportantError
@@ -1562,7 +1562,7 @@ let update_ (msg : msg) (m : model) : modification =
   | TriggerSendPresenceCallback (Ok ()) ->
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
-      DisplayAndReportHttpError
+      HandleAPIError
         (ApiError.make
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
