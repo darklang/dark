@@ -31,7 +31,7 @@ let () =
             { space = B.newF "HTTP"
             ; name = B.newF "/hello"
             ; modifier = B.newF "GET" }
-        ; hTLID = h1tlid
+        ; hTLID = h2tlid
         ; pos = {x = 0; y = 0} }
       in
       let dbtlid = gtlid () in
@@ -44,18 +44,22 @@ let () =
         ; activeMigration = None
         ; pos = {x = 0; y = 0} }
       in
-      let toplevels = [TLHandler h1data; TLDB dbdata; TLHandler h2data] in
+      let dbs = TD.fromList [(dbdata.dbTLID, dbdata)] in
+      let handlers =
+        TD.fromList [(h1data.hTLID, h1data); (h2data.hTLID, h2data)]
+      in
       test "dbsByName" (fun () ->
-          expect (dbsByName toplevels)
+          expect (dbsByName dbs)
           |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)
       ) ;
       test "handlersByName" (fun () ->
-          let handlerKeys = StrDict.keys (handlersByName toplevels) in
-          expect (List.member ~value:"JOB:processOrder" handlerKeys)
-          |> toEqual true ) ;
+          let v =
+            handlers |> handlersByName |> StrDict.get ~key:"JOB:processOrder"
+          in
+          expect v |> toEqual (Some h1tlid) ) ;
       test "findUsagesInAST" (fun () ->
-          let handlers = handlersByName toplevels in
-          let databases = dbsByName toplevels in
+          let handlers = handlersByName handlers in
+          let databases = dbsByName dbs in
           let usages =
             match findUsagesInAST h2tlid databases handlers h2data.ast with
             | [(tlid, toTLID, _)] ->
@@ -64,23 +68,6 @@ let () =
                 false
           in
           expect usages |> toEqual true ) ;
-      test "tlidsToUpdateMeta" (fun () ->
-          let tlid1 = gtlid () in
-          let tlid2 = gtlid () in
-          let ops =
-            [ DeleteDBCol (tlid1, gid ())
-            ; SetFunction
-                { ufTLID = tlid2
-                ; ufMetadata =
-                    { ufmName = B.newF "trollClean"
-                    ; ufmParameters = []
-                    ; ufmDescription = "can users put docs here?"
-                    ; ufmReturnTipe = B.new_ ()
-                    ; ufmInfix = false }
-                ; ufAST = B.new_ () }
-            ; AddDBCol (tlid1, gid (), gid ()) ]
-          in
-          expect (tlidsToUpdateMeta ops) |> toEqual [tlid1; tlid2] ) ;
       test "tlidsToUpdateUsage" (fun () ->
           let fntlid = gtlid () in
           let ops =
