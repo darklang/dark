@@ -130,3 +130,60 @@ module StrDict = struct
   let removeMany (dict : 'v t) ~(keys : key list) : 'v t =
     Belt.Map.String.removeMany dict (Belt.List.toArray keys)
 end
+
+module type Key = sig
+  type t
+
+  val toString : t -> string
+
+  val fromString : string -> t
+end
+
+module Dict (K : Key) = struct
+  include StrDict
+
+  let get ~(key : K.t) (dict : 'value t) : 'value option =
+    get ~key:(K.toString key) dict
+
+
+  let insert ~(key : K.t) ~(value : 'value) (dict : 'value t) : 'value t =
+    insert ~key:(K.toString key) ~value dict
+
+
+  let keys (dict : 'value t) : K.t list =
+    dict |> keys |> List.map ~f:K.fromString
+
+
+  let update ~(key : K.t) ~(f : 'v -> 'v) (dict : 'value t) : 'value t =
+    updateIfPresent ~key:(K.toString key) ~f dict
+
+
+  let remove ~(key : K.t) (dict : 'value t) : 'value t =
+    remove ~key:(K.toString key) dict
+
+
+  let removeMany ~(keys : K.t list) (dict : 'value t) : 'value t =
+    let keys = List.map keys ~f:K.toString in
+    removeMany ~keys dict
+
+
+  let fromList (values : (K.t * 'value) list) : 'value t =
+    values |> List.map ~f:(fun (key, v) -> (K.toString key, v)) |> fromList
+end
+
+module Set (K : Key) = struct
+  include StrSet
+
+  let add ~(value : K.t) (set : t) : t = add ~value:(K.toString value) set
+
+  let set = add
+
+  let toList (set : t) : K.t list = set |> toList |> List.map ~f:K.fromString
+
+  let remove ~(value : K.t) (set : t) : t =
+    remove ~value:(K.toString value) set
+
+
+  let fromList (values : K.t list) : t =
+    values |> List.map ~f:K.toString |> fromList
+end
