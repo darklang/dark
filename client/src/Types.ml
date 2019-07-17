@@ -787,9 +787,14 @@ and errorImportance =
   | IgnorableError
   | ImportantError
 
+and apiError =
+  { context : string
+  ; originalError : httpError (* the Tea_http error *)
+  ; requestParams : (Js.Json.t[@opaque]) option
+  ; importance : errorImportance }
+
 and modification =
-  | DisplayAndReportHttpError of
-      string * errorImportance * httpError * (Js.Json.t[@opaque])
+  | DisplayAndReportHttpError of apiError
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
