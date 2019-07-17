@@ -73,8 +73,8 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
 let allTo (tlid : tlid) (m : model) : toplevel list =
   m.tlUsages
   |> TLIDDict.get ~tlid
-  |> Option.withDefault ~default:TLIDDict.empty
-  |> TLIDDict.tlids
+  |> Option.withDefault ~default:TLIDSet.empty
+  |> TLIDSet.toList
   |> List.filterMap ~f:(fun tlid -> TL.get m tlid)
 
 
@@ -94,12 +94,12 @@ let findUsagesInAST
   AST.allData ast
   |> List.filterMap ~f:(fun pd ->
          match pd with
-         | PExpr (F (id, Variable name)) ->
+         | PExpr (F (_, Variable name)) ->
              StrDict.get ~key:name databases
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
          | PExpr
              (F
-               ( id
+               ( _
                , FnCall
                    ( F (_, "emit")
                    , [_; F (_, Value space_); F (_, Value name_)]
@@ -108,17 +108,17 @@ let findUsagesInAST
              let space = Util.removeQuotes space_ in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
-         | PExpr
-             (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
+         | PExpr (F (_, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _)))
+           ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
              StrDict.get ~key handlers
-             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid, id))
+             |> Option.andThen ~f:(fun tlid -> Some (tlid_, tlid))
          | _ ->
              None )
-  |> List.uniqueBy ~f:(fun (_, TLID tlid, _) -> tlid)
+  |> List.uniqueBy ~f:(fun (_, TLID tlid) -> tlid)
 
 
 let getUsageFor
@@ -146,22 +146,12 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
     |> List.concat
     |> List.foldl
          ~init:(m.tlUsages, m.tlUsageBy)
-         ~f:(fun (usedTLID, usedByTLID, id) (usages, usageBy) ->
+         ~f:(fun (usedTLID, usedByTLID) (usages, usageBy) ->
            let newUsages =
-             let inner =
-               TD.get ~tlid:usedTLID usages
-               |> Option.withDefault ~default:TD.empty
-             in
-             let set =
-               inner
-               |> TD.get ~tlid:usedByTLID
-               |> Option.withDefault ~default:TLIDSet.empty
-               |> IDSet.add ~value:id
-             in
-             TD.insert
-               ~tlid:usedTLID
-               ~value:(TD.insert ~tlid:usedByTLID ~value:set inner)
-               usages
+             TD.get ~tlid:usedTLID usages
+             |> Option.withDefault ~default:TLIDSet.empty
+             |> TLIDSet.add ~value:usedByTLID
+             |> fun value -> TD.insert ~tlid:usedTLID ~value usages
            in
            let newUsageBy =
              TD.get ~tlid:usedByTLID usageBy

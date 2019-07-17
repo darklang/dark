@@ -254,11 +254,10 @@ and handlerModifer = string
 
 and inTLID = tlid
 
-and toTLID = tlid
+and outTLID = tlid
 
-(* inTLID is the TL that has a reference to the toTLID. id is the id in the
- * inTL that has the reference. *)
-and usage = inTLID * toTLID * id
+(* inTLID is the TL that is pointed to by the outTLID. *)
+and usage = inTLID * outTLID
 
 (* handlers *)
 and handlerSpec =
@@ -1268,7 +1267,7 @@ and model =
    * TL, which points at a set of ids in the outer TL that point to the inner
    * one. *)
   ; tlUsages :
-      IDSet.t TLIDDict.t TLIDDict.t
+      TLIDSet.t TLIDDict.t
       (* tlUsedBy: to answer the question "what TLs is this TL used by".  eg if
    * myFunc was called in Repl2, the dict would
    *
