@@ -951,7 +951,7 @@ and msg =
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
-  | SetHoveringVarName of tlid * string option
+  | SetHoveringReferences of tlid * id list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
   | FluidCommandsFilter of string
@@ -994,7 +994,10 @@ and handlerState =
 and handlerProp =
   { handlerLock : bool
   ; handlerState : handlerState
-  ; hoveringVariableName : varName option }
+  ; hoveringReferences :
+      (* When hovering over a reference, this is the list of ids that refer to
+       * the reference *)
+      id list }
 
 and tlCursors = traceID StrDict.t
 

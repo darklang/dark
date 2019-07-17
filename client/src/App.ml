@@ -1557,8 +1557,8 @@ let update_ (msg : msg) (m : model) : modification =
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
-  | SetHoveringVarName (tlid, name) ->
-      Introspect.setHoveringVarName tlid name
+  | SetHoveringReferences (tlid, ids) ->
+      Introspect.setHoveringReferences tlid ids
   | FluidKeyPress _ ->
       Fluid.update m msg
   | TriggerSendPresenceCallback (Ok ()) ->
