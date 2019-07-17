@@ -794,7 +794,7 @@ and apiError =
   ; importance : errorImportance }
 
 and modification =
-  | DisplayAndReportHttpError of apiError
+  | HandleAPIError of apiError
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
