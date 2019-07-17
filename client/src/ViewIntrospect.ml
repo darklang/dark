@@ -21,40 +21,58 @@ let dbColsView (cols : dbColumn list) : msg Html.html =
   Html.div [Html.class' "cols"] (List.filterMap ~f:colView cols)
 
 
+let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string)
+    =
+  [ ViewUtils.eventNoPropagation
+      ~key:(key ^ "-in_" ^ showTLID originTLID)
+      "mouseenter"
+      (fun _ -> SetHoveringReferences (originTLID, originIDs))
+  ; ViewUtils.eventNoPropagation
+      ~key:(key ^ "-out_" ^ showTLID originTLID)
+      "mouseleave"
+      (fun _ -> SetHoveringReferences (originTLID, [])) ]
+
+
 let dbView
-    (originTLID : tlid) (tlid : tlid) (name : string) (cols : dbColumn list) :
-    msg Html.html =
+    (originTLID : tlid)
+    (originIDs : id list)
+    (tlid : tlid)
+    (name : string)
+    (cols : dbColumn list) : msg Html.html =
   Html.div
-    [ Html.class' "ref-block db"
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-db-link" ^ showTLID tlid)
-        "click"
-        (fun _ -> GoTo (FocusedDB (tlid, true)))
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-db-hover-in" ^ showTLID originTLID)
-        "mouseenter"
-        (fun _ -> SetHoveringVarName (originTLID, Some name))
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-db-hover-out" ^ showTLID originTLID)
-        "mouseleave"
-        (fun _ -> SetHoveringVarName (originTLID, None)) ]
+    ( [ Html.class' "ref-block db"
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-db-link" ^ showTLID tlid)
+          "click"
+          (fun _ -> GoTo (FocusedDB (tlid, true))) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
 
-let eventView (tlid : tlid) (space : string) (name : string) : msg Html.html =
+let eventView
+    (originTLID : tlid)
+    (originIDs : id list)
+    (tlid : tlid)
+    (space : string)
+    (name : string) : msg Html.html =
   Html.div
-    [ Html.class' "ref-block emit"
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-emit-link" ^ showTLID tlid)
-        "click"
-        (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+    ( [ Html.class' "ref-block emit"
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-emit-link" ^ showTLID tlid)
+          "click"
+          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-event-hover" )
     [ Html.div [Html.class' "spec"] [Html.text space]
     ; Html.div [Html.class' "spec"] [Html.text name] ]
 
 
 let handlerView
-    (tlid : tlid) (space : string) (name : string) (modifier : string option) :
-    msg Html.html =
+    (originTLID : tlid)
+    (originIDs : id list)
+    (tlid : tlid)
+    (space : string)
+    (name : string)
+    (modifier : string option) : msg Html.html =
   let modifier_ =
     match modifier with
     | Some "_" | None ->
@@ -63,18 +81,23 @@ let handlerView
         [Html.div [Html.class' "spec"] [Html.text m]]
   in
   Html.div
-    [ Html.class' "ref-block handler"
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-handler-link" ^ showTLID tlid)
-        "click"
-        (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+    ( [ Html.class' "ref-block handler"
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-handler-link" ^ showTLID tlid)
+          "click"
+          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
     ( [ Html.div [Html.class' "spec"] [Html.text space]
       ; Html.div [Html.class' "spec"] [Html.text name] ]
     @ modifier_ )
 
 
-let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
-    : msg Html.html =
+let fnView
+    (originTLID : tlid)
+    (originIDs : id list)
+    (tlid : tlid)
+    (name : string)
+    (params : userFunctionParameter list) : msg Html.html =
   let header =
     [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#666"]
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
@@ -98,11 +121,12 @@ let fnView (tlid : tlid) (name : string) (params : userFunctionParameter list)
     Html.div [Html.class' "fnparam"] [name; Html.text ":"; ptype]
   in
   Html.div
-    [ Html.class' "ref-block fn"
-    ; ViewUtils.eventNoPropagation
-        ~key:("ref-fn-link" ^ showTLID tlid)
-        "click"
-        (fun _ -> GoTo (FocusedFn tlid)) ]
+    ( [ Html.class' "ref-block fn"
+      ; ViewUtils.eventNoPropagation
+          ~key:("ref-fn-link" ^ showTLID tlid)
+          "click"
+          (fun _ -> GoTo (FocusedFn tlid)) ]
+    @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [ Html.div [Html.class' "fnheader"] header
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
@@ -118,9 +142,9 @@ let refersToViews (tlid : tlid) (refs : toplevel list) : msg Html.html =
   and renderView tl =
     match tl with
     | TLDB {dbTLID; dbName = F (_, name); cols} ->
-        dbView tlid dbTLID name cols
+        dbView tlid [] dbTLID name cols
     | TLHandler {hTLID; spec = {space = F (_, space); name = F (_, name)}} ->
-        eventView hTLID space name
+        eventView tlid [] hTLID space name
     | _ ->
         Vdom.noNode
   in
@@ -130,14 +154,14 @@ let refersToViews (tlid : tlid) (refs : toplevel list) : msg Html.html =
     (List.map ~f:renderView refs)
 
 
-let usedInViews (uses : toplevel list) : msg Html.html =
+let usedInViews (tlid : tlid) (uses : toplevel list) : msg Html.html =
   let renderView r =
     match r with
     | TLHandler
         {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
-        handlerView hTLID space name (B.toMaybe modifier)
+        handlerView tlid [] hTLID space name (B.toMaybe modifier)
     | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
-        fnView ufTLID name ufmParameters
+        fnView tlid [] ufTLID name ufmParameters
     | _ ->
         Vdom.noNode
   in

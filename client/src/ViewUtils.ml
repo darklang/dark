@@ -33,7 +33,7 @@ type viewState =
   ; userContentHost : string
   ; refersToRefs : toplevel list
   ; usedInRefs : toplevel list
-  ; usagesOfHoveredReference : id list
+  ; hoveringRefs : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list }
 
@@ -74,16 +74,6 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
             [] )
     | _ ->
         [] )
-  | _ ->
-      []
-
-
-let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
-    id list =
-  let varname = Option.andThen hp ~f:(fun p -> p.hoveringVariableName) in
-  match (TL.getAST tl, varname) with
-  | Some body, Some v ->
-      AST.uses v body |> List.map ~f:Blank.toID
   | _ ->
       []
 
@@ -139,7 +129,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       ( if tlidOf m.cursorState = Some tlid
       then Introspect.allUsedIn tlid m
       else [] )
-  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
+  ; hoveringRefs = []
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with

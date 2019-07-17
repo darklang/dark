@@ -66,7 +66,7 @@ let () =
             ; userContentHost = ""
             ; usedInRefs = []
             ; refersToRefs = []
-            ; usagesOfHoveredReference = []
+            ; hoveringRefs = []
             ; avatarsList = [] }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;

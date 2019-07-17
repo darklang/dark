@@ -177,13 +177,13 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   {m with tlRefersTo; tlUsedIn}
 
 
-let setHoveringVarName (tlid : tlid) (name : varName option) : modification =
+let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
   let new_props x =
     match x with
     | None ->
-        Some {Defaults.defaultHandlerProp with hoveringVariableName = name}
+        Some {Defaults.defaultHandlerProp with hoveringReferences = ids}
     | Some v ->
-        Some {v with hoveringVariableName = name}
+        Some {v with hoveringReferences = ids}
   in
   TweakModel
     (fun m ->
