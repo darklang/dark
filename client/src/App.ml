@@ -355,139 +355,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         then Native.Location.reload true ;
         ( {m with error = updateError m.error error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
-    | DisplayAndReportHttpError (context, errorImportance, e, params) ->
-        let body (body : Tea.Http.responseBody) =
-          let maybe name m =
-            match m with Some s -> ", " ^ name ^ ": " ^ s | None -> ""
-          in
-          let str =
-            match body with
-            | NoResponse ->
-                "todo-noresponse"
-            | StringResponse str ->
-                str
-            | ArrayBufferResponse _ ->
-                "todo-arratbufferresponse"
-            | BlobResponse _ ->
-                "todo-blobresponse"
-            | DocumentResponse _ ->
-                "todo-document-response"
-            | JsonResponse _ ->
-                "todo-jsonresponse"
-            | TextResponse str ->
-                str
-            | RawResponse (str, _) ->
-                str
-          in
-          str
-          |> Json_decode_extended.decodeString Decoders.exception_
-          |> Result.toOption
-          |> Option.map
-               ~f:(fun { short
-                       ; long
-                       ; exceptionTipe
-                       ; actual
-                       ; actualType
-                       ; expected
-                       ; result
-                       ; resultType
-                       ; info
-                       ; workarounds }
-                  ->
-                 " ("
-                 ^ exceptionTipe
-                 ^ "): "
-                 ^ short
-                 ^ maybe "message" long
-                 ^ maybe "actual value" actual
-                 ^ maybe "actual type" actualType
-                 ^ maybe "result" result
-                 ^ maybe "result type" resultType
-                 ^ maybe "expected" expected
-                 ^ ( if info = StrDict.empty
-                   then ""
-                   else ", info: " ^ StrDict.toString info )
-                 ^
-                 if workarounds = []
-                 then ""
-                 else ", workarounds: [" ^ String.concat workarounds ^ "]" )
-          |> Option.withDefault ~default:str
-        in
-        let msg =
-          match e with
-          | Http.BadUrl str ->
-              "Bad url: " ^ str
-          | Http.Timeout ->
-              "Timeout"
-          | Http.NetworkError ->
-              "Network error - is the server running?"
-          | Http.BadStatus response ->
-              if response.status.code = 502
-              then "502"
-              else
-                "Bad status: "
-                ^ response.status.message
-                ^ " - "
-                ^ body response.body
-          | Http.BadPayload (msg, _) ->
-              "Bad payload (" ^ context ^ "): " ^ msg
-          | Http.Aborted ->
-              "Request Aborted"
-        in
-        let url =
-          match e with
-          | Http.BadUrl url ->
-              Some url
-          | Http.BadStatus response | Http.BadPayload (_, response) ->
-              Some response.url
-          | Http.Aborted | Http.Timeout | Http.NetworkError ->
-              None
-        in
-        let displayError =
-          match e with
-          | Http.BadUrl _ | Http.BadPayload _ ->
-              true
-          | Http.Timeout | Http.NetworkError | Http.Aborted ->
-              errorImportance = ImportantError
-          | Http.BadStatus response ->
-              if response.status.code = 502
-              then errorImportance = ImportantError
-              else true
-        in
-        let shouldRollbar =
-          match e with
-          | Http.BadUrl _ | Http.Timeout | Http.BadPayload _ ->
-              true
-          | Http.NetworkError ->
-              (* Don't rollbar if the internet is down *)
-              false
-          | Http.BadStatus response ->
-              (* Don't rollbar if you aren't logged in *)
-              response.status.code <> 401
-          | Http.Aborted ->
-              errorImportance = ImportantError
-        in
-        let msg = msg ^ " (" ^ context ^ ")" in
-        let custom =
-          Json_encode_extended.object_
-            [ ("httpResponse", Encoders.httpError e)
-            ; ("parameters", params)
-            ; ("cursorState", Encoders.cursorState m.cursorState) ]
-        in
+    | DisplayAndReportHttpError apiError ->
         (* Reload if it's a CSRF failure. *)
-        ( match e with
-        | Http.BadStatus response ->
-            if response.status.code = 401
-               && String.startsWith (body response.body) ~prefix:"Bad CSRF"
-            then Native.Location.reload true
-        | _ ->
-            () ) ;
+        if ApiError.isCSRF apiError then Native.Location.reload true ;
         let cmds =
-          if shouldRollbar
-          then [Tea.Cmd.call (fun _ -> Rollbar.send msg url custom)]
+          if ApiError.shouldRollbar apiError
+          then [Tea.Cmd.call (fun _ -> Rollbar.sendApiError m apiError)]
           else []
         in
-        ( (if displayError then {m with error = updateError m.error msg} else m)
+        ( ( if ApiError.shouldDisplayToUser apiError
+          then {m with error = updateError m.error (ApiError.msg apiError)}
+          else m )
         , Cmd.batch cmds )
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
@@ -1472,29 +1350,41 @@ let update_ (msg : msg) (m : model) : modification =
         ; UpdateDBStats result ]
   | AddOpRPCCallback (_, params, Error err) ->
       DisplayAndReportHttpError
-        ("RPC", ImportantError, err, Encoders.addOpRPCParams params)
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.addOpRPCParams params)
+           err)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
       DisplayAndReportHttpError
-        ( "ExecuteFunction"
-        , ImportantError
-        , err
-        , Encoders.executeFunctionRPCParams params )
+        (ApiError.make
+           ~context:"ExecuteFunction"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.executeFunctionRPCParams params)
+           err)
   | TriggerHandlerRPCCallback (_, Error err) ->
       DisplayAndReportHttpError
-        ("TriggerHandler", ImportantError, err, Js.Json.null)
+        (ApiError.make ~context:"TriggerHandler" ~importance:ImportantError err)
   | InitialLoadRPCCallback (_, _, Error err) ->
       DisplayAndReportHttpError
-        ("InitialLoad", ImportantError, err, Js.Json.null)
+        (ApiError.make ~context:"InitialLoad" ~importance:ImportantError err)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
         ; DisplayAndReportHttpError
-            ("GetUnlockedDBs", IgnorableError, err, Js.Json.null) ]
+            (ApiError.make
+               ~context:"GetUnlockedDBs"
+               ~importance:IgnorableError
+               err) ]
   | Delete404RPCCallback (params, Error err) ->
       DisplayAndReportHttpError
-        ("Delete404", ImportantError, err, Encoders.fof params)
+        (ApiError.make
+           ~context:"Delete404"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.fof params)
+           err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | WindowResize (w, h) | WindowOnLoad (w, h) ->
@@ -1673,7 +1563,10 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       DisplayAndReportHttpError
-        ("TriggerSendPresenceCallback", IgnorableError, err, Js.Json.null)
+        (ApiError.make
+           ~context:"TriggerSendPresenceCallback"
+           ~importance:IgnorableError
+           err)
   | FluidMouseClick ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
