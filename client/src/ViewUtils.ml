@@ -80,14 +80,10 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
 
 let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
     id list =
-  match tl with
-  | TLHandler h ->
-      let body = h.ast in
-      hp
-      |> Option.andThen ~f:(fun p -> p.hoveringVariableName)
-      |> Option.andThen ~f:(fun v ->
-             Some (AST.uses v body |> List.map ~f:Blank.toID) )
-      |> Option.withDefault ~default:[]
+  let varname = Option.andThen hp ~f:(fun p -> p.hoveringVariableName) in
+  match (TL.getAST tl, varname) with
+  | Some body, Some v ->
+      AST.uses v body |> List.map ~f:Blank.toID
   | _ ->
       []
 
