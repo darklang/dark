@@ -1399,7 +1399,7 @@ let update_ (msg : msg) (m : model) : modification =
           {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
           )
   | LocationChange loc ->
-      Url.changeLocation loc
+      Url.changeLocation m loc
   | TimerFire (action, _) ->
     ( match action with
     | RefreshAnalysis ->

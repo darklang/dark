@@ -90,9 +90,22 @@ let parseLocation (loc : Web.Location.location) : page option =
   |> Option.orElse (architecture ())
 
 
-let changeLocation (loc : Web.Location.location) : modification =
+let changeLocation (m : model) (loc : Web.Location.location) : modification =
   let mPage = parseLocation loc in
-  Option.map ~f:(fun x -> SetPage x) mPage
+  Option.map
+    ~f:(fun newPage ->
+      match (m.currentPage, newPage) with
+      | FocusedHandler (hTLID, _), FocusedFn tlid ->
+          let trace = Analysis.getCurrentTrace m hTLID in
+          ( match trace with
+          | Some (traceID, data) ->
+              Js.log3 "setting current trace" traceID data ;
+              Many [SetPage newPage; SetCursor (tlid, traceID)]
+          | _ ->
+              SetPage newPage )
+      | _, _ ->
+          SetPage newPage )
+    mPage
   |> Option.withDefault ~default:NoChange
 
 
