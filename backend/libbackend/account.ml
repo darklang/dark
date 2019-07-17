@@ -185,8 +185,6 @@ let valid_user ~(username : username) ~(password : string) : bool =
   with
   | None ->
       false
-  (* Temporarily allow passwords that either equal what's in
-     the database, or that hash to what's in the database. *)
   | Some [db_password] ->
       password
       |> Bytes.of_string
