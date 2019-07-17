@@ -31,8 +31,8 @@ type viewState =
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; inReferences : toplevel list
-  ; toReferences : toplevel list
+  ; refersToRefs : toplevel list
+  ; usedInRefs : toplevel list
   ; usagesOfHoveredReference : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list }
@@ -135,16 +135,16 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
-  ; inReferences =
+  ; refersToRefs =
       ( match m.currentPage with
       | FocusedDB (tlid_, _) when tlid_ = tlid ->
-          Introspect.allIn tlid_ m
+          Introspect.allRefersTo tlid_ m
       | _ ->
           [] )
-  ; toReferences =
+  ; usedInRefs =
       ( match m.currentPage with
       | FocusedHandler (tlid_, _) when tlid_ = tlid ->
-          Introspect.allTo tlid_ m
+          Introspect.allUsedIn tlid_ m
       | _ ->
           [] )
   ; usagesOfHoveredReference = usagesOfHoveredReference tl hp

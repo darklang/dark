@@ -70,16 +70,16 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
-let allTo (tlid : tlid) (m : model) : toplevel list =
-  m.tlUsages
+let allRefersTo (tlid : tlid) (m : model) : toplevel list =
+  m.tlRefersTo
   |> TLIDDict.get ~tlid
   |> Option.withDefault ~default:TLIDSet.empty
   |> TLIDSet.toList
   |> List.filterMap ~f:(fun tlid -> TL.get m tlid)
 
 
-let allIn (tlid : tlid) (m : model) : toplevel list =
-  m.tlUsageBy
+let allUsedIn (tlid : tlid) (m : model) : toplevel list =
+  m.tlUsedIn
   |> TLIDDict.get ~tlid
   |> Option.withDefault ~default:TLIDSet.empty
   |> TLIDSet.toList
@@ -138,30 +138,30 @@ let getUsageFor
 let refreshUsages (m : model) (tlids : tlid list) : model =
   let databases = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
-  let tlUsages, tlUsageBy =
+  let tlRefersTo, tlUsedIn =
     tlids
     |> List.map ~f:(fun tlid ->
            let tl = TL.getExn m tlid in
            getUsageFor tl databases handlers )
     |> List.concat
     |> List.foldl
-         ~init:(m.tlUsages, m.tlUsageBy)
-         ~f:(fun (usedTLID, usedByTLID) (usages, usageBy) ->
-           let newUsages =
-             TD.get ~tlid:usedTLID usages
+         ~init:(m.tlRefersTo, m.tlUsedIn)
+         ~f:(fun (refersToTLID, usedInTLID) (refersTo, usedIn) ->
+           let newRefersTo =
+             TD.get ~tlid:refersToTLID refersTo
              |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:usedByTLID
-             |> fun value -> TD.insert ~tlid:usedTLID ~value usages
+             |> TLIDSet.add ~value:usedInTLID
+             |> fun value -> TD.insert ~tlid:refersToTLID ~value refersTo
            in
-           let newUsageBy =
-             TD.get ~tlid:usedByTLID usageBy
+           let newUsedIn =
+             TD.get ~tlid:usedInTLID usedIn
              |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:usedTLID
-             |> fun value -> TD.insert ~tlid:usedByTLID ~value usageBy
+             |> TLIDSet.add ~value:refersToTLID
+             |> fun value -> TD.insert ~tlid:usedInTLID ~value usedIn
            in
-           (newUsages, newUsageBy) )
+           (newRefersTo, newUsedIn) )
   in
-  {m with tlUsages; tlUsageBy}
+  {m with tlRefersTo; tlUsedIn}
 
 
 let setHoveringVarName (tlid : tlid) (name : varName option) : modification =
