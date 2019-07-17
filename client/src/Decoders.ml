@@ -82,7 +82,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; handlerProps =
       ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
         with _ -> StrDict.empty )
-  ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j }
+  ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j
+  ; lastReload = optional (field "lastReload" jsDate) j }
 
 
 and cursorState j =

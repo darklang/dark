@@ -356,20 +356,38 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with error = updateError m.error error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
+        let now = Js.Date.now () |> Js.Date.fromFloat in
         let shouldReload =
           let buildHashMismatch =
             ApiError.serverVersionOf apiError
             |> Option.map ~f:(fun hash -> hash <> m.buildHash)
             |> Option.withDefault ~default:false
           in
-          (* TODO: stick something in local storage *)
-          let reloadAllowed = true in
+          let reloadAllowed =
+            match m.lastReload with
+            | Some time ->
+                (* if 60 seconds have elapsed *)
+                Js.Date.getTime time +. 60000.0 > Js.Date.getTime now
+            | None ->
+                true
+          in
           (* Reload if it's a CSRF failure or the frontend is out of date *)
           ApiError.isCSRF apiError || (buildHashMismatch && reloadAllowed)
         in
         let cmd =
           if shouldReload
-          then Cmd.call (fun _ -> Native.Location.reload true)
+          then
+            let m = {m with lastReload = Some now} in
+            let state = m |> Editor.model2editor |> Editor.toString in
+            [ Tea_task.nativeBinding (fun _ ->
+                  Dom.Storage.setItem
+                    ("editorState-" ^ m.canvasName)
+                    state
+                    Dom.Storage.localStorage )
+            ; Tea_task.nativeBinding (fun _ -> Native.Location.reload true) ]
+            |> Tea_task.sequence
+            (* No callback bc of reload *)
+            |> Tea_task.attempt (fun _ -> IgnoreMsg)
           else if ApiError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
           else Cmd.none

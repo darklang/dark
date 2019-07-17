@@ -629,7 +629,9 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("tlCursors", tcStrDict traceID se.tlCursors)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
-    ; ("canvasPos", pos se.canvasPos) ]
+    ; ("canvasPos", pos se.canvasPos)
+    ; ( "lastReload"
+      , nullable string (Option.map ~f:Js.Date.toString se.lastReload) ) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
