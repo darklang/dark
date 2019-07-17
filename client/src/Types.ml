@@ -57,6 +57,23 @@ module ID = struct
   let fromString str = ID str
 end
 
+module Pair (K1 : Key) (K2 : Key) = struct
+  type t = K1.t * K2.t
+
+  let separator = "_*_DARKPAIRSEPARATOR_%_"
+
+  let toString ((v1, v2) : t) : string =
+    K1.toString v1 ^ separator ^ K2.toString v2
+
+
+  let fromString (str : string) : t =
+    match String.split ~on:separator str with
+    | [v1; v2] ->
+        (K1.fromString v1, K2.fromString v2)
+    | _ ->
+        failwith "Pair cannot be separated"
+end
+
 module TLIDDict = struct
   include Tc.Dict (TLID)
 
@@ -87,13 +104,10 @@ module TLIDDict = struct
     removeMany ~keys:tlids dict
 end
 
-module TLIDSet = struct
-  include Tc.Set (TLID)
-end
-
-module IDSet = struct
-  include Tc.Set (ID)
-end
+module TLIDSet = Tc.Set (TLID)
+module IDSet = Tc.Set (ID)
+module IDPair = Pair (TLID) (ID)
+module IDPairSet = Tc.Set (IDPair)
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
