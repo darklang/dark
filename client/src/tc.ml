@@ -12,7 +12,7 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    (* with module StrSet := Tablecloth.StrSet *)
+    with module StrSet := Tablecloth.StrSet
     (* with module IntSet := Tablecloth.IntSet *)
     with module StrDict := Tablecloth.StrDict
     with module Option := Tablecloth.Option
@@ -213,6 +213,13 @@ module Dict (K : Key) = struct
     StrDict.mapWithKey dict ~f:(fun ~key v -> f ~key:(K.fromString key) v)
 end
 
+module StrSet = struct
+  include Tablecloth.StrSet
+
+  let removeMany ~(values : string list) (set : t) : t =
+    Belt.Set.String.removeMany set (Array.fromList values)
+end
+
 module Set (K : Key) = struct
   (* We don't include StrSet as forgetting to wrap a function gives
    * hard-to-decipher error messages *)
@@ -232,6 +239,11 @@ module Set (K : Key) = struct
 
   let remove ~(value : K.t) (set : t) : t =
     StrSet.remove ~value:(K.toString value) set
+
+
+  let removeMany ~(values : K.t list) (set : t) : t =
+    let values = List.map values ~f:K.toString in
+    StrSet.removeMany ~values set
 
 
   let fromList (values : K.t list) : t =

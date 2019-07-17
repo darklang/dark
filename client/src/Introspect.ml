@@ -164,14 +164,22 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   let databases = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
   let functions = functionsByName m.userFunctions in
-  let tlUsedIn, tlRefersTo =
+  (* We need to overwrite the already-stored results for the passed-in TLIDs.
+   * So we clear tlRefers for these tlids, and remove them from the inner set
+   * of tlUsedIn.  *)
+  let tlRefersToDict = TD.removeMany ~tlids m.tlRefersTo in
+  let tlUsedInDict =
+    TD.map m.tlUsedIn ~f:(fun tlidsReferedTo ->
+        TLIDSet.removeMany tlidsReferedTo ~values:tlids )
+  in
+  let newTlUsedIn, newTlRefersTo =
     tlids
     |> List.map ~f:(fun tlid ->
            let tl = TL.getExn m tlid in
            getUsageFor tl databases handlers functions )
     |> List.concat
     |> List.foldl
-         ~init:(m.tlUsedIn, m.tlRefersTo)
+         ~init:(tlUsedInDict, tlRefersToDict)
          ~f:(fun (tlUsedIn, tlRefersTo, id) (usedIn, refersTo) ->
            let newRefersTo =
              TD.get ~tlid:tlRefersTo refersTo
@@ -187,7 +195,7 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
            in
            (newUsedIn, newRefersTo) )
   in
-  {m with tlUsedIn; tlRefersTo}
+  {m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo}
 
 
 let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
