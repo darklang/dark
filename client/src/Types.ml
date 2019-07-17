@@ -81,6 +81,10 @@ module TLIDDict = struct
     removeMany ~keys:tlids dict
 end
 
+module TLIDSet = struct
+  include Tc.Set (TLID)
+end
+
 module IDSet = struct
   include Tc.Set (ID)
 end
@@ -839,7 +843,7 @@ and modification =
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
-  | UpdateTLUsage of usage list
+  | RefreshUsages of tlid list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
   | FluidCommandsFor of tlid * id
@@ -1252,8 +1256,29 @@ and model =
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
-  ; staticDeploys : staticDeploy list
-  ; tlUsages : usage list
+  ; staticDeploys :
+      staticDeploy list
+      (* tlUsages: to answer the question "what TLs does this TL use". eg if
+   * myFunc was called in Repl2 at the FnCall at id, then the dict would be:
+   *
+   *   { repl2.tlid: { myFunc.tlid: { id }}}
+   *
+   * which you can read as "repl2 uses myfunc at id". So the outer key is the
+   * tlid you want to know about, which points to the TLs used by the outer
+   * TL, which points at a set of ids in the outer TL that point to the inner
+   * one. *)
+  ; tlUsages :
+      IDSet.t TLIDDict.t TLIDDict.t
+      (* tlUsedBy: to answer the question "what TLs is this TL used by".  eg if
+   * myFunc was called in Repl2, the dict would
+   *
+   *   { myfunc.tlid: { repl2.tlid }} 
+   *
+   * which you can read as "myfunc is used by repl2". So the outer key is the
+   * tlid you want to know about, and the inner set is all the TLs that point
+   * to it.
+   * *)
+  ; tlUsageBy : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list
