@@ -48,13 +48,10 @@ module K = FluidKeyboard
  *         else
  *           5
  *         ```
- *      There is a downside to this though: the indentation gets screwed up.
- *      This affects match, if, records - basically anything that applies it's
- *      own indent. The outcome is that the final position is wrong if it's not
- *      on the same line. The solution to this is to set ~wrap:false on the
- *      test.
- *
- *
+ *      We go to great efforts to fix the indentation afterwards. However, you
+ *      may find that your test works without the wrapping and doesn't work
+ *      with it. The solution is to try it wrapped in the editor and see where
+ *      it goes wrong. *
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
@@ -674,7 +671,7 @@ let () =
         "renaming a function maintains unaligned params in let scope"
         (EPartial
            (gid (), "Int::", EFnCall (gid (), "Int::add", [five; six], NoRail)))
-        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("let b = 6\nInt::sqrt 5", 10) ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
@@ -686,7 +683,7 @@ let () =
                , "Int::add"
                , [EVariable (gid (), "a"); EVariable (gid (), "b")]
                , NoRail ) ))
-        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("Int::sqrt a", 10) ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
@@ -694,7 +691,7 @@ let () =
            ( gid ()
            , "Int::"
            , EFnCall (gid (), "Int::add", [blank (); blank ()], NoRail) ))
-        (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("Int::sqrt _________", 10) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
        * delete because we were switching to partials, but this isn't
@@ -933,17 +930,16 @@ let () =
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (press ~wrap:false (K.Letter '\\') 23)
+        (press (K.Letter '\\') 23)
         ("Dict::map ____________ \\key, value -> ___", 24) ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
         (EThread (gid (), [blank (); blank ()]))
         (presses
-           ~wrap:false
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the thread *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
-           16)
+           6)
         ("___\n|>Dict::map \\key, value -> ___", 17) ;
       () ) ;
   describe "Variables" (fun () ->
@@ -960,7 +956,7 @@ let () =
       t
         "variable doesn't override if"
         (ELet (gid (), gid (), "i", blank (), EPartial (gid (), "i", blank ())))
-        (presses ~wrap:false [K.Letter 'f'; K.Enter] 13)
+        (presses [K.Letter 'f'; K.Enter] 13)
         ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
   describe "Match" (fun () ->
@@ -977,12 +973,12 @@ let () =
       t
         "move to the front of match on line 2"
         emptyMatch
-        (press ~wrap:false K.GoToStartOfLine 15)
+        (press K.GoToStartOfLine 15)
         ("match ___\n  *** -> ___", 12) ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (press ~wrap:false K.GoToEndOfLine 12)
+        (press K.GoToEndOfLine 12)
         ("match ___\n  *** -> ___", 22) ;
       t
         "move back over match"
@@ -1019,22 +1015,22 @@ let () =
       t
         "delete constructor in match pattern"
         matchWithConstructorPattern
-        (delete ~wrap:false 12)
+        (delete 12)
         ("match ___\n  ust -> ___", 12) ;
       t
         "backspace constructor in match pattern"
         matchWithConstructorPattern
-        (backspace ~wrap:false 16)
+        (backspace 16)
         ("match ___\n  Jus -> ___", 15) ;
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (EVariable (gid (), "binding")))
-        (insert ~wrap:false 'c' 19)
+        (insert 'c' 19)
         ("match ___\n  bindingc -> bindingc", 20) ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
-        (insert ~wrap:false 'c' 22)
+        (insert 'c' 22)
         ("match ___\n  Ok bindingc -> bindingc", 23) ;
       t
         "insert space in blank match"
@@ -1044,7 +1040,7 @@ let () =
       t
         "insert space in blank match on line 2"
         emptyMatch
-        (press ~wrap:false K.Space 12)
+        (press K.Space 12)
         ("match ___\n  *** -> ___", 12) ;
       () ) ;
   describe "Lets" (fun () ->
@@ -1195,22 +1191,22 @@ let () =
       t
         "move to the front of thread on line 2"
         aThread
-        (press ~wrap:false K.GoToStartOfLine 8)
+        (press K.GoToStartOfLine 8)
         ("[]\n|>List::append [5]\n|>List::append [5]", 5) ;
       t
         "move to the end of thread on line 2"
         aThread
-        (press ~wrap:false K.GoToEndOfLine 5)
+        (press K.GoToEndOfLine 5)
         ("[]\n|>List::append [5]\n|>List::append [5]", 21) ;
       t
         "move to the front of thread on line 3"
         aThread
-        (press ~wrap:false K.GoToStartOfLine 40)
+        (press K.GoToStartOfLine 40)
         ("[]\n|>List::append [5]\n|>List::append [5]", 24) ;
       t
         "move to the end of thread on line 3"
         aThread
-        (press ~wrap:false K.GoToEndOfLine 24)
+        (press K.GoToEndOfLine 24)
         ("[]\n|>List::append [5]\n|>List::append [5]", 40) ;
       t
         "threads appear on new lines"
@@ -1228,95 +1224,95 @@ let () =
       t
         "backspacing a thread's first pipe works"
         aLongThread
-        (backspace ~wrap:false 5)
+        (backspace 5)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 2) ;
       t
         "deleting a thread's first pipe works"
         aLongThread
-        (delete ~wrap:false 3)
+        (delete 3)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 3) ;
       t
         "backspacing a thread's second pipe works"
         aLongThread
-        (backspace ~wrap:false 24)
+        (backspace 24)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
       t
         "deleting a thread's second pipe works"
         aLongThread
-        (delete ~wrap:false 22)
+        (delete 22)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
       t
         "backspacing a thread's third pipe works"
         aLongThread
-        (backspace ~wrap:false 43)
+        (backspace 43)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 40) ;
       t
         "deleting a thread's third pipe works"
         aLongThread
-        (delete ~wrap:false 41)
+        (delete 41)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 41) ;
       t
         "backspacing a thread's last pipe works"
         aLongThread
-        (backspace ~wrap:false 62)
+        (backspace 62)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
       t
         "deleting a thread's last pipe works"
         aLongThread
-        (delete ~wrap:false 60)
+        (delete 60)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 60) ;
       t
         "backspacing a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace ~wrap:false 21)
+        (backspace 21)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 16 ) ;
       t
         "deleting a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete ~wrap:false 19)
+        (delete 19)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 19 ) ;
       t
         "backspacing a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace ~wrap:false 42)
+        (backspace 42)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 37 ) ;
       t
         "deleting a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete ~wrap:false 40)
+        (delete 40)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 40 ) ;
       t
         "backspacing a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace ~wrap:false 63)
+        (backspace 63)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 58 ) ;
       t
         "deleting a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete ~wrap:false 61)
+        (delete 61)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 61 ) ;
       t
         "backspacing a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace ~wrap:false 84)
+        (backspace 84)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       t
         "deleting a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete ~wrap:false 82)
+        (delete 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 82 ) ;
       t
         "adding infix functions adds the right number of blanks"
         emptyThread
-        (presses ~wrap:false [K.Plus; K.Enter] 6)
+        (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________", 8) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
@@ -1326,63 +1322,63 @@ let () =
       t
         "move over indent 1"
         plainIf
-        (press ~wrap:false K.Left 12)
+        (press K.Left 12)
         ("if 5\nthen\n  6\nelse\n  7", 9) ;
       t
         "move over indent 2"
         plainIf
-        (press ~wrap:false K.Left 21)
+        (press K.Left 21)
         ("if 5\nthen\n  6\nelse\n  7", 18) ;
       t
         "backspace over indent 1"
         plainIf
-        (backspace ~wrap:false 12)
+        (backspace 12)
         ("if 5\nthen\n  6\nelse\n  7", 9) ;
       t
         "backspace over indent 2"
         plainIf
-        (backspace ~wrap:false 21)
+        (backspace 21)
         ("if 5\nthen\n  6\nelse\n  7", 18) ;
       t "backspace over empty if" emptyIf (backspace 2) ("___", 0) ;
       t
         "move to front of line 1"
         plainIf
-        (press ~wrap:false K.GoToStartOfLine 4)
+        (press K.GoToStartOfLine 4)
         ("if 5\nthen\n  6\nelse\n  7", 0) ;
       t
         "move to end of line 1"
         plainIf
-        (press ~wrap:false K.GoToEndOfLine 0)
+        (press K.GoToEndOfLine 0)
         ("if 5\nthen\n  6\nelse\n  7", 4) ;
       t
         "move to front of line 3"
         plainIf
-        (press ~wrap:false K.GoToStartOfLine 13)
+        (press K.GoToStartOfLine 13)
         ("if 5\nthen\n  6\nelse\n  7", 12) ;
       t
         "move to end of line 3"
         plainIf
-        (press ~wrap:false K.GoToEndOfLine 12)
+        (press K.GoToEndOfLine 12)
         ("if 5\nthen\n  6\nelse\n  7", 13) ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (press ~wrap:false K.GoToStartOfLine 16)
+        (press K.GoToStartOfLine 16)
         ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 12) ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (press ~wrap:false K.GoToEndOfLine 12)
+        (press K.GoToEndOfLine 12)
         ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
       t
         "try to insert space on blank"
         emptyIf
-        (press ~wrap:false K.Space 3)
+        (press K.Space 3)
         ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t
         "try to insert space on blank indent 2"
         emptyIf
-        (press ~wrap:false K.Space 14)
+        (press K.Space 14)
         ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
       () ) ;
   describe "Lists" (fun () ->
@@ -1546,22 +1542,18 @@ let () =
       t
         "pressing enter in an empty record adds a new line"
         emptyRecord
-        (press ~wrap:false K.Enter 1)
+        (press K.Enter 1)
         ("{\n  *** : ___\n}", 4) ;
-      t
-        "enter fieldname"
-        emptyRow
-        (insert ~wrap:false 'c' 4)
-        ("{\n  c : ___\n}", 5) ;
+      t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
         "move to the front of an empty record"
         emptyRow
-        (press K.GoToStartOfLine ~wrap:false 13)
+        (press K.GoToStartOfLine 13)
         ("{\n  *** : ___\n}", 4) ;
       t
         "move to the end of an empty record"
         emptyRow
-        (press K.GoToEndOfLine ~wrap:false 4)
+        (press K.GoToEndOfLine 4)
         ("{\n  *** : ___\n}", 13) ;
       t
         "cant enter invalid fieldname"
@@ -1591,83 +1583,82 @@ let () =
       t
         "backspacing empty record field clears entry"
         emptyRow
-        (backspace ~wrap:false 4)
-        (* TODO: shouldn't need to wrap *)
+        (backspace 4)
         ("{}", 1) ;
       t
         "appending to int in expr works"
         single
-        (insert ~wrap:false '1' 11)
+        (insert '1' 11)
         ("{\n  f1 : 561\n}", 12) ;
       t
         "appending to int in expr works"
         multi
-        (insert ~wrap:false '1' 21)
+        (insert '1' 21)
         ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
       t
         "move to the front of a record with multiple values"
         multi
-        (press K.GoToStartOfLine ~wrap:false 21)
+        (press K.GoToStartOfLine 21)
         ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
       t
         "move to the end of a record with multiple values"
         multi
-        (press K.GoToEndOfLine ~wrap:false 14)
+        (press K.GoToEndOfLine 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
       t
         "inserting at the end of the key works"
         emptyRow
-        (insert 'f' ~wrap:false 6)
+        (insert 'f' 6)
         ("{\n  f : ___\n}", 5) ;
       t
         "pressing enter at start adds a row"
         multi
-        (press K.Enter ~wrap:false 1)
+        (press K.Enter 1)
         ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       t
         "pressing enter at the back adds a row"
         multi
-        (press K.Enter ~wrap:false 22)
+        (press K.Enter 22)
         ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
       t
         "pressing enter at the start of a field adds a row"
         multi
-        (press K.Enter ~wrap:false 14)
+        (press K.Enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
         "dont allow weird chars in recordFields"
         emptyRow
-        (press K.RightParens ~wrap:false 4)
+        (press K.RightParens 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars"
         emptyRow
-        (press K.Plus ~wrap:false 4)
+        (press K.Plus 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars, pt 2"
         single
-        (press K.Plus ~wrap:false 6)
+        (press K.Plus 6)
         ("{\n  f1 : 56\n}", 6) ;
       t
         "colon should skip over the record colon"
         emptyRow
-        (press K.Colon ~wrap:false 7)
+        (press K.Colon 7)
         ("{\n  *** : ___\n}", 10) ;
       t
         "dont allow key to start with a number"
         emptyRow
-        (insert '5' ~wrap:false 4)
+        (insert '5' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont allow key to start with a number, pt 2"
         single
-        (insert '5' ~wrap:false 4)
+        (insert '5' 4)
         ("{\n  f1 : 56\n}", 4) ;
       t
         "dont allow key to start with a number, pt 3"
         emptyRow
-        (insert '5' ~wrap:false 6)
+        (insert '5' 6)
         ("{\n  *** : ___\n}", 6) ;
       () ) ;
   describe "Autocomplete" (fun () ->
@@ -1722,27 +1713,27 @@ let () =
       t
         "thread moves to right place on blank"
         (blank ())
-        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         ("___\n|>___", 6) ;
       t
         "thread moves to right place on placeholder"
         aFnCall
-        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
         ("Int::add 5 ___\n           |>___", 28) ;
       t
         "thread moves to right place in if then"
         emptyIf
-        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
         ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
       t
         "thread moves to right place in lambda body"
         aLambda
-        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
         ("\\*** -> ___\n        |>___", 22) ;
       t
         "thread moves to right place in match body"
         emptyMatch
-        (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
         ("match ___\n  *** -> ___\n         |>___", 34) ;
       t
         "autocomplete for Just"
@@ -1799,12 +1790,12 @@ let () =
       t
         "right skips over indent when in indent"
         emptyIf
-        (press ~wrap:false K.Right 12)
+        (press K.Right 12)
         ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
       t
         "left skips over indent when in indent"
         emptyIf
-        (press ~wrap:false K.Left 13)
+        (press K.Left 13)
         ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
       (* length *)
       test "up from first row is zero" (fun () ->
@@ -1824,12 +1815,12 @@ let () =
       t
         "enter at the end of a line goes to start of next line"
         nonEmptyLet
-        (press ~wrap:false K.Enter 11)
+        (press K.Enter 11)
         ("let *** = 6\n5", 12) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
-        (press ~wrap:false K.Enter 16)
+        (press K.Enter 16)
         ( "let var = if ___\n"
           ^ "          then\n"
           ^ "            6\n"
@@ -1840,22 +1831,22 @@ let () =
       t
         "end of if-then blank goes up properly"
         emptyIf
-        (presses ~wrap:false [K.Escape; K.Up] 17)
+        (presses [K.Escape; K.Up] 17)
         ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
       t
         "end of if-then blank goes up properly, twice"
         emptyIf
-        (presses ~wrap:false [K.Escape; K.Up; K.Up] 17)
+        (presses [K.Escape; K.Up; K.Up] 17)
         ("if ___\nthen\n  ___\nelse\n  ___", 5) ;
       t
         "end of if-then blank goes down properly"
         emptyIf
-        (presses ~wrap:false [K.Escape; K.Down] 5)
+        (presses [K.Escape; K.Down] 5)
         ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
       t
         "end of if-then blank goes down properly, twice"
         emptyIf
-        (presses ~wrap:false [K.Escape; K.Down; K.Down] 5)
+        (presses [K.Escape; K.Down; K.Down] 5)
         ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
@@ -1905,7 +1896,7 @@ let () =
            , "x"
            , EPartial (gid (), "Int::add", blank ())
            , blank () ))
-        (press ~wrap:false K.Right 16)
+        (press K.Right 16)
         ("let x = Int::add _________ _________\n___", 17) ;
       t
         "moving left off a function autocompletes it anyway"
@@ -1915,7 +1906,7 @@ let () =
            , "x"
            , EPartial (gid (), "Int::add", blank ())
            , blank () ))
-        (press ~wrap:false K.Left 8)
+        (press K.Left 8)
         ("let x = Int::add _________ _________\n___", 7) ;
       test "escape hides autocomplete" (fun () ->
           expect
@@ -1943,7 +1934,7 @@ let () =
       t
         "tab goes when on blank"
         completelyEmptyLet
-        (tab ~wrap:false 10)
+        (tab 10)
         ("let *** = ___\n___", 14) ;
       t
         "tab goes to second block in a let"
@@ -1968,7 +1959,7 @@ let () =
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (presses ~wrap:false [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        (presses [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
         ("let *** = ___\nif ___\nthen\n  ___\nelse\n  ___", 10) ;
       t
         "shift-tab goes when on blank"
