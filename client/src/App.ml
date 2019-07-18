@@ -378,12 +378,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           if shouldReload
           then
             let m = {m with lastReload = Some now} in
-            let state = m |> Editor.model2editor |> Editor.toString in
-            [ Tea_task.nativeBinding (fun _ ->
-                  Dom.Storage.setItem
-                    ("editorState-" ^ m.canvasName)
-                    state
-                    Dom.Storage.localStorage )
+            [ Tea_task.nativeBinding (fun _ -> Editor.serialize m)
             ; Tea_task.nativeBinding (fun _ -> Native.Location.reload true) ]
             |> Tea_task.sequence
             (* No callback bc of reload *)
@@ -1620,11 +1615,7 @@ let update_ (msg : msg) (m : model) : modification =
 let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m in
   let newm, newc = updateMod mods (m, Cmd.none) in
-  let state = m |> Editor.model2editor |> Editor.toString in
-  Dom.Storage.setItem
-    ("editorState-" ^ m.canvasName)
-    state
-    Dom.Storage.localStorage ;
+  Editor.serialize m ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)
 
 

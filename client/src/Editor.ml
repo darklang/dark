@@ -90,3 +90,11 @@ let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
     m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps
   in
   {m with handlerProps = props}
+
+
+let serialize (m : model) : unit =
+  let state = m |> model2editor |> toString in
+  Dom.Storage.setItem
+    ("editorState-" ^ m.canvasName)
+    state
+    Dom.Storage.localStorage
