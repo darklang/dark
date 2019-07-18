@@ -196,6 +196,9 @@ let () =
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
     ELambda (gid (), [(gid (), bindingName)], expr)
   in
+  let lambdaWithTwoBindings =
+    ELambda (gid (), [(gid (), "x"); (gid (), "y")], blank ())
+  in
   let lambdaWithUsedBinding (bindingName : string) =
     lambdaWithBinding bindingName (EVariable (gid (), bindingName))
   in
@@ -914,6 +917,26 @@ let () =
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
         ("___\n|>Dict::map \\key, value -> ___", 17) ;
+      t
+        "deleting a lambda argument should work"
+        lambdaWithTwoBindings
+        (delete 2)
+        ("\\x -> ___", 2) ;
+      t
+        "backspacing a lambda argument should work"
+        lambdaWithTwoBindings
+        (backspace 3)
+        ("\\x -> ___", 3) ;
+      t
+        "deleting a lambda argument should update used variable"
+        (lambdaWithUsed2ndBinding "x")
+        (delete 8)
+        ("\\somevar -> ___", 8) ;
+      t
+        "can add lambda arguments"
+        aLambda
+        (insert ',' 4)
+        ("\\___, ___ -> ___", 6) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
