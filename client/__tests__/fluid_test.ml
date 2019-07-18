@@ -123,6 +123,7 @@ let () =
   let falseBool = EBool (gid (), false) in
   let aNull = ENull (gid ()) in
   let five = EInteger (gid (), 5) in
+  let six = EInteger (gid (), 6) in
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
   let blank () = EBlank (gid ()) in
@@ -672,9 +673,9 @@ let () =
       t
         "renaming a function maintains unaligned params in let scope"
         (EPartial
-           (gid (), "Int::", EFnCall (gid (), "Int::add", [five; five], NoRail)))
+           (gid (), "Int::", EFnCall (gid (), "Int::add", [five; six], NoRail)))
         (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("let b = 5\nInt::sqrt 5", 10) ;
+        ("let b = 6\nInt::sqrt 5", 10) ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (EPartial
