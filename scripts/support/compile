@@ -330,15 +330,12 @@ def mark(should, f):
   # JS
   elif "client/package.json" in f:
     should.npm_install = True
-  elif ("client/src/" in f) \
+  elif ("client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
+    # This correctly handles tests and other dirs, which need to be built as
+    # part of this step.
     should.client_build = True
-  elif ("client/__tests__/" in f) \
-          and ((".mli" in f) \
-                  or (".ml" in f)):
-    should.client_build = True
-    should.client_test = True
 
   elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
