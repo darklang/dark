@@ -23,6 +23,7 @@
     display: block;
     position: absolute;
     right: calc(#{"100% + 30px"});
+    top: -10px;
     font-style: normal;
 
     padding: 4px;
@@ -37,6 +38,35 @@
 
     background-color: $toplevel-background;
     outline: 0.4px $grey2 dotted;
+
+    .title {
+      .label {
+        display: none;
+
+        &.show {
+          display: inline;
+        }
+      }
+
+      .dbcount {
+        float: right;
+      }
+    }
+
+    .dbexample {
+      .key {
+        font-size: 0.6rem;
+        color: $grey3;
+
+        &:before {
+          @extend .font-awesome;
+          content: "\f084";
+          font-size: 8px;
+          margin-right: 2px;
+          color: $grey2;
+        }
+      }
+    }
   }
 
   &.migration-view {

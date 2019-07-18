@@ -35,7 +35,7 @@ val delete_all : state:exec_state -> DbT.db -> unit
 val stats_count : account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> int
 
 val stats_pluck :
-  account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> dval option
+  account_id:Uuidm.t -> canvas_id:Uuidm.t -> DbT.db -> (dval * string) option
 
 (* DB schema modifications *)
 val create : string -> tlid -> DbT.db
