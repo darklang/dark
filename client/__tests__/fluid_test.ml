@@ -318,10 +318,12 @@ let () =
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
-       * 2*nl to get the pos in place. *)
+       * 2*nl to get the pos in place. (Note: it's correct to just count them,
+       * as opposed to the iterative approach we do later, because we're using
+       * the old ast that has no newlines. *)
       ast
       |> toTokens {s with newPos = pos}
-      |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos <= pos)
+      |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos < pos)
       |> List.length
     in
     let ast =
@@ -360,19 +362,17 @@ let () =
       | expr ->
           impossible ("not wrapped and not a let: " ^ eToString s expr)
     in
-    let newlinesBeforeEndPos =
-      (* Count the newlines before the end pos, again they'll be indented two
-       * so we need to subtract those to get the pos we expect. *)
-      result
-      |> toTokens newState
-      |> List.filter ~f:(fun ti ->
-             ti.token = TNewline && ti.startPos < newState.newPos - 15 )
-      |> List.length
-    in
-    let finalPos =
-      (* max 0 cause tests can backspace past 0 and that's weird to test for *)
-      max 0 (newState.newPos - wrapperOffset - (newlinesBeforeEndPos * 2))
-    in
+    let endPos = ref (newState.newPos - wrapperOffset) in
+    (* Account for the newlines as we find them, or else we won't know our
+     * position to find the newlines correctly. There'll be extra indentation,
+     * so we need to subtract those to get the pos we expect. *)
+    result
+    |> toTokens newState
+    |> List.iter ~f:(fun ti ->
+           if ti.token = TNewline && !endPos > ti.endPos
+           then endPos := !endPos - 2 ) ;
+    (* max 0 cause tests can backspace past 0 and that's weird to test for *)
+    let finalPos = max 0 !endPos in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
