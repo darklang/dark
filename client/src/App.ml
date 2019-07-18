@@ -236,19 +236,11 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
     Types.modification list =
-  let handlers = Handlers.fromList r.handlers in
-  let dbs = DB.fromList r.dbs in
-  let userFunctions = Functions.fromList r.userFunctions in
-  let userTipes = UserTypes.fromList r.userTipes in
-  let alltls = TL.combine handlers dbs userFunctions userTipes in
-  let metaMod = Introspect.metaMod p.ops (TD.values alltls) in
-  let usageMod = Introspect.usageMod p.ops (TD.values alltls) in
   [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
   ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
   ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
   ; SetTypes (r.userTipes, r.deletedUserTipes, updateCurrent)
-  ; metaMod
-  ; usageMod ]
+  ; RefreshUsages (Introspect.tlidsToUpdateUsage p.ops) ]
 
 
 let isACOpened (m : model) : bool =
@@ -884,29 +876,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | _ ->
           (m, Cmd.none) )
     | InitIntrospect tls ->
-        let newM =
-          { m with
-            tlUsages = Introspect.initUsages tls
-          ; tlMeta = Introspect.initTLMeta tls }
-        in
-        (newM, Cmd.none)
-    | UpdateTLMeta newMeta ->
-        let mergedMeta =
-          StrDict.merge m.tlMeta newMeta ~f:(fun _tlid oldMeta newMeta ->
-              match (oldMeta, newMeta) with
-              | None, None ->
-                  None
-              | Some o, None ->
-                  Some o
-              | None, Some n ->
-                  Some n
-              | Some _, Some n ->
-                  Some n )
-        in
-        ({m with tlMeta = mergedMeta}, Cmd.none)
-    | UpdateTLUsage usages ->
-        ( {m with tlUsages = Introspect.replaceUsages m.tlUsages usages}
-        , Cmd.none )
+        (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
+    | RefreshUsages tlids ->
+        (Introspect.refreshUsages m tlids, Cmd.none)
     | FluidCommandsFor (tlid, id) ->
         let cp = FluidCommands.updateCommandState (TL.getExn m tlid) id in
         ( {m with fluidState = {m.fluidState with cp}}
@@ -1585,8 +1557,8 @@ let update_ (msg : msg) (m : model) : modification =
           {m with canvasProps = {m.canvasProps with panAnimation = false}} )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
-  | SetHoveringVarName (tlid, name) ->
-      Introspect.setHoveringVarName tlid name
+  | SetHoveringReferences (tlid, ids) ->
+      Introspect.setHoveringReferences tlid ids
   | FluidKeyPress _ ->
       Fluid.update m msg
   | TriggerSendPresenceCallback (Ok ()) ->

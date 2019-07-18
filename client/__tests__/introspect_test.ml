@@ -20,18 +20,19 @@ let () =
         ; pos = {x = 0; y = 0} }
       in
       let h2tlid = gtlid () in
+      let dbRefID = gid () in
       let h2data =
         { ast =
             B.newF
               (FnCall
                  ( B.newF "DB::deleteAll_v1"
-                 , [B.newF (Variable "Books")]
+                 , [F (dbRefID, Variable "Books")]
                  , NoRail ))
         ; spec =
             { space = B.newF "HTTP"
             ; name = B.newF "/hello"
             ; modifier = B.newF "GET" }
-        ; hTLID = h1tlid
+        ; hTLID = h2tlid
         ; pos = {x = 0; y = 0} }
       in
       let dbtlid = gtlid () in
@@ -44,46 +45,33 @@ let () =
         ; activeMigration = None
         ; pos = {x = 0; y = 0} }
       in
-      let toplevels = [TLHandler h1data; TLDB dbdata; TLHandler h2data] in
-      test "keyForHandlerSpec" (fun () ->
-          expect (keyForHandlerSpec h1data.spec.space h1data.spec.name)
-          |> toEqual "JOB:processOrder" ) ;
+      let dbs = TD.fromList [(dbdata.dbTLID, dbdata)] in
+      let handlers =
+        TD.fromList [(h1data.hTLID, h1data); (h2data.hTLID, h2data)]
+      in
       test "dbsByName" (fun () ->
-          expect (dbsByName toplevels)
+          expect (dbsByName dbs)
           |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)
       ) ;
       test "handlersByName" (fun () ->
-          let handlerKeys = StrDict.keys (handlersByName toplevels) in
-          expect (List.member ~value:"JOB:processOrder" handlerKeys)
-          |> toEqual true ) ;
+          let v =
+            handlers |> handlersByName |> StrDict.get ~key:"JOB:processOrder"
+          in
+          expect v |> toEqual (Some h1tlid) ) ;
       test "findUsagesInAST" (fun () ->
-          let handlers = handlersByName toplevels in
-          let databases = dbsByName toplevels in
+          let handlers = handlersByName handlers in
+          let databases = dbsByName dbs in
+          let functions = StrDict.empty in
           let usages =
-            match findUsagesInAST h2tlid databases handlers h2data.ast with
-            | [(tlid, toTLID, _)] ->
-                tlid = h2tlid && toTLID = dbtlid
+            match
+              findUsagesInAST h2tlid databases handlers functions h2data.ast
+            with
+            | [{refersTo; usedIn; id}] ->
+                refersTo = h2tlid && usedIn = dbtlid && id == dbRefID
             | _ ->
                 false
           in
           expect usages |> toEqual true ) ;
-      test "tlidsToUpdateMeta" (fun () ->
-          let tlid1 = gtlid () in
-          let tlid2 = gtlid () in
-          let ops =
-            [ DeleteDBCol (tlid1, gid ())
-            ; SetFunction
-                { ufTLID = tlid2
-                ; ufMetadata =
-                    { ufmName = B.newF "trollClean"
-                    ; ufmParameters = []
-                    ; ufmDescription = "can users put docs here?"
-                    ; ufmReturnTipe = B.new_ ()
-                    ; ufmInfix = false }
-                ; ufAST = B.new_ () }
-            ; AddDBCol (tlid1, gid (), gid ()) ]
-          in
-          expect (tlidsToUpdateMeta ops) |> toEqual [tlid1; tlid2] ) ;
       test "tlidsToUpdateUsage" (fun () ->
           let fntlid = gtlid () in
           let ops =
@@ -100,18 +88,5 @@ let () =
                 ; ufAST = B.new_ () } ]
           in
           expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid] ) ;
-      test "updateMeta should not update tlMeta if fn name is Blank" (fun () ->
-          let metaDict = StrDict.empty in
-          let ufn =
-            { ufTLID = gtlid ()
-            ; ufMetadata =
-                { ufmName = B.new_ ()
-                ; ufmParameters = []
-                ; ufmDescription = "can users put docs here?"
-                ; ufmReturnTipe = B.new_ ()
-                ; ufmInfix = false }
-            ; ufAST = B.new_ () }
-          in
-          expect (updateMeta (TL.ufToTL ufn) metaDict) |> toEqual metaDict ) ;
       () ) ;
   ()

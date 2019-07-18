@@ -12,7 +12,7 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    (* with module StrSet := Tablecloth.StrSet *)
+    with module StrSet := Tablecloth.StrSet
     (* with module IntSet := Tablecloth.IntSet *)
     with module StrDict := Tablecloth.StrDict
     with module Option := Tablecloth.Option
@@ -123,10 +123,134 @@ module StrDict = struct
     dict |> values |> List.filterMap ~f
 
 
+  let mapWithKey (dict : 'v t) ~(f : key:string -> 'v -> 'x) : 'x t =
+    Belt.Map.String.mapWithKey dict (fun key v -> f ~key v)
+
+
   let remove (dict : 'v t) ~(key : key) : 'v t =
     Belt.Map.String.remove dict key
 
 
   let removeMany (dict : 'v t) ~(keys : key list) : 'v t =
     Belt.Map.String.removeMany dict (Belt.List.toArray keys)
+end
+
+module type Key = sig
+  type t
+
+  val toString : t -> string
+
+  val fromString : string -> t
+end
+
+module Dict (K : Key) = struct
+  (* We don't include StrDict as forgetting to wrap a function gives
+   * hard-to-decipher error messages *)
+  type 'value t = 'value StrDict.t
+
+  let empty = StrDict.empty
+
+  let mergeLeft = StrDict.mergeLeft
+
+  let mergeRight = StrDict.mergeRight
+
+  let map = StrDict.map
+
+  let filterMapValues = StrDict.filterMapValues
+
+  let mapValues = StrDict.mapValues
+
+  let values = StrDict.values
+
+  let get ~(key : K.t) (dict : 'value t) : 'value option =
+    StrDict.get ~key:(K.toString key) dict
+
+
+  let insert ~(key : K.t) ~(value : 'value) (dict : 'value t) : 'value t =
+    StrDict.insert ~key:(K.toString key) ~value dict
+
+
+  let keys (dict : 'value t) : K.t list =
+    dict |> StrDict.keys |> List.map ~f:K.fromString
+
+
+  let updateIfPresent ~(key : K.t) ~(f : 'v -> 'v) (dict : 'value t) : 'value t
+      =
+    StrDict.updateIfPresent ~key:(K.toString key) ~f dict
+
+
+  let update ~(key : K.t) ~(f : 'v option -> 'v option) (dict : 'value t) :
+      'value t =
+    StrDict.update ~key:(K.toString key) ~f dict
+
+
+  let remove ~(key : K.t) (dict : 'value t) : 'value t =
+    StrDict.remove ~key:(K.toString key) dict
+
+
+  let removeMany ~(keys : K.t list) (dict : 'value t) : 'value t =
+    let keys = List.map keys ~f:K.toString in
+    StrDict.removeMany ~keys dict
+
+
+  let fromList (values : (K.t * 'value) list) : 'value t =
+    values
+    |> List.map ~f:(fun (key, v) -> (K.toString key, v))
+    |> StrDict.fromList
+
+
+  let toList (values : 'value t) : (K.t * 'value) list =
+    values
+    |> StrDict.toList
+    |> List.map ~f:(fun (key, v) -> (K.fromString key, v))
+
+
+  let pp = StrDict.pp
+
+  let count = StrDict.count
+
+  let mapWithKey (dict : 'v t) ~(f : key:K.t -> 'v -> 'x) : 'x t =
+    StrDict.mapWithKey dict ~f:(fun ~key v -> f ~key:(K.fromString key) v)
+end
+
+module StrSet = struct
+  include Tablecloth.StrSet
+
+  let removeMany ~(values : string list) (set : t) : t =
+    Belt.Set.String.removeMany set (Array.fromList values)
+end
+
+module Set (K : Key) = struct
+  (* We don't include StrSet as forgetting to wrap a function gives
+   * hard-to-decipher error messages *)
+  type value = StrSet.value
+
+  type t = StrSet.t
+
+  let add ~(value : K.t) (set : t) : t =
+    StrSet.add ~value:(K.toString value) set
+
+
+  let set = add
+
+  let toList (set : t) : K.t list =
+    set |> StrSet.toList |> List.map ~f:K.fromString
+
+
+  let remove ~(value : K.t) (set : t) : t =
+    StrSet.remove ~value:(K.toString value) set
+
+
+  let removeMany ~(values : K.t list) (set : t) : t =
+    let values = List.map values ~f:K.toString in
+    StrSet.removeMany ~values set
+
+
+  let fromList (values : K.t list) : t =
+    values |> List.map ~f:K.toString |> StrSet.fromList
+
+
+  let empty = StrSet.empty
+
+  let pp = StrSet.pp
 end

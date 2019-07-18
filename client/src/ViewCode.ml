@@ -135,7 +135,10 @@ and viewNExpr
   let n c = div vs (nested :: c) in
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
-  let all = idConfigs @ config in
+  let highlight =
+    if List.member ~value:id vs.hoveringRefs then [wc "related-change"] else []
+  in
+  let all = idConfigs @ config @ highlight in
   let cs = ViewBlankOr.ClickSelect in
   let mo = ViewBlankOr.Mouseover in
   let ent = ViewBlankOr.Enterable in
@@ -159,9 +162,7 @@ and viewNExpr
         ; Html.text value
         ; Html.div [Html.class' "quote quote-end"] [] ]
   | Variable name ->
-      if List.member ~value:id vs.usagesOfHoveredReference
-      then a (ent :: wc "variable" :: wc "related-change" :: all) name
-      else if List.member ~value:id vs.relatedBlankOrs
+      if List.member ~value:id vs.relatedBlankOrs
       then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
       else a (ent :: wc "variable" :: all) name
   | Let (lhs, rhs, body) ->

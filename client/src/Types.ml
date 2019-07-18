@@ -41,41 +41,75 @@ and 'a blankOr =
   | F of id * 'a
 [@@deriving show {with_path = false}]
 
+module TLID = struct
+  type t = tlid
+
+  let toString (TLID str) = str
+
+  let fromString str = TLID str
+end
+
+module ID = struct
+  type t = id
+
+  let toString (ID str) = str
+
+  let fromString str = ID str
+end
+
+module Pair (K1 : Key) (K2 : Key) = struct
+  type t = K1.t * K2.t
+
+  let separator = "_*_DARKPAIRSEPARATOR_%_"
+
+  let toString ((v1, v2) : t) : string =
+    K1.toString v1 ^ separator ^ K2.toString v2
+
+
+  let fromString (str : string) : t =
+    match String.split ~on:separator str with
+    | [v1; v2] ->
+        (K1.fromString v1, K2.fromString v2)
+    | _ ->
+        failwith
+          ( "Pair cannot be separated. This probably means you're using the wrong module for this dict/set: "
+          ^ str )
+end
+
 module TLIDDict = struct
-  include Tc.StrDict
+  include Tc.Dict (TLID)
 
-  let get ~(tlid : tlid) (dict : 'value t) : 'value option =
-    let (TLID key) = tlid in
-    get ~key dict
-
+  (* TODO: convert the tlid key back to being called key *)
+  let get ~(tlid : tlid) (dict : 'value t) : 'value option = get ~key:tlid dict
 
   let insert ~(tlid : tlid) ~(value : 'value) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    insert ~key ~value dict
+    insert ~key:tlid ~value dict
 
 
-  let tlids (dict : 'value t) : tlid list =
-    dict |> keys |> Tc.List.map ~f:(fun key -> TLID key)
+  let tlids (dict : 'value t) : tlid list = dict |> keys
+
+  let updateIfPresent ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) :
+      'value t =
+    updateIfPresent ~key:tlid ~f dict
 
 
-  let update ~(tlid : tlid) ~(f : 'v -> 'v) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    updateIfPresent ~key ~f dict
+  let update ~(tlid : tlid) ~(f : 'v option -> 'v option) (dict : 'value t) :
+      'value t =
+    update ~key:tlid ~f dict
 
 
   let remove ~(tlid : tlid) (dict : 'value t) : 'value t =
-    let (TLID key) = tlid in
-    remove ~key dict
+    remove ~key:tlid dict
 
 
   let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
-    let keys = List.map tlids ~f:(fun (TLID key) -> key) in
-    removeMany ~keys dict
-
-
-  let fromList (values : (tlid * 'value) list) : 'value t =
-    values |> List.map ~f:(fun (TLID key, v) -> (key, v)) |> fromList
+    removeMany ~keys:tlids dict
 end
+
+module TLIDSet = Tc.Set (TLID)
+module IDSet = Tc.Set (ID)
+module IDPair = Pair (TLID) (ID)
+module IDPairSet = Tc.Set (IDPair)
 
 (* There are two coordinate systems. Pos is an absolute position in the *)
 (* canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur *)
@@ -240,25 +274,12 @@ and handlerName = string
 
 and handlerModifer = string
 
-and inTLID = tlid
-
-and toTLID = tlid
-
-and usage = inTLID * toTLID * id option
-
-and tlMeta =
-  | DBMeta of dbName * dbColumn list
-  | HandlerMeta of handlerSpaceName * handlerName * handlerModifer option
-  | FunctionMeta of fnName * userFunctionParameter list
-
-and usedIn =
-  | InHandler of
-      inTLID * handlerSpaceName * handlerName * handlerModifer option
-  | InFunction of inTLID * fnName * userFunctionParameter list
-
-and refersTo =
-  | ToDB of toTLID * dbName * dbColumn list * id
-  | ToEvent of toTLID * handlerSpaceName * handlerName * id
+(* usedIn is a TL that's refered to in the refersTo tl at id *)
+(* refersTo is a TL that uses the usedIn tl at id *)
+and usage =
+  { usedIn : tlid
+  ; refersTo : tlid
+  ; id : id }
 
 (* handlers *)
 and handlerSpec =
@@ -843,8 +864,7 @@ and modification =
   | SetTypes of userTipe list * userTipe list * bool
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
-  | UpdateTLMeta of tlMeta StrDict.t
-  | UpdateTLUsage of usage list
+  | RefreshUsages of tlid list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
   | FluidCommandsFor of tlid * id
@@ -953,7 +973,7 @@ and msg =
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
   | GoTo of page
-  | SetHoveringVarName of tlid * string option
+  | SetHoveringReferences of tlid * id list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
   | FluidCommandsFilter of string
@@ -996,7 +1016,10 @@ and handlerState =
 and handlerProp =
   { handlerLock : bool
   ; handlerState : handlerState
-  ; hoveringVariableName : varName option }
+  ; hoveringReferences :
+      (* When hovering over a reference, this is the list of ids that refer to
+       * the reference *)
+      id list }
 
 and tlCursors = traceID StrDict.t
 
@@ -1257,9 +1280,24 @@ and model =
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp StrDict.t
-  ; staticDeploys : staticDeploy list
-  ; tlUsages : usage list
-  ; tlMeta : tlMeta StrDict.t
+  ; staticDeploys :
+      staticDeploy list
+      (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
+   * if myFunc was called in Repl2 at id, then the dict would be:
+   *
+   *   { repl2.tlid: { (myFunc.tlid, id) } }
+   *
+   * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
+   * it uses. *)
+  ; tlRefersTo :
+      IDPairSet.t TLIDDict.t
+      (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
+   * if myFunc was called in Repl2, the dict would
+   *
+   *   { myfunc.tlid: { repl2.tlid }} 
+   *
+   * which you can read as "myfunc is used in repl2".  *)
+  ; tlUsedIn : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
   ; avatarsList : avatar list

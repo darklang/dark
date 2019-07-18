@@ -87,11 +87,11 @@ let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
   let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
   { m with
     handlers =
-      TD.update m.handlers ~tlid ~f:(fun (h : handler) ->
+      TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->
           {h with pos = newPos h.pos} )
   ; dbs =
-      TD.update m.dbs ~tlid ~f:(fun (db : db) -> {db with pos = newPos db.pos})
-  }
+      TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
+          {db with pos = newPos db.pos} ) }
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
@@ -605,6 +605,7 @@ let getAST (tl : toplevel) : expr option =
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
   { m with
-    handlers = TD.update m.handlers ~tlid ~f:(fun h -> {h with ast})
+    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
-      TD.update m.userFunctions ~tlid ~f:(fun uf -> {uf with ufAST = ast}) }
+      TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
+          {uf with ufAST = ast} ) }

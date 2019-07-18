@@ -31,9 +31,9 @@ type viewState =
   ; handlerProp : handlerProp option
   ; canvasName : string
   ; userContentHost : string
-  ; inReferences : usedIn list
-  ; toReferences : refersTo list
-  ; usagesOfHoveredReference : id list
+  ; refersToRefs : (toplevel * id list) list
+  ; usedInRefs : toplevel list
+  ; hoveringRefs : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list }
 
@@ -74,20 +74,6 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
             [] )
     | _ ->
         [] )
-  | _ ->
-      []
-
-
-let usagesOfHoveredReference (tl : toplevel) (hp : handlerProp option) :
-    id list =
-  match tl with
-  | TLHandler h ->
-      let body = h.ast in
-      hp
-      |> Option.andThen ~f:(fun p -> p.hoveringVariableName)
-      |> Option.andThen ~f:(fun v ->
-             Some (AST.uses v body |> List.map ~f:Blank.toID) )
-      |> Option.withDefault ~default:[]
   | _ ->
       []
 
@@ -135,19 +121,18 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; handlerProp = hp
   ; canvasName = m.canvasName
   ; userContentHost = m.userContentHost
-  ; inReferences =
-      ( match m.currentPage with
-      | FocusedDB (tlid_, _) when tlid_ = tlid ->
-          Introspect.allIn tlid_ m
-      | _ ->
-          [] )
-  ; toReferences =
-      ( match m.currentPage with
-      | FocusedHandler (tlid_, _) when tlid_ = tlid ->
-          Introspect.allTo tlid_ m
-      | _ ->
-          [] )
-  ; usagesOfHoveredReference = usagesOfHoveredReference tl hp
+  ; refersToRefs =
+      ( if tlidOf m.cursorState = Some tlid
+      then Introspect.allRefersTo tlid m
+      else [] )
+  ; usedInRefs =
+      ( if tlidOf m.cursorState = Some tlid
+      then Introspect.allUsedIn tlid m
+      else [] )
+  ; hoveringRefs =
+      TD.get ~tlid m.handlerProps
+      |> Option.map ~f:(fun x -> x.hoveringReferences)
+      |> Option.withDefault ~default:[]
   ; fluidState = m.fluidState
   ; avatarsList =
       ( match m.currentPage with
@@ -156,7 +141,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedFn tlid_
       | FocusedDB (tlid_, _)
         when tlid_ = tlid ->
-          Introspect.presentAvatars m
+          m.avatarsList
       | _ ->
           [] ) }
 
