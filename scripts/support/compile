@@ -299,7 +299,9 @@ def execute(should):
 
 def mark(should, f):
   # Ocaml
-  if "test/test.ml" in f:
+  if ("backend/test/" in f) \
+          and ((".mli" in f) \
+                  or (".ml" in f)):
     should.backend_test = True
 
   elif ("backend/" in f) \
@@ -331,6 +333,8 @@ def mark(should, f):
   elif ("client/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
+    # This correctly handles tests and other dirs, which need to be built as
+    # part of this step.
     should.client_build = True
 
   elif "client/src/appsupport.js" in f:
@@ -361,12 +365,9 @@ def ignore(filename):
             , ".merlin"
             , "integration-tests/tests.js"
             , "rundir/"
-            , "gcp_rundir/"
-            , "transaction.yaml"
             , "backend/_build/"
             , "backend/dark.install"
             , "backend/gmon.out"
-            , "backend/ocamlbuild_output.txt"
             , "backend/profile.json"
             , "backend/serialization/"
             , "backend/static/"
