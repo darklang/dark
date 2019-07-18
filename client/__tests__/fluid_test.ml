@@ -24,20 +24,6 @@ module K = FluidKeyboard
  *      does not include a partial.
  *    - you can also call tp, which asserts that the result _does_ include a
  *      partial.
- *  - wrap:
- *      When I started writing these tests, I discovered that they kept passing
- *      despite there being a bug. Whenever the cursor went over the end, it
- *      would stay in the last place, giving a false positive. To avoid this,
- *      I wrapped all test cases:
- *         ```
- *         let request = expression-I-actually-want-to-test
- *         request
- *         ```
- *      There is a downside to this though: the indentation gets screwed up.
- *      This affects match, if, records - basically anything that applies it's
- *      own indent. The outcome is that the final position is wrong if it's not
- *      on the same line. The solution to this is to set ~wrap:false on the
- *      test.
  *  - debug:
  *      When you need more information about a single test, set the ~debug:true
  *      flag.
@@ -50,6 +36,24 @@ module K = FluidKeyboard
  *  - TGhostPartials are displayed as multiple @ signs
  *  - Other blanks (see FluidToken.isBlank) are displayed as `***` This is
  *    controlled by FluidToken.toTestText
+ *  - Wrap:
+ *      When I started writing these tests, I discovered that they kept passing
+ *      despite there being a bug. Whenever the cursor went over the end, it
+ *      would stay in the last place, giving a false positive. To avoid this,
+ *      I wrapped all test cases:
+ *         ```
+ *         if true
+ *         then
+ *           expression-I-actually-want-to-test
+ *         else
+ *           5
+ *         ```
+ *      There is a downside to this though: the indentation gets screwed up.
+ *      This affects match, if, records - basically anything that applies it's
+ *      own indent. The outcome is that the final position is wrong if it's not
+ *      on the same line. The solution to this is to set ~wrap:false on the
+ *      test.
+ *
  *
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
@@ -303,21 +307,33 @@ let () =
       (keys : K.key list)
       (pos : int)
       (ast : ast) : testResult =
+    let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
      * ifs. *)
+    let wrap = wrap || true in
+    (* let debug = debug || true in *)
+    let newlinesBeforeStartPos =
+      (* How many newlines occur before the pos, it'll be indented by 2 for
+       * each newline, once the expr is wrapped in an if, so we need to add
+       * 2*nl to get the pos in place. *)
+      ast
+      |> toTokens {s with newPos = pos}
+      |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos <= pos)
+      |> List.length
+    in
     let ast =
       if wrap
-      then ELet (gid (), gid (), "request", ast, EVariable (gid (), "request"))
+      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5))
       else ast
     in
-    let extra = if wrap then 14 else 0 in
-    let pos = pos + extra in
-    let s =
-      { Defaults.defaultFluidState with
-        ac = AC.reset m; oldPos = pos; newPos = pos }
+    let wrapperOffset = 15 in
+    let extra =
+      if wrap then wrapperOffset + (newlinesBeforeStartPos * 2) else 0
     in
+    let pos = pos + extra in
+    let s = {s with oldPos = pos; newPos = pos} in
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -338,10 +354,22 @@ let () =
       match newAST with
       | expr when not wrap ->
           expr
-      | ELet (_, _, _, expr, _) ->
+      | EIf (_, _, expr, _) ->
           expr
       | expr ->
           impossible ("not wrapped and not a let: " ^ eToString s expr)
+    in
+    let newlinesBeforeEndPos =
+      (* Count the newlines before the end pos, again they'll be indented two
+       * so we need to subtract those to get the pos we expect. *)
+      result
+      |> toTokens newState
+      |> List.filter ~f:(fun ti ->
+             ti.token = TNewline && ti.startPos < newState.newPos - 15 )
+      |> List.length
+    in
+    let finalPos =
+      newState.newPos - wrapperOffset - (newlinesBeforeEndPos * 2)
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
@@ -358,10 +386,10 @@ let () =
         (show_fluidState
            { newState with
              (* remove the things that take a lot of space and provide little
-            * value. *)
+              * value. *)
              ac = {newState.ac with functions = []; allCompletions = []} }) ;
       Js.log2 "expr" (eToStructure s result) ) ;
-    ((eToString s result, max 0 (newState.newPos - extra)), partialsFound)
+    ((eToString s result, finalPos), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
     process ~debug:false ~wrap:true [] 0 expr
