@@ -381,7 +381,13 @@ let deploy2html (d : staticDeploy) : msg Html.html =
 (* Category Views *)
 
 let categoryTitle (name : string) (classname : string) : msg Html.html =
-  let icon = Html.div [Html.class' "header-icon"] (categoryIcon classname) in
+  let icon =
+    Html.div
+      [ Html.class' "header-icon"
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" name ]
+      (categoryIcon classname)
+  in
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
   Html.div [Html.class' "title"] [icon; text "title" name]
 
@@ -483,7 +489,9 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   in
   let icon =
     Html.div
-      [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
+      [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" c.name ]
       (categoryIcon c.classname)
   in
   Html.div
@@ -503,7 +511,9 @@ let closedDeployStats2html (m : model) : msg Html.html =
   in
   let icon =
     Html.div
-      [Html.classList [("header-icon", true); ("empty", count = 0)]]
+      [ Html.classList [("header-icon", true); ("empty", count = 0)]
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" "Static assets deploy history" ]
       (categoryIcon "static")
   in
   Html.div
