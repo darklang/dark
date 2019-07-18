@@ -1839,11 +1839,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   match entry with
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
-      let name = fn.fnName in
-      let removeUnderscore =
-        let versionDisplayName = ViewUtils.versionDisplayName name in
-        if versionDisplayName = "" then 0 else -1
-      in
+      let partialName = ViewUtils.partialName fn.fnName in
       let r =
         if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
         then Types.Rail
@@ -1854,12 +1850,10 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       then
         match args with
         | [lhs; rhs] ->
-            (EBinOp (gid (), name, lhs, rhs, r), 0)
+            (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
         | _ ->
             fail "BinOp doesn't have 2 args"
-      else
-        ( EFnCall (gid (), name, args, r)
-        , String.length name + 1 + removeUnderscore )
+      else (EFnCall (gid (), fn.fnName, args, r), String.length partialName + 1)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -3310,6 +3304,13 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         [ Html.text "acIndex: "
         ; Html.text
             ( s.ac.index
+            |> Option.map ~f:string_of_int
+            |> Option.withDefault ~default:"None" ) ]
+    ; Html.div
+        []
+        [ Html.text "upDownCol: "
+        ; Html.text
+            ( s.upDownCol
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
     ; Html.div
