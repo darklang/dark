@@ -1096,6 +1096,237 @@ let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   run ast
 
 
+let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun _ -> newExpr)
+
+
+(* ---------------- *)
+(* Patterns *)
+(* ---------------- *)
+let wrapPattern
+    ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
+    : ast =
+  wrap matchID ast ~f:(fun m ->
+      match m with
+      | EMatch (matchID, expr, pairs) ->
+          let newPairs =
+            List.map pairs ~f:(fun (pat, expr) ->
+                if pid pat = patID then (f pat, expr) else (pat, expr) )
+          in
+          EMatch (matchID, expr, newPairs)
+      | _ ->
+          m )
+
+
+let replacePattern
+    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
+
+
+let replaceVarInPattern
+    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
+  wrap mID ast ~f:(fun e ->
+      match e with
+      | EMatch (mID, cond, cases) ->
+          let rec replaceNameInPattern pat =
+            match pat with
+            | FPVariable (_, id, varName) when varName = oldVarName ->
+                if newVarName = ""
+                then FPBlank (mID, id)
+                else FPVariable (mID, id, newVarName)
+            | FPConstructor (mID, id, name, patterns) ->
+                FPConstructor
+                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
+            | pattern ->
+                pattern
+          in
+          let newCases =
+            List.map cases ~f:(fun (pat, expr) ->
+                ( replaceNameInPattern pat
+                , modifyVariableOccurences oldVarName newVarName expr ) )
+          in
+          EMatch (mID, cond, newCases)
+      | _ ->
+          fail "not a let" )
+
+
+(* ---------------- *)
+(* Blanks *)
+(* ---------------- *)
+
+let removeEmptyExpr (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELet (_, _, "", EBlank _, body) ->
+          body
+      | EIf (_, EBlank _, EBlank _, EBlank _) ->
+          newB ()
+      | ELambda (_, _, EBlank _) ->
+          newB ()
+      | EMatch (_, EBlank _, pairs)
+        when List.all pairs ~f:(fun (p, e) ->
+                 match (p, e) with FPBlank _, EBlank _ -> true | _ -> false )
+        ->
+          newB ()
+      | _ ->
+          e )
+
+
+(* ---------------- *)
+(* Fields *)
+(* ---------------- *)
+let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EFieldAccess (id, expr, fieldID, _) ->
+          EFieldAccess (id, expr, fieldID, str)
+      | _ ->
+          fail "not a field" )
+
+
+let exprToFieldAccess (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
+
+
+let removeField (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EFieldAccess (_, faExpr, _, _) ->
+          faExpr
+      | _ ->
+          fail "not a fieldAccess" )
+
+
+(* ---------------- *)
+(* Lambdas *)
+(* ---------------- *)
+let replaceLamdaVar
+    ~(index : int)
+    (oldVarName : string)
+    (newVarName : string)
+    (id : id)
+    (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELambda (id, vars, expr) ->
+          let vars =
+            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
+          in
+          ELambda
+            (id, vars, modifyVariableOccurences oldVarName newVarName expr)
+      | _ ->
+          fail "not a lamda" )
+
+
+(* ---------------- *)
+(* Lets *)
+(* ---------------- *)
+
+let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELet (id, lhsID, oldLHS, rhs, next) ->
+          ELet
+            ( id
+            , lhsID
+            , newLHS
+            , rhs
+            , modifyVariableOccurences oldLHS newLHS next )
+      | _ ->
+          fail "not a let" )
+
+
+(* ---------------- *)
+(* Records *)
+(* ---------------- *)
+let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ERecord (id, fields) ->
+          let fields =
+            List.updateAt fields ~index ~f:(fun (id, _, expr) -> (id, str, expr)
+            )
+          in
+          ERecord (id, fields)
+      | _ ->
+          fail "not a record" )
+
+
+let removeRecordField (id : id) (index : int) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ERecord (id, fields) ->
+          ERecord (id, List.removeAt ~index fields)
+      | _ ->
+          fail "not a record field" )
+
+
+(* Add a row to the record *)
+let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | ERecord (id, fields) ->
+          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
+      | _ ->
+          fail "Not a record" )
+
+
+let addRecordRowToBack (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | ERecord (id, fields) ->
+          ERecord (id, fields @ [(gid (), "", newB ())])
+      | _ ->
+          fail "Not a record" )
+
+
+(* ---------------- *)
+(* Partials *)
+(* ---------------- *)
+
+let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
+  wrap id ast ~f:(fun e ->
+      let str = String.trim str in
+      match e with
+      | EPartial (id, _, oldVal) ->
+          if str = ""
+          then fail "replacing with empty partial, use delete partial instead" ;
+          EPartial (id, str, oldVal)
+      | oldVal ->
+          if str = "" then newB () else EPartial (gid (), str, oldVal) )
+
+
+let replacePatternWithPartial
+    (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
+  wrapPattern matchID patID ast ~f:(fun p ->
+      let str = String.trim str in
+      match p with
+      | _ when str = "" ->
+          FPBlank (matchID, gid ())
+      | FPVariable (mID, pID, _) ->
+          FPVariable (mID, pID, str)
+      | _ ->
+          FPVariable (matchID, gid (), str) )
+
+
+let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
+  let id = ref FluidToken.fakeid in
+  let ast =
+    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
+            id := eid lhs ;
+            lhs
+        | EPartial (_, _, _) ->
+            let b = newB () in
+            id := eid b ;
+            b
+        | _ ->
+            fail "not a partial" )
+  in
+  (ast, !id)
+
+
 let replacePartialWithArguments
     ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
   let getFunctionParams fnname count varExprs =
@@ -1169,197 +1400,17 @@ let replacePartialWithArguments
           newExpr )
 
 
-let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun _ -> newExpr)
+(* ---------------- *)
+(* Binops (plus right partials) *)
+(* ---------------- *)
 
-
-let wrapPattern
-    ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
-    : ast =
-  wrap matchID ast ~f:(fun m ->
-      match m with
-      | EMatch (matchID, expr, pairs) ->
-          let newPairs =
-            List.map pairs ~f:(fun (pat, expr) ->
-                if pid pat = patID then (f pat, expr) else (pat, expr) )
-          in
-          EMatch (matchID, expr, newPairs)
-      | _ ->
-          m )
-
-
-let replacePattern
-    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
-
-
-let replaceVarInPattern
-    (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
-  wrap mID ast ~f:(fun e ->
-      match e with
-      | EMatch (mID, cond, cases) ->
-          let rec replaceNameInPattern pat =
-            match pat with
-            | FPVariable (_, id, varName) when varName = oldVarName ->
-                if newVarName = ""
-                then FPBlank (mID, id)
-                else FPVariable (mID, id, newVarName)
-            | FPConstructor (mID, id, name, patterns) ->
-                FPConstructor
-                  (mID, id, name, List.map patterns ~f:replaceNameInPattern)
-            | pattern ->
-                pattern
-          in
-          let newCases =
-            List.map cases ~f:(fun (pat, expr) ->
-                ( replaceNameInPattern pat
-                , modifyVariableOccurences oldVarName newVarName expr ) )
-          in
-          EMatch (mID, cond, newCases)
-      | _ ->
-          fail "not a let" )
-
-
-let removeField (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | EFieldAccess (_, faExpr, _, _) ->
-          faExpr
-      | _ ->
-          fail "not a fieldAccess" )
-
-
-let deleteWithArguments (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | EFnCall (_, _, _, _) ->
-          EBlank (gid ())
-      | EBinOp (_, _, _, _, _) ->
-          EBlank (gid ())
-      | EConstructor (_, _, _, _) ->
-          EBlank (gid ())
-      | _ ->
-          fail "not a fncall " )
-
-
-let removeRecordField (id : id) (index : int) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | ERecord (id, fields) ->
-          ERecord (id, List.removeAt ~index fields)
-      | _ ->
-          fail "not a record field" )
-
-
-let exprToFieldAccess (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
-
-
-let removeEmptyExpr (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | ELet (_, _, "", EBlank _, body) ->
-          body
-      | EIf (_, EBlank _, EBlank _, EBlank _) ->
-          newB ()
-      | ELambda (_, _, EBlank _) ->
-          newB ()
-      | EMatch (_, EBlank _, pairs)
-        when List.all pairs ~f:(fun (p, e) ->
-                 match (p, e) with FPBlank _, EBlank _ -> true | _ -> false )
-        ->
-          newB ()
-      | _ ->
-          e )
-
-
-let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | EFieldAccess (id, expr, fieldID, _) ->
-          EFieldAccess (id, expr, fieldID, str)
-      | _ ->
-          fail "not a field" )
-
-
-let replaceLamdaVar
-    ~(index : int)
-    (oldVarName : string)
-    (newVarName : string)
-    (id : id)
-    (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | ELambda (id, vars, expr) ->
-          let vars =
-            List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
-          in
-          ELambda
-            (id, vars, modifyVariableOccurences oldVarName newVarName expr)
-      | _ ->
-          fail "not a lamda" )
-
-
-let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | ELet (id, lhsID, oldLHS, rhs, next) ->
-          ELet
-            ( id
-            , lhsID
-            , newLHS
-            , rhs
-            , modifyVariableOccurences oldLHS newLHS next )
-      | _ ->
-          fail "not a let" )
-
-
-let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      match e with
-      | ERecord (id, fields) ->
-          let fields =
-            List.updateAt fields ~index ~f:(fun (id, _, expr) -> (id, str, expr)
-            )
-          in
-          ERecord (id, fields)
-      | _ ->
-          fail "not a record" )
-
-
-let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
-  let ast =
-    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
-        match e with
-        | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            id := eid lhs ;
-            lhs
-        | EPartial (_, _, _) ->
-            let b = newB () in
-            id := eid b ;
-            b
-        | _ ->
-            fail "not a partial" )
-  in
-  (ast, !id)
-
-
-let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
-  let ast =
-    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
-        match e with
-        | EBinOp (_, _, EThreadTarget _, rhs, _) ->
-            id := eid rhs ;
-            rhs
-        | EBinOp (_, _, lhs, _, _) ->
-            id := eid lhs ;
-            lhs
-        | _ ->
-            fail "not a binop" )
-  in
-  (ast, !id)
+let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
+  match char with
+  | None ->
+      ast
+  | Some c ->
+      wrap id ast ~f:(fun expr ->
+          ERightPartial (gid (), String.fromChar c, expr) )
 
 
 let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
@@ -1380,31 +1431,6 @@ let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
   (ast, !id)
 
 
-let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
-      let str = String.trim str in
-      match e with
-      | EPartial (id, _, oldVal) ->
-          if str = ""
-          then fail "replacing with empty partial, use delete partial instead" ;
-          EPartial (id, str, oldVal)
-      | oldVal ->
-          if str = "" then newB () else EPartial (gid (), str, oldVal) )
-
-
-let replacePatternWithPartial
-    (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun p ->
-      let str = String.trim str in
-      match p with
-      | _ when str = "" ->
-          FPBlank (matchID, gid ())
-      | FPVariable (mID, pID, _) ->
-          FPVariable (mID, pID, str)
-      | _ ->
-          FPVariable (matchID, gid (), str) )
-
-
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun e ->
       let str = String.trim str in
@@ -1416,19 +1442,26 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
           ERightPartial (gid (), str, oldVal) )
 
 
-let replaceListSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
-  let index =
-    (* remove expression in front of sep, not behind it *)
-    index + 1
+let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
+  let id = ref FluidToken.fakeid in
+  let ast =
+    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+        match e with
+        | EBinOp (_, _, EThreadTarget _, rhs, _) ->
+            id := eid rhs ;
+            rhs
+        | EBinOp (_, _, lhs, _, _) ->
+            id := eid lhs ;
+            lhs
+        | _ ->
+            fail "not a binop" )
   in
-  wrap id ast ~f:(fun e ->
-      match e with
-      | EList (id, exprs) ->
-          EList (id, List.removeAt ~index exprs)
-      | _ ->
-          e )
+  (ast, !id)
 
 
+(* ---------------- *)
+(* Threads *)
+(* ---------------- *)
 let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
   let index =
     (* remove expression in front of pipe, not behind it *)
@@ -1513,6 +1546,9 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       fail "not supported by replaceToken"
 
 
+(* ---------------- *)
+(* Floats  *)
+(* ---------------- *)
 let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
   wrap id ast ~f:(fun expr ->
       match expr with
@@ -1581,68 +1617,6 @@ let insertAtFrontOfPatternFloatFraction
           fail "not a float" )
 
 
-let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
-    ast =
-  wrap id ast ~f:(fun expr ->
-      match expr with
-      | EList (id, exprs) ->
-          EList (id, List.insertAt ~index ~value:newExpr exprs)
-      | _ ->
-          fail "not a list" )
-
-
-(* Add a blank after the expr indicated by id, which we presume is in a list *)
-let addBlankToList (id : id) (ast : ast) : ast =
-  let parent = findParent id ast in
-  match parent with
-  | Some (EList (pID, exprs)) ->
-      wrap pID ast ~f:(fun expr ->
-          match List.findIndex ~f:(fun e -> eid e = id) exprs with
-          | Some index ->
-              EList
-                ( pID
-                , List.insertAt
-                    ~index:(index + 1)
-                    ~value:(EBlank (gid ()))
-                    exprs )
-          | _ ->
-              expr )
-  | _ ->
-      ast
-
-
-(* Add a row to the record *)
-let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
-      match expr with
-      | ERecord (id, fields) ->
-          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
-      | _ ->
-          fail "Not a record" )
-
-
-let addRecordRowToBack (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
-      match expr with
-      | ERecord (id, fields) ->
-          ERecord (id, fields @ [(gid (), "", newB ())])
-      | _ ->
-          fail "Not a record" )
-
-
-let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
-  match char with
-  | None ->
-      ast
-  | Some c ->
-      wrap id ast ~f:(fun expr ->
-          ERightPartial (gid (), String.fromChar c, expr) )
-
-
-let convertToStringAppend (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr -> EBinOp (gid (), "++", expr, newB (), NoRail))
-
-
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
   wrap id ast ~f:(fun expr ->
       match expr with
@@ -1676,6 +1650,55 @@ let removePointFromFloat (id : id) (ast : ast) : ast =
           fail "Not an int" )
 
 
+(* ---------------- *)
+(* Lists *)
+(* ---------------- *)
+let removeListSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
+  let index =
+    (* remove expression in front of sep, not behind it *)
+    index + 1
+  in
+  wrap id ast ~f:(fun e ->
+      match e with
+      | EList (id, exprs) ->
+          EList (id, List.removeAt ~index exprs)
+      | _ ->
+          e )
+
+
+let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
+    ast =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | EList (id, exprs) ->
+          EList (id, List.insertAt ~index ~value:newExpr exprs)
+      | _ ->
+          fail "not a list" )
+
+
+(* Add a blank after the expr indicated by id, which we presume is in a list *)
+let addBlankToList (id : id) (ast : ast) : ast =
+  let parent = findParent id ast in
+  match parent with
+  | Some (EList (pID, exprs)) ->
+      wrap pID ast ~f:(fun expr ->
+          match List.findIndex ~f:(fun e -> eid e = id) exprs with
+          | Some index ->
+              EList
+                ( pID
+                , List.insertAt
+                    ~index:(index + 1)
+                    ~value:(EBlank (gid ()))
+                    exprs )
+          | _ ->
+              expr )
+  | _ ->
+      ast
+
+
+(* ---------------- *)
+(* Movement *)
+(* ---------------- *)
 let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
   let rec getNextWS tokens =
@@ -1978,7 +2001,7 @@ let acMoveDown (s : state) : state =
   acSetIndex index s
 
 
-let moveBasedOnKey
+let acMoveBasedOnKey
     (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
     state =
   let tokens = toTokens s ast in
@@ -2038,7 +2061,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newAST = replaceExpr ~newExpr id ast in
             (newAST, offset)
       in
-      (newAST, moveBasedOnKey key ti.startPos offset s newAST)
+      (newAST, acMoveBasedOnKey key ti.startPos offset s newAST)
 
 
 let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
@@ -2155,7 +2178,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternString (mID, id, "") ->
       (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
   | TListSep (id, idx) ->
-      (replaceListSepToken id ast idx, left s)
+      (removeListSepToken id ast idx, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TRecordField (id, i, "") when pos = ti.startPos ->
@@ -2269,7 +2292,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
   | TListSep (id, idx) ->
-      (replaceListSepToken id ast idx, s)
+      (removeListSepToken id ast idx, s)
   | TBlank _
   | TPlaceholder _
   | TIndent _
