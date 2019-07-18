@@ -24,7 +24,8 @@ let defaultEditor : serializableEditor =
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; handlerProps = StrDict.empty
-  ; canvasPos = origin }
+  ; canvasPos = origin
+  ; lastReload = None }
 
 
 let defaultFluidState : fluidState =
@@ -125,4 +126,6 @@ let defaultModel : model =
   ; avatarsList = []
   ; browserId = ""
   ; sidebarOpen = false
-  ; isAdmin = false }
+  ; isAdmin = false
+  ; buildHash = ""
+  ; lastReload = None }

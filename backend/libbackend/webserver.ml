@@ -177,9 +177,12 @@ let over_headers_promise
   return (over_headers ~f resp, body)
 
 
-let wrap_json_headers =
-  let json_headers = [("Content-type", "application/json; charset=utf-8")] in
-  over_headers_promise ~f:(fun h -> Header.add_list h json_headers)
+let wrap_editor_api_headers =
+  let headers =
+    [ ("Content-type", "application/json; charset=utf-8")
+    ; ("X-Darklang-Server-Version", Config.build_hash) ]
+  in
+  over_headers_promise ~f:(fun h -> Header.add_list h headers)
 
 
 (* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
@@ -1060,6 +1063,7 @@ let admin_ui_html
             |> Yojson.Safe.to_string )
             instr )
   >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
+  >|= Util.string_replace "{{BUILD_HASH}}" Config.build_hash
 
 
 let save_test_handler ~(execution_id : Types.id) host =
@@ -1277,31 +1281,35 @@ let admin_api_handler
   | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
   | `POST, ["api"; canvas; "add_op"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (admin_add_op_handler ~execution_id canvas body) )
+          wrap_editor_api_headers
+            (admin_add_op_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (initial_load ~execution_id canvas body) )
+          wrap_editor_api_headers (initial_load ~execution_id canvas body) )
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (execute_function ~execution_id canvas body) )
+          wrap_editor_api_headers (execute_function ~execution_id canvas body)
+      )
   | `POST, ["api"; canvas; "trigger_handler"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (trigger_handler ~execution_id canvas body) )
+          wrap_editor_api_headers (trigger_handler ~execution_id canvas body)
+      )
   | `POST, ["api"; canvas; "get_trace_data"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (get_trace_data ~execution_id canvas body) )
+          wrap_editor_api_headers (get_trace_data ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_db_stats"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (db_stats ~execution_id canvas body) )
+          wrap_editor_api_headers (db_stats ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (get_unlocked_dbs ~execution_id canvas body) )
+          wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body)
+      )
   | `POST, ["api"; canvas; "delete_404"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers (delete_404 ~execution_id canvas body) )
+          wrap_editor_api_headers (delete_404 ~execution_id canvas body) )
   | `POST, ["api"; canvas; "static_assets"] ->
       when_can_edit ~canvas (fun _ ->
-          wrap_json_headers
+          wrap_editor_api_headers
             (static_assets_upload_handler
                ~execution_id
                canvas
