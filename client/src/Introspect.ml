@@ -139,9 +139,7 @@ let findUsagesInAST
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | _ ->
              None )
-  |> List.map ~f:(fun (tlUsedIn, id) ->
-         let tlRefersTo = tlid in
-         (tlUsedIn, tlRefersTo, id) )
+  |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
 
 
 let getUsageFor
@@ -180,18 +178,18 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
     |> List.concat
     |> List.foldl
          ~init:(tlUsedInDict, tlRefersToDict)
-         ~f:(fun (tlUsedIn, tlRefersTo, id) (usedIn, refersTo) ->
+         ~f:(fun usage (usedIn, refersTo) ->
            let newRefersTo =
-             TD.get ~tlid:tlRefersTo refersTo
+             TD.get ~tlid:usage.refersTo refersTo
              |> Option.withDefault ~default:TLIDSet.empty
-             |> IDPairSet.add ~value:(tlUsedIn, id)
-             |> fun value -> TD.insert ~tlid:tlRefersTo ~value refersTo
+             |> IDPairSet.add ~value:(usage.usedIn, usage.id)
+             |> fun value -> TD.insert ~tlid:usage.refersTo ~value refersTo
            in
            let newUsedIn =
-             TD.get ~tlid:tlUsedIn usedIn
+             TD.get ~tlid:usage.usedIn usedIn
              |> Option.withDefault ~default:TLIDSet.empty
-             |> TLIDSet.add ~value:tlRefersTo
-             |> fun value -> TD.insert ~tlid:tlUsedIn ~value usedIn
+             |> TLIDSet.add ~value:usage.refersTo
+             |> fun value -> TD.insert ~tlid:usage.usedIn ~value usedIn
            in
            (newUsedIn, newRefersTo) )
   in
