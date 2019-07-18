@@ -121,47 +121,40 @@ let () =
   let five = EInteger (gid (), 5) in
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
-  let blank = EBlank (gid ()) in
-  let aPartialVar = EPartial (gid (), "req", EBlank (gid ())) in
-  let completelyEmptyLet =
-    ELet (gid (), gid (), "", EBlank (gid ()), EBlank (gid ()))
-  in
-  let emptyLet =
-    ELet (gid (), gid (), "", EBlank (gid ()), EInteger (gid (), 5))
-  in
+  let blank () = EBlank (gid ()) in
+  let aPartialVar = EPartial (gid (), "req", blank ()) in
+  let completelyEmptyLet = ELet (gid (), gid (), "", blank (), blank ()) in
+  let emptyLet = ELet (gid (), gid (), "", blank (), EInteger (gid (), 5)) in
   let emptyMatch =
     let mID = gid () in
-    EMatch (mID, EBlank (gid ()), [(FPBlank (mID, gid ()), EBlank (gid ()))])
+    EMatch (mID, blank (), [(FPBlank (mID, gid ()), blank ())])
   in
   let emptyMatchWithTwoPatterns =
     let mID = gid () in
     EMatch
       ( mID
-      , EBlank (gid ())
-      , [ (FPBlank (mID, gid ()), EBlank (gid ()))
-        ; (FPBlank (mID, gid ()), EBlank (gid ())) ] )
+      , blank ()
+      , [(FPBlank (mID, gid ()), blank ()); (FPBlank (mID, gid ()), blank ())]
+      )
   in
   let matchWithPatterns =
     let mID = gid () in
-    EMatch
-      (mID, EBlank (gid ()), [(FPInteger (mID, gid (), 3), EBlank (gid ()))])
+    EMatch (mID, blank (), [(FPInteger (mID, gid (), 3), blank ())])
   in
   let matchWithConstructorPattern =
     let mID = gid () in
     EMatch
-      ( mID
-      , EBlank (gid ())
-      , [(FPConstructor (mID, gid (), "Just", []), EBlank (gid ()))] )
+      (mID, blank (), [(FPConstructor (mID, gid (), "Just", []), blank ())])
   in
   let matchWithBinding (bindingName : string) (expr : fluidExpr) =
     let mID = gid () in
-    EMatch (mID, blank, [(FPVariable (mID, gid (), bindingName), expr)])
+    EMatch (mID, blank (), [(FPVariable (mID, gid (), bindingName), expr)])
   in
   let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
     let mID = gid () in
     EMatch
       ( mID
-      , blank
+      , blank ()
       , [ ( FPConstructor
               (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
           , expr ) ] )
@@ -196,7 +189,7 @@ let () =
           , EInteger (gid (), 7) )
       , EInteger (gid (), 7) )
   in
-  let aLambda = ELambda (gid (), [(gid (), "")], blank) in
+  let aLambda = ELambda (gid (), [(gid (), "")], blank ()) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
     ELambda (gid (), [(gid (), bindingName)], expr)
@@ -210,23 +203,19 @@ let () =
       , [(gid (), "somevar"); (gid (), bindingName)]
       , EVariable (gid (), bindingName) )
   in
-  let aFnCall = EFnCall (gid (), "Int::add", [five; blank], NoRail) in
+  let aFnCall = EFnCall (gid (), "Int::add", [five; blank ()], NoRail) in
   let aFnCallWithVersion =
-    EFnCall (gid (), "DB::getAll_v1", [blank], NoRail)
+    EFnCall (gid (), "DB::getAll_v1", [blank ()], NoRail)
   in
   let aFnCallWithBlockArg =
-    EFnCall (gid (), "Dict::map", [blank; EBlank (gid ())], NoRail)
+    EFnCall (gid (), "Dict::map", [blank (); blank ()], NoRail)
   in
-  let aBinOp =
-    EBinOp (gid (), "==", EBlank (gid ()), EBlank (gid ()), NoRail)
-  in
+  let aBinOp = EBinOp (gid (), "==", blank (), blank (), NoRail) in
   (* let aFullBinOp = *)
   (*   EBinOp *)
   (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
   (* in *)
-  let aConstructor =
-    EConstructor (gid (), gid (), "Just", [EBlank (gid ())])
-  in
+  let aConstructor = EConstructor (gid (), gid (), "Just", [blank ()]) in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -248,8 +237,7 @@ let () =
       ( gid ()
       , gid ()
       , "var"
-      , EIf
-          (gid (), EBlank (gid ()), EInteger (gid (), 6), EInteger (gid (), 7))
+      , EIf (gid (), blank (), EInteger (gid (), 6), EInteger (gid (), 7))
       , EVariable (gid (), "var") )
   in
   let m =
@@ -576,24 +564,24 @@ let () =
       tp "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" blank (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" blank (backspace 3) (b, 2) ;
-      t "insert blank->string" blank (insert '"' 0) ("\"\"", 1) ;
+      t "insert middle of blank->string" (blank ()) (insert '"' 3) ("\"\"", 1) ;
+      t "delete middle of blank->blank" (blank ()) (delete 3) (b, 3) ;
+      t "backspace middle of blank->blank" (blank ()) (backspace 3) (b, 2) ;
+      t "insert blank->string" (blank ()) (insert '"' 0) ("\"\"", 1) ;
       t "delete blank->string" emptyStr (delete 0) (b, 0) ;
       t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
-      t "insert blank->int" blank (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" blank (insert '0' 0) ("0", 1) ;
+      t "insert blank->int" (blank ()) (insert '5' 0) ("5", 1) ;
+      t "insert blank->int" (blank ()) (insert '0' 0) ("0", 1) ;
       t "delete int->blank " five (delete 0) (b, 0) ;
       t "backspace int->blank " five (backspace 1) (b, 0) ;
-      t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
-      tp "insert partial" blank (insert 't' 0) ("t", 1) ;
+      t "insert end of blank->int" (blank ()) (insert '5' 1) ("5", 1) ;
+      tp "insert partial" (blank ()) (insert 't' 0) ("t", 1) ;
       t
         "backspacing your way through a partial finishes"
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      t "insert blank->space" blank (press K.Space 0) (b, 0) ;
+      t "insert blank->space" (blank ()) (press K.Space 0) (b, 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -675,9 +663,7 @@ let () =
         (EPartial
            ( gid ()
            , "Int::"
-           , EFnCall
-               (gid (), "Int::add", [EBlank (gid ()); EBlank (gid ())], NoRail)
-           ))
+           , EFnCall (gid (), "Int::add", [blank (); blank ()], NoRail) ))
         (presses ~wrap:false [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("Int::sqrt _________", 10) ;
       (* TODO: functions are not implemented fully. I deleted backspace and
@@ -717,7 +703,7 @@ let () =
         ("DB::getllv1@ ___________________", 7) ;
       t
         "adding function with version goes to the right place"
-        blank
+        (blank ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
       () ) ;
@@ -755,22 +741,24 @@ let () =
         ("true\n|>___", 8) ;
       t
         "pressing backspace to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
         (press K.Backspace 7)
         ("12345", 5) ;
       t
         "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
+        (EPartial
+           (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
         (press K.Backspace 12)
         ("___", 0) ;
       t
         "pressing delete to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank, NoRail)))
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
         (press K.Delete 6)
         ("12345", 5) ;
       t
         "pressing delete to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), blank, NoRail)))
+        (EPartial
+           (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
         (press K.Delete 11)
         ("___", 0) ;
       t
@@ -785,7 +773,7 @@ let () =
         ("5", 1) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", blank))
+        (ERightPartial (gid (), "|", blank ()))
         (press K.Backspace 5)
         ("___", 0) ;
       t
@@ -800,7 +788,7 @@ let () =
         ("___", 0) ;
       t
         "pressing delete to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", blank))
+        (ERightPartial (gid (), "|", blank ()))
         (press K.Delete 4)
         ("___", 0) ;
       t
@@ -810,7 +798,7 @@ let () =
         ("12345", 5) ;
       t
         "pressing letters and numbers on a partial completes it"
-        blank
+        (blank ())
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
         ("5 + 5", 5) ;
       tp
@@ -830,7 +818,7 @@ let () =
         ("12345 <= 12345", 8) ;
       tp
         "adding binop in `if` works"
-        (EIf (gid (), EBlank (gid ()), EBlank (gid ()), EBlank (gid ())))
+        (EIf (gid (), blank (), blank (), blank ()))
         (press K.Percent 3)
         ("if %\nthen\n  ___\nelse\n  ___", 4) ;
       let aFullBinOp =
@@ -919,7 +907,7 @@ let () =
         ("Dict::map ____________ \\key, value -> ___", 24) ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
-        (EThread (gid (), [EBlank (gid ()); EBlank (gid ())]))
+        (EThread (gid (), [blank (); blank ()]))
         (presses
            ~wrap:false
            (* we have to insert the function with completion here
@@ -941,8 +929,7 @@ let () =
       tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
       t
         "variable doesn't override if"
-        (ELet
-           (gid (), gid (), "i", blank, EPartial (gid (), "i", EBlank (gid ()))))
+        (ELet (gid (), gid (), "i", blank (), EPartial (gid (), "i", blank ())))
         (presses ~wrap:false [K.Letter 'f'; K.Enter] 13)
         ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
@@ -1100,7 +1087,7 @@ let () =
            "binding"
            (EMatch
               ( gid ()
-              , blank
+              , blank ()
               , [ ( FPVariable (gid (), gid (), "binding")
                   , EVariable (gid (), "binding") )
                 ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
@@ -1384,7 +1371,7 @@ let () =
             ; seventyEight ] )
       in
       let listWithBlank =
-        EList (gid (), [fiftySix; seventyEight; EBlank (gid ()); fiftySix])
+        EList (gid (), [fiftySix; seventyEight; blank (); fiftySix])
       in
       let multiWithStrs =
         EList
@@ -1393,7 +1380,7 @@ let () =
             ; EString (gid (), "cd")
             ; EString (gid (), "ef") ] )
       in
-      t "create list" blank (press K.LeftSquareBracket 0) ("[]", 1) ;
+      t "create list" (blank ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
       t
         "inserting before the list does nothing"
         emptyList
@@ -1498,14 +1485,14 @@ let () =
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [(gid (), "", blank)]) in
+      let emptyRow = ERecord (gid (), [(gid (), "", blank ())]) in
       let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
       let multi =
         ERecord
           (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
       in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
-      t "create record" blank (press K.LeftCurlyBrace 0) ("{}", 1) ;
+      t "create record" (blank ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
         "inserting before the record does nothing"
         emptyRecord
@@ -1656,12 +1643,12 @@ let () =
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
-        (EPartial (gid (), "if", EBlank (gid ())))
+        (EPartial (gid (), "if", blank ()))
         (press K.Space 2)
         ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t
         "let moves to right place"
-        (EPartial (gid (), "let", EBlank (gid ())))
+        (EPartial (gid (), "let", blank ()))
         (press K.Enter 3)
         ("let *** = ___\n___", 4) ;
       t
@@ -1682,29 +1669,29 @@ let () =
         ("request == _________", 11) ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
-        (EBlank (gid ()))
+        (blank ())
         (presses [K.Equals; K.Enter] 0)
         ("_________ == _________", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
-        (EBlank (gid ()))
+        (blank ())
         (presses [K.Equals; K.Tab] 0)
         ("_________ == _________", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
-        (EBlank (gid ()))
+        (blank ())
         (presses [K.Equals; K.Space] 0)
         ("_________ == _________", 0) ;
       *)
       t
         "variable moves to right place"
-        (EPartial (gid (), "req", EBlank (gid ())))
+        (EPartial (gid (), "req", blank ()))
         (press K.Enter 3)
         ("request", 7) ;
       t
         "thread moves to right place on blank"
-        (EBlank (gid ()))
+        (blank ())
         (presses ~wrap:false [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         ("___\n|>___", 6) ;
       t
@@ -1729,23 +1716,23 @@ let () =
         ("match ___\n  *** -> ___\n         |>___", 34) ;
       t
         "autocomplete for Just"
-        (EPartial (gid (), "Just", EBlank (gid ())))
+        (EPartial (gid (), "Just", blank ()))
         (press K.Enter 4)
         ("Just ___", 5) ;
       t
         "autocomplete for Ok"
-        (EPartial (gid (), "Ok", EBlank (gid ())))
+        (EPartial (gid (), "Ok", blank ()))
         (press K.Enter 2)
         ("Ok ___", 3) ;
       t
         "autocomplete for Nothing"
-        (EPartial (gid (), "Nothing", EBlank (gid ())))
+        (EPartial (gid (), "Nothing", blank ()))
         (press K.Enter 7)
         (* TODO: this should be 7 *)
         ("Nothing", 8) ;
       t
         "autocomplete for Error"
-        (EPartial (gid (), "Error", EBlank (gid ())))
+        (EPartial (gid (), "Error", blank ()))
         (press K.Enter 5)
         ("Error ___", 6) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
@@ -1864,8 +1851,8 @@ let () =
                  ( gid ()
                  , gid ()
                  , "var"
-                 , EPartial (gid (), "false", EBlank (gid ()))
-                 , blank )
+                 , EPartial (gid (), "false", blank ())
+                 , blank () )
              in
              moveTo 14 s
              |> (fun s ->
@@ -1886,8 +1873,8 @@ let () =
            ( gid ()
            , gid ()
            , "x"
-           , EPartial (gid (), "Int::add", EBlank (gid ()))
-           , blank ))
+           , EPartial (gid (), "Int::add", blank ())
+           , blank () ))
         (press ~wrap:false K.Right 16)
         ("let x = Int::add _________ _________\n___", 17) ;
       t
@@ -1896,13 +1883,13 @@ let () =
            ( gid ()
            , gid ()
            , "x"
-           , EPartial (gid (), "Int::add", EBlank (gid ()))
-           , blank ))
+           , EPartial (gid (), "Int::add", blank ())
+           , blank () ))
         (press ~wrap:false K.Left 8)
         ("let x = Int::add _________ _________\n___", 7) ;
       test "escape hides autocomplete" (fun () ->
           expect
-            (let ast = blank in
+            (let ast = blank () in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
@@ -1910,7 +1897,7 @@ let () =
           |> toEqual None ) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
-            (let ast = blank in
+            (let ast = blank () in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
