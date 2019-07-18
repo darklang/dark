@@ -68,3 +68,15 @@ let viewError (err : darkError) : msg Html.html =
           [Html.text msg]
       | Ok exc ->
           viewException exc ) )
+
+
+let readOnlyMessage (m : model) : msg Html.html =
+  Html.div
+    [ Html.classList
+        [ ("message-panel", true)
+          (* Only show this on confirmed Read-only so it doesn't pop up before initial_load. *)
+        ; ("show", m.permission = Some Read) ] ]
+    [ Html.strong [] [Html.text "Heads up:"]
+    ; Html.text
+        " this canvas is read-only; you'll be able to view and copy it but not change it."
+    ]
