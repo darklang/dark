@@ -225,3 +225,13 @@ let gcloud_application_credentials =
 let check_tier_one_hosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
 let static_assets_bucket = string_option "DARK_STATIC_ASSETS_BUCKET"
+
+(* If the GIT_COMMIT is in the environment, use that as the build hash.
+ * Otherwise, set it to the env name so that it's constant.
+ *
+ * We intentionally bypass our DSL here as `GIT_COMMIT` is not set by the
+ * config _files_ but as part of the production container build process.
+ *
+ * *)
+let build_hash =
+  match Sys.getenv "GIT_COMMIT" with Some s -> s | None -> env_display_name

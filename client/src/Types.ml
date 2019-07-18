@@ -787,9 +787,14 @@ and errorImportance =
   | IgnorableError
   | ImportantError
 
+and apiError =
+  { context : string
+  ; originalError : httpError (* the Tea_http error *)
+  ; requestParams : (Js.Json.t[@opaque]) option
+  ; importance : errorImportance }
+
 and modification =
-  | DisplayAndReportHttpError of
-      string * errorImportance * httpError * (Js.Json.t[@opaque])
+  | HandleAPIError of apiError
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
@@ -1260,7 +1265,9 @@ and model =
   ; avatarsList : avatar list
   ; browserId : string
   ; sidebarOpen : bool
-  ; isAdmin : bool }
+  ; isAdmin : bool
+  ; buildHash : string
+  ; lastReload : (Js.Date.t[@opaque]) option }
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -1270,5 +1277,6 @@ and serializableEditor =
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp StrDict.t
-  ; canvasPos : pos }
+  ; canvasPos : pos
+  ; lastReload : (Js.Date.t[@opaque]) option }
 [@@deriving show {with_path = false}]
