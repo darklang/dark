@@ -38,7 +38,7 @@ let tid (t : token) : id =
   | TLambdaVar (id, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
-  | TLambdaSep id
+  | TLambdaSep (id, _)
   | TListOpen id
   | TListClose id
   | TListSep (id, _)
