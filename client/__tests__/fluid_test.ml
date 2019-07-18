@@ -299,18 +299,13 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
-  let process
-      ~(debug : bool)
-      ~(wrap : bool)
-      (keys : K.key list)
-      (pos : int)
-      (ast : ast) : testResult =
+  let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
+      testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     (* we wrap it so that there's something before and after the expr (esp
      * after it), which catches more bugs that ending the text area
      * immediately. Unfortunately, it doesn't work for well nested exprs, like
      * ifs. *)
-    let wrap = wrap || true in
     (* let debug = debug || true in *)
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -323,15 +318,9 @@ let () =
       |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos < pos)
       |> List.length
     in
-    let ast =
-      if wrap
-      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5))
-      else ast
-    in
+    let ast = EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5)) in
     let wrapperOffset = 15 in
-    let extra =
-      if wrap then wrapperOffset + (newlinesBeforeStartPos * 2) else 0
-    in
+    let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
     let pos = pos + extra in
     let s = {s with oldPos = pos; newPos = pos} in
     let newAST, newState =
@@ -352,12 +341,10 @@ let () =
     in
     let result =
       match newAST with
-      | expr when not wrap ->
-          expr
       | EIf (_, _, expr, _) ->
           expr
       | expr ->
-          impossible ("not wrapped and not a let: " ^ eToString s expr)
+          impossible ("the wrapper is broken: " ^ eToString s expr)
     in
     let endPos = ref (newState.newPos - wrapperOffset) in
     (* Account for the newlines as we find them, or else we won't know our
@@ -391,48 +378,33 @@ let () =
     ((eToString s result, finalPos), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
-    process ~debug:false ~wrap:true [] 0 expr
+    process ~debug:false [] 0 expr
   in
-  let delete ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
+  let delete ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Delete] pos expr
+  in
+  let backspace ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Backspace] pos expr
+  in
+  let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Tab] pos expr
+  in
+  let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.ShiftTab] pos expr
+  in
+  let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~debug ~wrap [K.Delete] pos expr
-  in
-  let backspace ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr)
-      : testResult =
-    process ~debug ~wrap [K.Backspace] pos expr
-  in
-  let tab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~debug ~wrap [K.Tab] pos expr
-  in
-  let shiftTab ?(debug = false) ?(wrap = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~debug ~wrap [K.ShiftTab] pos expr
-  in
-  let press
-      ?(debug = false)
-      ?(wrap = true)
-      (key : K.key)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~debug ~wrap [key] pos expr
+    process ~debug [key] pos expr
   in
   let presses
-      ?(debug = false)
-      ?(wrap = true)
-      (keys : K.key list)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~debug ~wrap keys pos expr
+      ?(debug = false) (keys : K.key list) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~debug keys pos expr
   in
-  let insert
-      ?(debug = false)
-      ?(wrap = true)
-      (char : char)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
+  let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
+      testResult =
     let key = K.fromChar char in
-    process ~debug ~wrap [key] pos expr
+    process ~debug [key] pos expr
   in
   let b = "___" in
   let t
