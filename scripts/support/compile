@@ -337,6 +337,7 @@ def mark(should, f):
   elif ("client/__tests__/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
+    should.client_build = True
     should.client_test = True
 
   elif "client/src/appsupport.js" in f:
