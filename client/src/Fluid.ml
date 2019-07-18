@@ -1235,6 +1235,17 @@ let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
           e )
 
 
+let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : ast
+    =
+  wrap id ast ~f:(fun expr ->
+      match expr with
+      | ELambda (id, vars, expr) ->
+          let value = (gid (), name) in
+          ELambda (id, List.insertAt ~index ~value vars, expr)
+      | _ ->
+          fail "not a list" )
+
+
 (* ---------------- *)
 (* Lets *)
 (* ---------------- *)
@@ -1698,17 +1709,11 @@ let addBlankToList (id : id) (ast : ast) : ast =
   let parent = findParent id ast in
   match parent with
   | Some (EList (pID, exprs)) ->
-      wrap pID ast ~f:(fun expr ->
-          match List.findIndex ~f:(fun e -> eid e = id) exprs with
-          | Some index ->
-              EList
-                ( pID
-                , List.insertAt
-                    ~index:(index + 1)
-                    ~value:(EBlank (gid ()))
-                    exprs )
-          | _ ->
-              expr )
+    ( match List.findIndex ~f:(fun e -> eid e = id) exprs with
+    | Some index ->
+        insertInList ~index:(index + 1) ~newExpr:(EBlank (gid ())) pID ast
+    | _ ->
+        ast )
   | _ ->
       ast
 
@@ -2478,6 +2483,10 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   (* lists *)
   | TListOpen id ->
       (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
+  (* lambda *)
+  | TLambdaVar (id, index, _) when letter = ',' ->
+      ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
+      , moveTo (ti.startPos + 5) s )
   (* Ignore invalid situations *)
   | (TString _ | TPatternString _) when offset < 0 ->
       (ast, s)
@@ -2572,7 +2581,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIndented _
   | TIndentToHere _
   | TListClose _
-  | TListSep (_, _)
+  | TListSep _
   | TIndent _
   | TRecordOpen _
   | TRecordClose _
@@ -2763,13 +2772,16 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, doDown ~pos ast s)
     | K.Space, _, R (TSep, _) ->
         (ast, moveOneRight pos s)
-    (* list-specific insertions *)
+    (* comma - add another of the thing *)
     | K.Comma, L (TListOpen _, toTheLeft), _ ->
+        doInsert ~pos keyChar toTheLeft ast s
+    | K.Comma, L (TLambdaVar _, toTheLeft), _ ->
         doInsert ~pos keyChar toTheLeft ast s
     | K.Comma, L (t, ti), _ ->
         if onEdge
         then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos keyChar ti ast s
+    (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
