@@ -534,8 +534,12 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TVariable (id, name)]
   | ELambda (id, names, body) ->
       let tnames =
-        List.indexedMap names ~f:(fun i (_, name) -> TLambdaVar (id, i, name))
-        |> List.intersperse (TLambdaSep id)
+        names
+        |> List.indexedMap ~f:(fun i (_, name) ->
+               [TLambdaVar (id, i, name); TLambdaSep (id, i)] )
+        |> List.concat
+        (* Remove the extra seperator *)
+        |> List.dropRight ~count:1
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
@@ -1216,6 +1220,19 @@ let replaceLamdaVar
             (id, vars, modifyVariableOccurences oldVarName newVarName expr)
       | _ ->
           fail "not a lamda" )
+
+
+let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
+  let index =
+    (* remove expression in front of sep, not behind it *)
+    index + 1
+  in
+  wrap id ast ~f:(fun e ->
+      match e with
+      | ELambda (id, vars, expr) ->
+          ELambda (id, List.removeAt ~index vars, expr)
+      | _ ->
+          e )
 
 
 (* ---------------- *)
@@ -2177,6 +2194,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
   | TPatternString (mID, id, "") ->
       (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
+  | TLambdaSep (id, idx) ->
+      (removeLambdaSepToken id ast idx, left s)
   | TListSep (id, idx) ->
       (removeListSepToken id ast idx, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
@@ -2197,7 +2216,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordSep _
   | TSep
-  | TLambdaSep _
   | TPatternBlank _
   | TPartialGhost _ ->
       (ast, left s)
@@ -2291,6 +2309,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removeEmptyExpr (Token.tid ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
+  | TLambdaSep (id, idx) ->
+      (removeLambdaSepToken id ast idx, s)
   | TListSep (id, idx) ->
       (removeListSepToken id ast idx, s)
   | TBlank _
@@ -2306,7 +2326,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep
-  | TLambdaSep _
   | TPartialGhost _ ->
       (ast, s)
   | TConstructorName (id, str)

@@ -926,7 +926,7 @@ let () =
         "backspacing a lambda argument should work"
         lambdaWithTwoBindings
         (backspace 3)
-        ("\\x -> ___", 3) ;
+        ("\\x -> ___", 2) ;
       t
         "deleting a lambda argument should update used variable"
         (lambdaWithUsed2ndBinding "x")
