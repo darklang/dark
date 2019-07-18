@@ -64,9 +64,9 @@ let () =
             ; handlerProp = None
             ; canvasName = ""
             ; userContentHost = ""
-            ; inReferences = []
-            ; toReferences = []
-            ; usagesOfHoveredReference = []
+            ; usedInRefs = []
+            ; refersToRefs = []
+            ; hoveringRefs = []
             ; avatarsList = [] }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;

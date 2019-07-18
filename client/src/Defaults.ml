@@ -60,16 +60,15 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  { handlerLock = false
-  ; handlerState = HandlerExpanded
-  ; hoveringVariableName = None }
+  {handlerLock = false; handlerState = HandlerExpanded; hoveringReferences = []}
 
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
   ; lastMsg = IgnoreMsg
-  ; lastMod = NoChange (* this is awkward, but avoids circular deps *)
+  ; lastMod = NoChange
   ; complete =
+      (* this is awkward, but avoids circular deps *)
       { functions = []
       ; admin = false
       ; completions = []
@@ -119,8 +118,8 @@ let defaultModel : model =
   ; usedTipes = TLIDDict.empty
   ; handlerProps = StrDict.empty
   ; staticDeploys = []
-  ; tlUsages = []
-  ; tlMeta = StrDict.empty
+  ; tlRefersTo = TLIDDict.empty
+  ; tlUsedIn = TLIDDict.empty
   ; fluidState = defaultFluidState
   ; dbStats = StrDict.empty
   ; avatarsList = []

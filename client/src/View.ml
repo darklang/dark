@@ -43,8 +43,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
   in
-  let refs = ViewIntrospect.refersToViews tlid vs.toReferences in
-  let uses = ViewIntrospect.usedInViews vs.inReferences in
+  let refersTo = ViewIntrospect.refersToViews tlid vs.refersToRefs in
+  let usedIn = ViewIntrospect.usedInViews tlid vs.usedInRefs in
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -165,7 +165,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; avatars
     ; Html.div
         [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-        [uses; refs] ]
+        [usedIn; refersTo] ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
