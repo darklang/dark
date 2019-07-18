@@ -369,7 +369,8 @@ let () =
       |> List.length
     in
     let finalPos =
-      newState.newPos - wrapperOffset - (newlinesBeforeEndPos * 2)
+      (* max 0 cause tests can backspace past 0 and that's weird to test for *)
+      max 0 (newState.newPos - wrapperOffset - (newlinesBeforeEndPos * 2))
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
