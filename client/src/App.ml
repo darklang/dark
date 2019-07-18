@@ -1311,11 +1311,30 @@ let update_ (msg : msg) (m : model) : modification =
     | Error (AnalysisParseError str) ->
         DisplayError str )
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
-      Many
-        [ TweakModel
-            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
-        ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
-        ]
+      let markResponseMod =
+        TweakModel
+          (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+      in
+      ( match
+          List.elemIndex
+            ~value:(params.gtdrpTlid, params.gtdrpTraceID)
+            m.optimisticTraces
+        with
+      | Some index ->
+          Many
+            [ TweakModel
+                (fun m ->
+                  let optimisticTraces =
+                    (* remove from optimistic traces *)
+                    List.removeAt ~index m.optimisticTraces
+                  in
+                  {m with optimisticTraces} )
+            ; markResponseMod ]
+      | None ->
+          Many
+            [ markResponseMod
+            ; DisplayAndReportError
+                ("Error fetching trace", Some url, Some error) ] )
   | ReceiveFetch (TraceFetchSuccess (params, result)) ->
       let traces =
         StrDict.fromList [(deTLID params.gtdrpTlid, [result.trace])]

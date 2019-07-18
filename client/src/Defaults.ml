@@ -98,6 +98,7 @@ let defaultModel : model =
   ; deletedUserTipes = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
+  ; optimisticTraces = []
   ; f404s = []
   ; unlockedDBs = StrSet.empty
   ; integrationTestState = NoIntegrationTest

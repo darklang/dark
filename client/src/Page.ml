@@ -83,7 +83,8 @@ let maintainActiveTrace (oldPage : page) (newPage : page) (m : model) : model =
                      | _ ->
                          None )
             in
-            {m with traces}
+            let optimisticTraces = (newtlid, traceID) :: m.optimisticTraces in
+            {m with traces; optimisticTraces}
         in
         Analysis.setCursor m newtlid traceID
     | _ ->

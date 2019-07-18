@@ -1263,6 +1263,7 @@ and model =
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
   ; traces : traces
+  ; optimisticTraces : (tlid * traceID) list
   ; analyses : analyses
   ; f404s : fourOhFour list
   ; unlockedDBs : unlockedDBs
