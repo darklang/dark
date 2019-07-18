@@ -3314,6 +3314,13 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             |> Option.withDefault ~default:"None" ) ]
     ; Html.div
         []
+        [ Html.text "upDownCol: "
+        ; Html.text
+            ( s.upDownCol
+            |> Option.map ~f:string_of_int
+            |> Option.withDefault ~default:"None" ) ]
+    ; Html.div
+        []
         [ Html.text "lastKey: "
         ; Html.text
             ( K.toName s.lastKey
