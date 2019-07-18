@@ -11,7 +11,10 @@ let serverVersionOf (e : apiError) : string option =
       None
   | BadStatus response | BadPayload (_, response) ->
       let module StringMap = Map.Make (Caml.String) in
-      StringMap.find_opt "X-Darklang-Server-Version" response.headers
+      response.headers
+      |> StringMap.find_first_opt (fun key ->
+             String.toLower key = "x-darklang-server-version" )
+      |> Option.map ~f:Tuple2.second
 
 
 let urlOf (e : apiError) : string option =
