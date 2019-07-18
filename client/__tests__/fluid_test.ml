@@ -936,7 +936,7 @@ let () =
         "can add lambda arguments"
         aLambda
         (insert ',' 4)
-        ("\\___, ___ -> ___", 6) ;
+        ("\\***, *** -> ___", 6) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
