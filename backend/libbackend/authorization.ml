@@ -16,7 +16,7 @@ open Types
 type permission =
   | Read
   | ReadWrite
-[@@deriving eq, show, ord]
+[@@deriving eq, show, ord, yojson]
 
 (* Order matters here -- the derived ord will
    go in order, and None < Some anything, so
