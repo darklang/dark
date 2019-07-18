@@ -66,8 +66,8 @@ let () =
             match
               findUsagesInAST h2tlid databases handlers functions h2data.ast
             with
-            | [(toTLID, tlid, id)] ->
-                tlid = h2tlid && toTLID = dbtlid && id == dbRefID
+            | [{refersTo; usedIn; id}] ->
+                refersTo = h2tlid && usedIn = dbtlid && id == dbRefID
             | _ ->
                 false
           in
