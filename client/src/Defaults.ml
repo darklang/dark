@@ -127,4 +127,5 @@ let defaultModel : model =
   ; sidebarOpen = false
   ; isAdmin = false
   ; buildHash = ""
-  ; lastReload = None }
+  ; lastReload = None
+  ; permission = None }

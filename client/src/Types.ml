@@ -650,7 +650,8 @@ and initialLoadRPCResult =
   ; staticDeploys : staticDeploy list
   ; traces : (tlid * traceID) list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list }
+  ; deletedUserTipes : userTipe list
+  ; permission : permission option }
 
 and saveTestRPCResult = string
 
@@ -862,6 +863,7 @@ and modification =
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
   | SetTypes of userTipe list * userTipe list * bool
+  | SetPermission of permission option
   | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
@@ -1305,7 +1307,8 @@ and model =
   ; sidebarOpen : bool
   ; isAdmin : bool
   ; buildHash : string
-  ; lastReload : (Js.Date.t[@opaque]) option }
+  ; lastReload : (Js.Date.t[@opaque]) option
+  ; permission : permission option }
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -1318,3 +1321,8 @@ and serializableEditor =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option }
 [@@deriving show {with_path = false}]
+
+and permission =
+  | Read
+  | ReadWrite
+[@@deriving show eq ord]

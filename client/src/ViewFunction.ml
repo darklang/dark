@@ -103,12 +103,17 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
     |> List.map ~f:(fun p ->
            Html.div
              [Html.class' "col"]
-             [ viewKillParameterBtn fn p
-             ; viewParamName vs [wc "name"] p.ufpName
-             ; Html.div [Html.class' "param-divider"] [Html.text ":"]
-             ; viewParamTipe vs [wc "type"] p.ufpTipe ] )
+             ( ( if vs.permission = Some ReadWrite
+               then [viewKillParameterBtn fn p]
+               else [] )
+             @ [ viewParamName vs [wc "name"] p.ufpName
+               ; Html.div [Html.class' "param-divider"] [Html.text ":"]
+               ; viewParamTipe vs [wc "type"] p.ufpTipe ] ) )
   in
-  Html.div [Html.class' "user-fn"] ((namediv :: coldivs) @ [addParamBtn])
+  Html.div
+    [Html.class' "user-fn"]
+    ( (namediv :: coldivs)
+    @ if vs.permission = Some ReadWrite then [addParamBtn] else [] )
 
 
 let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =

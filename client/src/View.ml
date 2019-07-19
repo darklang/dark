@@ -309,7 +309,9 @@ let view (m : model) : msg Html.html =
   in
   let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
   let footer =
-    [ViewScaffold.viewIntegrationTestButton m.integrationTestState] @ errorBar
+    [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
+    ; ViewScaffold.readOnlyMessage m ]
+    @ errorBar
   in
   let routing = ViewRoutingTable.viewRoutingTable m in
   let body = viewCanvas m in

@@ -27,3 +27,18 @@
     animation-name: showErrorPanel;
   }
 }
+
+.message-panel {
+  width: 100%;
+  padding: 20px;
+  background-color: $cyan;
+  color: $black1;
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  height: 20px;
+  display: none;
+  &.show {
+    display: block;
+  }
+}

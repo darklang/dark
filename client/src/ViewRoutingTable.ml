@@ -331,17 +331,22 @@ let entry2html (m : model) (e : entry) : msg Html.html =
       [Html.class' "delete"]
       ( match e.minusButton with
       | Some msg ->
-          [ buttonLink
-              ~key:("entry-" ^ showTLID e.tlid)
-              (fontAwesome "times-circle")
-              msg ]
+          if m.permission = Some ReadWrite
+          then
+            [ buttonLink
+                ~key:("entry-" ^ showTLID e.tlid)
+                (fontAwesome "times-circle")
+                msg ]
+          else []
       | None ->
           iconspacer )
   in
   let pluslink =
     match e.plusButton with
     | Some msg ->
-        [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg]
+        if m.permission = Some ReadWrite
+        then [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg]
+        else []
     | None ->
         iconspacer
   in
@@ -445,10 +450,13 @@ and category2html (m : model) (c : category) : msg Html.html =
     let plusButton =
       match c.plusButton with
       | Some msg ->
-          [ buttonLink
-              ~key:("plus-" ^ c.classname)
-              (fontAwesome "plus-circle")
-              msg ]
+          if m.permission = Some ReadWrite
+          then
+            [ buttonLink
+                ~key:("plus-" ^ c.classname)
+                (fontAwesome "plus-circle")
+                msg ]
+          else []
       | None ->
           []
     in
@@ -470,10 +478,13 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   let plusButton =
     match c.plusButton with
     | Some msg ->
-        [ buttonLink
-            ~key:("plus-" ^ c.classname)
-            (fontAwesome "plus-circle")
-            msg ]
+        if m.permission = Some ReadWrite
+        then
+          [ buttonLink
+              ~key:("plus-" ^ c.classname)
+              (fontAwesome "plus-circle")
+              msg ]
+        else []
     | None ->
         []
   in

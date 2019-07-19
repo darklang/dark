@@ -713,12 +713,16 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         body
 
 
-let initial_load ~(execution_id : Types.id) (host : string) body :
-    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+let initial_load
+    ~(execution_id : Types.id)
+    ~(username : Account.username)
+    ~(canvas : string)
+    ~(permission : Authorization.permission option)
+    body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
     let t1, c =
       time "1-load-saved-ops" (fun _ ->
-          C.load_all host []
+          C.load_all canvas []
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
     in
@@ -754,8 +758,13 @@ let initial_load ~(execution_id : Types.id) (host : string) body :
     in
     let t6, result =
       time "6-to-frontend" (fun _ ->
-          Analysis.to_initial_load_rpc_result !c f404s traces unlocked assets
-      )
+          Analysis.to_initial_load_rpc_result
+            !c
+            permission
+            f404s
+            traces
+            unlocked
+            assets )
     in
     respond
       ~execution_id
@@ -1263,13 +1272,23 @@ let admin_api_handler
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_edit ~canvas f =
-    if Authorization.can_edit_canvas ~canvas ~username
-    then Log.add_log_annotations [("canvas", `String canvas)] f
+    let p =
+      Authorization.permission
+        ~auth_domain:(Account.auth_domain_for canvas)
+        ~username
+    in
+    if p = Some Authorization.ReadWrite
+    then Log.add_log_annotations [("canvas", `String canvas)] (fun _ -> f p)
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let when_can_view ~canvas f =
-    if Authorization.can_view_canvas ~canvas ~username
-    then Log.add_log_annotations [("canvas", `String canvas)] f
+    let p =
+      Authorization.permission
+        ~auth_domain:(Account.auth_domain_for canvas)
+        ~username
+    in
+    if p >= Some Authorization.Read
+    then Log.add_log_annotations [("canvas", `String canvas)] (fun _ -> f p)
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   match (verb, path) with
@@ -1287,8 +1306,9 @@ let admin_api_handler
           wrap_editor_api_headers
             (admin_add_op_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
-      when_can_view ~canvas (fun _ ->
-          wrap_editor_api_headers (initial_load ~execution_id canvas body) )
+      when_can_view ~canvas (fun permission ->
+          wrap_editor_api_headers
+            (initial_load ~execution_id ~username ~canvas ~permission body) )
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (execute_function ~execution_id canvas body)
