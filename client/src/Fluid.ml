@@ -827,13 +827,13 @@ let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
     (* The left might be separated by whitespace *)
     | Some prev, Some current when current.startPos >= pos ->
         L (prev.token, prev)
+    | None, _ ->
+        No
     | _, Some current ->
         L (current.token, current)
     | Some prev, None ->
         (* Last position in the ast *)
         L (prev.token, prev)
-    | None, None ->
-        No
   in
   (toTheLeft, toTheRight, mNext)
 
@@ -3378,23 +3378,31 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
               |> Option.withDefault ~default:"" ) ) ] ]
   in
   let tokenDiv =
-    let prev, current, next = getTokensAtPosition tokens ~pos:s.newPos in
-    let p =
-      match prev with Some prev -> Token.show_tokenInfo prev | None -> "none"
+    let left, right, next = getNeighbours tokens ~pos:s.newPos in
+    let l =
+      match left with
+      | L (_, left) ->
+          Token.show_tokenInfo left
+      | R (_, _) ->
+          "right"
+      | No ->
+          "none"
     in
-    let c =
-      match current with
-      | Some current ->
-          Token.show_tokenInfo current
-      | None ->
+    let r =
+      match right with
+      | L (_, _) ->
+          "left"
+      | R (_, right) ->
+          Token.show_tokenInfo right
+      | No ->
           "none"
     in
     let n =
       match next with Some next -> Token.show_tokenInfo next | None -> "none"
     in
-    [ Html.text ("prev: " ^ p)
+    [ Html.text ("left: " ^ l)
     ; Html.br []
-    ; Html.text ("current: " ^ c)
+    ; Html.text ("right: " ^ r)
     ; Html.br []
     ; Html.text ("next: " ^ n) ]
   in
