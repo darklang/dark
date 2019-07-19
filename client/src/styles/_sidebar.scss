@@ -132,22 +132,49 @@ $prodColor: black;
           display: flex;
           font-size: 34px;
           color: white;
-          filter: $greyFilter;
-          object {
-            width: 100%;
-            height: 100%;
+          position: relative;
+
+          &:hover {
+            &:before {
+              content: attr(alt);
+              font-size: 0.55rem;
+              text-align: center;
+
+              background-color: $black2;
+              color: lighten($yellow, 10%);
+              // color: $white2;
+
+              width: 100%;
+              padding: 2px;
+              z-index: 60;
+
+              position: absolute;
+              top: -4px;
+              left: 0;
+            }
+
+            object,
+            i.fa {
+              filter: $yellowFilter;
+              cursor: pointer;
+            }
           }
-          &.empty {
+
+          &.empty object,
+          &.empty i.fa {
             filter: none;
             opacity: 0.2;
+
             &:hover {
               filter: none;
             }
           }
 
-          &:hover {
-            cursor: pointer;
-            filter: $yellowFilter;
+          object,
+          i.fa {
+            width: 100%;
+            height: 100%;
+            filter: $greyFilter;
           }
         }
 
