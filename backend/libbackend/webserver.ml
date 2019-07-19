@@ -1232,7 +1232,7 @@ let admin_ui_handler
           respond
             ~execution_id
             `Internal_server_error
-            "Dark Internal Error loading canvas"
+            "Dark Internal Error: we encountered an error when loading this canvas, we're sorry!"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(canvas_id : Uuidm.t) =
@@ -1242,7 +1242,7 @@ let admin_ui_handler
       (fun e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond ~execution_id `Internal_server_error "Dark Internal Error" )
+        respond ~execution_id `Internal_server_error "Dark Internal Error: The service hosting this application encountered an error, we're sorry!")
   in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
@@ -1592,7 +1592,7 @@ let callback ~k8s_callback ip req body execution_id =
           let body =
             if include_internals || Config.show_stacktrace
             then real_err
-            else "Dark Internal Error"
+            else "Dark Internal Error: The service hosting this application encountered an error, we're sorry!"
           in
           respond ~execution_id `Internal_server_error body
     with e ->
