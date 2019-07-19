@@ -933,10 +933,30 @@ let () =
         (delete 8)
         ("\\somevar -> ___", 8) ;
       t
-        "can add lambda arguments"
+        "can add lambda arguments when blank"
         aLambda
         (insert ',' 4)
         ("\\***, *** -> ___", 6) ;
+      t
+        "can add lambda arguments to used binding"
+        lambdaWithTwoBindings
+        (insert ',' 5)
+        ("\\x, y, *** -> ___", 7) ;
+      t
+        "can add lambda arguments in middle used binding"
+        lambdaWithTwoBindings
+        (insert ',' 2)
+        ("\\x, ***, y -> ___", 4) ;
+      t
+        "can add lambda arguments in at front"
+        lambdaWithTwoBindings
+        (insert ',' 1)
+        ("\\***, x, y -> ___", 1) ;
+      t
+        "can add lambda arguments on the right"
+        lambdaWithTwoBindings
+        (insert ',' 4)
+        ("\\x, y, *** -> ___", 6) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;

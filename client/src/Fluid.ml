@@ -536,10 +536,10 @@ let rec toTokens' (s : state) (e : ast) : token list =
       let tnames =
         names
         |> List.indexedMap ~f:(fun i (_, name) ->
-               [TLambdaVar (id, i, name); TLambdaSep (id, i)] )
+               [TLambdaVar (id, i, name); TLambdaSep (id, i); TSep] )
         |> List.concat
         (* Remove the extra seperator *)
-        |> List.dropRight ~count:1
+        |> List.dropRight ~count:2
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
   | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
@@ -2484,9 +2484,11 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TListOpen id ->
       (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
   (* lambda *)
+  | TLambdaSymbol id when letter = ',' ->
+      (insertLambdaVar ~index:0 id ~name:"" ast, s)
   | TLambdaVar (id, index, _) when letter = ',' ->
       ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-      , moveTo (ti.startPos + 5) s )
+      , moveTo (ti.endPos + 2) s )
   (* Ignore invalid situations *)
   | (TString _ | TPatternString _) when offset < 0 ->
       (ast, s)
@@ -2773,9 +2775,10 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Space, _, R (TSep, _) ->
         (ast, moveOneRight pos s)
     (* comma - add another of the thing *)
-    | K.Comma, L (TListOpen _, toTheLeft), _ ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | K.Comma, L (TLambdaVar _, toTheLeft), _ ->
+    | K.Comma, L (TListOpen _, toTheLeft), _
+    | K.Comma, L (TLambdaSymbol _, toTheLeft), _
+    | K.Comma, L (TLambdaVar _, toTheLeft), _
+      when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     | K.Comma, L (t, ti), _ ->
         if onEdge
