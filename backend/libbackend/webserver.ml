@@ -337,7 +337,7 @@ let result_to_response
         { resp_headers = Header.init ()
         ; execution_id
         ; status = `Internal_server_error
-        ; body = "Application error: the executed code was incomplete" }
+        ; body = "Application error: the executed code was not complete. This error can be resolve by the application author by completing the incomplete code." }
   | RTT.DError _ ->
       Respond
         { resp_headers = Header.init ()
