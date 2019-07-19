@@ -1136,7 +1136,7 @@ and fluidToken =
   | TFnName of id * string * string * string * sendToRail
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'v3'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3') *)
   | TFnVersion of id * string * string * string
-  | TLambdaSep of id
+  | TLambdaSep of id * int
   | TLambdaArrow of id
   | TLambdaSymbol of id
   | TLambdaVar of id * int * string

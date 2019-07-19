@@ -196,6 +196,9 @@ let () =
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
     ELambda (gid (), [(gid (), bindingName)], expr)
   in
+  let lambdaWithTwoBindings =
+    ELambda (gid (), [(gid (), "x"); (gid (), "y")], blank ())
+  in
   let lambdaWithUsedBinding (bindingName : string) =
     lambdaWithBinding bindingName (EVariable (gid (), bindingName))
   in
@@ -914,6 +917,56 @@ let () =
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
         ("___\n|>Dict::map \\key, value -> ___", 17) ;
+      t
+        "deleting a lambda argument should work"
+        lambdaWithTwoBindings
+        (delete 2)
+        ("\\x -> ___", 2) ;
+      t
+        "backspacing a lambda argument should work"
+        lambdaWithTwoBindings
+        (backspace 3)
+        ("\\x -> ___", 2) ;
+      t
+        "deleting a lambda argument should update used variable"
+        (lambdaWithUsed2ndBinding "x")
+        (delete 8)
+        ("\\somevar -> ___", 8) ;
+      t
+        "can add lambda arguments when blank"
+        aLambda
+        (insert ',' 4)
+        ("\\***, *** -> ___", 6) ;
+      t
+        "can add lambda arguments to used binding"
+        lambdaWithTwoBindings
+        (insert ',' 5)
+        ("\\x, y, *** -> ___", 7) ;
+      t
+        "can add lambda arguments in middle used binding"
+        lambdaWithTwoBindings
+        (insert ',' 2)
+        ("\\x, ***, y -> ___", 4) ;
+      t
+        "can add lambda arguments in the front"
+        lambdaWithTwoBindings
+        (insert ',' 1)
+        ("\\***, x, y -> ___", 1) ;
+      t
+        "can add lambda arguments in front of middle"
+        lambdaWithTwoBindings
+        (insert ',' 4)
+        ("\\x, ***, y -> ___", 4) ;
+      t
+        "cant insert a blank from outside the lambda"
+        lambdaWithTwoBindings
+        (insert ',' 0)
+        ("\\x, y -> ___", 0) ;
+      t
+        "cant backspace a blank from the space in a lambda"
+        lambdaWithTwoBindings
+        (backspace 4)
+        ("\\x, y -> ___", 3) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
