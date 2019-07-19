@@ -42,6 +42,8 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM function_arguments WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM static_asset_deploys WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
 done
 run_sql "$SCRIPT";
