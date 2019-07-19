@@ -102,7 +102,9 @@ let viewDBCol
     else Vdom.noNode
   in
   let row = [viewDBColName vs [wc "name"] n; viewDBColType vs [wc "type"] t] in
-  Html.div [Html.class' "col"] (deleteButton :: row)
+  Html.div
+    [Html.class' "col"]
+    ((if vs.permission = Some ReadWrite then [deleteButton] else []) @ row)
 
 
 let viewMigraFuncs
@@ -172,7 +174,7 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
   in
   let namediv = viewDBName vs db in
   let cols =
-    if vs.dbLocked
+    if (not (vs.permission = Some ReadWrite)) || vs.dbLocked
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
