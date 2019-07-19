@@ -384,6 +384,7 @@ let categoryTitle (name : string) (classname : string) : msg Html.html =
   let icon =
     Html.div
       [ Html.class' "header-icon"
+      ; Html.title name
       ; Vdom.attribute "" "role" "img"
       ; Vdom.attribute "" "alt" name ]
       (categoryIcon classname)
@@ -513,7 +514,7 @@ let closedDeployStats2html (m : model) : msg Html.html =
     Html.div
       [ Html.classList [("header-icon", true); ("empty", count = 0)]
       ; Vdom.attribute "" "role" "img"
-      ; Vdom.attribute "" "alt" "Static assets deploy history" ]
+      ; Vdom.attribute "" "alt" "Static Assets" ]
       (categoryIcon "static")
   in
   Html.div
