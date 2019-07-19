@@ -2780,6 +2780,8 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     | K.Comma, L (TLambdaVar _, toTheLeft), _
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
+    | K.Comma, _, R (TLambdaVar (id, index, _), _) when onEdge ->
+        (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
         then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)

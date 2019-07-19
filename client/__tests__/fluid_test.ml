@@ -948,15 +948,25 @@ let () =
         (insert ',' 2)
         ("\\x, ***, y -> ___", 4) ;
       t
-        "can add lambda arguments in at front"
+        "can add lambda arguments in the front"
         lambdaWithTwoBindings
         (insert ',' 1)
         ("\\***, x, y -> ___", 1) ;
       t
-        "can add lambda arguments on the right"
+        "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
         (insert ',' 4)
-        ("\\x, y, *** -> ___", 6) ;
+        ("\\x, ***, y -> ___", 4) ;
+      t
+        "cant insert a blank from outside the lambda"
+        lambdaWithTwoBindings
+        (insert ',' 0)
+        ("\\x, y -> ___", 0) ;
+      t
+        "cant backspace a blank from the space in a lambda"
+        lambdaWithTwoBindings
+        (backspace 4)
+        ("\\x, y -> ___", 3) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
