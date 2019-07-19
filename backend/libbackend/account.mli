@@ -8,11 +8,6 @@ type user_info =
   ; name : string
   ; admin : bool }
 
-type permissions =
-  | CanEdit
-  | CanAccessOperations
-  | NoPermission
-
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
 
@@ -20,8 +15,6 @@ val authenticate : username:username -> password:string -> bool
 val hash_password : string -> string
 
 val can_access_operations : username:string -> bool
-
-val can_edit_canvas : auth_domain:string -> username:string -> bool
 
 (* For a host, what user do we expect *)
 val auth_domain_for : string -> string

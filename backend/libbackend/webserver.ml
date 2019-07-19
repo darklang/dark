@@ -1219,9 +1219,9 @@ let admin_ui_handler
   let html_hdrs = Header.of_list html_hdrs in
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
-  let when_can_edit ~canvas f =
+  let when_can_view ~canvas f =
     let auth_domain = Account.auth_domain_for canvas in
-    if Account.can_edit_canvas ~auth_domain ~username
+    if Authorization.can_view_canvas ~canvas ~username
     then
       match Account.owner ~auth_domain with
       | Some owner ->
@@ -1246,7 +1246,7 @@ let admin_ui_handler
   in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
-      when_can_edit ~canvas (fun canvas_id ->
+      when_can_view ~canvas (fun canvas_id ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
           serve_or_error ~canvas_id )
   | _ ->
@@ -1263,9 +1263,12 @@ let admin_api_handler
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_edit ~canvas f =
-    if Account.can_edit_canvas
-         ~auth_domain:(Account.auth_domain_for canvas)
-         ~username
+    if Authorization.can_edit_canvas ~canvas ~username
+    then Log.add_log_annotations [("canvas", `String canvas)] f
+    else respond ~execution_id `Unauthorized "Unauthorized"
+  in
+  let when_can_view ~canvas f =
+    if Authorization.can_view_canvas ~canvas ~username
     then Log.add_log_annotations [("canvas", `String canvas)] f
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
@@ -1284,7 +1287,7 @@ let admin_api_handler
           wrap_editor_api_headers
             (admin_add_op_handler ~execution_id canvas body) )
   | `POST, ["api"; canvas; "initial_load"] ->
-      when_can_edit ~canvas (fun _ ->
+      when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (initial_load ~execution_id canvas body) )
   | `POST, ["api"; canvas; "execute_function"] ->
       when_can_edit ~canvas (fun _ ->
@@ -1301,7 +1304,7 @@ let admin_api_handler
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers (db_stats ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
-      when_can_edit ~canvas (fun _ ->
+      when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body)
       )
   | `POST, ["api"; canvas; "delete_404"] ->
