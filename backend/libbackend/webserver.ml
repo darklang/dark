@@ -343,7 +343,7 @@ let result_to_response
         { resp_headers = Header.init ()
         ; execution_id
         ; status = `Internal_server_error
-        ; body = "Application error: the executed program was invalid" }
+        ; body = "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)." }
   | RTT.DResp (Redirect url, value) ->
       Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
