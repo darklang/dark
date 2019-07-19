@@ -750,6 +750,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
+    | SetPermission permission ->
+        ({m with permission}, Cmd.none)
     | SetUnlockedDBs unlockedDBs ->
         ({m with unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs newDBs ->
@@ -1240,6 +1242,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
+        ; SetPermission r.permission
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
         ; AutocompleteMod ACReset
@@ -1584,8 +1587,21 @@ let update_ (msg : msg) (m : model) : modification =
       Refactor.takeOffRail m tl pd
 
 
+let rec filter_read_only (m : model) (modification : modification) =
+  if m.permission = Some ReadWrite
+  then modification
+  else
+    match modification with
+    | Enter _ | EnterWithOffset _ | RPC _ ->
+        NoChange
+    | Many ms ->
+        Many (List.map ~f:(filter_read_only m) ms)
+    | _ ->
+        modification
+
+
 let update (m : model) (msg : msg) : model * msg Cmd.t =
-  let mods = update_ msg m in
+  let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   Editor.serialize m ;
   ({newm with lastMsg = msg; lastMod = mods}, newc)

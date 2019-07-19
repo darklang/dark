@@ -239,7 +239,9 @@ and viewNExpr
       let paramsComplete = List.all ~f:(isComplete << B.toID) allExprs in
       let resultHasValue = isComplete id in
       let buttonUnavailable = not paramsComplete in
-      let showButton = not fn.fnPreviewExecutionSafe in
+      let showButton =
+        (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
+      in
       let buttonNeeded = not resultHasValue in
       let showExecuting = functionIsExecuting vs id in
       let exeIcon = "play" in
@@ -539,21 +541,24 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
                |> Option.andThen ~f:(fun (_, data) -> data) )
         |> Option.is_some
       in
-      if hasData
+      if vs.permission = Some ReadWrite
       then
-        Html.div
-          [ Html.classList ([("handler-trigger", true)] @ isExecutingClasses)
-          ; Html.title "Replay this execution"
-          ; ViewUtils.eventNoPropagation
-              ~key:("lh" ^ "-" ^ showTLID vs.tlid)
-              "click"
-              (fun _ -> TriggerHandler vs.tlid) ]
-          [fontAwesome "redo"]
-      else
-        Html.div
-          [ Html.classList [("inactive-handler-trigger", true)]
-          ; Html.title "Need input data to replay execution" ]
-          [fontAwesome "redo"]
+        if hasData
+        then
+          Html.div
+            [ Html.classList ([("handler-trigger", true)] @ isExecutingClasses)
+            ; Html.title "Replay this execution"
+            ; ViewUtils.eventNoPropagation
+                ~key:("lh" ^ "-" ^ showTLID vs.tlid)
+                "click"
+                (fun _ -> TriggerHandler vs.tlid) ]
+            [fontAwesome "redo"]
+        else
+          Html.div
+            [ Html.classList [("inactive-handler-trigger", true)]
+            ; Html.title "Need input data to replay execution" ]
+            [fontAwesome "redo"]
+      else Vdom.noNode
   | _, _, _ ->
       Vdom.noNode
 
@@ -588,7 +593,10 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~name:"handler-lock"
       ~activeIcon:"lock"
       ~inactiveIcon:"unlock"
-      ~msg:(fun _ -> LockHandler (vs.tlid, not isLocked))
+      ~msg:(fun _ ->
+        if vs.permission = Some ReadWrite
+        then LockHandler (vs.tlid, not isLocked)
+        else IgnoreMsg )
       ~active:isLocked
       ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
   in

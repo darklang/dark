@@ -3152,6 +3152,7 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
 
 
 let viewPlayIcon
+    ~(vs : ViewUtils.viewState)
     ~tlid
     ~currentResults
     ~executingFunctions
@@ -3191,6 +3192,8 @@ let viewPlayIcon
       let buttonUnavailable = not paramsComplete in
       (* Dont show button on the function token if it has a version, show on version token *)
       let showButton =
+        vs.permission = Some ReadWrite
+        &&
         match ti.token with
         | TFnVersion _ ->
             not fn.fnPreviewExecutionSafe
@@ -3249,8 +3252,13 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
-    Types.msg Html.html list =
+let toHtml
+    ~(vs : ViewUtils.viewState)
+    ~tlid
+    ~currentResults
+    ~executingFunctions
+    ~state
+    (ast : ast) : Types.msg Html.html list =
   let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -3270,15 +3278,19 @@ let toHtml ~tlid ~currentResults ~executingFunctions ~state (ast : ast) :
           ]
           ([Html.text content] @ nested)
       in
-      [ element
-          [ dropdown ()
-          ; ti
-            |> viewPlayIcon
-                 ~tlid
-                 ~currentResults
-                 ~executingFunctions
-                 ~state
-                 ast ] ] )
+      if vs.permission = Some ReadWrite
+      then
+        [ element
+            [ dropdown ()
+            ; ti
+              |> viewPlayIcon
+                   ~vs
+                   ~tlid
+                   ~currentResults
+                   ~executingFunctions
+                   ~state
+                   ast ] ]
+      else [] )
   |> List.flatten
 
 
@@ -3351,7 +3363,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Attrs.autofocus true
       ; Attrs.spellcheck false
       ; event ~key:eventKey "keydown" ]
-      (ast |> toHtml ~tlid ~currentResults ~executingFunctions ~state)
+      (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
 
 

@@ -377,6 +377,10 @@ and userTipe j =
   ; utDefinition = field "definition" userTipeDefinition j }
 
 
+and permission j =
+  variants [("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite)] j
+
+
 and op j : op =
   variants
     [ ( "SetHandler"
@@ -510,7 +514,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; staticDeploys = field "assets" (list sDeploy) j
   ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
-  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
+  ; permission = field "permission" (optional permission) j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
