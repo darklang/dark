@@ -1095,22 +1095,22 @@ let rec modifyVariableOccurences
       recurse ~f:u ast
 
 
-let wrap ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
+let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let rec run e = if id = eid e then f e else recurse ~f:run e in
   run ast
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun _ -> newExpr)
+  updateExpr id ast ~f:(fun _ -> newExpr)
 
 
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
-let wrapPattern
+let updatePattern
     ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
     : ast =
-  wrap matchID ast ~f:(fun m ->
+  updateExpr matchID ast ~f:(fun m ->
       match m with
       | EMatch (matchID, expr, pairs) ->
           let newPairs =
@@ -1124,12 +1124,12 @@ let wrapPattern
 
 let replacePattern
     ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun _ -> newPat)
+  updatePattern matchID patID ast ~f:(fun _ -> newPat)
 
 
 let replaceVarInPattern
     (mID : id) (oldVarName : string) (newVarName : string) (ast : ast) : ast =
-  wrap mID ast ~f:(fun e ->
+  updateExpr mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
           let rec replaceNameInPattern pat =
@@ -1159,7 +1159,7 @@ let replaceVarInPattern
 (* ---------------- *)
 
 let removeEmptyExpr (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ELet (_, _, "", EBlank _, body) ->
           body
@@ -1180,7 +1180,7 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
 (* Fields *)
 (* ---------------- *)
 let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
@@ -1189,11 +1189,11 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
+  updateExpr id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
 
 
 let removeField (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
           faExpr
@@ -1210,7 +1210,7 @@ let replaceLamdaVar
     (newVarName : string)
     (id : id)
     (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let vars =
@@ -1227,7 +1227,7 @@ let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
     (* remove expression in front of sep, not behind it *)
     index + 1
   in
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           ELambda (id, List.removeAt ~index vars, expr)
@@ -1237,7 +1237,7 @@ let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
 
 let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : ast
     =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | ELambda (id, vars, expr) ->
           let value = (gid (), name) in
@@ -1251,7 +1251,7 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : ast
 (* ---------------- *)
 
 let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ELet (id, lhsID, oldLHS, rhs, next) ->
           ELet
@@ -1268,7 +1268,7 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
 (* Records *)
 (* ---------------- *)
 let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           let fields =
@@ -1281,7 +1281,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
 
 
 let removeRecordField (id : id) (index : int) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, List.removeAt ~index fields)
@@ -1291,7 +1291,7 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 (* Add a row to the record *)
 let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
           ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
@@ -1300,7 +1300,7 @@ let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
 
 
 let addRecordRowToBack (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | ERecord (id, fields) ->
           ERecord (id, fields @ [(gid (), "", newB ())])
@@ -1313,7 +1313,7 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
 (* ---------------- *)
 
 let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       let str = String.trim str in
       match e with
       | EPartial (id, _, oldVal) ->
@@ -1326,7 +1326,7 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
 
 let replacePatternWithPartial
     (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun p ->
+  updatePattern matchID patID ast ~f:(fun p ->
       let str = String.trim str in
       match p with
       | _ when str = "" ->
@@ -1340,7 +1340,7 @@ let replacePatternWithPartial
 let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
   let id = ref FluidToken.fakeid in
   let ast =
-    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
             id := eid lhs ;
@@ -1381,7 +1381,7 @@ let replacePartialWithArguments
         ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
   in
   let exprIsBlank e = match e with EBlank _ -> true | _ -> false in
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
       | EPartial (_, _, EFnCall (_, name, exprs, _))
@@ -1437,14 +1437,14 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
   | None ->
       ast
   | Some c ->
-      wrap id ast ~f:(fun expr ->
+      updateExpr id ast ~f:(fun expr ->
           ERightPartial (gid (), String.fromChar c, expr) )
 
 
 let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
   let id = ref FluidToken.fakeid in
   let ast =
-    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | ERightPartial (_, _, oldVal) ->
             id := eid oldVal ;
@@ -1460,7 +1460,7 @@ let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       let str = String.trim str in
       if str = "" then fail "replacing with empty right partial" ;
       match e with
@@ -1473,7 +1473,7 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
   let id = ref FluidToken.fakeid in
   let ast =
-    wrap (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | EBinOp (_, _, EThreadTarget _, rhs, _) ->
             id := eid rhs ;
@@ -1495,7 +1495,7 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
     (* remove expression in front of pipe, not behind it *)
     index + 1
   in
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | EThread (_, [e1; _]) ->
           e1
@@ -1578,7 +1578,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
 (* Floats  *)
 (* ---------------- *)
 let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, _, fraction) ->
           EFloat (id, str, fraction)
@@ -1588,7 +1588,7 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
 
 let replacePatternFloatWhole
     (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
-  wrapPattern matchID patID ast ~f:(fun expr ->
+  updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPFloat (matchID, patID, _, fraction) ->
           FPFloat (matchID, patID, str, fraction)
@@ -1598,7 +1598,7 @@ let replacePatternFloatWhole
 
 let replacePatternFloatFraction
     (str : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
-  wrapPattern matchID patID ast ~f:(fun expr ->
+  updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPFloat (matchID, patID, whole, _) ->
           FPFloat (matchID, patID, whole, str)
@@ -1607,7 +1607,7 @@ let replacePatternFloatFraction
 
 
 let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun expr ->
+  updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPFloat (matchID, _, whole, fraction) ->
           let i = safe_int_of_string (whole ^ fraction) in
@@ -1617,7 +1617,7 @@ let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
 
 
 let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, whole, _) ->
           EFloat (id, whole, str)
@@ -1627,7 +1627,7 @@ let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
 
 let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
     fluidExpr =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
@@ -1637,7 +1637,7 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
 
 let insertAtFrontOfPatternFloatFraction
     (letter : string) (matchID : id) (patID : id) (ast : ast) : fluidExpr =
-  wrapPattern matchID patID ast ~f:(fun expr ->
+  updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPFloat (matchID, patID, whole, fraction) ->
           FPFloat (matchID, patID, whole, letter ^ fraction)
@@ -1646,7 +1646,7 @@ let insertAtFrontOfPatternFloatFraction
 
 
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EInteger (_, i) ->
           let str = Int.toString i in
@@ -1658,7 +1658,7 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
 
 let convertPatternIntToFloat
     (offset : int) (matchID : id) (patID : id) (ast : ast) : ast =
-  wrapPattern matchID patID ast ~f:(fun expr ->
+  updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPInteger (matchID, _, i) ->
           let str = Int.toString i in
@@ -1669,7 +1669,7 @@ let convertPatternIntToFloat
 
 
 let removePointFromFloat (id : id) (ast : ast) : ast =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EFloat (_, whole, fraction) ->
           let i = safe_int_of_string (whole ^ fraction) in
@@ -1686,7 +1686,7 @@ let removeListSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
     (* remove expression in front of sep, not behind it *)
     index + 1
   in
-  wrap id ast ~f:(fun e ->
+  updateExpr id ast ~f:(fun e ->
       match e with
       | EList (id, exprs) ->
           EList (id, List.removeAt ~index exprs)
@@ -1696,7 +1696,7 @@ let removeListSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
 
 let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
     ast =
-  wrap id ast ~f:(fun expr ->
+  updateExpr id ast ~f:(fun expr ->
       match expr with
       | EList (id, exprs) ->
           EList (id, List.insertAt ~index ~value:newExpr exprs)
