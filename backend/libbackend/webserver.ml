@@ -1592,7 +1592,7 @@ let callback ~k8s_callback ip req body execution_id =
           let body =
             if include_internals || Config.show_stacktrace
             then real_err
-            else "Dark Internal Error: The service hosting this application encountered an error, we're sorry!"
+            else "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
           in
           respond ~execution_id `Internal_server_error body
     with e ->
