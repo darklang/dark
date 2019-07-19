@@ -1066,12 +1066,12 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec modifyVariableOccurences
-    (oldVarName : string) (newVarName : string) (ast : ast) : ast =
-  let u = modifyVariableOccurences oldVarName newVarName in
+let rec updateVariableUses (oldVarName : string) ~(f : ast -> ast) (ast : ast)
+    : ast =
+  let u = updateVariableUses oldVarName ~f in
   match ast with
-  | EVariable (id, varName) ->
-      if varName = oldVarName then EVariable (id, newVarName) else ast
+  | EVariable (_, varName) ->
+      if varName = oldVarName then f ast else ast
   | ELet (id, id', lhs, rhs, body) ->
       if oldVarName = lhs (* if variable name is rebound *)
       then ast
@@ -1093,6 +1093,23 @@ let rec modifyVariableOccurences
       EMatch (id, u cond, pairs)
   | _ ->
       recurse ~f:u ast
+
+
+let renameVariableUses (oldVarName : string) (newVarName : string) (ast : ast)
+    : ast =
+  let f expr =
+    match expr with
+    | EVariable (id, _) ->
+        EVariable (id, newVarName)
+    | _ ->
+        expr
+  in
+  updateVariableUses oldVarName ~f ast
+
+
+let removeVariableUse (oldVarName : string) (ast : ast) : ast =
+  let f _ = EBlank (gid ()) in
+  updateVariableUses oldVarName ~f ast
 
 
 let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
@@ -1147,7 +1164,7 @@ let replaceVarInPattern
           let newCases =
             List.map cases ~f:(fun (pat, expr) ->
                 ( replaceNameInPattern pat
-                , modifyVariableOccurences oldVarName newVarName expr ) )
+                , renameVariableUses oldVarName newVarName expr ) )
           in
           EMatch (mID, cond, newCases)
       | _ ->
@@ -1216,8 +1233,7 @@ let replaceLamdaVar
           let vars =
             List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
           in
-          ELambda
-            (id, vars, modifyVariableOccurences oldVarName newVarName expr)
+          ELambda (id, vars, renameVariableUses oldVarName newVarName expr)
       | _ ->
           fail "not a lamda" )
 
@@ -1230,7 +1246,12 @@ let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
-          ELambda (id, List.removeAt ~index vars, expr)
+          let var =
+            List.getAt ~index vars
+            |> Option.map ~f:Tuple2.second
+            |> Option.withDefault ~default:""
+          in
+          ELambda (id, List.removeAt ~index vars, removeVariableUse var expr)
       | _ ->
           e )
 
@@ -1254,12 +1275,7 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ELet (id, lhsID, oldLHS, rhs, next) ->
-          ELet
-            ( id
-            , lhsID
-            , newLHS
-            , rhs
-            , modifyVariableOccurences oldLHS newLHS next )
+          ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
       | _ ->
           fail "not a let" )
 
