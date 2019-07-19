@@ -1232,7 +1232,7 @@ let admin_ui_handler
           respond
             ~execution_id
             `Internal_server_error
-            "Dark Internal Error: we encountered an error when loading this canvas, we're sorry!"
+            "Dark Internal Error: Dark - the service running this application - encountered an error when loading this canvas. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   let serve_or_error ~(canvas_id : Uuidm.t) =
