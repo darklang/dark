@@ -4,5 +4,5 @@
 set -euo pipefail
 
 # Stop ffmpeg recording
-session="integrationTests-$1"
+session=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep "integrationTests-$1")
 tmux send-keys -t "$session" q

@@ -9,5 +9,6 @@ set -euo pipefail
 mkdir -p rundir/videos
 
 export FFREPORT="file=rundir/logs/ffmpeg-$1.log"
-tmux new-session -d -s "integrationTests-$1" \
+timestamp=$(date +"%F_%H-%M-%S-%4N")
+tmux new-session -d -s "integrationTests-$1-$timestamp" \
   "ffmpeg  -y  -f x11grab  -video_size 1600*1200  -i :99  -vcodec libx264  -framerate 25  -preset ultrafast  -crf 22  rundir/videos/$1.mp4"
