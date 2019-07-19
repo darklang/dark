@@ -691,6 +691,8 @@ let submitACItem
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
+        | _, ACExtra value ->
+            DisplayError ("Invalid input: " ^ value)
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
