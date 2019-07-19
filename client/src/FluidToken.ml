@@ -267,7 +267,7 @@ let toText (t : token) : string =
   | TLambdaSymbol _ ->
       "\\"
   | TLambdaSep _ ->
-      ", "
+      ","
   | TLambdaArrow _ ->
       " -> "
   | TIndent indent ->
