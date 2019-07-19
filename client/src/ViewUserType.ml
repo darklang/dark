@@ -57,7 +57,9 @@ let viewTipeField
     (fieldCount : int)
     (field : userRecordField) : msg Html.html =
   let button =
-    if fieldCount > 1 then viewKillFieldBtn t field else Vdom.noNode
+    if fieldCount > 1 && vs.permission = Some ReadWrite
+    then viewKillFieldBtn t field
+    else Vdom.noNode
   in
   let row =
     [ viewFieldName vs [wc "name"] field.urfName
