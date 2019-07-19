@@ -749,6 +749,19 @@ let varnames_are_incomplete (_m : model) : testResult =
   pass
 
 
+let active_trace_is_maintained (m : model) : testResult =
+  let fnCursor = StrDict.get ~key:"123" m.tlCursors in
+  let handlerCursor = StrDict.get ~key:"567" m.tlCursors in
+  if fnCursor = handlerCursor && fnCursor <> None
+  then pass
+  else
+    fail
+      ( m.tlCursors
+      |> StrDict.toList
+      |> List.map ~f:(fun (k, v) -> k ^ ":" ^ v)
+      |> String.join ~sep:";" )
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -869,5 +882,7 @@ let trigger (test_name : string) : integrationTestState =
         extract_from_function
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
+    | "active_trace_is_maintained" ->
+        active_trace_is_maintained
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
