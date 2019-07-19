@@ -50,7 +50,8 @@ let shouldRollbar (e : apiError) : bool =
       (* Don't rollbar if you aren't logged in *)
       response.status.code <> 401
   | Http.Aborted ->
-      e.importance = ImportantError
+      (* Don't rollbar if the client aborted the request *)
+      false
 
 
 let parseResponse (body : Http.responseBody) : string =
