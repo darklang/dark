@@ -305,11 +305,6 @@ let () =
   let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
       testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
-    (* we wrap it so that there's something before and after the expr (esp
-     * after it), which catches more bugs that ending the text area
-     * immediately. Unfortunately, it doesn't work for well nested exprs, like
-     * ifs. *)
-    (* let debug = debug || true in *)
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
