@@ -1145,7 +1145,8 @@ and fluidToken =
   | TListOpen of id
   | TListClose of id
   | TListSep of id * int
-  | TThreadPipe of id * int
+  (* 2nd int is the number of pipe segments there are *)
+  | TThreadPipe of id * int * int
   | TRecordOpen of id
   | TRecordField of id * int * string
   | TRecordSep of id * int
