@@ -1770,8 +1770,8 @@ let () =
         "autocomplete for Nothing"
         (EPartial (gid (), "Nothing", blank ()))
         (press K.Enter 7)
-        (* TODO: this should be 7 *)
-        ("Nothing", 8) ;
+        ("Nothing", 7) ;
+      (* TODO: autocomplete for nothing at the end of a line, pressing space *)
       t
         "autocomplete for Error"
         (EPartial (gid (), "Error", blank ()))

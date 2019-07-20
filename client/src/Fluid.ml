@@ -1953,8 +1953,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
   | FACLiteral "null" ->
       (ENull (gid ()), 4)
   | FACConstructorName (name, argCount) ->
-      let argCount = List.initialize argCount (fun _ -> EBlank (gid ())) in
-      (EConstructor (gid (), gid (), name, argCount), 1 + String.length name)
+      let args = List.initialize argCount (fun _ -> EBlank (gid ())) in
+      let starting = if argCount = 0 then 0 else 1 in
+      (EConstructor (gid (), gid (), name, args), starting + String.length name)
   | FACPattern _ ->
       fail
         ( "TODO: patterns are not supported here: "
