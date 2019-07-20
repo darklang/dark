@@ -2084,9 +2084,9 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newPat, acOffset = acToPattern entry in
             let newAST = replacePattern ~newPat mID pID ast in
             (newAST, acOffset)
-        | TPartial _ when entry = FACKeyword KThread ->
-            let newExpr, _ = acToExpr entry in
-            let newAST = replaceExpr ~newExpr id ast in
+        | (TPartial _ | TRightPartial _) when entry = FACKeyword KThread ->
+            let newExpr, _ = acUpdateExpr id ast entry in
+            let newAST = replaceExpr id ast ~newExpr in
             let tokens = toTokens s newAST in
             let nextBlank = getNextBlankPos s.newPos tokens in
             (newAST, nextBlank - ti.startPos)

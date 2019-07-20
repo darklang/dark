@@ -735,8 +735,7 @@ let () =
         "piping into newline creates thread"
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
-        (* TODO: this is buggy. Should be 8 *)
-        ("true\n|>___", 6) ;
+        ("true\n|>___", 7) ;
       t
         "pressing backspace to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
