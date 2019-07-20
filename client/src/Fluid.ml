@@ -606,13 +606,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
         Js.log2 "Thread with single entry found" (show_fluidExpr single) ;
         [nested single]
     | head :: tail ->
+        let length = List.length exprs in
         [ nested head
         ; TNewline
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
-                     [TIndentToHere [TThreadPipe (id, i); nested e]]
+                     [TIndentToHere [TThreadPipe (id, i, length); nested e]]
                    in
                    if i == 0 then thread else TNewline :: thread )
             |> List.concat ) ] )
@@ -1737,6 +1738,23 @@ let addBlankToList (id : id) (ast : ast) : ast =
 (* ---------------- *)
 (* Movement *)
 (* ---------------- *)
+let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "moveToPrevNonWhitespaceToken" s in
+  let rec getNextWS tokens =
+    match tokens with
+    | [] ->
+        pos
+    | ti :: rest ->
+      ( match ti.token with
+      | TSep | TNewline | TIndent _ | TIndentToHere _ | TIndented _ ->
+          getNextWS rest
+      | _ ->
+          if pos < ti.startPos then getNextWS rest else ti.startPos )
+  in
+  let newPos = getNextWS (List.reverse (toTokens s ast)) in
+  setPosition ~resetUD:true s newPos
+
+
 let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
   let rec getNextWS tokens =
@@ -2297,7 +2315,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternConstructorName (mID, id, str) ->
       let f str = removeCharAt str offset in
       (replacePatternWithPartial (f str) mID id ast, left s)
-  | TThreadPipe (id, i) ->
+  | TThreadPipe (id, i, _) ->
       let s =
         match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
         | Some leftTI, _, _ ->
@@ -2422,8 +2440,22 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePatternWithPartial (f str) mID id ast, s)
   | TPatternBlank _ ->
       (ast, s)
-  | TThreadPipe (id, i) ->
-      (removeThreadPipe id ast i, s)
+  | TThreadPipe (id, i, length) ->
+      let newAST = removeThreadPipe id ast i in
+      let s =
+        (* index goes from zero and doesn't include first element, while length
+         * does. So + 2 correct for both those *)
+        if i + 2 = length
+        then
+          (* when deleting the last element, go to the end of the previous element *)
+          match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+          | Some leftTI, _, _ ->
+              doLeft ~pos:ti.startPos leftTI s
+          | _ ->
+              fail "TThreadPipe should never occur on first line of AST"
+        else s
+      in
+      (newAST, s)
 
 
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :

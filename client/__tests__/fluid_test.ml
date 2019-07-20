@@ -1280,9 +1280,7 @@ let () =
         "deleting a thread's last pipe works"
         aLongThread
         (delete 60)
-        (* deleting last thread should pop it end of the previous thread *)
-        (* TODO: broken, this should be 59 *)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 62) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
       t
         "backspacing a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
@@ -1330,7 +1328,7 @@ let () =
         aThreadInsideIf
         (delete 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 82 ) ;
+        , 79 ) ;
       t
         "adding infix functions adds the right number of blanks"
         emptyThread
