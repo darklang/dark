@@ -615,7 +615,12 @@ let adminDebuggerView (m : model) : msg Html.html =
         [stateInfo; toggleTimer; debugger; saveTestButton] ]
   in
   let icon =
-    Html.div [Html.class' "header-icon admin-settings"] [fontAwesome "cog"]
+    Html.div
+      [ Html.class' "header-icon admin-settings"
+      ; Html.title "Admin"
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" "Admin" ]
+      [fontAwesome "cog"]
   in
   Html.div
     [Html.class' "collapsed admin"]
