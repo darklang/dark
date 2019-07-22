@@ -375,6 +375,32 @@ let get_all ~state (db : db) : dval =
   |> DList
 
 
+let get_all_v2 ~state (db : db) : dval =
+  Db.fetch
+    ~name:"get_all"
+    "SELECT key, data
+       FROM user_data
+       WHERE table_tlid = $1
+       AND account_id = $2
+       AND canvas_id = $3
+       AND user_version = $4
+       AND dark_version = $5"
+    ~params:
+      [ ID db.tlid
+      ; Uuid state.account_id
+      ; Uuid state.canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
+  |> List.map ~f:(fun return_val ->
+         match return_val with
+         (* TODO(ian): change `to_obj` to just take a string *)
+         | [key; data] ->
+             DObj (DvalMap.singleton key (to_obj db [data]))
+         | _ ->
+             Exception.internal "bad format received in get_all" )
+  |> Dval.list_to_object
+
+
 let count ~state (db : db) : int =
   Db.fetch
     ~name:"count"
