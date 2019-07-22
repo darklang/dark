@@ -321,6 +321,21 @@ let () =
     let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
     let pos = pos + extra in
     let s = {s with oldPos = pos; newPos = pos} in
+    if debug
+    then (
+      Js.log2
+        "state before "
+        (show_fluidState
+           { s with
+             (* remove the things that take a lot of space and provide little
+              * value. *)
+             ac =
+               { s.ac with
+                 functions = []
+               ; allCompletions = []
+               ; completions =
+                   (if s.ac.index = None then [] else s.ac.completions) } }) ;
+      Js.log2 "expr before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -366,13 +381,20 @@ let () =
     if debug
     then (
       Js.log2
-        "state"
+        "state after"
         (show_fluidState
            { newState with
              (* remove the things that take a lot of space and provide little
               * value. *)
-             ac = {newState.ac with functions = []; allCompletions = []} }) ;
-      Js.log2 "expr" (eToStructure s result) ) ;
+             ac =
+               { newState.ac with
+                 functions = []
+               ; allCompletions = []
+               ; completions =
+                   ( if newState.ac.index = None
+                   then []
+                   else newState.ac.completions ) } }) ;
+      Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
