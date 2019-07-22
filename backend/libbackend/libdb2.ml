@@ -143,6 +143,32 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::getManyWithKeys_v1"]
+    ; ins = []
+    ; p = [par "keys" TList; par "table" TDB]
+    ; r = TObj
+    ; d =
+        "Finds many values in `table` by `keys, returning a {key:{value}, key2: {value2}} object of keys and values"
+    ; f =
+        InProcess
+          (function
+          | state, [DList keys; DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              let skeys =
+                List.map
+                  ~f:(function
+                    | DStr s ->
+                        Unicode_string.to_string s
+                    | t ->
+                        Exception.code "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                  keys
+              in
+              User_db.get_many_with_keys_v1 ~state db skeys
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::delete_v1"]
     ; ins = []
