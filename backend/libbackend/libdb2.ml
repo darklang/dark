@@ -294,6 +294,23 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryWithKey_v2"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TObj
+    ; d =
+        "Fetch all the values from `table` which have the same fields and values that `spec` has
+        , returning a {key: {value}} an object"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.query_v2 ~state db obj
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::queryOne_v1"]
     ; ins = []

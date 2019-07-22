@@ -26,6 +26,8 @@ val get_all_v2 : state:exec_state -> DbT.db -> dval
 
 val query : state:exec_state -> DbT.db -> dval -> dval
 
+val query_v2 : state:exec_state -> DbT.db -> dval -> dval
+
 val query_by_one : state:exec_state -> DbT.db -> string -> dval -> dval
 
 val count : state:exec_state -> DbT.db -> int

@@ -73,6 +73,35 @@ let rec query ~state db query_obj : dval =
   |> DList
 
 
+and query_v2 ~state db query_obj : dval =
+  let sql =
+    "SELECT key, data
+      FROM user_data
+      WHERE table_tlid = $1
+      AND user_version = $2
+      AND dark_version = $3
+      AND canvas_id = $4
+      AND data @> $5"
+  in
+  Db.fetch
+    ~name:"fetch_by"
+    sql
+    ~params:
+      [ ID db.tlid
+      ; Int db.version
+      ; Int current_dark_version
+      ; Uuid state.canvas_id
+      ; QueryableDval query_obj ]
+  |> List.map ~f:(fun return_val ->
+         match return_val with
+         (* TODO(ian): change `to_obj` to just take a string *)
+         | [key; data] ->
+             DObj (DvalMap.singleton key (to_obj db [data]))
+         | _ ->
+             Exception.internal "bad format received in fetch_all" )
+  |> Dval.list_to_object
+
+
 and query_by_one ~state db (col : string) (dv : dval) : dval =
   query ~state db (DObj (DvalMap.singleton col dv))
 
