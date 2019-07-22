@@ -286,6 +286,10 @@ let obj_merge (l : dval) (r : dval) : dval =
 
 let empty_dobj : dval = DObj DvalMap.empty
 
+let list_to_object (l : dval list) : dval =
+  List.fold_left l ~init:empty_dobj ~f:(fun acc p -> obj_merge acc p)
+
+
 (* ------------------------- *)
 (* Json *)
 (* ------------------------- *)
