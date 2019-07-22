@@ -271,14 +271,14 @@ let () =
         ; infixFn "<=" TInt TBool
         ; infixFn "||" TBool TBool
         ; { fnName = "Int::add"
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Add two ints"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "Int::sqrt"
-          ; fnParameters = [fnParam "a" TAny false]
+          ; fnParameters = [fnParam "a" TInt false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
