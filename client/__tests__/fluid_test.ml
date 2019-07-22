@@ -1939,9 +1939,18 @@ let () =
            , "x"
            , EPartial (gid (), "Int::add", blank ())
            , blank () ))
-        (* TODO: this is buggy, should be 17 *)
         (press K.Right 16)
-        ("let x = Int::add _________ _________\n___", 19) ;
+        ("let x = Int::add _________ _________\n___", 17) ;
+      tp
+        "pressing an infix which could be valid doesn't commit"
+        (newB ())
+        (presses [K.Pipe; K.Pipe] 0)
+        ("||", 2) ;
+      tp
+        "pressing an infix after true commits it "
+        (EPartial (gid (), "true", newB ()))
+        (press K.Plus 4)
+        ("true +", 6) ;
       t
         "moving left off a function autocompletes it anyway"
         (ELet

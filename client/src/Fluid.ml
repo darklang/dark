@@ -2125,6 +2125,8 @@ let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
     : ast =
   let highlightedText = s.ac |> AC.highlighted |> Option.map ~f:AC.asName in
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
+  (* TODO: if we can't move off because it's the start/end etc of the ast, we
+   * may want to commit anyway. *)
   if (not isInside) && Some (Token.toText ti.token) = highlightedText
   then
     let newAST, _ = acEnter ti ast s K.Enter in
@@ -2676,7 +2678,8 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   |> Option.withDefault ~default:NoChange
 
 
-let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
+let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
+    ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
   let tokens = toTokens s ast in
@@ -2732,6 +2735,7 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
     ; K.Equals
     ; K.Pipe ]
   in
+  let keyIsInfix = List.member ~value:key infixKeys in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
   let newAST, newState =
@@ -2879,17 +2883,15 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
      * big general `key, L (_, toTheLeft), _` case.  *)
-    | key, L (TPartial _, toTheLeft), _
-    | key, L (TRightPartial _, toTheLeft), _
-    | key, L (TBinOp _, toTheLeft), _
-      when List.member ~value:key infixKeys ->
+    | _, L (TPartial _, toTheLeft), _
+    | _, L (TRightPartial _, toTheLeft), _
+    | _, L (TBinOp _, toTheLeft), _
+      when keyIsInfix ->
         doInsert ~pos keyChar toTheLeft ast s
-    | key, _, R (TBlank _, toTheRight) when List.member ~value:key infixKeys ->
+    | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
         doInsert ~pos keyChar toTheRight ast s
-    | key, L (_, toTheLeft), _
-      when onEdge
-           && List.member ~value:key infixKeys
-           && wrappableInBinop toTheRight ->
+    | _, L (_, toTheLeft), _
+      when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* End of line *)
@@ -2908,21 +2910,50 @@ let updateKey (key : K.key) (ast : ast) (s : state) : ast * state =
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
-  (* If we were on a partial and have moved off it, we may want to commit
-   * that partial. This is done here because the logic is different that
-   * clicking. *)
-  match (key, toTheLeft, toTheRight) with
-  | K.Number _, _, _ | K.Letter _, _, _ ->
-      (newAST, newState)
-  | _, L (TPartial _, ti), _ | _, _, R (TPartial _, ti) ->
-      (* Use the old position and ac and token *)
-      let committedAST = commitIfValid newState.newPos ti (newAST, s) in
-      (* TODO: I tried redoing the action after it had been committed, but in
-       * the cases I tried it didn't have a better user experience. Might be
-       * edge cases I didn't consider though. *)
-      (committedAST, newState)
-  | _ ->
-      (newAST, newState)
+  (* If we were on a partial and have moved off it, we may want to commit that
+   * partial. This is done here because the logic is different that clicking.
+   *
+   * We "commit the partial" using the old state, and then we do the action
+   * again to make sure we go to the right place for the new canvas.  *)
+  if recursing
+  then (newAST, newState)
+  else
+    match (toTheLeft, toTheRight) with
+    | L (TPartial (_, str), ti), _
+    | _, R (TPartial (_, str), ti)
+    (* When pressing an infix character, it's hard to tell whether to commit or
+     * not.  If the partial is an int, or a function that returns one, pressing
+     * +, -, etc  should lead to committing and then doing the action.
+     *
+     * However, if the partial is a valid function such as +, then pressing +
+     * again could be an attempt to make ++, not `+ + ___`.
+     *
+     * So if the new function _could_ be valid, don't commit. *)
+      when key = K.Right || key = K.Left || keyIsInfix ->
+        let shouldCommit =
+          match keyChar with
+          | None ->
+              true
+          | Some keyChar ->
+              let newQueryString = str ^ String.fromChar keyChar in
+              s.ac.allCompletions
+              |> List.filter ~f:(fun aci ->
+                     String.contains ~substring:newQueryString (AC.asName aci)
+                 )
+              |> ( == ) []
+        in
+        if shouldCommit
+        then
+          let committedAST = commitIfValid newState.newPos ti (newAST, s) in
+          updateKey
+            ~recursing:true
+            key
+            committedAST
+            (* keep the actions for debugging *)
+            {s with actions = newState.actions}
+        else (newAST, newState)
+    | _ ->
+        (newAST, newState)
 
 
 let updateAutocomplete m tlid ast s : fluidState =
