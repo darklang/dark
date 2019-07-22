@@ -436,6 +436,23 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::getAllWithKeys_v2"]
+    ; ins = []
+    ; p = [par "table" TDB]
+    ; r = TObj
+    ; d =
+        "Fetch all the values in `table`. Returns a list of lists such that the inner
+        lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.get_all_v2 ~state db
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::count"]
     ; ins = []

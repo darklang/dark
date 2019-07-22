@@ -22,6 +22,8 @@ val get_many_with_keys_v1 : state:exec_state -> DbT.db -> string list -> dval
 
 val get_all : state:exec_state -> DbT.db -> dval
 
+val get_all_v2 : state:exec_state -> DbT.db -> dval
+
 val query : state:exec_state -> DbT.db -> dval -> dval
 
 val query_by_one : state:exec_state -> DbT.db -> string -> dval -> dval
