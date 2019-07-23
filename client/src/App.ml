@@ -806,6 +806,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with hovering = nhovering}, Cmd.none)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
+        let m = Analysis.alignReferencedCursors m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
     | Drag (tlid, offset, hasMoved, state) ->

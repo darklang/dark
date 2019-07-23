@@ -142,6 +142,39 @@ let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
   {m with tlCursors = newCursors}
 
 
+let alignReferencedCursors (m : model) (tlid : tlid) (traceID : traceID) :
+    model =
+  let tlsToAlign =
+    Introspect.allUsedIn tlid m
+    @ (Introspect.allRefersTo tlid m |> List.map ~f:Tuple2.first)
+    |> List.map ~f:TL.id
+  in
+  let traces, optimisticTraces, tlCursors =
+    tlsToAlign
+    |> List.foldl
+         ~init:(m.traces, m.optimisticTraces, m.tlCursors)
+         ~f:(fun tlid (traces, optTraces, cursors) ->
+           let newPageHasCurrentTrace = getTrace m tlid traceID <> None in
+           let newTraces =
+             traces
+             |> StrDict.update ~key:(deTLID tlid) ~f:(function
+                    | Some ts ->
+                        Some ((traceID, None) :: ts)
+                        (* insert traceID w no data*)
+                    | _ ->
+                        None )
+           in
+           let newOptTraces = (tlid, traceID) :: optTraces in
+           let cursors =
+             StrDict.insert ~key:(deTLID tlid) ~value:traceID cursors
+           in
+           if newPageHasCurrentTrace
+           then (traces, optTraces, cursors)
+           else (newTraces, newOptTraces, cursors) )
+  in
+  {m with traces; optimisticTraces; tlCursors}
+
+
 (* ---------------------- *)
 (* Analyses on current *)
 (* ---------------------- *)

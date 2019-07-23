@@ -36,15 +36,16 @@ let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string)
 let dbView
     (originTLID : tlid)
     (originIDs : id list)
-    (tlid : tlid)
+    (targetTLID : tlid)
     (name : string)
     (cols : dbColumn list) : msg Html.html =
   Html.div
     ( [ Html.class' "ref-block db"
+      ; ViewUtils.nothingMouseEvent "click"
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-db-link" ^ showTLID tlid)
-          "click"
-          (fun _ -> GoTo (FocusedDB (tlid, true))) ]
+          ~key:("ref-db-link" ^ showTLID targetTLID)
+          "mouseup"
+          (fun _ -> GoTo (FocusedDB (targetTLID, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
     [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
 
@@ -52,7 +53,7 @@ let dbView
 let handlerView
     (originTLID : tlid)
     (originIDs : id list)
-    (tlid : tlid)
+    (targetTLID : tlid)
     (space : string)
     (name : string)
     (modifier : string option) : msg Html.html =
@@ -65,10 +66,11 @@ let handlerView
   in
   Html.div
     ( [ Html.class' "ref-block handler"
+      ; ViewUtils.nothingMouseEvent "click"
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-handler-link" ^ showTLID tlid)
-          "click"
-          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
+          ~key:("ref-handler-link" ^ showTLID targetTLID)
+          "mouseup"
+          (fun _ -> GoTo (FocusedHandler (targetTLID, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
     ( [ Html.div [Html.class' "spec"] [Html.text space]
       ; Html.div [Html.class' "spec"] [Html.text name] ]
@@ -78,7 +80,7 @@ let handlerView
 let fnView
     (originTLID : tlid)
     (originIDs : id list)
-    (tlid : tlid)
+    (targetTLID : tlid)
     (name : string)
     (params : userFunctionParameter list) : msg Html.html =
   let header =
@@ -105,10 +107,11 @@ let fnView
   in
   Html.div
     ( [ Html.class' "ref-block fn"
+      ; ViewUtils.nothingMouseEvent "click"
       ; ViewUtils.eventNoPropagation
-          ~key:("ref-fn-link" ^ showTLID tlid)
-          "click"
-          (fun _ -> GoTo (FocusedFn tlid)) ]
+          ~key:("ref-fn-link" ^ showTLID targetTLID)
+          "mouseup"
+          (fun _ -> GoTo (FocusedFn targetTLID)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
     [ Html.div [Html.class' "fnheader"] header
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
