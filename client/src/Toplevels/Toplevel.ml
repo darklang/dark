@@ -430,12 +430,11 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       TLHandler {h with spec = newSpec}
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
-  | PFFMsg bo ->
+  | PFFMsg _ ->
     ( match tl with
     | TLHandler h ->
-        let spec2 = SpecHeaders.replace id bo h.spec in
         let ast = AST.replace p replacement h.ast in
-        TLHandler {h with spec = spec2; ast}
+        TLHandler {h with ast}
     | TLFunc f ->
         let ast = AST.replace p replacement f.ufAST in
         TLFunc {f with ufAST = ast}
