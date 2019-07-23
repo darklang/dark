@@ -166,8 +166,15 @@ async function createNewTrace(t, tlid) {
   // (below) doesn't work. But if we split it into two it works. Who
   // knows.
 
-  await Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`, { timeout: 5000 })();
-  await t.expect(Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`).exists).ok();
+  await Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`, {
+    timeout: 5000,
+  })();
+  await t
+    .expect(
+      Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`)
+        .exists,
+    )
+    .ok();
 }
 
 function user_content_url(t, endpoint) {
@@ -211,35 +218,52 @@ test("active_trace_is_maintained_via_ref_click", async t => {
   await createNewTrace(t, "567");
 
   await t
-    .expect(available(".tl-567")).ok()
-    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .expect(available(".tl-567"))
+    .ok()
+    .expect(
+      Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible,
+    )
+    .ok()
     .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
-    .expect(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn").visible).ok()
-    .click(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn"))
+    .expect(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn").visible)
+    .ok()
+    .click(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn"));
 });
 
 test("active_trace_is_maintained_from_function_to_handler", async t => {
   await createNewTrace(t, "567");
 
   await t
-    .expect(available(".tl-567")).ok()
-    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .expect(available(".tl-567"))
+    .ok()
+    .expect(
+      Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible,
+    )
+    .ok()
     .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
     .navigateTo("#fn=123")
-    .expect(available(".tl-123")).ok()
-    .expect(Selector(".toplevel.tl-123 .view-data ul.request-cursor li:nth-child(1)").visible).ok()
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(
+      Selector(".toplevel.tl-123 .view-data ul.request-cursor li:nth-child(1)").visible,
+    )
+    .ok()
     .click(Selector(".toplevel.tl-123 .view-data ul.request-cursor li:nth-child(1)"))
-    .navigateTo("#handler=567")
+    .navigateTo("#handler=567");
 });
 
 test("active_trace_is_maintained_from_handler_to_function", async t => {
   await createNewTrace(t, "567");
 
   await t
-    .expect(available(".tl-567")).ok()
-    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .expect(available(".tl-567"))
+    .ok()
+    .expect(
+      Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible,
+    )
+    .ok()
     .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
-    .navigateTo("#fn=123")
+    .navigateTo("#fn=123");
 });
 
 test("enter_changes_state", async t => {
