@@ -92,6 +92,11 @@ let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
   {m with handlerProps = props}
 
 
+let getHandlerProp (tlid : tlid) (m : model) : handlerProp =
+  StrDict.get ~key:(showTLID tlid) m.handlerProps
+  |> Option.withDefault ~default:Defaults.defaultHandlerProp
+
+
 let serialize (m : model) : unit =
   let state = m |> model2editor |> toString in
   Dom.Storage.setItem

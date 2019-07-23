@@ -60,7 +60,10 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  {handlerLock = false; handlerState = HandlerExpanded; hoveringReferences = []}
+  { handlerLock = false
+  ; handlerState = HandlerExpanded
+  ; hoveringReferences = []
+  ; execution = Idle }
 
 
 let defaultModel : model =

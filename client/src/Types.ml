@@ -1015,13 +1015,19 @@ and handlerState =
   | HandlerCollapsed
   | HandlerExpanding
 
+and exeState =
+  | Idle
+  | Executing
+  | Complete
+
 and handlerProp =
   { handlerLock : bool
   ; handlerState : handlerState
   ; hoveringReferences :
       (* When hovering over a reference, this is the list of ids that refer to
        * the reference *)
-      id list }
+      id list
+  ; execution : exeState }
 
 and tlCursors = traceID StrDict.t
 
