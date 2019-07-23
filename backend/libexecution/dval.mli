@@ -83,6 +83,11 @@ val to_enduser_readable_html_v0 : Types.RuntimeT.dval -> string
  * passwords. Customers should not come to rely on this format. *)
 val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
+(* For passing to Dark functions that operate on JSON, such as the JWT fns.
+ * This turns Option and Result into plain values, or null/error. String-like
+ * values are rendered as string. Redacts passwords.  *)
+val to_pretty_machine_yojson_v1 : Types.RuntimeT.dval -> Yojson.Safe.t
+
 (* When sending json back to the user, or via a HTTP API, attempt to convert
  * everything into reasonable json, in the absence of a schema. This turns
  * Option and Result into plain values, or null/error. String-like values are

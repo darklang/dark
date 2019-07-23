@@ -843,7 +843,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
   to_repr_ 0 dv
 
 
-let to_pretty_machine_json_v1 dval =
+let to_pretty_machine_yojson_v1 dval =
   let rec recurse dv =
     match dv with
     (* basic types *)
@@ -893,7 +893,11 @@ let to_pretty_machine_json_v1 dval =
     | DBytes bytes ->
         `String (bytes |> RawBytes.to_string |> B64.encode)
   in
-  recurse dval |> Yojson.Safe.pretty_to_string
+  recurse dval
+
+
+let to_pretty_machine_json_v1 dval =
+  to_pretty_machine_yojson_v1 dval |> Yojson.Safe.pretty_to_string
 
 
 let of_unknown_json_v0 str =
