@@ -362,6 +362,36 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryOneWithKey_v2"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db obj
+              in
+              ( match results with
+              | DList [res] ->
+                ( match res with
+                | DList [key; data] ->
+                    DOption
+                      (OptJust
+                         (DObj
+                            (DvalMap.singleton (Dval.to_string_exn key) data)))
+                | _ ->
+                    DOption OptNothing )
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::getAll_v1"]
     ; ins = []
