@@ -264,7 +264,18 @@ let () =
       ; fnInfix = true }
     in
     { Defaults.defaultModel with
-      builtInFunctions =
+      analyses =
+        StrDict.singleton (* The default traceID for TLID 7 *)
+          ~key:"94167980-f909-527e-a4af-bc3155f586d3"
+          ~value:
+            { liveValues =
+                StrDict.singleton
+                  ~key:"12"
+                  ~value:
+                    (DObj
+                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))
+            }
+    ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
         ; infixFn "==" TAny TBool
@@ -1799,6 +1810,11 @@ let () =
         (EPartial (gid (), "Error", blank ()))
         (press K.Enter 5)
         ("Error ___", 6) ;
+      t
+        "autocomplete for field"
+        (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
+        (press K.Enter 10)
+        ("request.body", 12) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (backspace (EVariable (5, "request"))). *)
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)

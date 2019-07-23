@@ -1960,10 +1960,9 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       fail
         ( "TODO: patterns are not supported here: "
         ^ Types.show_fluidAutocompleteItem entry )
-  | FACField _ ->
-      fail
-        ( "TODO: fieldnames are not supported yet: "
-        ^ Types.show_fluidAutocompleteItem entry )
+  | FACField fieldname ->
+      ( EFieldAccess (gid (), newB (), gid (), fieldname)
+      , String.length fieldname )
   | FACLiteral _ ->
       fail
         ( "invalid literal in autocomplete: "
@@ -1992,6 +1991,11 @@ let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
   | Some (EPartial _), Some (EThread _), EFnCall (id, name, _ :: args, str) ->
       ( EFnCall (id, name, EThreadTarget (gid ()) :: args, str)
       , String.length name + 1 )
+  (* Field names *)
+  | ( Some (EFieldAccess (id, labelid, expr, _))
+    , _
+    , EFieldAccess (_, _, _, newname) ) ->
+      (EFieldAccess (id, labelid, expr, newname), offset)
   | _ ->
       (newExpr, offset)
 
@@ -2114,7 +2118,7 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
             let newAST = replacePartialWithArguments ~newExpr id s ast in
             (newAST, offset)
         | _ ->
-            let newExpr, offset = acToExpr entry in
+            let newExpr, offset = acUpdateExpr id ast entry in
             let newAST = replaceExpr ~newExpr id ast in
             (newAST, offset)
       in
