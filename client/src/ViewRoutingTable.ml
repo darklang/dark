@@ -386,7 +386,14 @@ let deploy2html (d : staticDeploy) : msg Html.html =
 (* Category Views *)
 
 let categoryTitle (name : string) (classname : string) : msg Html.html =
-  let icon = Html.div [Html.class' "header-icon"] (categoryIcon classname) in
+  let icon =
+    Html.div
+      [ Html.class' "header-icon"
+      ; Html.title name
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" name ]
+      (categoryIcon classname)
+  in
   let text cl t = Html.span [Html.class' cl] [Html.text t] in
   Html.div [Html.class' "title"] [icon; text "title" name]
 
@@ -494,7 +501,9 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   in
   let icon =
     Html.div
-      [Html.classList [("header-icon", true); ("empty", c.count = 0)]]
+      [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" c.name ]
       (categoryIcon c.classname)
   in
   Html.div
@@ -514,7 +523,9 @@ let closedDeployStats2html (m : model) : msg Html.html =
   in
   let icon =
     Html.div
-      [Html.classList [("header-icon", true); ("empty", count = 0)]]
+      [ Html.classList [("header-icon", true); ("empty", count = 0)]
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" "Static Assets" ]
       (categoryIcon "static")
   in
   Html.div
@@ -615,7 +626,12 @@ let adminDebuggerView (m : model) : msg Html.html =
         [stateInfo; toggleTimer; debugger; saveTestButton] ]
   in
   let icon =
-    Html.div [Html.class' "header-icon admin-settings"] [fontAwesome "cog"]
+    Html.div
+      [ Html.class' "header-icon admin-settings"
+      ; Html.title "Admin"
+      ; Vdom.attribute "" "role" "img"
+      ; Vdom.attribute "" "alt" "Admin" ]
+      [fontAwesome "cog"]
   in
   Html.div
     [Html.class' "collapsed admin"]
