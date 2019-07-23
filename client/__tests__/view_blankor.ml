@@ -57,7 +57,6 @@ let () =
             ; relatedBlankOrs = []
             ; tooWide = false
             ; executingFunctions = []
-            ; executingHandlers = StrSet.empty
             ; tlCursors = StrDict.empty
             ; testVariants = []
             ; featureFlags = StrDict.empty

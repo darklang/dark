@@ -868,7 +868,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerRPC tlid ->
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
-          let hp =
+          let handlerProps =
             StrDict.update m.handlerProps ~key:(deTLID tlid) ~f:(fun old ->
                 let p =
                   old
@@ -876,10 +876,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 in
                 Some {p with execution = Executing} )
           in
-          ( { m with
-              executingHandlers =
-                StrSet.add ~value:(deTLID tlid) m.executingHandlers
-            ; handlerProps = hp }
+          ( { m with handlerProps }
           , RPC.triggerHandler
               m
               {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
@@ -1305,10 +1302,7 @@ let update_ (msg : msg) (m : model) : modification =
                           (if p.execution = Executing then Complete else Idle)
                       } )
               in
-              let executingHandlers =
-                StrSet.remove ~value:(deTLID params.thTLID) m.executingHandlers
-              in
-              {m with executingHandlers; handlerProps} ) ]
+              {m with handlerProps} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
