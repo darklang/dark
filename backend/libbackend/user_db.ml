@@ -96,10 +96,11 @@ and query_v2 ~state db query_obj : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DObj (DvalMap.singleton key (to_obj db [data]))
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in fetch_all" )
-  |> Dval.list_to_object
+  |> DvalMap.from_list
+  |> DObj
 
 
 and query_by_one ~state db (col : string) (dv : dval) : dval =
@@ -372,10 +373,11 @@ and get_many_with_keys_v1 ~state (db : db) (keys : string list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DObj (DvalMap.singleton key (to_obj db [data]))
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_many_with_keys" )
-  |> Dval.list_to_object
+  |> DvalMap.from_list
+  |> DObj
 
 
 let get_all ~state (db : db) : dval =
@@ -424,10 +426,11 @@ let get_all_v2 ~state (db : db) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DObj (DvalMap.singleton key (to_obj db [data]))
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_all" )
-  |> Dval.list_to_object
+  |> DvalMap.from_list
+  |> DObj
 
 
 let count ~state (db : db) : int =

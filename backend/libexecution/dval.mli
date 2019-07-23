@@ -185,9 +185,6 @@ val obj_merge :
 
 val empty_dobj : Types.RuntimeT.dval
 
-(* Combines a list of objects *)
-val list_to_object : Types.RuntimeT.dval list -> Types.RuntimeT.dval
-
 (* ------------------------- *)
 (* Misc *)
 (* ------------------------- *)
