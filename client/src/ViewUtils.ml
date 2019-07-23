@@ -411,7 +411,7 @@ let svgIconFn (color : string) : msg Html.html =
             [] ] ]
 
 
-let createHandlerProp (hs : handler list) : handlerProp StrDict.t =
+let createHandlerProp (hs : handler list) : handlerProp TD.t =
   hs
   |> List.map ~f:(fun h -> (h.hTLID, Defaults.defaultHandlerProp))
   |> TD.fromList

@@ -869,14 +869,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
           let handlerProps =
-            StrDict.update m.handlerProps ~key:(deTLID tlid) ~f:(fun old ->
-                let p =
-                  old
-                  |> Option.withDefault ~default:Defaults.defaultHandlerProp
-                in
-                Some {p with execution = Executing} )
+            m.handlerProps
+            |> TLIDDict.update ~tlid ~f:(fun old ->
+                   let p =
+                     old
+                     |> Option.withDefault ~default:Defaults.defaultHandlerProp
+                   in
+                   Some {p with execution = Executing} )
           in
-          ( { m with handlerProps }
+          ( {m with handlerProps}
           , RPC.triggerHandler
               m
               {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
@@ -1287,20 +1288,19 @@ let update_ (msg : msg) (m : model) : modification =
         ; TweakModel
             (fun m ->
               let handlerProps =
-                StrDict.update
-                  m.handlerProps
-                  ~key:(deTLID params.thTLID)
-                  ~f:(fun old ->
-                    let p =
-                      old
-                      |> Option.withDefault
-                           ~default:Defaults.defaultHandlerProp
-                    in
-                    Some
-                      { p with
-                        execution =
-                          (if p.execution = Executing then Complete else Idle)
-                      } )
+                m.handlerProps
+                |> TLIDDict.update ~tlid:params.thTLID ~f:(fun old ->
+                       let p =
+                         old
+                         |> Option.withDefault
+                              ~default:Defaults.defaultHandlerProp
+                       in
+                       Some
+                         { p with
+                           execution =
+                             ( if p.execution = Executing
+                             then Complete
+                             else Idle ) } )
               in
               {m with handlerProps} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->

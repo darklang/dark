@@ -1287,7 +1287,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
-  ; handlerProps : handlerProp StrDict.t
+  ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys :
       staticDeploy list
       (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
@@ -1323,7 +1323,7 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  ; handlerProps : handlerProp StrDict.t
+  ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option }
 [@@deriving show {with_path = false}]

@@ -23,7 +23,7 @@ let defaultEditor : serializableEditor =
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
-  ; handlerProps = StrDict.empty
+  ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None }
 
@@ -118,7 +118,7 @@ let defaultModel : model =
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
   ; usedTipes = TLIDDict.empty
-  ; handlerProps = StrDict.empty
+  ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty
   ; tlUsedIn = TLIDDict.empty
