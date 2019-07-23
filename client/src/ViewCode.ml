@@ -524,9 +524,7 @@ let externalLink (vs : viewState) (spec : handlerSpec) =
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
     =
-  let isExecutingClasses =
-    if handlerIsExecuting vs vs.tlid then [("is-executing", true)] else []
-  in
+  Debug.loG "render button" (handlerIsExecuting vs vs.tlid) ;
   match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
@@ -534,30 +532,32 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
     when List.any ~f:(fun s -> String.length s = 0) [a; b; c] ->
       Vdom.noNode
   | F _, F _, F _ ->
-      let hasData =
-        Analysis.cursor' vs.tlCursors vs.traces vs.tlid
-        |> Option.andThen ~f:(fun trace_id ->
-               List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-               |> Option.andThen ~f:(fun (_, data) -> data) )
-        |> Option.is_some
-      in
       if vs.permission = Some ReadWrite
       then
-        if hasData
-        then
-          Html.div
-            [ Html.classList ([("handler-trigger", true)] @ isExecutingClasses)
-            ; Html.title "Replay this execution"
+        let hasData =
+          Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+          |> Option.andThen ~f:(fun trace_id ->
+                 List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+                 |> Option.andThen ~f:(fun (_, data) -> data) )
+          |> Option.is_some
+        in
+        let classes =
+          Html.classList
+            [ ("handler-trigger", true)
+            ; ("is-executing", handlerIsExecuting vs vs.tlid)
+            ; ("inactive", not hasData) ]
+        in
+        let attrs =
+          if hasData
+          then
+            [ Html.title "Replay this execution"
             ; ViewUtils.eventNoPropagation
                 ~key:("lh" ^ "-" ^ showTLID vs.tlid)
                 "click"
                 (fun _ -> TriggerHandler vs.tlid) ]
-            [fontAwesome "redo"]
-        else
-          Html.div
-            [ Html.classList [("inactive-handler-trigger", true)]
-            ; Html.title "Need input data to replay execution" ]
-            [fontAwesome "redo"]
+          else [Html.title "Need input data to replay execution"]
+        in
+        Html.div (classes :: attrs) [fontAwesome "redo"]
       else Vdom.noNode
   | _, _, _ ->
       Vdom.noNode
