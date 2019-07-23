@@ -1,0 +1,75 @@
+[
+  [ "TLSavepoint", 567 ],
+  [
+    "SetHandler",
+    567,
+    { "x": 459, "y": 130 },
+    {
+      "tlid": 567,
+      "ast": [
+        "Filled",
+        764687349,
+        [
+          "FnCall",
+          "activeTraceFn",
+          [ [ "Filled", 1768747854, [ "Value", "\"another_argument\"" ] ] ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 478715256, "HTTP" ],
+        "name": [ "Filled", 72539264, "/active-trace-route" ],
+        "modifier": [ "Filled", 1534869530, "GET" ],
+        "types": {
+          "input": [ "Blank", 899215869 ],
+          "output": [ "Blank", 253600492 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 123 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 123,
+      "metadata": {
+        "name": [ "Filled", 140710415, "activeTraceFn" ],
+        "parameters": [
+          {
+            "name": [ "Filled", 707917210, "arg" ],
+            "tipe": [ "Filled", 961410511, [ "TStr" ] ],
+            "block_args": [],
+            "optional": true,
+            "description": ""
+          }
+        ],
+        "return_type": [ "Filled", 1635502034, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [
+        "Filled",
+        1524977278,
+        [
+          "FnCall",
+          "Dict::toJSON",
+          [
+            [
+              "Filled",
+              694157921,
+              [
+                "ObjectLiteral",
+                [
+                  [
+                    [ "Filled", 1213677120, "return" ],
+                    [ "Filled", 1751312109, [ "Variable", "arg" ] ]
+                  ],
+                  [ [ "Blank", 1468574459 ], [ "Blank", 2084908998 ] ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ]
+    }
+  ]
+]
