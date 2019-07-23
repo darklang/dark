@@ -80,13 +80,21 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     match (tlidOf m.cursorState, idOf m.cursorState) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
-          m.complete
-          |> Autocomplete.highlighted
-          |> Option.andThen ~f:Autocomplete.documentationForItem
-          |> Option.map ~f:(fun desc ->
-                 [ Html.div
-                     [Html.class' "documentation-box"]
-                     [Html.p [] [Html.text desc]] ] )
+          let desc =
+            if VariantTesting.isFluid m.tests
+            then
+              m.fluidState.ac
+              |> FluidAutocomplete.highlighted
+              |> Option.andThen ~f:FluidAutocomplete.documentationForItem
+            else
+              m.complete
+              |> Autocomplete.highlighted
+              |> Option.andThen ~f:Autocomplete.documentationForItem
+          in
+          Option.map desc ~f:(fun desc ->
+              [ Html.div
+                  [Html.class' "documentation-box"]
+                  [Html.p [] [Html.text desc]] ] )
         in
         let selectedFnDocString =
           let fn =
