@@ -239,8 +239,7 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
 
 let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
   TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
-  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(AST.getValueParent pd)
   |> Option.map ~f:P.toID
   |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
@@ -250,8 +249,7 @@ let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
 
 let isThreadMember (m : model) ((tlid, pd) : target) =
   TL.get m tlid
-  |> Option.andThen ~f:TL.asHandler
-  |> Option.map ~f:(fun x -> x.ast)
+  |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(AST.findParentOfWithin_ (P.toID pd))
   |> Option.map ~f:(fun e ->
          match e with F (_, Thread _) -> true | _ -> false )
@@ -260,7 +258,7 @@ let isThreadMember (m : model) ((tlid, pd) : target) =
 
 let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
   TL.get m tlid
-  |> Option.andThen ~f:TL.astOf
+  |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
   |> Option.andThen ~f:(fun (name, index) ->
          m.complete.functions

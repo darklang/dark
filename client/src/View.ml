@@ -91,8 +91,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedFnDocString =
           let fn =
             TL.get m tlid_
-            |> Option.andThen ~f:TL.asHandler
-            |> Option.map ~f:(fun x -> x.ast)
+            |> Option.andThen ~f:TL.astOf
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
                    | PExpr (F (_, FnCall (F (_, name), _, _))) ->
@@ -117,8 +116,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedParamDocString =
           let param =
             TL.get m tlid
-            |> Option.andThen ~f:TL.asHandler
-            |> Option.map ~f:(fun x -> x.ast)
+            |> Option.andThen ~f:TL.astOf
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.complete.functions

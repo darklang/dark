@@ -192,8 +192,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
         FluidToken.tid ti.token
   in
   (* TODO: missing function *)
-  let ast = tl |> TL.asHandler |> Option.map ~f:(fun x -> x.ast) in
-  match ast with
+  match TL.getAST tl with
   | Some ast ->
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
@@ -208,8 +207,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
 
 let isThreadMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
-  TL.asHandler tl
-  |> Option.map ~f:(fun x -> x.ast)
+  TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e ->
          match e with F (_, Thread _) -> true | _ -> false )
@@ -219,8 +217,7 @@ let isThreadMember (tl : toplevel) (ti : tokenInfo) =
 let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
     tipe =
   let id = FluidToken.tid ti.token in
-  TL.asHandler tl
-  |> Option.map ~f:(fun x -> x.ast)
+  TL.getAST tl
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
   |> Option.andThen ~f:(fun (name, index) ->
          a.functions
