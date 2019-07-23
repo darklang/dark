@@ -418,28 +418,13 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     TLTipe newTipe
   in
   match replacement with
-  | PVarBind _ ->
+  | PVarBind _ | PField _ | PKey _ | PExpr _ | PPattern _ | PConstructorName _
+    ->
       astReplace ()
-  | PField _ ->
-      astReplace ()
-  | PKey _ ->
-      astReplace ()
-  | PExpr _ ->
-      astReplace ()
-  | PEventName en ->
-      specHeaderReplace en
-  | PEventModifier em ->
-      specHeaderReplace em
-  | PEventSpace es ->
-      specHeaderReplace es
-  | PDBName _ ->
+  | PEventName str | PEventModifier str | PEventSpace str ->
+      specHeaderReplace str
+  | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
-  | PDBColType _ ->
-      tl
-  (* SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe") *)
-  | PDBColName _ ->
-      tl
-  (* SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name") *)
   | PFFMsg bo ->
     ( match tl with
     | TLHandler h ->
@@ -451,23 +436,9 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         TLFunc {f with ufAST = ast}
     | TLDB _ | TLTipe _ ->
         tl )
-  | PFnName _ ->
+  | PFnName _ | PParamName _ | PParamTipe _ ->
       fnMetadataReplace ()
-  | PParamName _ ->
-      fnMetadataReplace ()
-  | PParamTipe _ ->
-      fnMetadataReplace ()
-  | PPattern _ ->
-      astReplace ()
-  | PConstructorName _ ->
-      astReplace ()
-  | PFnCallName _ ->
-      tl
-  | PTypeName _ ->
-      tipeReplace ()
-  | PTypeFieldName _ ->
-      tipeReplace ()
-  | PTypeFieldTipe _ ->
+  | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
       tipeReplace ()
 
 
