@@ -363,6 +363,34 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
 
 
+let getAST (tl : toplevel) : expr option =
+  match tl with
+  | TLHandler h ->
+      Some h.ast
+  | TLFunc f ->
+      Some f.ufAST
+  | _ ->
+      None
+
+
+let setAST (tl : toplevel) (newAST : expr) : toplevel =
+  match tl with
+  | TLHandler h ->
+      TLHandler {h with ast = newAST}
+  | TLFunc uf ->
+      TLFunc {uf with ufAST = newAST}
+  | TLDB _ | TLTipe _ ->
+      tl
+
+
+let withAST (m : model) (tlid : tlid) (ast : expr) : model =
+  { m with
+    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
+  ; userFunctions =
+      TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
+          {uf with ufAST = ast} ) }
+
+
 (* TODO(match) *)
 
 let firstChild (tl : toplevel) (id : pointerData) : pointerData option =
@@ -387,42 +415,19 @@ let rootOf (tl : toplevel) : pointerData option =
 
 let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     toplevel =
-  let ha () = tl |> asHandler |> deOption "TL.replace ha ()" in
-  let fn () = tl |> asUserFunction |> deOption "TL.replace fn ()" in
-  let tipe () = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
   let id = P.toID p in
-  let astReplace () =
-    match tl with
-    | TLHandler h ->
-        let newAST = AST.replace p replacement h.ast in
-        TLHandler {h with ast = newAST}
-    | TLFunc f ->
-        let newAST = AST.replace p replacement f.ufAST in
-        TLFunc {f with ufAST = newAST}
-    | TLDB _ | TLTipe _ ->
-        impossible ("no AST here", tl)
-  in
-  let specHeaderReplace bo =
-    let h = ha () in
-    let newSpec = SpecHeaders.replace id bo h.spec in
-    TLHandler {h with spec = newSpec}
-  in
-  let fnMetadataReplace () =
-    let f = fn () in
-    let newF = Functions.replaceMetadataField p replacement f in
-    TLFunc newF
-  in
-  let tipeReplace () =
-    let t = tipe () in
-    let newTipe = UserTypes.replace p replacement t in
-    TLTipe newTipe
-  in
   match replacement with
   | PVarBind _ | PField _ | PKey _ | PExpr _ | PPattern _ | PConstructorName _
     ->
-      astReplace ()
-  | PEventName str | PEventModifier str | PEventSpace str ->
-      specHeaderReplace str
+      tl
+      |> getAST
+      |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
+      |> Option.map ~f:(setAST tl)
+      |> deOption "replacing an expr in a non-ast tl"
+  | PEventName bo | PEventModifier bo | PEventSpace bo ->
+      let h = tl |> asHandler |> deOption "TL.replace ha ()" in
+      let newSpec = SpecHeaders.replace id bo h.spec in
+      TLHandler {h with spec = newSpec}
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
   | PFFMsg bo ->
@@ -437,9 +442,13 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLDB _ | TLTipe _ ->
         tl )
   | PFnName _ | PParamName _ | PParamTipe _ ->
-      fnMetadataReplace ()
+      let fn = tl |> asUserFunction |> deOption "TL.replace fn ()" in
+      let newFn = Functions.replaceMetadataField p replacement fn in
+      TLFunc newFn
   | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
-      tipeReplace ()
+      let tipe = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
+      let newTL = UserTypes.replace p replacement tipe in
+      TLTipe newTL
 
 
 let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -562,21 +571,3 @@ let setSelectedAST (m : model) (ast : expr) : modification =
         impossible ("no ast in Tipes", tl)
     | TLDB _ ->
         impossible ("no ast in DBs", tl) )
-
-
-let getAST (tl : toplevel) : expr option =
-  match tl with
-  | TLHandler h ->
-      Some h.ast
-  | TLFunc f ->
-      Some f.ufAST
-  | _ ->
-      None
-
-
-let withAST (m : model) (tlid : tlid) (ast : expr) : model =
-  { m with
-    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
-  ; userFunctions =
-      TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = ast} ) }
