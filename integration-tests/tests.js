@@ -152,6 +152,24 @@ async function gotoAST(t) {
     .ok();
 }
 
+async function createNewTrace(t, tlid) {
+  const callBackend = ClientFunction(function(url) {
+    var xhttp = new XMLHttpRequest();
+    xhttp.open("GET", url, true);
+    xhttp.send();
+  });
+
+  await callBackend(user_content_url(t, "/active-trace-route"));
+
+  // This is super-shaky if we remove this. There's some timing things
+  // around when the .fa-lock appears, and the selectors we'd expect
+  // (below) doesn't work. But if we split it into two it works. Who
+  // knows.
+
+  await Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`, { timeout: 5000 })();
+  await t.expect(Selector(`.toplevel.tl-${tlid} .view-data ul.request-cursor li:nth-child(2)`).exists).ok();
+}
+
 function user_content_url(t, endpoint) {
   return (
     "http://test-" + t.testRun.test.name + ".builtwithdark.localhost:8000" + endpoint
@@ -188,6 +206,41 @@ const scrollBy = ClientFunction((id, dx, dy) => {
 // ------------------------
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
+
+test("active_trace_is_maintained_via_ref_click", async t => {
+  await createNewTrace(t, "567");
+
+  await t
+    .expect(available(".tl-567")).ok()
+    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
+    .expect(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn").visible).ok()
+    .click(Selector(".toplevel.tl-567 ~ .use-wrapper .ref-block.fn"))
+});
+
+test("active_trace_is_maintained_from_function_to_handler", async t => {
+  await createNewTrace(t, "567");
+
+  await t
+    .expect(available(".tl-567")).ok()
+    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
+    .navigateTo("#fn=123")
+    .expect(available(".tl-123")).ok()
+    .expect(Selector(".toplevel.tl-123 .view-data ul.request-cursor li:nth-child(1)").visible).ok()
+    .click(Selector(".toplevel.tl-123 .view-data ul.request-cursor li:nth-child(1)"))
+    .navigateTo("#handler=567")
+});
+
+test("active_trace_is_maintained_from_handler_to_function", async t => {
+  await createNewTrace(t, "567");
+
+  await t
+    .expect(available(".tl-567")).ok()
+    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
+    .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
+    .navigateTo("#fn=123")
+});
 
 test("enter_changes_state", async t => {
   await t
@@ -985,29 +1038,4 @@ test("varnames_are_incomplete", async t => {
     .pressKey("enter");
 
   await t.expect(Selector(".data").textContent).contains("a: <Incomplete>");
-});
-
-test("active_trace_is_maintained", async t => {
-  const callBackend = ClientFunction(function(url) {
-    var xhttp = new XMLHttpRequest();
-    xhttp.open("GET", url, true);
-    xhttp.send();
-  });
-
-  await callBackend(user_content_url(t, "/active-trace-route"));
-
-  // This is super-shaky if we remove this. There's some timing things
-  // around when the .fa-lock appears, and the selectors we'd expect
-  // (below) doesn't work. But if we split it into two it works. Who
-  // knows.
-  // await t.expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
-
-  await Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)", { timeout: 5000 })();
-  await t.expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").exists).ok();
-
-  await t
-    .expect(available(".tl-567")).ok()
-    .expect(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)").visible).ok()
-    .click(Selector(".toplevel.tl-567 .view-data ul.request-cursor li:nth-child(2)"))
-    .navigateTo("#fn=123")
 });

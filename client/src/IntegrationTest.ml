@@ -758,8 +758,8 @@ let active_trace_is_maintained (m : model) : testResult =
     fail
       ( m.tlCursors
       |> StrDict.toList
-      |> List.map ~f:(fun (k, v) -> k ^ ":" ^ v)
-      |> String.join ~sep:";" )
+      |> List.map ~f:(fun (k, v) -> "(TLID " ^ k ^ ") : (Cursor " ^ v ^ ")")
+      |> String.join ~sep:"; " )
 
 
 let trigger (test_name : string) : integrationTestState =
@@ -882,7 +882,9 @@ let trigger (test_name : string) : integrationTestState =
         extract_from_function
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
-    | "active_trace_is_maintained" ->
+    | "active_trace_is_maintained_from_handler_to_function"
+    | "active_trace_is_maintained_from_function_to_handler"
+    | "active_trace_is_maintained_via_ref_click" ->
         active_trace_is_maintained
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
