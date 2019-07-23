@@ -1,6 +1,5 @@
 open Tc
 open Types
-open Prelude
 module B = Blank
 module TL = Toplevel
 module TD = TLIDDict
@@ -206,6 +205,5 @@ let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
   in
   TweakModel
     (fun m ->
-      { m with
-        handlerProps =
-          StrDict.update ~key:(showTLID tlid) ~f:new_props m.handlerProps } )
+      {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps}
+      )

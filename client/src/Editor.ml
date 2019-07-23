@@ -72,9 +72,7 @@ let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
     | None ->
         Some {Defaults.defaultHandlerProp with handlerLock = lock}
   in
-  let props =
-    m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps
-  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
   {m with handlerProps = props}
 
 
@@ -86,15 +84,8 @@ let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
     | None ->
         Some {Defaults.defaultHandlerProp with handlerState = state}
   in
-  let props =
-    m.handlerProps |> StrDict.update ~key:(showTLID tlid) ~f:updateProps
-  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
   {m with handlerProps = props}
-
-
-let getHandlerProp (tlid : tlid) (m : model) : handlerProp =
-  StrDict.get ~key:(showTLID tlid) m.handlerProps
-  |> Option.withDefault ~default:Defaults.defaultHandlerProp
 
 
 let serialize (m : model) : unit =
