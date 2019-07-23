@@ -868,15 +868,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerRPC tlid ->
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
-          let handlerProps =
-            m.handlerProps
-            |> TLIDDict.update ~tlid ~f:(fun old ->
-                   let p =
-                     old
-                     |> Option.withDefault ~default:Defaults.defaultHandlerProp
-                   in
-                   Some {p with execution = Executing} )
-          in
+          let handlerProps = RT.setHandlerExeState tlid Executing m.handlerProps in
           ( {m with handlerProps}
           , RPC.triggerHandler
               m
@@ -1287,20 +1279,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ OverrideTraces traces
         ; TweakModel
             (fun m ->
-              let handlerProps =
-                m.handlerProps
-                |> TLIDDict.update ~tlid:params.thTLID ~f:(fun old ->
-                       let p =
-                         old
-                         |> Option.withDefault
-                              ~default:Defaults.defaultHandlerProp
-                       in
-                       Some
-                         { p with
-                           execution =
-                             ( if p.execution = Executing
-                             then Complete
-                             else Idle ) } )
+              let handlerProps = RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
               {m with handlerProps} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
