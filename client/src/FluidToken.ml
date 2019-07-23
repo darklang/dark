@@ -42,7 +42,7 @@ let tid (t : token) : id =
   | TListOpen id
   | TListClose id
   | TListSep (id, _)
-  | TThreadPipe (id, _)
+  | TThreadPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _)

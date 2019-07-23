@@ -271,14 +271,14 @@ let () =
         ; infixFn "<=" TInt TBool
         ; infixFn "||" TBool TBool
         ; { fnName = "Int::add"
-          ; fnParameters = [fnParam "a" TAny false; fnParam "b" TAny false]
+          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Add two ints"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "Int::sqrt"
-          ; fnParameters = [fnParam "a" TAny false]
+          ; fnParameters = [fnParam "a" TInt false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
@@ -305,11 +305,6 @@ let () =
   let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
       testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
-    (* we wrap it so that there's something before and after the expr (esp
-     * after it), which catches more bugs that ending the text area
-     * immediately. Unfortunately, it doesn't work for well nested exprs, like
-     * ifs. *)
-    (* let debug = debug || true in *)
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
@@ -326,6 +321,21 @@ let () =
     let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
     let pos = pos + extra in
     let s = {s with oldPos = pos; newPos = pos} in
+    if debug
+    then (
+      Js.log2
+        "state before "
+        (show_fluidState
+           { s with
+             (* remove the things that take a lot of space and provide little
+              * value. *)
+             ac =
+               { s.ac with
+                 functions = []
+               ; allCompletions = []
+               ; completions =
+                   (if s.ac.index = None then [] else s.ac.completions) } }) ;
+      Js.log2 "expr before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -371,13 +381,20 @@ let () =
     if debug
     then (
       Js.log2
-        "state"
+        "state after"
         (show_fluidState
            { newState with
              (* remove the things that take a lot of space and provide little
               * value. *)
-             ac = {newState.ac with functions = []; allCompletions = []} }) ;
-      Js.log2 "expr" (eToStructure s result) ) ;
+             ac =
+               { newState.ac with
+                 functions = []
+               ; allCompletions = []
+               ; completions =
+                   ( if newState.ac.index = None
+                   then []
+                   else newState.ac.completions ) } }) ;
+      Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
@@ -740,8 +757,7 @@ let () =
         "piping into newline creates thread"
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
-        (* TODO: this is buggy. Should be 8 *)
-        ("true\n|>___", 6) ;
+        ("true\n|>___", 7) ;
       t
         "pressing backspace to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
@@ -1286,9 +1302,7 @@ let () =
         "deleting a thread's last pipe works"
         aLongThread
         (delete 60)
-        (* deleting last thread should pop it end of the previous thread *)
-        (* TODO: broken, this should be 59 *)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 62) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
       t
         "backspacing a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
@@ -1336,7 +1350,7 @@ let () =
         aThreadInsideIf
         (delete 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 82 ) ;
+        , 79 ) ;
       t
         "adding infix functions adds the right number of blanks"
         emptyThread
@@ -1778,8 +1792,8 @@ let () =
         "autocomplete for Nothing"
         (EPartial (gid (), "Nothing", blank ()))
         (press K.Enter 7)
-        (* TODO: this should be 7 *)
-        ("Nothing", 8) ;
+        ("Nothing", 7) ;
+      (* TODO: autocomplete for nothing at the end of a line, pressing space *)
       t
         "autocomplete for Error"
         (EPartial (gid (), "Error", blank ()))
@@ -1925,9 +1939,18 @@ let () =
            , "x"
            , EPartial (gid (), "Int::add", blank ())
            , blank () ))
-        (* TODO: this is buggy, should be 17 *)
         (press K.Right 16)
-        ("let x = Int::add _________ _________\n___", 19) ;
+        ("let x = Int::add _________ _________\n___", 17) ;
+      tp
+        "pressing an infix which could be valid doesn't commit"
+        (newB ())
+        (presses [K.Pipe; K.Pipe] 0)
+        ("||", 2) ;
+      tp
+        "pressing an infix after true commits it "
+        (EPartial (gid (), "true", newB ()))
+        (press K.Plus 4)
+        ("true +", 6) ;
       t
         "moving left off a function autocompletes it anyway"
         (ELet
