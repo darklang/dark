@@ -200,6 +200,78 @@ let t_password_hashing_and_checking_works () =
     (DBool true)
 
 
+let t_jwt_functions_work () =
+  let privatekey =
+    "-----BEGIN RSA PRIVATE KEY-----
+MIIEpQIBAAKCAQEAvxW2wuTTK2d0ob5mu/ASJ9vYDc/SXy06QAIepF9x9eoVZZVZ
+d8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqLn9/0Ag9ua4ml/ft7COprfEYA7klN
+c+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGWCV7+3DF2RvDV2okk3x1ZKyBy2Rw2
+uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTwMlHbmVv9QMY5UetA9o05uPaAXH4B
+CCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p4Ur22mtma+6ree45gsdnzlj1OASW
+DQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ44wIDAQABAoIBAQC+0olj0a3MT5Fa
+oNDpZ9JJubLmAB8e6wSbvUIqdiJRKUXa3y2sgNtVjLTzieKfNXhCaHIxUTdH5DWq
+p0G7yo+qxbRghlaHz7tTitsQSUGzphjx3YQaewIujQ6EJXbDZZZBsNLqYHfQgbW+
+1eV/qGvzyckLzd1G9OUrSv/mS+GrPQ00kpIJIX+EInFOPQ04DheppGNdlxoAUwQQ
+XUUhE1LifY4DyyK71mNlUoYyCs+0ozLzbxQwr9n8PKnLKdukL6X0g3tlKEbqQWPv
+vz2J8QZeSyhnZM9AjtYdVqTO6qs4l9dyWjdpDRIV9WylasOsIbb8XP8bv2NpH2Ua
+6a54L/RJAoGBAPVWwU1jU6e86WrnocJf3miydkhF5VV1tporiuAi391N84zCG509
+rWZWa0xsD2tq2+yNDry1qdqMGmvBXKoTJAx3cjpvK/uK7Tkd+tnislDLw8Wq/fCz
+NBdSidGIuASXdh4Bo9OK8iYMBgfpUGXRKAs4rO45mwrS/+b0YYZSiX/1AoGBAMdj
+amEa5SzXw7tSqtp4Vr4pp4H52YULKI84UKvEDQOROfazQrZMHxbtaSMXG69x7SBr
+r48MuRYWd8KZ3iUkYjQLhr4n4zw5DS4AVJqgrLootVWHgt6Ey29Xa1g+B4pZOre5
+PJcrxNsG0OjIAEUsTb+yeURSphVjYe+xlXlYD0Z3AoGACdxExKF7WUCEeSF6JN/J
+hpe1nU4B259xiVy6piuAp9pcMYoTpgw2jehnQ5kMPZr739QDhZ4fh4MeBLquyL8g
+McgTNToGoIOC6UrFLECqPgkSgz1OG4B4VX+hvmQqUTTtMGOMfBIXjWPqUiMUciMn
+4tuSR7jU/GhilJu517Y1hIkCgYEAiZ5ypEdd+s+Jx1dNmbEJngM+HJYIrq1+9ytV
+ctjEarvoGACugQiVRMvkj1W5xCSMGJ568+9CKJ6lVmnBTD2KkoWKIOGDE+QE1sVf
+n8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9
+5p0DHg0CgYEAg0Wwqo3sDFSyKii25/Sffjr6tf1ab+3gFMpahRslkUvyFE/ZweKb
+T/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I
+FW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=
+-----END RSA PRIVATE KEY-----"
+    |> String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
+  in
+  let publickey =
+    "-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvxW2wuTTK2d0ob5mu/AS
+J9vYDc/SXy06QAIepF9x9eoVZZVZd8ksxvk3JGp/L0+KHuVyXoZFRzE9rU4skIqL
+n9/0Ag9ua4ml/ft7COprfEYA7klNc+xp2lwnGsxL70KHyHvHo5tDK1OWT81ivOGW
+CV7+3DF2RvDV2okk3x1ZKyBy2Rw2uUjl0EzWLycYQjhRrby3gjVtUVanUgStsgTw
+MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
+4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4
+4wIDAQAB
+-----END PUBLIC KEY-----"
+    |> String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
+  in
+  let ast =
+    Printf.sprintf
+      "(let privatekey '%s'
+                 (let publickey '%s'
+                   (let payload (obj (abc 'def'))
+                     (let extraHeaders (obj (ghi 'jkl'))
+                       (JWT::verifyAndExtract publickey
+                         (JWT::signAndEncodeWithHeaders
+                           privatekey
+                           extraHeaders
+                           payload))))))"
+      privatekey
+      publickey
+  in
+  check_dval
+    "JWT::verifyAndExtract works on output of JWT::signAndEncodeWithheaders"
+    ( [ ( "payload"
+        , DObj (DvalMap.from_list [("abc", Dval.dstr_of_string_exn "def")]) )
+      ; ( "header"
+        , DObj
+            (DvalMap.from_list
+               [ ("type", Dval.dstr_of_string_exn "JWT")
+               ; ("alg", Dval.dstr_of_string_exn "RS256")
+               ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
+    |> DvalMap.from_list
+    |> fun x -> DOption (OptJust (DObj x)) )
+    (exec_ast ast)
+
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -207,4 +279,5 @@ let suite =
   ; ("Dict stdlibs work", `Quick, t_dict_stdlibs_work)
   ; ( "End-user password hashing and checking works"
     , `Quick
-    , t_password_hashing_and_checking_works ) ]
+    , t_password_hashing_and_checking_works )
+  ; ("JWT lib works.", `Quick, t_jwt_functions_work) ]
