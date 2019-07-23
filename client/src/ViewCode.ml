@@ -97,8 +97,20 @@ let functionIsExecuting (vs : viewState) (id : id) : bool =
   List.member ~value:id vs.executingFunctions
 
 
-let handlerIsExecuting (vs : viewState) (id : tlid) : bool =
-  StrSet.member ~value:(deTLID id) vs.executingHandlers
+let handlerIsExecuting (vs : viewState) : bool =
+  match vs.handlerProp with
+  | Some {execution} ->
+      execution = Executing
+  | None ->
+      false
+
+
+let handlerIsExeComplete (vs : viewState) : bool =
+  match vs.handlerProp with
+  | Some {execution} ->
+      execution = Complete
+  | None ->
+      false
 
 
 type ('a, 'b, 'c, 'd) x =
@@ -524,7 +536,6 @@ let externalLink (vs : viewState) (spec : handlerSpec) =
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
     =
-  Debug.loG "render button" (handlerIsExecuting vs vs.tlid) ;
   match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
@@ -544,8 +555,9 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
         let classes =
           Html.classList
             [ ("handler-trigger", true)
-            ; ("is-executing", handlerIsExecuting vs vs.tlid)
-            ; ("inactive", not hasData) ]
+            ; ("is-executing", handlerIsExecuting vs)
+            ; ("inactive", not hasData)
+            ; ("complete", handlerIsExeComplete vs) ]
         in
         let attrs =
           if hasData
