@@ -1270,7 +1270,6 @@ and model =
   ; syncState : syncState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
-  ; executingHandlers : StrSet.t
   ; tlCursors :
       tlCursors
       (* This is TLID id to cursor index (the cursor being *)
