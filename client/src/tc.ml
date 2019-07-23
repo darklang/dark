@@ -133,6 +133,9 @@ module StrDict = struct
 
   let removeMany (dict : 'v t) ~(keys : key list) : 'v t =
     Belt.Map.String.removeMany dict (Belt.List.toArray keys)
+
+
+  let singleton ~(key : key) ~(value : 'v) : 'v t = empty |> insert ~key ~value
 end
 
 module type Key = sig
