@@ -417,8 +417,13 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     toplevel =
   let id = P.toID p in
   match replacement with
-  | PVarBind _ | PField _ | PKey _ | PExpr _ | PPattern _ | PConstructorName _
-    ->
+  | PFFMsg _
+  | PVarBind _
+  | PField _
+  | PKey _
+  | PExpr _
+  | PPattern _
+  | PConstructorName _ ->
       tl
       |> getAST
       |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
@@ -430,16 +435,6 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       TLHandler {h with spec = newSpec}
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
-  | PFFMsg _ ->
-    ( match tl with
-    | TLHandler h ->
-        let ast = AST.replace p replacement h.ast in
-        TLHandler {h with ast}
-    | TLFunc f ->
-        let ast = AST.replace p replacement f.ufAST in
-        TLFunc {f with ufAST = ast}
-    | TLDB _ | TLTipe _ ->
-        tl )
   | PFnName _ | PParamName _ | PParamTipe _ ->
       let fn = tl |> asUserFunction |> deOption "TL.replace fn ()" in
       let newFn = Functions.replaceMetadataField p replacement fn in
