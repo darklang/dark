@@ -469,3 +469,9 @@ let pathFromInputVars (iv : inputValueDict) : string option =
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
   |> Option.andThen ~f:WebURL.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
+
+let setHandlerExeState (tlid : tlid) (state : exeState) (hp : handlerProp TLIDDict.t) : handlerProp TLIDDict.t =
+    hp |> TLIDDict.update ~tlid
+        ~f:(fun old ->
+          let p = old |> Option.withDefault ~default:Defaults.defaultHandlerProp in
+          Some {p with execution = state} )
