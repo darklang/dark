@@ -489,8 +489,7 @@ let fns : shortfn list =
     ; p = [par "table" TDB]
     ; r = TObj
     ; d =
-        "Fetch all the values in `table`. Returns a list of lists such that the inner
-        lists are pairs of [key, value]. ie. [[key, value], [key, value]]"
+        "Fetch all the values in `table`. Returns an object with key: value. ie. {key : value, key2: value2}"
     ; f =
         InProcess
           (function
