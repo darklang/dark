@@ -337,13 +337,17 @@ let result_to_response
         { resp_headers = Header.init ()
         ; execution_id
         ; status = `Internal_server_error
-        ; body = "Application error: the executed code was not complete. This error can be resolve by the application author by completing the incomplete code." }
+        ; body =
+            "Application error: the executed code was not complete. This error can be resolve by the application author by completing the incomplete code."
+        }
   | RTT.DError _ ->
       Respond
         { resp_headers = Header.init ()
         ; execution_id
         ; status = `Internal_server_error
-        ; body = "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)." }
+        ; body =
+            "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)."
+        }
   | RTT.DResp (Redirect url, value) ->
       Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
   | RTT.DResp (Response (code, resp_headers), value) ->
@@ -1251,7 +1255,11 @@ let admin_ui_handler
       (fun e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond ~execution_id `Internal_server_error "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information.")
+        respond
+          ~execution_id
+          `Internal_server_error
+          "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
+        )
   in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
@@ -1615,7 +1623,8 @@ let callback ~k8s_callback ip req body execution_id =
           let body =
             if include_internals || Config.show_stacktrace
             then real_err
-            else "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
+            else
+              "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
           in
           respond ~execution_id `Internal_server_error body
     with e ->
