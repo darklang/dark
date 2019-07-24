@@ -25,6 +25,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some FluidVariant
     | "libtwitter" ->
         Some LibtwitterVariant
+    | "groups" ->
+        Some GroupVariant
     | _ ->
         None )
 
@@ -38,6 +40,8 @@ let toCSSClass (vt : variantTest) : string =
         "fluid"
     | LibtwitterVariant ->
         "libtwitter"
+    | GroupVariant -> 
+        "grouping"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)

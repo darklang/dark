@@ -996,6 +996,7 @@ and variantTest =
   | FluidVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
+  | GroupVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
