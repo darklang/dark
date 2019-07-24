@@ -161,6 +161,9 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       (* When creating a repl, dont ask the user for a name *)
       let name = Option.withDefault name ~default:(generateREPLName ()) in
       newHandler m "REPL" (Some name) unused pos
+  | NewGroup name ->
+      (* TODO: add creation *)
+      DisplayError ("tried to create group named " ^ (name |> Option.withDefault ~default: "unnamed"))
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 

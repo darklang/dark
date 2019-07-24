@@ -81,6 +81,12 @@ let asName (aci : autocompleteItem) : string =
           "New REPL named " ^ name
       | None ->
           "New REPL handler" )
+    | NewGroup maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New group named " ^ name
+      | None ->
+          "New group" )     
     | Goto (_, _, desc) ->
         desc )
   | ACConstructorName name ->
@@ -382,6 +388,8 @@ let dbColNameValidator = "\\w+"
 
 let dbNameValidator = "[A-Z][a-zA-Z0-9_]*"
 
+let groupNameValidator = "[A-Z][a-zA-Z0-9_]*"
+
 let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
 
 let httpVerbValidator = "[A-Z]+"
@@ -476,6 +484,11 @@ let cleanDBName (s : string) : string =
   |> stripCharsFromFront "[^a-zA-Z]"
   |> String.capitalize
 
+let cleanGroupName (s : string) : string =
+  s
+  |> stripChars "[^a-zA-Z0-9_]"
+  |> stripCharsFromFront "[^a-zA-Z]"
+  |> String.capitalize
 
 let qNewDB (s : string) : omniAction =
   let name = cleanDBName s in
@@ -516,6 +529,11 @@ let qReplHandler (s : string) : omniAction =
   then NewReplHandler None
   else NewReplHandler (Some (assertValid eventNameValidator name))
 
+let qGroup (s : string) : omniAction =
+  let name = cleanGroupName s in
+  if name = ""
+  then NewGroup None
+  else NewGroup (Some (assertValid groupNameValidator name))
 
 let qHTTPHandler (s : string) : omniAction =
   let name = cleanEventName s in
@@ -546,19 +564,23 @@ let isDynamicItem (item : autocompleteItem) : bool =
 
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
-let toDynamicItems
-    (space : handlerSpace option) (target : target option) (q : string) :
+let toDynamicItems (m : model) (space : handlerSpace option) (target : target option) (q : string) :
     autocompleteItem list =
+  
   match target with
   | None ->
       (* omnicompletion *)
+      let standard =
       [ qHTTPHandler q
       ; qNewDB q
       ; qFunction q
       ; qWorkerHandler q
       ; qCronHandler q
-      ; qReplHandler q ]
-      |> List.map ~f:(fun o -> ACOmniAction o)
+      ; qReplHandler q
+      ]
+      in
+      let all = if VariantTesting.variantIsActive m GroupVariant then (qGroup q :: standard) else standard in
+      List.map ~f:(fun o -> ACOmniAction o) all
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
@@ -585,7 +607,7 @@ let withDynamicItems
     |> Option.andThen ~f:(TL.get m)
     |> Option.andThen ~f:TL.spaceOf
   in
-  let new_ = toDynamicItems space target query in
+  let new_ = toDynamicItems m space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
 
