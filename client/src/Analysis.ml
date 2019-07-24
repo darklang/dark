@@ -189,7 +189,7 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
       varsFor h.ast @ glob @ inputVariables
   | TLFunc fn ->
       varsFor fn.ufAST @ glob @ inputVariables
-  | TLDB _ | TLTipe _ ->
+  | TLDB _ | TLTipe _ | TLGroup _ ->
       []
 
 

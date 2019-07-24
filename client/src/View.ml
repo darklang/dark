@@ -42,6 +42,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
+    | TLGroup _ ->
+        (* TODO: Put view code here *)
+        ([], [])
   in
   let refersTo = ViewIntrospect.refersToViews tlid vs.refersToRefs in
   let usedIn = ViewIntrospect.usedInViews tlid vs.usedInRefs in
@@ -226,8 +229,19 @@ let tlCacheKeyTipe (m : model) tl =
     Some (tl, avatarsList)
 
 
+let tlCacheKeyGroup (m : model) tl =
+  let tlid = TL.id tl in
+  if Some tlid = tlidOf m.cursorState
+  then None
+  else
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
+    Some (tl, avatarsList)
+
+
 let viewTL m tl =
   match tl with
+  | TLGroup _ ->
+      Cache.cache2m tlCacheKeyGroup viewTL_ m tl
   | TLTipe _ ->
       Cache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
