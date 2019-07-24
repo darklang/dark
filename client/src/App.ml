@@ -893,6 +893,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
+    | NewGroup group ->
+        (* This code is temp while we work on FE *)
+        let nameAlreadyUsed =
+          let allNames =
+            m.groups
+            |> TLIDDict.mapValues ~f:(fun group -> group.name)
+            |> List.filterMap ~f:Blank.toMaybe
+          in
+          List.member
+            ~value:
+              (group.name |> Blank.toMaybe |> Option.withDefault ~default:"")
+            allNames
+        in
+        if nameAlreadyUsed
+        then (m, Cmd.none)
+        else
+          ( { m with
+              groups = TLIDDict.insert ~tlid:group.gTLID ~value:group m.groups
+            }
+          , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
