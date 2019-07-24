@@ -566,7 +566,13 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
             ; ViewUtils.eventNoPropagation
                 ~key:("lh" ^ "-" ^ showTLID vs.tlid)
                 "click"
-                (fun _ -> TriggerHandler vs.tlid) ]
+                (fun _ -> TriggerHandler vs.tlid)
+            ; ViewUtils.onAnimationEnd
+                ~key:("exe" ^ "-" ^ showTLID vs.tlid)
+                ~listener:(fun name ->
+                  if name = "fadeIn"
+                  then SetHandlerExeIdle vs.tlid
+                  else IgnoreMsg ) ]
           else [Html.title "Need input data to replay execution"]
         in
         Html.div (classes :: attrs) [fontAwesome "redo"]

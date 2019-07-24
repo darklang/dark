@@ -868,7 +868,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | TriggerHandlerRPC tlid ->
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
-          let handlerProps = RT.setHandlerExeState tlid Executing m.handlerProps in
+          let handlerProps =
+            RT.setHandlerExeState tlid Executing m.handlerProps
+          in
           ( {m with handlerProps}
           , RPC.triggerHandler
               m
@@ -1279,7 +1281,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ OverrideTraces traces
         ; TweakModel
             (fun m ->
-              let handlerProps = RT.setHandlerExeState params.thTLID Complete m.handlerProps
+              let handlerProps =
+                RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
               {m with handlerProps} ) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
@@ -1583,6 +1586,11 @@ let update_ (msg : msg) (m : model) : modification =
       let tl = TL.getExn m tlid in
       let pd = TL.findExn tl id in
       Refactor.takeOffRail m tl pd
+  | SetHandlerExeIdle tlid ->
+      TweakModel
+        (fun m ->
+          let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
+          {m with handlerProps} )
 
 
 let rec filter_read_only (m : model) (modification : modification) =
