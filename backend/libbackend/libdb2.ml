@@ -43,7 +43,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["DB::get_v1"]
     ; ins = []
     ; p = [par "key" TStr; par "table" TDB]
