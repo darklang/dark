@@ -981,6 +981,7 @@ and msg =
   | FluidCommandsFilter of string
   | FluidRunCommand of command
   | TakeOffErrorRail of tlid * id
+  | SetHandlerExeIdle of tlid
 
 (* ----------------------------- *)
 (* AB tests *)

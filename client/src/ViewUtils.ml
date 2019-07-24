@@ -160,6 +160,11 @@ let decodeTransEvent (fn : string -> 'a) j : 'a =
   fn (JSD.field "propertyName" JSD.string j)
 
 
+let decodeAnimEvent (fn : string -> 'a) j : 'a =
+  let module JSD = Json_decode_extended in
+  fn (JSD.field "animationName" JSD.string j)
+
+
 let eventNeither
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
@@ -187,6 +192,15 @@ let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     "transitionend"
     {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeTransEvent listener))
+
+
+let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    "animationend"
+    {stopPropagation = false; preventDefault = true}
+    (Decoders.wrapDecoder (decodeAnimEvent listener))
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
