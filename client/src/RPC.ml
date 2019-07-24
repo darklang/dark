@@ -154,5 +154,5 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
    * beginning of the function, we still exercise the message and request
    * generating code locally. *)
   if m.origin = "https://darklang.com"
-  then Tea.Http.send (fun _ -> TriggerSendPresenceCallback (Ok ())) request
+  then Tea.Http.send (fun x -> TriggerSendPresenceCallback x) request
   else Tea.Cmd.none
