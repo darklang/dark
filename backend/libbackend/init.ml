@@ -21,6 +21,7 @@ let init ~run_side_effects =
         @ Libdarkinternal.fns
         @ Libstaticassets.fns
         @ Libtwitter.fns
+        @ Libjwt.fns
       in
       Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
       (* init the Random module, will be seeded from /dev/urandom on Linux *)

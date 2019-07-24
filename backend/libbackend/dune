@@ -36,6 +36,7 @@
               sodium
               uutf
               yojson
+              x509
               )
 )
 
