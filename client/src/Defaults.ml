@@ -88,6 +88,7 @@ let defaultModel : model =
   ; currentPage = Architecture
   ; hovering = []
   ; tests = []
+  ; groups = TLIDDict.empty
   ; handlers = TLIDDict.empty
   ; deletedHandlers = TLIDDict.empty
   ; dbs = TLIDDict.empty
