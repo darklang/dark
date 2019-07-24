@@ -294,6 +294,13 @@ and handler =
   ; hTLID : tlid
   ; pos : pos }
 
+(* groups *)
+and group =
+  { name : string blankOr
+  ; gTLID : tlid
+  ; members : tlid list
+  ; pos : pos }
+
 (* dbs *)
 and dbName = string
 
@@ -877,6 +884,7 @@ and modification =
   | FluidCommandsClose
   | UpdateAvatarList of avatar list
   | ExpireAvatars
+  | NewGroup of group
 
 (* ------------------- *)
 (* Msgs *)
@@ -1262,6 +1270,7 @@ and model =
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (tlid * id) list
+  ; groups : group TLIDDict.t
   ; handlers : handler TLIDDict.t
   ; deletedHandlers : handler TLIDDict.t
   ; dbs : db TLIDDict.t

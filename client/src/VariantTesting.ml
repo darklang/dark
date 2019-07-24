@@ -40,7 +40,7 @@ let toCSSClass (vt : variantTest) : string =
         "fluid"
     | LibtwitterVariant ->
         "libtwitter"
-    | GroupVariant -> 
+    | GroupVariant ->
         "grouping"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
