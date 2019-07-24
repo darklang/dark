@@ -692,6 +692,7 @@ and omniAction =
   | NewWorkerHandler of string option
   | NewCronHandler of string option
   | NewReplHandler of string option
+  | NewGroup of string option
   | Goto of page * tlid * string
 
 and autocompleteItem =
