@@ -160,6 +160,58 @@ function setCursorPosition(pos) {
   }
 }
 
+function getSelectionRange() {
+  var selection = window.getSelection();
+  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
+
+  startPos = selection.focusOffset;
+  node = selection.focusNode.parentNode;
+  while (node.previousSibling) {
+    node = node.previousSibling;
+    startPos += node.textContent.length;
+  }
+  return [startPos, startPos + selection.focusExtent];
+}
+
+function setSelectionRange(posRange) {
+  if (posRange.length > 2) return;
+  var startPos = posRange[0];
+  var endPos = posRange[1];
+
+  editor = document.querySelector(".selected #fluid-editor");
+  if (!editor) return;
+  if (startPos < 0) startPos = 0;
+  if (endPos > editor.textContent.length) endPos = editor.textContent.length;
+  if (startPos > endPos) startPos = endPos - 1;
+  let range = document.createRange();
+  for (var i = 0; i < editor.childNodes.length; i++) {
+    let node = editor.childNodes[i];
+    let length = node.textContent.length;
+    if (startPos <= length) {
+      range.setStart(node.childNodes[0], startPos);
+      node.focus();
+      return;
+    } else {
+      startPos -= length;
+    }
+  }
+  for (var i = 0; i < editor.childNodes.length; i++) {
+    let node = editor.childNodes[i];
+    let length = node.textContent.length;
+    if (endPos <= length) {
+      range.setEnd(node.childNodes[0], endPos);
+      node.focus();
+      return;
+    } else {
+      startPos -= length;
+    }
+  }
+  range.collapse(true);
+  selection = document.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 window.getCursorPosition = getCursorPosition;
 window.setCursorPosition = setCursorPosition;
 

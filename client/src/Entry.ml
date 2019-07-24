@@ -43,11 +43,31 @@ external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
 external jsSetCursorPosition : int -> unit = "setCursorPosition"
   [@@bs.val] [@@bs.scope "window"]
 
+external jsGetSelectionRange :
+  unit -> (int * int) Js.Nullable.t
+  = "getSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
+external jsSetSelectionRange : int * int -> unit = "setSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
 let getCursorPosition () : int option =
   jsGetCursorPosition () |> Js.Nullable.toOption
 
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
+
+let getSelectionRange () : (int * int) option =
+  jsGetSelectionRange () |> Js.Nullable.toOption
+
+
+let setSelectionRange (r : int * int) : unit = jsSetSelectionRange r
+
+let setAdjustedSelectionRange
+    (r : int * int) ~(f : int * int -> string -> int * int) : unit =
+  let alignedRange = f r "" (* TODO: get selected node class *) in
+  setSelectionRange alignedRange
+
 
 let setBrowserPos offset =
   Tea.Cmd.call (fun _ ->
