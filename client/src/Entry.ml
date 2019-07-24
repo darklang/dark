@@ -691,8 +691,6 @@ let submitACItem
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
-        | _, ACExtra value ->
-            DisplayError ("Invalid input: " ^ value)
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
@@ -724,4 +722,6 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     | _ ->
         (* TODO: remove this. This is a transitional step to get to fully
                 typed. *)
-        submitACItem m cursor (ACExtra m.complete.value) move )
+        if AC.hasExtra m.complete
+        then submitACItem m cursor (ACExtra m.complete.value) move
+        else DisplayError ("Invalid input: " ^ m.complete.value) )

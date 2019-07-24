@@ -197,6 +197,30 @@ let isSmallStringEntry (a : autocomplete) : bool =
   isStringEntry a && not (isLargeStringEntry a)
 
 
+let hasExtra (a : autocomplete) : bool =
+  match a.target with
+  | Some (_, p) ->
+    ( match P.typeOf p with
+    | Expr
+    | DBColName
+    | VarBind
+    | EventModifier
+    | Field
+    | Key
+    | FFMsg
+    | FnName
+    | ParamName
+    | Pattern
+    | TypeName
+    | TypeFieldName ->
+        true
+    | _ ->
+        false )
+  | None ->
+      false
+
+
+(* Return different type if possible *)
 let highlighted (a : autocomplete) : autocompleteItem option =
   List.getAt ~index:a.index (a.completions @ a.invalidCompletions)
 
