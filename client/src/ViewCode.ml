@@ -600,7 +600,8 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~active:isLocked
       ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
   in
-  let btnExpCollapse =
+  (* TODO: figure this out when architexture view is implemented *)
+  let _btnExpCollapse =
     let isExpand = isExpanded vs in
     let state = ViewUtils.getHandlerState vs in
     let expandFun _ =
@@ -644,7 +645,11 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   Html.div
     [Html.class' classes]
-    [btnLock; viewEventSpace; viewEventName; viewEventModifier; btnExpCollapse]
+    [ btnLock
+    ; viewEventSpace
+    ; viewEventName
+    ; viewEventModifier
+    (* ; btnExpCollapse *) ]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
