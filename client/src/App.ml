@@ -1564,7 +1564,7 @@ let update_ (msg : msg) (m : model) : modification =
       Introspect.setHoveringReferences tlid ids
   | FluidKeyPress _ ->
       Fluid.update m msg
-  | TriggerSendPresenceCallback (Ok ()) ->
+  | TriggerSendPresenceCallback (Ok _) ->
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
       HandleAPIError
