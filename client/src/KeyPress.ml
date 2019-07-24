@@ -89,6 +89,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             if event.shiftKey
             then
               match tl with
+              | TLGroup _ ->
+                  NoChange
               | TLTipe t ->
                 ( match mId with
                 | Some id ->
@@ -345,6 +347,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               | TLTipe _ ->
                   NoChange
               | TLDB _ ->
+                  NoChange
+              | TLGroup _ ->
                   NoChange
               | TLHandler _ ->
                   Entry.submit m cursor Entry.StartThread
