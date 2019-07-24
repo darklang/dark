@@ -124,6 +124,13 @@ let newHandler m space name modifier pos =
     :: fluidMods )
 
 
+let newGroup name pos =
+  let tlid = gtlid () in
+  let nameid = gid () in
+  let group = {name = F (nameid, name); members = []; gTLID = tlid; pos} in
+  Many [NewGroup group; Deselect]
+
+
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
   let pos = {x = pos.x - 17; y = pos.y - 70} in
@@ -162,8 +169,12 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name = Option.withDefault name ~default:(generateREPLName ()) in
       newHandler m "REPL" (Some name) unused pos
   | NewGroup name ->
-      (* TODO: add creation *)
-      DisplayError ("tried to create group named " ^ (name |> Option.withDefault ~default: "unnamed"))
+      let generateGroupName (_ : unit) : string =
+        "Group_" ^ (() |> Util.random |> string_of_int)
+      in
+      (* When creating a group, dont ask the user for a name *)
+      let name = Option.withDefault name ~default:(generateGroupName ()) in
+      newGroup name pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 
