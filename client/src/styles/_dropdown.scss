@@ -15,10 +15,10 @@ $wrapper-background: $black2;
 
   /* width: 96px; // keeps autocomplete appearing when Creating */
   .types {
-    float: right;
     text-transform: lowercase;
     font-family: monospace;
     font-size: 80%;
+    color: $grey3;
   }
 
   form {
@@ -69,6 +69,7 @@ $wrapper-background: $black2;
     font-size: 11.3px;
     max-height: 90px;
     overflow-y: scroll;
+    overflow-x: hidden;
     position: absolute;
     text-align: initial;
     width: $toplevel-min-width - 10px;
@@ -79,6 +80,12 @@ $wrapper-background: $black2;
     .autocomplete-item {
       padding: 0 $autocomplete-padding;
       background: transparent;
+
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: baseline;
+      width: calc(100% - 10px);
 
       .atom {
         margin-left: 0;
