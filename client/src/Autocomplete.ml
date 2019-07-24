@@ -111,8 +111,17 @@ let asName (aci : autocompleteItem) : string =
       RT.tipe2str tipe
   | ACDBName name ->
       name
-  | ACExtra _ ->
-      ""
+  | ACExpr name
+  | ACDBColName name
+  | ACVarBind name
+  | ACEventModifier name
+  | ACKey name
+  | ACFFMsg name
+  | ACFnName name
+  | ACParamName name
+  | ACTypeName name
+  | ACTypeFieldName name ->
+      name
   | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
 
@@ -166,7 +175,16 @@ let asTypeString (item : autocompleteItem) : string =
       "param type"
   | ACDBName _ ->
       "name"
-  | ACExtra _ ->
+  | ACExpr _
+  | ACDBColName _
+  | ACVarBind _
+  | ACEventModifier _
+  | ACKey _
+  | ACFFMsg _
+  | ACFnName _
+  | ACParamName _
+  | ACTypeName _
+  | ACTypeFieldName _ ->
       ""
   | ACTypeFieldTipe tipe ->
     ( match tipe with
@@ -197,27 +215,38 @@ let isSmallStringEntry (a : autocomplete) : bool =
   isStringEntry a && not (isLargeStringEntry a)
 
 
-let hasExtra (a : autocomplete) : bool =
+let getBlankType (a : autocomplete) : autocompleteItem option =
   match a.target with
   | Some (_, p) ->
     ( match P.typeOf p with
-    | Expr
-    | DBColName
-    | VarBind
-    | EventModifier
-    | Field
-    | Key
-    | FFMsg
-    | FnName
-    | ParamName
-    | Pattern
-    | TypeName
+    | Expr ->
+        Some (ACExpr a.value)
+    | DBColName ->
+        Some (ACDBColName a.value)
+    | VarBind ->
+        Some (ACVarBind a.value)
+    | EventModifier ->
+        Some (ACEventModifier a.value)
+    | Field ->
+        Some (ACField a.value)
+    | Key ->
+        Some (ACKey a.value)
+    | FFMsg ->
+        Some (ACFFMsg a.value)
+    | FnName ->
+        Some (ACFnName a.value)
+    | ParamName ->
+        Some (ACParamName a.value)
+    | Pattern ->
+        Some (ACConstructorName a.value)
+    | TypeName ->
+        Some (ACTypeName a.value)
     | TypeFieldName ->
-        true
+        Some (ACTypeFieldName a.value)
     | _ ->
-        false )
+        None )
   | None ->
-      false
+      None
 
 
 (* Return different type if possible *)
@@ -1043,7 +1072,16 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACTypeFieldTipe tipe ->
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
-  | ACExtra _ ->
+  | ACExpr _
+  | ACDBColName _
+  | ACVarBind _
+  | ACEventModifier _
+  | ACKey _
+  | ACFFMsg _
+  | ACFnName _
+  | ACParamName _
+  | ACTypeName _
+  | ACTypeFieldName _ ->
       None
 
 
