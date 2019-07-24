@@ -371,6 +371,7 @@ and toplevel =
   | TLDB of db
   | TLFunc of userFunction
   | TLTipe of userTipe
+  | TLGroup of group
 
 (* ---------------------- *)
 (* dvals *)

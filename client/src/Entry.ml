@@ -328,6 +328,8 @@ let getAstFromTopLevel tl =
       h.ast
   | TLFunc f ->
       f.ufAST
+  | TLGroup _ ->
+      impossible ("No ASTs in Groups", tl)
   | TLDB _ ->
       impossible ("No ASTs in DBs", tl)
   | TLTipe _ ->
@@ -485,6 +487,8 @@ let submitACItem
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
+            | TLGroup _ ->
+                impossible "no saving for now"
             | TLDB _ ->
                 impossible ("no vars in DBs", tl)
         in
@@ -499,6 +503,8 @@ let submitACItem
               impossible ("no ASTs in DBs", tl)
           | TLTipe _ ->
               impossible ("no ASTs in Tipes", tl)
+          | TLGroup _ ->
+              impossible ("no ASTs in Groups", tl)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -629,6 +635,8 @@ let submitACItem
           | TLFunc f ->
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
+          | TLGroup _ ->
+              NoChange
           | TLTipe _ ->
               NoChange
           | TLDB db ->
