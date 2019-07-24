@@ -88,6 +88,9 @@ let fns : shortfn list =
                   keys
               in
               User_db.get_many ~state db skeys
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -113,7 +116,9 @@ let fns : shortfn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many_v2 ~state db skeys
+              User_db.get_many ~state db skeys
+              |> List.map ~f:(fun (_, v) -> v)
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -140,6 +145,9 @@ let fns : shortfn list =
                   keys
               in
               User_db.get_many_with_keys ~state db skeys
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -165,7 +173,9 @@ let fns : shortfn list =
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                   keys
               in
-              User_db.get_many_with_keys_v1 ~state db skeys
+              User_db.get_many_with_keys ~state db skeys
+              |> DvalMap.from_list
+              |> DObj
           | args ->
               fail args)
     ; ps = false
@@ -216,6 +226,9 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query ~state db obj
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -230,21 +243,10 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
-              let results =
-                let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
-              in
-              ( match results with
-              | DList xs ->
-                  xs
-                  |> List.map ~f:(function
-                         | DList [x; y] ->
-                             y
-                         | _ ->
-                             Exception.internal "bad format from User_db.query" )
-                  |> DList
-              | _ ->
-                  Exception.internal "bad format from User_db.query" )
+              let db = find_db state.dbs dbname in
+              User_db.query ~state db obj
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
           | args ->
               fail args)
     ; ps = false
@@ -259,21 +261,10 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
-              let results =
-                let db = find_db state.dbs dbname in
-                User_db.query ~state db obj
-              in
-              ( match results with
-              | DList xs ->
-                  xs
-                  |> List.map ~f:(function
-                         | DList [x; y] ->
-                             y
-                         | _ ->
-                             Exception.internal "bad format from User_db.query" )
-                  |> Dval.to_list
-              | _ ->
-                  Exception.internal "bad format from User_db.query" )
+              let db = find_db state.dbs dbname in
+              User_db.query ~state db obj
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
           | args ->
               fail args)
     ; ps = false
@@ -291,6 +282,9 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query ~state db obj
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -307,7 +301,7 @@ let fns : shortfn list =
           (function
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.query_v2 ~state db obj
+              User_db.query ~state db obj |> DvalMap.from_list |> DObj
           | args ->
               fail args)
     ; ps = false
@@ -327,13 +321,8 @@ let fns : shortfn list =
                 User_db.query ~state db obj
               in
               ( match results with
-              | DList [res] ->
-                ( match res with
-                | DList [_; v] ->
-                    DOption (OptJust v)
-                | _ ->
-                    Exception.internal
-                      "Bad format from query in queryOneWithKey_v1" )
+              | [(_, v)] ->
+                  DOption (OptJust v)
               | _ ->
                   DOption OptNothing )
           | args ->
@@ -355,8 +344,8 @@ let fns : shortfn list =
                 User_db.query ~state db obj
               in
               ( match results with
-              | DList [res] ->
-                  DOption (OptJust res)
+              | [(k, v)] ->
+                  DOption (OptJust (DList [Dval.dstr_of_string_exn k; v]))
               | _ ->
                   DOption OptNothing )
           | args ->
@@ -378,15 +367,8 @@ let fns : shortfn list =
                 User_db.query ~state db obj
               in
               ( match results with
-              | DList [res] ->
-                ( match res with
-                | DList [key; data] ->
-                    DOption
-                      (OptJust
-                         (DObj
-                            (DvalMap.singleton (Dval.to_string_exn key) data)))
-                | _ ->
-                    DOption OptNothing )
+              | [(k, v)] ->
+                  DOption (OptJust (DObj (DvalMap.singleton k v)))
               | _ ->
                   DOption OptNothing )
           | args ->
@@ -406,6 +388,9 @@ let fns : shortfn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -419,11 +404,13 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DDB dbname] ->
-              let results =
-                let db = find_db state.dbs dbname in
-                User_db.get_all ~state db
-              in
-              ( match results with
+              (* let results = *)
+              let db = find_db state.dbs dbname in
+              User_db.get_all ~state db
+              |> List.map ~f:(fun (k, v) -> v)
+              |> DList
+              (* in *)
+              (* ( match results with
               | DList xs ->
                   xs
                   |> List.map ~f:(function
@@ -434,7 +421,7 @@ let fns : shortfn list =
                                "bad format from User_db.get_all" )
                   |> DList
               | _ ->
-                  Exception.internal "bad format from User_db.get_all" )
+                  Exception.internal "bad format from User_db.get_all" ) *)
           | args ->
               fail args)
     ; ps = false
@@ -448,21 +435,10 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DDB dbname] ->
-              let results =
-                let db = find_db state.dbs dbname in
-                User_db.get_all ~state db
-              in
-              ( match results with
-              | DList xs ->
-                  xs
-                  |> List.map ~f:(function
-                         | DList [x; y] ->
-                             y
-                         | _ ->
-                             Exception.internal "bad format from User_db.query" )
-                  |> Dval.to_list
-              | _ ->
-                  Exception.internal "bad format from User_db.query" )
+              let db = find_db state.dbs dbname in
+              User_db.get_all ~state db
+              |> List.map ~f:(fun (k, v) -> v)
+              |> Dval.to_list
           | args ->
               fail args)
     ; ps = false
@@ -480,6 +456,9 @@ let fns : shortfn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
+              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
+                 )
+              |> DList
           | args ->
               fail args)
     ; ps = false
@@ -495,7 +474,7 @@ let fns : shortfn list =
           (function
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
-              User_db.get_all_v2 ~state db
+              User_db.get_all ~state db |> DvalMap.from_list |> DObj
           | args ->
               fail args)
     ; ps = false
