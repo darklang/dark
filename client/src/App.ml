@@ -150,6 +150,8 @@ let processFocus (m : model) (focus : focus) : modification =
             true
         | TLDB _ ->
             true
+        | TLGroup _ ->
+            true
         | TLFunc _ ->
             false
         | TLTipe _ ->
@@ -286,7 +288,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
-             | TLDB _ | TLTipe _ ->
+             | TLDB _ | TLTipe _ | TLGroup _ ->
                  [] )
       |> Option.withDefault ~default:[]
       |> fun rpc ->
@@ -568,6 +570,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                     DB.upsert m2 db
                 | TLHandler h ->
                     Handlers.upsert m2 h
+                | TLGroup _ ->
+                    m2
                 | TLTipe _ ->
                     m2
                 | TLFunc _ ->
@@ -709,9 +713,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 let tl = TL.getExn m tlid in
                 ( match tl with
                 | TLFunc f ->
-                    Functions.upsert m f
-                | TLTipe _ | TLDB _ | TLHandler _ ->
-                    m )
+                    Functions.upsert m2 f
+                | TLTipe _ | TLDB _ | TLHandler _ | TLGroup _ ->
+                    m2 )
           | None ->
               m
         in
@@ -743,6 +747,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ( match tl with
                 | TLTipe t ->
                     UserTypes.upsert m2 t
+                | TLGroup _ ->
+                    m2
                 | TLFunc _ ->
                     m2
                 | TLDB _ ->
@@ -1027,7 +1033,7 @@ let update_ (msg : msg) (m : model) : modification =
         match tl with
         | TLFunc _ | TLTipe _ ->
             NoChange
-        | TLHandler _ | TLDB _ ->
+        | TLHandler _ | TLDB _ | TLGroup _ ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (_, event) ->
@@ -1046,6 +1052,8 @@ let update_ (msg : msg) (m : model) : modification =
               (* we don't, perhaps due to overlapping click handlers *)
               (* There doesn't seem to be any harm in stopping dragging *)
               (* here though *)
+              
+              (* TODO: Dont send movetl if top level is a group*)
               Many
                 [ SetCursorState origCursorState
                 ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]

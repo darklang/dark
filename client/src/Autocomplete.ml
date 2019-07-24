@@ -637,6 +637,8 @@ let tlGotoName (tl : toplevel) : string =
   | TLDB db ->
       "Jump to DB: "
       ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
+  | TLGroup _ ->
+      Debug.crash "To do"
   | TLFunc _ ->
       Debug.crash "cannot happen"
   | TLTipe _ ->

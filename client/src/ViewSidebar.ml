@@ -255,6 +255,7 @@ let standardCategories m hs dbs ufns tipes =
   let tipes =
     tipes |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
+  (* TODO: add groups to sidebar *)
   [ httpCategory hs
   ; dbCategory m dbs
   ; userFunctionCategory m ufns
