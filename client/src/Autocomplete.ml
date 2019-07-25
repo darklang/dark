@@ -111,7 +111,6 @@ let asName (aci : autocompleteItem) : string =
       RT.tipe2str tipe
   | ACDBName name ->
       name
-  | ACExpr name
   | ACDBColName name
   | ACVarBind name
   | ACEventModifier name
@@ -175,17 +174,24 @@ let asTypeString (item : autocompleteItem) : string =
       "param type"
   | ACDBName _ ->
       "name"
-  | ACExpr _
-  | ACDBColName _
-  | ACVarBind _
-  | ACEventModifier _
-  | ACKey _
-  | ACFFMsg _
-  | ACFnName _
-  | ACParamName _
-  | ACTypeName _
+  | ACDBColName _ ->
+      "column name"
+  | ACVarBind _ ->
+      "var"
+  | ACEventModifier _ ->
+      "event modifier"
+  | ACKey _ ->
+      "key"
+  | ACFFMsg _ ->
+      "feature flag message "
+  | ACFnName _ ->
+      "function names"
+  | ACParamName _ ->
+      "param name"
+  | ACTypeName _ ->
+      "type name"
   | ACTypeFieldName _ ->
-      ""
+      "type field name"
   | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
@@ -219,8 +225,6 @@ let getBlankType (a : autocomplete) : autocompleteItem option =
   match a.target with
   | Some (_, p) ->
     ( match P.typeOf p with
-    | Expr ->
-        Some (ACExpr a.value)
     | DBColName ->
         Some (ACDBColName a.value)
     | VarBind ->
@@ -1072,15 +1076,22 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACTypeFieldTipe tipe ->
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
-  | ACExpr _
-  | ACDBColName _
-  | ACVarBind _
-  | ACEventModifier _
-  | ACKey _
-  | ACFFMsg _
-  | ACFnName _
-  | ACParamName _
-  | ACTypeName _
+  | ACDBColName name ->
+      Some ("Set the DB's column name to" ^ name)
+  | ACVarBind str ->
+      Some ("Set variable name to " ^ str)
+  | ACEventModifier name ->
+      Some ("Set event modifier to " ^ name)
+  | ACKey key ->
+      Some ("Set key to " ^ key)
+  | ACFFMsg msg ->
+      Some ("Set feature flag message to " ^ msg)
+  | ACFnName fnName ->
+      Some ("Set function name to " ^ fnName)
+  | ACParamName paramName ->
+      Some ("Set param name to " ^ paramName)
+  | ACTypeName typeName ->
+      Some ("set type name to " ^ typeName)
   | ACTypeFieldName _ ->
       None
 
