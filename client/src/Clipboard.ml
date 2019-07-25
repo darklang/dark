@@ -15,22 +15,12 @@ let getCurrent (m : model) : (toplevel * pointerData) option =
   let myIdOf (m : model) : id option =
     match unwrapCursorState m.cursorState with
     | FluidEntering tlid ->
-        (* TODO: call getTokens once it merges *)
         let s = m.fluidState in
-        let neighbours =
-          TL.get m tlid
-          |> Option.andThen ~f:TL.getAST
-          |> Option.map ~f:(Fluid.fromExpr s)
-          |> Option.map ~f:(Fluid.toTokens s)
-          |> Option.map ~f:(Fluid.getNeighbours ~pos:s.newPos)
-        in
-        ( match neighbours with
-        | Some (Fluid.L (_, ti), _, _) when FluidToken.isTextToken ti.token ->
-            Some (FluidToken.tid ti.token)
-        | Some (_, Fluid.R (_, ti), _) when FluidToken.isTextToken ti.token ->
-            Some (FluidToken.tid ti.token)
-        | _ ->
-            failwith "no id" )
+        TL.get m tlid
+        |> Option.andThen ~f:TL.getAST
+        |> Option.map ~f:(Fluid.fromExpr s)
+        |> Option.andThen ~f:(Fluid.getToken s)
+        |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
     | _ ->
         idOf m.cursorState
   in
