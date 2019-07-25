@@ -724,4 +724,4 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
       | Some item ->
           submitACItem m cursor item move
       | _ ->
-          DisplayError ("Invalid input: " ^ m.complete.value) ) )
+          impossible ("Invalid input: " ^ m.complete.value) ) )
