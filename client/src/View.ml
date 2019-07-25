@@ -172,11 +172,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFf =
-    let ast = TL.astOf tl in
-    let allData =
-      match ast with Some expr -> AST.allData expr | None -> []
-    in
-    List.any ~f:(fun x -> match x with PFFMsg _ -> true | _ -> false) allData
+    TL.getAST tl
+    |> Option.map ~f:AST.allData
+    |> Option.withDefault ~default:[]
+    |> List.any ~f:(function PFFMsg _ -> true | _ -> false)
   in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
