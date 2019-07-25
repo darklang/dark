@@ -168,7 +168,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
   let filterInput =
     Html.input'
       [ Attrs.id filterInputID
-      ; Attrs.spellcheck false
+      ; Vdom.attribute "" "spellcheck" "false"
       ; Attrs.autocomplete false
       ; Events.onInput (fun query -> FluidCommandsFilter query) ]
       []
