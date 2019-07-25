@@ -83,22 +83,26 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       |> Option.map ~f:(Fluid.fromExpr m.fluidState)
       |> Option.andThen ~f:(Fluid.getToken m.fluidState)
       |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+      |> Option.orElse (idOf m.cursorState)
     else idOf m.cursorState
   in
   let documentation =
     match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
+          let regular =
+            m.complete
+            |> Autocomplete.highlighted
+            |> Option.andThen ~f:Autocomplete.documentationForItem
+          in
           let desc =
             if VariantTesting.isFluid m.tests
             then
               m.fluidState.ac
               |> FluidAutocomplete.highlighted
               |> Option.andThen ~f:FluidAutocomplete.documentationForItem
-            else
-              m.complete
-              |> Autocomplete.highlighted
-              |> Option.andThen ~f:Autocomplete.documentationForItem
+              |> Option.orElse regular
+            else regular
           in
           Option.map desc ~f:(fun desc ->
               [ Html.div
