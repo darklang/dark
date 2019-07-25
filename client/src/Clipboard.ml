@@ -45,7 +45,7 @@ let getCurrent (m : model) : (toplevel * pointerData) option =
 
 let copy (m : model) : copyData =
   match m.cursorState with
-  | Selecting _ ->
+  | Selecting _ | FluidEntering _ ->
     ( match getCurrent m with
     | Some (_, (PExpr _ as pd))
     | Some (_, (PPattern _ as pd))
@@ -63,7 +63,7 @@ let copy (m : model) : copyData =
 
 let cut (m : model) : copyData * modification =
   match m.cursorState with
-  | Selecting _ ->
+  | Selecting _ | FluidEntering _ ->
     ( match getCurrent m with
     | None ->
         (`None, NoChange)
