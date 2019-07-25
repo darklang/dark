@@ -295,7 +295,7 @@ let fns : shortfn list =
     ; r = TObj
     ; d =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
-        , returning key value as an object"
+        , returning {key : value} as an object"
     ; f =
         InProcess
           (function
@@ -311,7 +311,7 @@ let fns : shortfn list =
     ; p = [par "spec" TObj; par "table" TDB]
     ; r = TOption
     ; d =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns an optional object and if there is none or more than 1 found, it returns Nothing"
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
     ; f =
         InProcess
           (function
@@ -357,7 +357,7 @@ let fns : shortfn list =
     ; p = [par "spec" TObj; par "table" TDB]
     ; r = TOption
     ; d =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns an optional object and if there is none or more than 1 found, it returns Nothing"
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns Just {key: value} and if there is none or more than 1 found, it returns Nothing"
     ; f =
         InProcess
           (function
