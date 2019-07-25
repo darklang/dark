@@ -180,21 +180,42 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     .handler-trigger {
       display: inline;
       margin-left: 4px;
+      position: relative;
 
       &:hover {
         cursor: pointer;
       }
 
       @include is-executing();
-    }
 
-    .inactive-handler-trigger {
-      display: inline;
-      margin-left: 4px;
-      color: $grey2;
+      &.inactive {
+        display: inline;
+        margin-left: 4px;
+        color: $grey2;
 
-      &:hover {
-        cursor: not-allowed;
+        &:hover {
+          cursor: not-allowed;
+        }
+      }
+
+      &.complete {
+        &:before {
+          @extend .font-awesome;
+          content: "\f00c";
+          position: absolute;
+          left: 0;
+          opacity: 1;
+
+          /* duration timing-fn delay fill-mode animation-name */
+          animation: 0.5s linear 2s forwards fadeOut;
+        }
+
+        i.fa.fa-redo {
+          opacity: 0;
+
+          /* duration timing-fn delay fill-mode animation-name */
+          animation: 0.5s linear 2.25s forwards fadeIn;
+        }
       }
     }
   }

@@ -24,7 +24,6 @@ type viewState =
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
-  ; executingHandlers : StrSet.t
   ; tlCursors : tlCursors
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
@@ -112,10 +111,6 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
-  ; executingHandlers =
-      ( if StrSet.member ~value:(deTLID tlid) m.executingHandlers
-      then StrSet.ofList [deTLID tlid]
-      else StrSet.empty )
   ; tlCursors = m.tlCursors
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
@@ -165,6 +160,11 @@ let decodeTransEvent (fn : string -> 'a) j : 'a =
   fn (JSD.field "propertyName" JSD.string j)
 
 
+let decodeAnimEvent (fn : string -> 'a) j : 'a =
+  let module JSD = Json_decode_extended in
+  fn (JSD.field "animationName" JSD.string j)
+
+
 let eventNeither
     ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
     msg Vdom.property =
@@ -192,6 +192,15 @@ let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
     "transitionend"
     {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeTransEvent listener))
+
+
+let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    "animationend"
+    {stopPropagation = false; preventDefault = true}
+    (Decoders.wrapDecoder (decodeAnimEvent listener))
 
 
 let nothingMouseEvent (name : string) : msg Vdom.property =
@@ -416,7 +425,7 @@ let svgIconFn (color : string) : msg Html.html =
             [] ] ]
 
 
-let createHandlerProp (hs : handler list) : handlerProp StrDict.t =
+let createHandlerProp (hs : handler list) : handlerProp TD.t =
   hs
   |> List.map ~f:(fun h -> (h.hTLID, Defaults.defaultHandlerProp))
   |> TD.fromList

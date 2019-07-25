@@ -23,7 +23,7 @@ let defaultEditor : serializableEditor =
   ; routingTableOpenDetails = StrSet.empty
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
-  ; handlerProps = StrDict.empty
+  ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None }
 
@@ -60,7 +60,10 @@ let defaultCanvasProps : canvasProps =
 
 
 let defaultHandlerProp : handlerProp =
-  {handlerLock = false; handlerState = HandlerExpanded; hoveringReferences = []}
+  { handlerLock = false
+  ; handlerState = HandlerExpanded
+  ; hoveringReferences = []
+  ; execution = Idle }
 
 
 let defaultModel : model =
@@ -103,7 +106,6 @@ let defaultModel : model =
   ; timersEnabled = true (* saved in editor *)
   ; cursorState = Deselected
   ; executingFunctions = []
-  ; executingHandlers = StrSet.empty
   ; tlCursors = StrDict.empty
   ; featureFlags = StrDict.empty
   ; canvasProps = defaultCanvasProps
@@ -116,7 +118,7 @@ let defaultModel : model =
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
   ; usedTipes = TLIDDict.empty
-  ; handlerProps = StrDict.empty
+  ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty
   ; tlUsedIn = TLIDDict.empty

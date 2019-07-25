@@ -981,6 +981,7 @@ and msg =
   | FluidCommandsFilter of string
   | FluidRunCommand of command
   | TakeOffErrorRail of tlid * id
+  | SetHandlerExeIdle of tlid
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1015,13 +1016,19 @@ and handlerState =
   | HandlerCollapsed
   | HandlerExpanding
 
+and exeState =
+  | Idle
+  | Executing
+  | Complete
+
 and handlerProp =
   { handlerLock : bool
   ; handlerState : handlerState
   ; hoveringReferences :
       (* When hovering over a reference, this is the list of ids that refer to
        * the reference *)
-      id list }
+      id list
+  ; execution : exeState }
 
 and tlCursors = traceID StrDict.t
 
@@ -1264,7 +1271,6 @@ and model =
   ; syncState : syncState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
-  ; executingHandlers : StrSet.t
   ; tlCursors :
       tlCursors
       (* This is TLID id to cursor index (the cursor being *)
@@ -1282,7 +1288,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
-  ; handlerProps : handlerProp StrDict.t
+  ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys :
       staticDeploy list
       (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
@@ -1318,7 +1324,7 @@ and serializableEditor =
   ; routingTableOpenDetails : StrSet.t
   ; tlCursors : tlCursors
   ; featureFlags : flagsVS
-  ; handlerProps : handlerProp StrDict.t
+  ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option }
 [@@deriving show {with_path = false}]
