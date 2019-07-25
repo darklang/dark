@@ -138,8 +138,19 @@ let isVariable (aci : autocompleteItem) : bool =
 (* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)
-let findFunction (a : autocomplete) (name : string) : function_ option =
-  List.find ~f:(fun f -> f.fnName = name) a.functions
+
+let allFunctions (m : model) : function_ list =
+  let userFunctionMetadata =
+    m.userFunctions
+    |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
+    |> List.filterMap ~f:Functions.ufmToF
+  in
+  let functions =
+    m.builtInFunctions
+    |> List.filter ~f:(fun f ->
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
+  in
+  functions @ userFunctionMetadata
 
 
 let allCompletions (a : autocomplete) : autocompleteItem list =
@@ -507,21 +518,18 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 (* Autocomplete state *)
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
-  let userFunctionMetadata =
-    m.userFunctions
-    |> TLIDDict.mapValues ~f:(fun x -> x.ufMetadata)
-    |> List.filterMap ~f:Functions.ufmToF
-  in
-  let functions =
-    m.builtInFunctions
-    |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
-  in
-  let functions = functions @ userFunctionMetadata in
+  let functions = allFunctions m in
   {Defaults.defaultModel.fluidState.ac with functions}
 
 
 let init m = reset m
+
+let updateFunctions m : model =
+  { m with
+    fluidState =
+      {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
+  }
+
 
 let numCompletions (a : autocomplete) : int =
   List.length a.completions + List.length a.invalidCompletions
