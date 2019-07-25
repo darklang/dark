@@ -57,10 +57,19 @@ and handlerState j : handlerState =
        ; ("HandlerExpanding", variant0 HandlerExpanding) ]
 
 
+and exeState j : exeState =
+  j
+  |> variants
+       [ ("Idle", variant0 Idle)
+       ; ("Executing", variant0 Executing)
+       ; ("Complete", variant0 Complete) ]
+
+
 and handlerProp j : handlerProp =
   { handlerLock = field "handlerLock" bool j
   ; handlerState = field "handlerState" handlerState j
-  ; hoveringReferences = field "hoveringReferences" (list id) j }
+  ; hoveringReferences = field "hoveringReferences" (list id) j
+  ; execution = field "executing" exeState j }
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
