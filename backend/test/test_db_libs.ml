@@ -159,7 +159,7 @@ let t_db_get_many_with_keys_works () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
-let t_db_get_many_with_keys_v2_works () =
+let t_db_get_many_with_keys_v1_works () =
   clear_test_data () ;
   let ops =
     [ Op.CreateDB (dbid, pos, "MyDB")
@@ -539,7 +539,7 @@ let suite =
   ; ("DB::getAllWithKeys_v1 works", `Quick, t_db_get_all_with_keys_works)
   ; ("DB::getAllWithKeys_v2 works", `Quick, t_db_get_all_with_keys_v2_works)
   ; ("DB::getManyWithKeys works", `Quick, t_db_get_many_with_keys_works)
-  ; ("DB::getManyWithKeys_v2 works", `Quick, t_db_get_many_with_keys_v2_works)
+  ; ("DB::getManyWithKeys_v2 works", `Quick, t_db_get_many_with_keys_v1_works)
   ; ("DB::getMany_v1 works", `Quick, t_db_get_many_v1_works)
   ; ("DB::getMany_v2 works", `Quick, t_db_get_many_v2_works)
   ; ( "DB::queryWithKey_v2 works with many items"
