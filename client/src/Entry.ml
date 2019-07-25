@@ -615,7 +615,7 @@ let submitACItem
             |> AST.replace pd new_
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
-        | PExpr e, item ->
+        | PExpr e, ACExpr _ | PExpr e, ACFunction _ | PExpr e, ACLiteral _ | PExpr e, ACKeyword _ | PExpr e, ACConstructorName _ | PExpr e, ACVariable  _  ->
           ( match tl with
           | TLHandler h ->
               let newast, newexpr = replaceExpr m h.ast e move item in

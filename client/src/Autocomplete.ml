@@ -111,6 +111,7 @@ let asName (aci : autocompleteItem) : string =
       RT.tipe2str tipe
   | ACDBName name ->
       name
+  | ACExpr name
   | ACDBColName name
   | ACVarBind name
   | ACEventModifier name
@@ -174,6 +175,8 @@ let asTypeString (item : autocompleteItem) : string =
       "param type"
   | ACDBName _ ->
       "name"
+  | ACExpr _ ->
+      "expression"
   | ACDBColName _ ->
       "column name"
   | ACVarBind _ ->
@@ -224,7 +227,10 @@ let isSmallStringEntry (a : autocomplete) : bool =
 let getBlankType (a : autocomplete) : autocompleteItem option =
   match a.target with
   | Some (_, p) ->
+    Debug.loG "P" (P.typeOf p);
     ( match P.typeOf p with
+    | Expr ->
+        Some (ACExpr a.value)
     | DBColName ->
         Some (ACDBColName a.value)
     | VarBind ->
@@ -1066,6 +1072,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACEventSpace _ ->
       Some
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
+  | ACExpr _ ->
+      Some "An expression"
   | ACEventName name ->
       Some ("Respond to events/HTTP requests named " ^ name)
   | ACDBName name ->
