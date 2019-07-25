@@ -295,7 +295,7 @@ let fns : shortfn list =
     ; r = TObj
     ; d =
         "Fetch all the values from `table` which have the same fields and values that `spec` has
-        , returning a {key: {value}} an object"
+        , returning key value as an object"
     ; f =
         InProcess
           (function
@@ -311,7 +311,7 @@ let fns : shortfn list =
     ; p = [par "spec" TObj; par "table" TDB]
     ; r = TOption
     ; d =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns an optional object and if there is none or more than 1 found, it returns Nothing"
     ; f =
         InProcess
           (function
@@ -357,7 +357,7 @@ let fns : shortfn list =
     ; p = [par "spec" TObj; par "table" TDB]
     ; r = TOption
     ; d =
-        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. Returns Nothing if none or more than 1 found"
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one key/value pair, it returns an optional object and if there is none or more than 1 found, it returns Nothing"
     ; f =
         InProcess
           (function
@@ -404,24 +404,10 @@ let fns : shortfn list =
         InProcess
           (function
           | state, [DDB dbname] ->
-              (* let results = *)
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
               |> List.map ~f:(fun (k, v) -> v)
               |> DList
-              (* in *)
-              (* ( match results with
-              | DList xs ->
-                  xs
-                  |> List.map ~f:(function
-                         | DList [x; y] ->
-                             y
-                         | _ ->
-                             Exception.internal
-                               "bad format from User_db.get_all" )
-                  |> DList
-              | _ ->
-                  Exception.internal "bad format from User_db.get_all" ) *)
           | args ->
               fail args)
     ; ps = false
