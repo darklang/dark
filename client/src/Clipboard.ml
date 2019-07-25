@@ -11,7 +11,7 @@ type copyData =
   | `Json of Js.Json.t
   | `None ]
 
-let getCurrent (m : model) : (toplevel * pointerData) option =
+let getCurrentPointer (m : model) : (toplevel * pointerData) option =
   let myIdOf (m : model) : id option =
     match unwrapCursorState m.cursorState with
     | FluidEntering tlid ->
@@ -36,7 +36,7 @@ let getCurrent (m : model) : (toplevel * pointerData) option =
 let copy (m : model) : copyData =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
-    ( match getCurrent m with
+    ( match getCurrentPointer m with
     | Some (_, (PExpr _ as pd))
     | Some (_, (PPattern _ as pd))
     | Some (_, (PParamTipe _ as pd)) ->
@@ -54,7 +54,7 @@ let copy (m : model) : copyData =
 let cut (m : model) : copyData * modification =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
-    ( match getCurrent m with
+    ( match getCurrentPointer m with
     | None ->
         (`None, NoChange)
     | Some (tl, pd) ->
@@ -65,7 +65,7 @@ let cut (m : model) : copyData * modification =
 
 
 let paste (m : model) (data : copyData) : modification =
-  match getCurrent m with
+  match getCurrentPointer m with
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
