@@ -76,23 +76,42 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else "")]
     |> String.join ~sep:" "
   in
+  let id =
+    if VariantTesting.isFluid m.tests
+    then
+      TL.getAST tl
+      |> Option.map ~f:(Fluid.fromExpr m.fluidState)
+      |> Option.andThen ~f:(Fluid.getToken m.fluidState)
+      |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+      |> Option.orElse (idOf m.cursorState)
+    else idOf m.cursorState
+  in
   let documentation =
-    match (tlidOf m.cursorState, idOf m.cursorState) with
+    match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
-          m.complete
-          |> Autocomplete.highlighted
-          |> Option.andThen ~f:Autocomplete.documentationForItem
-          |> Option.map ~f:(fun desc ->
-                 [ Html.div
-                     [Html.class' "documentation-box"]
-                     [Html.p [] [Html.text desc]] ] )
+          let regular =
+            m.complete
+            |> Autocomplete.highlighted
+            |> Option.andThen ~f:Autocomplete.documentationForItem
+          in
+          let desc =
+            if VariantTesting.isFluid m.tests
+            then
+              m.fluidState.ac
+              |> FluidAutocomplete.highlighted
+              |> Option.andThen ~f:FluidAutocomplete.documentationForItem
+              |> Option.orElse regular
+            else regular
+          in
+          Option.map desc ~f:(fun desc ->
+              [ Html.div
+                  [Html.class' "documentation-box"]
+                  [Html.p [] [Html.text desc]] ] )
         in
         let selectedFnDocString =
           let fn =
-            TL.get m tlid_
-            |> Option.andThen ~f:TL.asHandler
-            |> Option.map ~f:(fun x -> x.ast)
+            TL.getAST tl
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
                    | PExpr (F (_, FnCall (F (_, name), _, _))) ->
@@ -117,8 +136,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedParamDocString =
           let param =
             TL.get m tlid
-            |> Option.andThen ~f:TL.asHandler
-            |> Option.map ~f:(fun x -> x.ast)
+            |> Option.andThen ~f:TL.getAST
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.complete.functions
@@ -154,11 +172,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         Defaults.centerPos
   in
   let hasFf =
-    let ast = TL.astOf tl in
-    let allData =
-      match ast with Some expr -> AST.allData expr | None -> []
-    in
-    List.any ~f:(fun x -> match x with PFFMsg _ -> true | _ -> false) allData
+    TL.getAST tl
+    |> Option.map ~f:AST.allData
+    |> Option.withDefault ~default:[]
+    |> List.any ~f:(function PFFMsg _ -> true | _ -> false)
   in
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)

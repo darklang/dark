@@ -456,7 +456,6 @@ let submitACItem
       if result <> None
       then DisplayError (deOption "checked above" result)
       else
-        let maybeH = TL.asHandler tl in
         let db = TL.asDB tl in
         let wrap ops next =
           let wasEditing = P.isBlank pd |> not in
@@ -555,7 +554,7 @@ let submitACItem
             replace (PEventModifier (B.newF value))
         (* allow arbitrary eventspaces *)
         | PEventSpace _, ACEventSpace value ->
-            let h = deOption "maybeH - eventspace" maybeH in
+            let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
             let new_ = B.newF value in
             let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
             let replacement2 =
