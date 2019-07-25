@@ -615,7 +615,12 @@ let submitACItem
             |> AST.replace pd new_
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
-        | PExpr e, ACExpr _ | PExpr e, ACFunction _ | PExpr e, ACLiteral _ | PExpr e, ACKeyword _ | PExpr e, ACConstructorName _ | PExpr e, ACVariable  _  ->
+        | PExpr e, ACExpr _
+        | PExpr e, ACFunction _
+        | PExpr e, ACLiteral _
+        | PExpr e, ACKeyword _
+        | PExpr e, ACConstructorName _
+        | PExpr e, ACVariable _ ->
           ( match tl with
           | TLHandler h ->
               let newast, newexpr = replaceExpr m h.ast e move item in
@@ -720,8 +725,45 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     | Some item ->
         submitACItem m cursor item move
     | _ ->
-      ( match AC.getBlankType m.complete with
-      | Some item ->
-          submitACItem m cursor item move
-      | _ ->
-          impossible ("Invalid input: " ^ m.complete.value) ) )
+        (* We removed ACExtra to define more specific autocomplete items.*)
+        (* These are all autocomplete items who's target accepts and handles a free form value *)
+        let item =
+          let value = m.complete.value in
+          match m.complete.target with
+          | Some (_, p) ->
+            ( match P.typeOf p with
+            | Expr ->
+                (* We need ACExpr so that PExpr still works until we switch to fluid *)
+                Some (ACExpr value)
+            | DBColName ->
+                Some (ACDBColName value)
+            | VarBind ->
+                Some (ACVarBind value)
+            | EventModifier ->
+                Some (ACEventModifier value)
+            | Field ->
+                Some (ACField value)
+            | Key ->
+                Some (ACKey value)
+            | FFMsg ->
+                Some (ACFFMsg value)
+            | FnName ->
+                Some (ACFnName value)
+            | ParamName ->
+                Some (ACParamName value)
+            | Pattern ->
+                Some (ACConstructorName value)
+            | TypeName ->
+                Some (ACTypeName value)
+            | TypeFieldName ->
+                Some (ACTypeFieldName value)
+            | _ ->
+                None )
+          | None ->
+              None
+        in
+        ( match item with
+        | Some acItem ->
+            submitACItem m cursor acItem move
+        | None ->
+            DisplayError "Invalid input" ) )

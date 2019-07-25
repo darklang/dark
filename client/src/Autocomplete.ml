@@ -186,9 +186,9 @@ let asTypeString (item : autocompleteItem) : string =
   | ACKey _ ->
       "key"
   | ACFFMsg _ ->
-      "feature flag message "
+      "feature flag message"
   | ACFnName _ ->
-      "function names"
+      "function name"
   | ACParamName _ ->
       "param name"
   | ACTypeName _ ->
@@ -222,41 +222,6 @@ let isLargeStringEntry (a : autocomplete) : bool =
 
 let isSmallStringEntry (a : autocomplete) : bool =
   isStringEntry a && not (isLargeStringEntry a)
-
-
-let getBlankType (a : autocomplete) : autocompleteItem option =
-  match a.target with
-  | Some (_, p) ->
-    Debug.loG "P" (P.typeOf p);
-    ( match P.typeOf p with
-    | Expr ->
-        Some (ACExpr a.value)
-    | DBColName ->
-        Some (ACDBColName a.value)
-    | VarBind ->
-        Some (ACVarBind a.value)
-    | EventModifier ->
-        Some (ACEventModifier a.value)
-    | Field ->
-        Some (ACField a.value)
-    | Key ->
-        Some (ACKey a.value)
-    | FFMsg ->
-        Some (ACFFMsg a.value)
-    | FnName ->
-        Some (ACFnName a.value)
-    | ParamName ->
-        Some (ACParamName a.value)
-    | Pattern ->
-        Some (ACConstructorName a.value)
-    | TypeName ->
-        Some (ACTypeName a.value)
-    | TypeFieldName ->
-        Some (ACTypeFieldName a.value)
-    | _ ->
-        None )
-  | None ->
-      None
 
 
 (* Return different type if possible *)
@@ -1099,7 +1064,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACParamName paramName ->
       Some ("Set param name to " ^ paramName)
   | ACTypeName typeName ->
-      Some ("set type name to " ^ typeName)
+      Some ("Set type name to " ^ typeName)
   | ACTypeFieldName _ ->
       None
 
