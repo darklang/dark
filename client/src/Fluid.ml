@@ -3429,7 +3429,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       [ Attrs.id editorID
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
-      ; Attrs.spellcheck false
+      ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
