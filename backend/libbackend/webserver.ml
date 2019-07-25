@@ -141,8 +141,11 @@ let should_use_https uri =
     uri |> Uri.host |> Option.value ~default:"" |> fun h -> String.split h '.'
   in
   match parts with
-  | ["darklang"; "com"] | ["builtwithdark"; "com"] | [_; "builtwithdark"; "com"]
-    ->
+  | ["darklang"; "com"]
+  | ["builtwithdark"; "com"]
+  | [_; "builtwithdark"; "com"]
+  | ["hellobirb"; "com"]
+  | ["www"; "hellobirb"; "com"] ->
       true
   | _ ->
       false
