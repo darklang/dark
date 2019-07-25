@@ -3387,7 +3387,7 @@ let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
     [ Html.classList [("live-values", true); ("show", show)]
     ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
     ; Attrs.autofocus false
-    ; Attrs.spellcheck false ]
+    ; Vdom.attribute "" "spellcheck" "false" ]
     liveValues
 
 
