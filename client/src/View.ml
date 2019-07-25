@@ -79,7 +79,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let id =
     if VariantTesting.isFluid m.tests
     then
-      TL.astOf tl
+      TL.getAST tl
       |> Option.map ~f:(Fluid.fromExpr m.fluidState)
       |> Option.andThen ~f:(Fluid.getToken m.fluidState)
       |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
@@ -111,7 +111,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         in
         let selectedFnDocString =
           let fn =
-            TL.astOf tl
+            TL.getAST tl
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
                    | PExpr (F (_, FnCall (F (_, name), _, _))) ->
@@ -136,7 +136,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         let selectedParamDocString =
           let param =
             TL.get m tlid
-            |> Option.andThen ~f:TL.astOf
+            |> Option.andThen ~f:TL.getAST
             |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
             |> Option.andThen ~f:(fun (name, index) ->
                    m.complete.functions
