@@ -128,16 +128,6 @@ let handlers (tls : toplevel list) : handler list =
   List.filterMap ~f:asHandler tls
 
 
-let astOf (tl : toplevel) : expr option =
-  match tl with
-  | TLHandler h ->
-      Some h.ast
-  | TLFunc f ->
-      Some f.ufAST
-  | TLTipe _ | TLDB _ ->
-      None
-
-
 let dbs (tls : toplevel TD.t) : db list = tls |> TD.filterMapValues ~f:asDB
 
 let spaceOfHandler (h : handler) : handlerSpace = SpecHeaders.spaceOf h.spec
