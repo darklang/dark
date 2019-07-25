@@ -1697,6 +1697,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
           ClipboardCutEvent e )
     ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+          e##preventDefault () ;
           ClipboardPasteEvent e ) ]
   in
   Tea.Sub.batch
