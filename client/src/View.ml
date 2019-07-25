@@ -76,8 +76,17 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else "")]
     |> String.join ~sep:" "
   in
+  let id =
+    if VariantTesting.isFluid m.tests
+    then
+      TL.astOf tl
+      |> Option.map ~f:(Fluid.fromExpr m.fluidState)
+      |> Option.andThen ~f:(Fluid.getToken m.fluidState)
+      |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+    else idOf m.cursorState
+  in
   let documentation =
-    match (tlidOf m.cursorState, idOf m.cursorState) with
+    match (tlidOf m.cursorState, id) with
     | Some tlid_, Some id when tlid_ = tlid ->
         let acFnDocString =
           let desc =
@@ -98,8 +107,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         in
         let selectedFnDocString =
           let fn =
-            TL.get m tlid_
-            |> Option.andThen ~f:TL.astOf
+            TL.astOf tl
             |> Option.andThen ~f:(fun ast -> AST.find id ast)
             |> Option.andThen ~f:(function
                    | PExpr (F (_, FnCall (F (_, name), _, _))) ->

@@ -2960,26 +2960,25 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-let updateAutocomplete m tlid ast s : fluidState =
+let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
   let tokens = toTokens s ast in
-  let ti =
-    let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
-    match (toTheLeft, toTheRight) with
-    | _, R (_, ti)
-      when Token.isTextToken ti.token && Token.isAutocompletable ti.token ->
-        Some ti
-    | L (_, ti), _
-      when Token.isTextToken ti.token && Token.isAutocompletable ti.token ->
-        Some ti
-    | _ ->
-        None
-  in
-  match ti with
-  | Some ti ->
+  let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+  match (toTheLeft, toTheRight) with
+  | L (_, ti), _ when Token.isTextToken ti.token ->
+      Some ti
+  | _, R (_, ti) when Token.isTextToken ti.token ->
+      Some ti
+  | _ ->
+      None
+
+
+let updateAutocomplete m tlid ast s : fluidState =
+  match getToken s ast with
+  | Some ti when Token.isAutocompletable ti.token ->
       let m = TL.withAST m tlid (toExpr ast) in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
       {s with ac = newAC}
-  | None ->
+  | _ ->
       s
 
 
