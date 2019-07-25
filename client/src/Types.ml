@@ -718,6 +718,7 @@ and autocompleteItem =
   | ACParamTipe of tipe
   | ACTypeFieldTipe of tipe
   | ACDBColName of string
+  | ACExpr of string
   | ACVarBind of string
   | ACEventModifier of string
   | ACKey of string
