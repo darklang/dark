@@ -42,6 +42,7 @@ let () =
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
+  let aConstructor = FPConstructor (gid (), gid (), "Just", [b ()]) in
   let m = Defaults.defaultModel in
   let process (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
@@ -82,6 +83,9 @@ let () =
   in
   let bs (pos : int) (pat : fluidPattern) : string * int =
     process [K.Backspace] pos pat
+  in
+  let space (pos : int) (pat : fluidPattern) : string * int =
+    process [K.Space] pos pat
   in
   (* let tab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.Tab] pos pat *)
@@ -256,5 +260,37 @@ let () =
       t "bs variable" aShortVar (bs 1) (blank, 0) ;
       t "bs mid variable" aVar (bs 8) ("variabl", 7) ;
       t "bs mid variable" aVar (bs 6) ("variale", 5) ;
+      () ) ;
+  describe "Constructors" (fun () ->
+      t
+        "arguments work in constructors"
+        aConstructor
+        (insert 't' 5)
+        ("Just t", 6) ;
+      t
+        "int arguments work in constructors"
+        aConstructor
+        (insert '5' 5)
+        ("Just 5", 6) ;
+      (* t *)
+      (*   "bs on a constructor converts it to a partial with ghost" *)
+      (*   aConstructor *)
+      (*   (bs 4) *)
+      (*   ("Jus@ ___", 3) ; *)
+      (* t *)
+      (*   "bs on a constructor converts it to a partial with ghost" *)
+      (*   aConstructor *)
+      (*   (del 0) *)
+      (*   ("ust@ ___", 0) ; *)
+      t
+        "space on a constructor blank does nothing"
+        aConstructor
+        (space 5)
+        ("Just ***", 5) ;
+      (* TODO: test renaming constructors.
+       * It's not too useful yet because there's only 4 constructors and,
+       * hence, unlikely that anyone will rename them this way.
+       * Also, the names of the temporary variables used to store the old arguments of a changed
+       * constructor are randomly generated and would be hard to test *)
       () ) ;
   ()
