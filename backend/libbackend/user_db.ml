@@ -44,7 +44,7 @@ let cols_for (db : db) : (string * tipe) list =
              None )
 
 
-let rec query ~state db query_obj : dval =
+let rec query ~state db query_obj : (string * dval) list =
   let sql =
     "SELECT key, data
      FROM user_data
@@ -67,13 +67,12 @@ let rec query ~state db query_obj : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj db [data]]
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in fetch_all" )
-  |> DList
 
 
-and query_by_one ~state db (col : string) (dv : dval) : dval =
+and query_by_one ~state db (col : string) (dv : dval) : (string * dval) list =
   query ~state db (DObj (DvalMap.singleton col dv))
 
 
@@ -233,7 +232,7 @@ and get ~state (db : db) (key : string) : dval =
   |> to_obj db
 
 
-and get_many ~state (db : db) (keys : string list) : dval =
+and get_many ~state (db : db) (keys : string list) : (string * dval) list =
   Db.fetch
     ~name:"get_many"
     "SELECT key, data
@@ -256,42 +255,13 @@ and get_many ~state (db : db) (keys : string list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj db [data]]
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_many" )
-  |> DList
 
 
-and get_many_v2 ~state (db : db) (keys : string list) : dval =
-  Db.fetch
-    ~name:"get_many_v2"
-    "SELECT key, data
-    FROM user_data
-    WHERE table_tlid = $1
-    AND account_id = $2
-    AND canvas_id = $3
-    AND user_version = $4
-    AND dark_version = $5
-    AND key = ANY (string_to_array($6, $7)::text[])"
-    ~params:
-      [ ID db.tlid
-      ; Uuid state.account_id
-      ; Uuid state.canvas_id
-      ; Int db.version
-      ; Int current_dark_version
-      ; List (List.map ~f:(fun s -> String s) keys)
-      ; String Db.array_separator ]
-  |> List.map ~f:(fun return_val ->
-         match return_val with
-         (* TODO(ian): change `to_obj` to just take a string *)
-         | [key; data] ->
-             to_obj db [data]
-         | _ ->
-             Exception.internal "bad format received in get_many_v2" )
-  |> DList
-
-
-and get_many_with_keys ~state (db : db) (keys : string list) : dval =
+and get_many_with_keys ~state (db : db) (keys : string list) :
+    (string * dval) list =
   Db.fetch
     ~name:"get_many_with_keys"
     "SELECT key, data
@@ -314,13 +284,12 @@ and get_many_with_keys ~state (db : db) (keys : string list) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj db [data]]
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_many_with_keys" )
-  |> DList
 
 
-let get_all ~state (db : db) : dval =
+let get_all ~state (db : db) : (string * dval) list =
   Db.fetch
     ~name:"get_all"
     "SELECT key, data
@@ -340,10 +309,9 @@ let get_all ~state (db : db) : dval =
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
          | [key; data] ->
-             DList [Dval.dstr_of_string_exn key; to_obj db [data]]
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_all" )
-  |> DList
 
 
 let count ~state (db : db) : int =

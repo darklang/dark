@@ -12,17 +12,18 @@ val set :
 
 val get : state:exec_state -> DbT.db -> string -> dval
 
-val get_many : state:exec_state -> DbT.db -> string list -> dval
+val get_many :
+  state:exec_state -> DbT.db -> string list -> (string * dval) list
 
-val get_many_v2 : state:exec_state -> DbT.db -> string list -> dval
+val get_many_with_keys :
+  state:exec_state -> DbT.db -> string list -> (string * dval) list
 
-val get_many_with_keys : state:exec_state -> DbT.db -> string list -> dval
+val get_all : state:exec_state -> DbT.db -> (string * dval) list
 
-val get_all : state:exec_state -> DbT.db -> dval
+val query : state:exec_state -> DbT.db -> dval -> (string * dval) list
 
-val query : state:exec_state -> DbT.db -> dval -> dval
-
-val query_by_one : state:exec_state -> DbT.db -> string -> dval -> dval
+val query_by_one :
+  state:exec_state -> DbT.db -> string -> dval -> (string * dval) list
 
 val count : state:exec_state -> DbT.db -> int
 
