@@ -201,8 +201,9 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
         in
         let pairs = List.map pairs ~f:(fun (p, e) -> (fromPattern p, f e)) in
         EMatch (id, f mexpr, pairs)
-    | FeatureFlag _ ->
-        EOldExpr expr
+    | FeatureFlag (msg, cond, casea, caseb) ->
+        EFeatureFlag
+          (id, varToName msg, Blank.toID msg, f cond, f casea, f caseb)
     | FluidPartial (str, oldExpr) ->
         EPartial (id, str, f oldExpr)
     | FluidRightPartial (str, oldExpr) ->
@@ -333,6 +334,11 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       F (id, Match (toExpr mexpr, pairs))
   | EThreadTarget _ ->
       fail "Cant convert threadtargets back to exprs"
+  | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
+      F
+        ( id
+        , FeatureFlag
+            (F (nameID, name), toExpr cond, toExpr caseA, toExpr caseB) )
   | EOldExpr expr ->
       expr
 
@@ -361,6 +367,7 @@ let eid expr : id =
   | EThreadTarget id
   | EBinOp (id, _, _, _, _)
   | EConstructor (id, _, _, _)
+  | EFeatureFlag (id, _, _, _, _, _)
   | EMatch (id, _, _) ->
       id
 
@@ -636,6 +643,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TPartial (id, str)]
   | ERightPartial (id, newOp, expr) ->
       [nested expr; TSep; TRightPartial (id, newOp)]
+  | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
+      [nested casea]
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
@@ -949,6 +958,8 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         None
     | EPartial (_, _, oldExpr) | ERightPartial (_, _, oldExpr) ->
         fe oldExpr
+    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+        fe cond |> Option.orElse (fe casea) |> Option.orElse (fe caseb)
 
 
 let isEmpty (e : fluidExpr) : bool =
@@ -1018,6 +1029,8 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
           fp expr
       | ERightPartial (_, _, expr) ->
           fp expr
+      | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+          fp cond |> Option.orElse (fp casea) |> Option.orElse (fp caseb)
   in
   findParent' ~parent:None id ast
 
@@ -1067,6 +1080,8 @@ let recurse ~(f : fluidExpr -> fluidExpr) (expr : fluidExpr) : fluidExpr =
       EPartial (id, str, f oldExpr)
   | ERightPartial (id, str, oldExpr) ->
       ERightPartial (id, str, f oldExpr)
+  | EFeatureFlag (id, msg, msgid, cond, casea, caseb) ->
+      EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
 
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
