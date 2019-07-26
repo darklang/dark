@@ -42,9 +42,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
-    | TLGroup _ ->
-        (* TODO: Put view code here *)
-        ([], [])
+    | TLGroup g ->
+        ([ViewGroup.viewGroup vs g], [])
   in
   let refersTo = ViewIntrospect.refersToViews tlid vs.refersToRefs in
   let usedIn = ViewIntrospect.usedInViews tlid vs.usedInRefs in
@@ -75,8 +74,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     in
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
+  (* Need to add aditional css class to remove backgroun color *)
+  let isGroup = match tl with | TLGroup _ -> true | _ -> false in
   let class_ =
-    ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else "")]
+    ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else ""); (if isGroup then "group" else "")]
     |> String.join ~sep:" "
   in
   let id =

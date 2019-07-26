@@ -1,0 +1,39 @@
+.grouping-variant{
+  .toplevel.group {
+    background: rgba(56,56,56, 0.8);
+    .group-data{
+      padding: 10px;
+      display: flex;
+      justify-content: flex-start;
+      flex-direction: column;
+      .group-top{
+        width: 100%;
+        display: flex;
+        .group-name{
+          background: black;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 500;
+          margin: 0;
+          width: 90%;
+          padding: 5px 0px;
+        }
+
+        .delete-btn{
+          width: 10%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-size: 18px;
+        }
+      }
+      .children {
+        min-height: 200px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    }
+  }
+}
