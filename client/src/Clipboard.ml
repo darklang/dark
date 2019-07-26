@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 (* Dark *)
 module P = Pointer
@@ -10,10 +11,32 @@ type copyData =
   | `Json of Js.Json.t
   | `None ]
 
+let getCurrentPointer (m : model) : (toplevel * pointerData) option =
+  let myIdOf (m : model) : id option =
+    match unwrapCursorState m.cursorState with
+    | FluidEntering tlid ->
+        let s = m.fluidState in
+        TL.get m tlid
+        |> Option.andThen ~f:TL.getAST
+        |> Option.map ~f:(Fluid.fromExpr s)
+        |> Option.andThen ~f:(Fluid.getToken s)
+        |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+    | _ ->
+        idOf m.cursorState
+  in
+  match (tlidOf m.cursorState, myIdOf m) with
+  | Some tlid, Some id ->
+      TL.get m tlid
+      |> Option.andThen ~f:(fun tl ->
+             Option.map (TL.find tl id) ~f:(fun pd -> (tl, pd)) )
+  | _ ->
+      None
+
+
 let copy (m : model) : copyData =
   match m.cursorState with
-  | Selecting _ ->
-    ( match TL.getCurrent m with
+  | Selecting _ | FluidEntering _ ->
+    ( match getCurrentPointer m with
     | Some (_, (PExpr _ as pd))
     | Some (_, (PPattern _ as pd))
     | Some (_, (PParamTipe _ as pd)) ->
@@ -30,8 +53,8 @@ let copy (m : model) : copyData =
 
 let cut (m : model) : copyData * modification =
   match m.cursorState with
-  | Selecting _ ->
-    ( match TL.getCurrent m with
+  | Selecting _ | FluidEntering _ ->
+    ( match getCurrentPointer m with
     | None ->
         (`None, NoChange)
     | Some (tl, pd) ->
@@ -42,7 +65,7 @@ let cut (m : model) : copyData * modification =
 
 
 let paste (m : model) (data : copyData) : modification =
-  match TL.getCurrent m with
+  match getCurrentPointer m with
   | Some (tl, currentPd) ->
     ( match data with
     | `Json j ->
