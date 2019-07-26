@@ -36,9 +36,9 @@ let () =
   let falseBool = FPBool (mID, gid (), false) in
   let aNull = FPNull (mID, gid ()) in
   let five = FPInteger (mID, gid (), 5) in
-  (* let fiftySix = FPInteger (gid (), 56) in *)
+  (* let fiftySix = FPInteger (mID, gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
-  let blank = FPBlank (mID, gid ()) in
+  let blank () = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
@@ -92,10 +92,10 @@ let () =
   let press (key : K.key) (pos : int) (pat : fluidPattern) : string * int =
     process [key] pos pat
   in
-  (* let presses (keys : K.key list) (pos : int) (pat : fluidPattern) : *)
-  (*     string * int = *)
-  (*   process keys pos pat *)
-  (* in *)
+  let presses (keys : K.key list) (pos : int) (pat : fluidPattern) :
+      string * int =
+    process keys pos pat
+  in
   let insert (char : char) (pos : int) (pat : fluidPattern) : string * int =
     let key = K.fromChar char in
     process [key] pos pat
@@ -170,9 +170,9 @@ let () =
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
       t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
+      t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
       t "insert . converts to float - short" aShortInt (insert '.' 1) ("1.", 2) ;
       t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
-      t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
       t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
       t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
       t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
@@ -184,6 +184,8 @@ let () =
       t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
       t "delete dot" aFloat (delete 3) ("123456", 3) ;
       t "delete dot at scale" aHugeFloat (delete 9) ("1234567891", 9) ;
+      t "backspace dot" aFloat (backspace 4) ("123456", 3) ;
+      t "backspace dot at scale" aHugeFloat (backspace 10) ("1234567891", 9) ;
       t "delete start of whole" aFloat (delete 0) ("23.456", 0) ;
       t "delete middle of whole" aFloat (delete 1) ("13.456", 1) ;
       t "delete end of whole" aFloat (delete 2) ("12.456", 2) ;
@@ -210,6 +212,7 @@ let () =
         aPartialFloat
         (backspace 2)
         ("1", 1) ;
+      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       () ) ;
   describe "Bools" (fun () ->
       t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
@@ -243,18 +246,24 @@ let () =
       t "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" blank (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" blank (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" blank (backspace 3) (b, 2) ;
-      t "insert blank->string" blank (insert '"' 0) ("\"\"", 1) ;
+      t "insert middle of blank->string" (blank ()) (insert '"' 3) ("\"\"", 1) ;
+      t "delete middle of blank->blank" (blank ()) (delete 3) (b, 3) ;
+      t "backspace middle of blank->blank" (blank ()) (backspace 3) (b, 2) ;
+      t "insert blank->string" (blank ()) (insert '"' 0) ("\"\"", 1) ;
       t "delete blank->string" emptyStr (delete 0) (b, 0) ;
       t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
-      t "insert blank->int" blank (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" blank (insert '0' 0) ("0", 1) ;
+      t "insert blank->int" (blank ()) (insert '5' 0) ("5", 1) ;
+      t "insert blank->int" (blank ()) (insert '0' 0) ("0", 1) ;
       t "delete int->blank " five (delete 0) (b, 0) ;
       t "backspace int->blank " five (backspace 1) (b, 0) ;
-      t "insert end of blank->int" blank (insert '5' 1) ("5", 1) ;
-      t "insert partial" blank (insert 't' 0) ("t", 1) ;
+      t "insert end of blank->int" (blank ()) (insert '5' 1) ("5", 1) ;
+      t "insert partial" (blank ()) (insert 't' 0) ("t", 1) ;
+      t
+        "backspacing your way through a partial finishes"
+        trueBool
+        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        ("***", 0) ;
+      t "insert blank->space" (blank ()) (press K.Space 0) (b, 0) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
