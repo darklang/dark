@@ -828,6 +828,9 @@ let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
     (* The left might be separated by whitespace *)
     | Some prev, Some current when current.startPos >= pos ->
         L (prev.token, prev)
+    | None, Some current when current.startPos < pos ->
+        (* We could be in the middle of a token *)
+        L (current.token, current)
     | None, _ ->
         No
     | _, Some current ->
