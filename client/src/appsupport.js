@@ -105,6 +105,20 @@ if (pusherConfig.enabled) {
   var pusherConnection = new Pusher(pusherConfig.key, {
     cluster: pusherConfig.cluster,
     forceTLS: true,
+    /* disableStats disables anonymous usage stats collection for
+	pusher (i.e., part of their internal monitoring, nothing that
+	we would use). The stats collection URL is JSONP, so allowing
+	it in the content-security-policy would effectively invalidate it.
+
+	Let's shut it off to turn off the console error.
+
+        Here's the documentation for this setting:
+        https://support.pusher.com/hc/en-us/articles/360020083153
+        And here's a paper that includes info on why JSONP invalidates
+        CSP rules:
+        https://storage.googleapis.com/pub-tools-public-publication-data/pdf/45542.pdf
+     */
+    disableStats: true,
   });
 }
 

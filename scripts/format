@@ -83,7 +83,9 @@ all_prettier_files() {
     -o -path "backend/static" -prune \
     -o -path "./backend/static" -prune \
     -o -path "client/lib" -prune \
-    -o -path "./client/lib" -prune 
+    -o -path "./client/lib" -prune \
+    -o -path "backend/templates" -prune \
+    -o -path "./backend/templates" -prune
 }
 
 all_ocaml_files() {
