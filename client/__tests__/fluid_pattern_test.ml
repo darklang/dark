@@ -100,7 +100,7 @@ let () =
     let key = K.fromChar char in
     process [key] pos pat
   in
-  let b = "***" in
+  let bl = "***" in
   let t
       (name : string)
       (initial : fluidPattern)
@@ -118,9 +118,9 @@ let () =
       t "delete mid string" aStr (delete 3) ("\"soe string\"", 3) ;
       t "backspace mid string" aStr (backspace 4) ("\"soe string\"", 3) ;
       t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
-      t "delete empty string" emptyStr (delete 1) (b, 0) ;
-      t "delete empty string from outside" emptyStr (delete 0) (b, 0) ;
-      t "backspace empty string" emptyStr (backspace 1) (b, 0) ;
+      t "delete empty string" emptyStr (delete 1) (bl, 0) ;
+      t "delete empty string from outside" emptyStr (delete 0) (bl, 0) ;
+      t "backspace empty string" emptyStr (backspace 1) (bl, 0) ;
       t "backspace outside empty string" emptyStr (backspace 2) ("\"\"", 1) ;
       t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ;
       t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ;
@@ -231,15 +231,15 @@ let () =
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" (newB ()) (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" (newB ()) (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" (newB ()) (backspace 3) (b, 2) ;
+      t "delete middle of blank->blank" (newB ()) (delete 3) (bl, 3) ;
+      t "backspace middle of blank->blank" (newB ()) (backspace 3) (bl, 2) ;
       t "insert blank->string" (newB ()) (insert '"' 0) ("\"\"", 1) ;
-      t "delete blank->string" emptyStr (delete 0) (b, 0) ;
-      t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
+      t "delete blank->string" emptyStr (delete 0) (bl, 0) ;
+      t "backspace blank->string" emptyStr (backspace 1) (bl, 0) ;
       t "insert blank->int" (newB ()) (insert '5' 0) ("5", 1) ;
       t "insert blank->int" (newB ()) (insert '0' 0) ("0", 1) ;
-      t "delete int->blank " five (delete 0) (b, 0) ;
-      t "backspace int->blank " five (backspace 1) (b, 0) ;
+      t "delete int->blank " five (delete 0) (bl, 0) ;
+      t "backspace int->blank " five (backspace 1) (bl, 0) ;
       t "insert end of blank->int" (newB ()) (insert '5' 1) ("5", 1) ;
       t "insert partial" (newB ()) (insert 't' 0) ("t", 1) ;
       t
@@ -247,7 +247,7 @@ let () =
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("***", 0) ;
-      t "insert blank->space" (newB ()) (press K.Space 0) (b, 0) ;
+      t "insert blank->space" (newB ()) (press K.Space 0) (bl, 0) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
@@ -255,10 +255,10 @@ let () =
       t "delete middle of variable" aVar (delete 5) ("variale", 5) ;
       t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
-      t "delete variable" aShortVar (delete 0) (b, 0) ;
+      t "delete variable" aShortVar (delete 0) (bl, 0) ;
       t "delete long variable" aVar (delete 0) ("ariable", 0) ;
       t "delete mid variable" aVar (delete 6) ("variabe", 6) ;
-      t "backspace variable" aShortVar (backspace 1) (b, 0) ;
+      t "backspace variable" aShortVar (backspace 1) (bl, 0) ;
       t "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       t "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
       () ) ;

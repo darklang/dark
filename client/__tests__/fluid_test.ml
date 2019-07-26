@@ -440,7 +440,7 @@ let () =
     let key = K.fromChar char in
     process ~debug [key] pos expr
   in
-  let b = "___" in
+  let bl = "___" in
   let t
       (name : string)
       (initial : fluidExpr)
@@ -472,9 +472,9 @@ let () =
       t "delete mid string" aStr (delete 3) ("\"soe string\"", 3) ;
       t "backspace mid string" aStr (backspace 4) ("\"soe string\"", 3) ;
       t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
-      t "delete empty string" emptyStr (delete 1) (b, 0) ;
-      t "delete empty string from outside" emptyStr (delete 0) (b, 0) ;
-      t "backspace empty string" emptyStr (backspace 1) (b, 0) ;
+      t "delete empty string" emptyStr (delete 1) (bl, 0) ;
+      t "delete empty string from outside" emptyStr (delete 0) (bl, 0) ;
+      t "backspace empty string" emptyStr (backspace 1) (bl, 0) ;
       t "backspace outside empty string" emptyStr (backspace 2) ("\"\"", 1) ;
       t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ;
       t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ;
@@ -585,15 +585,15 @@ let () =
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" (newB ()) (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" (newB ()) (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" (newB ()) (backspace 3) (b, 2) ;
+      t "delete middle of blank->blank" (newB ()) (delete 3) (bl, 3) ;
+      t "backspace middle of blank->blank" (newB ()) (backspace 3) (bl, 2) ;
       t "insert blank->string" (newB ()) (insert '"' 0) ("\"\"", 1) ;
-      t "delete blank->string" emptyStr (delete 0) (b, 0) ;
-      t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
+      t "delete blank->string" emptyStr (delete 0) (bl, 0) ;
+      t "backspace blank->string" emptyStr (backspace 1) (bl, 0) ;
       t "insert blank->int" (newB ()) (insert '5' 0) ("5", 1) ;
       t "insert blank->int" (newB ()) (insert '0' 0) ("0", 1) ;
-      t "delete int->blank " five (delete 0) (b, 0) ;
-      t "backspace int->blank " five (backspace 1) (b, 0) ;
+      t "delete int->blank " five (delete 0) (bl, 0) ;
+      t "backspace int->blank " five (backspace 1) (bl, 0) ;
       t "insert end of blank->int" (newB ()) (insert '5' 1) ("5", 1) ;
       tp "insert partial" (newB ()) (insert 't' 0) ("t", 1) ;
       t
@@ -601,7 +601,7 @@ let () =
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      t "insert blank->space" (newB ()) (space 0) (b, 0) ;
+      t "insert blank->space" (newB ()) (space 0) (bl, 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -972,10 +972,10 @@ let () =
       tp "delete middle of variable" aVar (delete 5) ("variale", 5) ;
       tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
-      t "delete variable" aShortVar (delete 0) (b, 0) ;
+      t "delete variable" aShortVar (delete 0) (bl, 0) ;
       tp "delete long variable" aVar (delete 0) ("ariable", 0) ;
       tp "delete mid variable" aVar (delete 6) ("variabe", 6) ;
-      t "backspace variable" aShortVar (backspace 1) (b, 0) ;
+      t "backspace variable" aShortVar (backspace 1) (bl, 0) ;
       tp "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
       tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
       t
@@ -1467,7 +1467,7 @@ let () =
         "backspacing open bracket of empty list deletes list"
         emptyList
         (backspace 1)
-        (b, 0) ;
+        (bl, 0) ;
       t
         "backspacing close bracket of empty list moves inside list"
         emptyList
@@ -1477,7 +1477,7 @@ let () =
         "deleting open bracket of empty list deletes list"
         emptyList
         (delete 0)
-        (b, 0) ;
+        (bl, 0) ;
       t
         "close bracket at end of list is swallowed"
         emptyList
@@ -1589,7 +1589,7 @@ let () =
         "backspacing open brace of empty record deletes record"
         emptyRecord
         (backspace 1)
-        (b, 0) ;
+        (bl, 0) ;
       t
         "backspacing close brace of empty record moves inside record"
         emptyRecord
@@ -1599,7 +1599,7 @@ let () =
         "deleting open brace of empty record deletes record"
         emptyRecord
         (delete 0)
-        (b, 0) ;
+        (bl, 0) ;
       t
         "close brace at end of record is swallowed"
         emptyRecord
