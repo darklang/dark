@@ -75,9 +75,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
   (* Need to add aditional css class to remove backgroun color *)
-  let isGroup = match tl with | TLGroup _ -> true | _ -> false in
+  let isGroup = match tl with TLGroup _ -> true | _ -> false in
   let class_ =
-    ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else ""); (if isGroup then "group" else "")]
+    [ "toplevel"
+    ; "tl-" ^ deTLID tlid
+    ; (if selected then "selected" else "")
+    ; (if isGroup then "group" else "") ]
     |> String.join ~sep:" "
   in
   let id =
