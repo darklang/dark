@@ -683,7 +683,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
-        let m2 =
+        let m =
           { m with
             userFunctions =
               TD.mergeRight m.userFunctions (Functions.fromList userFuncs)
@@ -697,23 +697,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m3 =
+        let m =
           match tlidOf m.cursorState with
           | Some tlid ->
               if updateCurrent
-              then m2
+              then m
               else
                 let tl = TL.getExn m tlid in
                 ( match tl with
                 | TLFunc f ->
-                    Functions.upsert m2 f
+                    Functions.upsert m f
                 | TLTipe _ | TLDB _ | TLHandler _ ->
-                    m2 )
+                    m )
           | None ->
-              m2
+              m
         in
-        let m4 = Refactor.updateUsageCounts m3 in
-        processAutocompleteMods m4 [ACRegenerate]
+        let m = Refactor.updateUsageCounts m in
+        let m = FluidAutocomplete.updateFunctions m in
+        processAutocompleteMods m [ACRegenerate]
     | SetTypes (userTipes, deletedUserTipes, updateCurrent) ->
         let m2 =
           { m with
