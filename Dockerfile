@@ -209,7 +209,7 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
 ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
-ENV FORCE_OCAML_UPDATE 4
+ENV FORCE_OCAML_UPDATE 5
 RUN opam update
 
 #ENV OPAMDEBUG true
@@ -221,7 +221,7 @@ RUN opam pin -y nocrypto git+https://github.com/gasche/ocaml-nocrypto.git#master
   ppx_deriving.4.3 \
   core.v0.11.2  \
   core_extended.v0.11.0 \
-  dune.1.10.0 \
+  dune.1.11.0 \
   re2.v0.11.0 \
   conf-libev.4-11 \
   lwt.4.2.1 \
