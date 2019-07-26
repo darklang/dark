@@ -1125,17 +1125,37 @@ let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
+
+let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
+    fluidPattern =
+  match pat with
+  | FPInteger _
+  | FPBlank _
+  | FPString _
+  | FPVariable _
+  | FPBool _
+  | FPNull _
+  | FPFloat _ ->
+      pat
+  | FPConstructor (id, nameID, name, exprs) ->
+      FPConstructor (id, nameID, name, List.map ~f exprs)
+  | FPOldPattern _ ->
+      pat
+
+
 let updatePattern
     ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
     : ast =
   updateExpr matchID ast ~f:(fun m ->
       match m with
       | EMatch (matchID, expr, pairs) ->
-          let newPairs =
-            List.map pairs ~f:(fun (pat, expr) ->
-                if pid pat = patID then (f pat, expr) else (pat, expr) )
+          let rec run p =
+            if patID = pid p then f p else recursePattern ~f:run p
           in
-          EMatch (matchID, expr, newPairs)
+          let newPairs =
+            List.map pairs ~f:(fun (pat, expr) -> (run pat, expr))
+          in
+          EMatch (matchID, expr, newPairs) |> Debug.log "new"
       | _ ->
           m )
 

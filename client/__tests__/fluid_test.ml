@@ -828,12 +828,22 @@ let () =
       () ) ;
   describe "Constructors" (fun () ->
       tp
+        "arguments work in constructors"
+        aConstructor
+        (insert 't' 5)
+        ("Just t", 6) ;
+      t
+        "int arguments work in constructors"
+        aConstructor
+        (insert '5' 5)
+        ("Just 5", 6) ;
+      tp
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
         (bs 4)
         ("Jus@ ___", 3) ;
       tp
-        "bs on a constructor converts it to a partial with ghost"
+        "del on a constructor converts it to a partial with ghost"
         aConstructor
         (del 0)
         ("ust@ ___", 0) ;
