@@ -423,6 +423,12 @@ let () =
   let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
     process ~debug [K.ShiftTab] pos expr
   in
+  let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Space] pos expr
+  in
+  let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Enter] pos expr
+  in
   let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
       testResult =
     process ~debug [key] pos expr
@@ -614,7 +620,7 @@ let () =
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      t "insert blank->space" (blank ()) (press K.Space 0) (b, 0) ;
+      t "insert blank->space" (blank ()) (space 0) (b, 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -635,43 +641,27 @@ let () =
       t "delete fieldop with blank" aBlankField (delete 3) ("obj", 3) ;
       t "backspace fieldop with blank" aBlankField (backspace 4) ("obj", 3) ;
       t "delete fieldop in nested" aNestedField (delete 3) ("obj.field2", 3) ;
-      t
-        "backspace fieldop in nested"
-        aNestedField
-        (backspace 4)
-        ("obj.field2", 3) ;
-      t
-        "adding a dot after a completed variable goes into a fieldaccess"
-        aVar
-        (insert '.' 8)
-        ("variable.***", 9) ;
-      t
-        "adding a dot after a partial goes into a fieldaccess"
-        aPartialVar
-        (insert '.' 3)
-        ("request.***", 8) ;
-      t
-        "adding a dot after a completed field goes into a fieldaccess"
-        aField
-        (insert '.' 9)
-        ("obj.field.***", 10) ;
-      t "insert space in blank " aBlankField (press K.Space 4) ("obj.***", 4) ;
+      t "bs fieldop in nested" aNestedField (backspace 4) ("obj.field2", 3) ;
+      t "add dot after variable" aVar (insert '.' 8) ("variable.***", 9) ;
+      t "add dot after partial " aPartialVar (insert '.' 3) ("request.***", 8) ;
+      t "add dot after field" aField (insert '.' 9) ("obj.field.***", 10) ;
+      t "insert space in blank " aBlankField (space 4) ("obj.***", 4) ;
       () ) ;
   describe "Functions" (fun () ->
       t
         "space on a sep goes to next arg"
         aFnCall
-        (press K.Space 10)
+        (space 10)
         ("Int::add 5 _________", 11) ;
       tp
-        "backspace on a function converts to partial for renaming"
+        "backspace function renames"
         aFnCall
-        (press K.Backspace 8)
+        (backspace 8)
         ("Int::ad@ 5 _________", 7) ;
       tp
-        "deleting on a function converts to partial for renaming"
+        "deleting a function renames"
         aFnCall
-        (press K.Delete 7)
+        (delete 7)
         ("Int::ad@ 5 _________", 7) ;
       t
         "renaming a function maintains unaligned params in let scope"
@@ -707,32 +697,32 @@ let () =
       tp
         "delete on function with version"
         aFnCallWithVersion
-        (press K.Delete 11)
+        (delete 11)
         ("DB::getAllv@ ___________________", 11) ;
       tp
         "backspace on function with version"
         aFnCallWithVersion
-        (press K.Backspace 12)
+        (backspace 12)
         ("DB::getAllv@ ___________________", 11) ;
       tp
         "delete on function with version in between the version and function name"
         aFnCallWithVersion
-        (press K.Delete 10)
+        (delete 10)
         ("DB::getAll1@ ___________________", 10) ;
       tp
         "backspace on function with version in between the version and function name"
         aFnCallWithVersion
-        (press K.Backspace 10)
+        (backspace 10)
         ("DB::getAlv1@ ___________________", 9) ;
       tp
         "delete on function with version in function name"
         aFnCallWithVersion
-        (press K.Delete 7)
+        (delete 7)
         ("DB::getllv1@ ___________________", 7) ;
       tp
         "backspace on function with version in function name"
         aFnCallWithVersion
-        (press K.Backspace 8)
+        (backspace 8)
         ("DB::getllv1@ ___________________", 7) ;
       t
         "adding function with version goes to the right place"
@@ -775,59 +765,59 @@ let () =
       t
         "pressing backspace to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
-        (press K.Backspace 7)
+        (backspace 7)
         ("12345", 5) ;
       t
         "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial
            (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
-        (press K.Backspace 12)
+        (backspace 12)
         ("___", 0) ;
       t
         "pressing delete to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
-        (press K.Delete 6)
+        (delete 6)
         ("12345", 5) ;
       t
         "pressing delete to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial
            (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
-        (press K.Delete 11)
+        (delete 11)
         ("___", 0) ;
       t
         "using backspace to remove an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Backspace 12)
+        (backspace 12)
         ("___", 0) ;
       t
         "using backspace to remove an infix with a placeholder goes to right place 2"
         (EPartial (gid (), "|", EBinOp (gid (), "||", five, newB (), NoRail)))
-        (press K.Backspace 3)
+        (backspace 3)
         ("5", 1) ;
       t
         "pressing backspace to clear rightpartial reverts for blank rhs"
         (ERightPartial (gid (), "|", blank ()))
-        (press K.Backspace 5)
+        (backspace 5)
         ("___", 0) ;
       t
         "pressing backspace on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
-        (press K.Backspace 7)
+        (backspace 7)
         ("12345", 5) ;
       t
         "using delete to remove an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Delete 11)
+        (delete 11)
         ("___", 0) ;
       t
         "pressing delete to clear rightpartial reverts for blank rhs"
         (ERightPartial (gid (), "|", blank ()))
-        (press K.Delete 4)
+        (delete 4)
         ("___", 0) ;
       t
         "pressing delete on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
-        (press K.Delete 6)
+        (delete 6)
         ("12345", 5) ;
       t
         "pressing letters and numbers on a partial completes it"
@@ -871,17 +861,17 @@ let () =
       tp
         "backspace on a constructor converts it to a partial with ghost"
         aConstructor
-        (press K.Backspace 4)
+        (backspace 4)
         ("Jus@ ___", 3) ;
       tp
         "backspace on a constructor converts it to a partial with ghost"
         aConstructor
-        (press K.Delete 0)
+        (delete 0)
         ("ust@ ___", 0) ;
       t
         "space on a constructor blank does nothing"
         aConstructor
-        (press K.Space 5)
+        (space 5)
         ("Just ___", 5) ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
@@ -1583,22 +1573,22 @@ let () =
       t
         "inserting space between empty record does nothing"
         emptyRecord
-        (press K.Space 1)
+        (space 1)
         ("{}", 1) ;
       t
         "inserting space in empty record field does nothing"
         emptyRow
-        (press K.Space 4)
+        (space 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "inserting space in empty record value does nothing"
         emptyRow
-        (press K.Space 10)
+        (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
         "pressing enter in an empty record adds a new line"
         emptyRecord
-        (press K.Enter 1)
+        (enter 1)
         ("{\n  *** : ___\n}", 4) ;
       t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
@@ -1670,17 +1660,17 @@ let () =
       t
         "pressing enter at start adds a row"
         multi
-        (press K.Enter 1)
+        (enter 1)
         ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       t
         "pressing enter at the back adds a row"
         multi
-        (press K.Enter 22)
+        (enter 22)
         ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
       t
         "pressing enter at the start of a field adds a row"
         multi
-        (press K.Enter 14)
+        (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
         "dont allow weird chars in recordFields"
@@ -1722,12 +1712,12 @@ let () =
       t
         "space autocompletes correctly"
         (EPartial (gid (), "if", blank ()))
-        (press K.Space 2)
+        (space 2)
         ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t
         "let moves to right place"
         (EPartial (gid (), "let", blank ()))
-        (press K.Enter 3)
+        (enter 3)
         ("let *** = ___\n___", 4) ;
       t
         "autocomplete space moves forward by 1"
@@ -1765,7 +1755,7 @@ let () =
       t
         "variable moves to right place"
         (EPartial (gid (), "req", blank ()))
-        (press K.Enter 3)
+        (enter 3)
         ("request", 7) ;
       t
         "thread moves to right place on blank"
@@ -1795,28 +1785,28 @@ let () =
       t
         "autocomplete for Just"
         (EPartial (gid (), "Just", blank ()))
-        (press K.Enter 4)
+        (enter 4)
         ("Just ___", 5) ;
       t
         "autocomplete for Ok"
         (EPartial (gid (), "Ok", blank ()))
-        (press K.Enter 2)
+        (enter 2)
         ("Ok ___", 3) ;
       t
         "autocomplete for Nothing"
         (EPartial (gid (), "Nothing", blank ()))
-        (press K.Enter 7)
+        (enter 7)
         ("Nothing", 7) ;
       (* TODO: autocomplete for nothing at the end of a line, pressing space *)
       t
         "autocomplete for Error"
         (EPartial (gid (), "Error", blank ()))
-        (press K.Enter 5)
+        (enter 5)
         ("Error ___", 6) ;
       t
         "autocomplete for field"
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
-        (press K.Enter 10)
+        (enter 10)
         ("request.body", 12) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (backspace (EVariable (5, "request"))). *)
@@ -1882,7 +1872,7 @@ let () =
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
-        (press K.Enter 16)
+        (enter 16)
         ( "let var = if ___\n"
           ^ "          then\n"
           ^ "            6\n"
@@ -2039,7 +2029,7 @@ let () =
         (shiftTab 14)
         ("let *** = ___\n___", 10) ;
       t
-        "shift tab wraps from the start of a let"
+        "shift tab wraps from start of let"
         emptyLet
         (shiftTab 4)
         ("let *** = ___\n5", 10) ;
