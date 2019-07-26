@@ -144,7 +144,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       ; defaultPasteHandler
       ; Attributes.value search
       ; Attributes.placeholder placeholder
-      ; Attributes.spellcheck false
+      ; Vdom.attribute "" "spellcheck" "false"
       ; Attributes.autocomplete false ]
       []
   in
