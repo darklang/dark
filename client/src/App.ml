@@ -1080,10 +1080,10 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let fluid =
         if VariantTesting.isFluid m.tests
-        then Fluid.update m FluidMouseClick
+        then Fluid.update m (FluidMouseClick targetExnID)
         else NoChange
       in
-      Many [fluid; click]
+      Many [click; fluid]
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1573,7 +1573,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
            err)
-  | FluidMouseClick ->
+  | FluidMouseClick _ ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
       TweakModel

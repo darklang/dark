@@ -901,7 +901,7 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidMouseClick
+  | FluidMouseClick of tlid
   | AutocompleteClick of int
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
