@@ -3021,7 +3021,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
-    | FluidMouseClick ->
+    | FluidMouseClick _ ->
       (* TODO: if mouseclick on blank put cursor at beginning of it *)
       ( match Entry.getCursorPosition () with
       | Some newPos ->
@@ -3059,16 +3059,19 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
   | FluidKeyPress ke when m.fluidState.cp.show = true ->
       FluidCommands.updateCmds m ke
   | _ ->
-    ( match Toplevel.selected m with
-    | None ->
-        Types.NoChange
-    | Some tl ->
-      ( match TL.rootExpr tl with
-      | None ->
-          NoChange
-      | Some ast ->
+      let tlid =
+        match msg with
+        | FluidMouseClick tlid ->
+            Some tlid
+        | _ ->
+            tlidOf m.cursorState
+      in
+      let tl : toplevel option = Option.andThen tlid ~f:(Toplevel.get m) in
+      let ast = Option.andThen tl ~f:TL.getAST in
+      ( match (tl, ast) with
+      | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let ast = ast |> fromExpr s in
+          let ast = fromExpr s ast in
           let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
             let enter id = Enter (Filling (tlid, id)) in
@@ -3128,7 +3131,9 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             [ Types.TweakModel (fun m -> {m with fluidState = newState})
             ; astMod
             ; eventSpecMod
-            ; Types.MakeCmd cmd ] ) )
+            ; Types.MakeCmd cmd ]
+      | _ ->
+          NoChange )
 
 
 (* -------------------- *)
