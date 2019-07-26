@@ -390,7 +390,7 @@ let setAST (tl : toplevel) (newAST : expr) : toplevel =
       TLHandler {h with ast = newAST}
   | TLFunc uf ->
       TLFunc {uf with ufAST = newAST}
-  | TLDB _ | TLTipe _ ->
+  | TLDB _ | TLTipe _ | TLGroup _ ->
       tl
 
 
@@ -575,21 +575,3 @@ let setSelectedAST (m : model) (ast : expr) : modification =
         impossible ("no ast in DBs", tl)
     | TLGroup _ ->
         impossible ("no ast in Groups", tl) )
-
-
-let getAST (tl : toplevel) : expr option =
-  match tl with
-  | TLHandler h ->
-      Some h.ast
-  | TLFunc f ->
-      Some f.ufAST
-  | _ ->
-      None
-
-
-let withAST (m : model) (tlid : tlid) (ast : expr) : model =
-  { m with
-    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
-  ; userFunctions =
-      TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = ast} ) }
