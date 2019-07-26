@@ -503,16 +503,6 @@ let findExn (tl : toplevel) (id : id) : pointerData =
   find tl id |> deOption "findExn"
 
 
-let getCurrent (m : model) : (toplevel * pointerData) option =
-  match (tlidOf m.cursorState, idOf m.cursorState) with
-  | Some tlid, Some id ->
-      get m tlid
-      |> Option.andThen ~f:(fun tl ->
-             Option.map (find tl id) ~f:(fun pd -> (tl, pd)) )
-  | _ ->
-      None
-
-
 let allDBNames (dbs : db TD.t) : string list =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
