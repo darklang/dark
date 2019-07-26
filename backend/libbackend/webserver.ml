@@ -1221,8 +1221,7 @@ let content_security_policy hash =
     ; "img-src 'self' {{STATIC}} data:"
       (* We need to allow connections to pusher as well... *)
     ; "connect-src 'self' {{STATIC}} {{PUSHER}}"
-      (* TODO blob: definitely invalidates the whole thing... *)
-    ; "worker-src blob:"
+    ; "worker-src 'self'"
     ; "object-src 'none'" ]
   |> Util.string_replace
        "{{LIVERELOAD}}"
@@ -1241,6 +1240,44 @@ let content_security_policy hash =
              ; "https://ws-{{CLUSTER}}.pusher.com"
              ; "https://sockjs-{{CLUSTER}}.pusher.com" ]))
 
+let fetch_static req path =
+  let scheme =
+    req
+    |> with_x_forwarded_proto
+    |> Uri.scheme
+    (* Default to https to fail secure, in case we get a very strange
+       request with no scheme *)
+    |> Option.value ~default:"https"
+  in
+  let uri file =
+    Uri.with_path
+      (Uri.with_scheme
+         (* Slightly gross hack to get this to parse correctly
+            with the port and no scheme in the config file *)
+         (Uri.of_string ("https://" ^ Config.static_host))
+         (Some scheme))
+      file
+  in
+  uri path
+  |> Cohttp_lwt_unix.Client.get
+  >|= (fun (response, body) ->
+    if CResponse.status response = `OK
+    then
+      body
+    else
+      Exception.internal
+        (Printf.sprintf
+           "Fetching %s from the static backend for a webworker failed."
+           path))
+  >>= Cohttp_lwt.Body.to_string
+
+let webworker_js_handler paths ~(execution_id : Types.id) (req : CRequest.t) =
+  let rollbar_config = Format.sprintf "const rollbarConfig = JSON.stringify(%s);\n\n" Config.rollbar_js in
+  let%lwt js = Lwt_list.map_p (fetch_static req) paths in
+  respond
+    ~execution_id
+    `OK
+    (rollbar_config ^ "\n" ^ String.concat ~sep:"\n" js)
 
 let admin_ui_handler
     ~(execution_id : Types.id)
@@ -1420,6 +1457,10 @@ let admin_handler
         ~session
         (admin_api_handler ~execution_id ~path ~body ~username)
         req
+  | [ "a"; "webworker.js" ] ->
+     webworker_js_handler ["analysis.js"; "analysiswrapper.js"] ~execution_id req
+  | [ "a"; "fetcher.js" ] ->
+     webworker_js_handler ["fetcher.js"] ~execution_id req
   | "a" :: canvasname :: _ ->
       Log.add_log_annotations
         [("canvas", `String canvasname)]
@@ -1474,6 +1515,7 @@ type host_route =
   | Canvas of string
   | Static
   | Admin
+
 
 let route_host req =
   match
@@ -1703,7 +1745,8 @@ let callback ~k8s_callback ip req body execution_id =
       | _ ->
         ( match Uri.to_string uri with
         | "/sitemap.xml" | "/favicon.ico" ->
-            respond ~execution_id `OK ""
+           respond ~execution_id `OK ""
+        | "/webworker.js"
         | _ ->
           (* figure out what handler to dispatch to... *)
           ( match route_host req with

@@ -415,21 +415,11 @@ setTimeout(function() {
         throw err;
       });
   }
-  let rollbarConfigSetup =
-    "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
-
-  let analysisjs = fetcher("/analysis.js");
-  let analysiswrapperjs = fetcher("/analysiswrapper.js");
-  let fetcherjs = fetcher("/fetcher.js");
   (async function() {
-    var strings = [rollbarConfigSetup, await analysisjs, "\n\n", await analysiswrapperjs];
-    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.analysisWorker = new Worker(analysisWorkerUrl);
+    window.analysisWorker = new Worker("webworker.js");
   })();
   (async function() {
-    var strings = [rollbarConfigSetup, await fetcherjs];
-    var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.fetcherWorker = new Worker(fetcherWorkerUrl);
+    window.fetcherWorker = new Worker("fetcher.js");
   })();
 
   window.onfocus = function(evt) {
