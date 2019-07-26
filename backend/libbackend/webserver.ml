@@ -1010,8 +1010,7 @@ let admin_ui_html
     ~(csrf_token : string)
     ~(local : string option)
     username
-    admin =
-  let template = File.readfile_lwt ~root:Templates "ui.html" in
+    admin : (string * string) Lwt.t =
   let static_host =
     match local with
     (* TODO: if you want access, we can make this more general *)
@@ -1020,67 +1019,79 @@ let admin_ui_html
     | _ ->
         Config.static_host
   in
-  let rollbar_js = Config.rollbar_js in
   let hash_static_filenames =
     if local = None then Config.hash_static_filenames else false
   in
+  let template = File.readfile_lwt ~root:Templates "ui.html" in
+  let%lwt constants =
+    File.readfile_lwt ~root:Templates "constants.js"
+    >|= Util.string_replace "{{ROLLBARCONFIG}}" Config.rollbar_js
+    >|= Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
+    >|= Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
+    >|= Util.string_replace "{{IS_ADMIN}}" admin
+    >|= Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
+    >|= Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
+    >|= Util.string_replace "{{USERNAME}}" username
+    >|= Util.string_replace
+          "{{USER_ID}}"
+          ( username
+          |> Account.id_of_username
+          |> Option.value_exn
+          |> Uuidm.to_string )
+    >|= Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
+    >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
+    >|= Util.string_replace "{{STATIC}}" static_host
+    >|= Util.string_replace "{{BUILD_HASH}}" Config.build_hash
+    >|= fun x ->
+    if not hash_static_filenames
+    then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
+    else
+      let etags_str = File.readfile ~root:Webroot "etags.json" in
+      let etags_json = Yojson.Safe.from_string etags_str in
+      let etag_assoc_list =
+        to_assoc_list etags_json
+        |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
+        |> List.filter (* Only hash our assets, not vendored assets *)
+             ~f:(fun (file, _) ->
+               not (String.is_substring ~substring:"vendor/" file) )
+      in
+      x
+      |> fun instr ->
+      etag_assoc_list
+      |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
+             (Util.string_replace file (hashed_filename file hash)) acc )
+      |> fun instr ->
+      Util.string_replace
+        "{{HASH_REPLACEMENTS}}"
+        ( etag_assoc_list
+        |> List.map ~f:(fun (k, v) ->
+               ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
+        |> (fun x -> `Assoc x)
+        |> Yojson.Safe.to_string )
+        instr
+  in
+  let hash =
+    constants
+    |> Cstruct.of_string
+    |> Nocrypto.Hash.SHA256.digest
+    |> Cstruct.to_string
+    |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
+    |> ( ^ ) "sha256-"
+  in
   (* TODO: allow APPSUPPORT in here *)
   template
-  >|= Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
   >|= Util.string_replace
         "{{LIVERELOADJS}}"
         ( if Config.browser_reload_enabled
         then
           "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
         else "" )
-  >|= Util.string_replace "{{STATIC}}" static_host
-  >|= Util.string_replace "{{IS_ADMIN}}" admin
-  >|= Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
-  >|= Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
-  >|= Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
-  >|= Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
-  >|= Util.string_replace "{{USERNAME}}" username
-  >|= Util.string_replace
-        "{{USER_ID}}"
-        ( username
-        |> Account.id_of_username
-        |> Option.value_exn
-        |> Uuidm.to_string )
-  >|= Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
   >|= Util.string_replace
         "{{APPSUPPORT}}"
         (File.readfile ~root:Webroot "appsupport.js")
   >|= Util.string_replace "{{STATIC}}" static_host
-  >|= (fun x ->
-        if not hash_static_filenames
-        then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
-        else
-          let etags_str = File.readfile ~root:Webroot "etags.json" in
-          let etags_json = Yojson.Safe.from_string etags_str in
-          let etag_assoc_list =
-            to_assoc_list etags_json
-            |> List.filter ~f:(fun (file, _) ->
-                   not (String.equal "__date" file) )
-            |> List.filter (* Only hash our assets, not vendored assets *)
-                 ~f:(fun (file, _) ->
-                   not (String.is_substring ~substring:"vendor/" file) )
-          in
-          x
-          |> fun instr ->
-          etag_assoc_list
-          |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-                 (Util.string_replace file (hashed_filename file hash)) acc )
-          |> fun instr ->
-          Util.string_replace
-            "{{HASH_REPLACEMENTS}}"
-            ( etag_assoc_list
-            |> List.map ~f:(fun (k, v) ->
-                   ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
-            |> (fun x -> `Assoc x)
-            |> Yojson.Safe.to_string )
-            instr )
-  >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
-  >|= Util.string_replace "{{BUILD_HASH}}" Config.build_hash
+  >|= Util.string_replace "{{CONSTANTS}}" constants
+  >|= fun html -> (hash, html)
 
 
 let save_test_handler ~(execution_id : Types.id) host =
@@ -1195,6 +1206,42 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
         respond ~execution_id `Unauthorized "Invalid session" )
 
 
+let content_security_policy hash =
+  String.concat
+    ~sep:"; "
+    (* Don't allow any other websites to put this in an iframe;
+       this prevents "clickjacking" at tacks.
+       https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame  -ancestors_Examples
+     *)
+    [ "frame-ancestors 'none'"
+      (* In general, we allow loading from darklang.com and static.darklang.com.
+       In development we allow the live reload URL. *)
+    ; "default-src 'self' {{STATIC}} {{LIVERELOAD}} '{{HASH}}'"
+      (* We have some data: url images. loading images is pretty low-risk! *)
+    ; "img-src 'self' {{STATIC}} data:"
+      (* We need to allow connections to pusher as well... *)
+    ; "connect-src 'self' {{STATIC}} {{PUSHER}}"
+      (* TODO blob: definitely invalidates the whole thing... *)
+    ; "worker-src blob:"
+    ; "object-src 'none'" ]
+  |> Util.string_replace
+       "{{LIVERELOAD}}"
+       (if Config.browser_reload_enabled then "localhost:35729" else "")
+  |> Util.string_replace "{{STATIC}}" Config.static_host
+  |> Util.string_replace "{{HASH}}" hash
+  |> Util.string_replace
+       "{{PUSHER}}"
+       (* Pusher has multiple connection mechanisms it can use; all of these
+          are scoped to a particular 'cluster' (by including it in the URL). *)
+       (String.concat
+          ~sep:" "
+          (List.map
+             ~f:(Util.string_replace "{{CLUSTER}}" Config.pusher_cluster)
+             [ "wss://ws-{{CLUSTER}}.pusher.com"
+             ; "https://ws-{{CLUSTER}}.pusher.com"
+             ; "https://sockjs-{{CLUSTER}}.pusher.com" ]))
+
+
 let admin_ui_handler
     ~(execution_id : Types.id)
     ~(path : string list)
@@ -1217,23 +1264,16 @@ let admin_ui_handler
     query_param_set "integration-test" && Config.allow_test_routes
   in
   let local = Uri.get_query_param uri "localhost-assets" in
-  let html_hdrs =
+  let html_hdrs hash =
     [ ("Content-type", "text/html; charset=utf-8")
-      (* Don't allow any other websites to put this in an iframe;
-       this prevents "clickjacking" at tacks.
-       https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-       It would be nice to use CSP to limit where we can load scripts etc from,
-       but right now we load from CDNs, <script> tags, etc. So the only thing
-       we could do is script-src: 'unsafe-inline', which doesn't offer us
-       any additional security. *)
-    ; ("Content-security-policy", "frame-ancestors 'none';") ]
+    ; ("Content-Security-Policy", content_security_policy hash) ]
   in
-  let html_hdrs =
+  let html_hdrs hash =
     if local = None
-    then html_hdrs
-    else ("Access-Control-Allow-Origin", "*") :: html_hdrs
+    then html_hdrs hash
+    else ("Access-Control-Allow-Origin", "*") :: html_hdrs hash
   in
-  let html_hdrs = Header.of_list html_hdrs in
+  let html_hdrs hash = Header.of_list (html_hdrs hash) in
   (* this could be more middleware like in the future *if and only if* we
      only make changes in promises .*)
   let when_can_view ~canvas f =
@@ -1255,7 +1295,8 @@ let admin_ui_handler
   let serve_or_error ~(canvas_id : Uuidm.t) =
     Lwt.try_bind
       (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username admin)
-      (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
+      (fun (hash, body) ->
+        respond ~resp_headers:(html_hdrs hash) ~execution_id `OK body )
       (fun e ->
         let bt = Exception.get_backtrace () in
         Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;

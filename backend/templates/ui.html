@@ -26,22 +26,7 @@
     />
     {{LIVERELOADJS}}
     <script type="text/javascript" src="//{{STATIC}}/app.js"></script>
-    <script type="text/javascript">
-            var testcafeInjectedPrefix = "";
-      const rollbarConfig = {{ROLLBARCONFIG}};
-      const pusherConfig = {{PUSHERCONFIG}};
-      const complete = {{ALLFUNCTIONS}};
-      const isAdmin = {{IS_ADMIN}};
-      const userContentHost = "{{USER_CONTENT_HOST}}";
-      const environmentName = "{{ENVIRONMENT_NAME}}";
-      const username = "{{USERNAME}}";
-      const userId = "{{USER_ID}}";
-      const canvasId = "{{CANVAS_ID}}";
-      const csrfToken = "{{CSRF_TOKEN}}";
-      const staticUrl = "{{STATIC}}";
-      const buildHash = "{{BUILD_HASH}}";
-      const hashReplacements = {{HASH_REPLACEMENTS}};
-    </script>
+    <script type="text/javascript">{{CONSTANTS}}</script>
     <script type="text/javascript" src="//{{STATIC}}/appsupport.js"></script>
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)"></body>
