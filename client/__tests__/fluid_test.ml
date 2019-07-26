@@ -1994,6 +1994,25 @@ let () =
              |> fun (_, s) -> s.ac.index)
           |> toEqual None ) ;
       () ) ;
+  describe "Neighbours" (fun () ->
+      test "with empty AST, have left neighbour" (fun () ->
+          let id = ID "543" in
+          expect
+            (let ast = EString (id, "test") in
+             let tokens = toTokens m.fluidState ast in
+             Fluid.getNeighbours ~pos:3 tokens)
+          |> toEqual
+               (let token = TString (id, "test") in
+                let ti =
+                  { token
+                  ; startRow = 0
+                  ; startCol = 0
+                  ; startPos = 0
+                  ; endPos = 6
+                  ; length = 6 }
+                in
+                (L (token, ti), R (token, ti), None)) ) ;
+      () ) ;
   describe "Tabs" (fun () ->
       t
         "tab goes to first block in a let"
