@@ -181,6 +181,24 @@ let t_result_to_response_works () =
                "without any other settings, we get Access-Control-Allow-Origin: *."
                (Some "*")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( DError "oh no :("
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "we get Access-Control-Allow-Origin: * even for errors."
+               (Some "*")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ; ( DIncomplete
+         , req
+         , None
+         , fun r ->
+             AT.check
+               (AT.option AT.string)
+               "we get Access-Control-Allow-Origin: * even for incompletes."
+               (Some "*")
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast "1"
          , req
          , Some Canvas.AllOrigins

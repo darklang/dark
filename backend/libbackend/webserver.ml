@@ -310,7 +310,17 @@ let result_to_response
     ~(execution_id : Types.id)
     ~(req : CRequest.t)
     (result : RTT.dval) =
-  let maybe_infer_headers resp_headers value =
+  let maybe_infer_cors headers =
+    (* Add the Access-Control-ALlow-Origin, if it doens't exist
+       and if infer_cors_header tells us to. *)
+    infer_cors_header
+      (Header.get (CRequest.headers req) "Origin")
+      !c.cors_setting
+    |> Option.value_map ~default:headers ~f:(fun cors ->
+           Header.add_unless_exists headers "Access-Control-Allow-Origin" cors
+       )
+  in
+  let maybe_infer_ct value resp_headers =
     let inferred_ct =
       match value with
       | RTT.DObj _ | RTT.DList _ ->
@@ -319,25 +329,12 @@ let result_to_response
           "text/plain; charset=utf-8"
     in
     (* Add the content-type, if it doesn't exist *)
-    let headers =
-      Header.add_unless_exists resp_headers "Content-Type" inferred_ct
-    in
-    (* Add the Access-Control-ALlow-Origin, if it doens't exist and if infer_cors_header
-           tells us to. *)
-    match
-      infer_cors_header
-        (Header.get (CRequest.headers req) "Origin")
-        !c.cors_setting
-    with
-    | None ->
-        headers
-    | Some h ->
-        Header.add_unless_exists headers "Access-Control-Allow-Origin" h
+    Header.add_unless_exists resp_headers "Content-Type" inferred_ct
   in
   match result with
   | RTT.DIncomplete ->
       Respond
-        { resp_headers = Header.init ()
+        { resp_headers = maybe_infer_cors (Header.init ())
         ; execution_id
         ; status = `Internal_server_error
         ; body =
@@ -345,17 +342,19 @@ let result_to_response
         }
   | RTT.DError _ ->
       Respond
-        { resp_headers = Header.init ()
+        { resp_headers = maybe_infer_cors (Header.init ())
         ; execution_id
         ; status = `Internal_server_error
         ; body =
             "Application error: the executed program was invalid. This problem can be resolved by the application's author by resolving the invalid code (often a type error)."
         }
   | RTT.DResp (Redirect url, value) ->
-      Redirect {headers = Some (Header.init ()); uri = Uri.of_string url}
+      Redirect
+        { headers = Header.init () |> maybe_infer_cors |> Some
+        ; uri = Uri.of_string url }
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
-        maybe_infer_headers (Header.of_list resp_headers) value
+        Header.of_list resp_headers |> maybe_infer_ct value |> maybe_infer_cors
       in
       let content_type = Header.get resp_headers "Content-Type" in
       let body =
@@ -384,7 +383,9 @@ let result_to_response
       let body = Dval.to_pretty_machine_json_v1 result in
       (* for demonstrations sake, let's return 200 Okay when
      * no HTTP response object is returned *)
-      let resp_headers = maybe_infer_headers (Header.init ()) result in
+      let resp_headers =
+        Header.init () |> maybe_infer_ct result |> maybe_infer_cors
+      in
       Respond {resp_headers; execution_id; status = `OK; body}
 
 
