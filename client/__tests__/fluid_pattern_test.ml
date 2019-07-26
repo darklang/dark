@@ -38,7 +38,7 @@ let () =
   let five = FPInteger (mID, gid (), 5) in
   (* let fiftySix = FPInteger (mID, gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
-  let blank () = FPBlank (mID, gid ()) in
+  let newB () = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
@@ -121,11 +121,7 @@ let () =
       t "delete empty string" emptyStr (delete 1) (b, 0) ;
       t "delete empty string from outside" emptyStr (delete 0) (b, 0) ;
       t "backspace empty string" emptyStr (backspace 1) (b, 0) ;
-      t
-        "backspace empty string from outside goes in"
-        emptyStr
-        (backspace 2)
-        ("\"\"", 1) ;
+      t "backspace outside empty string" emptyStr (backspace 2) ("\"\"", 1) ;
       t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ;
       t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ;
       t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ;
@@ -137,17 +133,9 @@ let () =
       t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ;
       t "delete end of string" aStr (delete 12) ("\"some string\"", 12) ;
       t "backspace end of string" aStr (backspace 12) ("\"some strin\"", 11) ;
-      t
-        "insert after end of string"
-        aStr
-        (insert 'c' 13)
-        ("\"some string\"", 13) ;
+      t "insert after end" aStr (insert 'c' 13) ("\"some string\"", 13) ;
       t "delete after end of string" aStr (delete 13) ("\"some string\"", 13) ;
-      t
-        "backspace after end of string"
-        aStr
-        (backspace 13)
-        ("\"some string\"", 12) ;
+      t "backspace after end" aStr (backspace 13) ("\"some string\"", 12) ;
       t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ;
       t "delete space in string" aStr (delete 5) ("\"somestring\"", 5) ;
       t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ;
@@ -193,11 +181,7 @@ let () =
       t "delete middle of fraction" aFloat (delete 5) ("123.46", 5) ;
       t "delete end of fraction" aFloat (delete 6) ("123.45", 6) ;
       t "delete dot converts to int" aFloat (delete 3) ("123456", 3) ;
-      t
-        "delete dot converts to int, no fraction"
-        aPartialFloat
-        (delete 1)
-        ("1", 1) ;
+      t "del dot converts to int, no fraction" aPartialFloat (delete 1) ("1", 1) ;
       t "backspace dot" aFloat (backspace 4) ("123456", 3) ;
       t "backspace dot at scale" aHugeFloat (backspace 10) ("1234567891", 9) ;
       t "backspace start of whole" aFloat (backspace 1) ("23.456", 0) ;
@@ -208,7 +192,7 @@ let () =
       t "backspace end of fraction" aFloat (backspace 7) ("123.45", 6) ;
       t "backspace dot converts to int" aFloat (backspace 4) ("123456", 3) ;
       t
-        "backspace dot converts to int, no fraction"
+        "bs dot converts to int, no fraction"
         aPartialFloat
         (backspace 2)
         ("1", 1) ;
@@ -246,24 +230,24 @@ let () =
       t "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" (blank ()) (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" (blank ()) (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" (blank ()) (backspace 3) (b, 2) ;
-      t "insert blank->string" (blank ()) (insert '"' 0) ("\"\"", 1) ;
+      t "insert middle of blank->string" (newB ()) (insert '"' 3) ("\"\"", 1) ;
+      t "delete middle of blank->blank" (newB ()) (delete 3) (b, 3) ;
+      t "backspace middle of blank->blank" (newB ()) (backspace 3) (b, 2) ;
+      t "insert blank->string" (newB ()) (insert '"' 0) ("\"\"", 1) ;
       t "delete blank->string" emptyStr (delete 0) (b, 0) ;
       t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
-      t "insert blank->int" (blank ()) (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" (blank ()) (insert '0' 0) ("0", 1) ;
+      t "insert blank->int" (newB ()) (insert '5' 0) ("5", 1) ;
+      t "insert blank->int" (newB ()) (insert '0' 0) ("0", 1) ;
       t "delete int->blank " five (delete 0) (b, 0) ;
       t "backspace int->blank " five (backspace 1) (b, 0) ;
-      t "insert end of blank->int" (blank ()) (insert '5' 1) ("5", 1) ;
-      t "insert partial" (blank ()) (insert 't' 0) ("t", 1) ;
+      t "insert end of blank->int" (newB ()) (insert '5' 1) ("5", 1) ;
+      t "insert partial" (newB ()) (insert 't' 0) ("t", 1) ;
       t
         "backspacing your way through a partial finishes"
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("***", 0) ;
-      t "insert blank->space" (blank ()) (press K.Space 0) (b, 0) ;
+      t "insert blank->space" (newB ()) (press K.Space 0) (b, 0) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
