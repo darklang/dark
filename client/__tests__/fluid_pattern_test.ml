@@ -38,7 +38,7 @@ let () =
   let five = FPInteger (mID, gid (), 5) in
   (* let fiftySix = FPInteger (mID, gid (), 56) in *)
   (* let seventyEight = FPInteger (gid (), 78) in *)
-  let newB () = FPBlank (mID, gid ()) in
+  let b () = FPBlank (mID, gid ()) in
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
@@ -226,24 +226,24 @@ let () =
       t "bs middle of null" aNull (bs 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" (newB ()) (insert '"' 3) ("\"\"", 1) ;
-      t "del middle of blank->blank" (newB ()) (del 3) (blank, 3) ;
-      t "bs middle of blank->blank" (newB ()) (bs 3) (blank, 2) ;
-      t "insert blank->string" (newB ()) (insert '"' 0) ("\"\"", 1) ;
+      t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
+      t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
+      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 2) ;
+      t "insert blank->string" (b ()) (insert '"' 0) ("\"\"", 1) ;
       t "del blank->string" emptyStr (del 0) (blank, 0) ;
       t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
-      t "insert blank->int" (newB ()) (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" (newB ()) (insert '0' 0) ("0", 1) ;
+      t "insert blank->int" (b ()) (insert '5' 0) ("5", 1) ;
+      t "insert blank->int" (b ()) (insert '0' 0) ("0", 1) ;
       t "del int->blank " five (del 0) (blank, 0) ;
       t "bs int->blank " five (bs 1) (blank, 0) ;
-      t "insert end of blank->int" (newB ()) (insert '5' 1) ("5", 1) ;
-      t "insert partial" (newB ()) (insert 't' 0) ("t", 1) ;
+      t "insert end of blank->int" (b ()) (insert '5' 1) ("5", 1) ;
+      t "insert partial" (b ()) (insert 't' 0) ("t", 1) ;
       t
         "backspacing your way through a partial finishes"
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("***", 0) ;
-      t "insert blank->space" (newB ()) (press K.Space 0) (blank, 0) ;
+      t "insert blank->space" (b ()) (press K.Space 0) (blank, 0) ;
       () ) ;
   describe "Variables" (fun () ->
       (* dont do insert until we have autocomplete *)
