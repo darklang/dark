@@ -1108,6 +1108,8 @@ and fluidExpr =
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EThreadTarget of id
+  (* The 2nd id is for the name *)
+  | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
   | EOldExpr of expr
 
 and placeholder = string * string
