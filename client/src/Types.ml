@@ -716,8 +716,17 @@ and autocompleteItem =
   | ACDBName of string
   | ACDBColType of string
   | ACParamTipe of tipe
-  | ACExtra of string
   | ACTypeFieldTipe of tipe
+  | ACDBColName of string
+  | ACExpr of string
+  | ACVarBind of string
+  | ACEventModifier of string
+  | ACKey of string
+  | ACFFMsg of string
+  | ACFnName of string
+  | ACParamName of string
+  | ACTypeName of string
+  | ACTypeFieldName of string
 
 and target = tlid * pointerData
 

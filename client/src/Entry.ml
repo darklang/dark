@@ -530,7 +530,7 @@ let submitACItem
                 [ SetDBColType (tlid, id, value)
                 ; AddDBCol (tlid, gid (), gid ()) ]
             else wrapID [ChangeDBColType (tlid, id, value)]
-        | PDBColName cn, ACExtra value ->
+        | PDBColName cn, ACDBColName value ->
             let db1 = deOption "db" db in
             if B.asF cn = Some value
             then Select (tlid, Some id)
@@ -543,14 +543,14 @@ let submitACItem
             else if B.isBlank cn
             then wrapID [SetDBColName (tlid, id, value)]
             else wrapID [ChangeDBColName (tlid, id, value)]
-        | PVarBind _, ACExtra varName ->
+        | PVarBind _, ACVarBind varName ->
             replace (PVarBind (B.newF varName))
         | PEventName _, ACEventName value ->
             replace (PEventName (B.newF value))
         (* allow arbitrary HTTP modifiers *)
         | PEventModifier _, ACHTTPModifier value
         | PEventModifier _, ACCronTiming value
-        | PEventModifier _, ACExtra value ->
+        | PEventModifier _, ACEventModifier value ->
             replace (PEventModifier (B.newF value))
         (* allow arbitrary eventspaces *)
         | PEventSpace _, ACEventSpace value ->
@@ -567,7 +567,7 @@ let submitACItem
                   replacement
             in
             saveH {h with spec = replacement2} (PEventSpace new_)
-        | PField _, ACExtra fieldname | PField _, ACField fieldname ->
+        | PField _, ACField fieldname ->
             let fieldname =
               if String.startsWith ~prefix:"." fieldname
               then String.dropLeft ~count:1 fieldname
@@ -609,13 +609,18 @@ let submitACItem
               saveAst newAst (PExpr parent)
             else (* Changing a field *)
               replace (PField (B.newF fieldname))
-        | PKey _, ACExtra value ->
+        | PKey _, ACKey value ->
             let new_ = PKey (B.newF value) in
             getAstFromTopLevel tl
             |> AST.replace pd new_
             |> AST.maybeExtendObjectLiteralAt new_
             |> fun ast_ -> saveAst ast_ new_
-        | PExpr e, item ->
+        | PExpr e, ACExpr _
+        | PExpr e, ACFunction _
+        | PExpr e, ACLiteral _
+        | PExpr e, ACKeyword _
+        | PExpr e, ACConstructorName _
+        | PExpr e, ACVariable _ ->
           ( match tl with
           | TLHandler h ->
               let newast, newexpr = replaceExpr m h.ast e move item in
@@ -643,9 +648,9 @@ let submitACItem
                   in
                   wrapNew [SetExpr (tlid, id, newast)] (PExpr newexpr)
                 else NoChange ) )
-        | PFFMsg _, ACExtra value ->
+        | PFFMsg _, ACFFMsg value ->
             replace (PFFMsg (B.newF value))
-        | PFnName _, ACExtra value ->
+        | PFnName _, ACFnName value ->
             if List.member ~value (Functions.allNames m.userFunctions)
             then DisplayError ("There is already a Function named " ^ value)
             else
@@ -663,11 +668,11 @@ let submitACItem
                 newPD
         | PConstructorName _, ACConstructorName value ->
             replace (PConstructorName (B.newF value))
-        | PParamName _, ACExtra value ->
+        | PParamName _, ACParamName value ->
             replace (PParamName (B.newF value))
         | PParamTipe _, ACParamTipe tipe ->
             replace (PParamTipe (B.newF tipe))
-        | PPattern _, ACConstructorName value | PPattern _, ACExtra value ->
+        | PPattern _, ACConstructorName value ->
           ( match parsePattern value with
           | None ->
               DisplayError "not a pattern"
@@ -677,7 +682,7 @@ let submitACItem
               |> AST.replace pd new_
               |> AST.maybeExtendPatternAt new_
               |. saveAst new_ )
-        | PTypeName _, ACExtra value ->
+        | PTypeName _, ACTypeName value ->
             if List.member ~value (UserTypes.allNames m.userTipes)
             then DisplayError ("There is already a Type named " ^ value)
             else
@@ -687,7 +692,7 @@ let submitACItem
               let new_ = TL.asUserTipe newTL |> deOption "new userTipe" in
               let changedNames = Refactor.renameUserTipe m old new_ in
               wrapNew (SetType new_ :: changedNames) newPD
-        | PTypeFieldName _, ACExtra value ->
+        | PTypeFieldName _, ACTypeFieldName value ->
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
@@ -720,6 +725,45 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     | Some item ->
         submitACItem m cursor item move
     | _ ->
-        (* TODO: remove this. This is a transitional step to get to fully
-                typed. *)
-        submitACItem m cursor (ACExtra m.complete.value) move )
+        (* We removed ACExtra to define more specific autocomplete items.*)
+        (* These are all autocomplete items who's target accepts and handles a free form value *)
+        let item =
+          let value = m.complete.value in
+          match m.complete.target with
+          | Some (_, p) ->
+            ( match P.typeOf p with
+            | Expr ->
+                (* We need ACExpr so that PExpr still works until we switch to fluid *)
+                Some (ACExpr value)
+            | DBColName ->
+                Some (ACDBColName value)
+            | VarBind ->
+                Some (ACVarBind value)
+            | EventModifier ->
+                Some (ACEventModifier value)
+            | Field ->
+                Some (ACField value)
+            | Key ->
+                Some (ACKey value)
+            | FFMsg ->
+                Some (ACFFMsg value)
+            | FnName ->
+                Some (ACFnName value)
+            | ParamName ->
+                Some (ACParamName value)
+            | Pattern ->
+                Some (ACConstructorName value)
+            | TypeName ->
+                Some (ACTypeName value)
+            | TypeFieldName ->
+                Some (ACTypeFieldName value)
+            | _ ->
+                None )
+          | None ->
+              None
+        in
+        ( match item with
+        | Some acItem ->
+            submitACItem m cursor acItem move
+        | None ->
+            DisplayError "Invalid input" ) )
