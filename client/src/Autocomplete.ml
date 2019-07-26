@@ -111,8 +111,17 @@ let asName (aci : autocompleteItem) : string =
       RT.tipe2str tipe
   | ACDBName name ->
       name
-  | ACExtra _ ->
-      ""
+  | ACExpr name
+  | ACDBColName name
+  | ACVarBind name
+  | ACEventModifier name
+  | ACKey name
+  | ACFFMsg name
+  | ACFnName name
+  | ACParamName name
+  | ACTypeName name
+  | ACTypeFieldName name ->
+      name
   | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
 
@@ -166,8 +175,26 @@ let asTypeString (item : autocompleteItem) : string =
       "param type"
   | ACDBName _ ->
       "name"
-  | ACExtra _ ->
-      ""
+  | ACExpr _ ->
+      "expression"
+  | ACDBColName _ ->
+      "column name"
+  | ACVarBind _ ->
+      "var"
+  | ACEventModifier _ ->
+      "event modifier"
+  | ACKey _ ->
+      "key"
+  | ACFFMsg _ ->
+      "feature flag message"
+  | ACFnName _ ->
+      "function name"
+  | ACParamName _ ->
+      "param name"
+  | ACTypeName _ ->
+      "type name"
+  | ACTypeFieldName _ ->
+      "type field name"
   | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
@@ -197,6 +224,7 @@ let isSmallStringEntry (a : autocomplete) : bool =
   isStringEntry a && not (isLargeStringEntry a)
 
 
+(* Return different type if possible *)
 let highlighted (a : autocomplete) : autocompleteItem option =
   List.getAt ~index:a.index (a.completions @ a.invalidCompletions)
 
@@ -1009,6 +1037,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACEventSpace _ ->
       Some
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
+  | ACExpr _ ->
+      Some "An expression"
   | ACEventName name ->
       Some ("Respond to events/HTTP requests named " ^ name)
   | ACDBName name ->
@@ -1019,7 +1049,23 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACTypeFieldTipe tipe ->
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
-  | ACExtra _ ->
+  | ACDBColName name ->
+      Some ("Set the DB's column name to" ^ name)
+  | ACVarBind str ->
+      Some ("Set variable name to " ^ str)
+  | ACEventModifier name ->
+      Some ("Set event modifier to " ^ name)
+  | ACKey key ->
+      Some ("Set key to " ^ key)
+  | ACFFMsg msg ->
+      Some ("Set feature flag message to " ^ msg)
+  | ACFnName fnName ->
+      Some ("Set function name to " ^ fnName)
+  | ACParamName paramName ->
+      Some ("Set param name to " ^ paramName)
+  | ACTypeName typeName ->
+      Some ("Set type name to " ^ typeName)
+  | ACTypeFieldName _ ->
       None
 
 
