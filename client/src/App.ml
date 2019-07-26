@@ -713,9 +713,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 let tl = TL.getExn m tlid in
                 ( match tl with
                 | TLFunc f ->
-                    Functions.upsert m2 f
+                    Functions.upsert m f
                 | TLTipe _ | TLDB _ | TLHandler _ | TLGroup _ ->
-                    m2 )
+                    m )
           | None ->
               m
         in
