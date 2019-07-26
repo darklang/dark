@@ -391,6 +391,9 @@ setTimeout(function() {
   };
 
   window.onload = function(evt) {
+    // Do this here instead of html for content-security-policy
+    document.body.onkeydown = stopKeys;
+    document.body.onkeyup = stopKeys;
     const size = {
       width: window.innerWidth,
       height: window.innerHeight,
