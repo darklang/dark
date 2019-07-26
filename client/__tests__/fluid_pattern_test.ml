@@ -246,8 +246,7 @@ let () =
       t "insert blank->space" (b ()) (press K.Space 0) (blank, 0) ;
       () ) ;
   describe "Variables" (fun () ->
-      (* dont do insert until we have autocomplete *)
-      (* t "insert middle of variable" (insert aVar 'c' 5) ("variabcle", 6) ; *)
+      t "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
       t "del middle of variable" aVar (del 5) ("variale", 5) ;
       t "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
