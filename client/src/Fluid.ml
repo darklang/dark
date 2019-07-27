@@ -739,6 +739,15 @@ let pToString (p : fluidPattern) : string =
   |> String.join ~sep:""
 
 
+let pToStructure (p : fluidPattern) : string =
+  p
+  |> patternToToken
+  |> infoize ~pos:0
+  |> List.map ~f:(fun ti ->
+         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+  |> String.join ~sep:""
+
+
 (* -------------------- *)
 (* Direct canvas interaction *)
 (* -------------------- *)
@@ -1143,15 +1152,35 @@ let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
+
+let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
+    fluidPattern =
+  match pat with
+  | FPInteger _
+  | FPBlank _
+  | FPString _
+  | FPVariable _
+  | FPBool _
+  | FPNull _
+  | FPFloat _ ->
+      pat
+  | FPConstructor (id, nameID, name, pats) ->
+      FPConstructor (id, nameID, name, List.map ~f pats)
+  | FPOldPattern _ ->
+      pat
+
+
 let updatePattern
     ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : ast)
     : ast =
   updateExpr matchID ast ~f:(fun m ->
       match m with
       | EMatch (matchID, expr, pairs) ->
+          let rec run p =
+            if patID = pid p then f p else recursePattern ~f:run p
+          in
           let newPairs =
-            List.map pairs ~f:(fun (pat, expr) ->
-                if pid pat = patID then (f pat, expr) else (pat, expr) )
+            List.map pairs ~f:(fun (pat, expr) -> (run pat, expr))
           in
           EMatch (matchID, expr, newPairs)
       | _ ->
