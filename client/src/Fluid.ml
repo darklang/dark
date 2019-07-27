@@ -730,6 +730,15 @@ let pToString (p : fluidPattern) : string =
   |> String.join ~sep:""
 
 
+let pToStructure (p : fluidPattern) : string =
+  p
+  |> patternToToken
+  |> infoize ~pos:0
+  |> List.map ~f:(fun ti ->
+         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+  |> String.join ~sep:""
+
+
 (* -------------------- *)
 (* Direct canvas interaction *)
 (* -------------------- *)
@@ -1155,7 +1164,7 @@ let updatePattern
           let newPairs =
             List.map pairs ~f:(fun (pat, expr) -> (run pat, expr))
           in
-          EMatch (matchID, expr, newPairs) |> Debug.log "new"
+          EMatch (matchID, expr, newPairs)
       | _ ->
           m )
 

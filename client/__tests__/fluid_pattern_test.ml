@@ -44,7 +44,8 @@ let () =
   let aShortVar = FPVariable (mID, gid (), "v") in
   let aConstructor = FPConstructor (gid (), gid (), "Just", [b ()]) in
   let m = Defaults.defaultModel in
-  let process (keys : K.key list) (pos : int) (pat : fluidPattern) :
+  let process
+      ~(debug : bool) (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
     let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
     let extra = 12 in
@@ -53,6 +54,10 @@ let () =
       { Defaults.defaultFluidState with
         ac = AC.reset m; oldPos = pos; newPos = pos }
     in
+    if debug
+    then (
+      Js.log2 "state before " (Fluid_test.debugState s) ;
+      Js.log2 "pattern before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -76,16 +81,20 @@ let () =
       | _ ->
           impossible ("can't match: " ^ eToString s newAST)
     in
+    if debug
+    then (
+      Js.log2 "state after" (Fluid_test.debugState newState) ;
+      Js.log2 "pattern after" (eToStructure newState newAST) ) ;
     (pToString result, max 0 (newState.newPos - extra))
   in
-  let del (pos : int) (pat : fluidPattern) : string * int =
-    process [K.Delete] pos pat
+  let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
+    process ~debug [K.Delete] pos pat
   in
-  let bs (pos : int) (pat : fluidPattern) : string * int =
-    process [K.Backspace] pos pat
+  let bs ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
+    process ~debug [K.Backspace] pos pat
   in
-  let space (pos : int) (pat : fluidPattern) : string * int =
-    process [K.Space] pos pat
+  let space ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
+    process ~debug [K.Space] pos pat
   in
   (* let tab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.Tab] pos pat *)
@@ -93,16 +102,19 @@ let () =
   (* let shiftTab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.ShiftTab] pos pat *)
   (* in *)
-  let press (key : K.key) (pos : int) (pat : fluidPattern) : string * int =
-    process [key] pos pat
-  in
-  let presses (keys : K.key list) (pos : int) (pat : fluidPattern) :
+  let press ?(debug = false) (key : K.key) (pos : int) (pat : fluidPattern) :
       string * int =
-    process keys pos pat
+    process ~debug [key] pos pat
   in
-  let insert (char : char) (pos : int) (pat : fluidPattern) : string * int =
+  let presses
+      ?(debug = false) (keys : K.key list) (pos : int) (pat : fluidPattern) :
+      string * int =
+    process ~debug keys pos pat
+  in
+  let insert ?(debug = false) (char : char) (pos : int) (pat : fluidPattern) :
+      string * int =
     let key = K.fromChar char in
-    process [key] pos pat
+    process ~debug [key] pos pat
   in
   let blank = "***" in
   let t
