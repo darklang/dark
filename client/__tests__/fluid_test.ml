@@ -8,15 +8,15 @@ module B = Blank
 module K = FluidKeyboard
 
 (*
- * These tests are all written in a common style: t "delete end of whole"
- * aFloat (delete 2) ("12.456", 2) ;
+ * These tests are all written in a common style: t "del end of whole"
+ * aFloat (del 2) ("12.456", 2) ;
  *
- * This is a test that takes the fluidExpr called aFloat, and does a delete on
+ * This is a test that takes the fluidExpr called aFloat, and does a del on
  * it in position 2. The stringified result is "12.456" and the cursor should
  * be in position 2.
  *
  * There are a handful of functions you can call, including press, presses,
- * insert, backspace, delete, tab, shiftTab, and render.
+ * insert, bs, del, tab, shiftTab, and render.
  *
  * There are a few different ways of running a test:
  *  - t vs tp:
@@ -55,6 +55,8 @@ module K = FluidKeyboard
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
+let b () = newB ()
+
 let complexExpr =
   EIf
     ( gid ()
@@ -88,10 +90,22 @@ let complexExpr =
         ( gid ()
         , gid ()
         , ""
-        , newB ()
+        , b ()
         , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)], NoRail)
         )
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
+
+
+let debugState s =
+  show_fluidState
+    { s with
+      (* remove the things that take a lot of space and provide little value. *)
+      ac =
+        { s.ac with
+          functions = []
+        ; allCompletions = []
+        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
+    }
 
 
 let h ast : handler =
@@ -123,40 +137,37 @@ let () =
   let six = EInteger (gid (), 6) in
   let fiftySix = EInteger (gid (), 56) in
   let seventyEight = EInteger (gid (), 78) in
-  let blank () = EBlank (gid ()) in
-  let aPartialVar = EPartial (gid (), "req", blank ()) in
-  let completelyEmptyLet = ELet (gid (), gid (), "", blank (), blank ()) in
-  let emptyLet = ELet (gid (), gid (), "", blank (), EInteger (gid (), 5)) in
+  let aPartialVar = EPartial (gid (), "req", b ()) in
+  let completelyEmptyLet = ELet (gid (), gid (), "", b (), b ()) in
+  let emptyLet = ELet (gid (), gid (), "", b (), EInteger (gid (), 5)) in
   let emptyMatch =
     let mID = gid () in
-    EMatch (mID, blank (), [(FPBlank (mID, gid ()), blank ())])
+    EMatch (mID, b (), [(FPBlank (mID, gid ()), b ())])
   in
   let emptyMatchWithTwoPatterns =
     let mID = gid () in
     EMatch
       ( mID
-      , blank ()
-      , [(FPBlank (mID, gid ()), blank ()); (FPBlank (mID, gid ()), blank ())]
-      )
+      , b ()
+      , [(FPBlank (mID, gid ()), b ()); (FPBlank (mID, gid ()), b ())] )
   in
   let matchWithPatterns =
     let mID = gid () in
-    EMatch (mID, blank (), [(FPInteger (mID, gid (), 3), blank ())])
+    EMatch (mID, b (), [(FPInteger (mID, gid (), 3), b ())])
   in
   let matchWithConstructorPattern =
     let mID = gid () in
-    EMatch
-      (mID, blank (), [(FPConstructor (mID, gid (), "Just", []), blank ())])
+    EMatch (mID, b (), [(FPConstructor (mID, gid (), "Just", []), b ())])
   in
   let matchWithBinding (bindingName : string) (expr : fluidExpr) =
     let mID = gid () in
-    EMatch (mID, blank (), [(FPVariable (mID, gid (), bindingName), expr)])
+    EMatch (mID, b (), [(FPVariable (mID, gid (), bindingName), expr)])
   in
   let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
     let mID = gid () in
     EMatch
       ( mID
-      , blank ()
+      , b ()
       , [ ( FPConstructor
               (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
           , expr ) ] )
@@ -175,7 +186,7 @@ let () =
   in
   let aVar = EVariable (gid (), "variable") in
   let aShortVar = EVariable (gid (), "v") in
-  let emptyIf = EIf (gid (), newB (), newB (), newB ()) in
+  let emptyIf = EIf (gid (), b (), b (), b ()) in
   let plainIf =
     EIf
       (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
@@ -191,13 +202,13 @@ let () =
           , EInteger (gid (), 7) )
       , EInteger (gid (), 7) )
   in
-  let aLambda = ELambda (gid (), [(gid (), "")], blank ()) in
+  let aLambda = ELambda (gid (), [(gid (), "")], b ()) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
   let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
     ELambda (gid (), [(gid (), bindingName)], expr)
   in
   let lambdaWithTwoBindings =
-    ELambda (gid (), [(gid (), "x"); (gid (), "y")], blank ())
+    ELambda (gid (), [(gid (), "x"); (gid (), "y")], b ())
   in
   let lambdaWithUsedBinding (bindingName : string) =
     lambdaWithBinding bindingName (EVariable (gid (), bindingName))
@@ -208,19 +219,17 @@ let () =
       , [(gid (), "somevar"); (gid (), bindingName)]
       , EVariable (gid (), bindingName) )
   in
-  let aFnCall = EFnCall (gid (), "Int::add", [five; blank ()], NoRail) in
-  let aFnCallWithVersion =
-    EFnCall (gid (), "DB::getAll_v1", [blank ()], NoRail)
-  in
+  let aFnCall = EFnCall (gid (), "Int::add", [five; b ()], NoRail) in
+  let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b ()], NoRail) in
   let aFnCallWithBlockArg =
-    EFnCall (gid (), "Dict::map", [blank (); blank ()], NoRail)
+    EFnCall (gid (), "Dict::map", [b (); b ()], NoRail)
   in
-  let aBinOp = EBinOp (gid (), "==", blank (), blank (), NoRail) in
+  let aBinOp = EBinOp (gid (), "==", b (), b (), NoRail) in
   (* let aFullBinOp = *)
   (*   EBinOp *)
   (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
   (* in *)
-  let aConstructor = EConstructor (gid (), gid (), "Just", [blank ()]) in
+  let aConstructor = EConstructor (gid (), gid (), "Just", [b ()]) in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -242,7 +251,7 @@ let () =
       ( gid ()
       , gid ()
       , "var"
-      , EIf (gid (), blank (), EInteger (gid (), 6), EInteger (gid (), 7))
+      , EIf (gid (), b (), EInteger (gid (), 6), EInteger (gid (), 7))
       , EVariable (gid (), "var") )
   in
   let m =
@@ -334,18 +343,7 @@ let () =
     let s = {s with oldPos = pos; newPos = pos} in
     if debug
     then (
-      Js.log2
-        "state before "
-        (show_fluidState
-           { s with
-             (* remove the things that take a lot of space and provide little
-              * value. *)
-             ac =
-               { s.ac with
-                 functions = []
-               ; allCompletions = []
-               ; completions =
-                   (if s.ac.index = None then [] else s.ac.completions) } }) ;
+      Js.log2 "state before " (debugState s) ;
       Js.log2 "expr before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
@@ -379,7 +377,7 @@ let () =
     |> List.iter ~f:(fun ti ->
            if ti.token = TNewline && !endPos > ti.endPos
            then endPos := !endPos - 2 ) ;
-    (* max 0 cause tests can backspace past 0 and that's weird to test for *)
+    (* max 0 cause tests can bs past 0 and that's weird to test for *)
     let finalPos = max 0 !endPos in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
@@ -391,30 +389,17 @@ let () =
     in
     if debug
     then (
-      Js.log2
-        "state after"
-        (show_fluidState
-           { newState with
-             (* remove the things that take a lot of space and provide little
-              * value. *)
-             ac =
-               { newState.ac with
-                 functions = []
-               ; allCompletions = []
-               ; completions =
-                   ( if newState.ac.index = None
-                   then []
-                   else newState.ac.completions ) } }) ;
+      Js.log2 "state after" (debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
     process ~debug:false [] 0 expr
   in
-  let delete ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+  let del ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
     process ~debug [K.Delete] pos expr
   in
-  let backspace ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+  let bs ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
     process ~debug [K.Backspace] pos expr
   in
   let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
@@ -422,6 +407,12 @@ let () =
   in
   let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
     process ~debug [K.ShiftTab] pos expr
+  in
+  let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Space] pos expr
+  in
+  let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
+    process ~debug [K.Enter] pos expr
   in
   let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
       testResult =
@@ -437,7 +428,7 @@ let () =
     let key = K.fromChar char in
     process ~debug [key] pos expr
   in
-  let b = "___" in
+  let blank = "___" in
   let t
       (name : string)
       (initial : fluidExpr)
@@ -466,42 +457,30 @@ let () =
   in
   describe "Strings" (fun () ->
       t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
-      t "delete mid string" aStr (delete 3) ("\"soe string\"", 3) ;
-      t "backspace mid string" aStr (backspace 4) ("\"soe string\"", 3) ;
+      t "del mid string" aStr (del 3) ("\"soe string\"", 3) ;
+      t "bs mid string" aStr (bs 4) ("\"soe string\"", 3) ;
       t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
-      t "delete empty string" emptyStr (delete 1) (b, 0) ;
-      t "delete empty string from outside" emptyStr (delete 0) (b, 0) ;
-      t "backspace empty string" emptyStr (backspace 1) (b, 0) ;
-      t
-        "backspace empty string from outside goes in"
-        emptyStr
-        (backspace 2)
-        ("\"\"", 1) ;
-      t "backspace near-empty string" oneCharStr (backspace 2) ("\"\"", 1) ;
-      t "delete near-empty string" oneCharStr (delete 1) ("\"\"", 1) ;
+      t "del empty string" emptyStr (del 1) (blank, 0) ;
+      t "del empty string from outside" emptyStr (del 0) (blank, 0) ;
+      t "bs empty string" emptyStr (bs 1) (blank, 0) ;
+      t "bs outside empty string" emptyStr (bs 2) ("\"\"", 1) ;
+      t "bs near-empty string" oneCharStr (bs 2) ("\"\"", 1) ;
+      t "del near-empty string" oneCharStr (del 1) ("\"\"", 1) ;
       t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ;
-      t "delete outside string" aStr (delete 0) ("\"some string\"", 0) ;
-      t "backspace outside string" aStr (backspace 0) ("\"some string\"", 0) ;
+      t "del outside string" aStr (del 0) ("\"some string\"", 0) ;
+      t "bs outside string" aStr (bs 0) ("\"some string\"", 0) ;
       t "insert start of string" aStr (insert 'c' 1) ("\"csome string\"", 2) ;
-      t "delete start of string" aStr (delete 1) ("\"ome string\"", 1) ;
-      t "backspace start of string" aStr (backspace 1) ("\"some string\"", 0) ;
+      t "del start of string" aStr (del 1) ("\"ome string\"", 1) ;
+      t "bs start of string" aStr (bs 1) ("\"some string\"", 0) ;
       t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ;
-      t "delete end of string" aStr (delete 12) ("\"some string\"", 12) ;
-      t "backspace end of string" aStr (backspace 12) ("\"some strin\"", 11) ;
-      t
-        "insert after end of string"
-        aStr
-        (insert 'c' 13)
-        ("\"some string\"", 13) ;
-      t "delete after end of string" aStr (delete 13) ("\"some string\"", 13) ;
-      t
-        "backspace after end of string"
-        aStr
-        (backspace 13)
-        ("\"some string\"", 12) ;
+      t "del end of string" aStr (del 12) ("\"some string\"", 12) ;
+      t "bs end of string" aStr (bs 12) ("\"some strin\"", 11) ;
+      t "insert after end" aStr (insert 'c' 13) ("\"some string\"", 13) ;
+      t "del after end of string" aStr (del 13) ("\"some string\"", 13) ;
+      t "bs after end" aStr (bs 13) ("\"some string\"", 12) ;
       t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ;
-      t "delete space in string" aStr (delete 5) ("\"somestring\"", 5) ;
-      t "backspace space in string" aStr (backspace 6) ("\"somestring\"", 5) ;
+      t "del space in string" aStr (del 5) ("\"somestring\"", 5) ;
+      t "bs space in string" aStr (bs 6) ("\"somestring\"", 5) ;
       t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
       () ) ;
   describe "Integers" (fun () ->
@@ -509,11 +488,11 @@ let () =
       t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
       t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
       t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
-      t "delete start of number" anInt (delete 0) ("2345", 0) ;
-      t "backspace start of number" anInt (backspace 0) ("12345", 0) ;
+      t "del start of number" anInt (del 0) ("2345", 0) ;
+      t "bs start of number" anInt (bs 0) ("12345", 0) ;
       t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
-      t "delete end of number" anInt (delete 5) ("12345", 5) ;
-      t "backspace end of number" anInt (backspace 5) ("1234", 4) ;
+      t "del end of number" anInt (del 5) ("12345", 5) ;
+      t "bs end of number" anInt (bs 5) ("1234", 4) ;
       t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ;
       t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ;
       t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ;
@@ -523,6 +502,7 @@ let () =
       t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
       t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
       t "insert . converts to float - short" aShortInt (insert '.' 1) ("1.", 2) ;
+      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
       t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
       t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
@@ -532,86 +512,80 @@ let () =
       t "insert int in fraction - end" aFloat (insert '0' 7) ("123.4560", 8) ;
       t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
       t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
-      t "delete dot" aFloat (delete 3) ("123456", 3) ;
-      t "delete dot at scale" aHugeFloat (delete 9) ("1234567891", 9) ;
-      t "backspace dot" aFloat (backspace 4) ("123456", 3) ;
-      t "backspace dot at scale" aHugeFloat (backspace 10) ("1234567891", 9) ;
-      t "delete start of whole" aFloat (delete 0) ("23.456", 0) ;
-      t "delete middle of whole" aFloat (delete 1) ("13.456", 1) ;
-      t "delete end of whole" aFloat (delete 2) ("12.456", 2) ;
-      t "delete start of fraction" aFloat (delete 4) ("123.56", 4) ;
-      t "delete middle of fraction" aFloat (delete 5) ("123.46", 5) ;
-      t "delete end of fraction" aFloat (delete 6) ("123.45", 6) ;
-      t "delete dot converts to int" aFloat (delete 3) ("123456", 3) ;
-      t
-        "delete dot converts to int, no fraction"
-        aPartialFloat
-        (delete 1)
-        ("1", 1) ;
-      t "backspace start of whole" aFloat (backspace 1) ("23.456", 0) ;
-      t "backspace middle of whole" aFloat (backspace 2) ("13.456", 1) ;
-      t "backspace end of whole" aFloat (backspace 3) ("12.456", 2) ;
-      t "backspace start of fraction" aFloat (backspace 5) ("123.56", 4) ;
-      t "backspace middle of fraction" aFloat (backspace 6) ("123.46", 5) ;
-      t "backspace end of fraction" aFloat (backspace 7) ("123.45", 6) ;
-      t "backspace dot converts to int" aFloat (backspace 4) ("123456", 3) ;
-      t
-        "backspace dot converts to int, no fraction"
-        aPartialFloat
-        (backspace 2)
-        ("1", 1) ;
+      t "del dot" aFloat (del 3) ("123456", 3) ;
+      t "del dot at scale" aHugeFloat (del 9) ("1234567891", 9) ;
+      t "bs dot" aFloat (bs 4) ("123456", 3) ;
+      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "del start of whole" aFloat (del 0) ("23.456", 0) ;
+      t "del middle of whole" aFloat (del 1) ("13.456", 1) ;
+      t "del end of whole" aFloat (del 2) ("12.456", 2) ;
+      t "del start of fraction" aFloat (del 4) ("123.56", 4) ;
+      t "del middle of fraction" aFloat (del 5) ("123.46", 5) ;
+      t "del end of fraction" aFloat (del 6) ("123.45", 6) ;
+      t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
+      t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
+      t "bs dot" aFloat (bs 4) ("123456", 3) ;
+      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "bs start of whole" aFloat (bs 1) ("23.456", 0) ;
+      t "bs middle of whole" aFloat (bs 2) ("13.456", 1) ;
+      t "bs end of whole" aFloat (bs 3) ("12.456", 2) ;
+      t "bs start of fraction" aFloat (bs 5) ("123.56", 4) ;
+      t "bs middle of fraction" aFloat (bs 6) ("123.46", 5) ;
+      t "bs end of fraction" aFloat (bs 7) ("123.45", 6) ;
+      t "bs dot converts to int" aFloat (bs 4) ("123456", 3) ;
+      t "bs dot converts to int, no fraction" aPartialFloat (bs 2) ("1", 1) ;
       t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
       () ) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      tp "delete start of true" trueBool (delete 0) ("rue", 0) ;
-      t "backspace start of true" trueBool (backspace 0) ("true", 0) ;
+      tp "del start of true" trueBool (del 0) ("rue", 0) ;
+      t "bs start of true" trueBool (bs 0) ("true", 0) ;
       tp "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
-      t "delete end of true" trueBool (delete 4) ("true", 4) ;
-      tp "backspace end of true" trueBool (backspace 4) ("tru", 3) ;
+      t "del end of true" trueBool (del 4) ("true", 4) ;
+      tp "bs end of true" trueBool (bs 4) ("tru", 3) ;
       tp "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      tp "delete middle of true" trueBool (delete 2) ("tre", 2) ;
-      tp "backspace middle of true" trueBool (backspace 2) ("tue", 1) ;
+      tp "del middle of true" trueBool (del 2) ("tre", 2) ;
+      tp "bs middle of true" trueBool (bs 2) ("tue", 1) ;
       tp "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
-      tp "delete start of false" falseBool (delete 0) ("alse", 0) ;
-      t "backspace start of false" falseBool (backspace 0) ("false", 0) ;
+      tp "del start of false" falseBool (del 0) ("alse", 0) ;
+      t "bs start of false" falseBool (bs 0) ("false", 0) ;
       tp "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
-      t "delete end of false" falseBool (delete 5) ("false", 5) ;
-      tp "backspace end of false" falseBool (backspace 5) ("fals", 4) ;
+      t "del end of false" falseBool (del 5) ("false", 5) ;
+      tp "bs end of false" falseBool (bs 5) ("fals", 4) ;
       tp "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
-      tp "delete middle of false" falseBool (delete 2) ("fase", 2) ;
-      tp "backspace middle of false" falseBool (backspace 2) ("flse", 1) ;
+      tp "del middle of false" falseBool (del 2) ("fase", 2) ;
+      tp "bs middle of false" falseBool (bs 2) ("flse", 1) ;
       () ) ;
   describe "Nulls" (fun () ->
       tp "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
-      tp "delete start of null" aNull (delete 0) ("ull", 0) ;
-      t "backspace start of null" aNull (backspace 0) ("null", 0) ;
+      tp "del start of null" aNull (del 0) ("ull", 0) ;
+      t "bs start of null" aNull (bs 0) ("null", 0) ;
       tp "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
-      t "delete end of null" aNull (delete 4) ("null", 4) ;
-      tp "backspace end of null" aNull (backspace 4) ("nul", 3) ;
+      t "del end of null" aNull (del 4) ("null", 4) ;
+      tp "bs end of null" aNull (bs 4) ("nul", 3) ;
       tp "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
-      tp "delete middle of null" aNull (delete 2) ("nul", 2) ;
-      tp "backspace middle of null" aNull (backspace 2) ("nll", 1) ;
+      tp "del middle of null" aNull (del 2) ("nul", 2) ;
+      tp "bs middle of null" aNull (bs 2) ("nll", 1) ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" (blank ()) (insert '"' 3) ("\"\"", 1) ;
-      t "delete middle of blank->blank" (blank ()) (delete 3) (b, 3) ;
-      t "backspace middle of blank->blank" (blank ()) (backspace 3) (b, 2) ;
-      t "insert blank->string" (blank ()) (insert '"' 0) ("\"\"", 1) ;
-      t "delete blank->string" emptyStr (delete 0) (b, 0) ;
-      t "backspace blank->string" emptyStr (backspace 1) (b, 0) ;
-      t "insert blank->int" (blank ()) (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" (blank ()) (insert '0' 0) ("0", 1) ;
-      t "delete int->blank " five (delete 0) (b, 0) ;
-      t "backspace int->blank " five (backspace 1) (b, 0) ;
-      t "insert end of blank->int" (blank ()) (insert '5' 1) ("5", 1) ;
-      tp "insert partial" (blank ()) (insert 't' 0) ("t", 1) ;
+      t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
+      t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
+      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 2) ;
+      t "insert blank->string" (b ()) (insert '"' 0) ("\"\"", 1) ;
+      t "del blank->string" emptyStr (del 0) (blank, 0) ;
+      t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
+      t "insert blank->int" (b ()) (insert '5' 0) ("5", 1) ;
+      t "insert blank->int" (b ()) (insert '0' 0) ("0", 1) ;
+      t "del int->blank " five (del 0) (blank, 0) ;
+      t "bs int->blank " five (bs 1) (blank, 0) ;
+      t "insert end of blank->int" (b ()) (insert '5' 1) ("5", 1) ;
+      tp "insert partial" (b ()) (insert 't' 0) ("t", 1) ;
       t
         "backspacing your way through a partial finishes"
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("___", 0) ;
-      t "insert blank->space" (blank ()) (press K.Space 0) (b, 0) ;
+      t "insert blank->space" (b ()) (space 0) (blank, 0) ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
@@ -620,55 +594,35 @@ let () =
         aField
         (insert '$' 5)
         ("obj.field", 5) ;
-      t "delete middle of fieldname" aField (delete 5) ("obj.feld", 5) ;
-      t "delete fieldname" aShortField (delete 4) ("obj.***", 4) ;
-      t "backspace fieldname" aShortField (backspace 5) ("obj.***", 4) ;
+      t "del middle of fieldname" aField (del 5) ("obj.feld", 5) ;
+      t "del fieldname" aShortField (del 4) ("obj.***", 4) ;
+      t "bs fieldname" aShortField (bs 5) ("obj.***", 4) ;
       t "insert end of fieldname" aField (insert 'c' 9) ("obj.fieldc", 10) ;
       tp "insert end of varname" aField (insert 'c' 3) ("objc.field", 4) ;
       t "insert start of fieldname" aField (insert 'c' 4) ("obj.cfield", 5) ;
       t "insert blank fieldname" aBlankField (insert 'c' 4) ("obj.c", 5) ;
-      t "delete fieldop with name" aShortField (delete 3) ("obj", 3) ;
-      t "backspace fieldop with name" aShortField (backspace 4) ("obj", 3) ;
-      t "delete fieldop with blank" aBlankField (delete 3) ("obj", 3) ;
-      t "backspace fieldop with blank" aBlankField (backspace 4) ("obj", 3) ;
-      t "delete fieldop in nested" aNestedField (delete 3) ("obj.field2", 3) ;
-      t
-        "backspace fieldop in nested"
-        aNestedField
-        (backspace 4)
-        ("obj.field2", 3) ;
-      t
-        "adding a dot after a completed variable goes into a fieldaccess"
-        aVar
-        (insert '.' 8)
-        ("variable.***", 9) ;
-      t
-        "adding a dot after a partial goes into a fieldaccess"
-        aPartialVar
-        (insert '.' 3)
-        ("request.***", 8) ;
-      t
-        "adding a dot after a completed field goes into a fieldaccess"
-        aField
-        (insert '.' 9)
-        ("obj.field.***", 10) ;
-      t "insert space in blank " aBlankField (press K.Space 4) ("obj.***", 4) ;
+      t "del fieldop with name" aShortField (del 3) ("obj", 3) ;
+      t "bs fieldop with name" aShortField (bs 4) ("obj", 3) ;
+      t "del fieldop with blank" aBlankField (del 3) ("obj", 3) ;
+      t "bs fieldop with blank" aBlankField (bs 4) ("obj", 3) ;
+      t "del fieldop in nested" aNestedField (del 3) ("obj.field2", 3) ;
+      t "bs fieldop in nested" aNestedField (bs 4) ("obj.field2", 3) ;
+      t "add dot after variable" aVar (insert '.' 8) ("variable.***", 9) ;
+      t "add dot after partial " aPartialVar (insert '.' 3) ("request.***", 8) ;
+      t "add dot after field" aField (insert '.' 9) ("obj.field.***", 10) ;
+      t "insert space in blank " aBlankField (space 4) ("obj.***", 4) ;
       () ) ;
   describe "Functions" (fun () ->
       t
         "space on a sep goes to next arg"
         aFnCall
-        (press K.Space 10)
+        (space 10)
         ("Int::add 5 _________", 11) ;
+      tp "bs function renames" aFnCall (bs 8) ("Int::ad@ 5 _________", 7) ;
       tp
-        "backspace on a function converts to partial for renaming"
+        "deleting a function renames"
         aFnCall
-        (press K.Backspace 8)
-        ("Int::ad@ 5 _________", 7) ;
-      tp
-        "deleting on a function converts to partial for renaming"
-        aFnCall
-        (press K.Delete 7)
+        (del 7)
         ("Int::ad@ 5 _________", 7) ;
       t
         "renaming a function maintains unaligned params in let scope"
@@ -691,49 +645,47 @@ let () =
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (EPartial
-           ( gid ()
-           , "Int::"
-           , EFnCall (gid (), "Int::add", [blank (); blank ()], NoRail) ))
+           (gid (), "Int::", EFnCall (gid (), "Int::add", [b (); b ()], NoRail)))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         ("Int::sqrt _________", 10) ;
-      (* TODO: functions are not implemented fully. I deleted backspace and
-       * delete because we were switching to partials, but this isn't
+      (* TODO: functions are not implemented fully. I deld bs and
+       * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
-         * same with delete *)
+         * same with del *)
       tp
-        "delete on function with version"
+        "del on function with version"
         aFnCallWithVersion
-        (press K.Delete 11)
+        (del 11)
         ("DB::getAllv@ ___________________", 11) ;
       tp
-        "backspace on function with version"
+        "bs on function with version"
         aFnCallWithVersion
-        (press K.Backspace 12)
+        (bs 12)
         ("DB::getAllv@ ___________________", 11) ;
       tp
-        "delete on function with version in between the version and function name"
+        "del on function with version in between the version and function name"
         aFnCallWithVersion
-        (press K.Delete 10)
+        (del 10)
         ("DB::getAll1@ ___________________", 10) ;
       tp
-        "backspace on function with version in between the version and function name"
+        "bs on function with version in between the version and function name"
         aFnCallWithVersion
-        (press K.Backspace 10)
+        (bs 10)
         ("DB::getAlv1@ ___________________", 9) ;
       tp
-        "delete on function with version in function name"
+        "del on function with version in function name"
         aFnCallWithVersion
-        (press K.Delete 7)
+        (del 7)
         ("DB::getllv1@ ___________________", 7) ;
       tp
-        "backspace on function with version in function name"
+        "bs on function with version in function name"
         aFnCallWithVersion
-        (press K.Backspace 8)
+        (bs 8)
         ("DB::getllv1@ ___________________", 7) ;
       t
         "adding function with version goes to the right place"
-        (blank ())
+        (b ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
       () ) ;
@@ -770,65 +722,63 @@ let () =
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
         ("true\n|>___", 7) ;
       t
-        "pressing backspace to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
-        (press K.Backspace 7)
+        "pressing bs to clear partial reverts for blank rhs"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b (), NoRail)))
+        (bs 7)
         ("12345", 5) ;
       t
-        "pressing backspace to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial
-           (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
-        (press K.Backspace 12)
+        "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (bs 12)
         ("___", 0) ;
       t
-        "pressing delete to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, blank (), NoRail)))
-        (press K.Delete 6)
+        "pressing del to clear partial reverts for blank rhs"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b (), NoRail)))
+        (del 6)
         ("12345", 5) ;
       t
-        "pressing delete to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial
-           (gid (), "|", EBinOp (gid (), "||", newB (), blank (), NoRail)))
-        (press K.Delete 11)
+        "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (del 11)
         ("___", 0) ;
       t
-        "using backspace to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Backspace 12)
+        "using bs to remove an infix with a placeholder goes to right place"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (bs 12)
         ("___", 0) ;
       t
-        "using backspace to remove an infix with a placeholder goes to right place 2"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", five, newB (), NoRail)))
-        (press K.Backspace 3)
+        "using bs to remove an infix with a placeholder goes to right place 2"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", five, b (), NoRail)))
+        (bs 3)
         ("5", 1) ;
       t
-        "pressing backspace to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", blank ()))
-        (press K.Backspace 5)
+        "pressing bs to clear rightpartial reverts for blank rhs"
+        (ERightPartial (gid (), "|", b ()))
+        (bs 5)
         ("___", 0) ;
       t
-        "pressing backspace on single digit binop leaves lhs"
+        "pressing bs on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
-        (press K.Backspace 7)
+        (bs 7)
         ("12345", 5) ;
       t
-        "using delete to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", newB (), newB (), NoRail)))
-        (press K.Delete 11)
+        "using del to remove an infix with a placeholder goes to right place"
+        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (del 11)
         ("___", 0) ;
       t
-        "pressing delete to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", blank ()))
-        (press K.Delete 4)
+        "pressing del to clear rightpartial reverts for blank rhs"
+        (ERightPartial (gid (), "|", b ()))
+        (del 4)
         ("___", 0) ;
       t
-        "pressing delete on single digit binop leaves lhs"
+        "pressing del on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
-        (press K.Delete 6)
+        (del 6)
         ("12345", 5) ;
       t
         "pressing letters and numbers on a partial completes it"
-        (blank ())
+        (b ())
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
         ("5 + 5", 5) ;
       tp
@@ -848,7 +798,7 @@ let () =
         ("12345 <= 12345", 8) ;
       tp
         "adding binop in `if` works"
-        (EIf (gid (), blank (), blank (), blank ()))
+        (EIf (gid (), b (), b (), b ()))
         (press K.Percent 3)
         ("if %\nthen\n  ___\nelse\n  ___", 4) ;
       let aFullBinOp =
@@ -859,26 +809,36 @@ let () =
           , EInteger (gid (), 5)
           , NoRail )
       in
-      tp "show ghost partial" aFullBinOp (backspace 8) ("myvar |@ 5", 7) ;
-      (* TODO backspace on empty partial does something *)
-      (* TODO support delete on all the backspace commands *)
+      tp "show ghost partial" aFullBinOp (bs 8) ("myvar |@ 5", 7) ;
+      (* TODO bs on empty partial does something *)
+      (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
       tp
-        "backspace on a constructor converts it to a partial with ghost"
+        "arguments work in constructors"
         aConstructor
-        (press K.Backspace 4)
+        (insert 't' 5)
+        ("Just t", 6) ;
+      t
+        "int arguments work in constructors"
+        aConstructor
+        (insert '5' 5)
+        ("Just 5", 6) ;
+      tp
+        "bs on a constructor converts it to a partial with ghost"
+        aConstructor
+        (bs 4)
         ("Jus@ ___", 3) ;
       tp
-        "backspace on a constructor converts it to a partial with ghost"
+        "del on a constructor converts it to a partial with ghost"
         aConstructor
-        (press K.Delete 0)
+        (del 0)
         ("ust@ ___", 0) ;
       t
         "space on a constructor blank does nothing"
         aConstructor
-        (press K.Space 5)
+        (space 5)
         ("Just ___", 5) ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
@@ -887,19 +847,11 @@ let () =
        * constructor are randomly generated and would be hard to test *)
       () ) ;
   describe "Lambdas" (fun () ->
-      t "backspace over lambda symbol" aLambda (backspace 1) ("___", 0) ;
+      t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
       t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
-      t
-        "backspace non-empty lambda symbol"
-        nonEmptyLambda
-        (backspace 1)
-        ("\\*** -> 5", 1) ;
-      t "delete lambda symbol" aLambda (delete 0) ("___", 0) ;
-      t
-        "delete non-empty lambda symbol"
-        nonEmptyLambda
-        (delete 0)
-        ("\\*** -> 5", 0) ;
+      t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) ("\\*** -> 5", 1) ;
+      t "del lambda symbol" aLambda (del 0) ("___", 0) ;
+      t "del non-empty lambda symbol" nonEmptyLambda (del 0) ("\\*** -> 5", 0) ;
       t
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
@@ -937,7 +889,7 @@ let () =
         ("Dict::map ____________ \\key, value -> ___", 24) ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
-        (EThread (gid (), [blank (); blank ()]))
+        (EThread (gid (), [b (); b ()]))
         (presses
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the thread *)
@@ -947,17 +899,17 @@ let () =
       t
         "deleting a lambda argument should work"
         lambdaWithTwoBindings
-        (delete 2)
+        (del 2)
         ("\\x -> ___", 2) ;
       t
         "backspacing a lambda argument should work"
         lambdaWithTwoBindings
-        (backspace 3)
+        (bs 3)
         ("\\x -> ___", 2) ;
       t
         "deleting a lambda argument should update used variable"
         (lambdaWithUsed2ndBinding "x")
-        (delete 8)
+        (del 8)
         ("\\somevar -> ___", 8) ;
       t
         "can add lambda arguments when blank"
@@ -990,25 +942,25 @@ let () =
         (insert ',' 0)
         ("\\x, y -> ___", 0) ;
       t
-        "cant backspace a blank from the space in a lambda"
+        "cant bs a blank from the space in a lambda"
         lambdaWithTwoBindings
-        (backspace 4)
+        (bs 4)
         ("\\x, y -> ___", 3) ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
-      tp "delete middle of variable" aVar (delete 5) ("variale", 5) ;
+      tp "del middle of variable" aVar (del 5) ("variale", 5) ;
       tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
       t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
-      t "delete variable" aShortVar (delete 0) (b, 0) ;
-      tp "delete long variable" aVar (delete 0) ("ariable", 0) ;
-      tp "delete mid variable" aVar (delete 6) ("variabe", 6) ;
-      t "backspace variable" aShortVar (backspace 1) (b, 0) ;
-      tp "backspace mid variable" aVar (backspace 8) ("variabl", 7) ;
-      tp "backspace mid variable" aVar (backspace 6) ("variale", 5) ;
+      t "del variable" aShortVar (del 0) (blank, 0) ;
+      tp "del long variable" aVar (del 0) ("ariable", 0) ;
+      tp "del mid variable" aVar (del 6) ("variabe", 6) ;
+      t "bs variable" aShortVar (bs 1) (blank, 0) ;
+      tp "bs mid variable" aVar (bs 8) ("variabl", 7) ;
+      tp "bs mid variable" aVar (bs 6) ("variale", 5) ;
       t
         "variable doesn't override if"
-        (ELet (gid (), gid (), "i", blank (), EPartial (gid (), "i", blank ())))
+        (ELet (gid (), gid (), "i", b (), EPartial (gid (), "i", b ())))
         (presses [K.Letter 'f'; K.Enter] 13)
         ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
       () ) ;
@@ -1043,37 +995,37 @@ let () =
         emptyMatch
         (press K.Right 0)
         ("match ___\n  *** -> ___", 6) ;
-      t "backspace over empty match" emptyMatch (backspace 6) ("___", 0) ;
+      t "bs over empty match" emptyMatch (bs 6) ("___", 0) ;
       t
-        "backspace over empty match with 2 patterns"
+        "bs over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
-        (backspace 6)
+        (bs 6)
         ("___", 0) ;
       t
-        "backspace over match with 2 patterns"
+        "bs over match with 2 patterns"
         matchWithPatterns
-        (backspace 6)
+        (bs 6)
         ("match ___\n  3 -> ___", 6) ;
-      t "delete over empty match" emptyMatch (delete 0) ("___", 0) ;
+      t "del over empty match" emptyMatch (del 0) ("___", 0) ;
       t
-        "delete over empty match with 2 patterns"
+        "del over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
-        (delete 0)
+        (del 0)
         ("___", 0) ;
       t
-        "delete over match with 2 patterns"
+        "del over match with 2 patterns"
         matchWithPatterns
-        (delete 0)
+        (del 0)
         ("match ___\n  3 -> ___", 0) ;
       t
-        "delete constructor in match pattern"
+        "del constructor in match pattern"
         matchWithConstructorPattern
-        (delete 12)
+        (del 12)
         ("match ___\n  ust -> ___", 12) ;
       t
-        "backspace constructor in match pattern"
+        "bs constructor in match pattern"
         matchWithConstructorPattern
-        (backspace 16)
+        (bs 16)
         ("match ___\n  Jus -> ___", 15) ;
       t
         "insert changes occurence of non-shadowed var in case"
@@ -1113,14 +1065,10 @@ let () =
         emptyLet
         (press K.Right 0)
         ("let *** = ___\n5", 4) ;
-      t "backspace over empty let" emptyLet (backspace 3) ("5", 0) ;
-      t "delete empty let" emptyLet (delete 0) ("5", 0) ;
-      t
-        "backspace over non-empty let"
-        nonEmptyLet
-        (backspace 3)
-        ("let *** = 6\n5", 3) ;
-      t "delete non-empty let" nonEmptyLet (delete 0) ("let *** = 6\n5", 0) ;
+      t "bs over empty let" emptyLet (bs 3) ("5", 0) ;
+      t "del empty let" emptyLet (del 0) ("5", 0) ;
+      t "bs over non-empty let" nonEmptyLet (bs 3) ("let *** = 6\n5", 3) ;
+      t "del non-empty let" nonEmptyLet (del 0) ("let *** = 6\n5", 0) ;
       t
         "insert space on blank let"
         emptyLet
@@ -1128,8 +1076,8 @@ let () =
         ("let *** = ___\n5", 4) ;
       t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
       t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
-      t "backspace letlhs" letWithLhs (backspace 5) ("let *** = 6\n5", 4) ;
-      t "delete letlhs" letWithLhs (delete 4) ("let *** = 6\n5", 4) ;
+      t "bs letlhs" letWithLhs (bs 5) ("let *** = 6\n5", 4) ;
+      t "del letlhs" letWithLhs (del 4) ("let *** = 6\n5", 4) ;
       t
         "equals skips over assignment"
         emptyLet
@@ -1151,9 +1099,9 @@ let () =
         (press K.Equals 9)
         ("let *** = ___\n5", 10) ;
       t
-        "backspace changes occurence of binding var"
+        "bs changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (backspace 11)
+        (bs 11)
         ("let bindin = 6\nbindin", 10) ;
       t
         "insert changes occurence of binding var"
@@ -1166,7 +1114,7 @@ let () =
            "binding"
            (EMatch
               ( gid ()
-              , blank ()
+              , b ()
               , [ ( FPVariable (gid (), gid (), "binding")
                   , EVariable (gid (), "binding") )
                 ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
@@ -1220,7 +1168,7 @@ let () =
         EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
       in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyThread = EThread (gid (), [newB (); newB ()]) in
+      let emptyThread = EThread (gid (), [b (); b ()]) in
       let aLongThread =
         threadOn
           emptyList
@@ -1229,7 +1177,7 @@ let () =
           ; listFn [aListNum 4]
           ; listFn [aListNum 5] ]
       in
-      let aThreadInsideIf = EIf (gid (), newB (), aLongThread, newB ()) in
+      let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
       t
         "move to the front of thread on line 1"
@@ -1277,89 +1225,89 @@ let () =
       t
         "backspacing a thread's first pipe works"
         aLongThread
-        (backspace 5)
+        (bs 5)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 2) ;
       t
         "deleting a thread's first pipe works"
         aLongThread
-        (delete 3)
+        (del 3)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 3) ;
       t
         "backspacing a thread's second pipe works"
         aLongThread
-        (backspace 24)
+        (bs 24)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
       t
         "deleting a thread's second pipe works"
         aLongThread
-        (delete 22)
+        (del 22)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
       t
         "backspacing a thread's third pipe works"
         aLongThread
-        (backspace 43)
+        (bs 43)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 40) ;
       t
         "deleting a thread's third pipe works"
         aLongThread
-        (delete 41)
+        (del 41)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 41) ;
       t
         "backspacing a thread's last pipe works"
         aLongThread
-        (backspace 62)
+        (bs 62)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
       t
         "deleting a thread's last pipe works"
         aLongThread
-        (delete 60)
+        (del 60)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
       t
         "backspacing a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace 21)
+        (bs 21)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 16 ) ;
       t
         "deleting a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete 19)
+        (del 19)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 19 ) ;
       t
         "backspacing a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace 42)
+        (bs 42)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 37 ) ;
       t
         "deleting a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete 40)
+        (del 40)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 40 ) ;
       t
         "backspacing a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace 63)
+        (bs 63)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 58 ) ;
       t
         "deleting a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete 61)
+        (del 61)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 61 ) ;
       t
         "backspacing a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
-        (backspace 84)
+        (bs 84)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       t
         "deleting a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
-        (delete 82)
+        (del 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       t
@@ -1382,17 +1330,9 @@ let () =
         plainIf
         (press K.Left 21)
         ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t
-        "backspace over indent 1"
-        plainIf
-        (backspace 12)
-        ("if 5\nthen\n  6\nelse\n  7", 9) ;
-      t
-        "backspace over indent 2"
-        plainIf
-        (backspace 21)
-        ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t "backspace over empty if" emptyIf (backspace 2) ("___", 0) ;
+      t "bs over indent 1" plainIf (bs 12) ("if 5\nthen\n  6\nelse\n  7", 9) ;
+      t "bs over indent 2" plainIf (bs 21) ("if 5\nthen\n  6\nelse\n  7", 18) ;
+      t "bs over empty if" emptyIf (bs 2) ("___", 0) ;
       t
         "move to front of line 1"
         plainIf
@@ -1450,7 +1390,7 @@ let () =
             ; seventyEight ] )
       in
       let listWithBlank =
-        EList (gid (), [fiftySix; seventyEight; blank (); fiftySix])
+        EList (gid (), [fiftySix; seventyEight; b (); fiftySix])
       in
       let multiWithStrs =
         EList
@@ -1459,7 +1399,7 @@ let () =
             ; EString (gid (), "cd")
             ; EString (gid (), "ef") ] )
       in
-      t "create list" (blank ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
+      t "create list" (b ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
       t
         "inserting before the list does nothing"
         emptyList
@@ -1492,86 +1432,86 @@ let () =
         (insert ',' 3)
         ("[\"a,b\"]", 4) ;
       t
-        "backspacing open bracket of empty list deletes list"
+        "backspacing open bracket of empty list dels list"
         emptyList
-        (backspace 1)
-        (b, 0) ;
+        (bs 1)
+        (blank, 0) ;
       t
         "backspacing close bracket of empty list moves inside list"
         emptyList
-        (backspace 2)
+        (bs 2)
         ("[]", 1) ;
       t
-        "deleting open bracket of empty list deletes list"
+        "deleting open bracket of empty list dels list"
         emptyList
-        (delete 0)
-        (b, 0) ;
+        (del 0)
+        (blank, 0) ;
       t
         "close bracket at end of list is swallowed"
         emptyList
         (press K.RightSquareBracket 1)
         ("[]", 2) ;
       t
-        "backspace on first separator between items deletes item after separator"
+        "bs on first separator between items dels item after separator"
         multi
-        (backspace 4)
+        (bs 4)
         ("[56]", 3) ;
       t
-        "delete before first separator between items deletes item after separator"
+        "del before first separator between items dels item after separator"
         multi
-        (delete 3)
+        (del 3)
         ("[56]", 3) ;
       t
-        "backspace on middle separator between items deletes item after separator"
+        "bs on middle separator between items dels item after separator"
         longList
-        (backspace 10)
+        (bs 10)
         ("[56,78,56,56,78]", 9) ;
       t
-        "delete before middle separator between items deletes item after separator"
+        "del before middle separator between items dels item after separator"
         longList
-        (delete 9)
+        (del 9)
         ("[56,78,56,56,78]", 9) ;
       t
-        "backspace on middle separator between items deletes blank after separator"
+        "bs on middle separator between items dels blank after separator"
         listWithBlank
-        (backspace 7)
+        (bs 7)
         ("[56,78,56]", 6) ;
       t
-        "delete before middle separator between items deletes blank after separator"
+        "del before middle separator between items dels blank after separator"
         listWithBlank
-        (delete 6)
+        (del 6)
         ("[56,78,56]", 6) ;
       t
-        "backspace on last separator between a blank and item deletes item after separator"
+        "bs on last separator between a blank and item dels item after separator"
         listWithBlank
-        (backspace 11)
+        (bs 11)
         ("[56,78,___]", 10) ;
       t
-        "delete before last separator between a blank and item deletes item after separator"
+        "del before last separator between a blank and item dels item after separator"
         listWithBlank
-        (delete 10)
+        (del 10)
         ("[56,78,___]", 10) ;
       t
-        "backspace on separator between string items deletes item after separator"
+        "bs on separator between string items dels item after separator"
         multiWithStrs
-        (backspace 6)
+        (bs 6)
         ("[\"ab\",\"ef\"]", 5) ;
       t
-        "delete before separator between string items deletes item after separator"
+        "del before separator between string items dels item after separator"
         multiWithStrs
-        (delete 5)
+        (del 5)
         ("[\"ab\",\"ef\"]", 5) ;
       () ) ;
   describe "Record" (fun () ->
       let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [(gid (), "", blank ())]) in
+      let emptyRow = ERecord (gid (), [(gid (), "", b ())]) in
       let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
       let multi =
         ERecord
           (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
       in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
-      t "create record" (blank ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
+      t "create record" (b ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
         "inserting before the record does nothing"
         emptyRecord
@@ -1580,22 +1520,22 @@ let () =
       t
         "inserting space between empty record does nothing"
         emptyRecord
-        (press K.Space 1)
+        (space 1)
         ("{}", 1) ;
       t
         "inserting space in empty record field does nothing"
         emptyRow
-        (press K.Space 4)
+        (space 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "inserting space in empty record value does nothing"
         emptyRow
-        (press K.Space 10)
+        (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
         "pressing enter in an empty record adds a new line"
         emptyRecord
-        (press K.Enter 1)
+        (enter 1)
         ("{\n  *** : ___\n}", 4) ;
       t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
@@ -1614,20 +1554,20 @@ let () =
         (insert '^' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
-        "backspacing open brace of empty record deletes record"
+        "backspacing open brace of empty record dels record"
         emptyRecord
-        (backspace 1)
-        (b, 0) ;
+        (bs 1)
+        (blank, 0) ;
       t
         "backspacing close brace of empty record moves inside record"
         emptyRecord
-        (backspace 2)
+        (bs 2)
         ("{}", 1) ;
       t
-        "deleting open brace of empty record deletes record"
+        "deleting open brace of empty record dels record"
         emptyRecord
-        (delete 0)
-        (b, 0) ;
+        (del 0)
+        (blank, 0) ;
       t
         "close brace at end of record is swallowed"
         emptyRecord
@@ -1636,7 +1576,7 @@ let () =
       t
         "backspacing empty record field clears entry"
         emptyRow
-        (backspace 4)
+        (bs 4)
         (* TODO: buggy. Should be 1 *)
         ("{}", 3) ;
       t
@@ -1667,17 +1607,17 @@ let () =
       t
         "pressing enter at start adds a row"
         multi
-        (press K.Enter 1)
+        (enter 1)
         ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       t
         "pressing enter at the back adds a row"
         multi
-        (press K.Enter 22)
+        (enter 22)
         ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
       t
         "pressing enter at the start of a field adds a row"
         multi
-        (press K.Enter 14)
+        (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
         "dont allow weird chars in recordFields"
@@ -1718,13 +1658,13 @@ let () =
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
-        (EPartial (gid (), "if", blank ()))
-        (press K.Space 2)
+        (EPartial (gid (), "if", b ()))
+        (space 2)
         ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
       t
         "let moves to right place"
-        (EPartial (gid (), "let", blank ()))
-        (press K.Enter 3)
+        (EPartial (gid (), "let", b ()))
+        (enter 3)
         ("let *** = ___\n___", 4) ;
       t
         "autocomplete space moves forward by 1"
@@ -1744,29 +1684,29 @@ let () =
         ("request == _________", 11) ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
-        (blank ())
+        (b ())
         (presses [K.Equals; K.Enter] 0)
         ("_________ == _________", 0) ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
-        (blank ())
+        (b ())
         (presses [K.Equals; K.Tab] 0)
         ("_________ == _________", 13) ;
       (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
-        (blank ())
+        (b ())
         (presses [K.Equals; K.Space] 0)
         ("_________ == _________", 0) ;
       *)
       t
         "variable moves to right place"
-        (EPartial (gid (), "req", blank ()))
-        (press K.Enter 3)
+        (EPartial (gid (), "req", b ()))
+        (enter 3)
         ("request", 7) ;
       t
         "thread moves to right place on blank"
-        (blank ())
+        (b ())
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         ("___\n|>___", 6) ;
       t
@@ -1791,32 +1731,32 @@ let () =
         ("match ___\n  *** -> ___\n         |>___", 34) ;
       t
         "autocomplete for Just"
-        (EPartial (gid (), "Just", blank ()))
-        (press K.Enter 4)
+        (EPartial (gid (), "Just", b ()))
+        (enter 4)
         ("Just ___", 5) ;
       t
         "autocomplete for Ok"
-        (EPartial (gid (), "Ok", blank ()))
-        (press K.Enter 2)
+        (EPartial (gid (), "Ok", b ()))
+        (enter 2)
         ("Ok ___", 3) ;
       t
         "autocomplete for Nothing"
-        (EPartial (gid (), "Nothing", blank ()))
-        (press K.Enter 7)
+        (EPartial (gid (), "Nothing", b ()))
+        (enter 7)
         ("Nothing", 7) ;
       (* TODO: autocomplete for nothing at the end of a line, pressing space *)
       t
         "autocomplete for Error"
-        (EPartial (gid (), "Error", blank ()))
-        (press K.Enter 5)
+        (EPartial (gid (), "Error", b ()))
+        (enter 5)
         ("Error ___", 6) ;
       t
         "autocomplete for field"
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
-        (press K.Enter 10)
+        (enter 10)
         ("request.body", 12) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
-      (*     expect (backspace (EVariable (5, "request"))). *)
+      (*     expect (bs (EVariable (5, "request"))). *)
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
       () ) ;
   describe "Movement" (fun () ->
@@ -1879,7 +1819,7 @@ let () =
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
-        (press K.Enter 16)
+        (enter 16)
         ( "let var = if ___\n"
           ^ "          then\n"
           ^ "            6\n"
@@ -1928,11 +1868,7 @@ let () =
           expect
             (let ast =
                ELet
-                 ( gid ()
-                 , gid ()
-                 , "var"
-                 , EPartial (gid (), "false", blank ())
-                 , blank () )
+                 (gid (), gid (), "var", EPartial (gid (), "false", b ()), b ())
              in
              moveTo 14 s
              |> (fun s ->
@@ -1949,37 +1885,27 @@ let () =
           |> toEqual "success" ) ;
       t
         "moving right off a function autocompletes it anyway"
-        (ELet
-           ( gid ()
-           , gid ()
-           , "x"
-           , EPartial (gid (), "Int::add", blank ())
-           , blank () ))
+        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b ()), b ()))
         (press K.Right 16)
         ("let x = Int::add _________ _________\n___", 17) ;
       tp
         "pressing an infix which could be valid doesn't commit"
-        (newB ())
+        (b ())
         (presses [K.Pipe; K.Pipe] 0)
         ("||", 2) ;
       tp
         "pressing an infix after true commits it "
-        (EPartial (gid (), "true", newB ()))
+        (EPartial (gid (), "true", b ()))
         (press K.Plus 4)
         ("true +", 6) ;
       t
         "moving left off a function autocompletes it anyway"
-        (ELet
-           ( gid ()
-           , gid ()
-           , "x"
-           , EPartial (gid (), "Int::add", blank ())
-           , blank () ))
+        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b ()), b ()))
         (press K.Left 8)
         ("let x = Int::add _________ _________\n___", 7) ;
       test "escape hides autocomplete" (fun () ->
           expect
-            (let ast = blank () in
+            (let ast = b () in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
@@ -1987,7 +1913,7 @@ let () =
           |> toEqual None ) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
-            (let ast = blank () in
+            (let ast = b () in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
@@ -2055,7 +1981,7 @@ let () =
         (shiftTab 14)
         ("let *** = ___\n___", 10) ;
       t
-        "shift tab wraps from the start of a let"
+        "shift tab wraps from start of let"
         emptyLet
         (shiftTab 4)
         ("let *** = ___\n5", 10) ;
