@@ -1,6 +1,8 @@
 #! /usr/bin/env bash
 . ./scripts/support/assert-in-container "$0" "$@"
 
+set -euo pipefail
+
 CHECK=0 # (0 mean check, 1 means format)
 QUIET=1 # (0 means loud, 1 mean quiet)
 FILES=()
@@ -101,7 +103,6 @@ check_ocamlformat() {
   # \0 because the input comes from `find -print0`
   result=0
   while read -d $'\0' -r i; do
-    echo checking "$i" > g;
     if ! diff <(cat "$i") <(ocamlformat "$i") &> /dev/null; then
       echo "Failed: $i"
       result=1
