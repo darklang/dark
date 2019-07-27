@@ -1146,8 +1146,8 @@ let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
   | FPNull _
   | FPFloat _ ->
       pat
-  | FPConstructor (id, nameID, name, exprs) ->
-      FPConstructor (id, nameID, name, List.map ~f exprs)
+  | FPConstructor (id, nameID, name, pats) ->
+      FPConstructor (id, nameID, name, List.map ~f pats)
   | FPOldPattern _ ->
       pat
 

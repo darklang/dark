@@ -42,7 +42,7 @@ let () =
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
-  let aConstructor = FPConstructor (gid (), gid (), "Just", [b ()]) in
+  let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
   let m = Defaults.defaultModel in
   let process
       ~(debug : bool) (keys : K.key list) (pos : int) (pat : fluidPattern) :
@@ -284,16 +284,8 @@ let () =
         aConstructor
         (insert '5' 5)
         ("Just 5", 6) ;
-      (* t *)
-      (*   "bs on a constructor converts it to a partial with ghost" *)
-      (*   aConstructor *)
-      (*   (bs 4) *)
-      (*   ("Jus@ ___", 3) ; *)
-      (* t *)
-      (*   "bs on a constructor converts it to a partial with ghost" *)
-      (*   aConstructor *)
-      (*   (del 0) *)
-      (*   ("ust@ ___", 0) ; *)
+      t "bs on a constructor deletes" aConstructor (bs 4) ("Jus", 3) ;
+      t "del on a constructor deletes" aConstructor (del 0) ("ust", 0) ;
       t
         "space on a constructor blank does nothing"
         aConstructor
