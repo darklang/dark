@@ -944,9 +944,9 @@ and msg =
   | StartFeatureFlag
   | EndFeatureFlag of id * pick
   | ToggleFeatureFlag of id * bool
-  | DeleteUserFunctionParameter of userFunction * userFunctionParameter
-  | AddUserFunctionParameter of userFunction
-  | DeleteUserTypeField of userTipe * userRecordField
+  | DeleteUserFunctionParameter of tlid * userFunctionParameter
+  | AddUserFunctionParameter of tlid
+  | DeleteUserTypeField of tlid * userRecordField
   | BlankOrClick of tlid * id * mouseEvent
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent

@@ -47,7 +47,7 @@ let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
           ^ "-"
           ^ (field.urfName |> B.toID |> showID) )
         "click"
-        (fun _ -> DeleteUserTypeField (t, field)) ]
+        (fun _ -> DeleteUserTypeField (t.utTLID, field)) ]
     [fontAwesome "times-circle"]
 
 
