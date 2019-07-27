@@ -96,6 +96,18 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
+let debugState s =
+  show_fluidState
+    { s with
+      (* remove the things that take a lot of space and provide little value. *)
+      ac =
+        { s.ac with
+          functions = []
+        ; allCompletions = []
+        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
+    }
+
+
 let h ast : handler =
   { ast = toExpr ast
   ; hTLID = TLID "7"
@@ -331,18 +343,7 @@ let () =
     let s = {s with oldPos = pos; newPos = pos} in
     if debug
     then (
-      Js.log2
-        "state before "
-        (show_fluidState
-           { s with
-             (* remove the things that take a lot of space and provide little
-              * value. *)
-             ac =
-               { s.ac with
-                 functions = []
-               ; allCompletions = []
-               ; completions =
-                   (if s.ac.index = None then [] else s.ac.completions) } }) ;
+      Js.log2 "state before " (debugState s) ;
       Js.log2 "expr before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
@@ -388,20 +389,7 @@ let () =
     in
     if debug
     then (
-      Js.log2
-        "state after"
-        (show_fluidState
-           { newState with
-             (* remove the things that take a lot of space and provide little
-              * value. *)
-             ac =
-               { newState.ac with
-                 functions = []
-               ; allCompletions = []
-               ; completions =
-                   ( if newState.ac.index = None
-                   then []
-                   else newState.ac.completions ) } }) ;
+      Js.log2 "state after" (debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
