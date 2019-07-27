@@ -219,6 +219,10 @@ and dbColList j : dbColumn list =
   list (tuple2 (blankOr string) (blankOr tipeString)) j
 
 
+and dbmColList j : dbColumn list =
+  list (tuple2 (blankOr string) (blankOr string)) j
+
+
 and dbMigrationState j : dbMigrationState =
   let dv0 = variant0 in
   variants
@@ -420,7 +424,7 @@ and op j : op =
           tlid
           id
           id
-          dbColList )
+          dbmColList )
     ; ( "AddDBColToDBMigration"
       , variant3
           (fun t colnameid coltypeid ->
