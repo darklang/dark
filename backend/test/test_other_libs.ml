@@ -272,6 +272,26 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
     (exec_ast ast)
 
 
+let t_date_functions_work () =
+  check_dval
+    "Valid Date::parse_v0 produces a Date"
+    (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))
+    (exec_ast "(Date::parse '2019-07-28T22:42:00Z')") ;
+  check_dval
+    "Invalid Date::parse_v0 produces an error"
+    (DBool true)
+    (exec_ast "(Bool::isError (Date::parse 'asd'))") ;
+  check_dval
+    "Valid Date::parse_v1 produces an Ok Date"
+    (DResult (ResOk (DDate (Util.date_of_isostring "2019-07-28T22:42:00Z"))))
+    (exec_ast "(Date::parse_v1 '2019-07-28T22:42:00Z')") ;
+  check_dval
+    "Invalid Date::parse_v1 produces an Error result"
+    (DResult (ResError (Dval.dstr_of_string_exn "Invalid date format")))
+    (exec_ast "(Date::parse_v1 'asd')") ;
+  ()
+
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -280,4 +300,5 @@ let suite =
   ; ( "End-user password hashing and checking works"
     , `Quick
     , t_password_hashing_and_checking_works )
-  ; ("JWT lib works.", `Quick, t_jwt_functions_work) ]
+  ; ("JWT lib works.", `Quick, t_jwt_functions_work)
+  ; ("Date lib works", `Quick, t_date_functions_work) ]
