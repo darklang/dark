@@ -112,11 +112,11 @@ let viewMigraFuncs
     msg Html.html =
   Html.div
     [Html.class' "col roll-fn"]
-    [ Html.div
-        [Html.class' "fn-title"]
-        [ Html.span [] [Html.text (fnName ^ " : ")]
-        ; Html.span [Html.class' "varname"] [Html.text varName] ]
-    ; ViewCode.view vs expr ]
+    ( [ Html.div
+          [Html.class' "fn-title"]
+          [ Html.span [] [Html.text (fnName ^ " : ")]
+          ; Html.span [Html.class' "varname"] [Html.text varName] ] ]
+    @ ViewCode.view vs expr )
 
 
 let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :

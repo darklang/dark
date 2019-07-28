@@ -497,10 +497,16 @@ and viewNExpr
 let view (vs : viewState) (e : expr) =
   if VariantTesting.isFluid vs.testVariants
   then
-    Html.div
-      [Html.class' "fluid-ast"]
-      (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e))
-  else Html.div [Html.class' "ast"] [viewExpr 0 vs [] e]
+    [ Html.div
+        [Html.class' "fluid-ast"]
+        (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e)) ]
+  else
+    let showRail = AST.usesRail e in
+    let errorRail =
+      Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
+    in
+    let ast = Html.div [Html.class' "ast"] [viewExpr 0 vs [] e] in
+    [ast; errorRail]
 
 
 let externalLink (vs : viewState) (spec : handlerSpec) =
@@ -716,14 +722,7 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
 
 
 let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
-  let showRail = AST.usesRail h.ast in
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast =
-    Html.div
-      attrs
-      [ view vs h.ast
-      ; Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
-      ]
-  in
+  let ast = Html.div attrs (view vs h.ast) in
   let header = viewEventSpec vs h.spec in
   [header; ast]
