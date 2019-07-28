@@ -115,6 +115,13 @@ let auth_param : param =
 
 let fns =
   schema.apis
+  |> List.filter ~f:(fun (api : Swagger.api) ->
+         (* There are a bunch of apis that have "{id}" or "{format}" in their
+          * names. We don't support filling in those paramters at the moment so
+          * they can't actually be called correctly, and the presence of "{"
+          * made it impossible to create objects in the autocomplete, so we
+          * disabled them for now *)
+         not (String.contains ~substring:"{" api.path) )
   |> List.filter_map ~f:(fun (api : Swagger.api) ->
          api.operations
          |> List.head
