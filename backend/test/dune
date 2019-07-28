@@ -1,6 +1,12 @@
 (executable
   (name test)
   (flags (-warn-error +A))
-  (preprocess (pps lwt_ppx))
+  (preprocess (pps lwt_ppx
+                   ppx_bin_prot
+                   ppx_compare
+                   ppx_deriving.std
+                   ppx_deriving_yojson
+                   ppx_pipebang
+                   ppx_sexp_conv))
   (libraries libbackend libcommon alcotest junit junit_alcotest)
 )
