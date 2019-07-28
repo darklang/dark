@@ -1466,7 +1466,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["List::last_v1"]
     ; ins = []
     ; p = [par "list" TList]
