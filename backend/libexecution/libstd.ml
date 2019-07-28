@@ -1828,6 +1828,28 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Date::parse_v1"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d =
+        "Parses a string representing a date in the ISO format and returns a Date"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+            ( try
+                DResult
+                  (ResOk
+                     (DDate
+                        (Util.date_of_isostring (Unicode_string.to_string s))))
+              with e ->
+                DResult
+                  (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Date::now"]
     ; ins = []
