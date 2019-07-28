@@ -1,6 +1,7 @@
 open Core_kernel
 open Libexecution
 open Types.RuntimeT
+open Prelude
 open Utils
 
 let t_stdlib_works () =
@@ -229,7 +230,7 @@ n8Jatbq3PitkBpX9nAHok2Vs6u6feoOd8HFDVDGmK6Uvmo7zsuZKkP/CpmyMAla9
 T/YWcgYPzBA6q8LBfGRdh80kveFKRluUERb0PuK+jiHXz42SJ4zEIaToWeK1TQ6I
 FW78LEsgtnna+JpWEr+ugcGN/FH8e9PLJDK7Z/HSLPtV8E6V/ls3VDM=
 -----END RSA PRIVATE KEY-----"
-    |> String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
+    |> Core.String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
   in
   let publickey =
     "-----BEGIN PUBLIC KEY-----
@@ -241,7 +242,7 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
 4Ur22mtma+6ree45gsdnzlj1OASWDQx/7vj7Ickt+eTwrVqyRWb9iNZPXj3ZrkJ4
 4wIDAQAB
 -----END PUBLIC KEY-----"
-    |> String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
+    |> Core.String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
   in
   let ast =
     Printf.sprintf
@@ -292,6 +293,23 @@ let t_date_functions_work () =
   ()
 
 
+let t_old_functions_deprecated () =
+  let counts = ref StrDict.empty in
+  List.iter (Core.String.Map.to_alist !Libs.static_fns) ~f:(fun (name, fn) ->
+      let key = Str.global_replace (Str.regexp "_v[0-9]+") "" name in
+      if not fn.deprecated
+      then
+        counts :=
+          StrDict.update !counts ~key ~f:(fun count ->
+              count |> Option.withDefault ~default:0 |> ( + ) 1 |> Some ) ;
+      () ) ;
+  StrDict.iter !counts ~f:(fun name count ->
+      AT.check AT.int (name ^ " only has one undeprecated fn") 1 count ) ;
+  ()
+
+
+(* Lib.static_fns *)
+
 let suite =
   [ ("Stdlib fns work", `Quick, t_stdlib_works)
   ; ("Option stdlibs work", `Quick, t_option_stdlibs_work)
@@ -301,4 +319,5 @@ let suite =
     , `Quick
     , t_password_hashing_and_checking_works )
   ; ("JWT lib works.", `Quick, t_jwt_functions_work)
-  ; ("Date lib works", `Quick, t_date_functions_work) ]
+  ; ("Date lib works", `Quick, t_date_functions_work)
+  ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated) ]
