@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 
 let isCompatible (t1 : tipe) (t2 : tipe) : bool =
   t1 = TAny || t2 = TAny || t1 = t2
@@ -49,18 +50,12 @@ let rec tipe2str (t : tipe) : string =
       "ErrorRail"
   | TResult ->
       "Result"
-  | TBelongsTo s ->
-      s
-  | THasMany s ->
-      "[" ^ s ^ "]"
   | TDbList a ->
       "[" ^ tipe2str a ^ "]"
   | TUserType (name, _) ->
       name
   | TBytes ->
       "Bytes"
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 | TDeprecated4 ->
-      raise (Js.Exn.raiseError "Deprecated type")
 
 
 let str2tipe (t : string) : tipe =
@@ -106,8 +101,8 @@ let str2tipe (t : string) : tipe =
         TDate
     | "error" ->
         TError
-    | table ->
-        THasMany table
+    | _ ->
+        impossible "invalid type in str2tipe"
   in
   match String.toLower t with
   | "any" ->
@@ -162,7 +157,7 @@ let str2tipe (t : string) : tipe =
         |> String.dropLeft ~count:1
         |> String.dropRight ~count:1
         |> parseListTipe
-      else TBelongsTo other
+      else impossible "invalid list type in str2tipe"
 
 
 let typeOf (dv : dval) : tipe =
