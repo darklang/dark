@@ -528,7 +528,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
   ; permission = field "permission" (optional permission) j
   ; groups = List.filterMap ~f:TL.asGroup tls
-  ; deletedGroups =  List.filterMap ~f:TL.asGroup tls}
+  ; deletedGroups = List.filterMap ~f:TL.asGroup tls }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

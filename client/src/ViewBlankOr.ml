@@ -415,7 +415,7 @@ let viewBlankOr
               vs.ac ]
       else thisText
   | _ ->
-       thisText
+      thisText
 
 
 let viewText

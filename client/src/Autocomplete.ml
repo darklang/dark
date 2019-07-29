@@ -203,7 +203,7 @@ let asTypeString (item : autocompleteItem) : string =
   | ACTypeFieldName _ ->
       "type field name"
   | ACGroupName _ ->
-        "group name"
+      "group name"
   | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
