@@ -1009,6 +1009,7 @@ and msg =
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
+  | DeleteGroup of tlid
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1294,6 +1295,7 @@ and model =
   ; deletedUserFunctions : userFunction TLIDDict.t
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
+  ; deletedGroups : group TLIDDict.t
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list

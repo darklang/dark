@@ -1225,6 +1225,8 @@ let update_ (msg : msg) (m : model) : modification =
               } ) ]
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
+  | DeleteGroup tlid ->
+      TweakModel( fun m -> {m with groups = TD.remove ~tlid m.deletedGroups} )
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
