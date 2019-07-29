@@ -549,9 +549,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (handlers, dbs, updateCurrent) ->
+    | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let m2 =
-          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
+          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs; groups = Groups.fromList groups;}
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -593,7 +593,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
+          (SetToplevels (TD.values m.handlers, TD.values m.dbs, TD.values m.groups, updateCurrent))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
@@ -1015,7 +1015,7 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, true)
+          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, TD.values m2.groups, true)
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1051,9 +1051,11 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               
               (* TODO: Dont send movetl if top level is a group*)
+              if not (TL.isGroup tl) then 
               Many
                 [ SetCursorState origCursorState
                 ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
+              else SetCursorState origCursorState
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -1274,7 +1276,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
-        ; handlerProps = ViewUtils.createHandlerProp r.handlers }
+        ; handlerProps = ViewUtils.createHandlerProp r.handlers 
+        ; groups = TLIDDict.empty}
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
@@ -1289,7 +1292,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.handlers, r.dbs, true)
+        [ SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
