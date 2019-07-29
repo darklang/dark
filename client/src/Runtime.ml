@@ -332,7 +332,52 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DUuid s ->
       wrap s
   | DError s ->
-      wrap s
+      let open Json_decode_extended in
+      let decoder j : exception_ =
+        { short = field "short" string j
+        ; long = field "long" (optional string) j
+        ; exceptionTipe = field "tipe" string j
+        ; actual = field "actual" (optional string) j
+        ; actualType = field "actual_tipe" (optional string) j
+        ; expected = field "expected" (optional string) j
+        ; result = field "result" (optional string) j
+        ; resultType = field "result_tipe" (optional string) j
+        ; info = field "info" (dict string) j
+        ; workarounds = field "workarounds" (list string) j }
+      in
+      let maybe name m =
+        match m with
+        | Some "" | None ->
+            ""
+        | Some s ->
+            "\n  " ^ name ^ ": " ^ s
+      in
+      ( try
+          s
+          |> decodeString decoder
+          |> Result.toOption
+          |> Option.map ~f:(fun e ->
+                 "Error: \n  "
+                 ^ e.short
+                 ^ maybe "message" e.long
+                 ^ maybe "actual value" e.actual
+                 ^ maybe "actual type" e.actualType
+                 ^ maybe "expected" e.expected
+                 ^ maybe "result" e.result
+                 ^ maybe "result type" e.resultType
+                 ^ ( if e.info = StrDict.empty
+                   then ""
+                   else ", info: " ^ StrDict.toString e.info )
+                 ^ ( if e.workarounds = []
+                   then ""
+                   else ", workarounds: [" ^ String.concat e.workarounds ^ "]"
+                   )
+                 ^
+                 if e.exceptionTipe = "code"
+                 then ""
+                 else "\n  error type: " ^ e.exceptionTipe )
+          |> Option.withDefault ~default:(wrap s)
+        with _ -> wrap s )
   | DPassword s ->
       wrap s
   | DBlock ->
