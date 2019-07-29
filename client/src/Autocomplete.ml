@@ -126,7 +126,8 @@ let asName (aci : autocompleteItem) : string =
   | ACFnName name
   | ACParamName name
   | ACTypeName name
-  | ACTypeFieldName name ->
+  | ACTypeFieldName name
+  | ACGroupName name ->
       name
   | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
@@ -201,6 +202,8 @@ let asTypeString (item : autocompleteItem) : string =
       "type name"
   | ACTypeFieldName _ ->
       "type field name"
+  | ACGroupName _ ->
+        "group name"
   | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
@@ -1099,6 +1102,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("Set param name to " ^ paramName)
   | ACTypeName typeName ->
       Some ("Set type name to " ^ typeName)
+  | ACGroupName groupName ->
+      Some ("Set group name to " ^ groupName)
   | ACTypeFieldName _ ->
       None
 
