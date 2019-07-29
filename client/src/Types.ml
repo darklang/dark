@@ -999,6 +999,7 @@ and msg =
   | FluidRunCommand of command
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
+  | DeleteGroup of tlid
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1283,6 +1284,7 @@ and model =
   ; deletedUserFunctions : userFunction TLIDDict.t
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
+  ; deletedGroups : group TLIDDict.t
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list
