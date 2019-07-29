@@ -411,6 +411,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.fieldNameValidator "type field name"
   | PTypeFieldTipe _ ->
       v AC.paramTypeValidator "type field type"
+  | PGroupName _ ->
+      v AC.groupNameValidator "group name"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralRepr value
@@ -504,8 +506,8 @@ let submitACItem
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
-            | TLGroup _ ->
-                impossible "no saving for now"
+            | TLGroup g ->
+                NewGroup g
             | TLDB _ ->
                 impossible ("no vars in DBs", tl)
         in
@@ -752,6 +754,8 @@ let submitACItem
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
+        | PGroupName _, ACGroupName name ->
+            replace (PGroupName (B.newF name))   
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
@@ -813,6 +817,8 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeName value)
             | TypeFieldName ->
                 Some (ACTypeFieldName value)
+            | GroupName -> 
+                Some (ACGroupName value)
             | _ ->
                 None )
           | None ->

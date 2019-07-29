@@ -21,7 +21,8 @@ let astOwned pt =
   | ParamTipe
   | TypeName
   | TypeFieldName
-  | TypeFieldTipe ->
+  | TypeFieldTipe
+  | GroupName ->
       false
 
 
@@ -70,6 +71,8 @@ let emptyD_ (id : id) (pt : pointerType) : pointerData =
       PTypeFieldName (Blank id)
   | TypeFieldTipe ->
       PTypeFieldTipe (Blank id)
+  | GroupName ->
+      PGroupName (Blank id)
 
 
 let typeOf (pd : pointerData) : pointerType =
@@ -114,6 +117,8 @@ let typeOf (pd : pointerData) : pointerType =
       TypeFieldName
   | PTypeFieldTipe _ ->
       TypeFieldTipe
+  | PGroupName _ ->
+      GroupName
 
 
 let emptyD (pt : pointerType) : pointerData = emptyD_ (gid ()) pt
@@ -160,6 +165,8 @@ let toID (pd : pointerData) : id =
       B.toID d
   | PTypeFieldTipe d ->
       B.toID d
+  | PGroupName d ->
+      B.toID d
 
 
 let isBlank (pd : pointerData) : bool =
@@ -203,6 +210,8 @@ let isBlank (pd : pointerData) : bool =
   | PTypeFieldName d ->
       B.isBlank d
   | PTypeFieldTipe d ->
+      B.isBlank d
+  | PGroupName d -> 
       B.isBlank d
 
 
@@ -267,6 +276,8 @@ let strMap (pd : pointerData) ~(f : string -> string) : pointerData =
       PTypeFieldName (bf d)
   | PTypeFieldTipe d ->
       PTypeFieldTipe d
+  | PGroupName g ->
+      PGroupName (bf g)
 
 
 let toContent (pd : pointerData) : string option =
@@ -340,6 +351,9 @@ let toContent (pd : pointerData) : string option =
       |> Option.map ~f:Runtime.tipe2str
       |> Option.withDefault ~default:""
       |> fun x -> Some x
+  | PGroupName g ->
+      bs2s g
+
 
 
 let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =

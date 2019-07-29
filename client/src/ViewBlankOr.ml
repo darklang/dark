@@ -346,6 +346,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "field name"
   | TypeFieldTipe ->
       "field type"
+  | GroupName ->
+      "group name"
 
 
 let viewBlankOr
@@ -413,7 +415,7 @@ let viewBlankOr
               vs.ac ]
       else thisText
   | _ ->
-      thisText
+       thisText
 
 
 let viewText

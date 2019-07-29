@@ -231,6 +231,7 @@ and pointerData =
   | PTypeName of string blankOr
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
+  | PGroupName of string blankOr
 
 and pointerType =
   | VarBind
@@ -253,6 +254,7 @@ and pointerType =
   | TypeName
   | TypeFieldName
   | TypeFieldTipe
+  | GroupName
 
 and pointerOwner =
   | POSpecHeader
@@ -730,6 +732,7 @@ and autocompleteItem =
   | ACParamName of string
   | ACTypeName of string
   | ACTypeFieldName of string
+  | ACGroupName of string
 
 and target = tlid * pointerData
 
