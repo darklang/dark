@@ -655,7 +655,9 @@ and initialLoadRPCResult =
   ; traces : (tlid * traceID) list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
-  ; permission : permission option }
+  ; permission : permission option
+  ; groups : group list
+  ; deletedGroups : group list }
 
 and saveTestRPCResult = string
 
@@ -846,7 +848,7 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of handler list * db list * bool
+  | SetToplevels of handler list * db list * group list * bool
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
