@@ -7,7 +7,9 @@ module B = Blank
 module P = Pointer
 module TD = TLIDDict
 
-let remove m _group = m
+let remove (m : model) (g : group) : model =
+  {m with groups = TD.remove ~tlid:g.gTLID m.groups}
+
 
 let fromList (groups : group list) : group TLIDDict.t =
   groups |> List.map (fun g -> (g.gTLID, g)) |> TLIDDict.fromList
