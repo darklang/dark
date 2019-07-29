@@ -279,8 +279,6 @@ and tipe j : tipe =
     ; ("TUuid", dv0 TUuid)
     ; ("TOption", dv0 TOption)
     ; ("TErrorRail", dv0 TErrorRail)
-    ; ("TBelongsTo", dv1 (fun x -> TBelongsTo x) string)
-    ; ("THasMany", dv1 (fun x -> THasMany x) string)
     ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
     ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
     j
