@@ -324,7 +324,8 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
   let should =
     (* DBs + Types dont have traces *)
     TL.get m tlid
-    |> Option.map ~f:(fun tl -> not (TL.isDB tl || TL.isUserTipe tl || TL.isGroup tl))
+    |> Option.map ~f:(fun tl ->
+           not (TL.isDB tl || TL.isUserTipe tl || TL.isGroup tl) )
     |> Option.withDefault ~default:false
   in
   if should

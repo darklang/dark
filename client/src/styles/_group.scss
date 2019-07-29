@@ -18,6 +18,15 @@
           margin: 0;
           width: 90%;
           padding: 5px 0px;
+          form {
+            position: initial;
+            margin: 0;
+            #entry-box {
+              background: black !important;
+              color: $grey3 !important;
+              font-weight: 500;
+            }
+          }
         }
 
         .delete-btn {
