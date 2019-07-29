@@ -114,15 +114,18 @@ let utToTL (ut : userTipe) : toplevel = TLTipe ut
 let asUserFunction (tl : toplevel) : userFunction option =
   match tl with TLFunc f -> Some f | _ -> None
 
-
 let asUserTipe (tl : toplevel) : userTipe option =
   match tl with TLTipe t -> Some t | _ -> None
 
+let asGroup (tl : toplevel) : group option =
+  match tl with TLGroup g -> Some g | _ -> None
 
 let isUserTipe (tl : toplevel) : bool =
   match tl with TLTipe _ -> true | _ -> false
 
-
+let isGroup (tl : toplevel) : bool =
+  match tl with TLGroup _ -> true | _ -> false
+  
 let asHandler (tl : toplevel) : handler option =
   match tl with TLHandler h -> Some h | _ -> None
 
@@ -248,6 +251,9 @@ let clonePointerData (pd : pointerData) : pointerData =
       PTypeFieldTipe (B.clone identity tipe)
   | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
+  | PGroupName name ->
+      PGroupName  (B.clone identity name)
+
 
 
 (* ------------------------- *)
@@ -372,6 +378,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PTypeFieldTipe _ ->
       []
+  | PGroupName _ ->
+      []
 
 
 let getAST (tl : toplevel) : expr option =
@@ -454,6 +462,10 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       let tipe = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
       let newTL = UserTypes.replace p replacement tipe in
       TLTipe newTL
+  | PGroupName _ ->
+      let group = tl |> asGroup |> deOption "TL.replace group ()" in
+      let newTL = Groups.replace p replacement group in
+      TLGroup newTL
 
 
 let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
