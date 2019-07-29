@@ -554,7 +554,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let m2 =
-          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs; groups = Groups.fromList groups;}
+          { m with
+            handlers = Handlers.fromList handlers
+          ; dbs = DB.fromList dbs
+          ; groups = Groups.fromList groups }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -596,7 +599,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         updateMod
-          (SetToplevels (TD.values m.handlers, TD.values m.dbs, TD.values m.groups, updateCurrent))
+          (SetToplevels
+             ( TD.values m.handlers
+             , TD.values m.dbs
+             , TD.values m.groups
+             , updateCurrent ))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
@@ -1018,7 +1025,11 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, TD.values m2.groups, true)
+          [ SetToplevels
+              ( TD.values m2.handlers
+              , TD.values m2.dbs
+              , TD.values m2.groups
+              , true )
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1054,10 +1065,11 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               
               (* TODO: Dont send movetl if top level is a group*)
-              if not (TL.isGroup tl) then 
-              Many
-                [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
+              if not (TL.isGroup tl)
+              then
+                Many
+                  [ SetCursorState origCursorState
+                  ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
               else SetCursorState origCursorState
             else SetCursorState origCursorState
         | _ ->
@@ -1228,7 +1240,7 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
   | DeleteGroup tlid ->
-      TweakModel( fun m -> {m with groups = TD.remove ~tlid m.deletedGroups} )
+      TweakModel (fun m -> {m with groups = TD.remove ~tlid m.deletedGroups})
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
@@ -1279,8 +1291,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
-        ; handlerProps = ViewUtils.createHandlerProp r.handlers 
-        ; groups = TLIDDict.empty}
+        ; handlerProps = ViewUtils.createHandlerProp r.handlers
+        ; groups = TLIDDict.empty }
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in

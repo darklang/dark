@@ -17,7 +17,9 @@ let enterable = ViewBlankOr.Enterable
 
 let wc = ViewBlankOr.wc
 
-let groupName2String (name : dbName blankOr) : dbName = B.valueWithDefault "" name
+let groupName2String (name : dbName blankOr) : dbName =
+  B.valueWithDefault "" name
+
 
 let viewGroupName (vs : viewState) (g : group) : msg Html.html =
   let nameField =
@@ -26,11 +28,24 @@ let viewGroupName (vs : viewState) (g : group) : msg Html.html =
   in
   Html.div [Html.class' "group-name"] [nameField]
 
-let viewGroup (vs : viewState) (group: group): msg Html.html =
+
+let viewGroup (vs : viewState) (group : group) : msg Html.html =
   let nameView = viewGroupName vs group in
   (* Check here to see if group is empty *)
-  let event = ViewUtils.eventNeither ~key:("entry-" ^ showTLID group.gTLID) "click" (fun _ -> DeleteGroup group.gTLID) in
-  let closeIcon =  Html.a [event; Html.class' "delete-btn"] [fontAwesome "times"]
+  let event =
+    ViewUtils.eventNeither
+      ~key:("entry-" ^ showTLID group.gTLID)
+      "click"
+      (fun _ -> DeleteGroup group.gTLID)
   in
-  let groupChilren = [Html.div [Html.class' "children"] [Html.p [] [Html.text "Drag inside here"]]] in
-  Html.div [Html.class' "group-data"] ([Html.div [Html.class' "group-top"] [nameView; closeIcon]] @ groupChilren)
+  let closeIcon =
+    Html.a [event; Html.class' "delete-btn"] [fontAwesome "times"]
+  in
+  let groupChilren =
+    [ Html.div
+        [Html.class' "children"]
+        [Html.p [] [Html.text "Drag inside here"]] ]
+  in
+  Html.div
+    [Html.class' "group-data"]
+    ([Html.div [Html.class' "group-top"] [nameView; closeIcon]] @ groupChilren)

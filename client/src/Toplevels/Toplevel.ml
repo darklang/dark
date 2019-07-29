@@ -114,18 +114,23 @@ let utToTL (ut : userTipe) : toplevel = TLTipe ut
 let asUserFunction (tl : toplevel) : userFunction option =
   match tl with TLFunc f -> Some f | _ -> None
 
+
 let asUserTipe (tl : toplevel) : userTipe option =
   match tl with TLTipe t -> Some t | _ -> None
+
 
 let asGroup (tl : toplevel) : group option =
   match tl with TLGroup g -> Some g | _ -> None
 
+
 let isUserTipe (tl : toplevel) : bool =
   match tl with TLTipe _ -> true | _ -> false
 
+
 let isGroup (tl : toplevel) : bool =
   match tl with TLGroup _ -> true | _ -> false
-  
+
+
 let asHandler (tl : toplevel) : handler option =
   match tl with TLHandler h -> Some h | _ -> None
 
@@ -252,8 +257,7 @@ let clonePointerData (pd : pointerData) : pointerData =
   | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
   | PGroupName name ->
-      PGroupName  (B.clone identity name)
-
+      PGroupName (B.clone identity name)
 
 
 (* ------------------------- *)
