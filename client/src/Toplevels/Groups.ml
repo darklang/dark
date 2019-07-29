@@ -9,6 +9,8 @@ module TD = TLIDDict
 
 let remove m _group = m
 
+let fromList (groups : group list) : group TLIDDict.t =
+  groups |> List.map (fun g -> (g.gTLID, g)) |> TLIDDict.fromList
 
 let replaceGroupName (old : pointerData) (new_ : pointerData) (group : group)
     : group =
