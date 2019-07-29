@@ -64,7 +64,7 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
               ^ "-"
               ^ (p.ufpName |> B.toID |> showID) )
             "click"
-            (fun _ -> DeleteUserFunctionParameter (uf, p)) ]
+            (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p)) ]
         [fontAwesome "times-circle"]
     else
       Html.div
@@ -89,7 +89,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
           ; ViewUtils.eventNoPropagation
               ~key:("aufp-" ^ showTLID fn.ufTLID)
               "click"
-              (fun _ -> AddUserFunctionParameter fn) ]
+              (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
           [fontAwesome "plus-circle"]
       ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
   in

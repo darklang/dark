@@ -1139,16 +1139,28 @@ let update_ (msg : msg) (m : model) : modification =
             Refactor.extractFunction m tl pd )
     | _ ->
         NoChange )
-  | DeleteUserFunctionParameter (uf, upf) ->
-      let replacement = Functions.removeParameter uf upf in
-      let newCalls = Refactor.removeFunctionParameter m uf upf in
-      RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
-  | AddUserFunctionParameter f ->
-      let nextId = Functions.idOfLastBlankor f in
-      Refactor.addFunctionParameter m f nextId
-  | DeleteUserTypeField (tipe, field) ->
-      let replacement = UserTypes.removeField tipe field in
-      RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
+  | DeleteUserFunctionParameter (uftlid, upf) ->
+    ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
+    | Some uf ->
+        let replacement = Functions.removeParameter uf upf in
+        let newCalls = Refactor.removeFunctionParameter m uf upf in
+        RPC ([SetFunction replacement] @ newCalls, FocusNext (uf.ufTLID, None))
+    | None ->
+        NoChange )
+  | AddUserFunctionParameter uftlid ->
+    ( match TL.get m uftlid |> Option.andThen ~f:TL.asUserFunction with
+    | Some uf ->
+        let nextId = Functions.idOfLastBlankor uf in
+        Refactor.addFunctionParameter m uf nextId
+    | None ->
+        NoChange )
+  | DeleteUserTypeField (tipetlid, field) ->
+    ( match TL.get m tipetlid |> Option.andThen ~f:TL.asUserTipe with
+    | Some tipe ->
+        let replacement = UserTypes.removeField tipe field in
+        RPC ([SetType replacement], FocusNext (tipe.utTLID, None))
+    | None ->
+        NoChange )
   | ToplevelDelete tlid ->
       let tl = TL.getExn m tlid in
       Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)]
