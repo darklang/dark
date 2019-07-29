@@ -136,7 +136,6 @@ and box = pos * size
 and tipe =
   | TInt
   | TStr
-  | TDeprecated1
   | TCharacter
   | TBool
   | TFloat
@@ -149,17 +148,12 @@ and tipe =
   | TError
   | TResp
   | TDB
-  | TDeprecated4
   | TDate
-  | TDeprecated2
-  | TDeprecated3
   | TPassword
   | TUuid
   | TOption
   | TErrorRail
   | TResult
-  | TBelongsTo of string
-  | THasMany of string
   | TDbList of tipe
   | TUserType of string * int
   | TBytes
