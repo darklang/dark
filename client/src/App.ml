@@ -552,6 +552,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
+    | RemoveGroup tl ->
+        (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let m2 =
           { m with
@@ -1063,8 +1065,6 @@ let update_ (msg : msg) (m : model) : modification =
               (* we don't, perhaps due to overlapping click handlers *)
               (* There doesn't seem to be any harm in stopping dragging *)
               (* here though *)
-              
-              (* TODO: Dont send movetl if top level is a group*)
               if not (TL.isGroup tl)
               then
                 Many
@@ -1240,7 +1240,8 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
   | DeleteGroup tlid ->
-      TweakModel (fun m -> {m with groups = TD.remove ~tlid m.deletedGroups})
+      let tl = TL.getExn m tlid in
+      Many [RemoveGroup tl]
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
