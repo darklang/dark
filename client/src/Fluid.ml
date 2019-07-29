@@ -2124,8 +2124,17 @@ let acMoveBasedOnKey
     | K.Enter ->
         startPos + offset
     | K.Space ->
-        (* if new position is after next blank, stay in next blank *)
-        min nextBlank (startPos + offset + 1)
+        let thisTi =
+          List.find ~f:(fun ti -> ti.startPos = startPos + offset) tokens
+        in
+        ( match thisTi with
+        (* Only move forward to skip over a separator *)
+        (* TODO: are there more separators we should consider here? *)
+        | Some {token} when token = TSep ->
+            min nextBlank (startPos + offset + 1)
+        | _ ->
+            (* if new position is after next blank, stay in next blank *)
+            startPos + offset )
     | _ ->
         s.newPos
   in
