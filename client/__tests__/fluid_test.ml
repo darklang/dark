@@ -1692,13 +1692,11 @@ let () =
         (b ())
         (presses [K.Equals; K.Tab] 0)
         ("_________ == _________", 13) ;
-      (* TODO: make autocomplete on space work consistently
       t
         "autocomplete space on bin-op moves to start of first blank"
         (b ())
         (presses [K.Equals; K.Space] 0)
         ("_________ == _________", 0) ;
-      *)
       t
         "variable moves to right place"
         (EPartial (gid (), "req", b ()))
@@ -1744,7 +1742,11 @@ let () =
         (EPartial (gid (), "Nothing", b ()))
         (enter 7)
         ("Nothing", 7) ;
-      (* TODO: autocomplete for nothing at the end of a line, pressing space *)
+      t
+        "autocomplete for Nothing at end of a line"
+        (EIf (gid (), b (), EPartial (gid (), "Nothing", b ()), b ()))
+        (space 21)
+        ("if ___\nthen\n  Nothing\nelse\n  ___", 21) ;
       t
         "autocomplete for Error"
         (EPartial (gid (), "Error", b ()))
