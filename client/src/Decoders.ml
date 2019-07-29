@@ -525,7 +525,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
-  ; permission = field "permission" (optional permission) j }
+  ; permission = field "permission" (optional permission) j
+  ; groups = List.filterMap ~f:TL.asGroup tls
+  ; deletedGroups =  List.filterMap ~f:TL.asGroup tls}
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =
