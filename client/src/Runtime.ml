@@ -101,8 +101,10 @@ let str2tipe (t : string) : tipe =
         TDate
     | "error" ->
         TError
-    | _ ->
-        impossible "invalid type in str2tipe"
+    | "nothing" ->
+        TNull
+    | other ->
+        impossible ("invalid type in str2tipe: " ^ other)
   in
   match String.toLower t with
   | "any" ->
@@ -149,6 +151,8 @@ let str2tipe (t : string) : tipe =
       TPassword
   | "uuid" ->
       TUuid
+  | "nothing" ->
+      TNull
   | other ->
       if String.startsWith ~prefix:"[" other
          && String.endsWith ~suffix:"]" other
@@ -157,7 +161,7 @@ let str2tipe (t : string) : tipe =
         |> String.dropLeft ~count:1
         |> String.dropRight ~count:1
         |> parseListTipe
-      else impossible "invalid list type in str2tipe"
+      else impossible ("invalid list type in str2tipe: " ^ other)
 
 
 let typeOf (dv : dval) : tipe =
