@@ -2,7 +2,6 @@ open Tc
 open Json_encode_extended
 
 (* Dark *)
-module RT = Runtime
 
 (* Don't attempt to encode these as integers, because we're not capable
  * of expressing all existing ids as ints because bucklescript is strict
