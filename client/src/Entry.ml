@@ -708,7 +708,7 @@ let submitACItem
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
         | PGroupName _, ACGroupName name ->
-            replace (PGroupName (B.newF name))   
+            replace (PGroupName (B.newF name))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
@@ -770,7 +770,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeName value)
             | TypeFieldName ->
                 Some (ACTypeFieldName value)
-            | GroupName -> 
+            | GroupName ->
                 Some (ACGroupName value)
             | _ ->
                 None )

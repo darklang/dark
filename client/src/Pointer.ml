@@ -211,7 +211,7 @@ let isBlank (pd : pointerData) : bool =
       B.isBlank d
   | PTypeFieldTipe d ->
       B.isBlank d
-  | PGroupName d -> 
+  | PGroupName d ->
       B.isBlank d
 
 
@@ -353,7 +353,6 @@ let toContent (pd : pointerData) : string option =
       |> fun x -> Some x
   | PGroupName g ->
       bs2s g
-
 
 
 let exprmap (fn : expr -> expr) (pd : pointerData) : pointerData =
