@@ -473,10 +473,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TDB" []
   | TDate ->
       ev "TDate" []
-  | TBelongsTo s ->
-      ev "TBelongsTo" [string s]
-  | THasMany s ->
-      ev "THasMany" [string s]
   | TDbList a ->
       ev "TDbList" [tipe a]
   | TPassword ->
@@ -493,8 +489,6 @@ and tipe (t : Types.tipe) : Js.Json.t =
       ev "TUserType" [string name; int version]
   | TBytes ->
       ev "TBytes" []
-  | TDeprecated1 | TDeprecated2 | TDeprecated3 | TDeprecated4 ->
-      raise (Js.Exn.raiseError "Deprecated type")
 
 
 and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
