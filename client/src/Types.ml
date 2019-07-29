@@ -843,6 +843,7 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
+  | RemoveGroup of toplevel
   | SetToplevels of handler list * db list * group list * bool
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
