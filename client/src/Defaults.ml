@@ -96,6 +96,7 @@ let defaultModel : model =
   ; deletedUserFunctions = TLIDDict.empty
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
+  ; deletedGroups = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
   ; f404s = []

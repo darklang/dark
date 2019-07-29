@@ -28,9 +28,9 @@ let viewGroupName (vs : viewState) (g : group) : msg Html.html =
 
 let viewGroup (vs : viewState) (group: group): msg Html.html =
   let nameView = viewGroupName vs group in
-  let closeIcon = Html.div
-  [ Html.class' "delete-btn"]
-  [fontAwesome "times"]
+  (* Check here to see if group is empty *)
+  let event = ViewUtils.eventNeither ~key:("entry-" ^ showTLID group.gTLID) "click" (fun _ -> DeleteGroup group.gTLID) in
+  let closeIcon =  Html.a [event; Html.class' "delete-btn"] [fontAwesome "times"]
   in
   let groupChilren = [Html.div [Html.class' "children"] [Html.p [] [Html.text "Drag inside here"]]] in
   Html.div [Html.class' "group-data"] ([Html.div [Html.class' "group-top"] [nameView; closeIcon]] @ groupChilren)
