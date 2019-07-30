@@ -587,6 +587,20 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       Vdom.noNode
 
 
+let viewOpts (vs : viewState) : msg Html.html =
+  let strTLID = showTLID vs.tlid in
+  Html.div
+    [Html.class' "handler-options"]
+    [ fontAwesome "chevron-circle-down"
+    ; Html.div
+        [ ViewUtils.eventNoPropagation
+            ~key:("del-tl-" ^ strTLID)
+            "click"
+            (fun _ -> ToplevelDelete vs.tlid ) ]
+        [fontAwesome "times"; Html.text "Delete"]
+    ; Html.div [] [fontAwesome "copy"; Html.text "Copy cURL"] ]
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -673,6 +687,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     ; viewEventSpace
     ; viewEventName
     ; viewEventModifier
+    ; viewOpts vs
     (* ; btnExpCollapse *) ]
 
 
