@@ -160,17 +160,77 @@ function setCursorPosition(pos) {
   }
 }
 
+function toBsList(list) {
+  if (list === []) {
+    return 0;
+  }
+
+  let bsList = [list[list.length-1], 0];
+  for (var i = list.length-2; i > -1; i--) {
+    bsList = [list[i], bsList];
+  }
+
+  return bsList;
+}
+
 function getSelectionRange() {
   var selection = window.getSelection();
   if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
 
-  startPos = selection.focusOffset;
+  var initPos = getCursorPosition();
+  pos = initPos - selection.focusOffset;
   node = selection.focusNode.parentNode;
   while (node.previousSibling) {
     node = node.previousSibling;
     startPos += node.textContent.length;
   }
   return [startPos, startPos + selection.focusExtent];
+}
+
+function getTokenId(node) {
+  for (var cls = 0; cls < node.classList.length; cls++) {
+    if (node.classList[cls].startsWith("id-") && node.classList[cls] !== "id-fake-id") {
+      return node.classList[cls].slice(3);
+    }
+  }
+  return "";
+}
+
+function fluidSelectionToken(startPos, node) {
+  let selectionToken;
+  let tokenId = getTokenId(node);
+  if (tokenId !== "") {
+    selectionToken = [tokenId, node.textContent];
+    selectionToken.tag = 0; /* FSCRealToken */
+  } else {
+    selectionToken = node.textContent;
+    selectionToken.tag = 1; /* FSCRawText */
+  }
+  return [[startPos, startPos+node.textContent.length], selectionToken];
+}
+
+function getFluidSelection() {
+  let selection = window.getSelection();
+  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
+
+  let node = selection.anchorNode.parentNode;
+  let initPos = getCursorPosition() - node.textContent.length;
+  let pos = initPos;
+  let tokens = [];
+  let endParsing = false;
+
+  while (!!node && !endParsing) {
+    endParsing = node.isEqualNode(selection.extentNode.parentNode)
+    let token = fluidSelectionToken(pos, node);
+    tokens.push(token);
+    pos += node.textContent.length;
+    node = node.nextSibling;
+  }
+
+  return [
+    [initPos, pos],
+    toBsList(tokens)
+  ];
 }
 
 function setSelectionRange(posRange) {
@@ -214,6 +274,9 @@ function setSelectionRange(posRange) {
 
 window.getCursorPosition = getCursorPosition;
 window.setCursorPosition = setCursorPosition;
+window.getSelectionRange = getSelectionRange;
+window.getFluidSelection = getFluidSelection;
+window.setSelectionRange = setSelectionRange;
 
 // ---------------------------
 // Analysis

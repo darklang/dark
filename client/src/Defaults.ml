@@ -48,7 +48,8 @@ let defaultFluidState : fluidState =
       ; commands = []
       ; cmdOnTL = None
       ; cmdOnID = None
-      ; filter = None } }
+      ; filter = None }
+  ; selection = None }
 
 
 let defaultCanvasProps : canvasProps =

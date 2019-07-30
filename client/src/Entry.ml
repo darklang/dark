@@ -48,6 +48,11 @@ external jsGetSelectionRange :
   = "getSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
+external jsGetFluidSelection :
+  unit -> fluidSelection Js.Nullable.t
+  = "getFluidSelection"
+  [@@bs.val] [@@bs.scope "window"]
+
 external jsSetSelectionRange : int * int -> unit = "setSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -59,6 +64,10 @@ let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
 let getSelectionRange () : (int * int) option =
   jsGetSelectionRange () |> Js.Nullable.toOption
+
+
+let getFluidSelection () : fluidSelection option =
+  jsGetFluidSelection () |> Js.Nullable.toOption
 
 
 let setSelectionRange (r : int * int) : unit = jsSetSelectionRange r

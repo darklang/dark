@@ -1063,7 +1063,7 @@ let update_ (msg : msg) (m : model) : modification =
             None
       in
       Selection.dblclick m targetExnID targetID offset
-  | ToplevelClick (targetExnID, _) ->
+  | ToplevelClick (targetExnID, event) ->
       let click =
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
@@ -1081,7 +1081,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let fluid =
         if VariantTesting.isFluid m.tests
-        then Fluid.update m (FluidMouseClick targetExnID)
+        then Fluid.update m (FluidMouseClick (targetExnID, event))
         else NoChange
       in
       Many [click; fluid]
@@ -1592,6 +1592,17 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps} )
+  | UpdateFluidSelection selection ->
+      TweakModel
+        (fun m ->
+          ( match m.fluidState.selection with
+          | Some s ->
+              Js.log2 "update-selection" selection ;
+              (* re-apply selection *)
+              Entry.setSelectionRange s.range
+          | None ->
+              () ) ;
+          {m with fluidState = {m.fluidState with selection}} )
 
 
 let rec filter_read_only (m : model) (modification : modification) =

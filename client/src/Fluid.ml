@@ -3108,7 +3108,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
   | _ ->
       let tlid =
         match msg with
-        | FluidMouseClick tlid ->
+        | FluidMouseClick (tlid, _) ->
             Some tlid
         | _ ->
             tlidOf m.cursorState
@@ -3390,11 +3390,34 @@ let toHtml
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
-        let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
+        let idStr = deID (Token.tid ti.token) in
+        let idclasses = ["id-" ^ idStr] in
+        let selectionHandler _ =
+          Js.log2 "double clicking fluid entry:" idStr ;
+          let curPos = Entry.getCursorPosition () in
+          Js.log2 "cursorPosition" curPos ;
+          let sel = Entry.getFluidSelection () in
+          Js.log2 "fluidSelection" sel ;
+          UpdateFluidSelection sel
+        in
+        let selectionEvents =
+          [ ViewUtils.eventNoPropagation
+              ~key:("fluid-entry-dbl-click" ^ idStr)
+              "dblclick"
+              selectionHandler
+          ; ViewUtils.eventOnMouse
+              ~key:("fluid-entry-dbl-click" ^ idStr)
+              "click"
+              (fun e ->
+                if e.shiftKey
+                then selectionHandler e
+                else UpdateFluidSelection None ) ]
+        in
         Html.span
-          [ Attrs.class'
-              (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-          ]
+          ( [ Attrs.class'
+                (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
+            ]
+          @ selectionEvents )
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3482,6 +3505,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown"
+      ; ViewUtils.nothingMouseEvent "drag"
       ; ViewUtils.nothingMouseEvent "mouseup" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
@@ -3528,7 +3552,34 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ] ]
+              |> Option.withDefault ~default:"" ) ) ]
+    ; Html.div
+        []
+        [ Html.text "selection: "
+        ; Html.text
+            ( match s.selection with
+            | Some selection ->
+                Js.log2 "selection tokens" selection.tokens ;
+                selection.tokens
+                |> List.map ~f:(fun ((st, stop), tok) ->
+                       string_of_int st
+                       ^ ":"
+                       ^ string_of_int stop
+                       ^ ", "
+                       ^
+                       match tok with
+                       | FSCRealToken (id, content) ->
+                           Js.log2 "tok" tok ;
+                           Js.log2 "fStatus content" content ;
+                           Js.log2 "fStatus id" (deID id) ;
+                           "'" ^ content ^ "', " ^ deID id
+                       | FSCRawText content ->
+                           Js.log2 "tok" tok ;
+                           Js.log2 "fStatus content" content ;
+                           "'" ^ content ^ "'" )
+                |> String.join ~sep:";\n"
+            | None ->
+                "none" ) ] ]
   in
   let tokenDiv =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in

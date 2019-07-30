@@ -413,7 +413,9 @@ and dval =
 (* ----------------------------- *)
 and mouseEvent =
   { mePos : vPos
-  ; button : int }
+  ; button : int
+  ; detail : int
+  ; shiftKey : bool }
 
 and isLeftButton = bool
 
@@ -901,7 +903,7 @@ and msg =
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
   | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidMouseClick of tlid
+  | FluidMouseClick of tlid * mouseEvent
   | AutocompleteClick of int
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
@@ -991,6 +993,7 @@ and msg =
   | FluidRunCommand of command
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
+  | UpdateFluidSelection of fluidSelection option
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1114,6 +1117,12 @@ and fluidExpr =
 
 and placeholder = string * string
 
+and sepTokenContext =
+  | UnknownContext
+  | STCInside of id
+  | STCBefore of id
+  | STCAfter of id
+
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
@@ -1225,6 +1234,15 @@ and fluidCommandState =
   ; cmdOnID : id option
   ; filter : string option }
 
+and fluidSelectionToken =
+  (*| FSCFullExpr of (id * string) list *)
+  | FSCRealToken of id * string
+  | FSCRawText of string
+
+and fluidSelection =
+  { range : int * int
+  ; tokens : ((int * int) * fluidSelectionToken) list }
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1236,7 +1254,8 @@ and fluidState =
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
-  ; cp : fluidCommandState }
+  ; cp : fluidCommandState
+  ; selection : fluidSelection option }
 
 (* Avatars *)
 and avatar =
