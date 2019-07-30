@@ -3569,13 +3569,8 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
                        ^
                        match tok with
                        | FSCRealToken (id, content) ->
-                           Js.log2 "tok" tok ;
-                           Js.log2 "fStatus content" content ;
-                           Js.log2 "fStatus id" (deID id) ;
                            "'" ^ content ^ "', " ^ deID id
                        | FSCRawText content ->
-                           Js.log2 "tok" tok ;
-                           Js.log2 "fStatus content" content ;
                            "'" ^ content ^ "'" )
                 |> String.join ~sep:";\n"
             | None ->

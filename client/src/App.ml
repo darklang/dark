@@ -1597,7 +1597,6 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           ( match m.fluidState.selection with
           | Some s ->
-              Js.log2 "update-selection" selection ;
               (* re-apply selection *)
               Entry.setSelectionRange s.range
           | None ->
