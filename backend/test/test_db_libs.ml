@@ -74,14 +74,14 @@ let t_db_new_query_v3_works () =
     ; Op.SetDBColName (dbid, colnameid2, "y")
     ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
-  let ast = 
+  let ast =
     "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
                 (let hopetofind (DB::set_v1 (obj (x 'bar') (y 'foo')) 'findme' MyDB)
                 (let results (DB::query_v3 (obj (x 'bar')) MyDB)
                 (== (hopetofind) results))))"
   in
-  check_dval "equal_after_roundtrip"  (DBool true) (exec_handler ~ops ast)
-  
+  check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
+
 
 let t_db_set_does_upsert () =
   clear_test_data () ;

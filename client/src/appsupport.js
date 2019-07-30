@@ -165,8 +165,8 @@ function toBsList(list) {
     return 0;
   }
 
-  let bsList = [list[list.length-1], 0];
-  for (var i = list.length-2; i > -1; i--) {
+  let bsList = [list[list.length - 1], 0];
+  for (var i = list.length - 2; i > -1; i--) {
     bsList = [list[i], bsList];
   }
 
@@ -206,7 +206,7 @@ function fluidSelectionToken(startPos, node) {
     selectionToken = node.textContent;
     selectionToken.tag = 1; /* FSCRawText */
   }
-  return [[startPos, startPos+node.textContent.length], selectionToken];
+  return [[startPos, startPos + node.textContent.length], selectionToken];
 }
 
 function getFluidSelection() {
@@ -220,17 +220,14 @@ function getFluidSelection() {
   let endParsing = false;
 
   while (!!node && !endParsing) {
-    endParsing = node.isEqualNode(selection.extentNode.parentNode)
+    endParsing = node.isEqualNode(selection.extentNode.parentNode);
     let token = fluidSelectionToken(pos, node);
     tokens.push(token);
     pos += node.textContent.length;
     node = node.nextSibling;
   }
 
-  return [
-    [initPos, pos],
-    toBsList(tokens)
-  ];
+  return [[initPos, pos], toBsList(tokens)];
 }
 
 function setSelectionRange(posRange) {
