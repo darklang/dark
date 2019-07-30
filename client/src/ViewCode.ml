@@ -664,6 +664,10 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
         baseClass ^ " http-patch"
     | F (_, "CRON"), _ ->
         baseClass ^ " cron"
+    | F (_, "WORKER"), _ ->
+        baseClass ^ " worker"
+    | F (_, "REPL"), _ ->
+        baseClass ^ " repl"
     | _ ->
         baseClass
   in
