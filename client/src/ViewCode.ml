@@ -592,13 +592,19 @@ let viewOpts (vs : viewState) : msg Html.html =
   Html.div
     [Html.class' "handler-options"]
     [ fontAwesome "chevron-circle-down"
+    ; Html.div [
+      ViewUtils.eventNoPropagation
+        ~key:("del-tl-" ^ strTLID)
+        "click"
+        (fun _ -> CopyCurl vs.tlid )
+    ] [fontAwesome "copy"; Html.text "Copy cURL"]
     ; Html.div
         [ ViewUtils.eventNoPropagation
             ~key:("del-tl-" ^ strTLID)
             "click"
             (fun _ -> ToplevelDelete vs.tlid ) ]
         [fontAwesome "times"; Html.text "Delete"]
-    ; Html.div [] [fontAwesome "copy"; Html.text "Copy cURL"] ]
+    ]
 
 
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
