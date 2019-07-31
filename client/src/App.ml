@@ -1604,7 +1604,9 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps} )
-
+  | CopyCurl tlid ->
+    let data = Analysis.curlForCurrentTrace m tlid in
+    match data with Some d -> Debug.loG "curl" d; Native.Clipboard.copyToClipboard d; NoChange | None -> Debug.loG "curl" "nada"; NoChange
 
 let rec filter_read_only (m : model) (modification : modification) =
   if m.permission = Some ReadWrite

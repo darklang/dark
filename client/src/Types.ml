@@ -985,6 +985,7 @@ and msg =
   | FluidRunCommand of command
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
+  | CopyCurl of tlid
 
 (* ----------------------------- *)
 (* AB tests *)

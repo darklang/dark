@@ -250,7 +250,6 @@ let isStringLiteral (s : string) : bool =
 let stripQuotes (s : string) : string =
   s |> String.dropLeft ~count:1 |> String.dropRight ~count:1
 
-
 let addQuotes (s : string) : string = "\"" ^ s ^ "\""
 
 module Regex = Util.Regex
@@ -424,6 +423,24 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
 
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
+
+let jsonObj (dv : dval) : string option =
+    match dv with
+    | DObj o ->
+        StrDict.toList o
+        |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\": " ^ toRepr_ 0 v)
+        |> String.join ~sep:(",")
+        |> fun s -> Some ("-d '{" ^ s ^ "}'")
+    | _ -> None
+
+let headerObj (dv : dval) : string option =
+    match dv with
+    | DObj o ->
+        StrDict.toList o
+        |> List.map ~f:(fun (k, v) -> "-H '" ^ k ^ ":" ^ (toRepr_ 0 v |> stripQuotes) ^ "'")
+        |> String.join ~sep:(" ")
+        |> fun s -> Some s
+    | _ -> None
 
 (* TODO: copied from Libexecution/http.ml *)
 let route_variables (route : string) : string list =
