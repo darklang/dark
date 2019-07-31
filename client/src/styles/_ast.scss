@@ -21,11 +21,9 @@ $pipe-color: $blue;
     color: $color;
     border-bottom-color: $color;
 
-    .modifier {
-      .handler-trigger {
-        &:hover {
-          color: lighten($color, 10%);
-        }
+    .handler-trigger {
+      &:hover {
+        color: lighten($color, 10%);
       }
     }
   }
@@ -144,10 +142,10 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   justify-content: space-between;
   flex-wrap: nowrap;
 
-  color: $queue-color;
+  color: $default-toplevel-color;
   font-size: 8pt;
 
-  border-bottom: 1px solid $queue-color;
+  border-bottom: 1px solid $default-toplevel-color;
   padding-bottom: 4px;
   padding-top: 4px;
   padding-left: $spacing-medium;
@@ -159,11 +157,54 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   @include handler-type(http-delete, $http-delete);
   @include handler-type(http-patch, $http-patch);
   @include handler-type(cron, $cron-color);
+  @include handler-type(worker, $queue-color);
+  @include handler-type(repl, $repl-color);
 
   .name,
   .modifier,
   .space {
     margin: 0;
+  }
+  .handler-trigger {
+    display: inline;
+    margin-left: 4px;
+    position: relative;
+
+    &:hover {
+      cursor: pointer;
+    }
+
+    @include is-executing();
+
+    &.inactive {
+      display: inline;
+      margin-left: 4px;
+      color: $grey2;
+
+      &:hover {
+        cursor: not-allowed;
+      }
+    }
+
+    &.complete {
+      &:before {
+        @extend .font-awesome;
+        content: "\f00c";
+        position: absolute;
+        left: 0;
+        opacity: 1;
+
+        /* duration timing-fn delay fill-mode animation-name */
+        animation: 0.5s linear 2s forwards fadeOut;
+      }
+
+      i.fa.fa-redo {
+        opacity: 0;
+
+        /* duration timing-fn delay fill-mode animation-name */
+        animation: 0.5s linear 2.25s forwards fadeIn;
+      }
+    }
   }
 
   .modifier {
@@ -175,48 +216,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     .external {
       margin-left: 4px;
       color: $green;
-    }
-
-    .handler-trigger {
-      display: inline;
-      margin-left: 4px;
-      position: relative;
-
-      &:hover {
-        cursor: pointer;
-      }
-
-      @include is-executing();
-
-      &.inactive {
-        display: inline;
-        margin-left: 4px;
-        color: $grey2;
-
-        &:hover {
-          cursor: not-allowed;
-        }
-      }
-
-      &.complete {
-        &:before {
-          @extend .font-awesome;
-          content: "\f00c";
-          position: absolute;
-          left: 0;
-          opacity: 1;
-
-          /* duration timing-fn delay fill-mode animation-name */
-          animation: 0.5s linear 2s forwards fadeOut;
-        }
-
-        i.fa.fa-redo {
-          opacity: 0;
-
-          /* duration timing-fn delay fill-mode animation-name */
-          animation: 0.5s linear 2.25s forwards fadeIn;
-        }
-      }
     }
   }
 
