@@ -35,7 +35,9 @@ $http-put: $orange;
 $http-patch: $purple;
 $http-delete: lighten($red, 15%);
 $cron-color: $yellow;
-$queue-color: $grey3;
+$default-toplevel-color: $grey3;
+$queue-color: $cyan;
+$repl-color: $pink;
 $user-functions: saturate($cyan, 10%);
 
 $hover-foreground: darken($blue, 10%);
