@@ -69,7 +69,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["Dict::get_v1"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr]
@@ -1402,7 +1402,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["List::head_v1"]
     ; ins = []
     ; p = [par "list" TList]
@@ -1466,7 +1466,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["List::last_v1"]
     ; ins = []
     ; p = [par "list" TList]
