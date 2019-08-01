@@ -1109,6 +1109,8 @@ and fluidExpr =
 and placeholder = string * string
 
 and fluidToken =
+  | TLParen
+  | TRParen
   | TInteger of id * string
   | TString of id * string
   | TBlank of id

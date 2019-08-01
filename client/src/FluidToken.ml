@@ -62,7 +62,13 @@ let tid (t : token) : id =
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _) ->
       id
-  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+  | TLParen
+  | TRParen
+  | TSep
+  | TNewline
+  | TIndented _
+  | TIndent _
+  | TIndentToHere _ ->
       fakeid
 
 
@@ -126,7 +132,9 @@ let isTextToken token : bool =
   | TMatchKeyword _
   | TMatchSep _
   | TThreadPipe _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TLParen
+  | TRParen ->
       false
 
 
@@ -210,6 +218,10 @@ let toText (t : token) : string =
   in
   let canBeEmpty name = if name = "" then "   " else name in
   match t with
+  | TLParen ->
+      "("
+  | TRParen ->
+      ")"
   | TInteger (_, i) ->
       shouldntBeEmpty i
   | TFloatWhole (_, w) ->
@@ -467,10 +479,16 @@ let toTypeName (t : token) : string =
       "pattern-float-point"
   | TPatternFloatFraction _ ->
       "pattern-float-fraction"
+  | TLParen ->
+      "lparen"
+  | TRParen ->
+      "rparen"
 
 
 let toCategoryName (t : token) : string =
   match t with
+  | TLParen | TRParen ->
+      "paren"
   | TInteger _ | TString _ ->
       "literal"
   | TVariable _ | TNewline | TSep | TBlank _ | TPlaceholder _ ->

@@ -504,13 +504,19 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
       (* Specifialized for being in a thread *)
-      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+      [ TLParen
+      ; TBinOp (id, op)
+      ; TSep
+      ; nested ~placeholderFor:(Some (op, 1)) rexpr
+      ; TRParen ]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      [ nested ~placeholderFor:(Some (op, 0)) lexpr
+      [ TLParen
+      ; nested ~placeholderFor:(Some (op, 0)) lexpr
       ; TSep
       ; TBinOp (id, op)
       ; TSep
-      ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
+      ; nested ~placeholderFor:(Some (op, 1)) rexpr
+      ; TRParen ]
   | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
       let ghostSuffix = String.dropLeft ~count:(String.length newOp) op in
       let ghost =
@@ -559,12 +565,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
-      [TFnName (id, partialName, displayName, fnName, ster)]
+      [TLParen; TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
         |> List.concat )
+      @ [TRParen]
   | EFnCall (id, fnName, args, ster) ->
       let displayName = ViewUtils.fnDisplayName fnName in
       let versionDisplayName = ViewUtils.versionDisplayName fnName in
@@ -574,12 +581,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
-      [TFnName (id, partialName, displayName, fnName, ster)]
+      [TLParen; TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
                [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
         |> List.concat )
+      @ [TRParen]
   | EList (id, exprs) ->
       let ts =
         exprs
@@ -2287,7 +2295,12 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let newID = gid () in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+  | TLParen
+  | TRParen
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TLambdaArrow _
+  | TMatchSep _ ->
       (ast, moveToStart ti s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       let newAST = removeEmptyExpr (Token.tid ti.token) ast in
@@ -2405,7 +2418,12 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let newID = gid () in
   let f str = removeCharAt str offset in
   match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+  | TLParen
+  | TRParen
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TLambdaArrow _
+  | TMatchSep _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (Token.tid ti.token) ast, s)
@@ -2682,6 +2700,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
   | TNewline
+  | TLParen
+  | TRParen
   | TIfKeyword _
   | TIfThenKeyword _
   | TIfElseKeyword _
@@ -3580,7 +3600,7 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
 
 
 (* -------------------- *)
-(* Scaffolidng *)
+(* Scaffolding *)
 (* -------------------- *)
 
 let selectedASTAsText (m : model) : string option =
