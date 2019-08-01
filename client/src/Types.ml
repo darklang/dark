@@ -892,6 +892,7 @@ and modification =
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | NewGroup of group
+  | AddToGroup of tlid * toplevel
 
 (* ------------------- *)
 (* Msgs *)

@@ -43,7 +43,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->
-        ([ViewGroup.viewGroup vs g], [])
+        ([ViewGroup.viewGroup m vs g], [])
   in
   let refersTo = ViewIntrospect.refersToViews tlid vs.refersToRefs in
   let usedIn = ViewIntrospect.usedInViews tlid vs.usedInRefs in

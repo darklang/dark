@@ -1,16 +1,18 @@
 .grouping-variant {
   .toplevel.group {
     background: rgba(56, 56, 56, 0.8);
+    height: 250px;
+    width: 360px;
     .group-data {
       padding: 10px;
       display: flex;
       justify-content: flex-start;
       flex-direction: column;
       .group-top {
+        height: 30px;
         width: 100%;
         display: flex;
         .group-name {
-          background: black;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -18,6 +20,10 @@
           margin: 0;
           width: 90%;
           padding: 5px 0px;
+          &.form {
+            background: black;
+            width: 100%;
+          }
           form {
             position: initial;
             margin: 0;
@@ -35,6 +41,37 @@
           justify-content: center;
           align-items: center;
           font-size: 18px;
+        }
+      }
+      .member-list {
+        overflow-y: scroll;
+        height: 200px;
+        .fa.fa-lock {
+          display: none;
+        }
+        &::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .member {
+          background: $black2;
+          margin-top: 15px;
+        }
+        &.preview {
+          .member {
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: solid 1px white;
+            padding: 5px 10px;
+            width: max-content;
+            .member-text {
+              margin: 0px 5px;
+              &:first-child {
+                margin-left: 0px;
+              }
+            }
+          }
         }
       }
       .children {

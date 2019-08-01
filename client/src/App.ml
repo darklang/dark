@@ -820,6 +820,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearHover (tlid, id) ->
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
+    | AddToGroup (gTLID, toplevel) ->
+        let group = TD.get ~tlid:gTLID m.groups in
+        ( match group with
+        | Some g ->
+            let newMemberTlid =
+              match toplevel with
+              | TLHandler h ->
+                  h.hTLID
+              | TLDB b ->
+                  b.dbTLID
+              | _ ->
+                  impossible "cannot add any other type of handler"
+            in
+            let newGroup = {g with members = [newMemberTlid] @ g.members} in
+            let newMod = Groups.upsert m newGroup in
+            (newMod, Cmd.none)
+        | None ->
+            impossible "impossible" )
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1062,12 +1080,19 @@ let update_ (msg : msg) (m : model) : modification =
               (* we don't, perhaps due to overlapping click handlers *)
               (* There doesn't seem to be any harm in stopping dragging *)
               (* here though *)
-             
               if not (TL.isGroup tl)
               then
-                Many
-                  [ SetCursorState origCursorState
-                  ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
+                (* Check if mePos is inside a group, if so add to group *)
+                let mePos = Viewport.toAbsolute m event.mePos in
+                let gTlid = Groups.landedInGroup mePos m.groups |> List.head in
+                match gTlid with
+                | Some tlid ->
+                    Many [SetCursorState origCursorState; AddToGroup (tlid, tl)]
+                | None ->
+                    Many
+                      [ SetCursorState origCursorState
+                      ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                      ]
               else SetCursorState origCursorState
             else SetCursorState origCursorState
         | _ ->
@@ -1239,7 +1264,7 @@ let update_ (msg : msg) (m : model) : modification =
       RPC ([DeleteType tlid], FocusSame)
   | DeleteGroup tlid ->
       let tl = TL.getExn m tlid in
-      Many [RemoveGroup tl;]
+      Many [RemoveGroup tl]
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
