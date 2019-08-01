@@ -3150,20 +3150,11 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
           in
           let cmd =
-            let astCmd =
-              if newAST <> ast || newState.oldPos <> newState.newPos
-              then [Entry.setBrowserPos newState.newPos]
-              else []
-            in
-            let acCmd =
-              match newState.ac.index with
-              | Some index ->
-                  [FluidAutocomplete.focusItem index]
-              | None ->
-                  []
-            in
-            let commands = acCmd @ astCmd in
-            if List.isEmpty commands then Cmd.none else Cmd.batch commands
+            match newState.ac.index with
+            | Some index ->
+                FluidAutocomplete.focusItem index
+            | None ->
+                Cmd.none
           in
           let astMod =
             if ast <> newAST
@@ -3587,26 +3578,24 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let status = List.concat [posDiv; tokenDiv; actions; error] in
   Html.div [Attrs.id "fluid-status"] status
 
+
 (* -------------------- *)
 (* Scaffolidng *)
 (* -------------------- *)
 
-(* let registerGlobalDirect name tagger = *)
-(*   let open Vdom in *)
-(*   let enableCall callbacks_base = *)
-(*     let callbacks = ref callbacks_base in *)
-(*     let fn ev = Some (tagger (Obj.magic ev)) in *)
-(*     let handler = EventHandlerCallback (name, fn) in *)
-(*     let elem = Web_node.document_node in *)
-(*     let cache = eventHandler_Register callbacks elem name handler in *)
-(*     fun () -> ignore (eventHandler_Unregister elem name cache) *)
-(*   in *)
-(*   Tea_sub.registration name enableCall *)
-(*  *)
+let selectedASTAsText (m : model) : string option =
+  let s = m.fluidState in
+  TL.selectedAST m |> Option.map ~f:(fromExpr s) |> Option.map ~f:(eToString s)
 
-(* let subscriptions (_m : model) : msg Tea.Sub.t = *)
-(*   let keySubs = [Keyboard.downs (fun x -> KeyPress x)] in *)
-(*   let mouseSubs = [Mouse.ups (fun _ -> MouseClick)] in *)
-(*   let events = [registerGlobalDirect "SaveEditor" (fun _ -> SaveEditor)] in *)
-(*   Tea.Sub.batch (List.concat [keySubs; mouseSubs; events]) *)
-(*  *)
+
+let renderCallback (m : model) =
+  match m.cursorState with
+  | FluidEntering _ ->
+      (* When you change the text of a node in the DOM, the browser resets the
+       * cursor to the start of the node. After each rerender, we want to make
+       * sure we set the cursor to it's exact place. We do it here to make sure
+       * it's always set after a render, not waiting til the next frame.
+       *)
+      Entry.setCursorPosition m.fluidState.newPos
+  | _ ->
+      ()
