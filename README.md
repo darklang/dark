@@ -296,6 +296,21 @@ Use the queryparam "localhost-assets=<username>" to load static assets from dark
 
 You can check if it's going through via the ngrok console (which logs requests), and by tailing the server logs: `tail -f rundir/logs/server.log`.
 
+## Editing other BS libraries
+
+We sometimes have to edit other bs libraries in tandem with our codebase, which
+is a little challenging. Here are the steps to make it work:
+
+In client/package.json
+```
+-    "bucklescript-tea": "darklang/bucklescript-tea#master",
++    "bucklescript-tea": "file:../../bucklescript-tea",
+```
+
+In scripts/builder:
++  MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../bucklescript-tea,dst=/home/dark/bucklescript-tea"
+
+
 
 ## Debugging ppx stuff
 
