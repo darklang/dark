@@ -1,6 +1,5 @@
 open! Tc
-
-(* open Types *)
+open Types
 open Jest
 open Expect
 open Runtime
@@ -87,4 +86,33 @@ let () =
                (generate
                   "https://foobar.builwithdark.com/hello?foo=bar&baz=quux"))
           |> toEqual (Some "/hello?foo=bar&baz=quux") ) ) ;
+  describe "objAsJsonCurl" (fun () ->
+      test "returns jsonfied curl flag" (fun () ->
+          let dict =
+            StrDict.empty
+            |> StrDict.insert ~key:"a" ~value:(DInt 1)
+            |> StrDict.insert ~key:"b" ~value:(DBool false)
+          in
+          expect (objAsJsonCurl (DObj dict))
+          |> toEqual (Some "-d '{\"a\":1,\"b\":false}'") ) ;
+      test "returns None if input dval is not DObj" (fun () ->
+          expect (objAsJsonCurl DNull) |> toEqual None ) ) ;
+  describe "objAsHeaderCurl" (fun () ->
+      test "returns header curl flag string" (fun () ->
+          let dict =
+            StrDict.empty
+            |> StrDict.insert
+                 ~key:"Content-Type"
+                 ~value:(DStr "application/json")
+            |> StrDict.insert
+                 ~key:"Authorization"
+                 ~value:(DStr "Bearer abc123")
+          in
+          expect (objAsHeaderCurl (DObj dict))
+          |> toEqual
+               (Some
+                  "-H 'Authorization:Bearer abc123' -H 'Content-Type:application/json'")
+      ) ;
+      test "returns None if input dval is not DObj" (fun () ->
+          expect (objAsHeaderCurl DNull) |> toEqual None ) ) ;
   ()
