@@ -36,18 +36,6 @@ if [ -n "$RELOAD_BROWSER" ]; then
 fi
 
 # --------------
-# Conduit
-# --------------
-if [ ! -v CI ]; then
-  if [ ! -d ../conduit-frontend ]; then
-    echo "pulling the conduit frontend"
-    pushd ..
-    git clone git@github.com:darklang/conduit-frontend
-    popd
-  fi
-fi
-
-# --------------
 # Mounts
 # --------------
 
@@ -63,9 +51,6 @@ else
   MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
 
-  if [[ -e "../conduit-frontend" ]]; then
-    MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
-  fi
   if [[ -e "$HOME/.config/gcloud" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
   fi
