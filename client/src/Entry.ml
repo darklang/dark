@@ -49,21 +49,10 @@ let getCursorPosition () : int option =
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
-let setBrowserPos offset =
-  Tea.Cmd.call (fun _ ->
-      (* We need to set this in the new frame, as updating sets the cursor to
-       * the start of the DOM node. *)
-      ignore
-        (Web.Window.requestAnimationFrame (fun _ -> setCursorPosition offset)) ;
-      () )
-
-
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) ->
       Tea_html_cmds.focus Defaults.entryID
-  | FluidEntering _tlid ->
-      setBrowserPos m.fluidState.newPos
   | _ ->
       Tea.Cmd.none
 
@@ -72,8 +61,6 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) ->
       focusWithOffset Defaults.entryID offset
-  | FluidEntering _tlid ->
-      setBrowserPos m.fluidState.newPos
   | _ ->
       Tea.Cmd.none
 
