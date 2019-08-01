@@ -986,6 +986,7 @@ and msg =
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid
+  | SetHandlerActionsMenu of tlid * bool
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1032,7 +1033,8 @@ and handlerProp =
       (* When hovering over a reference, this is the list of ids that refer to
        * the reference *)
       id list
-  ; execution : exeState }
+  ; execution : exeState
+  ; showActions : bool }
 
 and tlCursors = traceID StrDict.t
 
