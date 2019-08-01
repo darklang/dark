@@ -97,7 +97,9 @@ let viewGroupMembers
 
 
 let viewGroup (m : model) (vs : viewState) (group : group) : msg Html.html =
-  let isPreview = not (Some group.gTLID = tlidOf m.cursorState) in
+  (* Disabling detail view for now *)
+  (* let isPreview = not (Some group.gTLID = tlidOf m.cursorState) in *)
+  let isPreview = true in
   let nameView = viewGroupName vs group isPreview in
   (* Check here to see if group is empty *)
   let closeIcon =
