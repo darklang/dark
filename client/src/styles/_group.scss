@@ -18,11 +18,11 @@
           justify-content: center;
           font-weight: 500;
           margin: 0;
-          width: 90%;
+          width: 100%;
           padding: 5px 0px;
           &.form {
             background: black;
-            width: 100%;
+            width: 90%;
           }
           form {
             position: initial;
@@ -35,12 +35,35 @@
           }
         }
 
-        .delete-btn {
+        .delete-btn-wrap {
           width: 10%;
           display: flex;
           justify-content: center;
           align-items: center;
           font-size: 18px;
+          color: $black2;
+          &.empty {
+            color: $grey3;
+          }
+          &.preview {
+            visibility: hidden;
+          }
+          .error-text {
+            display: none;
+          }
+          &:hover {
+            .error-text {
+              display: inherit;
+              visibility: visible;
+              position: absolute;
+              right: 0;
+              width: 150px;
+              font-size: 14px;
+              top: 5px;
+              color: $red;
+              margin-right: -160px;
+            }
+          }
         }
       }
       .member-list {
@@ -79,6 +102,25 @@
         display: flex;
         justify-content: center;
         align-items: center;
+      }
+    }
+    &:hover {
+      .group-data .group-top .delete-btn-wrap.preview.empty .delete-btn {
+        position: absolute;
+        visibility: visible;
+        width: 20px;
+        height: 20px;
+        font-size: 16px;
+        color: $black3;
+        background: $grey3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        top: 0;
+        right: 0;
+        margin-top: -10px;
+        margin-right: -10px;
       }
     }
   }

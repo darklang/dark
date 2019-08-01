@@ -101,16 +101,33 @@ let viewGroup (m : model) (vs : viewState) (group : group) : msg Html.html =
   let nameView = viewGroupName vs group isPreview in
   (* Check here to see if group is empty *)
   let closeIcon =
-    if isPreview
-    then Html.div [] []
-    else
-      let delEvent =
+    let hasMembers = List.length group.members > 0 in
+    let delEvent =
+      if (isPreview && hasMembers) || ((not isPreview) && hasMembers)
+      then ViewUtils.nothingMouseEvent "click"
+      else
         ViewUtils.eventNeither
           ~key:("entry-" ^ showTLID group.gTLID)
           "click"
           (fun _ -> DeleteGroup group.gTLID)
-      in
-      Html.a [delEvent; Html.class' "delete-btn"] [fontAwesome "times"]
+    in
+    let errorText =
+      if hasMembers
+      then
+        [ Html.p
+            [Html.class' "error-text"]
+            [Html.text "Can't delete groups with things inside"] ]
+      else []
+    in
+    Html.div
+      [ Html.classList
+          [ ("delete-btn-wrap", true)
+          ; ("preview", isPreview)
+          ; ("empty", not hasMembers) ] ]
+      ( [ Html.a
+            [delEvent; Html.classList [("delete-btn", true)]]
+            [fontAwesome "times"] ]
+      @ errorText )
   in
   let groupMemberView = viewGroupMembers m vs group.members isPreview in
   Html.div
