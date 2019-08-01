@@ -1605,7 +1605,7 @@ let update_ (msg : msg) (m : model) : modification =
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps} )
   | CopyCurl tlid ->
-    ( match Analysis.curlCommand m tlid with
+    ( match Curl.makeCommand m tlid with
     | Some data ->
         Native.Clipboard.copyToClipboard data ;
         TweakModel (Editor.setHandlerMenu tlid false)

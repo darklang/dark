@@ -425,29 +425,6 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
 
-let objAsJsonCurl (dv : dval) : string option =
-  match dv with
-  | DObj o ->
-      StrDict.toList o
-      |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\":" ^ toRepr_ 0 v)
-      |> String.join ~sep:","
-      |> fun s -> Some ("-d '{" ^ s ^ "}'")
-  | _ ->
-      None
-
-
-let objAsHeaderCurl (dv : dval) : string option =
-  match dv with
-  | DObj o ->
-      StrDict.toList o
-      |> List.map ~f:(fun (k, v) ->
-             "-H '" ^ k ^ ":" ^ (toRepr_ 0 v |> stripQuotes) ^ "'" )
-      |> String.join ~sep:" "
-      |> fun s -> Some s
-  | _ ->
-      None
-
-
 (* TODO: copied from Libexecution/http.ml *)
 let route_variables (route : string) : string list =
   let split_uri_path (path : string) : string list =
