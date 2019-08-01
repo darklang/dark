@@ -3150,20 +3150,11 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
             (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
           in
           let cmd =
-            let astCmd =
-              if newAST <> ast || newState.oldPos <> newState.newPos
-              then [Entry.setBrowserPos newState.newPos]
-              else []
-            in
-            let acCmd =
-              match newState.ac.index with
-              | Some index ->
-                  [FluidAutocomplete.focusItem index]
-              | None ->
-                  []
-            in
-            let commands = acCmd @ astCmd in
-            if List.isEmpty commands then Cmd.none else Cmd.batch commands
+            match newState.ac.index with
+            | Some index ->
+                FluidAutocomplete.focusItem index
+            | None ->
+                Cmd.none
           in
           let astMod =
             if ast <> newAST
@@ -3587,9 +3578,22 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let status = List.concat [posDiv; tokenDiv; actions; error] in
   Html.div [Attrs.id "fluid-status"] status
 
+
 (* -------------------- *)
 (* Scaffolidng *)
 (* -------------------- *)
+
+let selectedASTAsText (m : model) : string option =
+  let s = m.fluidState in
+  TL.selectedAST m |> Option.map ~f:(fromExpr s) |> Option.map ~f:(eToString s)
+
+
+let renderCallback (m : model) =
+  match m.cursorState with
+  | FluidEntering _ ->
+      Entry.setCursorPosition m.fluidState.newPos
+  | _ ->
+      ()
 
 (* let registerGlobalDirect name tagger = *)
 (*   let open Vdom in *)
