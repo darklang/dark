@@ -1608,9 +1608,11 @@ let update_ (msg : msg) (m : model) : modification =
     ( match Analysis.curlCommand m tlid with
     | Some data ->
         Native.Clipboard.copyToClipboard data ;
-        NoChange
+        TweakModel (Editor.setHandlerMenu tlid false)
     | None ->
-        NoChange )
+        TweakModel (Editor.setHandlerMenu tlid false) )
+  | SetHandlerActionsMenu (tlid, show) ->
+      TweakModel (Editor.setHandlerMenu tlid show)
 
 
 let rec filter_read_only (m : model) (modification : modification) =

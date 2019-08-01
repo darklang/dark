@@ -88,6 +88,18 @@ let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
   {m with handlerProps = props}
 
 
+let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
+  let updateProps prop =
+    match prop with
+    | Some p ->
+        Some {p with showActions = show}
+    | None ->
+        Some {Defaults.defaultHandlerProp with showActions = show}
+  in
+  let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
+  {m with handlerProps = props}
+
+
 let serialize (m : model) : unit =
   let state = m |> model2editor |> toString in
   Dom.Storage.setItem
