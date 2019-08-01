@@ -20,7 +20,7 @@
     "bs-uuid": "^0.3.1",
     "bs-webapi": "^0.15.2",
     "bucklescript-tea": "darklang/bucklescript-tea#master",
-    "clipboard-copy": "^3.0.0",
+    "clipboard-copy": "^3.1.0",
     "domready": "^1.0.8",
     "mouse-wheel": "^1.2.0",
     "pusher-js": "^5.0.0",
