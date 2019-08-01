@@ -808,7 +808,8 @@ and canvasProps =
   ; enablePan : bool
   ; lastOffset : pos option
   ; viewportSize : size
-  ; panAnimation : bool }
+  ; panAnimation : bool
+  ; preview: string option }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -993,6 +994,7 @@ and msg =
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
   | ResetToast
+  | UpdateMinimap of string option
 
 (* ----------------------------- *)
 (* AB tests *)

@@ -305,6 +305,12 @@ let viewCanvas (m : model) : msg Html.html =
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
     (overlay :: allDivs)
 
+let viewMinimap (data : string option) : msg Html.html =
+    Html.img
+    [ Html.class' "minimap"
+    ; Html.src (data |> Option.withDefault ~default:"")
+    ; Vdom.prop "alt" "architecture preview" ]
+    []
 
 let viewToast (t : toast) : msg Html.html =
   let msg = Option.withDefault ~default:"" t.toastMessage in
@@ -348,7 +354,8 @@ let view (m : model) : msg Html.html =
   let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
-    ; ViewScaffold.readOnlyMessage m ]
+    ; ViewScaffold.readOnlyMessage m
+    ; viewMinimap m.canvasProps.preview ]
     @ errorBar
   in
   let routing = ViewRoutingTable.viewRoutingTable m in
