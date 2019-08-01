@@ -425,18 +425,18 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
 
 and toRepr (dv : dval) : string = toRepr_ 0 dv
 
-let jsonObj (dv : dval) : string option =
+let objAsJsonCurl (dv : dval) : string option =
   match dv with
   | DObj o ->
       StrDict.toList o
-      |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\": " ^ toRepr_ 0 v)
+      |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\":" ^ toRepr_ 0 v)
       |> String.join ~sep:","
       |> fun s -> Some ("-d '{" ^ s ^ "}'")
   | _ ->
       None
 
 
-let headerObj (dv : dval) : string option =
+let objAsHeaderCurl (dv : dval) : string option =
   match dv with
   | DObj o ->
       StrDict.toList o

@@ -411,12 +411,12 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
              | Some (DStr url) ->
                  let headers =
                    StrDict.get ~key:"headers" r
-                   |> Option.andThen ~f:RT.headerObj
+                   |> Option.andThen ~f:RT.objAsHeaderCurl
                    |> wrapInList
                  in
                  let body =
                    StrDict.get ~key:"body" r
-                   |> Option.andThen ~f:RT.jsonObj
+                   |> Option.andThen ~f:RT.objAsJsonCurl
                    |> wrapInList
                  in
                  let meth =

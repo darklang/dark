@@ -534,7 +534,11 @@ let externalLink (vs : viewState) (spec : handlerSpec) =
               ^ "."
               ^ vs.userContentHost
               ^ urlPath )
-          ; Html.target "_blank" ]
+          ; Html.target "_blank"
+          ; ViewUtils.eventNoPropagation
+              ~key:("hide-tl-opts" ^ showTLID vs.tlid)
+              "click"
+              (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
           [fontAwesome "external-link-alt"; Html.text "Test request tab"] ]
   | _ ->
       []
