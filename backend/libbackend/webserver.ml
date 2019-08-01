@@ -277,8 +277,6 @@ let options_handler
      origin, to return Access-Control-Allow-Headers with the requested headers,
      and Access-Control-Allow-Methods for all of the methods we think might
      be useful.
-
-     This makes e.g. conduit from localhost work.
   *)
   let req_headers =
     Cohttp.Header.get (CRequest.headers req) "access-control-request-headers"
