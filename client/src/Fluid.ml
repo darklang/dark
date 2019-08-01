@@ -3599,23 +3599,3 @@ let renderCallback (m : model) =
       Entry.setCursorPosition m.fluidState.newPos
   | _ ->
       ()
-
-(* let registerGlobalDirect name tagger = *)
-(*   let open Vdom in *)
-(*   let enableCall callbacks_base = *)
-(*     let callbacks = ref callbacks_base in *)
-(*     let fn ev = Some (tagger (Obj.magic ev)) in *)
-(*     let handler = EventHandlerCallback (name, fn) in *)
-(*     let elem = Web_node.document_node in *)
-(*     let cache = eventHandler_Register callbacks elem name handler in *)
-(*     fun () -> ignore (eventHandler_Unregister elem name cache) *)
-(*   in *)
-(*   Tea_sub.registration name enableCall *)
-(*  *)
-
-(* let subscriptions (_m : model) : msg Tea.Sub.t = *)
-(*   let keySubs = [Keyboard.downs (fun x -> KeyPress x)] in *)
-(*   let mouseSubs = [Mouse.ups (fun _ -> MouseClick)] in *)
-(*   let events = [registerGlobalDirect "SaveEditor" (fun _ -> SaveEditor)] in *)
-(*   Tea.Sub.batch (List.concat [keySubs; mouseSubs; events]) *)
-(*  *)
