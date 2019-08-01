@@ -310,12 +310,6 @@ flag to see the commands run. You'll see something that looks like this:
 Run that without the --dump-ast and then look at the .pp.ml file to find
 the preprocessed version.
 
-## Running conduit
-
-- Run `./scripts/run-conduit-frontend.sh`
-- Go to `http://localhost:8001`
-- This will use http://conduit.builtwithdark.localhost:8000 as its server, so use http://darklang.localhost:8000/a/conduit/ to create the UI.
-
 ## Important docs which we believe are up-to-date:
 
 - [docs/add-user.md](docs/add-user.md)
