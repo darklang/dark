@@ -1,6 +1,7 @@
-open Types
+open Tc
 
 (* open Prelude *)
+open Types
 
 (* Dark *)
 module B = Blank
@@ -12,17 +13,25 @@ let remove (m : model) (g : group) : model =
 
 
 let fromList (groups : group list) : group TLIDDict.t =
-  groups |> List.map (fun g -> (g.gTLID, g)) |> TLIDDict.fromList
+  groups |> List.map ~f:(fun g -> (g.gTLID, g)) |> TLIDDict.fromList
 
 
 let upsert (m : model) (g : group) : model =
   {m with groups = TD.insert ~tlid:g.gTLID ~value:g m.groups}
 
 
+let isNotInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
+  groups
+  |> TLIDDict.mapValues ~f:(fun group -> group)
+  |> List.filter ~f:(fun g -> List.member ~value:tlid g.members)
+  |> List.length
+  == 0
+
+
 let landedInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
   groups
   |> TLIDDict.mapValues ~f:(fun group -> group)
-  |> List.filter (fun (g : Types.group) ->
+  |> List.filter ~f:(fun (g : Types.group) ->
          (* X *)
          let horStart = g.pos.x in
          (* 360X250 = the static size of a group *)

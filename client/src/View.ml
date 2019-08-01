@@ -266,6 +266,7 @@ let viewCanvas (m : model) : msg Html.html =
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
+        |> List.filter ~f:(fun tl -> Groups.isNotInGroup (TL.id tl) m.groups)
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->
       ( match TD.get ~tlid m.userFunctions with
