@@ -194,6 +194,13 @@ module OnWheel = struct
   let listen ~key tagger = registerGlobal "wheel" key tagger decode
 end
 
+module OnCaptureView = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    map (fun msg -> msg) (field "detail" string)
+  let listen ~key tagger = registerGlobal "captureView" key tagger decode
+end
+
 module DarkMouse = struct
   let moves ~key tagger =
     registerGlobal "mousemove" key tagger Tea.Mouse.position

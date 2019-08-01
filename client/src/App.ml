@@ -1622,6 +1622,8 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (Editor.setHandlerMenu tlid show)
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
+  | UpdateMinimap data ->
+    TweakModel (fun m -> {m with canvasProps = {m.canvasProps with preview = data}})
 
 
 let rec filter_read_only (m : model) (modification : modification) =
@@ -1731,6 +1733,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           e##preventDefault () ;
           ClipboardPasteEvent e ) ]
   in
+  let onCaptureView =
+    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s -> UpdateMinimap (Some s) ) ]
+  in
   Tea.Sub.batch
     (List.concat
        [ keySubs
@@ -1741,7 +1746,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; visibility
        ; onError
        ; mousewheelSubs
-       ; analysisSubs ])
+       ; analysisSubs
+       ; onCaptureView ])
 
 
 let debugging =
