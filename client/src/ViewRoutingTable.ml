@@ -68,6 +68,8 @@ let categoryIcon (name : string) : msg Html.html list =
       [fontAwesome "wrench"]
   | "fof" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
+  | "groups" ->
+      [fontAwesome "object-group"]
   | _ ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
 
@@ -234,6 +236,34 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   ; entries }
 
 
+let groupCategory (m : model) (groups : group list) : category =
+  let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.name) in
+  let entries =
+    List.map groups ~f:(fun (group : group) ->
+        let name = group.name |> Blank.toMaybe |> deOption "group name" in
+        let minusButton =
+          let hasMembers = List.length group.members > 0 in
+          if Refactor.usedGroup m name || hasMembers
+          then None
+          else Some (DeleteGroup group.gTLID)
+        in
+        Entry
+          { name
+          ; tlid = group.gTLID
+          ; uses = None
+          ; minusButton
+          ; killAction = Some (DeleteGroupForever group.gTLID)
+          ; destination = Some (FocusedGroup (group.gTLID, true))
+          ; plusButton = None
+          ; verb = None } )
+  in
+  { count = List.length groups
+  ; name = "Groups"
+  ; classname = "groups"
+  ; plusButton = Some CreateGroup
+  ; entries }
+
+
 let rec count (s : item) : int =
   match s with
   | Entry _ ->
@@ -242,7 +272,7 @@ let rec count (s : item) : int =
       c.entries |> List.map ~f:count |> List.sum
 
 
-let standardCategories m hs dbs ufns tipes =
+let standardCategories m hs dbs ufns tipes groups =
   let hs =
     hs |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLHandler tl))
   in
@@ -255,6 +285,9 @@ let standardCategories m hs dbs ufns tipes =
   let tipes =
     tipes |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLTipe tl))
   in
+  let groups =
+    groups |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLGroup tl))
+  in
   (* TODO: add groups to sidebar *)
   [ httpCategory hs
   ; dbCategory m dbs
@@ -262,7 +295,8 @@ let standardCategories m hs dbs ufns tipes =
   ; userTipeCategory m tipes
   ; workerCategory hs
   ; cronCategory hs
-  ; replCategory hs ]
+  ; replCategory hs
+  ; groupCategory m groups ]
 
 
 let deletedCategory (m : model) : category =
@@ -273,6 +307,7 @@ let deletedCategory (m : model) : category =
       m.deletedDBs
       m.deletedUserFunctions
       m.deletedUserTipes
+      m.deletedGroups
     |> List.map ~f:(fun c ->
            { c with
              plusButton =
@@ -581,6 +616,8 @@ let adminDebuggerView (m : model) : msg Html.html =
         Printf.sprintf "DB (TLID %s)" (deTLID tlid)
     | FocusedType tlid ->
         Printf.sprintf "Type (TLID %s)" (deTLID tlid)
+    | FocusedGroup (tlid, _) ->
+        Printf.sprintf "Group (TLID %s)" (deTLID tlid)
   in
   let flagText =
     "["
@@ -644,7 +681,7 @@ let adminDebuggerView (m : model) : msg Html.html =
 let viewRoutingTable_ (m : model) : msg Html.html =
   let isClosed : bool = not m.sidebarOpen in
   let cats =
-    standardCategories m m.handlers m.dbs m.userFunctions m.userTipes
+    standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
     @ [f404Category m; deletedCategory m]
   in
   let showAdminDebugger =
@@ -714,8 +751,12 @@ let rtCacheKey m =
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
+  , m.usedGroups
   , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
+  , m.groups
+  , m.deletedGroups
+    |> TD.mapValues ~f:(fun (g : group) -> TL.sortkey (TLGroup g))
   , tlidOf m.cursorState
   , m.environment
   , m.timersEnabled

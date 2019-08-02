@@ -173,7 +173,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -257,7 +257,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         m
         |> TL.structural
         |> TD.values
@@ -315,6 +315,8 @@ let viewCanvas (m : model) : msg Html.html =
         "focused-fn"
     | FocusedType _ ->
         "focused-type"
+    | FocusedGroup _ ->
+        "focused-group"
   in
   Html.div
     [ Html.id "canvas"

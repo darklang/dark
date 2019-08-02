@@ -9,7 +9,15 @@ module P = Pointer
 module TD = TLIDDict
 
 let remove (m : model) (g : group) : model =
-  {m with groups = TD.remove ~tlid:g.gTLID m.groups}
+  { m with
+    groups = TD.remove ~tlid:g.gTLID m.groups
+  ; deletedGroups = TD.insert ~tlid:g.gTLID ~value:g m.deletedGroups }
+
+
+(* Temporary to check if tlid is a deletedGroup *)
+let isFromDeletedGroup (m : model) (tlid : tlid) : group option =
+  let deletedGroupTLIDs = TD.get ~tlid m.deletedGroups in
+  deletedGroupTLIDs
 
 
 let fromList (groups : group list) : group TLIDDict.t =
@@ -18,6 +26,17 @@ let fromList (groups : group list) : group TLIDDict.t =
 
 let upsert (m : model) (g : group) : model =
   {m with groups = TD.insert ~tlid:g.gTLID ~value:g m.groups}
+
+
+let generateGroupName (_ : unit) : string =
+  "Group_" ^ (() |> Util.random |> string_of_int)
+
+
+let createEmptyGroup (name : string) (pos : pos) : modification =
+  let tlid = Prelude.gtlid () in
+  let nameid = Prelude.gid () in
+  let group = {name = F (nameid, name); members = []; gTLID = tlid; pos} in
+  Many [NewGroup group; Deselect]
 
 
 let isNotInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =

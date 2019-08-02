@@ -960,7 +960,7 @@ let toggleTimers (m : model) : model =
 
 let findCenter (m : model) : pos =
   match m.currentPage with
-  | Architecture | FocusedHandler _ | FocusedDB _ ->
+  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       Viewport.toCenter m.canvasProps.offset
   | _ ->
       Defaults.centerPos
@@ -1003,7 +1003,7 @@ let update_ (msg : msg) (m : model) : modification =
     ( match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
         NoChange
-    | Architecture | FocusedDB _ | FocusedHandler _ ->
+    | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -1251,7 +1251,16 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusSame)
   | RestoreToplevel tlid ->
-      RPC ([UndoTL tlid], FocusNext (tlid, None))
+      (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
+      let group = Groups.isFromDeletedGroup m tlid in
+      ( match group with
+      | Some g ->
+          let newMod = Groups.upsert m g in
+          TweakModel
+            (fun _ ->
+              {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups} )
+      | None ->
+          RPC ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->
       Many
         [ RPC ([DeleteFunctionForever tlid], FocusSame)
@@ -1296,6 +1305,11 @@ let update_ (msg : msg) (m : model) : modification =
         ; TweakModel
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
+        ]
+  | DeleteGroupForever tlid ->
+      Many
+        [ TweakModel
+            (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
       let initialMods =
@@ -1602,6 +1616,10 @@ let update_ (msg : msg) (m : model) : modification =
       let center = findCenter m
       and genName = DB.generateDBName () in
       DB.createDB genName center
+  | CreateGroup ->
+      let center = findCenter m
+      and genName = Groups.generateGroupName () in
+      Groups.createEmptyGroup genName center
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
