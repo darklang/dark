@@ -2142,6 +2142,40 @@ let acMoveBasedOnKey
   newState
 
 
+let updateFromACItem
+    (entry : fluidAutocompleteItem)
+    (ti : tokenInfo)
+    (ast : ast)
+    (s : state)
+    (key : K.key) : ast * state =
+  let id = Token.tid ti.token in
+  let newAST, offset =
+    match ti.token with
+    (* since patterns have no partial but commit as variables
+        * automatically, allow intermediate variables to
+        * be autocompletable to other expressions *)
+    | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
+        let newPat, acOffset = acToPattern entry in
+        let newAST = replacePattern ~newPat mID pID ast in
+        (newAST, acOffset)
+    | (TPartial _ | TRightPartial _) when entry = FACKeyword KThread ->
+        let newExpr, _ = acUpdateExpr id ast entry in
+        let newAST = replaceExpr id ast ~newExpr in
+        let tokens = toTokens s newAST in
+        let nextBlank = getNextBlankPos s.newPos tokens in
+        (newAST, nextBlank - ti.startPos)
+    | TPartial _ | TRightPartial _ ->
+        let newExpr, offset = acUpdateExpr id ast entry in
+        let newAST = replacePartialWithArguments ~newExpr id s ast in
+        (newAST, offset)
+    | _ ->
+        let newExpr, offset = acUpdateExpr id ast entry in
+        let newAST = replaceExpr ~newExpr id ast in
+        (newAST, offset)
+  in
+  (newAST, acMoveBasedOnKey key ti.startPos offset s newAST)
+
+
 let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     ast * state =
   let s = recordAction ~ti "acEnter" s in
@@ -2153,32 +2187,12 @@ let acEnter (ti : tokenInfo) (ast : ast) (s : state) (key : K.key) :
     | _ ->
         (ast, s) )
   | Some entry ->
-      let id = Token.tid ti.token in
-      let newAST, offset =
-        match ti.token with
-        (* since patterns have no partial but commit as variables
-        * automatically, allow intermediate variables to
-        * be autocompletable to other expressions *)
-        | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
-            let newPat, acOffset = acToPattern entry in
-            let newAST = replacePattern ~newPat mID pID ast in
-            (newAST, acOffset)
-        | (TPartial _ | TRightPartial _) when entry = FACKeyword KThread ->
-            let newExpr, _ = acUpdateExpr id ast entry in
-            let newAST = replaceExpr id ast ~newExpr in
-            let tokens = toTokens s newAST in
-            let nextBlank = getNextBlankPos s.newPos tokens in
-            (newAST, nextBlank - ti.startPos)
-        | TPartial _ | TRightPartial _ ->
-            let newExpr, offset = acUpdateExpr id ast entry in
-            let newAST = replacePartialWithArguments ~newExpr id s ast in
-            (newAST, offset)
-        | _ ->
-            let newExpr, offset = acUpdateExpr id ast entry in
-            let newAST = replaceExpr ~newExpr id ast in
-            (newAST, offset)
-      in
-      (newAST, acMoveBasedOnKey key ti.startPos offset s newAST)
+      updateFromACItem entry ti ast s key
+
+
+let acClick
+    (entry : fluidAutocompleteItem) (ti : tokenInfo) (ast : ast) (s : state) =
+  updateFromACItem entry ti ast s K.Enter
 
 
 let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : ast * fluidState)
@@ -3091,6 +3105,10 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
         updateKey key ast s
+    | FluidAutocompleteClick entry ->
+        Js.log "entry" ;
+        Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
+        |> Option.withDefault ~default:(ast, s)
     | _ ->
         (ast, s)
   in
@@ -3209,7 +3227,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick i ) ]
+                FluidAutocompleteClick item ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
@@ -3224,6 +3242,8 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
   in
   Html.div [Attrs.id "fluid-dropdown"] [Html.ul [] autocompleteList]
 
+
+let submitAutocomplete (_m : model) : modification = NoChange
 
 let viewCopyButton tlid value : msg Html.html =
   Html.div
