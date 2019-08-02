@@ -243,6 +243,7 @@ since they are essentially both commands just acting upon different things. */
   }
 
   #fluid-dropdown {
+    cursor: pointer;
     background-color: $dropdown-background;
     color: $dropdown-foreground;
     z-index: 1000;
