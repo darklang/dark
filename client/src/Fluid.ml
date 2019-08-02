@@ -2800,14 +2800,15 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * should convert them to a partial which retains the old object *)
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
-     * inconsistent about whether it looks left/right and also about
-     * what conditions it applies to each of the tokens.
+     * inconsistent about whether it looks left/right and also about what
+     * conditions it applies to each of the tokens.
      *
-     * The largest inconsistency is whether or not the case expresses
-     * "in this exact case, do this exact thing" or "in this very general case, do this thing".
-     * The mixing and matching of these two means * the cases are very sensitive to ordering.
-     * If you're adding a case that's sensitive to ordering ADD A TEST, even if it's otherwise
-     * redundant from a product POV. *)
+     * The largest inconsistency is whether or not the case expresses "in this
+     * exact case, do this exact thing" or "in this very general case, do this
+     * thing". The mixing and matching of these two means the cases are very
+     * sensitive to ordering. If you're adding a case that's sensitive to
+     * ordering ADD A TEST, even if it's otherwise redundant from a product
+     * POV. *)
     match (key, toTheLeft, toTheRight) with
     (* Deleting *)
     | K.Backspace, L (TPatternString _, ti), _
