@@ -1150,6 +1150,181 @@ let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
 
 
 (* ---------------- *)
+(* Movement *)
+(* ---------------- *)
+let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "moveToPrevNonWhitespaceToken" s in
+  let rec getNextWS tokens =
+    match tokens with
+    | [] ->
+        pos
+    | ti :: rest ->
+      ( match ti.token with
+      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+          getNextWS rest
+      | _ ->
+          if pos < ti.startPos then getNextWS rest else ti.startPos )
+  in
+  let newPos = getNextWS (List.reverse (toTokens s ast)) in
+  setPosition ~resetUD:true s newPos
+
+
+let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
+  let rec getNextWS tokens =
+    match tokens with
+    | [] ->
+        pos
+    | ti :: rest ->
+      ( match ti.token with
+      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+          getNextWS rest
+      | _ ->
+          if pos > ti.startPos then getNextWS rest else ti.startPos )
+  in
+  let newPos = getNextWS (toTokens s ast) in
+  setPosition ~resetUD:true s newPos
+
+
+let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToStartOfLine" s in
+  let token =
+    toTokens s ast
+    |> List.find ~f:(fun info ->
+           if info.startRow == ti.startRow
+           then
+             match info.token with
+             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
+             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+                 false
+             | _ ->
+                 true
+           else false )
+    |> Option.withDefault ~default:ti
+  in
+  let newPos = token.startPos in
+  setPosition s newPos
+
+
+let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToEndOfLine" s in
+  let token =
+    toTokens s ast
+    |> List.reverse
+    |> List.find ~f:(fun info -> info.startRow == ti.startRow)
+    |> Option.withDefault ~default:ti
+  in
+  let newPos =
+    match token.token with
+    (* To prevent the cursor from going to the end of an indent or to a new line *)
+    | TNewline _ | TIndent _ | TIndentToHere _ ->
+        token.startPos
+    | _ ->
+        token.endPos
+  in
+  setPosition s newPos
+
+
+let moveToEnd (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti "moveToEnd" s in
+  setPosition ~resetUD:true s (ti.endPos - 1)
+
+
+let moveToStart (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti ~pos:ti.startPos "moveToStart" s in
+  setPosition ~resetUD:true s ti.startPos
+
+
+let moveToAfter (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti ~pos:ti.endPos "moveToAfter" s in
+  setPosition ~resetUD:true s ti.endPos
+
+
+let moveOneLeft (pos : int) (s : state) : state =
+  let s = recordAction ~pos "moveOneLeft" s in
+  setPosition ~resetUD:true s (max 0 (pos - 1))
+
+
+let moveOneRight (pos : int) (s : state) : state =
+  let s = recordAction ~pos "moveOneRight" s in
+  setPosition ~resetUD:true s (pos + 1)
+
+
+let moveTo (newPos : int) (s : state) : state =
+  let s = recordAction ~pos:newPos "moveTo" s in
+  setPosition s newPos
+
+
+(* Starting from somewhere after the location, move back until we reach the
+ * `target` expression, and return a state with it's location. If blank, will
+ * go to the start of the blank *)
+let moveBackTo (target : id) (ast : ast) (s : state) : state =
+  let s = recordAction "moveBackTo" s in
+  let tokens = toTokens s ast in
+  match
+    List.find (List.reverse tokens) ~f:(fun ti ->
+        FluidToken.tid ti.token = target )
+  with
+  | None ->
+      fail "cannot find token to moveBackTo"
+  | Some lastToken ->
+      let newPos =
+        if FluidToken.isBlank lastToken.token
+        then lastToken.startPos
+        else lastToken.endPos
+      in
+      moveTo newPos s
+
+
+let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
+  |> Option.orElseLazy (fun () ->
+         if pos = 0 then None else getNextBlank 0 tokens )
+
+
+let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getNextBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "moveToNextBlank" s in
+  let tokens = toTokens s ast in
+  let newPos = getNextBlankPos pos tokens in
+  setPosition ~resetUD:true s newPos
+
+
+let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
+  tokens
+  |> List.filter ~f:(fun ti -> Token.isBlank ti.token && ti.endPos < pos)
+  |> List.last
+  |> Option.orElseLazy (fun () ->
+         let lastPos =
+           List.last tokens
+           |> Option.map ~f:(fun ti -> ti.endPos)
+           |> Option.withDefault ~default:0
+         in
+         if pos = lastPos then None else getPrevBlank lastPos tokens )
+
+
+let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
+  tokens
+  |> getPrevBlank pos
+  |> Option.map ~f:(fun ti -> ti.startPos)
+  |> Option.withDefault ~default:pos
+
+
+let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "moveToPrevBlank" s in
+  let tokens = toTokens s ast in
+  let newPos = getPrevBlankPos pos tokens in
+  setPosition ~resetUD:true s newPos
+
+
+(* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
 
@@ -1783,178 +1958,30 @@ let addBlankToList (id : id) (ast : ast) : ast =
 
 
 (* ---------------- *)
-(* Movement *)
+(* General stuff *)
 (* ---------------- *)
-let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "moveToPrevNonWhitespaceToken" s in
-  let rec getNextWS tokens =
-    match tokens with
-    | [] ->
-        pos
-    | ti :: rest ->
-      ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
-          getNextWS rest
-      | _ ->
-          if pos < ti.startPos then getNextWS rest else ti.startPos )
+let addEntryBelow
+    (id : id) (ast : ast) (s : fluidState) (f : fluidState -> fluidState) :
+    ast * fluidState =
+  let cursor = ref `NextToken in
+  let newAST =
+    updateExpr id ast ~f:(fun e ->
+        match e with
+        | ELet (lid, lhsid, lhs, rhs, body) ->
+            cursor := `NextBlank ;
+            let newLet = ELet (gid (), gid (), "", newB (), body) in
+            ELet (lid, lhsid, lhs, rhs, newLet)
+        | _ ->
+            e )
   in
-  let newPos = getNextWS (List.reverse (toTokens s ast)) in
-  setPosition ~resetUD:true s newPos
-
-
-let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
-  let rec getNextWS tokens =
-    match tokens with
-    | [] ->
-        pos
-    | ti :: rest ->
-      ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
-          getNextWS rest
-      | _ ->
-          if pos > ti.startPos then getNextWS rest else ti.startPos )
+  let newState =
+    match !cursor with
+    | `NextToken ->
+        f s
+    | `NextBlank ->
+        moveToNextBlank ~pos:s.newPos newAST s
   in
-  let newPos = getNextWS (toTokens s ast) in
-  setPosition ~resetUD:true s newPos
-
-
-let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToStartOfLine" s in
-  let token =
-    toTokens s ast
-    |> List.find ~f:(fun info ->
-           if info.startRow == ti.startRow
-           then
-             match info.token with
-             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
-             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
-                 false
-             | _ ->
-                 true
-           else false )
-    |> Option.withDefault ~default:ti
-  in
-  let newPos = token.startPos in
-  setPosition s newPos
-
-
-let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToEndOfLine" s in
-  let token =
-    toTokens s ast
-    |> List.reverse
-    |> List.find ~f:(fun info -> info.startRow == ti.startRow)
-    |> Option.withDefault ~default:ti
-  in
-  let newPos =
-    match token.token with
-    (* To prevent the cursor from going to the end of an indent or to a new line *)
-    | TNewline _ | TIndent _ | TIndentToHere _ ->
-        token.startPos
-    | _ ->
-        token.endPos
-  in
-  setPosition s newPos
-
-
-let moveToEnd (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti "moveToEnd" s in
-  setPosition ~resetUD:true s (ti.endPos - 1)
-
-
-let moveToStart (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos:ti.startPos "moveToStart" s in
-  setPosition ~resetUD:true s ti.startPos
-
-
-let moveToAfter (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos:ti.endPos "moveToAfter" s in
-  setPosition ~resetUD:true s ti.endPos
-
-
-let moveOneLeft (pos : int) (s : state) : state =
-  let s = recordAction ~pos "moveOneLeft" s in
-  setPosition ~resetUD:true s (max 0 (pos - 1))
-
-
-let moveOneRight (pos : int) (s : state) : state =
-  let s = recordAction ~pos "moveOneRight" s in
-  setPosition ~resetUD:true s (pos + 1)
-
-
-let moveTo (newPos : int) (s : state) : state =
-  let s = recordAction ~pos:newPos "moveTo" s in
-  setPosition s newPos
-
-
-(* Starting from somewhere after the location, move back until we reach the
- * `target` expression, and return a state with it's location. If blank, will
- * go to the start of the blank *)
-let moveBackTo (target : id) (ast : ast) (s : state) : state =
-  let s = recordAction "moveBackTo" s in
-  let tokens = toTokens s ast in
-  match
-    List.find (List.reverse tokens) ~f:(fun ti ->
-        FluidToken.tid ti.token = target )
-  with
-  | None ->
-      fail "cannot find token to moveBackTo"
-  | Some lastToken ->
-      let newPos =
-        if FluidToken.isBlank lastToken.token
-        then lastToken.startPos
-        else lastToken.endPos
-      in
-      moveTo newPos s
-
-
-let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
-  tokens
-  |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
-  |> Option.orElseLazy (fun () ->
-         if pos = 0 then None else getNextBlank 0 tokens )
-
-
-let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
-  tokens
-  |> getNextBlank pos
-  |> Option.map ~f:(fun ti -> ti.startPos)
-  |> Option.withDefault ~default:pos
-
-
-let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "moveToNextBlank" s in
-  let tokens = toTokens s ast in
-  let newPos = getNextBlankPos pos tokens in
-  setPosition ~resetUD:true s newPos
-
-
-let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
-  tokens
-  |> List.filter ~f:(fun ti -> Token.isBlank ti.token && ti.endPos < pos)
-  |> List.last
-  |> Option.orElseLazy (fun () ->
-         let lastPos =
-           List.last tokens
-           |> Option.map ~f:(fun ti -> ti.endPos)
-           |> Option.withDefault ~default:0
-         in
-         if pos = lastPos then None else getPrevBlank lastPos tokens )
-
-
-let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
-  tokens
-  |> getPrevBlank pos
-  |> Option.map ~f:(fun ti -> ti.startPos)
-  |> Option.withDefault ~default:pos
-
-
-let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens = toTokens s ast in
-  let newPos = getPrevBlankPos pos tokens in
-  setPosition ~resetUD:true s newPos
+  (newAST, newState)
 
 
 (* -------------------- *)
@@ -2929,6 +2956,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TFieldName _, toTheLeft), _
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
+    (* End of line *)
+    | K.Enter, _, R (TNewline id, ti) ->
+        addEntryBelow id ast s (doRight ~pos ~next:mNext ti)
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
@@ -2955,9 +2985,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
-    (* End of line *)
-    | K.Enter, _, R (TNewline _, ti) ->
-        (ast, doRight ~pos ~next:mNext ti s)
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
