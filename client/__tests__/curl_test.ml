@@ -31,12 +31,7 @@ let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () :
 let () =
   describe "objAsJsonCurl" (fun () ->
       test "returns jsonfied curl flag" (fun () ->
-          let dict =
-            StrDict.empty
-            |> StrDict.insert ~key:"a" ~value:(DInt 1)
-            |> StrDict.insert ~key:"b" ~value:(DBool false)
-          in
-          expect (objAsJsonCurl (DObj dict))
+          expect (objAsJsonCurl (DStr "{\"a\":1,\"b\":false}"))
           |> toEqual (Some "-d '{\"a\":1,\"b\":false}'") ) ;
       test "returns None if input dval is not DObj" (fun () ->
           expect (objAsJsonCurl DNull) |> toEqual None ) ) ;
@@ -139,11 +134,6 @@ let () =
                   "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET http://test-curl.builtwithdark.com/test")
       ) ;
       test "returns command for /test POST with body" (fun () ->
-          let body =
-            StrDict.empty
-            |> StrDict.insert ~key:"a" ~value:(DInt 1)
-            |> StrDict.insert ~key:"b" ~value:(DBool false)
-          in
           let input =
             StrDict.empty
             |> StrDict.insert
@@ -151,7 +141,9 @@ let () =
                  ~value:
                    (DObj
                       ( StrDict.empty
-                      |> StrDict.insert ~key:"body" ~value:(DObj body)
+                      |> StrDict.insert
+                           ~key:"fullBody"
+                           ~value:(DStr "{\"a\":1,\"b\":false}")
                       |> StrDict.insert ~key:"headers" ~value:DNull
                       |> StrDict.insert
                            ~key:"url"
