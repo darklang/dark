@@ -437,6 +437,10 @@ $prodColor: black;
           width: 20px;
           margin-right: 5px;
           filter: $yellowFilter;
+
+          i.fa {
+            color: white;
+          }
         }
       }
     }
