@@ -333,7 +333,8 @@ let () =
        * the old ast that has no newlines. *)
       ast
       |> toTokens {s with newPos = pos}
-      |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos < pos)
+      |> List.filter ~f:(fun ti ->
+             FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
     in
     let ast = EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5)) in
@@ -375,8 +376,11 @@ let () =
     result
     |> toTokens newState
     |> List.iter ~f:(fun ti ->
-           if ti.token = TNewline && !endPos > ti.endPos
-           then endPos := !endPos - 2 ) ;
+           match ti.token with
+           | TNewline _ when !endPos > ti.endPos ->
+               endPos := !endPos - 2
+           | _ ->
+               () ) ;
     (* max 0 cause tests can bs past 0 and that's weird to test for *)
     let finalPos = max 0 !endPos in
     let partialsFound =

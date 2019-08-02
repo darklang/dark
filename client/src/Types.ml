@@ -1128,7 +1128,7 @@ and fluidToken =
    * old thing in a non-interactable way *)
   | TPartialGhost of id * string
   | TSep
-  | TNewline
+  | TNewline of id
   (* All newlines in the nested tokens start indented to this position. *)
   | TIndentToHere of fluidToken list
   (* Increase the level of indentation for all these tokens. *)
