@@ -1757,6 +1757,15 @@ let () =
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
         (enter 10)
         ("request.body", 12) ;
+      t
+        "autocomplete for field in body"
+        (EMatch
+           ( gid ()
+           , EFieldAccess
+               (gid (), EVariable (ID "12", "request"), gid (), "body")
+           , [] ))
+        (enter 18)
+        ("match request.body", 18) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (bs (EVariable (5, "request"))). *)
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)

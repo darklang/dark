@@ -956,8 +956,13 @@ let rec findExpr (id : id) (expr : fluidExpr) : fluidExpr option =
         fe expr
     | ERecord (_, fields) ->
         fields |> List.map ~f:Tuple3.third |> List.filterMap ~f:fe |> List.head
-    | EMatch (_, _, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> List.filterMap ~f:fe |> List.head
+    | EMatch (_, expr, pairs) ->
+        fe expr
+        |> Option.orElse
+             ( pairs
+             |> List.map ~f:Tuple2.second
+             |> List.filterMap ~f:fe
+             |> List.head )
     | EFnCall (_, _, exprs, _)
     | EList (_, exprs)
     | EConstructor (_, _, _, exprs)
