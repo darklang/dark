@@ -485,21 +485,21 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline
+      ; TNewline id
       ; nested next ]
   | EString (id, str) ->
       [TString (id, str)]
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
-      ; TNewline
+      ; TNewline id
       ; TIfThenKeyword id
-      ; TNewline
+      ; TNewline id
       ; TIndent 2
       ; nested if'
-      ; TNewline
+      ; TNewline id
       ; TIfElseKeyword id
-      ; TNewline
+      ; TNewline id
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -595,14 +595,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline
+              [ TNewline id
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline; TRecordClose id] ]
+        ; [TNewline id; TRecordClose id] ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -615,14 +615,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline
+        ; TNewline id
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
                      [TIndentToHere [TThreadPipe (id, i, length); nested e]]
                    in
-                   if i == 0 then thread else TNewline :: thread )
+                   if i == 0 then thread else TNewline id :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -632,7 +632,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EMatch (id, mexpr, pairs) ->
       [ [TMatchKeyword id; nested mexpr]
       ; List.map pairs ~f:(fun (pattern, expr) ->
-            [TNewline; TIndent 2]
+            [TNewline id; TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -660,7 +660,7 @@ let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
       | TIndentToHere tokens ->
           let newX, newTokens = reflow ~x tokens in
           (newX, old @ newTokens)
-      | TNewline ->
+      | TNewline _ ->
           if startingX = 0
           then (startingX, old @ [t])
           else (startingX, old @ [t; TIndent startingX])
@@ -685,7 +685,7 @@ let infoize ~(pos : int) tokens : tokenInfo list =
           ; length }
         in
         ( match token with
-        | TNewline ->
+        | TNewline _ ->
             row := !row + 1 ;
             col := 0
         | _ ->
@@ -871,7 +871,7 @@ let gridFor ~(pos : int) (tokens : tokenInfo list) : gridPos =
   in
   match ti with
   | Some ti ->
-      if ti.token = TNewline
+      if FluidToken.isNewline ti.token
       then {row = ti.startRow + 1; col = 0}
       else {row = ti.startRow; col = ti.startCol + (pos - ti.startPos)}
   | None ->
@@ -918,7 +918,7 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
           h.startPos
       | _, Some l when col >= l.startCol ->
         ( match l.token with
-        | TNewline ->
+        | TNewline _ ->
             l.startPos
         | _ ->
             l.startPos + l.length )
@@ -1793,7 +1793,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
           getNextWS rest
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
@@ -1810,7 +1810,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
           getNextWS rest
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
@@ -1850,7 +1850,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   let newPos =
     match token.token with
     (* To prevent the cursor from going to the end of an indent or to a new line *)
-    | TNewline | TIndent _ | TIndentToHere _ ->
+    | TNewline _ | TIndent _ | TIndentToHere _ ->
         token.startPos
     | _ ->
         token.endPos
@@ -2313,7 +2313,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetAssignment _
   | TListClose _
   | TListOpen _
-  | TNewline
+  | TNewline _
   | TRecordOpen _
   | TRecordClose _
   | TRecordSep _
@@ -2423,7 +2423,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetAssignment _
   | TListClose _
   | TListOpen _
-  | TNewline
+  | TNewline _
   | TRecordClose _
   | TRecordOpen _
   | TRecordSep _
@@ -2681,7 +2681,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
   (* do nothing *)
-  | TNewline
+  | TNewline _
   | TIfKeyword _
   | TIfThenKeyword _
   | TIfElseKeyword _
@@ -2956,7 +2956,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* End of line *)
-    | K.Enter, _, R (TNewline, ti) ->
+    | K.Enter, _, R (TNewline _, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
