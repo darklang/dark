@@ -269,6 +269,9 @@ since they are essentially both commands just acting upon different things. */
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
         height: 16px;
+        &:hover {
+          background: lighten($dropdown-background, 5%);
+        }
 
         .version {
           @extend .fluid-fn-version;
