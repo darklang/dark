@@ -198,9 +198,13 @@ function getTokenId(node) {
 
 function getTokenName(node) {
   for (var cls = 0; cls < node.classList.length; cls++) {
-    if (node.classList[cls].startsWith("fluid-") && 
-      !(node.classList[cls].startsWith("fluid-category"))) {
-      return node.classList[cls].slice(6);
+    let c = node.classList[cls];
+    let condition = (c === "fluid-entry") ||
+        c.startsWith("fluid-category-") ||
+        (c === "fluid-empty") ||
+        (c === "fluid-keyword");
+    if (!condition && !!c) {
+      return c.slice(6);
     }
   }
   return "";
