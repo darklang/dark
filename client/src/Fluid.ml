@@ -3393,9 +3393,6 @@ let toHtml
         let idStr = deID (Token.tid ti.token) in
         let idclasses = ["id-" ^ idStr] in
         let selectionHandler _ =
-          Js.log2 "double clicking fluid entry:" idStr ;
-          let curPos = Entry.getCursorPosition () in
-          Js.log2 "cursorPosition" curPos ;
           let sel = Entry.getFluidSelection () in
           Js.log2 "fluidSelection" sel ;
           UpdateFluidSelection sel
@@ -3560,19 +3557,25 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( match s.selection with
             | Some selection ->
                 Js.log2 "selection tokens" selection.tokens ;
-                selection.tokens
-                |> List.map ~f:(fun ((st, stop), tok) ->
-                       string_of_int st
-                       ^ ":"
-                       ^ string_of_int stop
-                       ^ ", "
-                       ^
-                       match tok with
-                       | FSCRealToken (id, content) ->
-                           "'" ^ content ^ "', " ^ deID id
-                       | FSCRawText content ->
-                           "'" ^ content ^ "'" )
-                |> String.join ~sep:";\n"
+                ( selection.range
+                |> Tuple2.toList
+                |> List.map ~f:string_of_int
+                |> String.join ~sep:"-" )
+                ^ " | "
+                ^ ( selection.tokens
+                  |> List.map
+                       ~f:(fun ((st, stop), (tokId, tokContent, tokName)) ->
+                         string_of_int st
+                         ^ ":"
+                         ^ string_of_int stop
+                         ^ ", "
+                         ^ "'"
+                         ^ tokContent
+                         ^ "', "
+                         ^ tokName
+                         ^ ", "
+                         ^ deID tokId )
+                  |> String.join ~sep:";\n" )
             | None ->
                 "none" ) ] ]
   in

@@ -49,7 +49,8 @@ let defaultFluidState : fluidState =
       ; cmdOnTL = None
       ; cmdOnID = None
       ; filter = None }
-  ; selection = None }
+  ; selection = None
+  ; clipboard = {value = ""; constructed = []} }
 
 
 let defaultCanvasProps : canvasProps =

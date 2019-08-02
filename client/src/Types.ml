@@ -1234,14 +1234,18 @@ and fluidCommandState =
   ; cmdOnID : id option
   ; filter : string option }
 
-and fluidSelectionToken =
-  (*| FSCFullExpr of (id * string) list *)
-  | FSCRealToken of id * string
-  | FSCRawText of string
+and fluidSelectionToken = id * string * string
 
+(*| FSCFullExpr of (id * string) list
+  | FSCRealToken of id * string
+  | FSCRawText of string *)
 and fluidSelection =
   { range : int * int
   ; tokens : ((int * int) * fluidSelectionToken) list }
+
+and fluidClipboard =
+  { value : string
+  ; constructed : (fluidExpr * fluidToken) list }
 
 and fluidState =
   { error : string option
@@ -1255,7 +1259,8 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selection : fluidSelection option }
+  ; selection : fluidSelection option
+  ; clipboard : fluidClipboard }
 
 (* Avatars *)
 and avatar =

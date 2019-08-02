@@ -196,16 +196,27 @@ function getTokenId(node) {
   return "";
 }
 
+function getTokenName(node) {
+  for (var cls = 0; cls < node.classList.length; cls++) {
+    if (node.classList[cls].startsWith("fluid-") && 
+      !(node.classList[cls].startsWith("fluid-category"))) {
+      return node.classList[cls].slice(6);
+    }
+  }
+  return "";
+}
+
 function fluidSelectionToken(startPos, node) {
   let selectionToken;
   let tokenId = getTokenId(node);
-  if (tokenId !== "") {
-    selectionToken = [tokenId, node.textContent];
-    selectionToken.tag = 0; /* FSCRealToken */
-  } else {
-    selectionToken = node.textContent;
-    selectionToken.tag = 1; /* FSCRawText */
-  }
+  let tokenName = getTokenName(node);
+  selectionToken = [tokenId, node.textContent, tokenName];
+
+  // selectionToken.tag = 0; /* FSCRealToken */
+  //else {
+  //   selectionToken = node.textContent;
+  //   selectionToken.tag = 1; /* FSCRawText */
+  // }
   return [[startPos, startPos + node.textContent.length], selectionToken];
 }
 
