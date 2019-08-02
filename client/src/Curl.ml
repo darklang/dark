@@ -1,6 +1,4 @@
 open Tc
-
-(* open Prelude *)
 open Types
 
 (* Dark *)
@@ -10,11 +8,11 @@ module TL = Toplevel
 
 let objAsJsonCurl (dv : dval) : string option =
   match dv with
-  | DObj o ->
-      StrDict.toList o
-      |> List.map ~f:(fun (k, v) -> "\"" ^ k ^ "\":" ^ RT.toRepr v)
-      |> String.join ~sep:","
-      |> fun s -> Some ("-d '{" ^ s ^ "}'")
+  | DStr s ->
+      let body =
+        s |> Util.Regex.replace ~re:(Util.Regex.regex "\n") ~repl:""
+      in
+      Some ("-d '" ^ body ^ "'")
   | _ ->
       None
 
@@ -49,6 +47,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
              None )
 
 
+(* Constructs curl command from headers, fullBody, url (which includes queryParams)   *)
 let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   let wrapInList o =
     o
@@ -69,7 +68,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                    |> wrapInList
                  in
                  let body =
-                   StrDict.get ~key:"body" r
+                   StrDict.get ~key:"fullBody" r
                    |> Option.andThen ~f:objAsJsonCurl
                    |> wrapInList
                  in
