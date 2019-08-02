@@ -938,6 +938,14 @@ let update_ (msg : msg) (m : model) : modification =
         Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
+  | FluidAutocompleteClick item ->
+    ( match unwrapCursorState m.cursorState with
+    | FluidEntering _ ->
+        if VariantTesting.isFluid m.tests
+        then Fluid.update m (FluidAutocompleteClick item)
+        else NoChange
+    | _ ->
+        NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
