@@ -46,7 +46,7 @@ let banned_usernames : string list =
   ; "webmaster"
   ; "wpad" ]
   @ (* original to us *)
-    ["billing"]
+    ["billing"; "dev"]
 
 
 type username = string [@@deriving yojson]
