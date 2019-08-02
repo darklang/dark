@@ -1821,7 +1821,7 @@ let () =
         "enter at the end of a line goes to start of next line"
         nonEmptyLet
         (press K.Enter 11)
-        ("let *** = 6\n5", 12) ;
+        ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
