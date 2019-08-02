@@ -1004,6 +1004,7 @@ and msg =
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
   | DeleteGroup of tlid
+  | RemoveGroupMember of tlid * tlid * mouseEvent
 
 (* ----------------------------- *)
 (* AB tests *)

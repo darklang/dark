@@ -35,7 +35,7 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
     Html.div [Html.class' "group-name form"] [nameField]
 
 
-let previewMembers (tl : toplevel) : msg Html.html =
+let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
   let body =
     match tl with
     | TLHandler h ->
@@ -61,7 +61,24 @@ let previewMembers (tl : toplevel) : msg Html.html =
     | _ ->
         []
   in
-  Html.div [Html.class' "member-wrap"] body
+  let tlid =
+    match tl with
+    | TLHandler h ->
+        h.hTLID
+    | TLDB db ->
+        db.dbTLID
+    | _ ->
+        impossible "No other topleve should be in a group"
+  in
+  let event =
+    ViewUtils.eventNoPropagation
+      ~key:("tlmd-" ^ showTLID tlid)
+      "dragend"
+      (fun x -> RemoveGroupMember (gTLID, tlid, x))
+  in
+  Html.div
+    [event; Vdom.attribute "" "draggable" "true"; Html.class' "member-wrap"]
+    body
 
 
 let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
@@ -78,8 +95,11 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
 
 
 let viewGroupMembers
-    (m : model) (vs : viewState) (members : tlid list) (preview : bool) :
-    msg Html.html =
+    (m : model)
+    (vs : viewState)
+    (gTLID : tlid)
+    (members : tlid list)
+    (preview : bool) : msg Html.html =
   if List.length members == 0
   then
     let innerTxt = if preview then "" else "Drag inside here" in
@@ -89,7 +109,7 @@ let viewGroupMembers
       members
       |> List.map ~f:(fun tlid ->
              let tl = TL.getExn m tlid in
-             if preview then previewMembers tl else viewMember vs tl )
+             if preview then previewMembers gTLID tl else viewMember vs tl )
     in
     Html.div
       [Html.classList [("member-list", true); ("preview", preview)]]
@@ -131,7 +151,9 @@ let viewGroup (m : model) (vs : viewState) (group : group) : msg Html.html =
             [fontAwesome "times"] ]
       @ errorText )
   in
-  let groupMemberView = viewGroupMembers m vs group.members isPreview in
+  let groupMemberView =
+    viewGroupMembers m vs group.gTLID group.members isPreview
+  in
   Html.div
     [Html.class' "group-data"]
     [Html.div [Html.class' "group-top"] [nameView; closeIcon]; groupMemberView]

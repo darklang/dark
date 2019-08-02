@@ -1265,6 +1265,31 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteGroup tlid ->
       let tl = TL.getExn m tlid in
       Many [RemoveGroup tl]
+  | RemoveGroupMember (gTLID, tlid, event) ->
+      let group = TD.get ~tlid:gTLID m.groups in
+      ( match group with
+      | Some g ->
+          let newMembers =
+            g.members |> List.filter ~f:(fun member -> member != tlid)
+          in
+          let newGroup = {g with members = newMembers} in
+          let newMod = Groups.upsert m newGroup in
+          if event.button = Defaults.leftButton
+          then
+            match m.cursorState with
+            | Dragging (_, _, _, origCursorState) ->
+                (* Remove the tlid from group members *)
+                (* update the toplevel pos with the curent event position  *)
+                let mePos = Viewport.toAbsolute m event.mePos in
+                Many
+                  [ TweakModel (fun _m -> newMod)
+                  ; SetCursorState origCursorState
+                  ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ]
+            | _ ->
+                NoChange
+          else NoChange
+      | _ ->
+          NoChange )
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
