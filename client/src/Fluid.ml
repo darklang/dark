@@ -615,7 +615,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline (id, None)
+        ; TNewline (id, Some 0)
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
@@ -1991,6 +1991,9 @@ let addEntryBelow
                   rows
                   ~index
                   ~value:(FPBlank (gid (), gid ()), newB ()) )
+        | Some index, EThread (id, exprs) ->
+            EThread
+              (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
         | _ ->
             cursor := `NextToken ;
             e )
