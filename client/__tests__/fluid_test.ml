@@ -1336,6 +1336,21 @@ let () =
         emptyThread
         (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________", 8) ;
+      t
+        "enter at the end of a thread expr creates a new entry"
+        aThread
+        (enter 21)
+        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]", 24) ;
+      t
+        "enter at the end of the opening expr creates a new entry"
+        aThread
+        (enter 2)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 5) ;
+      (* t *)
+      (*   "enter at the end of the last expr creates a new entry" *)
+      (*   aThread *)
+      (*   (enter 39) *)
+      (*   ("[]\n|>List::append [5]\n|>List::append [5]\n|>___", 42) ; *)
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
