@@ -1962,16 +1962,23 @@ let addBlankToList (id : id) (ast : ast) : ast =
 (* General stuff *)
 (* ---------------- *)
 let addEntryBelow
-    (id : id) (ast : ast) (s : fluidState) (f : fluidState -> fluidState) :
-    ast * fluidState =
+    (id : id)
+    (index : int option)
+    (ast : ast)
+    (s : fluidState)
+    (f : fluidState -> fluidState) : ast * fluidState =
   let cursor = ref `NextToken in
   let newAST =
     updateExpr id ast ~f:(fun e ->
-        match e with
-        | ELet (lid, lhsid, lhs, rhs, body) ->
+        match (index, e) with
+        | None, ELet (lid, lhsid, lhs, rhs, body) ->
             cursor := `NextBlank ;
             let newLet = ELet (gid (), gid (), "", newB (), body) in
             ELet (lid, lhsid, lhs, rhs, newLet)
+        | Some index, ERecord (id, fields) ->
+            cursor := `NextBlank ;
+            ERecord
+              (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
         | _ ->
             e )
   in
@@ -2958,8 +2965,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline (id, _), ti) ->
-        addEntryBelow id ast s (doRight ~pos ~next:mNext ti)
+    | K.Enter, _, R (TNewline (id, index), ti) ->
+        addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in

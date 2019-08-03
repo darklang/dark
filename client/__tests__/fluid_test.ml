@@ -1624,6 +1624,11 @@ let () =
         (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
+        "pressing enter at the end of row adds a row"
+        multi
+        (enter 11)
+        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+      t
         "dont allow weird chars in recordFields"
         emptyRow
         (press K.RightParens 4)
