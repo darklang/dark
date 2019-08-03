@@ -1971,22 +1971,19 @@ let addEntryBelow
     (s : fluidState)
     (f : fluidState -> fluidState) : ast * fluidState =
   let s = recordAction "addEntryBelow" s in
-  let cursor = ref `NextToken in
+  let cursor = ref `NextBlank in
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
         | None, ELet (lid, lhsid, lhs, rhs, body) ->
-            cursor := `NextBlank ;
             let newLet = ELet (gid (), gid (), "", newB (), body) in
             ELet (lid, lhsid, lhs, rhs, newLet)
         | Some index, ERecord (id, fields) ->
-            cursor := `NextBlank ;
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
         | Some index, EMatch (id, cond, rows) ->
             (* TODO: this doesn't work on the last row, due to how matches are
              * created, which is hard to fix. *)
-            cursor := `NextBlank ;
             EMatch
               ( id
               , cond
@@ -1995,6 +1992,7 @@ let addEntryBelow
                   ~index
                   ~value:(FPBlank (gid (), gid ()), newB ()) )
         | _ ->
+            cursor := `NextToken ;
             e )
   in
   let newState =
