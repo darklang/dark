@@ -485,21 +485,21 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline id
+      ; TNewline (id, None)
       ; nested next ]
   | EString (id, str) ->
       [TString (id, str)]
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
-      ; TNewline id
+      ; TNewline (id, None)
       ; TIfThenKeyword id
-      ; TNewline id
+      ; TNewline (id, None)
       ; TIndent 2
       ; nested if'
-      ; TNewline id
+      ; TNewline (id, None)
       ; TIfElseKeyword id
-      ; TNewline id
+      ; TNewline (id, None)
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -595,14 +595,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline id
+              [ TNewline (id, Some i)
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline id; TRecordClose id] ]
+        ; [TNewline (id, Some (List.length fields)); TRecordClose id] ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -615,14 +615,15 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline id
+        ; TNewline (id, None)
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
                      [TIndentToHere [TThreadPipe (id, i, length); nested e]]
                    in
-                   if i == 0 then thread else TNewline id :: thread )
+                   if i == 0 then thread else TNewline (id, Some i) :: thread
+               )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -632,7 +633,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EMatch (id, mexpr, pairs) ->
       [ [TMatchKeyword id; nested mexpr]
       ; List.map pairs ~f:(fun (pattern, expr) ->
-            [TNewline id; TIndent 2]
+            [TNewline (id, None); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -2957,7 +2958,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline id, ti) ->
+    | K.Enter, _, R (TNewline (id, _), ti) ->
         addEntryBelow id ast s (doRight ~pos ~next:mNext ti)
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->

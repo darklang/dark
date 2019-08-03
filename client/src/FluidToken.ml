@@ -61,7 +61,7 @@ let tid (t : token) : id =
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
-  | TNewline id ->
+  | TNewline (id, _) ->
       id
   | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
       fakeid
