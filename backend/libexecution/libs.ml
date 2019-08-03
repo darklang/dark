@@ -56,6 +56,7 @@ let init (extras : shortfn list) : unit =
     (* client-only *)
     Libhttpclient.fns
     @ Libstd.fns
+    @ Liblist.fns
     @ Libhttp.fns
     (* only implemented on server *)
     @ extras
