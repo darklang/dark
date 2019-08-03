@@ -1051,6 +1051,23 @@ let () =
         emptyMatch
         (press K.Space 12)
         ("match ___\n  *** -> ___", 12) ;
+      t
+        "enter at the end of the cond creates a new row"
+        matchWithPatterns
+        (press K.Enter 9)
+        ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
+      t
+        "enter at the end of a row creates a new row"
+        (* TODO: it doesn't work at the end of an ast *)
+        (* TODO: it doesn't work on the last row *)
+        emptyMatchWithTwoPatterns
+        (press K.Enter 22)
+        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
+      (* t *)
+      (*   "enter at the start of a row creates a new row" *)
+      (*   matchWithPatterns *)
+      (*   (press K.Enter 13) *)
+      (*   ("match ___\n  3 -> ___\n  *** -> ___", 23) ; *)
       () ) ;
   describe "Lets" (fun () ->
       t

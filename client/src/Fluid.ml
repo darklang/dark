@@ -632,8 +632,11 @@ let rec toTokens' (s : state) (e : ast) : token list =
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
       [ [TMatchKeyword id; nested mexpr]
-      ; List.map pairs ~f:(fun (pattern, expr) ->
-            [TNewline (id, None); TIndent 2]
+      ; List.indexedMap pairs ~f:(fun i (pattern, expr) ->
+            (* It was probably a mistake to put the newline at the start, as it
+             * makes the Enter-on-newline behaviour not work on the last row,
+             * which is often the most important. Will need to fix later. *)
+            [TNewline (id, Some i); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -1967,6 +1970,7 @@ let addEntryBelow
     (ast : ast)
     (s : fluidState)
     (f : fluidState -> fluidState) : ast * fluidState =
+  let s = recordAction "addEntryBelow" s in
   let cursor = ref `NextToken in
   let newAST =
     updateExpr id ast ~f:(fun e ->
@@ -1979,6 +1983,17 @@ let addEntryBelow
             cursor := `NextBlank ;
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
+        | Some index, EMatch (id, cond, rows) ->
+            (* TODO: this doesn't work on the last row, due to how matches are
+             * created, which is hard to fix. *)
+            cursor := `NextBlank ;
+            EMatch
+              ( id
+              , cond
+              , List.insertAt
+                  rows
+                  ~index
+                  ~value:(FPBlank (gid (), gid ()), newB ()) )
         | _ ->
             e )
   in
