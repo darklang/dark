@@ -320,6 +320,30 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args )
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::functions"]
+    ; ins = []
+    ; p = [par "host" TStr]
+    ; r = TList
+    ; d = "Returns a list of toplevel ids of the functions in `host`"
+    ; f =
+        internal_fn (function
+            | _, [DStr host] ->
+                let c =
+                  Canvas.load_all (Unicode_string.to_string host) []
+                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Prelude.Result.ok_or_internal_exception
+                       "Canvas load error"
+                in
+                !c.user_functions
+                |> IDMap.data
+                |> List.map ~f:(fun fn ->
+                       Dval.dstr_of_string_exn
+                         (Libexecution.Types.string_of_id fn.tlid) )
+                |> fun l -> DList l
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::canLoadTraces"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
