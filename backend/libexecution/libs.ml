@@ -9,7 +9,13 @@ type fnmap = RuntimeT.fn FnMap.t
 
 let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
   List.fold_left
-    ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:f)
+    ~f:(fun m1 n ->
+      FnMap.update m1 n ~f:(fun v ->
+          match v with
+          | Some v ->
+              Exception.internal ("duplicate library function: " ^ n)
+          | None ->
+              f ) )
     ~init:m
     (f.prefix_names @ f.infix_names)
 
