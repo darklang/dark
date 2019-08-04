@@ -77,19 +77,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Option::withDefault"]
-    ; ins = []
-    ; p = [par "option" TOption; par "default" TAny]
-    ; r = TAny
-    ; d =
-        "Turn an option into a normal value, using `default` if the option is Nothing."
-    ; f =
-        InProcess
-          (function
-          | _, [DOption o; default] ->
-            (match o with OptJust dv -> dv | OptNothing -> default)
-          | args ->
-              fail args)
-    ; ps = true
     ; dep = false } ]
