@@ -311,8 +311,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 in
                 !c.handlers
                 |> IDMap.data
-                |> List.map ~f:Libexecution.Toplevel.as_handler
-                |> List.map ~f:(fun h -> Option.value_exn h)
+                |> List.filter_map ~f:Libexecution.Toplevel.as_handler
                 |> List.map ~f:(fun h ->
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id h.tlid) )
