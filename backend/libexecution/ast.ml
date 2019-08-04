@@ -112,6 +112,16 @@ let rec set_expr ~(search : id) ~(replacement : expr) (expr : expr) : expr =
   if search = blank_to_id expr then replacement else traverse ~f:replace expr
 
 
+let rec iter ~(f : expr -> unit) (expr : expr) : unit =
+  let rec recurse e =
+    f e ;
+    traverse ~f:recurse e
+  in
+  f expr ;
+  traverse ~f:recurse expr |> ignore ;
+  ()
+
+
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
