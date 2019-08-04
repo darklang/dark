@@ -14,3 +14,14 @@ let find_functions (expr : expr) : string list =
       | _ ->
           () ) ;
   !fns
+
+
+let find_fields (expr : expr) : string list =
+  let fieldnames : string list ref = ref [] in
+  Ast.iter expr ~f:(fun e ->
+      match e with
+      | Filled (_, FieldAccess (_, Filled (_, fieldname))) ->
+          fieldnames := fieldname :: !fieldnames
+      | _ ->
+          () ) ;
+  !fieldnames
