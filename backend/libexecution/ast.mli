@@ -19,6 +19,8 @@ val traverse :
   -> Types.RuntimeT.expr
   -> Types.RuntimeT.expr
 
+val iter : f:(Types.RuntimeT.expr -> unit) -> Types.RuntimeT.expr -> unit
+
 val execute_ast :
      input_vars:Types.RuntimeT.input_vars
   -> Types.RuntimeT.exec_state
