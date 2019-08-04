@@ -887,6 +887,37 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args )
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::fieldNamesUsed"]
+    ; ins = []
+    ; p = [par "host" TStr; par "tlid" TStr]
+    ; r = TList
+    ; d =
+        "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
+    ; f =
+        internal_fn (function
+            | _, [DStr host; DStr tlid] ->
+                let host = Unicode_string.to_string host in
+                let owner = Account.for_host_exn host in
+                let canvas_id = Serialize.fetch_canvas_id owner host in
+                let tlids = [Unicode_string.to_string tlid |> id_of_string] in
+                let ops =
+                  Serialize.load_only_tlids ~tlids ~host ~canvas_id ()
+                  |> List.hd_exn
+                  |> Tablecloth.Tuple2.second
+                in
+                ops
+                |> List.filter_map ~f:Op.ast_of
+                |> List.filter_map ~f:(fun ast ->
+                       ast
+                       |> Internal_analysis.find_fields
+                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> DList
+                       |> Some )
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::fnMetadata"]
     ; ins = []
     ; p = [par "name" TStr]
