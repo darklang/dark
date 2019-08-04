@@ -133,3 +133,11 @@ let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
 
 let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
   tos |> List.unzip |> Tuple.T2.get2 |> List.concat
+
+
+let ast_of (op : op) : Types.RuntimeT.expr option =
+  match op with
+  | SetFunction {ast} | SetExpr (_, _, ast) | SetHandler (_, _, {ast}) ->
+      Some ast
+  | _ ->
+      None

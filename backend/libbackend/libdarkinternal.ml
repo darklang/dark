@@ -855,4 +855,63 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args )
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::fnsUsed"]
+    ; ins = []
+    ; p = [par "host" TStr; par "tlid" TStr]
+    ; r = TList
+    ; d =
+        "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
+    ; f =
+        internal_fn (function
+            | _, [DStr host; DStr tlid] ->
+                let host = Unicode_string.to_string host in
+                let owner = Account.for_host_exn host in
+                let canvas_id = Serialize.fetch_canvas_id owner host in
+                let tlids = [Unicode_string.to_string tlid |> id_of_string] in
+                let ops =
+                  Serialize.load_only_tlids ~tlids ~host ~canvas_id ()
+                  |> List.hd_exn
+                  |> Tablecloth.Tuple2.second
+                in
+                ops
+                |> List.filter_map ~f:Op.ast_of
+                |> List.filter_map ~f:(fun ast ->
+                       ast
+                       |> Internal_analysis.find_functions
+                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> DList
+                       |> Some )
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::fnMetadata"]
+    ; ins = []
+    ; p = [par "name" TStr]
+    ; r = TResult
+    ; d = "Returns an object with the metadata of the built-in function name"
+    ; f =
+        internal_fn (function
+            | _, [DStr fnname] ->
+                let fnname = Unicode_string.to_string fnname in
+                let fn =
+                  Prelude.StrDict.get ~key:fnname !Libexecution.Libs.static_fns
+                in
+                ( match fn with
+                | Some fn ->
+                    [ ("name", Dval.dstr_of_string_exn fnname)
+                    ; ("deprecated", DBool fn.deprecated) ]
+                    |> DvalMap.from_list
+                    |> DObj
+                    |> ResOk
+                    |> DResult
+                | None ->
+                    DResult
+                      (ResError (Dval.dstr_of_string_exn "function not found"))
+                )
+            | args ->
+                fail args )
+    ; ps = false
     ; dep = false } ]
