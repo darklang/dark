@@ -186,6 +186,16 @@ let t_dict_stdlibs_work () =
     "dict toJSON"
     (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))")
     (dstr "{ \"key1\": \"val1\", \"key2\": \"val2\" }") ;
+  check_dval
+    "dict filter keeps val"
+    (exec_ast
+       "(Dict::filter (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
+    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+  check_dval
+    "dict filter keeps key"
+    (exec_ast
+       "(Dict::filter (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
+    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
   ()
 
 

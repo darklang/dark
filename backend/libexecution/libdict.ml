@@ -103,6 +103,35 @@ let fns =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Dict::filter"]
+    ; ins = []
+    ; p = [par "dict" TObj; func ["key"; "value"]]
+    ; r = TObj
+    ; d =
+        "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DBlock fn] ->
+              let incomplete = ref false in
+              let f ~(key : string) ~(data : dval) : bool =
+                match fn [Dval.dstr_of_string_exn key; data] with
+                | DBool b ->
+                    b
+                | DIncomplete ->
+                    incomplete := true ;
+                    false
+                | v ->
+                    RT.error
+                      "Expecting fn to return bool"
+                      ~result:v
+                      ~actual:data
+              in
+              if !incomplete then DIncomplete else DObj (Base.Map.filteri ~f o)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Dict::empty"]
     ; ins = []
     ; p = []

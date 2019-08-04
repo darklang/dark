@@ -299,7 +299,8 @@ let fns =
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
     ; r = TList
-    ; d = "Return only values in `l` which meet the function's criteria"
+    ; d =
+        "Return only values in `l` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
     ; f =
         InProcess
           (function
