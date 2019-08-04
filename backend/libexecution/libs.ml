@@ -53,11 +53,23 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) :
 
 let init (extras : shortfn list) : unit =
   let libs =
-    (* client-only *)
-    Libhttpclient.fns
-    @ Libstd.fns
-    @ Liblist.fns
+    (* client and server libs *)
+    Libbool.fns
+    @ Libchar.fns
+    @ Libdate.fns
+    @ Libdict.fns
+    @ Libfloat.fns
     @ Libhttp.fns
+    @ Libhttpclient.fns
+    @ Libint.fns
+    @ Libjson.fns
+    @ Liblist.fns
+    @ Libobject.fns
+    @ Liboption.fns
+    @ Libresult.fns
+    @ Libstd.fns
+    @ Libstring.fns
+    @ Libuuid.fns
     (* only implemented on server *)
     @ extras
   in
