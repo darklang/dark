@@ -9,7 +9,13 @@ type fnmap = RuntimeT.fn FnMap.t
 
 let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
   List.fold_left
-    ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:f)
+    ~f:(fun m1 n ->
+      FnMap.update m1 n ~f:(fun v ->
+          match v with
+          | Some v ->
+              Exception.internal ("duplicate library function: " ^ n)
+          | None ->
+              f ) )
     ~init:m
     (f.prefix_names @ f.infix_names)
 
@@ -53,10 +59,23 @@ let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) :
 
 let init (extras : shortfn list) : unit =
   let libs =
-    (* client-only *)
-    Libhttpclient.fns
-    @ Libstd.fns
+    (* client and server libs *)
+    Libbool.fns
+    @ Libchar.fns
+    @ Libdate.fns
+    @ Libdict.fns
+    @ Libfloat.fns
     @ Libhttp.fns
+    @ Libhttpclient.fns
+    @ Libint.fns
+    @ Libjson.fns
+    @ Liblist.fns
+    @ Libobject.fns
+    @ Liboption.fns
+    @ Libresult.fns
+    @ Libstd.fns
+    @ Libstring.fns
+    @ Libuuid.fns
     (* only implemented on server *)
     @ extras
   in
