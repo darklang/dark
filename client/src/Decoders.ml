@@ -69,7 +69,8 @@ and handlerProp j : handlerProp =
   { handlerLock = field "handlerLock" bool j
   ; handlerState = field "handlerState" handlerState j
   ; hoveringReferences = field "hoveringReferences" (list id) j
-  ; execution = field "executing" exeState j }
+  ; execution = field "executing" exeState j
+  ; showActions = field "showActions" bool j }
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =

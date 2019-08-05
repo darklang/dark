@@ -1612,6 +1612,15 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
           {m with handlerProps} )
+  | CopyCurl tlid ->
+    ( match Curl.makeCommand m tlid with
+    | Some data ->
+        Native.Clipboard.copyToClipboard data ;
+        TweakModel (Editor.setHandlerMenu tlid false)
+    | None ->
+        TweakModel (Editor.setHandlerMenu tlid false) )
+  | SetHandlerActionsMenu (tlid, show) ->
+      TweakModel (Editor.setHandlerMenu tlid show)
 
 
 let rec filter_read_only (m : model) (modification : modification) =

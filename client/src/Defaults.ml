@@ -63,7 +63,8 @@ let defaultHandlerProp : handlerProp =
   { handlerLock = false
   ; handlerState = HandlerExpanded
   ; hoveringReferences = []
-  ; execution = Idle }
+  ; execution = Idle
+  ; showActions = false }
 
 
 let defaultModel : model =

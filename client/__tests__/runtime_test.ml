@@ -1,6 +1,4 @@
 open! Tc
-
-(* open Types *)
 open Jest
 open Expect
 open Runtime
