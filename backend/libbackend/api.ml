@@ -39,10 +39,13 @@ type route_params =
 [@@deriving yojson]
 
 let to_add_op_rpc_params (payload : string) : add_op_rpc_params =
-  payload
-  |> Yojson.Safe.from_string
-  |> add_op_rpc_params_of_yojson
-  |> Result.ok_or_failwith
+  let json = payload |> Yojson.Safe.from_string in
+  (* If opCtr is not set by the client, return -1 so we can fail properly *)
+  match Yojson.Safe.Util.member "opCtr" json with
+  | `Null ->
+      Exception.client "Serializer out of date, please reload your client."
+  | _ ->
+      json |> add_op_rpc_params_of_yojson |> Result.ok_or_failwith
 
 
 let to_db_stats_rpc_params (payload : string) : db_stats_rpc_params =
