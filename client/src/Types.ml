@@ -995,6 +995,7 @@ and msg =
   | SetHandlerActionsMenu of tlid * bool
   | ResetToast
   | UpdateMinimap of string option
+  | GoToArchitectureView
 
 (* ----------------------------- *)
 (* AB tests *)

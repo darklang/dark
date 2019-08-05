@@ -1624,6 +1624,8 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
     TweakModel (fun m -> {m with canvasProps = {m.canvasProps with preview = data}})
+  | GoToArchitectureView ->
+    Many [TweakModel (fun m -> {m with canvasProps = {m.canvasProps with preview = None}}); MakeCmd (Url.navigateTo Architecture) ]
 
 
 let rec filter_read_only (m : model) (modification : modification) =

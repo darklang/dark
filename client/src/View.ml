@@ -312,7 +312,12 @@ let viewMinimap (data : string option) : msg Html.html =
       [ Html.id "minimap"
       ; Html.class' "minimap"
       ; Html.src src
-      ; Vdom.prop "alt" "architecture preview" ]
+      ; Vdom.prop "alt" "architecture preview"
+      ; ViewUtils.eventNoPropagation
+        ~key:"return-to-arch"
+        "click"
+        (fun _ -> GoToArchitectureView)
+      ]
       []
     | None -> Vdom.noNode
 
