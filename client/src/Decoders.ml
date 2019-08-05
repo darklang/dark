@@ -485,9 +485,8 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  { ops = field "ops" (list op) j
-  ; opCtr = field "opCtr" int j
-  ; browserId = field "browserId" string j }
+  let opCtr = try field "opCtr" int j with _ -> -2 in
+  {ops = field "ops" (list op) j; opCtr; browserId = field "browserId" string j}
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
@@ -515,7 +514,11 @@ and dbStatsRPCResult j = dbStatsStore j
 and initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
-  { lastOpCtr = field "lastOpCtr" int j
+  (* default to -2 if the server doesn't send a lastOpCtr - this should only
+   * happen if we roll back the server and 'new' clients are still out there.
+   *)
+  let lastOpCtr = try field "lastOpCtr" int j with _ -> -2 in
+  { lastOpCtr
   ; handlers = List.filterMap ~f:TL.asHandler tls
   ; deletedHandlers = List.filterMap ~f:TL.asHandler dtls
   ; dbs = List.filterMap ~f:TL.asDB tls

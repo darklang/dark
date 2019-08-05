@@ -1206,7 +1206,9 @@ let update_ (msg : msg) (m : model) : modification =
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
-      if params.opCtr <= m.lastOpCtr
+      if params.opCtr = -2
+      then DisplayError "Serializer out of date, please reload your browser."
+      else if params.opCtr <= m.lastOpCtr
       then NoChange
       else
         let initialMods =
