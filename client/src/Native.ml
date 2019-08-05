@@ -197,9 +197,12 @@ end
 module OnCaptureView = struct
   external capture : unit -> unit = "capture"
     [@@bs.val] [@@bs.scope "window", "Dark", "view"]
+
   let decode =
     let open Tea.Json.Decoder in
     map (fun msg -> msg) (field "detail" string)
+
+
   let listen ~key tagger = registerGlobal "captureView" key tagger decode
 end
 

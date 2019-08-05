@@ -305,21 +305,20 @@ let viewCanvas (m : model) : msg Html.html =
           if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
     (overlay :: allDivs)
 
+
 let viewMinimap (data : string option) : msg Html.html =
-    match data with
-    | Some src ->
+  match data with
+  | Some src ->
       Html.div
-      [ Html.id "minimap"
-      ; Html.class' "minimap"
-      ; ViewUtils.eventNoPropagation
-      ~key:"return-to-arch"
-      "click"
-      (fun _ -> GoToArchitectureView)
-      ]
-      [ Html.img [ Html.src src; Vdom.prop "alt" "architecture preview"] []
-      ; Html.text "Architecture View"
-      ]
-    | None -> Vdom.noNode
+        [ Html.id "minimap"
+        ; Html.class' "minimap"
+        ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+              GoToArchitectureView ) ]
+        [ Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []
+        ; Html.text "Architecture View" ]
+  | None ->
+      Vdom.noNode
+
 
 let viewToast (t : toast) : msg Html.html =
   let msg = Option.withDefault ~default:"" t.toastMessage in

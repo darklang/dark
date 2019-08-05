@@ -809,7 +809,7 @@ and canvasProps =
   ; lastOffset : pos option
   ; viewportSize : size
   ; panAnimation : bool
-  ; preview: string option }
+  ; preview : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
 

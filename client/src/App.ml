@@ -1623,9 +1623,14 @@ let update_ (msg : msg) (m : model) : modification =
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
-    TweakModel (fun m -> {m with canvasProps = {m.canvasProps with preview = data}})
+      TweakModel
+        (fun m -> {m with canvasProps = {m.canvasProps with preview = data}})
   | GoToArchitectureView ->
-    Many [TweakModel (fun m -> {m with canvasProps = {m.canvasProps with preview = None}}); MakeCmd (Url.navigateTo Architecture) ]
+      Many
+        [ TweakModel
+            (fun m ->
+              {m with canvasProps = {m.canvasProps with preview = None}} )
+        ; MakeCmd (Url.navigateTo Architecture) ]
 
 
 let rec filter_read_only (m : model) (modification : modification) =
@@ -1736,7 +1741,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ClipboardPasteEvent e ) ]
   in
   let onCaptureView =
-    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s -> UpdateMinimap (Some s) ) ]
+    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
+          UpdateMinimap (Some s) ) ]
   in
   Tea.Sub.batch
     (List.concat
