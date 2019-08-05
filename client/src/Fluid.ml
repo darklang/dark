@@ -2997,7 +2997,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
-    (* Lambda-specific insertions *)
     (* String-specific insertions *)
     | K.DoubleQuote, _, R (TPatternString _, ti)
     | K.DoubleQuote, _, R (TString _, ti)
