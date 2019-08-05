@@ -194,10 +194,22 @@ body #app * {
   width: 200px;
   height: auto;
   max-height: 300px;
+  
+  background-color: $grey1;
 
   cursor: pointer;
+  text-align: center;
+  color: $cyan;
+  font-size: 10px;
+
+  transition: width 1s;
 
   &[src=""] {
     display: none;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
   }
 }
