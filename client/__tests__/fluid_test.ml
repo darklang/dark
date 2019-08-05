@@ -1179,6 +1179,11 @@ let () =
         emptyLet
         (insert '5' 6)
         ("let *** = ___\n5", 6) ;
+      t
+        "enter at the end of a line goes to next let"
+        nonEmptyLet
+        (press K.Enter 11)
+        ("let *** = 6\nlet *** = ___\n5", 16) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
@@ -1863,11 +1868,6 @@ let () =
           expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130 ) ;
       test "down into indented row goes to first token" (fun () ->
           expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114 ) ;
-      t
-        "enter at the end of a line goes to start of next line"
-        nonEmptyLet
-        (press K.Enter 11)
-        ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
