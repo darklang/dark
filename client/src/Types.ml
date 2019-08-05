@@ -799,6 +799,10 @@ and focus =
   (* unchanged *)
   | FocusNoChange
 
+and toast =
+  { toastMessage : string option
+  ; toastPos : vPos option }
+
 and canvasProps =
   { offset : pos
   ; enablePan : bool
@@ -974,7 +978,7 @@ and msg =
   | ClipboardCopyEvent of clipboardCopyEvent
   | ClipboardCutEvent of clipboardCutEvent
   | ClipboardPasteEvent of clipboardPasteEvent
-  | ClipboardCopyLivevalue of string
+  | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
   | CanvasPanAnimationEnd
@@ -988,6 +992,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid
   | SetHandlerActionsMenu of tlid * bool
+  | ResetToast
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1328,7 +1333,8 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; permission : permission option }
+  ; permission : permission option
+  ; toast : toast }
 
 (* Values that we serialize *)
 and serializableEditor =

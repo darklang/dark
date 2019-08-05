@@ -3309,7 +3309,7 @@ let viewCopyButton tlid value : msg Html.html =
     ; ViewUtils.eventNoPropagation
         "click"
         ~key:("copylivevalue-" ^ showTLID tlid)
-        (fun _ -> ClipboardCopyLivevalue value) ]
+        (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
     [ViewUtils.fontAwesome "copy"]
 
 
