@@ -55,7 +55,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   | FocusedDB _, FocusedType _ ->
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
-    *) Native.OnCaptureView.capture () ;
+    *)
+      Native.OnCaptureView.capture () ;
       { m with
         currentPage = newPage
       ; canvasProps =
