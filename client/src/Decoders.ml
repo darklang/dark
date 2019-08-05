@@ -515,8 +515,7 @@ and dbStatsRPCResult j = dbStatsStore j
 and initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
-  { 
-    lastOpCtr = field "lastOpCtr" int j 
+  { lastOpCtr = field "lastOpCtr" int j
   ; handlers = List.filterMap ~f:TL.asHandler tls
   ; deletedHandlers = List.filterMap ~f:TL.asHandler dtls
   ; dbs = List.filterMap ~f:TL.asDB tls

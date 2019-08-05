@@ -634,8 +634,7 @@ and getTraceDataRPCResult = {trace : trace}
 and dbStatsRPCResult = dbStatsStore
 
 and initialLoadRPCResult =
-  { 
-    lastOpCtr : int
+  { lastOpCtr : int
   ; handlers : handler list
   ; deletedHandlers : handler list
   ; dbs : db list
