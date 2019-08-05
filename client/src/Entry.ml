@@ -49,6 +49,23 @@ let getCursorPosition () : int option =
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 
+type browserPlatform =
+  | Mac
+  | Linux
+  | Windows
+  | UnknownPlatform
+
+external jsGetBrowserPlatform :
+  unit -> browserPlatform Js.Nullable.t
+  = "getBrowserPlatform"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getBrowserPlatform () : browserPlatform =
+  jsGetBrowserPlatform ()
+  |> Js.Nullable.toOption
+  |> Option.withDefault ~default:UnknownPlatform
+
+
 let focusEntry (m : model) : msg Tea.Cmd.t =
   match unwrapCursorState m.cursorState with
   | Entering _ | SelectingCommand (_, _) ->
