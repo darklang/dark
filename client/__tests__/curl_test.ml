@@ -29,12 +29,12 @@ let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () :
 
 
 let () =
-  describe "objAsBodyCurl" (fun () ->
+  describe "strAsBodyCurl" (fun () ->
       test "returns jsonfied curl flag" (fun () ->
-          expect (objAsBodyCurl (DStr "{\"a\":1,\"b\":false}"))
+          expect (strAsBodyCurl (DStr "{\"a\":1,\"b\":false}"))
           |> toEqual (Some "-d '{\"a\":1,\"b\":false}'") ) ;
       test "returns None if input dval is not DObj" (fun () ->
-          expect (objAsBodyCurl DNull) |> toEqual None ) ) ;
+          expect (strAsBodyCurl DNull) |> toEqual None ) ) ;
   describe "objAsHeaderCurl" (fun () ->
       test "returns header curl flag string" (fun () ->
           let dict =

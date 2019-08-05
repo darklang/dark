@@ -6,7 +6,7 @@ module B = Blank
 module RT = Runtime
 module TL = Toplevel
 
-let objAsBodyCurl (dv : dval) : string option =
+let strAsBodyCurl (dv : dval) : string option =
   match dv with
   | DStr s ->
       let body =
@@ -73,7 +73,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                  in
                  let body =
                    StrDict.get ~key:"fullBody" r
-                   |> Option.andThen ~f:objAsBodyCurl
+                   |> Option.andThen ~f:strAsBodyCurl
                    |> wrapInList
                  in
                  let meth =
