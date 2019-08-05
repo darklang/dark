@@ -1109,6 +1109,10 @@ and fluidExpr =
 
 and placeholder = string * string
 
+(* Newlines sometimes need to hold context. When there are many things in the
+ * id with the newline, the extra context is the index of which one it is. *)
+and fluidNewlineExtra = int
+
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
@@ -1129,7 +1133,7 @@ and fluidToken =
    * old thing in a non-interactable way *)
   | TPartialGhost of id * string
   | TSep
-  | TNewline
+  | TNewline of id * fluidNewlineExtra option
   (* All newlines in the nested tokens start indented to this position. *)
   | TIndentToHere of fluidToken list
   (* Increase the level of indentation for all these tokens. *)

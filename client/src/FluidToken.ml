@@ -60,9 +60,10 @@ let tid (t : token) : id =
   | TPatternNullToken (_, id)
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
-  | TPatternFloatFraction (_, id, _) ->
+  | TPatternFloatFraction (_, id, _)
+  | TNewline (id, _) ->
       id
-  | TSep | TNewline | TIndented _ | TIndent _ | TIndentToHere _ ->
+  | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
       fakeid
 
 
@@ -117,7 +118,7 @@ let isTextToken token : bool =
   | TIfThenKeyword _
   | TIfElseKeyword _
   | TFieldOp _
-  | TNewline
+  | TNewline _
   | TIndented _
   | TIndentToHere _
   | TIndent _
@@ -183,6 +184,10 @@ let isAtom (t : token) : bool =
       isKeyword t || isBlank t
 
 
+let isNewline (t : token) : bool =
+  match t with TNewline _ -> true | _ -> false
+
+
 let isAutocompletable (t : token) : bool =
   match t with
   | TBlank _
@@ -238,7 +243,7 @@ let toText (t : token) : string =
       shouldntBeEmpty str
   | TSep ->
       " "
-  | TNewline ->
+  | TNewline _ ->
       "\n"
   | TLetKeyword _ ->
       "let "
@@ -395,7 +400,7 @@ let toTypeName (t : token) : string =
       "indent-to-here"
   | TIndent _ ->
       "indent"
-  | TNewline ->
+  | TNewline _ ->
       "newline"
   | TIfKeyword _ ->
       "if-keyword"
@@ -473,7 +478,7 @@ let toCategoryName (t : token) : string =
   match t with
   | TInteger _ | TString _ ->
       "literal"
-  | TVariable _ | TNewline | TSep | TBlank _ | TPlaceholder _ ->
+  | TVariable _ | TNewline _ | TSep | TBlank _ | TPlaceholder _ ->
       ""
   | TPartial _ | TRightPartial _ | TPartialGhost _ ->
       "partial"

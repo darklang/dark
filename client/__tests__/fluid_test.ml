@@ -333,7 +333,8 @@ let () =
        * the old ast that has no newlines. *)
       ast
       |> toTokens {s with newPos = pos}
-      |> List.filter ~f:(fun ti -> ti.token = TNewline && ti.startPos < pos)
+      |> List.filter ~f:(fun ti ->
+             FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
     in
     let ast = EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5)) in
@@ -375,8 +376,11 @@ let () =
     result
     |> toTokens newState
     |> List.iter ~f:(fun ti ->
-           if ti.token = TNewline && !endPos > ti.endPos
-           then endPos := !endPos - 2 ) ;
+           match ti.token with
+           | TNewline _ when !endPos > ti.endPos ->
+               endPos := !endPos - 2
+           | _ ->
+               () ) ;
     (* max 0 cause tests can bs past 0 and that's weird to test for *)
     let finalPos = max 0 !endPos in
     let partialsFound =
@@ -1047,6 +1051,23 @@ let () =
         emptyMatch
         (press K.Space 12)
         ("match ___\n  *** -> ___", 12) ;
+      t
+        "enter at the end of the cond creates a new row"
+        matchWithPatterns
+        (press K.Enter 9)
+        ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
+      t
+        "enter at the end of a row creates a new row"
+        (* TODO: it doesn't work at the end of an ast *)
+        (* TODO: it doesn't work on the last row *)
+        emptyMatchWithTwoPatterns
+        (press K.Enter 22)
+        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
+      (* t *)
+      (*   "enter at the start of a row creates a new row" *)
+      (*   matchWithPatterns *)
+      (*   (press K.Enter 13) *)
+      (*   ("match ___\n  3 -> ___\n  *** -> ___", 23) ; *)
       () ) ;
   describe "Lets" (fun () ->
       t
@@ -1315,6 +1336,21 @@ let () =
         emptyThread
         (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________", 8) ;
+      t
+        "enter at the end of a thread expr creates a new entry"
+        aThread
+        (enter 21)
+        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]", 24) ;
+      t
+        "enter at the end of the opening expr creates a new entry"
+        aThread
+        (enter 2)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 5) ;
+      (* t *)
+      (*   "enter at the end of the last expr creates a new entry" *)
+      (*   aThread *)
+      (*   (enter 39) *)
+      (*   ("[]\n|>List::append [5]\n|>List::append [5]\n|>___", 42) ; *)
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
@@ -1620,6 +1656,11 @@ let () =
         (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
+        "pressing enter at the end of row adds a row"
+        multi
+        (enter 11)
+        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+      t
         "dont allow weird chars in recordFields"
         emptyRow
         (press K.RightParens 4)
@@ -1826,7 +1867,7 @@ let () =
         "enter at the end of a line goes to start of next line"
         nonEmptyLet
         (press K.Enter 11)
-        ("let *** = 6\n5", 12) ;
+        ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
