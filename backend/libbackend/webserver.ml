@@ -678,7 +678,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             if !c.lastOpCtr >= params.opCtr
             then Analysis.empty_to_add_op_rpc_result
             else
-              let c = {!c with lastOpCtr = !c.lastOpCtr + 1} in
+              let c = {!c with lastOpCtr = params.opCtr} in
               Analysis.to_add_op_rpc_result c )
       in
       let t4, _ =
@@ -687,7 +687,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               stackoverflow or other crashing bug *)
             if Api.causes_any_changes params
             then
-              let c = {!c with lastOpCtr = !c.lastOpCtr + 1} in
+              let c = {!c with lastOpCtr = params.opCtr} in
               C.save_tlids c tlids
             else () )
       in
@@ -712,13 +712,32 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               Some strollerMsg )
             else None )
       in
-      respond
-        ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
-        ~execution_id
-        `OK
-        (* if no changes are made, we return an empty string - does this cause a
-         * client error? *)
-        (Option.value ~default:"" strollerMsg)
+      (* This field is a postgres int of 4 bytes. Warn at (2^31 - 1)*0.8 *)
+      if float_of_int params.opCtr >= ((2.0 ** 31.0) -. 1.0) *. 0.8
+      then
+        let exn =
+          Exception.internal "opCtr is approaching max safe value (2^31 - 1)/2"
+        in
+        ignore
+          (Rollbar.report
+             exn
+             (Exception.get_backtrace ())
+             (* we don't have access to the req here, so put in an empty request *)
+             (Other
+                ( `Assoc [("host", `String host); ("opCtr", `Int params.opCtr)]
+                |> Yojson.Safe.to_string ))
+             (Types.show_id execution_id))
+      else () ;
+      Log.add_log_annotations
+        [("op_ctr", `Int params.opCtr)]
+        (fun _ ->
+          respond
+            ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+            ~execution_id
+            `OK
+            (* if no changes are made, we return an empty string - does this cause a
+               * client error? *)
+            (Option.value ~default:"" strollerMsg) )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
