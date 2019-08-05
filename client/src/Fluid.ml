@@ -1522,6 +1522,10 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
           fail "not a let" )
 
 
+let addLetAbove (id : id) (ast : ast) =
+  updateExpr id ast ~f:(fun e -> ELet (gid (), gid (), "", newB (), e))
+
+
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
@@ -3011,6 +3015,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* End of line *)
     | K.Enter, _, R (TNewline (id, index), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
+    | K.Enter, _, R (TLetKeyword id, _ti) ->
+        let newAST = addLetAbove id ast in
+        (* keeping it at the same place is less surprising than jumping *)
+        (newAST, moveToNextBlank ~pos newAST s)
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in

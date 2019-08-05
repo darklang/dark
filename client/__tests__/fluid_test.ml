@@ -175,6 +175,15 @@ let () =
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
   in
+  let twoLets =
+    ELet
+      ( gid ()
+      , gid ()
+      , ""
+      , EInteger (gid (), 5)
+      , ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 7))
+      )
+  in
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
   in
@@ -1184,6 +1193,11 @@ let () =
         nonEmptyLet
         (press K.Enter 11)
         ("let *** = 6\nlet *** = ___\n5", 16) ;
+      t
+        "enter at the start of a line goes to next let"
+        twoLets
+        (press K.Enter 12)
+        ("let *** = 5\nlet *** = ___\nlet *** = 6\n7", 16) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
