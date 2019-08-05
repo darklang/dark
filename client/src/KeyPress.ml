@@ -477,6 +477,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         ( match event.keyCode with
         | Key.Enter ->
             Entry.openOmnibox m
+        | Key.K ->
+            if event.ctrlKey then Entry.openOmnibox m else NoChange
         | Key.A ->
             if event.ctrlKey then Viewport.pageLeft m else NoChange
         | Key.E ->
