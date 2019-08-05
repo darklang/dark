@@ -271,6 +271,18 @@ window.Dark = {
       };
     },
   },
+  view: {
+    capture : function(){
+        html2canvas(document.getElementById('app'), {
+          'backgroundColor': '#484848',
+          'ignoreElements': e => (e.id === "sidebar-left" || e.id === "minimap")
+        }).then((canvas) => {
+          const data = canvas.toDataURL("image/jpeg");
+          const event = new CustomEvent("captureView", { detail: data });
+          document.dispatchEvent(event);
+        }, (err) => { console.log('rejected', err)} );
+    }
+  }
 };
 
 function windowFocusChange(visible) {
