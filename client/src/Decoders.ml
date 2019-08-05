@@ -484,7 +484,9 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  {ops = field "ops" (list op) j; browserId = field "browserId" string j}
+  { ops = field "ops" (list op) j
+  ; opCtr = field "opCtr" int j
+  ; browserId = field "browserId" string j }
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =

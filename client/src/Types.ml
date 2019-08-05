@@ -553,6 +553,7 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpRPCParams =
   { ops : op list
+  ; opCtr : int
   ; browserId : string }
 
 and executeFunctionRPCParams =
@@ -1335,8 +1336,10 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; permission : permission option
-  ; toast : toast }
+  ; toast : toast
+  ; lastOpCtr : int
+  ; opCtrs : int StrDict.t
+  ; permission : permission option }
 
 (* Values that we serialize *)
 and serializableEditor =

@@ -679,7 +679,51 @@ let static_assets_upload_handler
 let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, params =
-    time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
+    time "1-read-api-ops" (fun _ ->
+        let params = Api.to_add_op_rpc_params body in
+        let is_latest_op_request browser_id op_ctr : bool =
+          (* We want to know if the incoming req is the latest add_op request
+           * for this browser_id. We do that in two steps:
+           * - UPDATE the browser_id's op_ctr (_if_ the request op_ctr is
+           *   greater than the current db record)
+           * - check if the update happened and hasn't yet been overwritten
+           *)
+          Db.run
+            ~name:"update-browser_id-op_ctr"
+            (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
+             * that it also handles the initial case where there is no
+             * browser_id record yet *)
+            "INSERT INTO op_ctrs(browser_id,ctr) VALUES($1, $2)
+             ON CONFLICT (browser_id)
+             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW() WHERE op_ctrs.ctr < EXCLUDED.ctr"
+            ~params:
+              [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
+              ; Db.Int op_ctr ] ;
+          Db.exists
+            ~name:"check-if_op_ctr-updated"
+            "SELECT 1 from op_ctrs WHERE browser_id = $1 AND ctr = $2"
+            ~params:
+              [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
+              ; Db.Int op_ctr ]
+        in
+        if is_latest_op_request params.browserId params.opCtr
+        then params
+        else
+          (* This add_op call came in out of order; we've already processed a
+           * subsequent add_op call. So drop any ops that must be run in order
+           * (for example, SetHandler is dropped, because we don't want earlier
+           * SH ops to overwrite later SH ops)
+           * *)
+          let filtered_ops =
+            params.ops
+            |> List.filter ~f:(fun op ->
+                   match op with
+                   | SetHandler _ | SetFunction _ | SetType _ | MoveTL _ ->
+                       false
+                   | _ ->
+                       true )
+          in
+          {params with ops = filtered_ops} )
   in
   let ops = params.ops in
   let tlids = List.filter_map ~f:Op.tlidOf ops in
@@ -693,7 +737,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
       in
       let t4, _ =
         time "4-save-to-disk" (fun _ ->
-            (* work out the result before we save it, incase it has a
+            (* work out the result before we save it, in case it has a
               stackoverflow or other crashing bug *)
             if Api.causes_any_changes params then C.save_tlids !c tlids else ()
         )
@@ -719,13 +763,32 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               Some strollerMsg )
             else None )
       in
-      respond
-        ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
-        ~execution_id
-        `OK
-        (* if no changes are made, we return an empty string - does this cause a
-         * client error? *)
-        (Option.value ~default:"" strollerMsg)
+      (* This field is a postgres int of 4 bytes. Warn at (2^31 - 1)*0.8 *)
+      if float_of_int params.opCtr >= ((2.0 ** 31.0) -. 1.0) *. 0.8
+      then
+        let exn =
+          Exception.internal "opCtr is approaching max safe value (2^31 - 1)/2"
+        in
+        ignore
+          (Rollbar.report
+             exn
+             (Exception.get_backtrace ())
+             (* we don't have access to the req here, so put in an empty request *)
+             (Other
+                ( `Assoc [("host", `String host); ("opCtr", `Int params.opCtr)]
+                |> Yojson.Safe.to_string ))
+             (Types.show_id execution_id))
+      else () ;
+      Log.add_log_annotations
+        [("op_ctr", `Int params.opCtr)]
+        (fun _ ->
+          respond
+            ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+            ~execution_id
+            `OK
+            (* if no changes are made, we return an empty string - does this cause a
+               * client error? *)
+            (Option.value ~default:"" strollerMsg) )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
