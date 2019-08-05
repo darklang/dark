@@ -180,3 +180,57 @@ $wrapper-background: $black2;
     @include border-radius-bottom(4px);
   }
 }
+
+.spec-header {
+  display: relative;
+}
+
+.spec-header .more-actions {
+  position: absolute;
+  top: 8px;
+  right: 4px;
+  z-index: 10;
+  direction: rtl;
+
+  i.fa {
+    color: $grey3;
+  }
+
+  .actions {
+    display: none;
+    margin-top: 5px;
+    box-shadow: $black1 1px 2px 1px 1px;
+
+    div,
+    a {
+      padding: 2px 4px;
+      color: $grey3;
+      background: lighten($black2, 12%);
+
+      &:hover {
+        background: $hover-background;
+      }
+
+      i.fa {
+        margin-left: 4px;
+      }
+    }
+
+    a {
+      text-decoration: none;
+    }
+  }
+
+  /* Actions menu opened */
+  &.show {
+    i.fa {
+      color: $white1;
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+}

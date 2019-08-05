@@ -534,8 +534,12 @@ let externalLink (vs : viewState) (spec : handlerSpec) =
               ^ "."
               ^ vs.userContentHost
               ^ urlPath )
-          ; Html.target "_blank" ]
-          [fontAwesome "external-link-alt"] ]
+          ; Html.target "_blank"
+          ; ViewUtils.eventNoPropagation
+              ~key:("hide-tl-opts" ^ showTLID vs.tlid)
+              "click"
+              (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
+          [fontAwesome "external-link-alt"; Html.text "Test request tab"] ]
   | _ ->
       []
 
@@ -587,6 +591,51 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       Vdom.noNode
 
 
+let viewOpts (vs : viewState) (spec : handlerSpec) : msg Html.html =
+  let strTLID = showTLID vs.tlid in
+  let showMenu =
+    match vs.handlerProp with Some hp -> hp.showActions | None -> false
+  in
+  let actions =
+    let commonActions =
+      [ Html.div
+          [ ViewUtils.eventNoPropagation
+              ~key:("del-tl-" ^ strTLID)
+              "click"
+              (fun _ -> ToplevelDelete vs.tlid ) ]
+          [fontAwesome "times"; Html.text "Delete HTTP handler"] ]
+    in
+    let httpActions =
+      [ Html.div
+          [ ViewUtils.eventNoPropagation
+              ~key:("del-tl-" ^ strTLID)
+              "click"
+              (fun _ -> CopyCurl vs.tlid ) ]
+          [fontAwesome "copy"; Html.text "Copy request as cURL"] ]
+    in
+    match spec.space with
+    | F (_, "HTTP") ->
+        externalLink vs spec @ httpActions @ commonActions
+    | _ ->
+        commonActions
+  in
+  Html.div
+    [Html.classList [("more-actions", true); ("show", showMenu)]]
+    [ Html.div
+        [ ViewUtils.eventNoPropagation
+            ~key:("show-tl-opts" ^ strTLID)
+            "mouseover"
+            (fun _ -> SetHandlerActionsMenu (vs.tlid, true) ) ]
+        [fontAwesome "chevron-circle-down"]
+    ; Html.div
+        [ Html.class' "actions"
+        ; ViewUtils.eventNoPropagation
+            ~key:("hide-tl-opts" ^ strTLID)
+            "mouseleave"
+            (fun _ -> SetHandlerActionsMenu (vs.tlid, false) ) ]
+        actions ]
+
+
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
@@ -597,7 +646,6 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
-    let getBtn = externalLink vs spec in
     let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     let viewMod = viewText EventModifier vs configs spec.modifier in
@@ -605,7 +653,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     | F (_, "CRON"), Blank _ | F (_, "HTTP"), Blank _ ->
         Html.div [] [viewMod; triggerBtn]
     | F (_, "HTTP"), _ ->
-        Html.div [Html.class' "modifier"] (viewMod :: (getBtn @ [triggerBtn]))
+        Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
     | F (_, "CRON"), _ ->
         Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
     | _ ->
@@ -677,6 +725,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     ; viewEventSpace
     ; viewEventName
     ; viewEventModifier
+    ; viewOpts vs spec
     (* ; btnExpCollapse *) ]
 
 

@@ -611,7 +611,8 @@ and handlerState (s : Types.handlerState) : Js.Json.t =
 let handlerProp (p : Types.handlerProp) : Js.Json.t =
   object_
     [ ("handlerLock", bool p.handlerLock)
-    ; ("handlerState", handlerState p.handlerState) ]
+    ; ("handlerState", handlerState p.handlerState)
+    ; ("showActions", bool p.showActions) ]
 
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
