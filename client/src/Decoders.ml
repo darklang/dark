@@ -484,9 +484,8 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  { ops = field "ops" (list op) j
-  ; opCtr = field "opCtr" int j
-  ; browserId = field "browserId" string j }
+  let opCtr = try field "opCtr" int j with _ -> -2 in
+  {ops = field "ops" (list op) j; opCtr; browserId = field "browserId" string j}
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =

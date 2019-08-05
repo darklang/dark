@@ -1256,6 +1256,17 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
+  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = -2 ->
+      (* opCtr = -2 means we got a stroller msg from an old server, which isn't
+     * sending an opCtr - likely we rolled back *)
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC - old server, no opCtr sent"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.addOpRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | AddOpRPCCallback (focus, params, Ok r) ->
       let m, newOps, _ = filterOpsAndResult m params None in
       let params = {params with ops = newOps} in
