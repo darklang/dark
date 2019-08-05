@@ -10,6 +10,8 @@
   - [ ] Unnecessary
 - [ ] Tests are included (required for regressions)
   - [ ] The type system will catch it
+- [ ] Specs (docs/trello) are linked in code 
+  - [ ] No spec exists
 
 Reviewer checklist:
 - Product:
