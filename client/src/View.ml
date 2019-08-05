@@ -306,6 +306,27 @@ let viewCanvas (m : model) : msg Html.html =
     (overlay :: allDivs)
 
 
+let viewToast (t : toast) : msg Html.html =
+  let msg = Option.withDefault ~default:"" t.toastMessage in
+  let classes =
+    if Option.isSome t.toastMessage then "toast show" else "toast"
+  in
+  let styleOverrides =
+    match t.toastPos with
+    | Some {vx; vy} ->
+        Html.styles
+          [ ("top", string_of_int (vy - 10) ^ "px")
+          ; ("left", string_of_int (vx + 10) ^ "px") ]
+    | None ->
+        Vdom.noProp
+  in
+  Html.div
+    [ Html.class' classes
+    ; ViewUtils.onAnimationEnd ~key:"toast" ~listener:(fun _ -> ResetToast)
+    ; styleOverrides ]
+    [Html.text msg]
+
+
 let view (m : model) : msg Html.html =
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
@@ -339,5 +360,7 @@ let view (m : model) : msg Html.html =
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
-  let content = [routing; body; activeAvatars] @ fluidStatus @ footer in
+  let content =
+    [routing; body; activeAvatars; viewToast m.toast] @ fluidStatus @ footer
+  in
   Html.div attributes content

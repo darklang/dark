@@ -1534,7 +1534,8 @@ let update_ (msg : msg) (m : model) : modification =
           e##preventDefault ()
       | `None ->
           () ) ;
-      NoChange
+      TweakModel
+        (fun m -> {m with toast = {m.toast with toastMessage = Some "Copied!"}})
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
       if json <> ""
@@ -1558,9 +1559,12 @@ let update_ (msg : msg) (m : model) : modification =
       | `None ->
           () ) ;
       mod_
-  | ClipboardCopyLivevalue lv ->
+  | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
-      NoChange
+      TweakModel
+        (fun m ->
+          {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
+          )
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1621,6 +1625,8 @@ let update_ (msg : msg) (m : model) : modification =
         TweakModel (Editor.setHandlerMenu tlid false) )
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
+  | ResetToast ->
+      TweakModel (fun m -> {m with toast = Defaults.defaultToast})
 
 
 let rec filter_read_only (m : model) (modification : modification) =
