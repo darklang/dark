@@ -306,11 +306,15 @@ let viewCanvas (m : model) : msg Html.html =
     (overlay :: allDivs)
 
 let viewMinimap (data : string option) : msg Html.html =
-    Html.img
-    [ Html.class' "minimap"
-    ; Html.src (data |> Option.withDefault ~default:"")
-    ; Vdom.prop "alt" "architecture preview" ]
-    []
+    match data with
+    | Some src ->
+      Html.img
+      [ Html.id "minimap"
+      ; Html.class' "minimap"
+      ; Html.src src
+      ; Vdom.prop "alt" "architecture preview" ]
+      []
+    | None -> Vdom.noNode
 
 let viewToast (t : toast) : msg Html.html =
   let msg = Option.withDefault ~default:"" t.toastMessage in
