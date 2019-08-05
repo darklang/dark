@@ -38,6 +38,50 @@ let manageBrowserId : string =
       newBrowserId
 
 
+let filterOpsAndResult
+    (m : model) (params : addOpRPCParams) (result : addOpRPCResult option) :
+    model * op list * addOpRPCResult option =
+  let newOpCtrs =
+    StrDict.update m.opCtrs ~key:params.browserId ~f:(fun oldCtr ->
+        match oldCtr with
+        | None ->
+            Some params.opCtr
+        | Some oldCtr ->
+            Some (max oldCtr params.opCtr) )
+  in
+  let m2 = {m with opCtrs = newOpCtrs} in
+  if StrDict.get m2.opCtrs ~key:params.browserId
+     |> Option.valueExn
+     = params.opCtr
+  then (m2, params.ops, result)
+  else
+    let ops =
+      params.ops
+      |> List.filter ~f:(fun op ->
+             match op with
+             | SetHandler _ | SetFunction _ | SetType _ | MoveTL _ ->
+                 false
+             | _ ->
+                 true )
+    in
+    let opTlids = params.ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
+    let result =
+      Option.map result ~f:(fun (result : addOpRPCResult) ->
+          { result with
+            handlers =
+              result.handlers
+              |> List.filter ~f:(fun h -> List.member ~value:h.hTLID opTlids)
+          ; userFunctions =
+              result.userFunctions
+              |> List.filter ~f:(fun uf -> List.member ~value:uf.ufTLID opTlids)
+          ; userTipes =
+              result.userTipes
+              |> List.filter ~f:(fun ut -> List.member ~value:ut.utTLID opTlids)
+          } )
+    in
+    (m2, ops, result)
+
+
 let init (flagString : string) (location : Web.Location.location) =
   let { Flags.editorState
       ; complete
@@ -271,9 +315,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = h.ast
                  then []
                  else
+                   let newM = {newM with lastOpCtr = newM.lastOpCtr + 1} in
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
@@ -281,9 +328,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = f.ufAST
                  then []
                  else
+                   let newM = {newM with lastOpCtr = newM.lastOpCtr + 1} in
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ ->
@@ -296,6 +346,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
+      let m = {m with lastOpCtr = m.lastOpCtr + 1} in
       let hasNonHandlers =
         List.any
           ~f:(fun c ->
@@ -392,7 +443,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops m.browserId) focus
+        handleRPC (RPC.opsParams ops (m.lastOpCtr + 1) m.browserId) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1206,6 +1257,8 @@ let update_ (msg : msg) (m : model) : modification =
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
+      let m, newOps, _ = filterOpsAndResult m params None in
+      let params = {params with ops = newOps} in
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
       in
@@ -1215,7 +1268,8 @@ let update_ (msg : msg) (m : model) : modification =
         else
           let m =
             { m with
-              handlers =
+              lastOpCtr = params.opCtr
+            ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
             ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
             ; userFunctions =
@@ -1238,7 +1292,13 @@ let update_ (msg : msg) (m : model) : modification =
         (* msg was sent from this client, we've already handled it
                        in AddOpRPCCallback *)
       else
-        let initialMods = applyOpsToClient false msg.params msg.result in
+        let m, newOps, result =
+          filterOpsAndResult m msg.params (Some msg.result)
+        in
+        let params = {msg.params with ops = newOps} in
+        let initialMods =
+          applyOpsToClient false params (result |> Option.valueExn)
+        in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->

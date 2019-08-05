@@ -43,8 +43,9 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let opsParams (ops : op list) (browserId : string) : addOpRPCParams =
-  {ops; browserId}
+let opsParams (ops : op list) (opCtr : int) (browserId : string) :
+    addOpRPCParams =
+  {ops; opCtr; browserId}
 
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t

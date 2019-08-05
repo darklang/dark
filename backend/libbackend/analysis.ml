@@ -276,6 +276,15 @@ type add_op_rpc_result =
   (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
+let empty_to_add_op_rpc_result =
+  { toplevels = []
+  ; deleted_toplevels = []
+  ; user_functions = []
+  ; deleted_user_functions = []
+  ; user_tipes = []
+  ; deleted_user_tipes = [] }
+
+
 type add_op_stroller_msg =
   { result : add_op_rpc_result
   ; params : Api.add_op_rpc_params }
