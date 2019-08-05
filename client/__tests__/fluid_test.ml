@@ -96,28 +96,6 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
-let debugState s =
-  show_fluidState
-    { s with
-      (* remove the things that take a lot of space and provide little value. *)
-      ac =
-        { s.ac with
-          functions = []
-        ; allCompletions = []
-        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
-    }
-
-
-let h ast : handler =
-  { ast = toExpr ast
-  ; hTLID = TLID "7"
-  ; pos = {x = 0; y = 0}
-  ; spec =
-      { space = Blank.newF "HTTP"
-      ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET" } }
-
-
 type testResult = (string * int) * bool
 
 let () =
@@ -353,10 +331,10 @@ let () =
     let s = {s with oldPos = pos; newPos = pos} in
     if debug
     then (
-      Js.log2 "state before " (debugState s) ;
+      Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "expr before" (eToStructure s ast) ) ;
     let newAST, newState =
-      let h = h ast in
+      let h = Fluid_utils.h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
@@ -402,7 +380,7 @@ let () =
     in
     if debug
     then (
-      Js.log2 "state after" (debugState newState) ;
+      Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
@@ -1938,7 +1916,7 @@ let () =
              in
              moveTo 14 s
              |> (fun s ->
-                  let h = h ast in
+                  let h = Fluid_utils.h ast in
                   let m = {m with handlers = Handlers.fromList [h]} in
                   updateAutocomplete m h.hTLID ast s )
              |> (fun s -> updateMouseClick 0 ast s)
