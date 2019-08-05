@@ -73,13 +73,13 @@ function getBrowserPlatform(event) {
   // Check if Linux
   var isLinux = window.navigator.platform.includes("Linux");
   // Check if Windows
-  var isLinux = window.navigator.platform == "Win32";
+  var isWindows = window.navigator.platform == "Win32";
   // known platform
   if (isMac) {
     return 0;
   } else if (isLinux) {
     return 1;
-  } else if (isLinux) {
+  } else if (isWindows) {
     return 2;
   } else {
     return 3;
