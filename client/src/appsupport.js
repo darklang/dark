@@ -67,6 +67,26 @@ function fluidStopKeys(event) {
   }
 }
 
+function getBrowserPlatform(event) {
+  // Checks if mac
+  var isMac = window.navigator.platform == "MacIntel";
+  // Check if Linux
+  var isLinux = window.navigator.platform.includes("Linux");
+  // Check if Windows
+  var isWindows = window.navigator.platform == "Win32";
+  // known platform
+  if (isMac) {
+    return 0;
+  } else if (isLinux) {
+    return 1;
+  } else if (isWindows) {
+    return 2;
+  } else {
+    return 3;
+  }
+}
+window.getBrowserPlatform = getBrowserPlatform;
+
 // ---------------------------
 // Rollbar
 // ---------------------------
