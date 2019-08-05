@@ -70,6 +70,7 @@ let defaultModel : model =
   { error = {message = None; showDetails = false}
   ; lastMsg = IgnoreMsg
   ; lastMod = NoChange
+  ; lastOpCtr = 0
   ; complete =
       (* this is awkward, but avoids circular deps *)
       { functions = []

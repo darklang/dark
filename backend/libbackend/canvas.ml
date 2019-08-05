@@ -15,6 +15,7 @@ type canvas =
   { host : string
   ; owner : Uuidm.t
   ; id : Uuidm.t
+  ; lastOpCtr : int
   ; ops : (tlid * Op.oplist) list
   ; cors_setting : cors_setting option
   ; handlers : TL.toplevels
@@ -319,6 +320,7 @@ let init (host : string) (ops : Op.op list) :
     (canvas ref, string list) Result.t =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
+  let canvas_last_op_ctr = Serialize.fetch_canvas_last_op_ctr host in
   let cors = fetch_cors_setting canvas_id in
   let c =
     ref
@@ -326,6 +328,7 @@ let init (host : string) (ops : Op.op list) :
       ; owner
       ; id = canvas_id
       ; ops = []
+      ; lastOpCtr = canvas_last_op_ctr
       ; cors_setting = cors
       ; handlers = IDMap.empty
       ; dbs = IDMap.empty
@@ -400,6 +403,7 @@ let load_from
     (canvas ref, string list) Result.t =
   try
     let canvas_id = Serialize.fetch_canvas_id owner host in
+    let canvas_last_op_ctr = Serialize.fetch_canvas_last_op_ctr host in
     let cors = fetch_cors_setting canvas_id in
     let oldops = f ~host ~canvas_id () in
     let c =
@@ -408,6 +412,7 @@ let load_from
         ; owner
         ; id = canvas_id
         ; ops = []
+        ; lastOpCtr = canvas_last_op_ctr
         ; cors_setting = cors
         ; handlers = IDMap.empty
         ; dbs = IDMap.empty
@@ -515,7 +520,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
     List.iter c.ops ~f:(fun (tlid, oplist) ->
         (* Only save oplists that have been used. *)
         if List.mem ~equal:( = ) tlids tlid
-        then
+        then (
           let name, module_, modifier =
             IDMap.find routes tlid |> Option.value ~default:(None, None, None)
           in
@@ -534,7 +539,8 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~name
             ~module_
             ~modifier
-            ~tipe
+            ~tipe ;
+          Serialize.save_last_op_ctr ~canvas_id:c.id c.lastOpCtr )
         else () )
   with e -> Libexecution.Exception.reraise_as_pageable e
 

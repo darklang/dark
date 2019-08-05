@@ -171,6 +171,13 @@ let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
+let save_last_op_ctr ~(canvas_id : Uuidm.t) (last_op_ctr : int) : unit =
+  Db.run
+    ~name:"save last_op_ctr"
+    "UPDATE canvases SET last_op_ctr = $2 WHERE id = $1"
+    ~params:[Uuid canvas_id; Int last_op_ctr]
+
+
 let save_toplevel_oplist
     ~(tlid : Types.tlid)
     ~(canvas_id : Uuidm.t)
@@ -278,3 +285,12 @@ let fetch_canvas_id (owner : Uuidm.t) (host : string) : Uuidm.t =
   |> List.hd_exn
   |> Uuidm.of_string
   |> Option.value_exn
+
+
+let fetch_canvas_last_op_ctr (host : string) : int =
+  Db.fetch_one
+    ~name:"fetch_canvas_last_op_ctr"
+    "SELECT last_op_ctr from canvases WHERE name = $1 LIMIT 1"
+    ~params:[String host]
+  |> List.hd_exn
+  |> int_of_string

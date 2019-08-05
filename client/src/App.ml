@@ -273,7 +273,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
@@ -283,7 +285,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  else
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ ->
@@ -392,7 +396,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops m.browserId) focus
+        handleRPC (RPC.opsParams ops (m.lastOpCtr + 1) m.browserId) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1202,45 +1206,55 @@ let update_ (msg : msg) (m : model) : modification =
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
-      let initialMods =
-        applyOpsToClient (focus != FocusNoChange) params r.result
-      in
-      let focusMods =
-        if focus = FocusNoChange
-        then []
-        else
-          let m =
-            { m with
-              handlers =
-                TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
-            ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
-            ; userFunctions =
-                TD.mergeRight
-                  m.userFunctions
-                  (Functions.fromList r.result.userFunctions)
-            ; userTipes =
-                TD.mergeRight
-                  m.userTipes
-                  (UserTypes.fromList r.result.userTipes) }
-          in
-          let newState = processFocus m focus in
-          [AutocompleteMod ACReset; ClearError; newState]
-      in
-      Many (initialMods @ focusMods)
+      if params.opCtr <= m.lastOpCtr
+      then NoChange
+      else
+        let initialMods =
+          applyOpsToClient (focus != FocusNoChange) params r.result
+        in
+        let focusMods =
+          if focus = FocusNoChange
+          then []
+          else
+            let m =
+              { m with
+                lastOpCtr = params.opCtr
+              ; handlers =
+                  TD.mergeRight
+                    m.handlers
+                    (Handlers.fromList r.result.handlers)
+              ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
+              ; userFunctions =
+                  TD.mergeRight
+                    m.userFunctions
+                    (Functions.fromList r.result.userFunctions)
+              ; userTipes =
+                  TD.mergeRight
+                    m.userTipes
+                    (UserTypes.fromList r.result.userTipes) }
+            in
+            let newState = processFocus m focus in
+            [AutocompleteMod ACReset; ClearError; newState]
+        in
+        Many (initialMods @ focusMods)
   | AddOpStrollerMsg msg ->
       if msg.params.browserId = m.browserId
       then
         NoChange
         (* msg was sent from this client, we've already handled it
                        in AddOpRPCCallback *)
+      else if msg.params.opCtr <= m.lastOpCtr
+      then NoChange
       else
         let initialMods = applyOpsToClient false msg.params msg.result in
+        let m = {m with lastOpCtr = msg.params.opCtr} in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
-          handlers = Handlers.fromList r.handlers
+          lastOpCtr = r.lastOpCtr
+        ; handlers = Handlers.fromList r.handlers
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes

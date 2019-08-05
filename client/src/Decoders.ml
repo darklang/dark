@@ -485,7 +485,9 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  {ops = field "ops" (list op) j; browserId = field "browserId" string j}
+  { ops = field "ops" (list op) j
+  ; opCtr = field "opCtr" int j
+  ; browserId = field "browserId" string j }
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
@@ -513,7 +515,9 @@ and dbStatsRPCResult j = dbStatsStore j
 and initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
-  { handlers = List.filterMap ~f:TL.asHandler tls
+  { 
+    lastOpCtr = field "lastOpCtr" int j 
+  ; handlers = List.filterMap ~f:TL.asHandler tls
   ; deletedHandlers = List.filterMap ~f:TL.asHandler dtls
   ; dbs = List.filterMap ~f:TL.asDB tls
   ; deletedDBs = List.filterMap ~f:TL.asDB dtls

@@ -344,7 +344,10 @@ and op (call : Types.op) : Js.Json.t =
 
 
 and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
-  object_ [("ops", ops params.ops); ("browserId", string params.browserId)]
+  object_
+    [ ("ops", ops params.ops)
+    ; ("opCtr", int params.opCtr)
+    ; ("browserId", string params.browserId) ]
 
 
 and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :

@@ -276,6 +276,15 @@ type add_op_rpc_result =
   (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
+let empty_to_add_op_rpc_result =
+  { toplevels = []
+  ; deleted_toplevels = []
+  ; user_functions = []
+  ; deleted_user_functions = []
+  ; user_tipes = []
+  ; deleted_user_tipes = [] }
+
+
 type add_op_stroller_msg =
   { result : add_op_rpc_result
   ; params : Api.add_op_rpc_params }
@@ -293,7 +302,8 @@ let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
 
 (* Initial load *)
 type initial_load_rpc_result =
-  { toplevels : TL.toplevel list
+  { lastOpCtr : int
+  ; toplevels : TL.toplevel list
   ; deleted_toplevels : TL.toplevel list
   ; user_functions : RTT.user_fn list
   ; deleted_user_functions : RTT.user_fn list
@@ -313,7 +323,8 @@ let to_initial_load_rpc_result
     (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list) : string =
-  { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
+  { lastOpCtr = c.lastOpCtr
+  ; toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels =
       IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions

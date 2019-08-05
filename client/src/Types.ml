@@ -553,6 +553,7 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpRPCParams =
   { ops : op list
+  ; opCtr : int
   ; browserId : string }
 
 and executeFunctionRPCParams =
@@ -633,7 +634,9 @@ and getTraceDataRPCResult = {trace : trace}
 and dbStatsRPCResult = dbStatsStore
 
 and initialLoadRPCResult =
-  { handlers : handler list
+  { 
+    lastOpCtr : int
+  ; handlers : handler list
   ; deletedHandlers : handler list
   ; dbs : db list
   ; deletedDBs : db list
@@ -1321,6 +1324,7 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
+  ; lastOpCtr : int
   ; permission : permission option }
 
 (* Values that we serialize *)

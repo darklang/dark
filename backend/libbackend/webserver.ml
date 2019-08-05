@@ -674,14 +674,22 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
   match maybe_c with
   | Ok c ->
       let t3, result =
-        time "3-to-frontend" (fun _ -> Analysis.to_add_op_rpc_result !c)
+        time "3-to-frontend" (fun _ ->
+            if !c.lastOpCtr >= params.opCtr
+            then Analysis.empty_to_add_op_rpc_result
+            else
+              let c = {!c with lastOpCtr = !c.lastOpCtr + 1} in
+              Analysis.to_add_op_rpc_result c )
       in
       let t4, _ =
         time "4-save-to-disk" (fun _ ->
-            (* work out the result before we save it, incase it has a
+            (* work out the result before we save it, in case it has a
               stackoverflow or other crashing bug *)
-            if Api.causes_any_changes params then C.save_tlids !c tlids else ()
-        )
+            if Api.causes_any_changes params
+            then
+              let c = {!c with lastOpCtr = !c.lastOpCtr + 1} in
+              C.save_tlids c tlids
+            else () )
       in
       let t5, strollerMsg =
         (* To make this work with prodclone, we might want to have it specify

@@ -7,6 +7,7 @@ type oplist = Op.op list [@@deriving yojson]
 
 type add_op_rpc_params =
   { ops : oplist
+  ; opCtr : int
   ; browserId : string }
 [@@deriving yojson]
 
