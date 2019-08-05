@@ -311,11 +311,34 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 in
                 !c.handlers
                 |> IDMap.data
-                |> List.map ~f:Libexecution.Toplevel.as_handler
-                |> List.map ~f:(fun h -> Option.value_exn h)
+                |> List.filter_map ~f:Libexecution.Toplevel.as_handler
                 |> List.map ~f:(fun h ->
                        Dval.dstr_of_string_exn
                          (Libexecution.Types.string_of_id h.tlid) )
+                |> fun l -> DList l
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::functions"]
+    ; ins = []
+    ; p = [par "host" TStr]
+    ; r = TList
+    ; d = "Returns a list of toplevel ids of the functions in `host`"
+    ; f =
+        internal_fn (function
+            | _, [DStr host] ->
+                let c =
+                  Canvas.load_all (Unicode_string.to_string host) []
+                  |> Result.map_error ~f:(String.concat ~sep:", ")
+                  |> Prelude.Result.ok_or_internal_exception
+                       "Canvas load error"
+                in
+                !c.user_functions
+                |> IDMap.data
+                |> List.map ~f:(fun fn ->
+                       Dval.dstr_of_string_exn
+                         (Libexecution.Types.string_of_id fn.tlid) )
                 |> fun l -> DList l
             | args ->
                 fail args )
@@ -829,6 +852,96 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 in
                 Log.pP ~level name ~jsonparams ;
                 DObj log
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::fnsUsed"]
+    ; ins = []
+    ; p = [par "host" TStr; par "tlid" TStr]
+    ; r = TList
+    ; d =
+        "Iterates through all ops of the AST, returning for each op a list of the functions used in that op. The last value will be the functions currently used."
+    ; f =
+        internal_fn (function
+            | _, [DStr host; DStr tlid] ->
+                let host = Unicode_string.to_string host in
+                let owner = Account.for_host_exn host in
+                let canvas_id = Serialize.fetch_canvas_id owner host in
+                let tlids = [Unicode_string.to_string tlid |> id_of_string] in
+                let ops =
+                  Serialize.load_only_tlids ~tlids ~host ~canvas_id ()
+                  |> List.hd_exn
+                  |> Tablecloth.Tuple2.second
+                in
+                ops
+                |> List.filter_map ~f:Op.ast_of
+                |> List.filter_map ~f:(fun ast ->
+                       ast
+                       |> Internal_analysis.find_functions
+                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> DList
+                       |> Some )
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::fieldNamesUsed"]
+    ; ins = []
+    ; p = [par "host" TStr; par "tlid" TStr]
+    ; r = TList
+    ; d =
+        "Iterates through all ops of the AST, returning for each op a list of the field names used in that op. The last value will be the fieldnames in the current code."
+    ; f =
+        internal_fn (function
+            | _, [DStr host; DStr tlid] ->
+                let host = Unicode_string.to_string host in
+                let owner = Account.for_host_exn host in
+                let canvas_id = Serialize.fetch_canvas_id owner host in
+                let tlids = [Unicode_string.to_string tlid |> id_of_string] in
+                let ops =
+                  Serialize.load_only_tlids ~tlids ~host ~canvas_id ()
+                  |> List.hd_exn
+                  |> Tablecloth.Tuple2.second
+                in
+                ops
+                |> List.filter_map ~f:Op.ast_of
+                |> List.filter_map ~f:(fun ast ->
+                       ast
+                       |> Internal_analysis.find_fields
+                       |> List.map ~f:Dval.dstr_of_string_exn
+                       |> DList
+                       |> Some )
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::fnMetadata"]
+    ; ins = []
+    ; p = [par "name" TStr]
+    ; r = TResult
+    ; d = "Returns an object with the metadata of the built-in function name"
+    ; f =
+        internal_fn (function
+            | _, [DStr fnname] ->
+                let fnname = Unicode_string.to_string fnname in
+                let fn =
+                  Prelude.StrDict.get ~key:fnname !Libexecution.Libs.static_fns
+                in
+                ( match fn with
+                | Some fn ->
+                    [ ("name", Dval.dstr_of_string_exn fnname)
+                    ; ("deprecated", DBool fn.deprecated) ]
+                    |> DvalMap.from_list
+                    |> DObj
+                    |> ResOk
+                    |> DResult
+                | None ->
+                    DResult
+                      (ResError (Dval.dstr_of_string_exn "function not found"))
+                )
             | args ->
                 fail args )
     ; ps = false
