@@ -6,7 +6,7 @@ module B = Blank
 module RT = Runtime
 module TL = Toplevel
 
-let objAsJsonCurl (dv : dval) : string option =
+let objAsBodyCurl (dv : dval) : string option =
   match dv with
   | DStr s ->
       let body =
@@ -47,7 +47,11 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
              None )
 
 
-(* Constructs curl command from headers, fullBody, url (which includes queryParams)   *)
+(* Constructs curl command from analysis dict.
+  headers (which includes cookies),
+  fullBody (for both formBody and jsonBody),
+  url (which includes queryParams)
+*)
 let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   let wrapInList o =
     o
@@ -69,7 +73,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                  in
                  let body =
                    StrDict.get ~key:"fullBody" r
-                   |> Option.andThen ~f:objAsJsonCurl
+                   |> Option.andThen ~f:objAsBodyCurl
                    |> wrapInList
                  in
                  let meth =
