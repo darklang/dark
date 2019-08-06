@@ -3,6 +3,8 @@ open Tc
 
 let showTLID = Prelude.showTLID
 
+let tlidOf = Prelude.tlidOf
+
 let fromString (json : string option) : serializableEditor =
   match json with
   | None ->
@@ -106,3 +108,11 @@ let serialize (m : model) : unit =
     ("editorState-" ^ m.canvasName)
     state
     Dom.Storage.localStorage
+
+
+let closeMenu (m : model) : model =
+  match tlidOf m.cursorState with
+  | Some tlid ->
+      setHandlerMenu tlid false m
+  | None ->
+      m
