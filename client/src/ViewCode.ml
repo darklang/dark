@@ -509,41 +509,6 @@ let view (vs : viewState) (e : expr) =
     [ast; errorRail]
 
 
-let externalLink (vs : viewState) (spec : handlerSpec) =
-  match (spec.modifier, spec.name) with
-  | F (_, "GET"), F (_, name) ->
-      let urlPath =
-        let currentTraceData =
-          Analysis.cursor' vs.tlCursors vs.traces vs.tlid
-          |> Option.andThen ~f:(fun trace_id ->
-                 List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-                 |> Option.andThen ~f:(fun (_, data) -> data) )
-        in
-        match currentTraceData with
-        | Some data ->
-            Runtime.pathFromInputVars data.input
-            |> Option.withDefault ~default:name
-        | None ->
-            name
-      in
-      [ Html.a
-          [ Html.class' "external"
-          ; Html.href
-              ( "//"
-              ^ Tea.Http.encodeUri vs.canvasName
-              ^ "."
-              ^ vs.userContentHost
-              ^ urlPath )
-          ; Html.target "_blank"
-          ; ViewUtils.eventNoPropagation
-              ~key:("hide-tl-opts" ^ showTLID vs.tlid)
-              "click"
-              (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
-          [fontAwesome "external-link-alt"; Html.text "Test request tab"] ]
-  | _ ->
-      []
-
-
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
     =
   match (spec.space, spec.name, spec.modifier) with
@@ -591,7 +556,38 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       Vdom.noNode
 
 
-let viewOpts (vs : viewState) (spec : handlerSpec) : msg Html.html =
+let newTabGetLink (vs : viewState) (name : string) =
+  let urlPath =
+    let currentTraceData =
+      Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+      |> Option.andThen ~f:(fun trace_id ->
+             List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
+             |> Option.andThen ~f:(fun (_, data) -> data) )
+    in
+    match currentTraceData with
+    | Some data ->
+        Runtime.pathFromInputVars data.input
+        |> Option.withDefault ~default:name
+    | None ->
+        name
+  in
+  Html.a
+    [ Html.class' "external"
+    ; Html.href
+        ( "//"
+        ^ Tea.Http.encodeUri vs.canvasName
+        ^ "."
+        ^ vs.userContentHost
+        ^ urlPath )
+    ; Html.target "_blank"
+    ; ViewUtils.eventNoPropagation
+        ~key:("hide-tl-opts" ^ showTLID vs.tlid)
+        "click"
+        (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
+    [fontAwesome "external-link-alt"; Html.text "Open in new tab"]
+
+
+let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let strTLID = showTLID vs.tlid in
   let showMenu =
     match vs.handlerProp with Some hp -> hp.showActions | None -> false
@@ -603,19 +599,22 @@ let viewOpts (vs : viewState) (spec : handlerSpec) : msg Html.html =
               ~key:("del-tl-" ^ strTLID)
               "click"
               (fun _ -> ToplevelDelete vs.tlid ) ]
-          [fontAwesome "times"; Html.text "Delete HTTP handler"] ]
+          [fontAwesome "times"; Html.text "Delete handler"] ]
     in
-    let httpActions =
-      [ Html.div
-          [ ViewUtils.eventNoPropagation
-              ~key:("del-tl-" ^ strTLID)
-              "click"
-              (fun m -> CopyCurl (vs.tlid, m.mePos) ) ]
-          [fontAwesome "copy"; Html.text "Copy request as cURL"] ]
+    let curlAction =
+      Html.div
+        [ ViewUtils.eventNoPropagation
+            ~key:("del-tl-" ^ strTLID)
+            "click"
+            (fun _ -> CopyCurl vs.tlid ) ]
+        [fontAwesome "copy"; Html.text "Copy request as cURL"]
     in
-    match spec.space with
-    | F (_, "HTTP") ->
-        externalLink vs spec @ httpActions @ commonActions
+    match (spec.space, spec.modifier, spec.name) with
+    | F (_, "HTTP"), F (_, meth), F (_, name) ->
+        let httpActions = curlAction :: commonActions in
+        if meth = "GET"
+        then newTabGetLink vs name :: httpActions
+        else httpActions
     | _ ->
         commonActions
   in
@@ -725,7 +724,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
     ; viewEventSpace
     ; viewEventName
     ; viewEventModifier
-    ; viewOpts vs spec
+    ; viewMenu vs spec
     (* ; btnExpCollapse *) ]
 
 
