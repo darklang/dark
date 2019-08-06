@@ -482,6 +482,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Deselect ->
         if m.cursorState <> Deselected
         then
+          let m = Editor.closeMenu m in
           let hashcmd = [Url.updateUrl Architecture] in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
