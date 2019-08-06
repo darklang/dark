@@ -1205,10 +1205,19 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
+  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = -2 ->
+      (* opCtr = -2 means we got a stroller msg from an old server, which isn't
+     * sending an opCtr - likely we rolled back *)
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC - old server, no opCtr sent"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.addOpRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | AddOpRPCCallback (focus, params, Ok r) ->
-      if params.opCtr = -2
-      then DisplayError "Serializer out of date, please reload your browser."
-      else if params.opCtr <= m.lastOpCtr
+      if params.opCtr <= m.lastOpCtr
       then NoChange
       else
         let initialMods =
