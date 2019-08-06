@@ -192,8 +192,13 @@ $wrapper-background: $black2;
   z-index: 10;
   direction: rtl;
 
-  i.fa {
-    color: $grey3;
+  .toggle-btn {
+    cursor: pointer;
+
+    &.inactive {
+      color: $grey1;
+      cursor: not-allowed;
+    }
   }
 
   .actions {
@@ -229,10 +234,6 @@ $wrapper-background: $black2;
 
   /* Actions menu opened */
   &.show {
-    i.fa {
-      color: $white1;
-    }
-
     .actions {
       display: flex;
       flex-direction: column;

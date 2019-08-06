@@ -16,6 +16,8 @@ let isExpanded = ViewUtils.isHandlerExpanded
 
 let inUnit = ViewUtils.intAsUnit
 
+let toggleButton = ViewUtils.toggleIconButton
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -556,7 +558,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       Vdom.noNode
 
 
-let newTabGetLink (vs : viewState) (name : string) =
+let externalLink (vs : viewState) (name : string) =
   let urlPath =
     let currentTraceData =
       Analysis.cursor' vs.tlCursors vs.traces vs.tlid
@@ -601,38 +603,42 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
               (fun _ -> ToplevelDelete vs.tlid ) ]
           [fontAwesome "times"; Html.text "Delete handler"] ]
     in
-    let curlAction =
-      Html.div
-        [ ViewUtils.eventNoPropagation
-            ~key:("del-tl-" ^ strTLID)
-            "click"
-            (fun _ -> CopyCurl vs.tlid ) ]
-        [fontAwesome "copy"; Html.text "Copy request as cURL"]
-    in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), F (_, meth), F (_, name) ->
+        let curlAction =
+          Html.div
+            [ ViewUtils.eventNoPropagation
+                ~key:("del-tl-" ^ strTLID)
+                "click"
+                (fun _ -> CopyCurl vs.tlid ) ]
+            [fontAwesome "copy"; Html.text "Copy request as cURL"]
+        in
         let httpActions = curlAction :: commonActions in
         if meth = "GET"
-        then newTabGetLink vs name :: httpActions
+        then externalLink vs name :: httpActions
         else httpActions
     | _ ->
         commonActions
   in
+  let toggleMenu =
+    let name =
+      if tlidOf vs.cursorState = Some vs.tlid
+      then "toggle-btn"
+      else "toggle-btn inactive"
+    in
+    toggleButton
+      ~name
+      ~activeIcon:"chevron-circle-up"
+      ~inactiveIcon:"chevron-circle-down"
+      ~msg:(fun _ ->
+        Debug.loG "toggle menu click" showMenu ;
+        SetHandlerActionsMenu (vs.tlid, not showMenu) )
+      ~active:showMenu
+      ~key:("toggle-tl-menu-" ^ strTLID)
+  in
   Html.div
     [Html.classList [("more-actions", true); ("show", showMenu)]]
-    [ Html.div
-        [ ViewUtils.eventNoPropagation
-            ~key:("show-tl-opts" ^ strTLID)
-            "mouseover"
-            (fun _ -> SetHandlerActionsMenu (vs.tlid, true) ) ]
-        [fontAwesome "chevron-circle-down"]
-    ; Html.div
-        [ Html.class' "actions"
-        ; ViewUtils.eventNoPropagation
-            ~key:("hide-tl-opts" ^ strTLID)
-            "mouseleave"
-            (fun _ -> SetHandlerActionsMenu (vs.tlid, false) ) ]
-        actions ]
+    [toggleMenu; Html.div [Html.class' "actions"] actions]
 
 
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
@@ -660,7 +666,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
   in
   let btnLock =
     let isLocked = isLocked vs in
-    ViewUtils.toggleIconButton
+    toggleButton
       ~name:"handler-lock"
       ~activeIcon:"lock"
       ~inactiveIcon:"unlock"
@@ -688,7 +694,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
       | HandlerCollapsed ->
           UpdateHandlerState (vs.tlid, HandlerExpanding)
     in
-    ViewUtils.toggleIconButton
+    toggleButton
       ~name:"handler-expand"
       ~activeIcon:"caret-up"
       ~inactiveIcon:"caret-down"
