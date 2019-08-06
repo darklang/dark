@@ -204,10 +204,12 @@ $wrapper-background: $black2;
     div,
     a {
       padding: 2px 4px;
+      padding-left: 8px;
       color: $grey3;
       background: lighten($black2, 12%);
 
       &:hover {
+        cursor: pointer;
         background: $hover-background;
       }
 
@@ -218,6 +220,10 @@ $wrapper-background: $black2;
 
     a {
       text-decoration: none;
+    }
+
+    div i.fa {
+      margin-right: 2px;
     }
   }
 
