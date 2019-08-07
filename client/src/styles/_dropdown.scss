@@ -194,11 +194,6 @@ $wrapper-background: $black2;
 
   .toggle-btn {
     cursor: pointer;
-
-    &.inactive {
-      color: $grey1;
-      cursor: not-allowed;
-    }
   }
 
   .actions {
