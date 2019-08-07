@@ -67,6 +67,8 @@ let defaultHandlerProp : handlerProp =
   ; showActions = false }
 
 
+let defaultToast : toast = {toastMessage = None; toastPos = None}
+
 let defaultModel : model =
   { error = {message = None; showDetails = false}
   ; lastMsg = IgnoreMsg
@@ -131,4 +133,5 @@ let defaultModel : model =
   ; isAdmin = false
   ; buildHash = ""
   ; lastReload = None
-  ; permission = None }
+  ; permission = None
+  ; toast = defaultToast }

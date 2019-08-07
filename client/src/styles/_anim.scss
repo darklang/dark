@@ -51,3 +51,21 @@ i.fa-spinner {
     opacity: 1;
   }
 }
+
+@keyframes showToast {
+  0% {
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  80% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}

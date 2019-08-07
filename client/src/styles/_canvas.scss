@@ -167,3 +167,20 @@ body #app * {
     display: block;
   }
 }
+
+.toast {
+  background: $black3;
+  opacity: 0;
+
+  padding: 8px;
+  font-size: 10px;
+  color: $pink;
+
+  position: fixed;
+  top: 10px;
+  left: calc(50% - 55px);
+
+  &.show {
+    animation: 2s linear forwards showToast;
+  }
+}
