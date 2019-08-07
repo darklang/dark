@@ -620,7 +620,7 @@ and addOpStrollerMsg =
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult = dval * dvalArgsHash * tlid list
+and executeFunctionRPCResult = dval * dvalArgsHash * tlid list * unlockedDBs
 
 and triggerHandlerRPCResult = tlid list
 
@@ -1321,7 +1321,7 @@ and model =
       (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *
-   *   { myfunc.tlid: { repl2.tlid }} 
+   *   { myfunc.tlid: { repl2.tlid }}
    *
    * which you can read as "myfunc is used in repl2".  *)
   ; tlUsedIn : TLIDSet.t TLIDDict.t

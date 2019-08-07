@@ -1275,7 +1275,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; InitIntrospect (TD.values allTLs) ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids)) ->
+  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids, unlockedDBs)) ->
       let traces =
         List.map
           ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
@@ -1290,7 +1290,8 @@ let update_ (msg : msg) (m : model) : modification =
             , hash
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
-        ; OverrideTraces (StrDict.fromList traces) ]
+        ; OverrideTraces (StrDict.fromList traces)
+        ; SetUnlockedDBs unlockedDBs ]
   | TriggerHandlerRPCCallback (params, Ok tlids) ->
       let traces =
         List.map
