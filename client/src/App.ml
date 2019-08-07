@@ -438,7 +438,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = Page.tlidOf page
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
-          (Page.setPage m m.currentPage page, RPC.sendPresence m avMessage)
+          let cap = Page.capArch m.currentPage page in
+          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
+          (Page.setPage m m.currentPage page, cmds)
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
