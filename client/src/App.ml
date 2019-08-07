@@ -252,6 +252,17 @@ let isACOpened (m : model) : bool =
   else AC.isOpened m.complete
 
 
+let deferApplyOpsToRPCCallback params =
+  List.any
+    ~f:(fun c ->
+      match c with
+      | SetHandler (_, _, _) | SetFunction _ | SetType _ ->
+          false
+      | _ ->
+          true )
+    params.ops
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -298,21 +309,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
-      let hasNonHandlers =
-        List.any
-          ~f:(fun c ->
-            match c with
-            | SetHandler (_, _, _) ->
-                false
-            | SetFunction _ ->
-                false
-            | SetType _ ->
-                false
-            | _ ->
-                true )
-          params.ops
-      in
-      if hasNonHandlers
+      if deferApplyOpsToRPCCallback params
       then (
         Js.log ("RPC.addOp " ^ (focus |> show_focus)) ;
         (m, RPC.addOp m focus params) )
@@ -1207,32 +1204,37 @@ let update_ (msg : msg) (m : model) : modification =
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
-      Js.log ("AddOpRPCCallback " ^ (focus |> show_focus)) ;
-      let initialMods =
-        applyOpsToClient (focus != FocusNoChange) params r.result
-      in
-      let focusMods =
-        if focus = FocusNoChange
-        then []
-        else
-          let m =
-            { m with
-              handlers =
-                TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
-            ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
-            ; userFunctions =
-                TD.mergeRight
-                  m.userFunctions
-                  (Functions.fromList r.result.userFunctions)
-            ; userTipes =
-                TD.mergeRight
-                  m.userTipes
-                  (UserTypes.fromList r.result.userTipes) }
-          in
-          let newState = processFocus m focus in
-          [AutocompleteMod ACReset; ClearError; newState]
-      in
-      Many (initialMods @ focusMods)
+      if not (deferApplyOpsToRPCCallback params)
+      then NoChange
+      else (
+        Js.log ("AddOpRPCCallback " ^ (focus |> show_focus)) ;
+        let initialMods =
+          applyOpsToClient (focus != FocusNoChange) params r.result
+        in
+        let focusMods =
+          if focus = FocusNoChange
+          then []
+          else
+            let m =
+              { m with
+                handlers =
+                  TD.mergeRight
+                    m.handlers
+                    (Handlers.fromList r.result.handlers)
+              ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
+              ; userFunctions =
+                  TD.mergeRight
+                    m.userFunctions
+                    (Functions.fromList r.result.userFunctions)
+              ; userTipes =
+                  TD.mergeRight
+                    m.userTipes
+                    (UserTypes.fromList r.result.userTipes) }
+            in
+            let newState = processFocus m focus in
+            [AutocompleteMod ACReset; ClearError; newState]
+        in
+        Many (initialMods @ focusMods) )
   | AddOpStrollerMsg msg ->
       if msg.params.browserId = m.browserId
       then
