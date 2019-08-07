@@ -533,7 +533,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
 and executeFunctionRPCResult j : executeFunctionRPCResult =
   ( field "result" dval j
   , field "hash" string j
-  , field "touched_tlids" (list tlid) j )
+  , field "touched_tlids" (list tlid) j
+  , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
 
 
 and triggerHandlerRPCResult j : triggerHandlerRPCResult =

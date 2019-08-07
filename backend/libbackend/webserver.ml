@@ -802,11 +802,15 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
           ~caller_id:params.caller_id
           ~args:params.args )
   in
-  let t4, response =
-    time "4-to-frontend" (fun _ ->
+  let t4, unlocked =
+    time "4-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
+  in
+  let t5, response =
+    time "5-to-frontend" (fun _ ->
         Analysis.to_execute_function_rpc_result
           (Dval.hash params.args)
           tlids
+          unlocked
           result )
   in
   respond
