@@ -56,7 +56,6 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
-      Native.OnCaptureView.capture () ;
       { m with
         currentPage = newPage
       ; canvasProps =
@@ -131,3 +130,16 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
     * Stay where you are, Deselect
     *)
       {m with currentPage = newPage; cursorState = Deselected}
+
+
+let capArch (oldPage : page) (newPage : page) : msg Cmd.t list =
+  match (oldPage, newPage) with
+  | Architecture, FocusedFn _
+  | FocusedHandler _, FocusedFn _
+  | FocusedDB _, FocusedFn _
+  | Architecture, FocusedType _
+  | FocusedHandler _, FocusedType _
+  | FocusedDB _, FocusedType _ ->
+      [Native.OnCaptureView.capture ()]
+  | _ ->
+      []

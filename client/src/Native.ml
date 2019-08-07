@@ -195,8 +195,12 @@ module OnWheel = struct
 end
 
 module OnCaptureView = struct
-  external capture : unit -> unit = "capture"
+  external _capture : unit -> unit = "capture"
     [@@bs.val] [@@bs.scope "window", "Dark", "view"]
+
+  let capture (() : unit) : Types.msg Tea.Cmd.t =
+    Tea_cmd.call (fun _ -> _capture ())
+
 
   let decode =
     let open Tea.Json.Decoder in
