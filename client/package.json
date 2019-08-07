@@ -26,7 +26,8 @@
     "pusher-js": "^5.0.0",
     "rollbar": "^2.11.0",
     "sha2": "^1.0.2",
-    "tablecloth-bucklescript": "0.0.6"
+    "tablecloth-bucklescript": "0.0.6",
+    "html2canvas": "1.0.0-rc.3"
   },
   "scripts": {
     "clean": "bsb -clean-world",
