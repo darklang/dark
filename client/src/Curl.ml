@@ -94,3 +94,16 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
 
 let makeCommand (m : model) (tlid : tlid) : string option =
   curlFromCurrentTrace m tlid |> Option.orElse (curlFromSpec m tlid)
+
+
+let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
+  match makeCommand m tlid with
+  | Some data ->
+      Native.Clipboard.copyToClipboard data ;
+      let modFun m =
+        let m1 = Editor.setHandlerMenu tlid false m in
+        {m1 with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
+      in
+      TweakModel modFun
+  | None ->
+      TweakModel (Editor.setHandlerMenu tlid false)
