@@ -1343,6 +1343,56 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
+let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti ~pos "doLeft" s in
+  if Token.isAtom ti.token
+  then moveToStart ti s
+  else moveOneLeft (min pos ti.endPos) s
+
+
+let doRight
+    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
+    state =
+  let s = recordAction ~ti:current ~pos "doRight" s in
+  if Token.isAtom current.token
+  then
+    match next with
+    | None ->
+        moveToAfter current s
+    | Some nInfo ->
+        moveToStart nInfo s
+  else
+    match next with
+    | Some n when pos + 1 >= current.endPos ->
+        moveToStart n s
+    | _ ->
+        (* When we're in whitespace, current is the next non-whitespace. So we
+         * don't want to use pos, we want to use the startPos of current. *)
+        let startingPos = max pos (current.startPos - 1) in
+        moveOneRight startingPos s
+
+
+let doUp ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doUp" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  if row = 0
+  then moveTo 0 s
+  else
+    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
+    moveTo pos {s with upDownCol = Some col}
+
+
+let doDown ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doDown" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
+  moveTo pos {s with upDownCol = Some col}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -2303,56 +2353,6 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* -------------------- *)
 (* Code entering/interaction *)
 (* -------------------- *)
-
-let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos "doLeft" s in
-  if Token.isAtom ti.token
-  then moveToStart ti s
-  else moveOneLeft (min pos ti.endPos) s
-
-
-let doRight
-    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
-    state =
-  let s = recordAction ~ti:current ~pos "doRight" s in
-  if Token.isAtom current.token
-  then
-    match next with
-    | None ->
-        moveToAfter current s
-    | Some nInfo ->
-        moveToStart nInfo s
-  else
-    match next with
-    | Some n when pos + 1 >= current.endPos ->
-        moveToStart n s
-    | _ ->
-        (* When we're in whitespace, current is the next non-whitespace. So we
-         * don't want to use pos, we want to use the startPos of current. *)
-        let startingPos = max pos (current.startPos - 1) in
-        moveOneRight startingPos s
-
-
-let doUp ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  if row = 0
-  then moveTo 0 s
-  else
-    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
-    moveTo pos {s with upDownCol = Some col}
-
-
-let doDown ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
-  moveTo pos {s with upDownCol = Some col}
-
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
