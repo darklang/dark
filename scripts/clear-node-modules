@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+rm -Rf client/node_modules/*
+rm -Rf client/node_modules/.*
