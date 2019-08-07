@@ -125,6 +125,20 @@ if (pusherConfig.enabled) {
   var pusherConnection = new Pusher(pusherConfig.key, {
     cluster: pusherConfig.cluster,
     forceTLS: true,
+    /* disableStats disables anonymous usage stats collection for
+	pusher (i.e., part of their internal monitoring, nothing that
+	we would use). The stats collection URL is JSONP, so allowing
+	it in the content-security-policy would effectively invalidate it.
+
+	Let's shut it off to turn off the console error.
+
+        Here's the documentation for this setting:
+        https://support.pusher.com/hc/en-us/articles/360020083153
+        And here's a paper that includes info on why JSONP invalidates
+        CSP rules:
+        https://storage.googleapis.com/pub-tools-public-publication-data/pdf/45542.pdf
+     */
+    disableStats: true,
   });
 }
 
@@ -397,6 +411,9 @@ setTimeout(function() {
   };
 
   window.onload = function(evt) {
+    // Do this here instead of html for content-security-policy
+    document.body.onkeydown = stopKeys;
+    document.body.onkeyup = stopKeys;
     const size = {
       width: window.innerWidth,
       height: window.innerHeight,
@@ -421,21 +438,11 @@ setTimeout(function() {
         throw err;
       });
   }
-  let rollbarConfigSetup =
-    "const rollbarConfig = '" + JSON.stringify(rollbarConfig) + "';\n\n";
-
-  let analysisjs = fetcher("/analysis.js");
-  let analysiswrapperjs = fetcher("/analysiswrapper.js");
-  let fetcherjs = fetcher("/fetcher.js");
   (async function() {
-    var strings = [rollbarConfigSetup, await analysisjs, "\n\n", await analysiswrapperjs];
-    var analysisWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.analysisWorker = new Worker(analysisWorkerUrl);
+    window.analysisWorker = new Worker("webworker.js");
   })();
   (async function() {
-    var strings = [rollbarConfigSetup, await fetcherjs];
-    var fetcherWorkerUrl = window.URL.createObjectURL(new Blob(strings));
-    window.fetcherWorker = new Worker(fetcherWorkerUrl);
+    window.fetcherWorker = new Worker("fetcher.js");
   })();
 
   window.onfocus = function(evt) {

@@ -46,6 +46,8 @@ val rollbar_js : string
 
 val stroller_port : int option
 
+val pusher_cluster : string
+
 val pusher_js : string
 
 val public_domain : string
