@@ -275,6 +275,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
+                   Js.log "RPC.addOp FocusSame" ;
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
                  let replacement = AST.closeBlanks f.ufAST in
@@ -285,6 +286,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    let ops = [SetFunction newF] in
                    let params = RPC.opsParams ops m.browserId in
                    (* call RPC on the new model *)
+                   Js.log "RPC.addOp FocusSame" ;
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ ->
                  [] )
@@ -311,7 +313,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           params.ops
       in
       if hasNonHandlers
-      then (m, RPC.addOp m focus params)
+      then (
+        Js.log ("RPC.addOp " ^ (focus |> show_focus)) ;
+        (m, RPC.addOp m focus params) )
       else
         let localM =
           List.foldl
@@ -333,6 +337,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             (Many [AutocompleteMod ACReset; processFocus localM focus])
             (localM, Cmd.none)
         in
+        Js.log "RPC.addOp FocusNoChange" ;
         (withFocus, Cmd.batch [wfCmd; RPC.addOp withFocus FocusNoChange params])
     in
     match mod_ with
@@ -1202,6 +1207,7 @@ let update_ (msg : msg) (m : model) : modification =
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
+      Js.log ("AddOpRPCCallback " ^ (focus |> show_focus)) ;
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
       in
