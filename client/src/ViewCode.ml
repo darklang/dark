@@ -621,24 +621,24 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
         commonActions
   in
   let toggleMenu =
-    let name =
-      if tlidOf vs.cursorState = Some vs.tlid
-      then "toggle-btn"
-      else "toggle-btn inactive"
-    in
     toggleButton
-      ~name
+      ~name:"toggle-btn"
       ~activeIcon:"chevron-circle-up"
       ~inactiveIcon:"chevron-circle-down"
-      ~msg:(fun _ ->
-        Debug.loG "toggle menu click" showMenu ;
-        SetHandlerActionsMenu (vs.tlid, not showMenu) )
+      ~msg:(fun _ -> SetHandlerActionsMenu (vs.tlid, not showMenu))
       ~active:showMenu
       ~key:("toggle-tl-menu-" ^ strTLID)
   in
   Html.div
     [Html.classList [("more-actions", true); ("show", showMenu)]]
-    [toggleMenu; Html.div [Html.class' "actions"] actions]
+    [ toggleMenu
+    ; Html.div
+        [ Html.class' "actions"
+        ; ViewUtils.eventNoPropagation
+            ~key:("hide-tl-opts" ^ strTLID)
+            "mouseleave"
+            (fun _ -> SetHandlerActionsMenu (vs.tlid, false) ) ]
+        actions ]
 
 
 let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =

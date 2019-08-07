@@ -102,6 +102,14 @@ let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
   {m with handlerProps = props}
 
 
+let isHandlerMenuShown (tlid : tlid) (m : model) : bool =
+  let prop =
+    TLIDDict.get ~tlid m.handlerProps
+    |> Option.withDefault ~default:Defaults.defaultHandlerProp
+  in
+  prop.showActions
+
+
 let serialize (m : model) : unit =
   let state = m |> model2editor |> toString in
   Dom.Storage.setItem
