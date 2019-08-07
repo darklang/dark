@@ -93,7 +93,9 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
         with _ -> StrDict.empty )
   ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j
-  ; lastReload = optional (field "lastReload" jsDate) j }
+  ; lastReload = optional (field "lastReload" jsDate) j
+  ; sidebarOpen =
+      orNull (field "sidebarOpen" bool) Defaults.defaultEditor.sidebarOpen j }
 
 
 and cursorState j =
