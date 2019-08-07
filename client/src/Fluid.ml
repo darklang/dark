@@ -1,3 +1,13 @@
+(* Specs:
+ *
+ * Pressing enter at the end of a line:
+   * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
+ * renaming functions:
+   * https://trello.com/c/49TTRcad/973-renaming-functions
+ * movement shortcuts:
+   * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
+ *)
+
 (* open Webapi.Dom *)
 open Tc
 open Types
