@@ -110,6 +110,28 @@ let isHandlerMenuShown (tlid : tlid) (m : model) : bool =
   prop.showActions
 
 
+let isHandlerLocked (tlid : tlid) (m : model) : bool =
+  let prop =
+    TLIDDict.get ~tlid m.handlerProps
+    |> Option.withDefault ~default:Defaults.defaultHandlerProp
+  in
+  prop.handlerLock
+
+
+let handlerExeState (tlid : tlid) (m : model) : string =
+  let prop =
+    TLIDDict.get ~tlid m.handlerProps
+    |> Option.withDefault ~default:Defaults.defaultHandlerProp
+  in
+  match prop.execution with
+  | Idle ->
+      "idle"
+  | Executing ->
+      "executing"
+  | Complete ->
+      "complete"
+
+
 let serialize (m : model) : unit =
   let state = m |> model2editor |> toString in
   Dom.Storage.setItem

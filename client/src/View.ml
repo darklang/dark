@@ -205,8 +205,17 @@ let tlCacheKey (m : model) tl =
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let showMenu = Editor.isHandlerMenuShown tlid m in
+    let isLocked = Editor.isHandlerLocked tlid m in
+    let exe = Editor.handlerExeState tlid m in
     Some
-      (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList, showMenu)
+      ( tl
+      , Analysis.cursor m tlid
+      , hovered
+      , tracesLoaded
+      , avatarsList
+      , showMenu
+      , isLocked
+      , exe )
 
 
 let tlCacheKeyDB (m : model) tl =
