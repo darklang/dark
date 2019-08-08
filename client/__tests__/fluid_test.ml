@@ -157,9 +157,9 @@ let () =
     ELet
       ( gid ()
       , gid ()
-      , ""
+      , "x"
       , EInteger (gid (), 5)
-      , ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 7))
+      , ELet (gid (), gid (), "y", EInteger (gid (), 6), EInteger (gid (), 7))
       )
   in
   let letWithLhs =
@@ -1050,11 +1050,11 @@ let () =
         emptyMatchWithTwoPatterns
         (press K.Enter 22)
         ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
-      (* t *)
-      (*   "enter at the start of a row creates a new row" *)
-      (*   matchWithPatterns *)
-      (*   (press K.Enter 13) *)
-      (*   ("match ___\n  3 -> ___\n  *** -> ___", 23) ; *)
+      t
+        "enter at the start of a row creates a new row"
+        matchWithPatterns
+        (press K.Enter 12)
+        ("match ___\n  *** -> ___\n  3 -> ___", 25) ;
       () ) ;
   describe "Lets" (fun () ->
       t
@@ -1172,10 +1172,20 @@ let () =
         (press K.Enter 11)
         ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
-        "enter at the start of a line goes to next let"
+        "enter at the start of a let creates let above"
         twoLets
-        (press K.Enter 12)
-        ("let *** = 5\nlet *** = ___\nlet *** = 6\n7", 16) ;
+        (press K.Enter 10)
+        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 24) ;
+      t
+        "enter at the start of first let creates let above"
+        nonEmptyLet
+        (press K.Enter 0)
+        ("let *** = ___\nlet *** = 6\n5", 14) ;
+      t
+        "enter at the start of a non-let also creates let above"
+        anInt
+        (press K.Enter 0)
+        ("let *** = ___\n12345", 14) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
@@ -1651,7 +1661,7 @@ let () =
         "pressing enter at the start of a field adds a row"
         multi
         (enter 14)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
       t
         "pressing enter at the end of row adds a row"
         multi
