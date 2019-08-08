@@ -6,7 +6,7 @@
   "author": "",
   "devDependencies": {
     "@glennsl/bs-jest": "^0.4.9",
-    "browserify": "^16.3.0",
+    "browserify": "^16.4.0",
     "browserify-incremental": "^3.1.1",
     "bs-platform": "6.0.3",
     "node-sass": "^4.12.0",
