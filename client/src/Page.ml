@@ -130,3 +130,16 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
     * Stay where you are, Deselect
     *)
       {m with currentPage = newPage; cursorState = Deselected}
+
+
+let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
+  match (oldPage, newPage) with
+  | Architecture, FocusedFn _
+  | FocusedHandler _, FocusedFn _
+  | FocusedDB _, FocusedFn _
+  | Architecture, FocusedType _
+  | FocusedHandler _, FocusedType _
+  | FocusedDB _, FocusedType _ ->
+      [Native.OnCaptureView.capture ()]
+  | _ ->
+      []
