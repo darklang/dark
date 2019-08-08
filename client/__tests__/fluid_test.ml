@@ -1041,19 +1041,19 @@ let () =
       t
         "enter at the end of the cond creates a new row"
         matchWithPatterns
-        (press K.Enter 9)
+        (enter 9)
         ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
       t
         "enter at the end of a row creates a new row"
         (* TODO: it doesn't work at the end of an ast *)
         (* TODO: it doesn't work on the last row *)
         emptyMatchWithTwoPatterns
-        (press K.Enter 22)
+        (enter 22)
         ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
-        (press K.Enter 12)
+        (enter 12)
         ("match ___\n  *** -> ___\n  3 -> ___", 25) ;
       () ) ;
   describe "Lets" (fun () ->
@@ -1169,22 +1169,22 @@ let () =
       t
         "enter at the end of a line goes to next let"
         nonEmptyLet
-        (press K.Enter 11)
+        (enter 11)
         ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
         "enter at the start of a let creates let above"
         twoLets
-        (press K.Enter 10)
+        (enter 10)
         ("let x = 5\nlet *** = ___\nlet y = 6\n7", 24) ;
       t
         "enter at the start of first let creates let above"
         nonEmptyLet
-        (press K.Enter 0)
+        (enter 0)
         ("let *** = ___\nlet *** = 6\n5", 14) ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
-        (press K.Enter 0)
+        (enter 0)
         ("let *** = ___\n12345", 14) ;
       () ) ;
   describe "Threads" (fun () ->
