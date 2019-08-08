@@ -298,7 +298,7 @@ let deletedCategory (m : model) : category =
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
-let entry2html (m : model) (e : entry) : msg Html.html =
+let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   let name = e.name in
   let destinationLink page classes name =
     Url.linkFor page classes [Html.text name]
@@ -327,19 +327,22 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
-    Html.div
-      [Html.class' "delete"]
-      ( match e.minusButton with
-      | Some msg ->
-          if m.permission = Some ReadWrite
-          then
-            [ buttonLink
-                ~key:("entry-" ^ showTLID e.tlid)
-                (fontAwesome "times-circle")
-                msg ]
-          else []
-      | None ->
-          iconspacer )
+    if hovering
+    then Vdom.noNode
+    else
+      Html.div
+        [Html.class' "delete"]
+        ( match e.minusButton with
+        | Some msg ->
+            if m.permission = Some ReadWrite
+            then
+              [ buttonLink
+                  ~key:("entry-" ^ showTLID e.tlid)
+                  (fontAwesome "times-circle")
+                  msg ]
+            else []
+        | None ->
+            iconspacer )
   in
   let pluslink =
     match e.plusButton with
@@ -444,8 +447,12 @@ let deployStats2html (m : model) : msg Html.html =
     (header :: routes)
 
 
-let rec item2html (m : model) (s : item) : msg Html.html =
-  match s with Category c -> category2html m c | Entry e -> entry2html m e
+let rec item2html ~hovering (m : model) (s : item) : msg Html.html =
+  match s with
+  | Category c ->
+      category2html m c
+  | Entry e ->
+      entry2html ~hovering m e
 
 
 and category2html (m : model) (c : category) : msg Html.html =
@@ -471,7 +478,7 @@ and category2html (m : model) (c : category) : msg Html.html =
       [Html.class' "headerSummary"; openEventHandler]
       [Html.div [Html.class' "header"] (title :: plusButton)]
   in
-  let entries = List.map ~f:(item2html m) c.entries in
+  let entries = List.map ~f:(item2html ~hovering:false m) c.entries in
   let classes =
     Html.classList
       [("sidebar-section", true); (c.classname, true); ("empty", c.count = 0)]
@@ -495,8 +502,8 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     | None ->
         []
   in
-  let routes = List.map ~f:(item2html m) c.entries in
   let hoverView =
+    let routes = List.map ~f:(item2html ~hovering:true m) c.entries in
     if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
   in
   let icon =
