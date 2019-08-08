@@ -66,6 +66,11 @@ let model2editor (m : model) : serializableEditor =
   ; lastReload = m.lastReload }
 
 
+let getHandlerProps (tlid : tlid) (m : model) : handlerProp =
+  TLIDDict.get ~tlid m.handlerProps
+  |> Option.withDefault ~default:Defaults.defaultHandlerProp
+
+
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   let updateProps prop =
     match prop with
@@ -100,36 +105,6 @@ let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
   in
   let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
   {m with handlerProps = props}
-
-
-let isHandlerMenuShown (tlid : tlid) (m : model) : bool =
-  let prop =
-    TLIDDict.get ~tlid m.handlerProps
-    |> Option.withDefault ~default:Defaults.defaultHandlerProp
-  in
-  prop.showActions
-
-
-let isHandlerLocked (tlid : tlid) (m : model) : bool =
-  let prop =
-    TLIDDict.get ~tlid m.handlerProps
-    |> Option.withDefault ~default:Defaults.defaultHandlerProp
-  in
-  prop.handlerLock
-
-
-let handlerExeState (tlid : tlid) (m : model) : string =
-  let prop =
-    TLIDDict.get ~tlid m.handlerProps
-    |> Option.withDefault ~default:Defaults.defaultHandlerProp
-  in
-  match prop.execution with
-  | Idle ->
-      "idle"
-  | Executing ->
-      "executing"
-  | Complete ->
-      "complete"
 
 
 let serialize (m : model) : unit =
