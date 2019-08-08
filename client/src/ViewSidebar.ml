@@ -437,7 +437,7 @@ let deployStats2html (m : model) : msg Html.html =
   in
   let classes =
     Html.classList
-      [("routing-section", true); ("deploys", true); ("empty", count = 0)]
+      [("sidebar-section", true); ("deploys", true); ("empty", count = 0)]
   in
   (if count = 0 then Html.div else Html.details)
     [classes; openAttr]
@@ -471,14 +471,14 @@ and category2html (m : model) (c : category) : msg Html.html =
       [Html.class' "headerSummary"; openEventHandler]
       [Html.div [Html.class' "header"] (title :: plusButton)]
   in
-  let routes = List.map ~f:(item2html m) c.entries in
+  let entries = List.map ~f:(item2html m) c.entries in
   let classes =
     Html.classList
-      [("routing-section", true); (c.classname, true); ("empty", c.count = 0)]
+      [("sidebar-section", true); (c.classname, true); ("empty", c.count = 0)]
   in
   (if c.count = 0 then Html.div else Html.details)
     [classes; openAttr]
-    (header :: routes)
+    (header :: entries)
 
 
 let closedCategory2html (m : model) (c : category) : msg Html.html =
@@ -640,7 +640,7 @@ let adminDebuggerView (m : model) : msg Html.html =
         ([environment; icon] @ hoverView) ]
 
 
-let viewRoutingTable_ (m : model) : msg Html.html =
+let viewSidebar_ (m : model) : msg Html.html =
   let isClosed : bool = not m.sidebarOpen in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes
@@ -722,4 +722,4 @@ let rtCacheKey m =
   , m.currentPage )
 
 
-let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
+let viewSidebar m = Cache.cache1 rtCacheKey viewSidebar_ m
