@@ -495,7 +495,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline (id, None)
+      ; TNewline (eid next, None)
       ; nested next ]
   | EString (id, str) ->
       [TString (id, str)]
@@ -504,12 +504,15 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; nested cond
       ; TNewline (id, None)
       ; TIfThenKeyword id
-      ; TNewline (id, None)
+        (* The newline ID is pretty hacky here. It might be better to instead
+       * have a special newline where an id is relevant, and another newline
+       * which is boring. *)
+      ; TNewline (eid if', None)
       ; TIndent 2
       ; nested if'
       ; TNewline (id, None)
       ; TIfElseKeyword id
-      ; TNewline (id, None)
+      ; TNewline (eid else', None)
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -1572,10 +1575,6 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
           fail "not a let" )
 
 
-let addLetAbove (id : id) (ast : ast) =
-  updateExpr id ast ~f:(fun e -> ELet (gid (), gid (), "", newB (), e))
-
-
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
@@ -2044,9 +2043,15 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
-        | None, ELet (lid, lhsid, lhs, rhs, body) ->
-            let newLet = ELet (gid (), gid (), "", newB (), body) in
-            ELet (lid, lhsid, lhs, rhs, newLet)
+        | None, EIf _ ->
+            (* If is the only expression that has newlines that we don't want
+             * to insert an if around. TODO: except the opening newline, so we
+             * need to add the info to the newline about whether to do this or
+             * not. *)
+            cursor := `NextToken ;
+            e
+        | None, e ->
+            ELet (gid (), gid (), "", newB (), e)
         | Some index, ERecord (id, fields) ->
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
@@ -2073,6 +2078,54 @@ let addEntryBelow
         f s
     | `NextBlank ->
         moveToNextBlank ~pos:s.newPos newAST s
+  in
+  (newAST, newState)
+
+
+let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let s = recordAction "addEntryAbove" s in
+  let nextIndex = ref None in
+  let newAST =
+    updateExpr id ast ~f:(fun e ->
+        match (index, e) with
+        | Some index, ERecord (id, fields) ->
+            nextIndex := Some (index + 1) ;
+            ERecord
+              (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
+        | Some index, EMatch (id, cond, rows) ->
+            nextIndex := Some (index + 1) ;
+            EMatch
+              ( id
+              , cond
+              , List.insertAt
+                  rows
+                  ~index
+                  ~value:(FPBlank (gid (), gid ()), newB ()) )
+        | Some index, EThread (id, exprs) ->
+            nextIndex := Some (index + 1) ;
+            EThread
+              (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
+        | None, e ->
+            ELet (gid (), gid (), "", newB (), e)
+        | _ ->
+            e )
+  in
+  let newState =
+    let tokens = toTokens s newAST in
+    let newToken =
+      List.find tokens ~f:(fun ti ->
+          match ti.token with
+          | TNewline (tid, tindex) when id = tid && tindex = !nextIndex ->
+              true
+          | _ ->
+              false )
+    in
+    let newPos =
+      Option.map newToken ~f:(fun ti -> ti.startPos)
+      |> Option.withDefault ~default:s.newPos
+    in
+    moveToNextNonWhitespaceToken ~pos:newPos newAST {s with newPos}
   in
   (newAST, newState)
 
@@ -2992,9 +3045,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, L (TRecordOpen id, _), _ ->
         let newAST = addRecordRowAt 0 id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
-    | K.Enter, _, R (TRecordField (id, index, _), _) ->
-        let newAST = addRecordRowAt index id ast in
-        (newAST, s)
     | K.Enter, _, R (TRecordClose id, _) ->
         let newAST = addRecordRowToBack id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
@@ -3015,10 +3065,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* End of line *)
     | K.Enter, _, R (TNewline (id, index), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
-    | K.Enter, _, R (TLetKeyword id, _ti) ->
-        let newAST = addLetAbove id ast in
-        (* keeping it at the same place is less surprising than jumping *)
-        (newAST, moveToNextBlank ~pos newAST s)
+    | K.Enter, L (TNewline (id, index), _), _ ->
+        addEntryAbove id index ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
