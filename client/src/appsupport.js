@@ -41,9 +41,11 @@ function stopKeys(event) {
   }
   if (
     event.ctrlKey &&
-    event.keyCode === 75 &&
+    event.keyCode === 75 && // Ctrl-K
     window.navigator.platform.includes("Linux")
   ) {
+    // `Ctrl-K` is meant to open the omnibox on Linux, but without this preventDefault
+    // it will focus the browser's URL bar after creating the omnibox.
     event.preventDefault();
   }
 }
