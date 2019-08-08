@@ -3,7 +3,7 @@ use std::sync::mpsc::Receiver;
 use crate::config;
 use crate::push::PusherClient;
 
-use slog::{o, slog_error, slog_info};
+use slog::o;
 use slog_scope::{error, info};
 
 pub enum Message {
