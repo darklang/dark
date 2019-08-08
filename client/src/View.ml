@@ -313,9 +313,8 @@ let viewMinimap (data : string option) : msg Html.html =
         [ Html.id "minimap"
         ; Html.class' "minimap"
         ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              GoToArchitectureView ) ]
-        [ Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []
-        ; Html.text "Architecture View" ]
+              GoToArchitecturalView ) ]
+        [Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []]
   | None ->
       Vdom.noNode
 
@@ -363,7 +362,7 @@ let view (m : model) : msg Html.html =
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m
-    ; viewMinimap m.canvasProps.preview ]
+    ; viewMinimap m.canvasProps.minimap ]
     @ errorBar
   in
   let routing = ViewRoutingTable.viewRoutingTable m in
