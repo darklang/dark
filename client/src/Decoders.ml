@@ -74,29 +74,24 @@ and handlerProp j : handlerProp =
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
-  (* always wrap these in try blocks so they don't fail when the user doesn't
-   * have that field *)
-  { timersEnabled = orNull (field "timersEnabled" bool) true j
-  ; cursorState =
-      ( try orNull (field "cursorState" cursorState) Deselected j with _ ->
-          Deselected )
+  (* always use withDefault or optional because the field might be missing due
+   * to old editors or new fields.  *)
+  { timersEnabled = withDefault true (field "timersEnabled" bool) j
+  ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; routingTableOpenDetails =
-      ( try orNull (field "routingTableOpenDetails" tcStrSet) StrSet.empty j
-        with _ -> StrSet.empty )
-  ; tlCursors =
-      ( try orNull (field "tlCursors" (dict traceID)) StrDict.empty j
-        with _ -> StrDict.empty )
+      withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
+  ; tlCursors = withDefault StrDict.empty (field "tlCursors" (dict traceID)) j
   ; featureFlags =
-      ( try orNull (field "featureFlags" (dict bool)) StrDict.empty j
-        with _ -> StrDict.empty )
+      withDefault StrDict.empty (field "featureFlags" (dict bool)) j
   ; handlerProps =
-      ( try orNull (field "handlerProps" (dict handlerProp)) StrDict.empty j
-        with _ -> StrDict.empty )
-  ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j
+      withDefault StrDict.empty (field "handlerProps" (dict handlerProp)) j
+  ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarOpen =
-      (let d = Defaults.defaultEditor.sidebarOpen in
-       try orNull (field "sidebarOpen" bool) d j with _ -> d) }
+      withDefault
+        Defaults.defaultEditor.sidebarOpen
+        (field "sidebarOpen" bool)
+        j }
 
 
 and cursorState j =
