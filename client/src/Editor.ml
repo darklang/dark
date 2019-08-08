@@ -49,7 +49,8 @@ let editor2model (e : serializableEditor) : model =
   ; featureFlags = e.featureFlags
   ; handlerProps = finalHandlerStates e.handlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
-  ; lastReload = e.lastReload }
+  ; lastReload = e.lastReload
+  ; sidebarOpen = e.sidebarOpen }
 
 
 let model2editor (m : model) : serializableEditor =
@@ -61,7 +62,8 @@ let model2editor (m : model) : serializableEditor =
   ; featureFlags = m.featureFlags (* which flags are expanded *)
   ; handlerProps = m.handlerProps
   ; canvasPos = m.canvasProps.offset
-  ; lastReload = m.lastReload }
+  ; lastReload = m.lastReload
+  ; sidebarOpen = m.sidebarOpen }
 
 
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =

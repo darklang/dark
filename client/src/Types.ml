@@ -1345,7 +1345,8 @@ and serializableEditor =
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
-  ; lastReload : (Js.Date.t[@opaque]) option }
+  ; lastReload : (Js.Date.t[@opaque]) option
+  ; sidebarOpen : bool }
 [@@deriving show {with_path = false}]
 
 and permission =

@@ -625,7 +625,8 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
     ; ("canvasPos", pos se.canvasPos)
     ; ( "lastReload"
-      , nullable string (Option.map ~f:Js.Date.toString se.lastReload) ) ]
+      , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
+    ; ("sidebarOpen", bool se.sidebarOpen) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
