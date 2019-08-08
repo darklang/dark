@@ -95,7 +95,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; canvasPos = orNull (field "canvasPos" pos) Defaults.origin j
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarOpen =
-      orNull (field "sidebarOpen" bool) Defaults.defaultEditor.sidebarOpen j }
+      (let d = Defaults.defaultEditor.sidebarOpen in
+       try orNull (field "sidebarOpen" bool) d j with _ -> d) }
 
 
 and cursorState j =
