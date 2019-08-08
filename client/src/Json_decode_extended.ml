@@ -51,10 +51,6 @@ let variants decoders =
                   ^ constructors ) )
 
 
-let orNull decoder default json =
-  if (Obj.magic json : 'a Js.null) == Js.null then default else decoder json
-
-
 let dict decoder json =
   dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
 
