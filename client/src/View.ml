@@ -365,7 +365,7 @@ let view (m : model) : msg Html.html =
     ; viewMinimap m.canvasProps.minimap ]
     @ errorBar
   in
-  let routing = ViewRoutingTable.viewRoutingTable m in
+  let sidebar = ViewSidebar.viewSidebar m in
   let body = viewCanvas m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
@@ -375,6 +375,6 @@ let view (m : model) : msg Html.html =
     else []
   in
   let content =
-    [routing; body; activeAvatars; viewToast m.toast] @ fluidStatus @ footer
+    [sidebar; body; activeAvatars; viewToast m.toast] @ fluidStatus @ footer
   in
   Html.div attributes content
