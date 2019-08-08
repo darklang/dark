@@ -204,18 +204,8 @@ let tlCacheKey (m : model) tl =
       |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
-    let showMenu = Editor.isHandlerMenuShown tlid m in
-    let isLocked = Editor.isHandlerLocked tlid m in
-    let exe = Editor.handlerExeState tlid m in
-    Some
-      ( tl
-      , Analysis.cursor m tlid
-      , hovered
-      , tracesLoaded
-      , avatarsList
-      , showMenu
-      , isLocked
-      , exe )
+    let props = Editor.getHandlerProps tlid m in
+    Some (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList, props)
 
 
 let tlCacheKeyDB (m : model) tl =

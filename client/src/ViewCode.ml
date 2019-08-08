@@ -610,7 +610,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
             [ ViewUtils.eventNoPropagation
                 ~key:("del-tl-" ^ strTLID)
                 "click"
-                (fun _ -> CopyCurl vs.tlid ) ]
+                (fun m -> CopyCurl (vs.tlid, m.mePos) ) ]
             [fontAwesome "copy"; Html.text "Copy request as cURL"]
         in
         let httpActions = curlAction :: commonActions in
