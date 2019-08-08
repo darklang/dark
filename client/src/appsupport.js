@@ -39,6 +39,13 @@ function stopKeys(event) {
     if (document.activeElement.tagName.toLowerCase() !== "textarea")
       event.preventDefault();
   }
+  if (
+    event.ctrlKey &&
+    event.keyCode === 75 &&
+    window.navigator.platform.includes("Linux")
+  ) {
+    event.preventDefault();
+  }
 }
 window.stopKeys = stopKeys;
 
