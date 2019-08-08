@@ -57,7 +57,8 @@ let defaultCanvasProps : canvasProps =
   ; enablePan = true
   ; lastOffset = None
   ; viewportSize = {w = 0; h = 0}
-  ; panAnimation = false }
+  ; panAnimation = false
+  ; minimap = None }
 
 
 let defaultHandlerProp : handlerProp =

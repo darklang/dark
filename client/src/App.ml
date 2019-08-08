@@ -438,7 +438,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = Page.tlidOf page
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
-          (Page.setPage m m.currentPage page, RPC.sendPresence m avMessage)
+          let cap = Page.capMinimap m.currentPage page in
+          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
+          (Page.setPage m m.currentPage page, cmds)
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
@@ -1623,6 +1625,15 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (Editor.setHandlerMenu tlid show)
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
+  | UpdateMinimap data ->
+      TweakModel
+        (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
+  | GoToArchitecturalView ->
+      Many
+        [ TweakModel
+            (fun m ->
+              {m with canvasProps = {m.canvasProps with minimap = None}} )
+        ; MakeCmd (Url.navigateTo Architecture) ]
 
 
 let rec filter_read_only (m : model) (modification : modification) =
@@ -1732,6 +1743,10 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           e##preventDefault () ;
           ClipboardPasteEvent e ) ]
   in
+  let onCaptureView =
+    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
+          UpdateMinimap (Some s) ) ]
+  in
   Tea.Sub.batch
     (List.concat
        [ keySubs
@@ -1742,7 +1757,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; visibility
        ; onError
        ; mousewheelSubs
-       ; analysisSubs ])
+       ; analysisSubs
+       ; onCaptureView ])
 
 
 let debugging =

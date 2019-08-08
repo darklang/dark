@@ -306,6 +306,19 @@ let viewCanvas (m : model) : msg Html.html =
     (overlay :: allDivs)
 
 
+let viewMinimap (data : string option) : msg Html.html =
+  match data with
+  | Some src ->
+      Html.div
+        [ Html.id "minimap"
+        ; Html.class' "minimap"
+        ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+              GoToArchitecturalView ) ]
+        [Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []]
+  | None ->
+      Vdom.noNode
+
+
 let viewToast (t : toast) : msg Html.html =
   let msg = Option.withDefault ~default:"" t.toastMessage in
   let classes =
@@ -348,7 +361,8 @@ let view (m : model) : msg Html.html =
   let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
-    ; ViewScaffold.readOnlyMessage m ]
+    ; ViewScaffold.readOnlyMessage m
+    ; viewMinimap m.canvasProps.minimap ]
     @ errorBar
   in
   let routing = ViewRoutingTable.viewRoutingTable m in
