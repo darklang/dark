@@ -495,24 +495,25 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline (eid next, None)
+      ; TNewline (Some (eid next, None))
       ; nested next ]
   | EString (id, str) ->
       [TString (id, str)]
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
-      ; TNewline (id, None)
+      ; TNewline None
       ; TIfThenKeyword id
-        (* The newline ID is pretty hacky here. It might be better to instead
-       * have a special newline where an id is relevant, and another newline
-       * which is boring. *)
-      ; TNewline (eid if', None)
+        (* The newline ID is pretty hacky here. It's used to make it possible
+         * to press Enter on the expression inside. It might be better to
+         * instead have a special newline where an id is relevant, and another
+         * newline which is boring. *)
+      ; TNewline (Some (eid if', None))
       ; TIndent 2
       ; nested if'
-      ; TNewline (id, None)
+      ; TNewline None
       ; TIfElseKeyword id
-      ; TNewline (eid else', None)
+      ; TNewline (Some (eid else', None))
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -608,14 +609,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline (id, Some i)
+              [ TNewline (Some (id, Some i))
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline (id, Some (List.length fields)); TRecordClose id] ]
+        ; [TNewline (Some (id, Some (List.length fields))); TRecordClose id] ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -628,15 +629,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline (id, Some 0)
+        ; TNewline (Some (id, Some 0))
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
                      [TIndentToHere [TThreadPipe (id, i, length); nested e]]
                    in
-                   if i == 0 then thread else TNewline (id, Some i) :: thread
-               )
+                   if i == 0
+                   then thread
+                   else TNewline (Some (id, Some i)) :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -649,7 +651,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-            [TNewline (id, Some i); TIndent 2]
+            [TNewline (Some (id, Some i)); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -2043,14 +2045,8 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
-        | None, EIf _ ->
-            (* If is the only expression that has newlines that we don't want
-             * to insert an if around. TODO: except the opening newline, so we
-             * need to add the info to the newline about whether to do this or
-             * not. *)
-            cursor := `NextToken ;
-            e
-        | None, e ->
+        | None, _ ->
+            (* We've already decided to wrap, so wrap unconditionally. *)
             ELet (gid (), gid (), "", newB (), e)
         | Some index, ERecord (id, fields) ->
             ERecord
@@ -2103,6 +2099,7 @@ let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
                   ~index
                   ~value:(FPBlank (gid (), gid ()), newB ()) )
         | Some index, EThread (id, exprs) ->
+            (* TODO: this should move to the inside of the |> *)
             nextIndex := Some (index + 1) ;
             EThread
               (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
@@ -2116,7 +2113,8 @@ let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
     let newToken =
       List.find tokens ~f:(fun ti ->
           match ti.token with
-          | TNewline (tid, tindex) when id = tid && tindex = !nextIndex ->
+          | TNewline (Some (tid, tindex)) when id = tid && tindex = !nextIndex
+            ->
               true
           | _ ->
               false )
@@ -3063,9 +3061,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline (id, index), ti) ->
+    | K.Enter, _, R (TNewline (Some (id, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
-    | K.Enter, L (TNewline (id, index), _), _ ->
+    | K.Enter, _, R (TNewline None, ti) ->
+        (ast, doRight ~pos ~next:mNext ti s)
+    | K.Enter, L (TNewline (Some (id, index)), _), _ ->
         addEntryAbove id index ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
