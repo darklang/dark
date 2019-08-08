@@ -309,6 +309,23 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
+  let processMsg (keys : K.key list) (s : fluidState) (ast : ast) :
+      ast * fluidState =
+    let h = Fluid_utils.h ast in
+    let m = {m with handlers = Handlers.fromList [h]} in
+    List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
+        updateMsg
+          m
+          h.hTLID
+          ast
+          (FluidKeyPress
+             { key
+             ; shiftKey = false
+             ; altKey = false
+             ; metaKey = false
+             ; ctrlKey = false })
+          s )
+  in
   let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
       testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
@@ -333,22 +350,7 @@ let () =
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "expr before" (eToStructure s ast) ) ;
-    let newAST, newState =
-      let h = Fluid_utils.h ast in
-      let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
-          updateMsg
-            m
-            h.hTLID
-            ast
-            (FluidKeyPress
-               { key
-               ; shiftKey = false
-               ; altKey = false
-               ; metaKey = false
-               ; ctrlKey = false })
-            s )
-    in
+    let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
       | EIf (_, _, expr, _) ->
@@ -1193,6 +1195,14 @@ let () =
         anInt
         (enter 0)
         ("let *** = ___\n12345", 14) ;
+      test "enter at the start of ast also creates let" (fun () ->
+          (* Test doesn't work wrapped *)
+          expect
+            (let ast, state =
+               processMsg [K.Enter] Defaults.defaultFluidState anInt
+             in
+             (eToString state ast, state.newPos))
+          |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
