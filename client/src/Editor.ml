@@ -66,11 +66,6 @@ let model2editor (m : model) : serializableEditor =
   ; lastReload = m.lastReload }
 
 
-let getHandlerProps (tlid : tlid) (m : model) : handlerProp =
-  TLIDDict.get ~tlid m.handlerProps
-  |> Option.withDefault ~default:Defaults.defaultHandlerProp
-
-
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   let updateProps prop =
     match prop with
