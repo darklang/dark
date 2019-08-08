@@ -192,22 +192,23 @@ $wrapper-background: $black2;
   z-index: 10;
   direction: rtl;
 
-  i.fa {
-    color: $grey3;
+  .toggle-btn {
+    cursor: pointer;
   }
 
   .actions {
     display: none;
     margin-top: 5px;
-    box-shadow: $black1 1px 2px 1px 1px;
 
     div,
     a {
       padding: 2px 4px;
+      padding-left: 8px;
       color: $grey3;
-      background: lighten($black2, 12%);
+      background: lighten($black2, 5%);
 
       &:hover {
+        cursor: pointer;
         background: $hover-background;
       }
 
@@ -219,14 +220,14 @@ $wrapper-background: $black2;
     a {
       text-decoration: none;
     }
+
+    div i.fa {
+      margin-right: 2px;
+    }
   }
 
   /* Actions menu opened */
   &.show {
-    i.fa {
-      color: $white1;
-    }
-
     .actions {
       display: flex;
       flex-direction: column;

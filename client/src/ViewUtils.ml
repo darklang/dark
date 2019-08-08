@@ -468,9 +468,10 @@ let toggleIconButton
     ~(active : bool)
     ~(key : string) : msg Html.html =
   let icon = if active then activeIcon else inactiveIcon in
+  let cacheKey = key ^ "-" ^ string_of_bool active in
   Html.div
     [ Html.classList [(name, true); ("active", active)]
-    ; eventNoPropagation ~key "click" msg ]
+    ; eventNoPropagation ~key:cacheKey "click" msg ]
     [fontAwesome icon]
 
 
