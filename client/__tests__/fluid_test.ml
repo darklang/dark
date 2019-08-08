@@ -1360,6 +1360,11 @@ let () =
         aThread
         (enter 2)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 5) ;
+      t
+        "enter at the start of a line creates a new entry"
+        aThread
+        (enter 3)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 9) ;
       (* t *)
       (*   "enter at the end of the last expr creates a new entry" *)
       (*   aThread *)
@@ -1423,6 +1428,40 @@ let () =
         emptyIf
         (press K.Space 14)
         ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
+      t
+        "enter in front of an if wraps in a let"
+        plainIf
+        (enter 0)
+        ("let *** = ___\nif 5\nthen\n  6\nelse\n  7", 14) ;
+      t
+        "enter at end of if line does nothing"
+        plainIf
+        (enter 4)
+        ("if 5\nthen\n  6\nelse\n  7", 5) ;
+      t
+        "enter at end of then line does inserts let"
+        (* TODO: This should probably do nothing, but right now it acts like
+         * it's at the front of the line below. *)
+        plainIf
+        (enter 9)
+        ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
+      t
+        "enter at end of then expr line does nothing"
+        plainIf
+        (enter 13)
+        ("if 5\nthen\n  6\nelse\n  7", 14) ;
+      t
+        "enter at end of else line inserts let"
+        (* TODO: This should probably do nothing, but right now it acts like
+         * it's at the front of the line below. *)
+        plainIf
+        (enter 18)
+        ("if 5\nthen\n  6\nelse\n  let *** = ___\n  7", 25) ;
+      t
+        "enter at end of else expr line does nothing"
+        plainIf
+        (enter 22)
+        ("if 5\nthen\n  6\nelse\n  7", 22) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
@@ -1583,7 +1622,7 @@ let () =
         (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
-        "pressing enter in an empty record adds a new line"
+        "pressing enter in an the start of empty record adds a new line"
         emptyRecord
         (enter 1)
         ("{\n  *** : ___\n}", 4) ;
