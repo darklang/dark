@@ -74,8 +74,8 @@ and handlerProp j : handlerProp =
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
-  (* always make these optional so that we don't crash the page when we *)
-  (* change the structure *)
+  (* always wrap these in try blocks so they don't fail when the user doesn't
+   * have that field *)
   { timersEnabled = orNull (field "timersEnabled" bool) true j
   ; cursorState =
       ( try orNull (field "cursorState" cursorState) Deselected j with _ ->
