@@ -781,6 +781,26 @@ let () =
         (del 6)
         ("12345", 5) ;
       t
+        "pressing del to remove a string binop combines lhs and rhs"
+        (EBinOp
+           ( gid ()
+           , "++"
+           , EString (gid (), "five")
+           , EString (gid (), "six")
+           , NoRail ))
+        (presses [K.Delete; K.Delete] 7)
+        ("\"fivesix\"", 5) ;
+      t
+        "pressing backspace to remove a string binop combines lhs and rhs"
+        (EBinOp
+           ( gid ()
+           , "++"
+           , EString (gid (), "five")
+           , EString (gid (), "six")
+           , NoRail ))
+        (presses [K.Backspace; K.Backspace] 9)
+        ("\"fivesix\"", 5) ;
+      t
         "pressing letters and numbers on a partial completes it"
         (b ())
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
