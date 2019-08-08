@@ -1,7 +1,7 @@
 (* Specs:
- *
- * Pressing enter at the end of a line:
+ * Pressing enter
    * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
+   * https://trello.com/c/27jn8uzF/1507-handle-pressing-enter-at-the-start-of-a-line
  * renaming functions:
    * https://trello.com/c/49TTRcad/973-renaming-functions
  * movement shortcuts:
