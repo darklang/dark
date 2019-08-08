@@ -284,7 +284,7 @@ window.Dark = {
           document.dispatchEvent(event);
         },
         err => {
-          console.log("rejected", err);
+          console.error("captureView", err);
         },
       );
     },

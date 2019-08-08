@@ -132,7 +132,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       {m with currentPage = newPage; cursorState = Deselected}
 
 
-let capArch (oldPage : page) (newPage : page) : msg Cmd.t list =
+let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
   match (oldPage, newPage) with
   | Architecture, FocusedFn _
   | FocusedHandler _, FocusedFn _

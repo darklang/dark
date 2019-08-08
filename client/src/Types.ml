@@ -809,7 +809,7 @@ and canvasProps =
   ; lastOffset : pos option
   ; viewportSize : size
   ; panAnimation : bool
-  ; preview : string option }
+  ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -995,7 +995,7 @@ and msg =
   | SetHandlerActionsMenu of tlid * bool
   | ResetToast
   | UpdateMinimap of string option
-  | GoToArchitectureView
+  | GoToArchitecturalView
 
 (* ----------------------------- *)
 (* AB tests *)
