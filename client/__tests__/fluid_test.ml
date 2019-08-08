@@ -96,28 +96,6 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
-let debugState s =
-  show_fluidState
-    { s with
-      (* remove the things that take a lot of space and provide little value. *)
-      ac =
-        { s.ac with
-          functions = []
-        ; allCompletions = []
-        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
-    }
-
-
-let h ast : handler =
-  { ast = toExpr ast
-  ; hTLID = TLID "7"
-  ; pos = {x = 0; y = 0}
-  ; spec =
-      { space = Blank.newF "HTTP"
-      ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET" } }
-
-
 type testResult = (string * int) * bool
 
 let () =
@@ -174,6 +152,15 @@ let () =
   in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
+  in
+  let twoLets =
+    ELet
+      ( gid ()
+      , gid ()
+      , "x"
+      , EInteger (gid (), 5)
+      , ELet (gid (), gid (), "y", EInteger (gid (), 6), EInteger (gid (), 7))
+      )
   in
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
@@ -322,6 +309,23 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
+  let processMsg (keys : K.key list) (s : fluidState) (ast : ast) :
+      ast * fluidState =
+    let h = Fluid_utils.h ast in
+    let m = {m with handlers = Handlers.fromList [h]} in
+    List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
+        updateMsg
+          m
+          h.hTLID
+          ast
+          (FluidKeyPress
+             { key
+             ; shiftKey = false
+             ; altKey = false
+             ; metaKey = false
+             ; ctrlKey = false })
+          s )
+  in
   let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
       testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
@@ -344,24 +348,9 @@ let () =
     let s = {s with oldPos = pos; newPos = pos} in
     if debug
     then (
-      Js.log2 "state before " (debugState s) ;
+      Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "expr before" (eToStructure s ast) ) ;
-    let newAST, newState =
-      let h = h ast in
-      let m = {m with handlers = Handlers.fromList [h]} in
-      List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
-          updateMsg
-            m
-            h.hTLID
-            ast
-            (FluidKeyPress
-               { key
-               ; shiftKey = false
-               ; altKey = false
-               ; metaKey = false
-               ; ctrlKey = false })
-            s )
-    in
+    let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
       | EIf (_, _, expr, _) ->
@@ -381,8 +370,15 @@ let () =
                endPos := !endPos - 2
            | _ ->
                () ) ;
-    (* max 0 cause tests can bs past 0 and that's weird to test for *)
-    let finalPos = max 0 !endPos in
+    let last =
+      toTokens newState result
+      |> List.last
+      |> deOption "last"
+      |> fun x -> x.endPos
+    in
+    (* even though the wrapper allows tests to go past the start and end, it's
+     * weird to test for *)
+    let finalPos = max 0 (min last !endPos) in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
@@ -393,7 +389,7 @@ let () =
     in
     if debug
     then (
-      Js.log2 "state after" (debugState newState) ;
+      Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
     ((eToString s result, finalPos), partialsFound)
   in
@@ -1054,20 +1050,20 @@ let () =
       t
         "enter at the end of the cond creates a new row"
         matchWithPatterns
-        (press K.Enter 9)
+        (enter 9)
         ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
       t
         "enter at the end of a row creates a new row"
         (* TODO: it doesn't work at the end of an ast *)
         (* TODO: it doesn't work on the last row *)
         emptyMatchWithTwoPatterns
-        (press K.Enter 22)
+        (enter 22)
         ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
-      (* t *)
-      (*   "enter at the start of a row creates a new row" *)
-      (*   matchWithPatterns *)
-      (*   (press K.Enter 13) *)
-      (*   ("match ___\n  3 -> ___\n  *** -> ___", 23) ; *)
+      t
+        "enter at the start of a row creates a new row"
+        matchWithPatterns
+        (enter 12)
+        ("match ___\n  *** -> ___\n  3 -> ___", 25) ;
       () ) ;
   describe "Lets" (fun () ->
       t
@@ -1179,6 +1175,34 @@ let () =
         emptyLet
         (insert '5' 6)
         ("let *** = ___\n5", 6) ;
+      t
+        "enter at the end of a line goes to next let"
+        nonEmptyLet
+        (enter 11)
+        ("let *** = 6\nlet *** = ___\n5", 16) ;
+      t
+        "enter at the start of a let creates let above"
+        twoLets
+        (enter 10)
+        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 24) ;
+      t
+        "enter at the start of first let creates let above"
+        nonEmptyLet
+        (enter 0)
+        ("let *** = ___\nlet *** = 6\n5", 14) ;
+      t
+        "enter at the start of a non-let also creates let above"
+        anInt
+        (enter 0)
+        ("let *** = ___\n12345", 14) ;
+      test "enter at the start of ast also creates let" (fun () ->
+          (* Test doesn't work wrapped *)
+          expect
+            (let ast, state =
+               processMsg [K.Enter] Defaults.defaultFluidState anInt
+             in
+             (eToString state ast, state.newPos))
+          |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Threads" (fun () ->
       let threadOn expr fns = EThread (gid (), expr :: fns) in
@@ -1346,6 +1370,16 @@ let () =
         aThread
         (enter 2)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 5) ;
+      t
+        "enter at the start of a line creates a new entry"
+        aThread
+        (enter 3)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 9) ;
+      t
+        "enter at start of blank (within pipe) creates a new entry"
+        aThread
+        (enter 5)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 11) ;
       (* t *)
       (*   "enter at the end of the last expr creates a new entry" *)
       (*   aThread *)
@@ -1409,6 +1443,40 @@ let () =
         emptyIf
         (press K.Space 14)
         ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
+      t
+        "enter in front of an if wraps in a let"
+        plainIf
+        (enter 0)
+        ("let *** = ___\nif 5\nthen\n  6\nelse\n  7", 14) ;
+      t
+        "enter at end of if line does nothing"
+        plainIf
+        (enter 4)
+        ("if 5\nthen\n  6\nelse\n  7", 5) ;
+      t
+        "enter at end of then line does inserts let"
+        (* TODO: This should probably do nothing, but right now it acts like
+         * it's at the front of the line below. *)
+        plainIf
+        (enter 9)
+        ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
+      t
+        "enter at end of then expr line does nothing"
+        plainIf
+        (enter 13)
+        ("if 5\nthen\n  6\nelse\n  7", 14) ;
+      t
+        "enter at end of else line inserts let"
+        (* TODO: This should probably do nothing, but right now it acts like
+         * it's at the front of the line below. *)
+        plainIf
+        (enter 18)
+        ("if 5\nthen\n  6\nelse\n  let *** = ___\n  7", 25) ;
+      t
+        "enter at end of else expr line does nothing"
+        plainIf
+        (enter 22)
+        ("if 5\nthen\n  6\nelse\n  7", 22) ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
@@ -1569,7 +1637,7 @@ let () =
         (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
-        "pressing enter in an empty record adds a new line"
+        "pressing enter in an the start of empty record adds a new line"
         emptyRecord
         (enter 1)
         ("{\n  *** : ___\n}", 4) ;
@@ -1614,7 +1682,7 @@ let () =
         emptyRow
         (bs 4)
         (* TODO: buggy. Should be 1 *)
-        ("{}", 3) ;
+        ("{}", 2) ;
       t
         "appending to int in expr works"
         single
@@ -1654,7 +1722,7 @@ let () =
         "pressing enter at the start of a field adds a row"
         multi
         (enter 14)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
       t
         "pressing enter at the end of row adds a row"
         multi
@@ -1864,11 +1932,6 @@ let () =
       test "down into indented row goes to first token" (fun () ->
           expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114 ) ;
       t
-        "enter at the end of a line goes to start of next line"
-        nonEmptyLet
-        (press K.Enter 11)
-        ("let *** = 6\nlet *** = ___\n5", 16) ;
-      t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
         (enter 16)
@@ -1924,7 +1987,7 @@ let () =
              in
              moveTo 14 s
              |> (fun s ->
-                  let h = h ast in
+                  let h = Fluid_utils.h ast in
                   let m = {m with handlers = Handlers.fromList [h]} in
                   updateAutocomplete m h.hTLID ast s )
              |> (fun s -> updateMouseClick 0 ast s)

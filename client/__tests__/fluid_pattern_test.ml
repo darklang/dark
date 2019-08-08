@@ -56,7 +56,7 @@ let () =
     in
     if debug
     then (
-      Js.log2 "state before " (Fluid_test.debugState s) ;
+      Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "pattern before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
@@ -83,7 +83,7 @@ let () =
     in
     if debug
     then (
-      Js.log2 "state after" (Fluid_test.debugState newState) ;
+      Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "pattern after" (eToStructure newState newAST) ) ;
     (pToString result, max 0 (newState.newPos - extra))
   in

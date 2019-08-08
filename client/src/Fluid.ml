@@ -1,7 +1,7 @@
 (* Specs:
- *
- * Pressing enter at the end of a line:
+ * Pressing enter
    * https://trello.com/c/nyf3SyA4/1513-handle-pressing-enter-at-the-end-of-a-line
+   * https://trello.com/c/27jn8uzF/1507-handle-pressing-enter-at-the-start-of-a-line
  * renaming functions:
    * https://trello.com/c/49TTRcad/973-renaming-functions
  * movement shortcuts:
@@ -495,21 +495,25 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline (id, None)
+      ; TNewline (Some (eid next, None))
       ; nested next ]
   | EString (id, str) ->
       [TString (id, str)]
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
-      ; TNewline (id, None)
+      ; TNewline None
       ; TIfThenKeyword id
-      ; TNewline (id, None)
+        (* The newline ID is pretty hacky here. It's used to make it possible
+         * to press Enter on the expression inside. It might be better to
+         * instead have a special newline where an id is relevant, and another
+         * newline which is boring. *)
+      ; TNewline (Some (eid if', None))
       ; TIndent 2
       ; nested if'
-      ; TNewline (id, None)
+      ; TNewline None
       ; TIfElseKeyword id
-      ; TNewline (id, None)
+      ; TNewline (Some (eid else', None))
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -605,14 +609,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline (id, Some i)
+              [ TNewline (Some (id, Some i))
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline (id, Some (List.length fields)); TRecordClose id] ]
+        ; [TNewline (Some (id, Some (List.length fields))); TRecordClose id] ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -625,15 +629,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline (id, Some 0)
+        ; TNewline (Some (id, Some 0))
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
                      [TIndentToHere [TThreadPipe (id, i, length); nested e]]
                    in
-                   if i == 0 then thread else TNewline (id, Some i) :: thread
-               )
+                   if i == 0
+                   then thread
+                   else TNewline (Some (id, Some i)) :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -646,7 +651,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-            [TNewline (id, Some i); TIndent 2]
+            [TNewline (Some (id, Some i)); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -1343,6 +1348,56 @@ let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
+let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction ~ti ~pos "doLeft" s in
+  if Token.isAtom ti.token
+  then moveToStart ti s
+  else moveOneLeft (min pos ti.endPos) s
+
+
+let doRight
+    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
+    state =
+  let s = recordAction ~ti:current ~pos "doRight" s in
+  if Token.isAtom current.token
+  then
+    match next with
+    | None ->
+        moveToAfter current s
+    | Some nInfo ->
+        moveToStart nInfo s
+  else
+    match next with
+    | Some n when pos + 1 >= current.endPos ->
+        moveToStart n s
+    | _ ->
+        (* When we're in whitespace, current is the next non-whitespace. So we
+         * don't want to use pos, we want to use the startPos of current. *)
+        let startingPos = max pos (current.startPos - 1) in
+        moveOneRight startingPos s
+
+
+let doUp ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doUp" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  if row = 0
+  then moveTo 0 s
+  else
+    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
+    moveTo pos {s with upDownCol = Some col}
+
+
+let doDown ~(pos : int) (ast : ast) (s : state) : state =
+  let s = recordAction ~pos "doDown" s in
+  let tokens = toTokens s ast in
+  let {row; col} = gridFor ~pos tokens in
+  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
+  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
+  moveTo pos {s with upDownCol = Some col}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -1990,9 +2045,9 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
-        | None, ELet (lid, lhsid, lhs, rhs, body) ->
-            let newLet = ELet (gid (), gid (), "", newB (), body) in
-            ELet (lid, lhsid, lhs, rhs, newLet)
+        | None, _ ->
+            (* We've already decided to wrap, so wrap unconditionally. *)
+            ELet (gid (), gid (), "", newB (), e)
         | Some index, ERecord (id, fields) ->
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
@@ -2019,6 +2074,56 @@ let addEntryBelow
         f s
     | `NextBlank ->
         moveToNextBlank ~pos:s.newPos newAST s
+  in
+  (newAST, newState)
+
+
+let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let s = recordAction "addEntryAbove" s in
+  let nextIndex = ref None in
+  let newAST =
+    updateExpr id ast ~f:(fun e ->
+        match (index, e) with
+        | Some index, ERecord (id, fields) ->
+            nextIndex := Some (index + 1) ;
+            ERecord
+              (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
+        | Some index, EMatch (id, cond, rows) ->
+            nextIndex := Some (index + 1) ;
+            EMatch
+              ( id
+              , cond
+              , List.insertAt
+                  rows
+                  ~index
+                  ~value:(FPBlank (gid (), gid ()), newB ()) )
+        | Some index, EThread (id, exprs) ->
+            (* TODO: this should move to the inside of the |> *)
+            nextIndex := Some (index + 1) ;
+            EThread
+              (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
+        | None, e ->
+            ELet (gid (), gid (), "", newB (), e)
+        | _ ->
+            e )
+  in
+  let newState =
+    let tokens = toTokens s newAST in
+    let newToken =
+      List.find tokens ~f:(fun ti ->
+          match ti.token with
+          | TNewline (Some (tid, tindex)) when id = tid && tindex = !nextIndex
+            ->
+              true
+          | _ ->
+              false )
+    in
+    let newPos =
+      Option.map newToken ~f:(fun ti -> ti.startPos)
+      |> Option.withDefault ~default:s.newPos
+    in
+    moveToNextNonWhitespaceToken ~pos:newPos newAST {s with newPos}
   in
   (newAST, newState)
 
@@ -2299,56 +2404,6 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* -------------------- *)
 (* Code entering/interaction *)
 (* -------------------- *)
-
-let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction ~ti ~pos "doLeft" s in
-  if Token.isAtom ti.token
-  then moveToStart ti s
-  else moveOneLeft (min pos ti.endPos) s
-
-
-let doRight
-    ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
-    state =
-  let s = recordAction ~ti:current ~pos "doRight" s in
-  if Token.isAtom current.token
-  then
-    match next with
-    | None ->
-        moveToAfter current s
-    | Some nInfo ->
-        moveToStart nInfo s
-  else
-    match next with
-    | Some n when pos + 1 >= current.endPos ->
-        moveToStart n s
-    | _ ->
-        (* When we're in whitespace, current is the next non-whitespace. So we
-         * don't want to use pos, we want to use the startPos of current. *)
-        let startingPos = max pos (current.startPos - 1) in
-        moveOneRight startingPos s
-
-
-let doUp ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  if row = 0
-  then moveTo 0 s
-  else
-    let pos = adjustedPosFor ~row:(row - 1) ~col tokens in
-    moveTo pos {s with upDownCol = Some col}
-
-
-let doDown ~(pos : int) (ast : ast) (s : state) : state =
-  let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens s ast in
-  let {row; col} = gridFor ~pos tokens in
-  let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
-  let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
-  moveTo pos {s with upDownCol = Some col}
-
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
@@ -2988,16 +3043,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, L (TRecordOpen id, _), _ ->
         let newAST = addRecordRowAt 0 id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
-    | K.Enter, _, R (TRecordField (id, index, _), _) ->
-        let newAST = addRecordRowAt index id ast in
-        (newAST, s)
     | K.Enter, _, R (TRecordClose id, _) ->
         let newAST = addRecordRowToBack id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
-    (* Lambda-specific insertions *)
     (* String-specific insertions *)
     | K.DoubleQuote, _, R (TPatternString _, ti)
     | K.DoubleQuote, _, R (TString _, ti)
@@ -3010,8 +3061,17 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline (id, index), ti) ->
+    | K.Enter, _, R (TNewline (Some (id, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
+    | K.Enter, _, R (TNewline None, ti) ->
+        (ast, doRight ~pos ~next:mNext ti s)
+    | K.Enter, L (TThreadPipe (id, index, _), _), _ ->
+        let newAST, newState = addEntryAbove id (Some index) ast s in
+        (newAST, {newState with newPos = newState.newPos + 2})
+    | K.Enter, L (TNewline (Some (id, index)), _), _ ->
+        addEntryAbove id index ast s
+    | K.Enter, No, R (t, _) ->
+        addEntryAbove (FluidToken.tid t) None ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
@@ -3173,7 +3233,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         let s = {s with lastKey = key} in
         updateKey key ast s
     | FluidAutocompleteClick entry ->
-        Js.log "entry" ;
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | _ ->
