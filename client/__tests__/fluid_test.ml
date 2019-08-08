@@ -368,8 +368,15 @@ let () =
                endPos := !endPos - 2
            | _ ->
                () ) ;
-    (* max 0 cause tests can bs past 0 and that's weird to test for *)
-    let finalPos = max 0 !endPos in
+    let last =
+      toTokens newState result
+      |> List.last
+      |> deOption "last"
+      |> fun x -> x.endPos
+    in
+    (* even though the wrapper allows tests to go past the start and end, it's
+     * weird to test for *)
+    let finalPos = max 0 (min last !endPos) in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
@@ -1621,7 +1628,7 @@ let () =
         emptyRow
         (bs 4)
         (* TODO: buggy. Should be 1 *)
-        ("{}", 3) ;
+        ("{}", 2) ;
       t
         "appending to int in expr works"
         single
