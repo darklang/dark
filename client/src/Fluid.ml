@@ -3070,6 +3070,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, {newState with newPos = newState.newPos + 2})
     | K.Enter, L (TNewline (Some (id, index)), _), _ ->
         addEntryAbove id index ast s
+    | K.Enter, No, R (t, _) ->
+        addEntryAbove (FluidToken.tid t) None ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
