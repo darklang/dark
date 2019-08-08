@@ -3180,7 +3180,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         let s = {s with lastKey = key} in
         updateKey key ast s
     | FluidAutocompleteClick entry ->
-        Js.log "entry" ;
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | _ ->
