@@ -1267,20 +1267,16 @@ let moveTo (newPos : int) (s : state) : state =
 (* Starting from somewhere after the location, move back until we reach the
  * `target` expression, and return a state with it's location. If blank, will
  * go to the start of the blank *)
-let moveBackTo ?(fallbackPos = None) (target : id) (ast : ast) (s : state) :
-    state =
+let moveBackTo (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveBackTo" s in
   let tokens = toTokens s ast in
   match
-    ( List.find (List.reverse tokens) ~f:(fun ti ->
-          FluidToken.tid ti.token = target )
-    , fallbackPos )
+    List.find (List.reverse tokens) ~f:(fun ti ->
+        FluidToken.tid ti.token = target )
   with
-  | None, Some pos ->
-      moveTo pos s
-  | None, _ ->
+  | None ->
       fail "cannot find token to moveBackTo"
-  | Some lastToken, _ ->
+  | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
         then lastToken.startPos
@@ -1589,8 +1585,8 @@ let replacePatternWithPartial
           FPVariable (matchID, gid (), str) )
 
 
-let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
+let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let newState = ref (fun (_ : ast) -> s) in
   let ast =
     updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
@@ -1599,19 +1595,19 @@ let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
             , _
             , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
           ->
-            id := ID "fake-moveto-id" ;
+            (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
             EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            id := eid lhs ;
+            (newState := fun ast -> moveBackTo (eid lhs) ast s) ;
             lhs
         | EPartial (_, _, _) ->
             let b = newB () in
-            id := eid b ;
+            (newState := fun ast -> moveBackTo (eid b) ast s) ;
             b
         | _ ->
             fail "not a partial" )
   in
-  (ast, !id)
+  (ast, !newState ast)
 
 
 let replacePartialWithArguments
@@ -2418,12 +2414,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deletePartial ti ast in
-      let fallbackPos =
-        (* fallback to before last char or previous expr *)
-        Some (ti.startPos - 2)
-      in
-      (ast, moveBackTo ~fallbackPos targetID ast s)
+      deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
@@ -2548,12 +2539,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deletePartial ti ast in
-      let fallbackPos =
-        (* fallback to before last char or previous expr *)
-        Some (ti.startPos - 2)
-      in
-      (ast, moveBackTo ~fallbackPos targetID ast s)
+      deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
