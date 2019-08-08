@@ -538,12 +538,14 @@ let toggleSidebar (m : model) : msg Html.html =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
         ToggleSideBar )
   in
-  let button =
-    if m.sidebarOpen
-    then fontAwesome "chevron-left"
-    else fontAwesome "chevron-right"
+  let button icon tooltip =
+    Html.a [Html.class' "button-link"; Html.title tooltip] [icon; icon]
   in
-  let toggleBtn = Html.a [Html.class' "button-link"] [button; button] in
+  let toggleBtn =
+    if m.sidebarOpen
+    then button (fontAwesome "chevron-left") "Collapse sidebar"
+    else button (fontAwesome "chevron-right") "Expand sidebar"
+  in
   let toggleSide =
     Html.div
       [event; Html.class' "toggle-container"]
