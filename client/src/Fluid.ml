@@ -3065,6 +3065,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
+    | K.Enter, L (TThreadPipe (id, index, _), _), _ ->
+        let newAST, newState = addEntryAbove id (Some index) ast s in
+        (newAST, {newState with newPos = newState.newPos + 2})
     | K.Enter, L (TNewline (Some (id, index)), _), _ ->
         addEntryAbove id index ast s
     (* Int to float *)

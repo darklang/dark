@@ -1365,6 +1365,11 @@ let () =
         aThread
         (enter 3)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 9) ;
+      t
+        "enter at start of blank (within pipe) creates a new entry"
+        aThread
+        (enter 5)
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 11) ;
       (* t *)
       (*   "enter at the end of the last expr creates a new entry" *)
       (*   aThread *)
