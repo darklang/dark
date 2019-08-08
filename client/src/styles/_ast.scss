@@ -21,9 +21,10 @@ $pipe-color: $blue;
     color: $color;
     border-bottom-color: $color;
 
-    .handler-trigger {
+    .handler-trigger,
+    .toggle-btn {
       &:hover {
-        color: lighten($color, 10%);
+        color: saturate($color, 30%);
       }
     }
   }

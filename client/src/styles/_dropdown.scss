@@ -199,14 +199,13 @@ $wrapper-background: $black2;
   .actions {
     display: none;
     margin-top: 5px;
-    box-shadow: $black1 1px 2px 1px 1px;
 
     div,
     a {
       padding: 2px 4px;
       padding-left: 8px;
       color: $grey3;
-      background: lighten($black2, 12%);
+      background: lighten($black2, 5%);
 
       &:hover {
         cursor: pointer;
