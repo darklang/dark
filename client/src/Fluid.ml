@@ -1267,16 +1267,20 @@ let moveTo (newPos : int) (s : state) : state =
 (* Starting from somewhere after the location, move back until we reach the
  * `target` expression, and return a state with it's location. If blank, will
  * go to the start of the blank *)
-let moveBackTo (target : id) (ast : ast) (s : state) : state =
+let moveBackTo ?(fallbackPos = None) (target : id) (ast : ast) (s : state) :
+    state =
   let s = recordAction "moveBackTo" s in
   let tokens = toTokens s ast in
   match
-    List.find (List.reverse tokens) ~f:(fun ti ->
-        FluidToken.tid ti.token = target )
+    ( List.find (List.reverse tokens) ~f:(fun ti ->
+          FluidToken.tid ti.token = target )
+    , fallbackPos )
   with
-  | None ->
+  | None, Some pos ->
+      moveTo pos s
+  | None, _ ->
       fail "cannot find token to moveBackTo"
-  | Some lastToken ->
+  | Some lastToken, _ ->
       let newPos =
         if FluidToken.isBlank lastToken.token
         then lastToken.startPos
@@ -1590,6 +1594,13 @@ let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
   let ast =
     updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
+        | EPartial
+            ( _
+            , _
+            , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
+          ->
+            id := ID "fake-moveto-id" ;
+            EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
             id := eid lhs ;
             lhs
@@ -2408,7 +2419,11 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deletePartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      let fallbackPos =
+        (* fallback to before last char or previous expr *)
+        Some (ti.startPos - 2)
+      in
+      (ast, moveBackTo ~fallbackPos targetID ast s)
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
@@ -2534,7 +2549,11 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deletePartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      let fallbackPos =
+        (* fallback to before last char or previous expr *)
+        Some (ti.startPos - 2)
+      in
+      (ast, moveBackTo ~fallbackPos targetID ast s)
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
