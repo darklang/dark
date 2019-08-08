@@ -204,7 +204,8 @@ let tlCacheKey (m : model) tl =
       |> List.map ~f:(fun (_, traceData) -> Option.isSome traceData)
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
-    Some (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList)
+    let props = TLIDDict.get ~tlid m.handlerProps in
+    Some (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList, props)
 
 
 let tlCacheKeyDB (m : model) tl =
