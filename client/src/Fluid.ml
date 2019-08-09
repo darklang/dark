@@ -2868,8 +2868,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
          |> Option.withDefault ~default:[]
          |> getCurrentToken
          |> Option.andThen ~f:(fun ti ->
-                let id = Token.tid ti.token in
-                Some (FluidCommandsFor (TL.id tl, id)) ) )
+                Some (FluidCommandsShow (TL.id tl, ti.token)) ) )
   |> Option.withDefault ~default:NoChange
 
 
@@ -3256,7 +3255,7 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       KeyPress.undo_redo m shiftKey
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
-  | FluidKeyPress ke when m.fluidState.cp.show = true ->
+  | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | _ ->
       let tlid =
@@ -3527,11 +3526,13 @@ let toHtml
   let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
-        if state.cp.show && Some (Token.tid ti.token) = state.cp.cmdOnID
-        then FluidCommands.viewCommandPalette state.cp
-        else if isAutocompleting ti state
-        then viewAutocomplete state.ac
-        else Vdom.noNode
+        match state.cp.location with
+        | Some (ltlid, token) when tlid = ltlid && ti.token = token ->
+            FluidCommands.viewCommandPalette state.cp
+        | _ ->
+            if isAutocompleting ti state
+            then viewAutocomplete state.ac
+            else Vdom.noNode
       in
       let element nested =
         let content = Token.toText ti.token in
