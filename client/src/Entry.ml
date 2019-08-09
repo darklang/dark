@@ -570,7 +570,33 @@ let submitACItem
                   (B.newF "_")
                   replacement
             in
-            saveH {h with spec = replacement2} (PEventSpace new_)
+            let replacement3 =
+              match (replacement2.space, h.spec.name) with
+              | F (_, newSpace), F (_, name)
+                when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
+                ->
+                  SpecHeaders.replaceEventName
+                    (B.toID h.spec.name)
+                    (B.newF (String.dropLeft ~count:1 name))
+                    replacement2
+              | F (_, "HTTP"), F (_, name)
+                when not (String.startsWith ~prefix:"/" name) ->
+                  SpecHeaders.replaceEventName
+                    (B.toID h.spec.name)
+                    (B.newF ("/" ^ name))
+                    replacement2
+              | F (_, newSpace), F (_, name)
+                when newSpace <> "REPL"
+                     && String.startsWith ~prefix:"repl_" (String.toLower name)
+                ->
+                  SpecHeaders.replaceEventName
+                    (B.toID h.spec.name)
+                    (B.new_ ())
+                    replacement2
+              | _, _ ->
+                  replacement2
+            in
+            saveH {h with spec = replacement3} (PEventSpace new_)
         | PField _, ACField fieldname ->
             let fieldname =
               if String.startsWith ~prefix:"." fieldname

@@ -233,6 +233,33 @@ let editing_headers (m : model) : testResult =
       fail other
 
 
+let switching_from_http_space_removes_slash (m : model) : testResult =
+  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
+  match (spec.space, spec.name, spec.modifier) with
+  | F (_, newSpace), F (_, "spec_name"), _ when newSpace != "HTTP" ->
+      pass
+  | other ->
+      fail other
+
+
+let switching_to_http_space_adds_slash (m : model) : testResult =
+  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
+  match (spec.space, spec.name, spec.modifier) with
+  | F (_, "HTTP"), F (_, "/spec_name"), _ ->
+      pass
+  | other ->
+      fail other
+
+
+let switching_from_default_repl_space_removes_name (m : model) : testResult =
+  let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
+  match (spec.space, spec.name, spec.modifier) with
+  | F (_, newSpace), Blank _, _ when newSpace != "REPL" ->
+      pass
+  | other ->
+      fail other
+
+
 let tabbing_through_let (m : model) : testResult =
   match onlyExpr m with
   | Let (F (_, "myvar"), F (_, Value "5"), F (_, Value "5")) ->
@@ -791,6 +818,12 @@ let trigger (test_name : string) : integrationTestState =
         editing_does_not_deselect
     | "editing_headers" ->
         editing_headers
+    | "switching_from_http_space_removes_slash" ->
+        switching_from_http_space_removes_slash
+    | "switching_to_http_space_adds_slash" ->
+        switching_to_http_space_adds_slash
+    | "switching_from_default_repl_space_removes_name" ->
+        switching_from_default_repl_space_removes_name
     | "tabbing_through_let" ->
         tabbing_through_let
     | "case_sensitivity" ->
