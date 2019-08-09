@@ -15,12 +15,7 @@ module K = FluidKeyboard
 let filterInputID : string = "cmd-filter"
 
 let reset : fluidCommandState =
-  { index = 0
-  ; show = false
-  ; commands = Commands.commands
-  ; cmdOnTL = None
-  ; cmdOnID = None
-  ; filter = None }
+  {index = 0; commands = Commands.commands; location = None; filter = None}
 
 
 let commandsFor (tl : toplevel) (id : id) : command list =
@@ -50,26 +45,26 @@ let commandsFor (tl : toplevel) (id : id) : command list =
   |> Option.withDefault ~default:Commands.commands
 
 
-let updateCommandState (tl : toplevel) (id : id) : fluidCommandState =
+let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
   { index = 0
-  ; show = true
-  ; commands = commandsFor tl id
-  ; cmdOnTL = Some tl
-  ; cmdOnID = Some id
+  ; commands = commandsFor tl (FluidToken.tid token)
+  ; location = Some (TL.id tl, token)
   ; filter = None }
 
 
-let executeCommand (m : model) (tl : toplevel) (id : id) (cmd : command) :
+let executeCommand
+    (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
     modification =
-  let pd = Toplevel.findExn tl id in
+  let tl = TL.getExn m tlid in
+  let pd = Toplevel.findExn tl (FluidToken.tid token) in
   cmd.action m tl pd
 
 
 let runCommand (m : model) (cmd : command) : modification =
   let cp = m.fluidState.cp in
-  match (cp.cmdOnTL, cp.cmdOnID) with
-  | Some tl, Some id ->
-      executeCommand m tl id cmd
+  match cp.location with
+  | Some (tlid, token) ->
+      executeCommand m tlid token cmd
   | _ ->
       NoChange
 
@@ -125,11 +120,13 @@ let focusItem (i : int) : msg Tea.Cmd.t =
              () ))
 
 
-let filter (query : string) (s : fluidCommandState) : fluidCommandState =
+let filter (m : model) (query : string) (cp : fluidCommandState) :
+    fluidCommandState =
   let allCmds =
-    match (s.cmdOnTL, s.cmdOnID) with
-    | Some tl, Some id ->
-        commandsFor tl id
+    match cp.location with
+    | Some (tlid, token) ->
+        let tl = TL.getExn m tlid in
+        commandsFor tl (FluidToken.tid token)
     | _ ->
         Commands.commands
   in
@@ -140,13 +137,15 @@ let filter (query : string) (s : fluidCommandState) : fluidCommandState =
       (Some query, List.filter ~f:isMatched allCmds)
     else (None, Commands.commands)
   in
-  {s with filter; commands; index = 0}
+  {cp with filter; commands; index = 0}
 
 
 let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
-  if s.show
-  then match s.cmdOnTL with Some tl -> TL.id tl = tlid | None -> false
-  else false
+  match s.location with
+  | Some (ltlid, _) when tlid = ltlid ->
+      true
+  | _ ->
+      false
 
 
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
@@ -162,7 +161,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       ; ViewEntry.defaultPasteHandler
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
-            FluidRunCommand item ) ]
+            FluidCommandsClick item ) ]
       [Html.text name]
   in
   let filterInput =
@@ -186,16 +185,15 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
   let key = keyEvt.key in
   match key with
   | K.Enter ->
-      let cp = s.cp in
-      ( match (cp.cmdOnTL, cp.cmdOnID) with
-      | Some tl, Some id ->
-        ( match highlighted cp with
-        | Some cmd ->
-            Many [executeCommand m tl id cmd; FluidCommandsClose]
-        | None ->
-            NoChange )
-      | _ ->
+    ( match s.cp.location with
+    | Some (tlid, token) ->
+      ( match highlighted s.cp with
+      | Some cmd ->
+          Many [executeCommand m tlid token cmd; FluidCommandsClose]
+      | None ->
           NoChange )
+    | _ ->
+        NoChange )
   | K.Up ->
       let cp = moveUp s.cp in
       let cmd = Types.MakeCmd (focusItem cp.index) in
@@ -212,4 +210,4 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
       NoChange
 
 
-let isOpened (cp : fluidCommandState) : bool = cp.show
+let isOpened (cp : fluidCommandState) : bool = cp.location <> None
