@@ -877,7 +877,7 @@ and modification =
   | RefreshUsages of tlid list
   | UpdateDBStatsRPC of tlid
   | UpdateDBStats of dbStatsStore
-  | FluidCommandsFor of tlid * id
+  | FluidCommandsShow of tlid * fluidToken
   | FluidCommandsClose
   | UpdateAvatarList of avatar list
   | ExpireAvatars
@@ -988,7 +988,7 @@ and msg =
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
   | FluidCommandsFilter of string
-  | FluidRunCommand of command
+  | FluidCommandsClick of command
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
@@ -1227,10 +1227,8 @@ and fluidAutocompleteState =
 
 and fluidCommandState =
   { index : int
-  ; show : bool
   ; commands : command list
-  ; cmdOnTL : toplevel option
-  ; cmdOnID : id option
+  ; location : (tlid * fluidToken) option
   ; filter : string option }
 
 and fluidState =

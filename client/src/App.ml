@@ -885,8 +885,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
     | RefreshUsages tlids ->
         (Introspect.refreshUsages m tlids, Cmd.none)
-    | FluidCommandsFor (tlid, id) ->
-        let cp = FluidCommands.updateCommandState (TL.getExn m tlid) id in
+    | FluidCommandsShow (tlid, token) ->
+        let cp = FluidCommands.show (TL.getExn m tlid) token in
         ( {m with fluidState = {m.fluidState with cp}}
         , Tea_html_cmds.focus FluidCommands.filterInputID )
     | FluidCommandsClose ->
@@ -1606,9 +1606,9 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidCommandsFilter query ->
       TweakModel
         (fun m ->
-          let cp = FluidCommands.filter query m.fluidState.cp in
+          let cp = FluidCommands.filter m query m.fluidState.cp in
           {m with fluidState = {m.fluidState with cp}} )
-  | FluidRunCommand cmd ->
+  | FluidCommandsClick cmd ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
       let tl = TL.getExn m tlid in
