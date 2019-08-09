@@ -189,6 +189,63 @@ const scrollBy = ClientFunction((id, dx, dy) => {
 // Tests below here. Don't forget to update client/src/IntegrationTest.ml
 // ------------------------
 
+test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "/spec_name")
+    .pressKey("enter")
+
+    .typeText("#entry-box", "PO")
+    .expect(acHighlightedText("POST"))
+    .ok()
+    .pressKey("enter")
+
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "CRON")
+    .pressKey("enter");
+});
+
+test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "/spec_name")
+    .pressKey("enter")
+
+    .typeText("#entry-box", "PO")
+    .expect(acHighlightedText("POST"))
+    .ok()
+    .pressKey("enter")
+
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "REPL")
+    .pressKey("enter");
+});
+
+test("switching_from_http_space_removes_variable_colons", async t => {
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "/spec_name/:variable")
+    .pressKey("enter")
+
+    .typeText("#entry-box", "PO")
+    .expect(acHighlightedText("POST"))
+    .ok()
+    .pressKey("enter")
+
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "REPL")
+    .pressKey("enter");
+});
+
 test("enter_changes_state", async t => {
   await t
     .pressKey("enter")
@@ -429,25 +486,6 @@ test("editing_headers", async t => {
     .click(".spec-header > .modifier")
     .pressKey("delete")
     .typeText("#entry-box", "GET")
-    .pressKey("enter");
-});
-
-test("switching_from_http_space_removes_slash", async t => {
-  await createHTTPHandler(t);
-  await t
-    // add headers
-    .typeText("#entry-box", "/spec_name")
-    .pressKey("enter")
-
-    .typeText("#entry-box", "PO")
-    .expect(acHighlightedText("POST"))
-    .ok()
-    .pressKey("enter")
-
-    // edit space
-    .click(".spec-header > .space")
-    .pressKey("backspace")
-    .typeText("#entry-box", "CRON")
     .pressKey("enter");
 });
 
