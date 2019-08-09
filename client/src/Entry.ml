@@ -571,6 +571,7 @@ let submitACItem
                   replacement
             in
             let replacement3 =
+              (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
               match (replacement2.space, h.spec.name) with
               | F (_, newSpace), F (_, name)
                 when newSpace <> "REPL"
@@ -585,7 +586,10 @@ let submitACItem
                 ->
                   SpecHeaders.replaceEventName
                     (B.toID h.spec.name)
-                    (B.newF (String.dropLeft ~count:1 name))
+                    (B.newF
+                       ( String.dropLeft ~count:1 name
+                       |> String.split ~on:":"
+                       |> String.join ~sep:"" ))
                     replacement2
               | F (_, "HTTP"), F (_, name)
                 when not (String.startsWith ~prefix:"/" name) ->
