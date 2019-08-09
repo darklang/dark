@@ -93,7 +93,7 @@ let handlerCategory
             ; uses = None
             ; tlid
             ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
+            ; minusButton = None
             ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
             ; verb =
