@@ -1650,22 +1650,29 @@ let replacePatternWithPartial
           FPVariable (matchID, gid (), str) )
 
 
-let deletePartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
+let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let newState = ref (fun (_ : ast) -> s) in
   let ast =
     updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
+        | EPartial
+            ( _
+            , _
+            , EBinOp (_, _, EString (lhsID, lhsStr), EString (_, rhsStr), _) )
+          ->
+            (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
+            EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            id := eid lhs ;
+            (newState := fun ast -> moveBackTo (eid lhs) ast s) ;
             lhs
         | EPartial (_, _, _) ->
             let b = newB () in
-            id := eid b ;
+            (newState := fun ast -> moveBackTo (eid b) ast s) ;
             b
         | _ ->
             fail "not a partial" )
   in
-  (ast, !id)
+  (ast, !newState ast)
 
 
 let replacePartialWithArguments
@@ -2472,8 +2479,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deletePartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
@@ -2598,8 +2604,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let ast, targetID = deleteRightPartial ti ast in
       (ast, moveBackTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deletePartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
