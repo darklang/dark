@@ -448,23 +448,23 @@ test("switching_from_http_space_removes_slash", async t => {
     .click(".spec-header > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
-    .pressKey("enter")
+    .pressKey("enter");
 });
 
 test("switching_to_http_space_adds_slash", async t => {
   await createWorkerHandler(t);
-   await t
-     // add headers
-     .click(".spec-header > .name")
-     .pressKey("enter")
-     .typeText("#entry-box", "spec_name")
-     .pressKey("enter")
+  await t
+    // add headers
+    .click(".spec-header > .name")
+    .pressKey("enter")
+    .typeText("#entry-box", "spec_name")
+    .pressKey("enter")
 
-     // edit space
-     .click(".spec-header > .space")
-     .pressKey("backspace")
-     .typeText("#entry-box", "HTTP")
-     .pressKey("enter")
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "HTTP")
+    .pressKey("enter");
 });
 
 test("switching_from_default_repl_space_removes_name", async t => {
@@ -474,9 +474,8 @@ test("switching_from_default_repl_space_removes_name", async t => {
     .click(".spec-header > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
-    .pressKey("enter")
+    .pressKey("enter");
 });
-
 
 test("tabbing_through_let", async t => {
   await createRepl(t);

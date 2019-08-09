@@ -573,6 +573,14 @@ let submitACItem
             let replacement3 =
               match (replacement2.space, h.spec.name) with
               | F (_, newSpace), F (_, name)
+                when newSpace <> "REPL"
+                     && String.startsWith ~prefix:"repl_" (String.toLower name)
+                ->
+                  SpecHeaders.replaceEventName
+                    (B.toID h.spec.name)
+                    (B.new_ ())
+                    replacement2
+              | F (_, newSpace), F (_, name)
                 when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
                 ->
                   SpecHeaders.replaceEventName
@@ -584,14 +592,6 @@ let submitACItem
                   SpecHeaders.replaceEventName
                     (B.toID h.spec.name)
                     (B.newF ("/" ^ name))
-                    replacement2
-              | F (_, newSpace), F (_, name)
-                when newSpace <> "REPL"
-                     && String.startsWith ~prefix:"repl_" (String.toLower name)
-                ->
-                  SpecHeaders.replaceEventName
-                    (B.toID h.spec.name)
-                    (B.new_ ())
                     replacement2
               | _, _ ->
                   replacement2
