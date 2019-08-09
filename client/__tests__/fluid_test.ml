@@ -1084,6 +1084,22 @@ let () =
         matchWithPatterns
         (enter 12)
         ("match ___\n  *** -> ___\n  3 -> ___", 25) ;
+      t
+        "backspace first row deletes it"
+        emptyMatchWithTwoPatterns
+        (bs 12)
+        ("match ___\n  *** -> ___", 9) ;
+      t
+        "backspace second row deletes it"
+        emptyMatchWithTwoPatterns
+        (bs 25)
+        ("match ___\n  *** -> ___", 22) ;
+      t
+        "backspacing only row doesn't delete"
+        emptyMatch
+        (bs 12)
+        ("match ___\n  *** -> ___", 9) ;
+      (* delete row with delete *)
       () ) ;
   describe "Lets" (fun () ->
       t

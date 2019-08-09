@@ -1468,6 +1468,33 @@ let replaceVarInPattern
           fail "not a let" )
 
 
+let removePatternRow (mID : id) (id : id) (ast : ast) : ast =
+  updateExpr mID ast ~f:(fun e ->
+      match e with
+      | EMatch (_, cond, patterns) ->
+          let newPatterns =
+            if List.length patterns = 1
+            then patterns (* Don't allow there be less than 1 pattern *)
+            else List.filter patterns ~f:(fun (p, _) -> pid p <> id)
+          in
+          EMatch (mID, cond, newPatterns)
+      | _ ->
+          fail "not a match " )
+
+
+let replacePatternWithPartial
+    (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
+  updatePattern matchID patID ast ~f:(fun p ->
+      let str = String.trim str in
+      match p with
+      | _ when str = "" ->
+          FPBlank (matchID, gid ())
+      | FPVariable (mID, pID, _) ->
+          FPVariable (mID, pID, str)
+      | _ ->
+          FPVariable (matchID, gid (), str) )
+
+
 (* ---------------- *)
 (* Blanks *)
 (* ---------------- *)
@@ -1635,19 +1662,6 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
           EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
-
-
-let replacePatternWithPartial
-    (str : string) (matchID : id) (patID : id) (ast : ast) : ast =
-  updatePattern matchID patID ast ~f:(fun p ->
-      let str = String.trim str in
-      match p with
-      | _ when str = "" ->
-          FPBlank (matchID, gid ())
-      | FPVariable (mID, pID, _) ->
-          FPVariable (mID, pID, str)
-      | _ ->
-          FPVariable (matchID, gid (), str) )
 
 
 let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
@@ -2447,6 +2461,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordField (id, i, "") when pos = ti.startPos ->
       ( removeRecordField id i ast
       , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
+  | TPatternBlank (mID, id) when pos = ti.startPos ->
+      ( removePatternRow mID id ast
+      , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
   | TBlank _
   | TPlaceholder _
   | TIndent _
@@ -2956,6 +2973,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
+        doBackspace ~pos ti ast s
+    | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
