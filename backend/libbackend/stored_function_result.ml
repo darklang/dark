@@ -27,17 +27,23 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
 let load ~canvas_id ~trace_id tlid : function_result list =
   (* Right now, we don't allow the user to see multiple results when a function
    * is called in a loop. But, there's a lot of data when functions are called
-   * in a loop, so avoid massive responses. *)
+   * in a loop, so avoid massive responses.
+   *
+   * The wrapping SELECT DISTINCT ON (fnname, id) ensures we only get one per caller,
+   * and the inner SELECT DISTINCT ensures we get the most recent one.
+   * *)
   Db.fetch
     ~name:"sfr_load"
-    "SELECT
-       DISTINCT ON (fnname, id, hash)
-       fnname, id, hash, value, timestamp
-     FROM function_results_v2
-     WHERE canvas_id = $1
-       AND trace_id = $2
-       AND tlid = $3
-     ORDER BY fnname, id, hash, timestamp DESC"
+    "SELECT DISTINCT ON (fnname, id) fnname, id, hash, value, timestamp
+     FROM (
+      SELECT DISTINCT ON (fnname, id, hash) fnname, id, hash, value, timestamp
+      FROM function_results_v2
+      WHERE canvas_id = $1
+        AND trace_id = $2
+        AND tlid = $3
+      ORDER BY fnname, id, hash, timestamp DESC
+      ) AS q
+      ORDER BY fnname, id, timestamp DESC"
     ~params:[Db.Uuid canvas_id; Db.Uuid trace_id; Db.ID tlid]
   |> List.map ~f:(function
          | [fnname; id; hash; dval; ts] ->
