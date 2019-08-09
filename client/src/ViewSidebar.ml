@@ -93,7 +93,7 @@ let handlerCategory
             ; uses = None
             ; tlid
             ; destination = Some (FocusedHandler (tlid, true))
-            ; minusButton = Some (ToplevelDelete tlid)
+            ; minusButton = None
             ; killAction = Some (ToplevelDeleteForever tlid)
             ; plusButton = None
             ; verb =
@@ -298,7 +298,7 @@ let deletedCategory (m : model) : category =
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
-let entry2html (m : model) (e : entry) : msg Html.html =
+let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   let name = e.name in
   let destinationLink page classes name =
     Url.linkFor page classes [Html.text name]
@@ -327,19 +327,24 @@ let entry2html (m : model) (e : entry) : msg Html.html =
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
-    Html.div
-      [Html.class' "delete"]
-      ( match e.minusButton with
-      | Some msg ->
-          if m.permission = Some ReadWrite
-          then
-            [ buttonLink
-                ~key:("entry-" ^ showTLID e.tlid)
-                (fontAwesome "times-circle")
-                msg ]
-          else []
-      | None ->
-          iconspacer )
+    (* This prevents the delete button appearing in the hover view.
+     * We'll add it back in for 404s specifically at some point *)
+    if hovering
+    then Vdom.noNode
+    else
+      Html.div
+        [Html.class' "delete"]
+        ( match e.minusButton with
+        | Some msg ->
+            if m.permission = Some ReadWrite
+            then
+              [ buttonLink
+                  ~key:("entry-" ^ showTLID e.tlid)
+                  (fontAwesome "times-circle")
+                  msg ]
+            else []
+        | None ->
+            iconspacer )
   in
   let pluslink =
     match e.plusButton with
@@ -437,15 +442,19 @@ let deployStats2html (m : model) : msg Html.html =
   in
   let classes =
     Html.classList
-      [("routing-section", true); ("deploys", true); ("empty", count = 0)]
+      [("sidebar-section", true); ("deploys", true); ("empty", count = 0)]
   in
   (if count = 0 then Html.div else Html.details)
     [classes; openAttr]
     (header :: routes)
 
 
-let rec item2html (m : model) (s : item) : msg Html.html =
-  match s with Category c -> category2html m c | Entry e -> entry2html m e
+let rec item2html ~hovering (m : model) (s : item) : msg Html.html =
+  match s with
+  | Category c ->
+      category2html m c
+  | Entry e ->
+      entry2html ~hovering m e
 
 
 and category2html (m : model) (c : category) : msg Html.html =
@@ -471,14 +480,14 @@ and category2html (m : model) (c : category) : msg Html.html =
       [Html.class' "headerSummary"; openEventHandler]
       [Html.div [Html.class' "header"] (title :: plusButton)]
   in
-  let routes = List.map ~f:(item2html m) c.entries in
+  let entries = List.map ~f:(item2html ~hovering:false m) c.entries in
   let classes =
     Html.classList
-      [("routing-section", true); (c.classname, true); ("empty", c.count = 0)]
+      [("sidebar-section", true); (c.classname, true); ("empty", c.count = 0)]
   in
   (if c.count = 0 then Html.div else Html.details)
     [classes; openAttr]
-    (header :: routes)
+    (header :: entries)
 
 
 let closedCategory2html (m : model) (c : category) : msg Html.html =
@@ -495,8 +504,8 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     | None ->
         []
   in
-  let routes = List.map ~f:(item2html m) c.entries in
   let hoverView =
+    let routes = List.map ~f:(item2html ~hovering:true m) c.entries in
     if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
   in
   let icon =
@@ -538,12 +547,14 @@ let toggleSidebar (m : model) : msg Html.html =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
         ToggleSideBar )
   in
-  let button =
-    if m.sidebarOpen
-    then fontAwesome "chevron-left"
-    else fontAwesome "chevron-right"
+  let button icon tooltip =
+    Html.a [Html.class' "button-link"; Html.title tooltip] [icon; icon]
   in
-  let toggleBtn = Html.a [Html.class' "button-link"] [button; button] in
+  let toggleBtn =
+    if m.sidebarOpen
+    then button (fontAwesome "chevron-left") "Collapse sidebar"
+    else button (fontAwesome "chevron-right") "Expand sidebar"
+  in
   let toggleSide =
     Html.div
       [event; Html.class' "toggle-container"]
@@ -640,7 +651,7 @@ let adminDebuggerView (m : model) : msg Html.html =
         ([environment; icon] @ hoverView) ]
 
 
-let viewRoutingTable_ (m : model) : msg Html.html =
+let viewSidebar_ (m : model) : msg Html.html =
   let isClosed : bool = not m.sidebarOpen in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes
@@ -722,4 +733,4 @@ let rtCacheKey m =
   , m.currentPage )
 
 
-let viewRoutingTable m = Cache.cache1 rtCacheKey viewRoutingTable_ m
+let viewSidebar m = Cache.cache1 rtCacheKey viewSidebar_ m

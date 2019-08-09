@@ -85,7 +85,7 @@ $prodColor: black;
       display: flex;
       align-items: flex-start;
       justify-content: center;
-      margin: 15px 5px;
+      padding: 15px 5px;
       color: $grey2;
       width: 100%;
 
@@ -93,7 +93,7 @@ $prodColor: black;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 10px 0px;
+        padding: 10px 0px;
         width: 80%;
         height: auto;
         .environment {
@@ -120,7 +120,7 @@ $prodColor: black;
           font-size: 15px;
           left: 10;
           right: 0;
-          margin-right: 2px;
+          padding-right: 2px;
           &:hover {
             cursor: pointer;
             color: lighten($yellow, 10%);
@@ -393,7 +393,7 @@ $prodColor: black;
     }
   }
 
-  .routing-section {
+  .sidebar-section {
     margin: 5px;
     width: calc(#{"100% - 5px"});
     &:first-child {
@@ -456,7 +456,7 @@ $prodColor: black;
         margin-left: 16px;
       }
     }
-    &.deleted > .routing-section {
+    &.deleted > .sidebar-section {
       margin-left: 10px;
     }
 
@@ -485,9 +485,9 @@ $prodColor: black;
     }
   }
 
-  .routing-section.http .simple-route.handler,
-  .routing-section.fof .simple-route.handler,
-  .routing-section.deleted-http .simple-route.handler {
+  .sidebar-section.http .simple-route.handler,
+  .sidebar-section.fof .simple-route.handler,
+  .sidebar-section.deleted-http .simple-route.handler {
     .verb {
       width: 60px;
       display: inline-block;
@@ -516,7 +516,7 @@ $prodColor: black;
   }
 }
 
-.routing-section.deploys,
+.sidebar-section.deploys,
 .simple-route.deploy {
   color: $grey3;
   align-self: flex-start;
