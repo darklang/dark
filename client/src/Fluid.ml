@@ -3738,11 +3738,15 @@ let selectedASTAsText (m : model) : string option =
 let renderCallback (m : model) =
   match m.cursorState with
   | FluidEntering _ ->
-      (* When you change the text of a node in the DOM, the browser resets the
-       * cursor to the start of the node. After each rerender, we want to make
-       * sure we set the cursor to it's exact place. We do it here to make sure
-       * it's always set after a render, not waiting til the next frame.
-       *)
-      Entry.setCursorPosition m.fluidState.newPos
+      if FluidCommands.isOpened m.fluidState.cp
+      then ()
+      else
+        (* When you change the text of a node in the DOM, the browser resets
+         * the cursor to the start of the node. After each rerender, we want to
+         * make sure we set the cursor to it's exact place. We do it here to
+         * make sure it's always set after a render, not waiting til the next
+         * frame.
+         *)
+        Entry.setCursorPosition m.fluidState.newPos
   | _ ->
       ()
