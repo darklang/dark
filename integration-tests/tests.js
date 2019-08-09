@@ -432,6 +432,52 @@ test("editing_headers", async t => {
     .pressKey("enter");
 });
 
+test("switching_from_http_space_removes_slash", async t => {
+  await createHTTPHandler(t);
+  await t
+    // add headers
+    .typeText("#entry-box", "/spec_name")
+    .pressKey("enter")
+
+    .typeText("#entry-box", "PO")
+    .expect(acHighlightedText("POST"))
+    .ok()
+    .pressKey("enter")
+
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "CRON")
+    .pressKey("enter")
+});
+
+test("switching_to_http_space_adds_slash", async t => {
+  await createWorkerHandler(t);
+   await t
+     // add headers
+     .click(".spec-header > .name")
+     .pressKey("enter")
+     .typeText("#entry-box", "spec_name")
+     .pressKey("enter")
+
+     // edit space
+     .click(".spec-header > .space")
+     .pressKey("backspace")
+     .typeText("#entry-box", "HTTP")
+     .pressKey("enter")
+});
+
+test("switching_from_default_repl_space_removes_name", async t => {
+  await createRepl(t);
+  await t
+    // edit space
+    .click(".spec-header > .space")
+    .pressKey("backspace")
+    .typeText("#entry-box", "CRON")
+    .pressKey("enter")
+});
+
+
 test("tabbing_through_let", async t => {
   await createRepl(t);
   await t
