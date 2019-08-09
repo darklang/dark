@@ -42,7 +42,9 @@
         display: none;
 
         position: absolute;
-        right: 20px;
+        // 18px makes the right edge of the data container rub almost exactly (v. tiny overlap actually!)
+        // with the left padding of the request cursor dot (when it's font-size 30px)
+        right: 18px;
         top: 0;
 
         height: max-content;
