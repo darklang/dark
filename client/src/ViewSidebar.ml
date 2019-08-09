@@ -327,6 +327,8 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   let httpMethod = match e.verb with Some v -> v | None -> "" in
   let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
   let minuslink =
+    (* This prevents the delete button appearing in the hover view.
+     * We'll add it back in for 404s specifically at some point *)
     if hovering
     then Vdom.noNode
     else
