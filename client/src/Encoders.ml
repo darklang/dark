@@ -51,7 +51,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       |> StrDict.map ~f:dval
       |> StrDict.toList
       |> Js.Dict.fromList
-      |> dict
+      |> jsonDict
       |> fun x -> [x] |> ev "DObj"
   (* opaque types *)
   | DBlock ->
