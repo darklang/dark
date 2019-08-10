@@ -1528,18 +1528,23 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
-      ( match Clipboard.copy m with
-      | `Text text ->
-          e##clipboardData##setData "text/plain" text ;
-          e##preventDefault ()
-      | `Json json ->
-          let data = Json.stringify json in
-          e##clipboardData##setData "application/json" data ;
-          e##preventDefault ()
-      | `None ->
-          () ) ;
-      TweakModel
-        (fun m -> {m with toast = {m.toast with toastMessage = Some "Copied!"}})
+    ( match Clipboard.copy m with
+    | `Text text ->
+        e##clipboardData##setData "text/plain" text ;
+        e##preventDefault () ;
+        TweakModel
+          (fun m ->
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+    | `Json json ->
+        let data = Json.stringify json in
+        e##clipboardData##setData "application/json" data ;
+        e##preventDefault () ;
+        TweakModel
+          (fun m ->
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+    | `None ->
+        () ;
+        NoChange )
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
       if json <> ""
