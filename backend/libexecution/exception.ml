@@ -121,17 +121,17 @@ let reraise_as_pageable e =
   Caml.Printexc.raise_with_backtrace wrapped_e bt
 
 
-let raise_
+let make_exception
     (tipe : exception_tipe)
-    ?(bt : Caml.Printexc.raw_backtrace option)
-    ?(actual : string option)
-    ?(actual_tipe : string option)
-    ?(expected : string option)
-    ?(result_tipe : string option)
-    ?(result : string option)
+    ?(bt : Caml.Printexc.raw_backtrace option = None)
+    ?(actual : string option = None)
+    ?(actual_tipe : string option = None)
+    ?(expected : string option = None)
+    ?(result_tipe : string option = None)
+    ?(result : string option = None)
     ?(info = [])
     ?(workarounds = [])
-    ?(long : string option)
+    ?(long : string option = None)
     (short : string) =
   let e =
     { short
@@ -145,11 +145,40 @@ let raise_
     ; info
     ; workarounds }
   in
+  DarkException e
+
+
+let raise_
+    (tipe : exception_tipe)
+    ?(bt : Caml.Printexc.raw_backtrace option)
+    ?(actual : string option)
+    ?(actual_tipe : string option)
+    ?(expected : string option)
+    ?(result_tipe : string option)
+    ?(result : string option)
+    ?(info = [])
+    ?(workarounds = [])
+    ?(long : string option)
+    (short : string) =
+  let e =
+    make_exception
+      tipe
+      ~bt
+      ~actual
+      ~actual_tipe
+      ~expected
+      ~result_tipe
+      ~result
+      ~info
+      ~workarounds
+      ~long
+      short
+  in
   match bt with
   | None ->
-      raise (DarkException e)
+      raise e
   | Some bt ->
-      Caml.Printexc.raise_with_backtrace (DarkException e) bt
+      Caml.Printexc.raise_with_backtrace e bt
 
 
 let internal = raise_ DarkInternal

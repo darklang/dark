@@ -56,3 +56,11 @@ val init : unit -> unit
 val init_testing : unit -> unit
 
 val user_info_to_yojson : user_info -> Yojson.Safe.t
+
+module Testing : sig
+  val validate_username : string -> unit
+
+  val validate_password : username:string -> string -> unit
+
+  val validate_email : string -> unit
+end
