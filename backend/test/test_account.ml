@@ -79,6 +79,56 @@ let t_permission_ord_instance () =
   ()
 
 
+let t_account_validation_works () =
+  let throws name ~f =
+    AT.check
+      AT.bool
+      name
+      true
+      ( try
+          f () ;
+          false
+        with Exception.DarkException e -> true )
+  in
+  let nothrow name ~f =
+    AT.check
+      AT.bool
+      name
+      false
+      ( try
+          f () ;
+          false
+        with Exception.DarkException e -> true )
+  in
+  throws "validate_password" ~f:(fun () ->
+      Account.Testing.validate_password ~username:"test" "" ) ;
+  throws "short password" ~f:(fun () ->
+      Account.Testing.validate_password ~username:"" "mypass" ) ;
+  throws "validate_email" ~f:(fun () ->
+      Account.Testing.validate_email "novalidemail" ) ;
+  throws "uppercase start" ~f:(fun () ->
+      Account.Testing.validate_username "Upper" ) ;
+  throws "uppercase in middle" ~f:(fun () ->
+      Account.Testing.validate_username "uPPer" ) ;
+  throws "username too short" ~f:(fun () ->
+      Account.Testing.validate_username "a" ) ;
+  throws "validate_username" ~f:(fun () ->
+      Account.Testing.validate_username "a" ) ;
+  throws "non ascii" ~f:(fun () ->
+      Account.Testing.validate_username "aaa❤️" ) ;
+  throws "hyphen" ~f:(fun () -> Account.Testing.validate_username "aaa-aaa") ;
+  throws "spaces" ~f:(fun () -> Account.Testing.validate_username "aaa aaa") ;
+  nothrow "underscore" ~f:(fun () ->
+      Account.Testing.validate_username "aaa_aaa" ) ;
+  nothrow "normal" ~f:(fun () ->
+      Account.Testing.validate_username "myusername09" ) ;
+  nothrow "password" ~f:(fun () ->
+      Account.Testing.validate_password ~username:"" "mypassword" ) ;
+  nothrow "paul" ~f:(fun () -> Account.Testing.validate_username "paul") ;
+  nothrow "email" ~f:(fun () -> Account.Testing.validate_email "me@example.com") ;
+  ()
+
+
 let suite =
   [ ( "Account.authenticate_user works when it should"
     , `Quick
@@ -87,4 +137,5 @@ let suite =
   ; ("Authorization.set_user_access works", `Quick, t_set_user_access)
   ; ( "The ord instance on 'permission' works."
     , `Quick
-    , t_permission_ord_instance ) ]
+    , t_permission_ord_instance )
+  ; ("Account validation works", `Quick, t_account_validation_works) ]

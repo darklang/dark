@@ -67,7 +67,45 @@ type user_info =
 (************************)
 (* Adding *)
 (************************)
-let upsert_account (account : account) : unit =
+let validate_username (username : string) : unit =
+  (* rules: no uppercase, ascii only, must start with letter, other letters can
+   * be numbers or underscores. 3-20 characters. *)
+  let regex = Re2.create_exn "^[a-z][a-z0-9_]{2,20}$" in
+  if not (Re2.matches regex username)
+  then
+    Exception.code
+      ( "Invalid username '"
+      ^ username
+      ^ "', must match /^[a-z][a-z0-9_]{2,20}$/" )
+
+
+let validate_password ~(username : string) (password : string) : unit =
+  (* rules: must be at least 8 characters *)
+  if String.length password > 8
+  then ()
+  else
+    Exception.code
+      ( "Invalid password for user '"
+      ^ username
+      ^ "', must be at least 8 characters" )
+
+
+let validate_email (email : string) : unit =
+  (* just checking it's roughly the shape of an email *)
+  let regex = Re2.create_exn ".+@.+\\..+" in
+  if not (Re2.matches regex email)
+  then Exception.code ("Invalid email '" ^ email ^ "'")
+
+
+let validate_account (account : account) : unit =
+  validate_username account.username ;
+  validate_email account.email ;
+  validate_password ~username:account.username account.password ;
+  ()
+
+
+let upsert_account ?(validate : bool = true) (account : account) : unit =
+  if validate then validate_account account ;
   Db.run
     ~name:"upsert_account"
     ~subject:account.username
@@ -88,7 +126,8 @@ let upsert_account (account : account) : unit =
       ; String account.password ]
 
 
-let upsert_admin (account : account) : unit =
+let upsert_admin ?(validate : bool = true) (account : account) : unit =
+  if validate then validate_account account ;
   Db.run
     ~name:"upsert_admin"
     ~subject:account.username
@@ -345,6 +384,7 @@ let upsert_useful_canvases () : unit =
     ; email = "ops@darklang.com"
     ; name = "Ops machinery" } ;
   upsert_admin
+    ~validate:false
     { username = "sample"
     ; password = ""
     ; email = "nouser@example.com"
@@ -362,6 +402,7 @@ let upsert_banned_accounts () : unit =
     ( banned_usernames
     |> List.map ~f:(fun username ->
            upsert_account
+             ~validate:false
              { username
              ; password =
                  "" (* empty string isn't a valid hash, so can't login *)
@@ -378,3 +419,12 @@ let init () : unit =
     upsert_admins () ;
     upsert_useful_canvases () ;
     () )
+
+
+module Testing = struct
+  let validate_username = validate_username
+
+  let validate_email = validate_email
+
+  let validate_password = validate_password
+end
