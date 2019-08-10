@@ -3186,7 +3186,9 @@ let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
   match (toTheLeft, toTheRight) with
   | L (_, ti), _ when Token.isTextToken ti.token ->
       Some ti
-  | _, R (_, ti) when Token.isTextToken ti.token ->
+  | _, R (_, ti) ->
+      Some ti
+  | L (_, ti), _ ->
       Some ti
   | _ ->
       None
