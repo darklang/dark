@@ -146,10 +146,10 @@
   dependencies:
     jest "^24.3.1"
 
-"@glennsl/bs-json@4.0.0":
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/@glennsl/bs-json/-/bs-json-4.0.0.tgz#f057d0d1d84d614e27d8bbb67b64e6b6727f24b2"
-  integrity sha512-nunb6+cZcx7pyooh8i4froogXumOOiFb7rF3bz6E9X7b3Dc+3/HGwpnUjxciFN8eQL4QC+MskzG1tG+Ci1aJxA==
+"@glennsl/bs-json@5.0.0":
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/@glennsl/bs-json/-/bs-json-5.0.0.tgz#f5e3210d387f2e366c16954e560ee25712ca5a1b"
+  integrity sha512-YzTsMIeV4X7QfPMLMeoXEl2uaVOHG3SSjZNkhBHW/G4/I7jOBuJ0XKZeaQz4tv5EMRsLq/6Q6PtLGA6XGERJng==
 
 "@jest/console@^24.7.1":
   version "24.7.1"
