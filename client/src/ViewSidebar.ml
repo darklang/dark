@@ -57,7 +57,7 @@ let categoryIcon (name : string) : msg Html.html list =
   | "deleted" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
   | "static" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
+      [fontAwesome "file"]
   | "types" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
   | "cron" ->
@@ -362,7 +362,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   in
   let selected = Some e.tlid = tlidOf m.cursorState in
   Html.div
-    [Html.classList [("simple-route handler", true); ("selected", selected)]]
+    [Html.classList [("simple-item handler", true); ("selected", selected)]]
     [minuslink; mainlink; auxViews]
 
 
@@ -371,7 +371,7 @@ let deploy2html (d : staticDeploy) : msg Html.html =
     match d.status with Deployed -> "Deployed" | Deploying -> "Deploying"
   in
   Html.div
-    [Html.class' "simple-route deploy"]
+    [Html.class' "simple-item deploy"]
     [ Html.div
         [Html.class' "deploy-status"]
         [ Html.a
@@ -435,7 +435,7 @@ let deployStats2html (m : model) : msg Html.html =
       [openEventHandler]
       [Html.div [Html.class' "header"] (title :: deployLatest)]
   in
-  let routes =
+  let deploys =
     if count > 1
     then entries |> List.drop ~count:1 |> List.map ~f:deploy2html
     else []
@@ -446,7 +446,7 @@ let deployStats2html (m : model) : msg Html.html =
   in
   (if count = 0 then Html.div else Html.details)
     [classes; openAttr]
-    (header :: routes)
+    (header :: deploys)
 
 
 let rec item2html ~hovering (m : model) (s : item) : msg Html.html =
@@ -505,8 +505,8 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
         []
   in
   let hoverView =
-    let routes = List.map ~f:(item2html ~hovering:true m) c.entries in
-    if c.count = 0 then [] else [Html.div [Html.class' "hover"] routes]
+    let entries = List.map ~f:(item2html ~hovering:true m) c.entries in
+    if c.count = 0 then [] else [Html.div [Html.class' "hover"] entries]
   in
   let icon =
     Html.div
@@ -697,7 +697,7 @@ let viewSidebar_ (m : model) : msg Html.html =
             EnablePanning true ) ]
       ( [toggleSidebar m]
       @ [ Html.div
-            [Html.classList [("routings", isClosed); ("routes", true)]]
+            [Html.classList [("groups-closed", isClosed); ("groups", true)]]
             ( List.map ~f:(showCategories m) cats
             @ [showDeployStats m; showAdminDebugger] )
         ; status ] )
