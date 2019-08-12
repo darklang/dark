@@ -149,6 +149,9 @@ $wrapper-background: $black2;
         display: inline-block;
         margin-left: -0.85 * $left-margin;
         margin-top: -$spacing-medium;
+        // This is a magic amount of margin that ensures that the left of first
+        // character is in line with the first character of the results
+        margin-right: 4px;
 
         @extend .font-awesome;
         content: "\f002";
@@ -167,7 +170,6 @@ $wrapper-background: $black2;
     @include border-radius-bottom(6px);
 
     li.autocomplete-item {
-      letter-spacing: 0.05rem;
       font-size: 1rem;
       padding: 2px $left-margin;
     }
