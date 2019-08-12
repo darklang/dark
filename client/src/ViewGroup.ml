@@ -18,7 +18,6 @@ let enterable = ViewBlankOr.Enterable
 
 let wc = ViewBlankOr.wc
 
-
 let blankOr2String (name : dbName blankOr) : dbName =
   B.valueWithDefault "" name
 
@@ -29,10 +28,10 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
   then
     Html.div
       [Html.class' "group-name"]
-      [Html.p [] [Html.text (blankOr2String g.name)]]
+      [Html.p [] [Html.text (blankOr2String g.gName)]]
   else
     let c = (enterable :: idConfigs) @ [wc ""] in
-    let nameField = ViewBlankOr.viewText GroupName vs c g.name in
+    let nameField = ViewBlankOr.viewText GroupName vs c g.gName in
     Html.div [Html.class' "group-name form"] [nameField]
 
 

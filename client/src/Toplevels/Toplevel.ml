@@ -28,7 +28,7 @@ let name (tl : toplevel) : string =
   | TLTipe t ->
       "Type: " ^ (t.utName |> B.toMaybe |> Option.withDefault ~default:"")
   | TLGroup g ->
-      "Group: " ^ (g.name |> B.toMaybe |> Option.withDefault ~default:"")
+      "Group: " ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
@@ -44,7 +44,7 @@ let sortkey (tl : toplevel) : string =
   | TLTipe t ->
       t.utName |> B.toMaybe |> Option.withDefault ~default:""
   | TLGroup g ->
-      g.name |> B.toMaybe |> Option.withDefault ~default:""
+      g.gName |> B.toMaybe |> Option.withDefault ~default:""
 
 
 let id tl =

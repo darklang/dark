@@ -127,7 +127,7 @@ let newHandler m space name modifier pos =
 let newGroup name pos =
   let tlid = gtlid () in
   let nameid = gid () in
-  let group = {name = F (nameid, name); members = []; gTLID = tlid; pos} in
+  let group = {gName = F (nameid, name); members = []; gTLID = tlid; pos} in
   Many [NewGroup group; Deselect]
 
 
@@ -169,7 +169,6 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name = Option.withDefault name ~default:(generateREPLName ()) in
       newHandler m "REPL" (Some name) unused pos
   | NewGroup name ->
-
       let name =
         match name with Some n -> n | None -> Groups.generateGroupName ()
       in

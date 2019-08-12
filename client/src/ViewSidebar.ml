@@ -237,10 +237,10 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
 
 
 let groupCategory (m : model) (groups : group list) : category =
-  let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.name) in
+  let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.gName) in
   let entries =
     List.map groups ~f:(fun (group : group) ->
-        let name = group.name |> Blank.toMaybe |> deOption "group name" in
+        let name = group.gName |> Blank.toMaybe |> deOption "group name" in
         let minusButton =
           let hasMembers = List.length group.members > 0 in
           if Refactor.usedGroup m name || hasMembers

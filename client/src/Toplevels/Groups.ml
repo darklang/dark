@@ -35,7 +35,7 @@ let generateGroupName (_ : unit) : string =
 let createEmptyGroup (name : string) (pos : pos) : modification =
   let tlid = Prelude.gtlid () in
   let nameid = Prelude.gid () in
-  let group = {name = F (nameid, name); members = []; gTLID = tlid; pos} in
+  let group = {gName = F (nameid, name); members = []; gTLID = tlid; pos} in
   Many [NewGroup group; Deselect]
 
 
@@ -73,11 +73,11 @@ let landedInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
 let replaceGroupName (old : pointerData) (new_ : pointerData) (group : group) :
     group =
   let sId = P.toID old in
-  if B.toID group.name = sId
+  if B.toID group.gName = sId
   then
     match new_ with
     | PGroupName new_ ->
-        {group with name = B.replace sId new_ group.name}
+        {group with gName = B.replace sId new_ group.gName}
     | _ ->
         group
   else group
@@ -88,5 +88,5 @@ let replace (old : pointerData) (new_ : pointerData) (group : group) : group =
 
 
 let allData (g : group) : pointerData list =
-  let namePointer = PGroupName g.name in
+  let namePointer = PGroupName g.gName in
   [namePointer]

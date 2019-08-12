@@ -298,7 +298,7 @@ and handler =
 
 (* groups *)
 and group =
-  { name : string blankOr
+  { gName : string blankOr
   ; gTLID : tlid
   ; members : tlid list
   ; pos : pos }
