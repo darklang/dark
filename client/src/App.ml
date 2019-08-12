@@ -931,12 +931,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let nameAlreadyUsed =
           let allNames =
             m.groups
-            |> TLIDDict.mapValues ~f:(fun group -> group.name)
+            |> TLIDDict.mapValues ~f:(fun group -> group.gName)
             |> List.filterMap ~f:Blank.toMaybe
           in
           List.member
             ~value:
-              (group.name |> Blank.toMaybe |> Option.withDefault ~default:"")
+              (group.gName |> Blank.toMaybe |> Option.withDefault ~default:"")
             allNames
         in
         if nameAlreadyUsed
@@ -1306,11 +1306,13 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
-            (fun m -> {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
+            (fun m ->
+              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
   | DeleteGroupForever tlid ->
-        (* TODO: Add RPC *)
-        Many [ TweakModel
+      (* TODO: Add RPC *)
+      Many
+        [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
   | AddOpRPCCallback (focus, params, Ok r) ->
