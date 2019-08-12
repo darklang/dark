@@ -149,6 +149,9 @@ $wrapper-background: $black2;
         display: inline-block;
         margin-left: -0.85 * $left-margin;
         margin-top: -$spacing-medium;
+        // This is a magic amount of margin that ensures that the left of first
+        // character is in line with the first character of the results
+        margin-right: 4px;
 
         @extend .font-awesome;
         content: "\f002";
