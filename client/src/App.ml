@@ -1528,18 +1528,24 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
+      let toast =
+        TweakModel
+          (fun m ->
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+      in
       ( match Clipboard.copy m with
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
-          e##preventDefault ()
+          e##preventDefault () ;
+          toast
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
-          e##preventDefault ()
+          e##preventDefault () ;
+          toast
       | `None ->
-          () ) ;
-      TweakModel
-        (fun m -> {m with toast = {m.toast with toastMessage = Some "Copied!"}})
+          () ;
+          NoChange )
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
       if json <> ""
@@ -1549,20 +1555,27 @@ let update_ (msg : msg) (m : model) : modification =
         if text <> "" then Clipboard.paste m (`Text text) else NoChange
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
+      let toast =
+        TweakModel
+          (fun m ->
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+      in
       ( match copyData with
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
-          e##preventDefault ()
+          e##preventDefault () ;
+          Many [mod_; toast]
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
           (* this is probably gonna be useful for debugging, but customers
            * shouldn't get used to it *)
           e##clipboardData##setData "text/plain" data ;
-          e##preventDefault ()
+          e##preventDefault () ;
+          Many [mod_; toast]
       | `None ->
-          () ) ;
-      mod_
+          () ;
+          mod_ )
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
