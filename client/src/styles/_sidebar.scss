@@ -66,13 +66,13 @@ $prodColor: black;
     }
   }
 
-  .routes {
+  .groups {
     display: flex;
     flex-direction: column;
     height: calc(#{"100% - 160px"});
     overflow-y: scroll;
     width: 100%;
-    &.routings {
+    &.groups-closed {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -330,7 +330,7 @@ $prodColor: black;
       display: none;
     }
   }
-  .simple-route.handler {
+  .simple-item.handler {
     display: flex;
     width: 100%;
     margin: 5px 0px;
