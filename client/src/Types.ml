@@ -803,6 +803,7 @@ and page =
   | FocusedHandler of tlid * centerPage
   | FocusedDB of tlid * centerPage
   | FocusedType of tlid
+  | FocusedGroup of tlid * centerPage
 
 and focus =
   | FocusNothing
@@ -897,6 +898,7 @@ and modification =
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | NewGroup of group
+  | AddToGroup of tlid * toplevel
 
 (* ------------------- *)
 (* Msgs *)
@@ -981,6 +983,7 @@ and msg =
   | DeleteUserFunctionForever of tlid
   | DeleteUserType of tlid
   | DeleteUserTypeForever of tlid
+  | DeleteGroupForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
@@ -1013,6 +1016,8 @@ and msg =
   | UpdateMinimap of string option
   | GoToArchitecturalView
   | DeleteGroup of tlid
+  | RemoveGroupMember of tlid * tlid * mouseEvent
+  | CreateGroup
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1325,6 +1330,7 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
+  ; usedGroups : int StrDict.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys :
       staticDeploy list

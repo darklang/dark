@@ -560,7 +560,7 @@ let asPage (tl : toplevel) (center : bool) : page =
   | TLDB _ ->
       FocusedDB (id tl, center)
   | TLGroup _ ->
-      Architecture
+      FocusedGroup (id tl, center)
   | TLFunc _ ->
       FocusedFn (id tl)
   | TLTipe _ ->

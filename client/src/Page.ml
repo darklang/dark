@@ -10,6 +10,7 @@ let tlidOf (page : page) : tlid option =
   | FocusedFn tlid
   | FocusedHandler (tlid, _)
   | FocusedDB (tlid, _)
+  | FocusedGroup (tlid, _)
   | FocusedType tlid ->
       Some tlid
 
@@ -17,7 +18,9 @@ let tlidOf (page : page) : tlid option =
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   let center =
     match page with
-    | FocusedHandler (_, center) | FocusedDB (_, center) ->
+    | FocusedHandler (_, center)
+    | FocusedDB (_, center)
+    | FocusedGroup (_, center) ->
         center
     | _ ->
         false
@@ -50,9 +53,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
   | Architecture, FocusedFn _
   | FocusedHandler _, FocusedFn _
   | FocusedDB _, FocusedFn _
+  | FocusedGroup _, FocusedFn _
   | Architecture, FocusedType _
   | FocusedHandler _, FocusedType _
-  | FocusedDB _, FocusedType _ ->
+  | FocusedDB _, FocusedType _
+  | FocusedGroup _, FocusedType _ ->
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
@@ -79,8 +84,10 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         ; cursorState = Deselected }
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
+  | FocusedFn _, FocusedGroup (tlid, _)
   | FocusedType _, FocusedHandler (tlid, _)
-  | FocusedType _, FocusedDB (tlid, _) ->
+  | FocusedType _, FocusedDB (tlid, _)
+  | FocusedType _, FocusedGroup (tlid, _) ->
       (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
@@ -91,8 +98,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; canvasProps =
           { m.canvasProps with
             offset = Viewport.toCenteredOn (TL.pos tl); lastOffset = None } }
-  | Architecture, FocusedHandler (tlid, _) | Architecture, FocusedDB (tlid, _)
-    ->
+  | Architecture, FocusedHandler (tlid, _)
+  | Architecture, FocusedDB (tlid, _)
+  | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
   *)
@@ -100,8 +108,13 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       calculatePanOffset m tl newPage
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
+  | FocusedHandler (otlid, _), FocusedGroup (tlid, _)
+  | FocusedGroup (otlid, _), FocusedGroup (tlid, _)
+  | FocusedGroup (otlid, _), FocusedHandler (tlid, _)
+  | FocusedGroup (otlid, _), FocusedDB (tlid, _)
   | FocusedDB (otlid, _), FocusedHandler (tlid, _)
-  | FocusedDB (otlid, _), FocusedDB (tlid, _) ->
+  | FocusedDB (otlid, _), FocusedDB (tlid, _)
+  | FocusedDB (otlid, _), FocusedGroup (tlid, _) ->
       (* Going from focused db/handler to another focused db/handler
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos

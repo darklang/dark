@@ -385,6 +385,12 @@ let tipeUseCount (m : model) (name : string) : int =
 
 let usedTipe (m : model) (name : string) : bool = tipeUseCount m name <> 0
 
+let groupUseCount (m : model) (name : string) : int =
+  StrDict.get m.usedGroups ~key:name |> Option.withDefault ~default:0
+
+
+let usedGroup (m : model) (name : string) : bool = groupUseCount m name <> 0
+
 let dbUseCount (m : model) (name : string) : int =
   StrDict.get m.usedDBs ~key:name |> Option.withDefault ~default:0
 
