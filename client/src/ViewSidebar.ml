@@ -57,7 +57,7 @@ let categoryIcon (name : string) : msg Html.html list =
   | "deleted" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
   | "static" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/staticAssets.svg")]
+      [fontAwesome "file"]
   | "types" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
   | "cron" ->
