@@ -43,6 +43,14 @@ external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
 external jsSetCursorPosition : int -> unit = "setCursorPosition"
   [@@bs.val] [@@bs.scope "window"]
 
+external jsGetSelectionRange :
+  unit -> (int * int) Js.Nullable.t
+  = "getSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
+external jsSetSelectionRange : int * int -> unit = "setSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
 let getCursorPosition () : int option =
   jsGetCursorPosition () |> Js.Nullable.toOption
 
