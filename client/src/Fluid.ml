@@ -3584,10 +3584,9 @@ let toHtml
   |> List.flatten
 
 
-let viewLiveValue ~tlid ~currentResults ~state (tis : tokenInfo list) :
-    Types.msg Html.html =
+let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
   let liveValues, show, offset =
-    getLeftTokenAt state.newPos tis
+    getToken state ast
     |> Option.andThen ~f:(fun ti ->
            let id = Token.tid ti.token in
            if FluidToken.validID id
@@ -3643,7 +3642,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   in
   let liveValue =
     if tlidOf vs.cursorState = Some tlid
-    then viewLiveValue ~tlid ~currentResults ~state tokenInfos
+    then viewLiveValue ~tlid ~ast ~currentResults ~state
     else Vdom.noNode
   in
   [ liveValue
