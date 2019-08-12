@@ -3183,6 +3183,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
   let tokens = toTokens s ast in
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+  (* The algorithm that decides what token on when a certain key is pressed is
+   * in updateKey. It's pretty complex and it tells us what token a keystroke
+   * should apply to. For all other places that need to know what token we're
+   * on, this attemps to approximate that.
+
+   * The cursor at newPos is either in a token (eg 3 chars into "myFunction"),
+   * or between two tokens (eg 1 char into "4 + 2").
+
+   * If we're between two tokens, we decide by looking at whether the left
+   * token is a text token. If it is, it's likely that we're just typing.
+   * Otherwise, the important token is probably the right token.
+   *
+   * Example: `4 + 2`, when the cursor is at position: 0): 4 is to the right,
+   * nothing to the left. Choose 4 1): 4 is a text token to the left, choose 4
+   * 2): the token to the left is not a text token (it's a TSep), so choose +
+   * 3): + is a text token to the left, choose + 4): 2 is to the right, nothing
+   * to the left. Choose 2 5): 2 is a text token to the left, choose 2
+   *
+   * Reminder that this is an approximation. If we find bugs we may need to go
+   * much deeper.
+   *)
   match (toTheLeft, toTheRight) with
   | L (_, ti), _ when Token.isTextToken ti.token ->
       Some ti
