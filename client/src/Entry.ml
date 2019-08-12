@@ -169,12 +169,11 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name = Option.withDefault name ~default:(generateREPLName ()) in
       newHandler m "REPL" (Some name) unused pos
   | NewGroup name ->
-      let generateGroupName (_ : unit) : string =
-        "Group_" ^ (() |> Util.random |> string_of_int)
+
+      let name =
+        match name with Some n -> n | None -> Groups.generateGroupName ()
       in
-      (* When creating a group, dont ask the user for a name *)
-      let name = Option.withDefault name ~default:(generateGroupName ()) in
-      newGroup name pos
+      Groups.createEmptyGroup name pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 

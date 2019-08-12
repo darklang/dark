@@ -27,6 +27,8 @@ let urlFor (page : page) : string =
         [("db", deTLID tlid)]
     | FocusedType tlid ->
         [("type", deTLID tlid)]
+    | FocusedGroup (tlid, _) ->
+        [("group", deTLID tlid)]
   in
   hashUrlParams args
 
@@ -83,10 +85,18 @@ let parseLocation (loc : Web.Location.location) : page option =
     | _ ->
         None
   in
+  let group () =
+    match StrDict.get ~key:"group" unstructured with
+    | Some sid ->
+        Some (FocusedGroup (TLID sid, true))
+    | _ ->
+        None
+  in
   fn ()
   |> Option.orElse (handler ())
   |> Option.orElse (db ())
   |> Option.orElse (tipe ())
+  |> Option.orElse (group ())
   |> Option.orElse (architecture ())
 
 
