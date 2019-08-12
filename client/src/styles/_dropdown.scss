@@ -170,7 +170,6 @@ $wrapper-background: $black2;
     @include border-radius-bottom(6px);
 
     li.autocomplete-item {
-      letter-spacing: 0.05rem;
       font-size: 1rem;
       padding: 2px $left-margin;
     }
