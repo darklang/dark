@@ -44,7 +44,10 @@ let send_request
     | _ ->
         json_fn body
   in
-  let result, headers = Httpclient.http_call uri query verb headers body in
+  (* TODO: actually use a new one here *)
+  let result, headers =
+    Legacy.HttpclientV0.http_call uri query verb headers body
+  in
   let parsed_result =
     if has_form_header headers
     then Dval.of_form_encoding result

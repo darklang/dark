@@ -4,6 +4,39 @@ open Runtime
 open Lib
 open Types.RuntimeT
 
+module HttpclientV0 = struct
+  let http_call
+      (url : string)
+      (query_params : (string * string list) list)
+      (verb : Httpclient.verb)
+      (headers : (string * string) list)
+      (body : string) : string * (string * string) list =
+    let resp_body, code, resp_headers, error =
+      Httpclient.http_call_with_code url query_params verb headers body
+    in
+    if code < 200 || code > 299
+    then
+      let info =
+        [ ("url", url)
+        ; ("code", string_of_int code)
+        ; ("error", error)
+        ; ("response", resp_body) ]
+      in
+      Exception.code
+        ~info
+        ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
+    else (resp_body, resp_headers)
+
+
+  let call
+      (url : string)
+      (verb : Httpclient.verb)
+      (headers : (string * string) list)
+      (body : string) : string =
+    let results, _ = http_call url [] verb headers body in
+    results
+end
+
 module LibhttpclientV0 = struct
   type headers = (string * string) list
 
@@ -38,7 +71,7 @@ module LibhttpclientV0 = struct
       | _ ->
           json_fn body
     in
-    let result, headers = Httpclient.http_call uri query verb headers body in
+    let result, headers = HttpclientV0.http_call uri query verb headers body in
     let parsed_result =
       if has_form_header headers
       then Dval.of_form_encoding result

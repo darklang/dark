@@ -1,5 +1,18 @@
 open Libexecution.Types.RuntimeT
 
+module HttpclientV0 : sig
+  val http_call :
+       string
+    -> (string * string list) list
+    -> Httpclient.verb
+    -> (string * string) list
+    -> string
+    -> string * (string * string) list
+
+  val call :
+    string -> Httpclient.verb -> (string * string) list -> string -> string
+end
+
 (* This module implements the 'old' style of httpclient
  * functions: namely those that either directly
  * throw an exception on a non-2xx error code, or
