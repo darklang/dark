@@ -75,12 +75,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
   (* Need to add aditional css class to remove backgroun color *)
-  let isGroup = match tl with TLGroup _ -> true | _ -> false in
+  let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
   let class_ =
     [ "toplevel"
     ; "tl-" ^ deTLID tlid
     ; (if selected then "selected" else "")
-    ; (if isGroup then "group" else "") ]
+    ; isGroup ]
     |> String.join ~sep:" "
   in
   let id =
@@ -267,6 +267,7 @@ let viewCanvas (m : model) : msg Html.html =
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
+        (* Filter out toplevels that are not in a group *)
         |> List.filter ~f:(fun tl -> Groups.isNotInGroup (TL.id tl) m.groups)
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->

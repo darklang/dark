@@ -83,6 +83,10 @@ module Ext = struct
 
   external rectBottom : Dom.domRect -> float = "bottom" [@@bs.get]
 
+  external rectRight : Dom.domRect -> float = "right" [@@bs.get]
+
+  external rectLeft : Dom.domRect -> float = "left" [@@bs.get]
+
   external rectHeight : Dom.domRect -> float = "height" [@@bs.get]
 
   let staticHost : unit -> string = [%bs.raw "function(){ return staticUrl; }"]
