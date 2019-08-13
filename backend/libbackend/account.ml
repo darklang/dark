@@ -381,30 +381,7 @@ let upsert_admins () : unit =
 
 (* accounts to create namespaces for dark canvases *)
 let upsert_useful_canvases () : unit =
-  upsert_account_exn
-    { username = "builtwithdark"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMUdwN0luSFJEbllrMGw5dnR1NTBzdyRMazhVSUdOZU9tTm5SMVFwbDRHUGs3VHdzRXQwbTQ5QUFTdjJQdlZpd1pjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ops@darklang.com"
-    ; name = "Built with Dark" } ;
-  upsert_account_exn
-    { username = "benchmarking"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkdS9vQml2Uy9pa2ZnUlFEeHYvcVhJdyQxcVNNenExVnE2THdWMElVKyswNDRWbEpsYmk3d1NZaFZySzNXUEIwRkw4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ops@darklang.com"
-    ; name = "Dark benchmarking" } ;
-  upsert_account_exn
-    { username = "www"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTHhZV0RvZEFvVVBJdmVJeWdTS3E1ZyQ2ejJFV3lJUDgvdTBnMjZ1R0JRaVhEQWZHSHNSU0RNSVRUazAwL2dBUytrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ops@darklang.com"
-    ; name = "WWW user" } ;
-  upsert_admin_exn
-    { username = "ops"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZm0zUzhSUXhNQ3loWkI3bTlMRDhzQSRBWDdEbGNGYzIyVDJzb3lLc2V4ODlIdEtBY25uZllDN3VXa2FodVBvdzFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "ops@darklang.com"
-    ; name = "Ops machinery" } ;
+  (* Needed for tests *)
   upsert_admin_exn
     ~validate:false
     { username = "sample"
