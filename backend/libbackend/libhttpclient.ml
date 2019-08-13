@@ -296,7 +296,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::post_v2"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -308,7 +308,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::put_v2"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -335,7 +335,7 @@ let fns : shortfn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -347,7 +347,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::options_v2"]
     ; ins = []
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -359,7 +359,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::head_v2"]
     ; ins = []
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -371,7 +371,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::patch_v2"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
@@ -383,7 +383,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::post_v3"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
@@ -392,7 +392,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::put_v3"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
@@ -413,7 +413,7 @@ let fns : shortfn list =
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
          * the spec says it may have a body *)
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
@@ -422,7 +422,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::options_v3"]
     ; ins = []
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
@@ -431,7 +431,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::head_v3"]
     ; ins = []
     ; p = params_no_body
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
@@ -440,7 +440,7 @@ let fns : shortfn list =
   ; { pns = ["HttpClient::patch_v3"]
     ; ins = []
     ; p = params
-    ; r = TObj
+    ; r = TResult
     ; d =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
