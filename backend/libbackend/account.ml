@@ -67,49 +67,54 @@ type user_info =
 (************************)
 (* Adding *)
 (************************)
-let validate_username (username : string) : unit =
+let validate_username (username : string) : (unit, string) Result.t =
   (* rules: no uppercase, ascii only, must start with letter, other letters can
    * be numbers or underscores. 3-20 characters. *)
   let regex = Re2.create_exn "^[a-z][a-z0-9_]{2,20}$" in
-  if not (Re2.matches regex username)
-  then
-    Exception.code
+  if Re2.matches regex username
+  then Ok ()
+  else
+    Error
       ( "Invalid username '"
       ^ username
       ^ "', must match /^[a-z][a-z0-9_]{2,20}$/" )
 
 
-let validate_password ~(username : string) (password : string) : unit =
+let validate_password ~(username : string) (password : string) :
+    (unit, string) Result.t =
   (* rules: must be at least 8 characters *)
   if String.length password > 8
-  then ()
+  then Ok ()
   else
-    Exception.code
+    Error
       ( "Invalid password for user '"
       ^ username
       ^ "', must be at least 8 characters" )
 
 
-let validate_email (email : string) : unit =
+let validate_email (email : string) : (unit, string) Result.t =
   (* just checking it's roughly the shape of an email *)
   let regex = Re2.create_exn ".+@.+\\..+" in
-  if not (Re2.matches regex email)
-  then Exception.code ("Invalid email '" ^ email ^ "'")
+  if Re2.matches regex email
+  then Ok ()
+  else Error ("Invalid email '" ^ email ^ "'")
 
 
-let validate_account (account : account) : unit =
-  validate_username account.username ;
-  validate_email account.email ;
-  validate_password ~username:account.username account.password ;
-  ()
+let validate_account (account : account) : (unit, string) Result.t =
+  validate_username account.username
+  |> Prelude.Result.or_ (validate_email account.email)
+  |> Prelude.Result.or_
+       (validate_password ~username:account.username account.password)
 
 
-let upsert_account ?(validate : bool = true) (account : account) : unit =
-  if validate then validate_account account ;
-  Db.run
-    ~name:"upsert_account"
-    ~subject:account.username
-    "INSERT INTO accounts
+let upsert_account ?(validate : bool = true) (account : account) :
+    (unit, string) Result.t =
+  let result = if validate then validate_account account else Ok () in
+  Result.map result ~f:(fun () ->
+      Db.run
+        ~name:"upsert_account"
+        ~subject:account.username
+        "INSERT INTO accounts
     (id, username, name, email, admin, password)
     VALUES
     ($1, $2, $3, $4, false, $5)
@@ -118,20 +123,26 @@ let upsert_account ?(validate : bool = true) (account : account) : unit =
                   email = EXCLUDED.email,
                   admin = false,
                   password = EXCLUDED.password"
-    ~params:
-      [ Uuid (Util.create_uuid ())
-      ; String account.username
-      ; String account.name
-      ; String account.email
-      ; String account.password ]
+        ~params:
+          [ Uuid (Util.create_uuid ())
+          ; String account.username
+          ; String account.name
+          ; String account.email
+          ; String account.password ] )
 
 
-let upsert_admin ?(validate : bool = true) (account : account) : unit =
-  if validate then validate_account account ;
-  Db.run
-    ~name:"upsert_admin"
-    ~subject:account.username
-    "INSERT INTO accounts as u
+let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
+  upsert_account ~validate account
+  |> Prelude.Result.ok_or_internal_exception "Cannot upsert account"
+
+
+let upsert_admin ?(validate : bool = true) (account : account) :
+    (unit, string) Result.t =
+  Result.map (validate_account account) ~f:(fun () ->
+      Db.run
+        ~name:"upsert_admin"
+        ~subject:account.username
+        "INSERT INTO accounts as u
     (id, username, name, email, admin, password)
     VALUES
     ($1, $2, $3, $4, true, $5)
@@ -140,12 +151,17 @@ let upsert_admin ?(validate : bool = true) (account : account) : unit =
                   email = EXCLUDED.email,
                   admin = true,
                   password = EXCLUDED.password"
-    ~params:
-      [ Uuid (Util.create_uuid ())
-      ; String account.username
-      ; String account.name
-      ; String account.email
-      ; String account.password ]
+        ~params:
+          [ Uuid (Util.create_uuid ())
+          ; String account.username
+          ; String account.name
+          ; String account.email
+          ; String account.password ] )
+
+
+let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
+  upsert_admin ~validate account
+  |> Prelude.Result.ok_or_internal_exception "Cannot upsert account"
 
 
 (************************)
@@ -278,25 +294,25 @@ let for_host_exn (host : string) : Uuidm.t =
 (************************)
 
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
-    string =
+    (string, string) Result.t =
   let plaintext = Util.random_string 16 in
   let password = hash_password plaintext in
-  upsert_account {username; email; name; password} ;
-  plaintext
+  upsert_account {username; email; name; password}
+  |> Result.map ~f:(fun () -> plaintext)
 
 
 let init_testing () : unit =
-  upsert_account
+  upsert_account_exn
     { username = "test_unhashed"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password" } ;
-  upsert_account
+  upsert_account_exn
     { username = "test"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "test_admin"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
@@ -305,50 +321,50 @@ let init_testing () : unit =
 
 
 let upsert_admins () : unit =
-  upsert_admin
+  upsert_admin_exn
     { username = "ian"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ian@darklang.com"
     ; name = "Ian Connolly" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "paul"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "paul@darklang.com"
     ; name = "Paul Biggar" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "ellen"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ellen@darklang.com"
     ; name = "Ellen Chisa" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "stefi"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkKzIyM3lwOWU4ZzdvOVFWN1RtbnpYQSQ2b0VsdTBLU0JzendBR3FDb1FUQVoyVGNlcERDaUZ4OE9haFRWbzZMTk9VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "stefi@darklang.com"
     ; name = "Stefi Petit" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "alice"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "alice@darklang.com"
     ; name = "Alice Wong" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "ismith"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ismith@darklang.com"
     ; name = "Ian Smith" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "sydney"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
     ; name = "Sydney Noteboom" } ;
   (* dark contractors *)
-  (* upsert_account *)
+  (* upsert_account_exn *)
   (*   { username = "lizzie" *)
   (*   ; password = *)
   (*       "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTNueDFWQUFYRWpLMjJGclcwMjU2ZyRYVDQxUGtGNnYyM1E4L0MrSUZITlNXNi8wUGN4TFdEbkRMZ0xVdHN2bHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" *)
@@ -359,37 +375,37 @@ let upsert_admins () : unit =
 
 (* accounts to create namespaces for dark canvases *)
 let upsert_useful_canvases () : unit =
-  upsert_account
+  upsert_account_exn
     { username = "builtwithdark"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMUdwN0luSFJEbllrMGw5dnR1NTBzdyRMazhVSUdOZU9tTm5SMVFwbDRHUGs3VHdzRXQwbTQ5QUFTdjJQdlZpd1pjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Built with Dark" } ;
-  upsert_account
+  upsert_account_exn
     { username = "benchmarking"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkdS9vQml2Uy9pa2ZnUlFEeHYvcVhJdyQxcVNNenExVnE2THdWMElVKyswNDRWbEpsYmk3d1NZaFZySzNXUEIwRkw4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Dark benchmarking" } ;
-  upsert_account
+  upsert_account_exn
     { username = "www"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTHhZV0RvZEFvVVBJdmVJeWdTS3E1ZyQ2ejJFV3lJUDgvdTBnMjZ1R0JRaVhEQWZHSHNSU0RNSVRUazAwL2dBUytrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "WWW user" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "ops"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZm0zUzhSUXhNQ3loWkI3bTlMRDhzQSRBWDdEbGNGYzIyVDJzb3lLc2V4ODlIdEtBY25uZllDN3VXa2FodVBvdzFvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Ops machinery" } ;
-  upsert_admin
+  upsert_admin_exn
     ~validate:false
     { username = "sample"
     ; password = ""
     ; email = "nouser@example.com"
     ; name = "Sample Owner" } ;
-  upsert_admin
+  upsert_admin_exn
     { username = "korede"
     ; password =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
@@ -401,7 +417,7 @@ let upsert_banned_accounts () : unit =
   ignore
     ( banned_usernames
     |> List.map ~f:(fun username ->
-           upsert_account
+           upsert_account_exn
              ~validate:false
              { username
              ; password =
