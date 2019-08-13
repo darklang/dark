@@ -425,6 +425,21 @@ let user_page_handler
       ( match pages with
       | [] when String.Caseless.equal verb "OPTIONS" ->
           options_handler ~execution_id !c req
+          (* If we have a 404, and path is /favicon.ico, then serve the
+             * default dark favicon.ico. Because we're matching on [], this code
+             * path won't get run if a user has a /favicon.ico handler (or a /*
+             * handler!). *)
+      | [] when Uri.path uri = "/favicon.ico" ->
+          (* NB: we're sending back a png, not an ico - this is deliberate,
+             * favicon.ico can be png, and the png is 685 bytes vs a 4+kb .ico.
+             * *)
+          let filename = "favicon-32x32.png" in
+          let filetype = Magic_mime.lookup filename in
+          let file = File.readfile ~root:Webroot "favicon-32x32.png" in
+          let resp_headers =
+            Cohttp.Header.of_list [cors; ("content-type", filetype)]
+          in
+          Respond {resp_headers; execution_id; status = `OK; body = file}
       | [] ->
           let fof_timestamp =
             PReq.from_request ~allow_unparseable:true uri headers query body
