@@ -249,7 +249,7 @@ let date_migration_has_correct_formats () =
     AT.string
     "old format"
     expected
-    (Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 date) ;
+    (Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 date) ;
   AT.check
     AT.string
     "new format"
@@ -317,11 +317,11 @@ let t_password_serialization () =
   does_serialize
     "to_pretty_request_json_v0"
     false
-    Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
+    Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0 ;
   does_serialize
     "to_pretty_response_json_v1"
     false
-    Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
+    Libexecution.Legacy.PrettyResponseJsonV0.to_pretty_response_json_v0 ;
   ()
 
 

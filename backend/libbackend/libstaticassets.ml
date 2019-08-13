@@ -1,12 +1,12 @@
-open Libexecution
+open Static_assets
 open Libcommon
 open Libexecution.Types.RuntimeT
 open Libexecution.Runtime
+open Libexecution.Lib
+module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
-open Static_assets
-open Lib
 
-let fns : Lib.shortfn list =
+let fns : shortfn list =
   [ { pns = ["StaticAssets::baseUrlFor"]
     ; ins = []
     ; p = [par "deploy_hash" TStr]
@@ -93,7 +93,8 @@ let fns : Lib.shortfn list =
                   (Unicode_string.to_string file)
               in
               let response =
-                Httpclient.call url Httpclient.GET [] "" |> Dval.dstr_of_string
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                |> Dval.dstr_of_string
               in
               ( match response with
               | Some dv ->
@@ -124,7 +125,9 @@ UTF-8 safe"))
                   `Short
                   (Unicode_string.to_string file)
               in
-              let response = Httpclient.call url Httpclient.GET [] "" in
+              let response =
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+              in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)
@@ -148,7 +151,8 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let response =
-                Httpclient.call url Httpclient.GET [] "" |> Dval.dstr_of_string
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                |> Dval.dstr_of_string
               in
               ( match response with
               | Some dv ->
@@ -179,7 +183,9 @@ UTF-8 safe"))
                   `Short
                   (Unicode_string.to_string file)
               in
-              let response = Httpclient.call url Httpclient.GET [] "" in
+              let response =
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+              in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
               Libexecution.Lib.fail args)

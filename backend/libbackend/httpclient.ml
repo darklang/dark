@@ -210,35 +210,11 @@ let http_call
     (query_params : (string * string list) list)
     (verb : verb)
     (headers : (string * string) list)
-    (body : string) : string * (string * string) list =
-  let resp_body, code, resp_headers, error =
+    (body : string) : string * (string * string) list * int =
+  let resp_body, code, resp_headers, _ =
     http_call_with_code url query_params verb headers body
   in
-  if code < 200 || code > 299
-  then
-    let info =
-      [ ("url", url)
-      ; ("code", string_of_int code)
-      ; ("error", error)
-      ; ("response", resp_body) ]
-    in
-    Exception.code
-      ~info
-      ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
-  else (resp_body, resp_headers)
-
-
-let call
-    (url : string)
-    (verb : verb)
-    (headers : (string * string) list)
-    (body : string) : string =
-  Log.debuG
-    "HTTP"
-    ~params:[("verb", show_verb verb); ("url", url)]
-    ~jsonparams:[("body", `Int (body |> String.length))] ;
-  let results, _ = http_call url [] verb headers body in
-  results
+  (resp_body, resp_headers, code)
 
 
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL

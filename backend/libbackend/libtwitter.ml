@@ -55,7 +55,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
     | "GET" ->
         let query = Dval.to_dobj_exn args in
         let body = Dval.dstr_of_string_exn "" in
-        Libhttpclient.wrapped_send_request
+        Legacy.LibhttpclientV0.wrapped_send_request
           url
           Httpclient.GET
           Libexecution.Dval.to_pretty_machine_json_v1
@@ -64,7 +64,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
           headers
     | "POST" ->
         let body = Dval.to_dobj_exn args in
-        Libhttpclient.wrapped_send_request
+        Legacy.LibhttpclientV0.wrapped_send_request
           url
           Httpclient.POST
           Libexecution.Dval.to_pretty_machine_json_v1
