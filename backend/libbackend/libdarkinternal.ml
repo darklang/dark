@@ -945,4 +945,47 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args )
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::allFunctions"]
+    ; ins = []
+    ; p = []
+    ; r = TList
+    ; d =
+        "Returns a list of objects, representing the functions available in the standard library. Does not return DarkInternal functions"
+    ; f =
+        internal_fn (function
+            | _, [] ->
+                let fns =
+                  String.Map.fold
+                    ~init:[]
+                    ~f:(fun ~key ~data acc ->
+                      if String.is_prefix ~prefix:"DarkInternal::" key
+                         || data.deprecated
+                      then acc
+                      else
+                        let alist =
+                          let typestring =
+                            data.parameters
+                            |> List.map ~f:(fun p -> p.tipe)
+                            |> List.map ~f:Dval.tipe_to_string
+                            |> String.concat ~sep:", "
+                            |> fun s ->
+                            "("
+                            ^ s
+                            ^ ") -> "
+                            ^ Dval.tipe_to_string data.return_type
+                          in
+                          [ ("name", Dval.dstr_of_string_exn key)
+                          ; ( "documentation"
+                            , Dval.dstr_of_string_exn data.description )
+                          ; ("typestring", Dval.dstr_of_string_exn typestring)
+                          ]
+                        in
+                        Dval.to_dobj_exn alist :: acc )
+                    !Libexecution.Libs.static_fns
+                in
+                DList fns
+            | args ->
+                fail args )
+    ; ps = false
     ; dep = false } ]
