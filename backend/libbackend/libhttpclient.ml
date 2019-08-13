@@ -3,6 +3,7 @@ open Libexecution.Runtime
 open Libexecution.Lib
 open Libexecution.Types.RuntimeT
 module Dval = Libexecution.Dval
+module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
 
 let params =
@@ -27,7 +28,6 @@ let has_json_header (headers : headers) : bool =
          |> String.is_substring ~substring:"application/json" )
 
 
-(* TODO: integrate with dark_request *)
 let send_request
     (uri : string)
     (verb : Httpclient.verb)
@@ -44,16 +44,21 @@ let send_request
     | _ ->
         json_fn body
   in
-  (* TODO: actually use a new one here *)
-  let result, headers =
-    Legacy.HttpclientV0.http_call uri query verb headers body
+  let result, headers, code =
+    Httpclient.http_call uri query verb headers body
   in
   let parsed_result =
     if has_form_header headers
-    then Dval.of_form_encoding result
+    then
+      try Dval.of_form_encoding result with _ ->
+        Dval.dstr_of_string_exn "form decoding error"
     else if has_json_header headers
-    then Dval.of_unknown_json_v0 result
-    else Dval.dstr_of_string_exn result
+    then
+      try Dval.of_unknown_json_v0 result with _ ->
+        Dval.dstr_of_string_exn "json decoding error"
+    else
+      try Dval.dstr_of_string_exn result with _ ->
+        Dval.dstr_of_string_exn "utf-8 decoding error"
   in
   let parsed_headers =
     headers
@@ -63,10 +68,20 @@ let send_request
     |> DvalMap.from_list
     |> fun dm -> DObj dm
   in
-  Dval.to_dobj_exn
-    [ ("body", parsed_result)
-    ; ("headers", parsed_headers)
-    ; ("raw", Dval.dstr_of_string_exn result) ]
+  let obj =
+    Dval.to_dobj_exn
+      [ ("body", parsed_result)
+      ; ("headers", parsed_headers)
+      ; ( "raw"
+        , result
+          |> Dval.dstr_of_string
+          |> Option.value
+               ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
+      ; ("code", DInt (Dint.of_int code)) ]
+  in
+  if code >= 200 && code <= 299
+  then DResult (ResOk obj)
+  else DResult (ResError obj)
 
 
 let encode_basic_auth u p =
@@ -89,6 +104,33 @@ let encode_basic_auth u p =
   in
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
+let call verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; body; query; headers] ->
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          body
+          query
+          headers
+    | args ->
+        fail args)
+
+let call_no_body verb json_fn =
+  InProcess
+    (function
+    | _, [DStr uri; query; headers] ->
+        send_request
+          (Unicode_string.to_string uri)
+          verb
+          json_fn
+          (Dval.dstr_of_string_exn "")
+          query
+          headers
+    | args ->
+        fail args)
 
 let fns : shortfn list =
   [ { pns = ["HttpClient::post"]
@@ -259,7 +301,7 @@ let fns : shortfn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v2"]
     ; ins = []
     ; p = params
@@ -271,7 +313,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v2"]
     ; ins = []
     ; p = params_no_body
@@ -283,7 +325,7 @@ let fns : shortfn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v2"]
     ; ins =
         []
@@ -298,7 +340,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v2"]
     ; ins = []
     ; p = params_no_body
@@ -310,7 +352,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v2"]
     ; ins = []
     ; p = params_no_body
@@ -322,7 +364,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v2"]
     ; ins = []
     ; p = params
@@ -331,6 +373,93 @@ let fns : shortfn list =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
     ; f =
         Legacy.LibhttpclientV0.wrapped_call
+          Httpclient.PATCH
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v3"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call
+          Httpclient.POST
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::put_v3"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call
+          Httpclient.PUT
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::get_v3"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call_no_body
+          Httpclient.GET
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::delete_v3"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call_no_body
+          Httpclient.DELETE
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::options_v3"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call_no_body
+          Httpclient.OPTIONS
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::head_v3"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call_no_body
+          Httpclient.HEAD
+          Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::patch_v3"]
+    ; ins = []
+    ; p = params
+    ; r = TObj
+    ; d =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
+    ; f =
+        call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; ps = false
