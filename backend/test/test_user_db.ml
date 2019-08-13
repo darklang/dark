@@ -125,7 +125,7 @@ let t_password_hash_db_roundtrip () =
   in
   AT.check
     AT.int
-    "A Password::hash'd string can get stored in and retrieved from a user database."
+    "A Password::hash'd string can get stored in and retrieved from a user datastore."
     0
     ( match exec_handler ~ops ast with
     | DList [p1; p2] ->
