@@ -104,6 +104,7 @@ let encode_basic_auth u p =
   in
   Unicode_string.append (Unicode_string.of_string_exn "Basic ") encoded
 
+
 let call verb json_fn =
   InProcess
     (function
@@ -118,6 +119,7 @@ let call verb json_fn =
     | args ->
         fail args)
 
+
 let call_no_body verb json_fn =
   InProcess
     (function
@@ -131,6 +133,7 @@ let call_no_body verb json_fn =
           headers
     | args ->
         fail args)
+
 
 let fns : shortfn list =
   [ { pns = ["HttpClient::post"]
@@ -382,11 +385,8 @@ let fns : shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP POST call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call
-          Httpclient.POST
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::put_v3"]
@@ -394,11 +394,8 @@ let fns : shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP PUT call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call
-          Httpclient.PUT
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::get_v3"]
@@ -406,11 +403,8 @@ let fns : shortfn list =
     ; p = params_no_body
     ; r = TResult
     ; d =
-        "Make blocking HTTP GET call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call_no_body
-          Httpclient.GET
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::delete_v3"]
@@ -421,11 +415,8 @@ let fns : shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call_no_body
-          Httpclient.DELETE
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::options_v3"]
@@ -433,11 +424,8 @@ let fns : shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call_no_body
-          Httpclient.OPTIONS
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::head_v3"]
@@ -445,11 +433,8 @@ let fns : shortfn list =
     ; p = params_no_body
     ; r = TObj
     ; d =
-        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call_no_body
-          Httpclient.HEAD
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::patch_v3"]
@@ -457,11 +442,8 @@ let fns : shortfn list =
     ; p = params
     ; r = TObj
     ; d =
-        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` where `Ok` is a response Obj if successful and `Error` is an error message if not successful"
-    ; f =
-        call
-          Httpclient.PATCH
-          Dval.to_pretty_machine_json_v1
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::basicAuth"]
