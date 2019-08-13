@@ -151,7 +151,7 @@ let dbCategory (m : model) (dbs : db list) : category =
           ; plusButton = None } )
   in
   { count = List.length dbs
-  ; name = "Databases"
+  ; name = "Datastores"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; entries }
