@@ -277,9 +277,10 @@ let t_curl_file_urls () =
        protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
        is even sent. *)
     (Some "Unsupported protocol")
+    (* TODO: use modern http_call *)
     ( try
         ignore
-          (Httpclient.http_call
+          (Legacy.HttpclientV0.http_call
              "file://localhost/etc/passwd"
              []
              Httpclient.GET
