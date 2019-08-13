@@ -155,11 +155,12 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewCronHandler name ->
       newHandler m "CRON" name None pos
   | NewReplHandler name ->
-      let generateREPLName (_ : unit) : string =
-        "REPL_" ^ (() |> Util.random |> string_of_int)
-      in
       (* When creating a repl, dont ask the user for a name *)
-      let name = Option.withDefault name ~default:(generateREPLName ()) in
+      let name =
+        Option.withDefault
+          name
+          ~default:(Util.Namer.generateAnimalWithPersonality ~space:"REPL" ())
+      in
       newHandler m "REPL" (Some name) unused pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]

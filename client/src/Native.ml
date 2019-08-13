@@ -102,6 +102,8 @@ end
 
 module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
+
+  let range (min : int) (max : int) : int = Js_math.random_int min max
 end
 
 module Size = struct
