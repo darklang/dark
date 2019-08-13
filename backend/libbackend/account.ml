@@ -363,6 +363,12 @@ let upsert_admins () : unit =
         "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
     ; name = "Sydney Noteboom" } ;
+  upsert_admin_exn
+    { username = "korede"
+    ; password =
+        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "korede@darklang.com"
+    ; name = "Korede" } ;
   (* dark contractors *)
   (* upsert_account_exn *)
   (*   { username = "lizzie" *)
@@ -404,13 +410,7 @@ let upsert_useful_canvases () : unit =
     { username = "sample"
     ; password = ""
     ; email = "nouser@example.com"
-    ; name = "Sample Owner" } ;
-  upsert_admin_exn
-    { username = "korede"
-    ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "korede@darklang.com"
-    ; name = "Korede" }
+    ; name = "Sample Owner" }
 
 
 let upsert_banned_accounts () : unit =
