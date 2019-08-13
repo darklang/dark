@@ -1085,9 +1085,10 @@ let update_ (msg : msg) (m : model) : modification =
               (* here though *)
               if not (TL.isGroup tl)
               then
-                (* Check if mePos is inside a group, if so add to group *)
-                let mePos = Viewport.toAbsolute m event.mePos in
-                let gTlid = Groups.landedInGroup mePos m.groups |> List.head in
+                (* Check if toplevel landed on top of a group *)
+                let gTlid =
+                  Groups.landedInGroup draggingTLID m.groups |> List.head
+                in
                 match gTlid with
                 | Some tlid ->
                     Many [SetCursorState origCursorState; AddToGroup (tlid, tl)]
