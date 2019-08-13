@@ -46,6 +46,42 @@ let isNotInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
   == 0
 
 
+let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
+  groups
+  |> TLIDDict.mapValues ~f:(fun group -> group)
+  |> List.filter ~f:(fun (g : Types.group) ->
+         match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
+         | Some elem ->
+             let groupPos = Native.Ext.getBoundingClientRect elem in
+             let clientWidth, clientHeight =
+               let clientWidth =
+                 Native.Ext.rectWidth groupPos |> int_of_float
+               in
+               let clientHeight =
+                 Native.Ext.rectHeight groupPos |> int_of_float
+               in
+               (clientWidth, clientHeight)
+             in
+             (* Check if the toplevel pos is inside the group *)
+             (* X *)
+             let horStart = g.pos.x in
+             let horEnd = horStart + clientWidth in
+             (* Y *)
+             let vertStart = g.pos.y in
+             let vertEnd = vertStart + clientHeight in
+             (* Check if mePos (x,y) is within the group box *)
+             if mePos.x > horStart
+                && mePos.x < horEnd
+                && mePos.y > vertStart
+                && mePos.y < vertEnd
+             then true
+             else false
+         | None ->
+             false )
+  |> fromList
+  |> TD.tlids
+
+
 let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
   match
     Native.Ext.querySelector (".tl-" ^ deTLID tlid)

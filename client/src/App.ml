@@ -1291,13 +1291,22 @@ let update_ (msg : msg) (m : model) : modification =
           then
             match m.cursorState with
             | Dragging (_, _, _, origCursorState) ->
-                (* Remove the tlid from group members *)
-                (* update the toplevel pos with the curent event position  *)
                 let mePos = Viewport.toAbsolute m event.mePos in
-                Many
-                  [ TweakModel (fun _m -> newMod)
-                  ; SetCursorState origCursorState
-                  ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ]
+                let gTlid = Groups.posInGroup mePos m.groups |> List.head in
+                (* Check if the new pos is in another group *)
+                ( match gTlid with
+                | Some gTlid ->
+                    let tl = TL.getExn m tlid in
+                    Many
+                      [ TweakModel (fun _m -> newMod)
+                      ; SetCursorState origCursorState
+                      ; AddToGroup (gTlid, tl) ]
+                | None ->
+                    (* update the toplevel pos with the curent event position  *)
+                    Many
+                      [ TweakModel (fun _m -> newMod)
+                      ; SetCursorState origCursorState
+                      ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
             | _ ->
                 NoChange
           else NoChange
