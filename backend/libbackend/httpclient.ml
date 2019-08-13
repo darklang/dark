@@ -205,4 +205,16 @@ let http_call_with_code
   (body, code, !result_headers, error)
 
 
+let http_call
+    (url : string)
+    (query_params : (string * string list) list)
+    (verb : verb)
+    (headers : (string * string) list)
+    (body : string) : string * (string * string) list * int =
+  let resp_body, code, resp_headers, _ =
+    http_call_with_code url query_params verb headers body
+  in
+  (resp_body, resp_headers, code)
+
+
 let init () : unit = C.global_init C.CURLINIT_GLOBALALL
