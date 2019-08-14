@@ -23,6 +23,14 @@ include (
 module Result = struct
   include Tablecloth.Result
 
+  let or_ (ra : ('a, 'b) t) (rb : ('a, 'b) t) : ('a, 'b) t =
+    match ra with Error _ -> rb | Ok _ -> ra
+
+
+  let orElse (ra : ('a, 'b) t) (rb : ('a, 'b) t) : ('a, 'b) t =
+    match rb with Error _ -> ra | Ok _ -> rb
+
+
   let ok_or_internal_exception (msg : string) (t : (string, 'a) t) : 'a =
     match t with
     | Ok a ->

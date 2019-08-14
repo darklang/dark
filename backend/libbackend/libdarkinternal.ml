@@ -139,8 +139,34 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let username = Unicode_string.to_string username in
                 let email = Unicode_string.to_string email in
                 let name = Unicode_string.to_string name in
-                let password = Account.upsert_user ~username ~email ~name () in
-                Dval.dstr_of_string_exn password
+                let result = Account.upsert_user ~username ~email ~name () in
+                ( match result with
+                | Ok password ->
+                    Dval.dstr_of_string_exn password
+                | Error msg ->
+                    Exception.code msg )
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DarkInternal::upsertUser_v1"]
+    ; ins = []
+    ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
+    ; r = TStr
+    ; d =
+        "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
+    ; f =
+        internal_fn (function
+            | _, [DStr username; DStr email; DStr name] ->
+                let username = Unicode_string.to_string username in
+                let email = Unicode_string.to_string email in
+                let name = Unicode_string.to_string name in
+                let result = Account.upsert_user ~username ~email ~name () in
+                ( match result with
+                | Ok password ->
+                    DResult (ResOk (Dval.dstr_of_string_exn password))
+                | Error msg ->
+                    DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
                 fail args )
     ; ps = false
