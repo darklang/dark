@@ -293,6 +293,35 @@ let t_curl_file_urls () =
         None )
 
 
+(* ------------------- *)
+(* functions *)
+(* ------------------- *)
+
+let t_function_traces_are_stored () =
+  clear_test_data () ;
+  let fntlid : tlid = id_of_int 12312345234 in
+  let f = user_fn "test_fn" [] (ast_for "(DB::generateKey)") in
+  let f = {f with tlid = fntlid} in
+  let h = handler (ast_for "(test_fn)") in
+  let host = "test" in
+  let owner = Account.for_host_exn host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  let trace_id = Util.create_uuid () in
+  let _ = execute_ops ~trace_id [fop f; hop h] in
+  (* get the trace for the execution *)
+  AT.check
+    AT.int
+    "handler should only have fn result for test_fn"
+    1
+    (Stored_function_result.load ~canvas_id ~trace_id h.tlid |> List.length) ;
+  AT.check
+    AT.int
+    "functions should only have fn result for DB::generateKey"
+    1
+    (Stored_function_result.load ~canvas_id ~trace_id fntlid |> List.length) ;
+  ()
+
+
 let suite =
   [ ("stored_events", `Quick, t_stored_event_roundtrip)
   ; ( "Trace data redacts passwords"
@@ -307,4 +336,5 @@ let suite =
   ; ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
-  ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls) ]
+  ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
+  ; ("Function traces are stored", `Quick, t_function_traces_are_stored) ]
