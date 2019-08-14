@@ -85,7 +85,7 @@ and (* PG returns lists of strings. This converts them to types using the
         match Dval.of_internal_queryable_v1 obj with
         | DObj o ->
             (* <HACK>: some legacy objects were allowed to be saved with `id` keys _in_ the
-         * data object itself. they got in the database on the `update` of
+         * data object itself. they got in the datastore on the `update` of
          * an already present object as `update` did not remove the magic `id` field
          * which had been injected on fetch. we need to remove magic `id` if we fetch them
          * otherwise they will not type check on the way out any more and will not work.

@@ -92,7 +92,7 @@ let () =
         ; activeMigration = None
         ; pos = {x = 0; y = 0} }
       in
-      test "database renamed, handler updates variable" (fun () ->
+      test "datastore renamed, handler updates variable" (fun () ->
           let h =
             { ast = F (ID "ast1", Variable "ElmCode")
             ; spec =
@@ -131,7 +131,7 @@ let () =
                 false
           in
           expect res |> toEqual true ) ;
-      test "database renamed, handler does not change" (fun () ->
+      test "datastore renamed, handler does not change" (fun () ->
           let h =
             { ast = F (ID "ast1", Variable "request")
             ; spec =

@@ -282,7 +282,7 @@ let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
 let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
   let cors_setting_of_db_string (string_from_db : string) : cors_setting option
       =
-    (* none if null from database *)
+    (* none if null from datastore *)
     (if string_from_db = "" then None else Some string_from_db)
     (* parse json, handle if it's not valid... *)
     |> Option.map ~f:Yojson.Safe.from_string

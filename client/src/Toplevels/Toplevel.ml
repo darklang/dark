@@ -159,7 +159,7 @@ let toOp (tl : toplevel) : op list =
   | TLTipe t ->
       [SetType t]
   | TLDB _ ->
-      impossible "This isn't how database ops work"
+      impossible "This isn't how datastore ops work"
 
 
 let customEventSpaceNames (handlers : handler TD.t) : string list =

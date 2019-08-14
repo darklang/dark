@@ -125,7 +125,7 @@ let t_db_create_with_orblank_name () =
     ; Op.AddDBCol (dbid, colnameid, coltypeid) ]
   in
   let _, state, _ = test_execution_data ops in
-  AT.check AT.bool "database is created" true (state.dbs <> [])
+  AT.check AT.bool "datastore is created" true (state.dbs <> [])
 
 
 let t_db_rename () =
@@ -145,9 +145,9 @@ let t_db_rename () =
         | Partial _ | Blank _ ->
             ""
       in
-      AT.check AT.string "database rename success" "BsCode" newname
+      AT.check AT.string "datastore rename success" "BsCode" newname
   | None ->
-      AT.check AT.bool "fail to rename database" true false
+      AT.check AT.bool "fail to rename datastore" true false
 
 
 let t_set_after_delete () =
