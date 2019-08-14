@@ -36,7 +36,7 @@ let clear_test_data () : unit =
   let canvas_ids =
     Db.fetch
       ~params:[Uuid owner]
-      ~name:"lol"
+      ~name:"clear_test_data"
       "SELECT id
        FROM canvases
        WHERE account_id = $1"
