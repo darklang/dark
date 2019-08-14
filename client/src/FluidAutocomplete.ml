@@ -579,7 +579,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
       Some ("The '" ^ fieldname ^ "' field of the object")
   | FACVariable var ->
       if String.isCapitalized var
-      then Some ("The database '" ^ var ^ "'")
+      then Some ("The datastore '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")
   | FACLiteral lit ->
       Some ("The literal value '" ^ lit ^ "'")

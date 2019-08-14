@@ -1003,7 +1003,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("The '" ^ fieldname ^ "' field of the object")
   | ACVariable var ->
       if String.isCapitalized var
-      then Some ("The database '" ^ var ^ "'")
+      then Some ("The datastore '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")
   | ACLiteral lit ->
       Some ("The literal value '" ^ lit ^ "'")

@@ -60,11 +60,11 @@ let () =
           expect v |> toEqual (Some h1tlid) ) ;
       test "findUsagesInAST" (fun () ->
           let handlers = handlersByName handlers in
-          let databases = dbsByName dbs in
+          let datastores = dbsByName dbs in
           let functions = StrDict.empty in
           let usages =
             match
-              findUsagesInAST h2tlid databases handlers functions h2data.ast
+              findUsagesInAST h2tlid datastores handlers functions h2data.ast
             with
             | [{refersTo; usedIn; id}] ->
                 refersTo = h2tlid && usedIn = dbtlid && id == dbRefID

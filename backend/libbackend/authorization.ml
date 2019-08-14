@@ -5,7 +5,7 @@ open Util
 open Types
 
 (* Permission levels, scoped to a single auth_domain.
-   These are stored in the database for granted access,
+   These are stored in the datastore for granted access,
    or returned by the functions in this namespace to indicate a
    particular user's permissions for a particular auth_domain.
 

@@ -104,7 +104,7 @@ let allUsedIn (tlid : tlid) (m : model) : toplevel list =
 
 let findUsagesInAST
     (tlid : tlid)
-    (databases : tlid StrDict.t)
+    (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t)
     (ast : expr) : usage list =
@@ -112,7 +112,7 @@ let findUsagesInAST
   |> List.filterMap ~f:(fun pd ->
          match pd with
          | PExpr (F (id, Variable name)) ->
-             StrDict.get ~key:name databases
+             StrDict.get ~key:name datastores
              |> Option.map ~f:(fun dbTLID -> (dbTLID, id))
          | PExpr
              (F
@@ -143,22 +143,22 @@ let findUsagesInAST
 
 let getUsageFor
     (tl : toplevel)
-    (databases : tlid StrDict.t)
+    (datastores : tlid StrDict.t)
     (handlers : tlid StrDict.t)
     (functions : tlid StrDict.t) : usage list =
   match tl with
   | TLHandler h ->
-      findUsagesInAST h.hTLID databases handlers functions h.ast
+      findUsagesInAST h.hTLID datastores handlers functions h.ast
   | TLDB _ ->
       []
   | TLFunc f ->
-      findUsagesInAST f.ufTLID databases handlers functions f.ufAST
+      findUsagesInAST f.ufTLID datastores handlers functions f.ufAST
   | TLTipe _ ->
       []
 
 
 let refreshUsages (m : model) (tlids : tlid list) : model =
-  let databases = dbsByName m.dbs in
+  let datastores = dbsByName m.dbs in
   let handlers = handlersByName m.handlers in
   let functions = functionsByName m.userFunctions in
   (* We need to overwrite the already-stored results for the passed-in TLIDs.
@@ -173,7 +173,7 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
     tlids
     |> List.map ~f:(fun tlid ->
            let tl = TL.getExn m tlid in
-           getUsageFor tl databases handlers functions )
+           getUsageFor tl datastores handlers functions )
     |> List.concat
     |> List.foldl
          ~init:(tlUsedInDict, tlRefersToDict)
