@@ -10,7 +10,9 @@ let b () = Blank (Util.create_id ())
 let f a = Filled (Util.create_id (), a)
 
 let is_fn (name : string) : bool =
-  Libs.get_fn ~user_fns:[] name <> None || name = "fake_test_fn"
+  Libs.get_fn ~user_fns:[] name <> None
+  || name = "fake_test_fn"
+  || name = "test_fn"
 
 
 let b_or_f (name : string) : string or_blank =
