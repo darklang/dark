@@ -25,9 +25,13 @@ val for_host : string -> Uuidm.t option
 (* Get the owner of a host *)
 val for_host_exn : string -> Uuidm.t
 
-(* Add (or update) a user *)
+(* Add (or update) a user, returns Result (password,error) *)
 val upsert_user :
-  username:string -> email:string -> name:string -> unit -> string
+     username:string
+  -> email:string
+  -> name:string
+  -> unit
+  -> (string, string) Result.t
 
 (* Set whether user is an admin *)
 val set_admin : username:string -> bool -> unit
@@ -56,3 +60,11 @@ val init : unit -> unit
 val init_testing : unit -> unit
 
 val user_info_to_yojson : user_info -> Yojson.Safe.t
+
+module Testing : sig
+  val validate_username : string -> (unit, string) Result.t
+
+  val validate_password : username:string -> string -> (unit, string) Result.t
+
+  val validate_email : string -> (unit, string) Result.t
+end

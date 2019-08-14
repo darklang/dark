@@ -79,6 +79,64 @@ let t_permission_ord_instance () =
   ()
 
 
+let t_account_validation_works () =
+  let check_result = AT.check (AT.result AT.unit AT.string) in
+  check_result
+    "validate_password"
+    (Error "Invalid password for user 'test', must be at least 8 characters")
+    (Account.Testing.validate_password ~username:"test" "") ;
+  check_result
+    "short password"
+    (Error "Invalid password for user '', must be at least 8 characters")
+    (Account.Testing.validate_password ~username:"" "mypass") ;
+  check_result
+    "validate_email"
+    (Error "Invalid email 'novalidemail'")
+    (Account.Testing.validate_email "novalidemail") ;
+  check_result
+    "uppercase start"
+    (Error "Invalid username 'Upper', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "Upper") ;
+  check_result
+    "uppercase in middle"
+    (Error "Invalid username 'uPPer', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "uPPer") ;
+  check_result
+    "username too short"
+    (Error "Invalid username 'a', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "a") ;
+  check_result
+    "non ascii"
+    (Error "Invalid username 'aaa❤️', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "aaa❤️") ;
+  check_result
+    "hyphen"
+    (Error "Invalid username 'aaa-aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "aaa-aaa") ;
+  check_result
+    "spaces"
+    (Error "Invalid username 'aaa aaa', must match /^[a-z][a-z0-9_]{2,20}$/")
+    (Account.Testing.validate_username "aaa aaa") ;
+  check_result
+    "underscore"
+    (Ok ())
+    (Account.Testing.validate_username "aaa_aaa") ;
+  check_result
+    "normal"
+    (Ok ())
+    (Account.Testing.validate_username "myusername09") ;
+  check_result
+    "password"
+    (Ok ())
+    (Account.Testing.validate_password ~username:"" "mypassword") ;
+  check_result "paul" (Ok ()) (Account.Testing.validate_username "paul") ;
+  check_result
+    "email"
+    (Ok ())
+    (Account.Testing.validate_email "me@example.com") ;
+  ()
+
+
 let suite =
   [ ( "Account.authenticate_user works when it should"
     , `Quick
@@ -87,4 +145,5 @@ let suite =
   ; ("Authorization.set_user_access works", `Quick, t_set_user_access)
   ; ( "The ord instance on 'permission' works."
     , `Quick
-    , t_permission_ord_instance ) ]
+    , t_permission_ord_instance )
+  ; ("Account validation works", `Quick, t_account_validation_works) ]
