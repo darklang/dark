@@ -130,7 +130,10 @@ $prodColor: black;
         .header-icon {
           display: flex;
           position: relative;
-
+          cursor: pointer;
+          object {
+            pointer-events: none;
+          }
           &:hover {
             &:before {
               content: attr(alt);
