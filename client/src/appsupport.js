@@ -187,82 +187,8 @@ function setCursorPosition(pos) {
   }
 }
 
-function toBsList(list) {
-  if (list === []) {
-    return 0;
-  }
-
-  let bsList = [list[list.length - 1], 0];
-  for (var i = list.length - 2; i > -1; i--) {
-    bsList = [list[i], bsList];
-  }
-
-  return bsList;
-}
-
-function getSelectionRange() {
-  let selection = window.getSelection();
-  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
-
-  let node = selection.anchorNode.parentNode;
-  let initPos = getCursorPosition() - node.textContent.length;
-  let pos = initPos;
-  let endParsing = false;
-
-  while (!!node && !endParsing) {
-    endParsing = node.isEqualNode(selection.extentNode.parentNode);
-    // these are used to trim the tokens at the beginning and end
-    // of the selection range
-    pos += node.textContent.length;
-    node = node.nextSibling;
-  }
-
-  return [initPos, pos];
-}
-
-function setSelectionRange(posRange) {
-  if (posRange.length > 2) return;
-  var startPos = posRange[0];
-  var endPos = posRange[1];
-
-  editor = document.querySelector(".selected #fluid-editor");
-  if (!editor) return;
-  if (startPos < 0) startPos = 0;
-  if (endPos > editor.textContent.length) endPos = editor.textContent.length;
-  if (startPos > endPos) startPos = endPos - 1;
-  let range = document.createRange();
-  for (var i = 0; i < editor.childNodes.length; i++) {
-    let node = editor.childNodes[i];
-    let length = node.textContent.length;
-    if (startPos <= length) {
-      range.setStart(node.childNodes[0], startPos);
-      node.focus();
-      return;
-    } else {
-      startPos -= length;
-    }
-  }
-  for (var i = 0; i < editor.childNodes.length; i++) {
-    let node = editor.childNodes[i];
-    let length = node.textContent.length;
-    if (endPos <= length) {
-      range.setEnd(node.childNodes[0], endPos);
-      node.focus();
-      return;
-    } else {
-      startPos -= length;
-    }
-  }
-  range.collapse(true);
-  selection = document.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
-}
-
 window.getCursorPosition = getCursorPosition;
 window.setCursorPosition = setCursorPosition;
-window.getSelectionRange = getSelectionRange;
-window.setSelectionRange = setSelectionRange;
 
 // ---------------------------
 // Analysis

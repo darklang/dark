@@ -1638,6 +1638,17 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
+  | UpdateFluidSelection selection ->
+      TweakModel
+        (fun m ->
+          match selection with
+          | Some s ->
+              (* re-apply selection *)
+              Js.log2 "reapplying selection" s.range ;
+              Entry.setSelectionRange s.range ;
+              {m with fluidState = {m.fluidState with selection}}
+          | None ->
+              m )
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

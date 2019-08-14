@@ -407,7 +407,11 @@ and dval =
 (* ----------------------------- *)
 and mouseEvent =
   { mePos : vPos
-  ; button : int }
+  ; button : int
+  ; altKey : bool
+  ; ctrlKey : bool
+  ; shiftKey : bool
+  ; detail : int }
 
 and isLeftButton = bool
 
@@ -996,6 +1000,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
+  | UpdateFluidSelection of fluidSelection option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1238,6 +1243,12 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
+and fluidSelectionType =
+  | FSTExpr of fluidExpr
+  | FSTToken of fluidToken
+
+and fluidSelection = {range : int * int}
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1249,7 +1260,8 @@ and fluidState =
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
-  ; cp : fluidCommandState }
+  ; cp : fluidCommandState
+  ; selection : fluidSelection option }
 
 (* Avatars *)
 and avatar =

@@ -822,7 +822,7 @@ let recordAction
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
-  {s with newPos = pos; upDownCol}
+  {s with newPos = pos; selection = None; upDownCol}
 
 
 let report (e : string) (s : state) =
@@ -3644,6 +3644,63 @@ let viewPlayIcon
       Vdom.noNode
 
 
+let tokenSelection ~state ~ast (sel : fluidSelection) : fluidSelection =
+  let tokens = toTokens state ast in
+  let pos = Tuple2.first sel.range in
+  List.foldl tokens ~init:sel ~f:(fun tok sel ->
+      if pos >= tok.startPos && pos <= tok.endPos
+      then {range = (tok.startPos, tok.endPos)}
+      else sel )
+
+
+let expressionSelection ~state ~ast (sel : fluidSelection) : fluidSelection =
+  let tokens = toTokens state ast in
+  let rangeStart, rangeEnd = sel.range in
+  let exprStartPos, exprEndPos =
+    (* get first token in selection range with a valid expr ID *)
+    List.foldl tokens ~init:None ~f:(fun tok init ->
+        if rangeStart <= tok.startPos
+           && rangeEnd >= tok.endPos
+           && Token.(tid tok.token |> validID)
+        then
+          Some tok
+          (* if the range is slightly smaller than the token due to extra
+         * whitespace e.g. with TMatchKeyword *)
+        else if rangeStart >= tok.startPos
+                && rangeEnd <= tok.endPos
+                && Token.(tid tok.token |> validID)
+        then Some tok
+        else init )
+    (* use expression ID to get tokens associated with the expression *)
+    |> Option.map ~f:(fun t ->
+           (* get the beginning and end of the range from
+            * the expression's first and last token *)
+           let exprStartToken, exprEndToken =
+             findExpr (Token.tid t.token) ast
+             |> Option.map
+                  ~f:(toTokens' state >> reflow ~x:t.startCol >> Tuple2.second)
+             |> Option.withDefault ~default:[]
+             |> (fun ts ->
+                  let t1, t2 = (List.head ts, List.last ts) in
+                  (t1, t2) )
+             |> Tuple2.mapAll ~f:(function
+                    | Some t ->
+                        List.find tokens ~f:(fun t' -> t = t'.token)
+                    | _ ->
+                        None )
+           in
+           match (exprStartToken, exprEndToken) with
+           | Some {startPos}, Some {endPos}
+           | Some {startPos; endPos}, None
+           | None, Some {startPos; endPos} ->
+               (startPos, endPos)
+           | _ ->
+               sel.range )
+    |> Option.withDefault ~default:sel.range
+  in
+  {range = (exprStartPos, exprEndPos)}
+
+
 let toHtml
     ~(vs : ViewUtils.viewState)
     ~tlid
@@ -3665,11 +3722,32 @@ let toHtml
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
-        let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
+        let idStr = deID (Token.tid ti.token) in
+        let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-          ]
+            (*; Patched_tea_html.onWithOptions
+            ~key
+            "click" 
+            {stopPropagation = false; preventDefault = false}
+            (Decoders.wrapDecoder (decodeClickEvent constructor))*)
+          ; ViewUtils.eventNoPropagation
+              ~key:("fluid-selection-click" ^ idStr)
+              "dblclick"
+              (fun e ->
+                UpdateFluidSelection
+                  ( Entry.getSelectionRange ()
+                  |> Option.map ~f:(fun range ->
+                         {range}
+                         |>
+                         match e with
+                         | {detail = 2; altKey = true} ->
+                             expressionSelection ~state ~ast
+                         | {detail = 2; altKey = false} ->
+                             tokenSelection ~state ~ast
+                         | _ ->
+                             identity ) ) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3755,6 +3833,8 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
+      ; ViewUtils.nothingMouseEvent "drag"
+      ; ViewUtils.nothingMouseEvent "mouseup"
       ; event ~key:eventKey "keydown" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
@@ -3867,13 +3947,20 @@ let renderCallback (m : model) =
   | FluidEntering _ ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
-      else
+      else (
         (* When you change the text of a node in the DOM, the browser resets
          * the cursor to the start of the node. After each rerender, we want to
          * make sure we set the cursor to it's exact place. We do it here to
          * make sure it's always set after a render, not waiting til the next
          * frame.
+         *
+         * However, if there currently is a selection, set that range instead of
+         * the new cursor position because otherwise the selection gets overwritten.
          *)
-        Entry.setCursorPosition m.fluidState.newPos
+        match m.fluidState.selection with
+        | Some {range} ->
+            Entry.setSelectionRange range
+        | None ->
+            Entry.setCursorPosition m.fluidState.newPos )
   | _ ->
       ()
