@@ -50,6 +50,7 @@
           align-items: center;
           font-size: 18px;
           color: $black2;
+          cursor: pointer;
           &.empty {
             color: $grey3;
           }
@@ -100,7 +101,7 @@
               display: flex;
               align-items: center;
               justify-content: space-between;
-              border: solid 1px white;
+              border: solid 2px $grey2;
               padding: 5px 10px;
               .member-text {
                 margin: 0px 5px;

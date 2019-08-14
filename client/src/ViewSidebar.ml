@@ -259,7 +259,7 @@ let groupCategory (m : model) (groups : group list) : category =
   in
   { count = List.length groups
   ; name = "Groups"
-  ; classname = "groups"
+  ; classname = "group"
   ; plusButton = Some CreateGroup
   ; entries }
 
@@ -288,14 +288,21 @@ let standardCategories m hs dbs ufns tipes groups =
   let groups =
     groups |> TD.values |> List.sortBy ~f:(fun tl -> TL.sortkey (TLGroup tl))
   in
-  [ httpCategory hs
-  ; dbCategory m dbs
-  ; userFunctionCategory m ufns
-  ; userTipeCategory m tipes
-  ; workerCategory hs
-  ; cronCategory hs
-  ; replCategory hs
-  ; groupCategory m groups ]
+  let groupCategory =
+    if VariantTesting.variantIsActive m GroupVariant
+    then [groupCategory m groups]
+    else []
+  in
+  let catergories =
+    [ httpCategory hs
+    ; dbCategory m dbs
+    ; userFunctionCategory m ufns
+    ; userTipeCategory m tipes
+    ; workerCategory hs
+    ; cronCategory hs
+    ; replCategory hs ]
+  in
+  catergories @ groupCategory
 
 
 let deletedCategory (m : model) : category =
