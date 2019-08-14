@@ -824,6 +824,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
     | AddToGroup (gTLID, toplevel) ->
+        (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
         let group = TD.get ~tlid:gTLID m.groups in
         ( match group with
         | Some g ->
@@ -1086,6 +1087,7 @@ let update_ (msg : msg) (m : model) : modification =
               if not (TL.isGroup tl)
               then
                 (* Check if toplevel landed on top of a group *)
+                (* https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
                 let gTlid =
                   Groups.landedInGroup draggingTLID m.groups |> List.head
                 in
@@ -1276,9 +1278,11 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
   | DeleteGroup tlid ->
+      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
       let tl = TL.getExn m tlid in
       Many [RemoveGroup tl]
   | RemoveGroupMember (gTLID, tlid, event) ->
+      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.s138ne3frlh0 *)
       let group = TD.get ~tlid:gTLID m.groups in
       ( match group with
       | Some g ->
