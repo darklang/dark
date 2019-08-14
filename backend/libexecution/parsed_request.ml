@@ -70,7 +70,7 @@ let unparsed_body rb =
 let body_of_fmt ~fmt ~key headers rbody =
   let dval =
     match (body_parser_type headers, rbody) with
-    | fmt, content when String.length content > 0 ->
+    | actualfmt, content when String.length content > 0 && fmt = actualfmt ->
         parser_fn fmt content
     | _ ->
         DNull
