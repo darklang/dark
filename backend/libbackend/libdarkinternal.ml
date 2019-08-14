@@ -964,21 +964,23 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                       then acc
                       else
                         let alist =
-                          let typestring =
+                          let returnType =
+                            Dval.tipe_to_string data.return_type
+                          in
+                          let parameters =
                             data.parameters
-                            |> List.map ~f:(fun p -> p.tipe)
-                            |> List.map ~f:Dval.tipe_to_string
-                            |> String.concat ~sep:", "
-                            |> fun s ->
-                            "("
-                            ^ s
-                            ^ ") -> "
-                            ^ Dval.tipe_to_string data.return_type
+                            |> List.map ~f:(fun p ->
+                                   Dval.to_dobj_exn
+                                     [ ("name", Dval.dstr_of_string_exn p.name)
+                                     ; ( "type"
+                                       , Dval.dstr_of_string_exn
+                                           (Dval.tipe_to_string p.tipe) ) ] )
                           in
                           [ ("name", Dval.dstr_of_string_exn key)
                           ; ( "documentation"
                             , Dval.dstr_of_string_exn data.description )
-                          ; ("typestring", Dval.dstr_of_string_exn typestring)
+                          ; ("parameters", DList parameters)
+                          ; ("returnType", Dval.dstr_of_string_exn returnType)
                           ]
                         in
                         Dval.to_dobj_exn alist :: acc )
