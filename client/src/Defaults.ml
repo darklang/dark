@@ -43,7 +43,8 @@ let defaultFluidState : fluidState =
       ; completions = []
       ; invalidCompletions = []
       ; allCompletions = [] }
-  ; cp = {index = 0; commands = []; location = None; filter = None} }
+  ; cp = {index = 0; commands = []; location = None; filter = None}
+  ; selection = None }
 
 
 let defaultCanvasProps : canvasProps =
