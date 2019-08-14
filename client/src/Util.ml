@@ -256,7 +256,7 @@ module Namer = struct
     let a = Native.Random.range 0 (List.length adjs) in
     match (List.getAt ~index:a adjs, List.getAt ~index:m animals) with
     | Some adj, Some animal ->
-        adj ^ "_" ^ animal
+        adj ^ String.capitalize animal
     | _ ->
         generateFallbackName space
 end
