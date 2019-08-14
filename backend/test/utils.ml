@@ -36,7 +36,7 @@ let clear_test_data () : unit =
   let canvas_ids =
     Db.fetch
       ~params:[Uuid owner]
-      ~name:"lol"
+      ~name:"clear_test_data"
       "SELECT id
        FROM canvases
        WHERE account_id = $1"
@@ -249,6 +249,8 @@ let user_fn name params ast : user_fn =
       ; infix = false } }
 
 
+let fop f = Op.SetFunction f
+
 let user_record name fields : user_tipe =
   {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
 
@@ -284,12 +286,12 @@ let load_test_fn_results (desc : function_desc) (args : dval list) :
   |> Option.map ~f:Tuple2.get2
 
 
-let test_execution_data ?(canvas_name = "test") ops :
+let test_execution_data
+    ?(trace_id = Util.create_uuid ()) ?(canvas_name = "test") ops :
     C.canvas ref * exec_state * input_vars =
   let c = ops2c_exn canvas_name ops in
   let vars = Execution.dbs_as_input_vars (TL.dbs !c.dbs) in
   let canvas_id = !c.id in
-  let trace_id = Util.create_uuid () in
   let state =
     { tlid
     ; account_id = !c.owner
@@ -310,11 +312,16 @@ let test_execution_data ?(canvas_name = "test") ops :
   (c, state, vars)
 
 
-let execute_ops (ops : Op.op list) : dval =
+let execute_ops
+    ?(trace_id = Util.create_uuid ())
+    ?(canvas_name = "test")
+    (ops : Op.op list) : dval =
   let ( c
       , { tlid
         ; load_fn_result
         ; load_fn_arguments
+        ; store_fn_result
+        ; store_fn_arguments
         ; execution_id
         ; dbs
         ; user_fns
@@ -322,7 +329,7 @@ let execute_ops (ops : Op.op list) : dval =
         ; account_id
         ; canvas_id }
       , input_vars ) =
-    test_execution_data ops
+    test_execution_data ~trace_id ops
   in
   let h = !c.handlers |> TL.handlers |> List.hd_exn in
   let result, _ =
@@ -336,6 +343,8 @@ let execute_ops (ops : Op.op list) : dval =
       ~account_id
       ~load_fn_result
       ~load_fn_arguments
+      ~store_fn_result
+      ~store_fn_arguments
       ~canvas_id
       ~input_vars:[]
   in
