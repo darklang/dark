@@ -508,9 +508,16 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     let entries = List.map ~f:(item2html ~hovering:true m) c.entries in
     if c.count = 0 then [] else [Html.div [Html.class' "hover"] entries]
   in
+  (* Make the sidebar icons go back to the architectural view:
+   https://trello.com/c/ajQDbUR2/1490-make-clicking-on-any-structural-sidebar-button-go-back-to-architectural-view-dbs-http-cron-workers-10-10 *)
+  let event =
+    ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+        GoToArchitecturalView )
+  in
   let icon =
     Html.div
-      [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
+      [ event
+      ; Html.classList [("header-icon", true); ("empty", c.count = 0)]
       ; Vdom.attribute "" "role" "img"
       ; Vdom.attribute "" "alt" c.name ]
       (categoryIcon c.classname)
