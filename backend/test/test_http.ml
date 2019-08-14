@@ -308,6 +308,37 @@ let t_parsed_request_cookies () =
     ]
 
 
+let t_parsed_request_bodies () =
+  let formHeader = ("content-type", "application/x-www-form-urlencoded") in
+  let jsonHeader = ("content-type", "application/json") in
+  let parse header body =
+    let response =
+      Parsed_request.from_request (Uri.of_string "test") [header] [] body
+      |> Parsed_request.to_dval
+    in
+    match response with
+    | DObj r ->
+        ( DvalMap.get "jsonBody" r |> Option.value_exn
+        , DvalMap.get "formBody" r |> Option.value_exn )
+    | _ ->
+        Exception.internal "wrong shape"
+  in
+  let expectedObj =
+    Dval.to_dobj_exn [("field1", Dval.dstr_of_string_exn "value1")]
+  in
+  AT.check
+    (AT.pair at_dval at_dval)
+    "form no json"
+    (DNull, expectedObj)
+    (parse formHeader "field1=value1") ;
+  AT.check
+    (AT.pair at_dval at_dval)
+    "json no form"
+    (expectedObj, DNull)
+    (parse jsonHeader "{ \"field1\": \"value1\" }") ;
+  ()
+
+
 let suite =
   [ ( "t_sanitize_uri_path_with_repeated_slashes"
     , `Quick
@@ -357,6 +388,7 @@ let suite =
     , `Quick
     , t_query_params_with_duplicate_keys )
   ; ("Cookies are parsed correctly", `Quick, t_parsed_request_cookies)
+  ; ("Bodies are parsed correctly", `Quick, t_parsed_request_bodies)
   ; ( "Incomplete handler is filtered out safely"
     , `Quick
     , t_incomplete_handler_doesnt_throw ) ]
