@@ -587,6 +587,7 @@ let toDynamicItems
         ; qCronHandler q
         ; qReplHandler q ]
       in
+      (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
       let all =
         if VariantTesting.variantIsActive m GroupVariant
         then qGroup q :: standard

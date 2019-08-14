@@ -68,7 +68,7 @@ let categoryIcon (name : string) : msg Html.html list =
       [fontAwesome "wrench"]
   | "fof" ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
-  | "groups" ->
+  | "group" ->
       [fontAwesome "object-group"]
   | _ ->
       [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
