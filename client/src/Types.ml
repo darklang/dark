@@ -706,6 +706,7 @@ and autocompleteItem =
   | ACHTTPModifier of string
   | ACHTTPRoute of string
   | ACWorkerName of string
+  | ACCronName of string
   | ACCronTiming of string
   | ACEventSpace of string
   | ACDBName of string
