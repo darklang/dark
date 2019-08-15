@@ -272,7 +272,7 @@ let switching_to_http_space_adds_slash (m : model) : testResult =
 let switching_from_default_repl_space_removes_name (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match (spec.space, spec.name, spec.modifier) with
-  | F (_, newSpace), Blank _, _ when newSpace != "REPL" ->
+  | F (_, newSpace), _, _ when newSpace != "REPL" ->
       pass
   | other ->
       fail other
