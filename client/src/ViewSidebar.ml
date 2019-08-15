@@ -26,6 +26,7 @@ and category =
   { count : int
   ; name : string
   ; plusButton : msg option
+  ; iconAction : msg option
   ; classname : string
   ; entries : item list }
 
@@ -76,12 +77,14 @@ let handlerCategory
     (filter : toplevel -> bool)
     (name : string)
     (action : omniAction)
+    (iconAction : msg option)
     (hs : handler list) : category =
   let handlers = hs |> List.filter ~f:(fun h -> filter (TLHandler h)) in
   { count = List.length handlers
   ; name = String.toUpper name
   ; plusButton = Some (CreateRouteHandler action)
   ; classname = String.toLower name
+  ; iconAction
   ; entries =
       List.map handlers ~f:(fun h ->
           let tlid = h.hTLID in
@@ -103,15 +106,25 @@ let handlerCategory
 
 
 let httpCategory (handlers : handler list) : category =
-  handlerCategory TL.isHTTPHandler "HTTP" (NewHTTPHandler None) handlers
+  handlerCategory
+    TL.isHTTPHandler
+    "HTTP"
+    (NewHTTPHandler None)
+    (Some GoToArchitecturalView)
+    handlers
 
 
 let cronCategory (handlers : handler list) : category =
-  handlerCategory TL.isCronHandler "CRON" (NewCronHandler None) handlers
+  handlerCategory
+    TL.isCronHandler
+    "CRON"
+    (NewCronHandler None)
+    (Some GoToArchitecturalView)
+    handlers
 
 
 let replCategory (handlers : handler list) : category =
-  handlerCategory TL.isReplHandler "REPL" (NewReplHandler None) handlers
+  handlerCategory TL.isReplHandler "REPL" (NewReplHandler None) None handlers
 
 
 let workerCategory (handlers : handler list) : category =
@@ -122,6 +135,7 @@ let workerCategory (handlers : handler list) : category =
          TL.isDeprecatedCustomHandler tl )
     "WORKER"
     (NewWorkerHandler None)
+    (Some GoToArchitecturalView)
     handlers
 
 
@@ -154,6 +168,7 @@ let dbCategory (m : model) (dbs : db list) : category =
   ; name = "Datastores"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
+  ; iconAction = Some GoToArchitecturalView
   ; entries }
 
 
@@ -165,6 +180,7 @@ let f404Category (m : model) : category =
   ; name = "404s"
   ; plusButton = None
   ; classname = "fof"
+  ; iconAction = None
   ; entries =
       List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
           Entry
@@ -204,6 +220,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   ; name = "Functions"
   ; classname = "fns"
   ; plusButton = Some CreateFunction
+  ; iconAction = Some GoToArchitecturalView
   ; entries }
 
 
@@ -231,6 +248,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   ; name = "Types"
   ; classname = "types"
   ; plusButton = Some CreateType
+  ; iconAction = None
   ; entries }
 
 
@@ -295,6 +313,7 @@ let deletedCategory (m : model) : category =
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
+  ; iconAction = None
   ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
@@ -508,11 +527,22 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     let entries = List.map ~f:(item2html ~hovering:true m) c.entries in
     if c.count = 0 then [] else [Html.div [Html.class' "hover"] entries]
   in
+  (* Make the sidebar icons go back to the architectural view:
+   https://trello.com/c/ajQDbUR2/1490-make-clicking-on-any-structural-sidebar-button-go-back-to-architectural-view-dbs-http-cron-workers-10-10 *)
+  let event =
+    match c.iconAction with
+    | Some ev ->
+        [ ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
+              ev ) ]
+    | None ->
+        []
+  in
   let icon =
     Html.div
-      [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
-      ; Vdom.attribute "" "role" "img"
-      ; Vdom.attribute "" "alt" c.name ]
+      ( event
+      @ [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
+        ; Vdom.attribute "" "role" "img"
+        ; Vdom.attribute "" "alt" c.name ] )
       (categoryIcon c.classname)
   in
   Html.div
