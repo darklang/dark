@@ -103,6 +103,8 @@ let asName (aci : autocompleteItem) : string =
       name
   | ACWorkerName name ->
       name
+  | ACCronName name ->
+      name
   | ACCronTiming timing ->
       timing
   | ACEventSpace space ->
@@ -169,6 +171,8 @@ let asTypeString (item : autocompleteItem) : string =
       "route"
   | ACWorkerName _ ->
       "worker name"
+  | ACCronName _ ->
+      "cron job"
   | ACCronTiming _ ->
       "interval"
   | ACEventSpace _ ->
@@ -570,10 +574,13 @@ let toDynamicItems
   | Some (_, PField _) ->
       [ACField q]
   | Some (_, PEventName _) ->
-      let isHttpHandler = space = Some HSHTTP in
-      if isHttpHandler
-      then [ACHTTPRoute (cleanHTTPname q)]
-      else [ACWorkerName (cleanEventName q)]
+    ( match space with
+    | Some HSHTTP ->
+        [ACHTTPRoute (cleanHTTPname q)]
+    | Some HSCron ->
+        [ACCronName (cleanEventName q)]
+    | _ ->
+        [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
@@ -1047,6 +1054,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some "An expression"
   | ACWorkerName name ->
       Some ("Respond to workers named " ^ name)
+  | ACCronName name ->
+      Some ("Respond to CRON jobs named " ^ name)
   | ACHTTPRoute name ->
       Some ("Handle HTTP requests made to " ^ name)
   | ACDBName name ->
