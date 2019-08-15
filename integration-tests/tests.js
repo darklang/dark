@@ -1056,6 +1056,29 @@ test("extract_from_function", async t => {
     .pressKey("enter");
 });
 
+test("fluid_double_click_selects_token", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 3 });
+});
+
+test("fluid_double_click_with_alt_selects_expression", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .doubleClick(Selector(".fluid-match-keyword"), {
+      caretPos: 3,
+      modifiers: { alt: true },
+    });
+});
+
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
