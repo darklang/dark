@@ -549,7 +549,7 @@ let submitACItem
             else wrapID [ChangeDBColName (tlid, id, value)]
         | PVarBind _, ACVarBind varName ->
             replace (PVarBind (B.newF varName))
-        | PEventName _, ACEventName value ->
+        | PEventName _, ACHTTPRoute value | PEventName _, ACWorkerName value ->
             replace (PEventName (B.newF value))
         (* allow arbitrary HTTP modifiers *)
         | PEventModifier _, ACHTTPModifier value
