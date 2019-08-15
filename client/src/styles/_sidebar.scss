@@ -517,6 +517,14 @@ $prodColor: black;
   .default-link.unused {
     color: $grey2;
   }
+
+  .default-link.selected-entry {
+    color: $blue;
+  }
+
+  .default-link.selected-entry:hover {
+    color: saturate($blue, 30%);
+  }
 }
 
 .sidebar-section.deploys,
