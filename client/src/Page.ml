@@ -50,14 +50,14 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model =
   match (oldPage, newPage) with
-  | Architecture, FocusedFn _
-  | FocusedHandler _, FocusedFn _
-  | FocusedDB _, FocusedFn _
-  | FocusedGroup _, FocusedFn _
-  | Architecture, FocusedType _
-  | FocusedHandler _, FocusedType _
-  | FocusedDB _, FocusedType _
-  | FocusedGroup _, FocusedType _ ->
+  | Architecture, FocusedFn tlid
+  | FocusedHandler _, FocusedFn tlid
+  | FocusedDB _, FocusedFn tlid
+  | FocusedGroup _, FocusedFn tlid
+  | Architecture, FocusedType tlid
+  | FocusedHandler _, FocusedType tlid
+  | FocusedDB _, FocusedType tlid
+  | FocusedGroup _, FocusedType tlid ->
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
@@ -66,7 +66,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       ; canvasProps =
           { m.canvasProps with
             lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
-      ; cursorState = Deselected }
+      ; cursorState = Selecting (tlid, None) }
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
   | FocusedFn oldtlid, FocusedType newtlid
@@ -81,7 +81,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         { m with
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-        ; cursorState = Deselected }
+        ; cursorState = Selecting (newtlid, None) }
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
