@@ -195,7 +195,7 @@ let deleting_selects_the_blank (m : model) : testResult =
 
 let right_number_of_blanks (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "assoc"), [Blank _; Blank _; Blank _], _) ->
+  | FnCall (F (_, "Dict::set"), [Blank _; Blank _; Blank _], _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -284,70 +284,6 @@ let tabbing_through_let (m : model) : testResult =
       pass
   | e ->
       fail ~f:show_nExpr e
-
-
-let case_sensitivity (m : model) : testResult =
-  let tls = TL.all m in
-  if TD.count tls <> 3
-  then fail ~f:showToplevels tls
-  else
-    tls
-    |> TD.mapValues ~f:(fun tl ->
-           match tl with
-           | TLDB {dbName; cols} ->
-             ( match (dbName, cols) with
-             | ( F (_, "TestUnicode")
-               , [(F (_, "cOlUmNnAmE"), F (_, "Str")); (Blank _, Blank _)] ) ->
-                 pass
-             | other ->
-                 fail other )
-           | TLHandler h ->
-             ( match h.ast with
-             | F
-                 ( _
-                 , Thread
-                     [ F (_, Value "{}")
-                     ; F
-                         ( _
-                         , FnCall
-                             ( F (_, "assoc")
-                             , [ F (_, Value "\"cOlUmNnAmE\"")
-                               ; F (_, Value "\"some value\"") ]
-                             , _ ) )
-                     ; F
-                         ( _
-                         , FnCall
-                             ( F (_, "DB::insert")
-                             , [F (_, Variable "TestUnicode")]
-                             , _ ) ) ] ) ->
-                 pass
-             | F
-                 ( id
-                 , Thread
-                     [ F (_, Variable "TestUnicode")
-                     ; F (_, FnCall (F (_, "DB::fetchAll"), [], _))
-                     ; F (_, FnCall (F (_, "List::head"), [], _))
-                     ; F
-                         ( _
-                         , Lambda
-                             ( [F (_, "var")]
-                             , F
-                                 ( _
-                                 , FieldAccess
-                                     ( F (_, Variable "var")
-                                     , F (_, "cOlUmNnAmE") ) ) ) ) ] ) ->
-                 Analysis.getCurrentLiveValue m (TL.id tl) id
-                 |> Option.map ~f:(fun lv ->
-                        if lv = DStr "some value"
-                        then pass
-                        else fail ~f:show_dval lv )
-                 |> Option.withDefault ~default:(fail ~f:show_expr h.ast)
-             | _ ->
-                 fail ~f:show_expr h.ast )
-           | other ->
-               fail ~f:show_toplevel other )
-    |> Result.combine
-    |> Result.map (fun _ -> ())
 
 
 let focus_on_ast_in_new_empty_tl (m : model) : testResult =
@@ -848,8 +784,6 @@ let trigger (test_name : string) : integrationTestState =
         switching_from_default_repl_space_removes_name
     | "tabbing_through_let" ->
         tabbing_through_let
-    | "case_sensitivity" ->
-        case_sensitivity
     | "focus_on_ast_in_new_empty_tl" ->
         focus_on_ast_in_new_empty_tl
     | "focus_on_cond_in_new_tl_with_if" ->

@@ -171,4 +171,32 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Dict::set"]
+    ; ins = []
+    ; p = [par "dict" TObj; par "key" TStr; par "val" TAny]
+    ; r = TObj
+    ; d = "Return a copy of `dict` with the `key` set to `val`."
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DStr k; v] ->
+              DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Dict::remove"]
+    ; ins = []
+    ; p = [par "dict" TObj; par "key" TStr]
+    ; r = TObj
+    ; d = "Return a copy of `dict` with `key` unset."
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DStr k] ->
+              DObj (Map.remove o (Unicode_string.to_string k))
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
