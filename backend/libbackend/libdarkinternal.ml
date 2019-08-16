@@ -152,7 +152,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
   ; { pns = ["DarkInternal::upsertUser_v1"]
     ; ins = []
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
-    ; r = TStr
+    ; r = TResult
     ; d =
         "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
     ; f =
