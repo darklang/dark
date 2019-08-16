@@ -320,13 +320,6 @@ let upsert_admins () : unit =
     ; email = "ellen@darklang.com"
     ; name = "Ellen Chisa" } ;
   upsert_admin_exn
-    { username = "stefi"
-    ; password =
-        Password.from_hash
-          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkKzIyM3lwOWU4ZzdvOVFWN1RtbnpYQSQ2b0VsdTBLU0JzendBR3FDb1FUQVoyVGNlcERDaUZ4OE9haFRWbzZMTk9VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    ; email = "stefi@darklang.com"
-    ; name = "Stefi Petit" } ;
-  upsert_admin_exn
     { username = "alice"
     ; password =
         Password.from_hash
