@@ -905,8 +905,8 @@ let () =
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (press (K.Letter '\\') 23)
-        ("Dict::map ____________ \\key, value -> ___", 24) ;
+        (press (K.Letter '\\') 24)
+        ("Dict::map _____________ \\key, value -> ___", 25) ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
         (EThread (gid (), [b (); b ()]))
