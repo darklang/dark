@@ -27,7 +27,7 @@ let rec tipe2str (t : tipe) : string =
   | TList ->
       "List"
   | TObj ->
-      "Obj"
+      "Dict"
   | TBlock ->
       "Block"
   | TIncomplete ->
@@ -103,6 +103,8 @@ let str2tipe (t : string) : tipe =
         TError
     | "nothing" ->
         TNull
+    | "dict" ->
+        TObj
     | other ->
         impossible ("invalid type in str2tipe: " ^ other)
   in
@@ -153,6 +155,8 @@ let str2tipe (t : string) : tipe =
       TUuid
   | "nothing" ->
       TNull
+  | "dict" ->
+      TObj
   | other ->
       if String.startsWith ~prefix:"[" other
          && String.endsWith ~suffix:"]" other

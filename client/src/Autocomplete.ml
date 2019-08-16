@@ -730,7 +730,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACEventSpace "REPL" ]
       | DBColType ->
           let builtins =
-            ["String"; "Int"; "Boolean"; "Float"; "Password"; "Date"; "UUID"]
+            [ "String"
+            ; "Int"
+            ; "Boolean"
+            ; "Float"
+            ; "Password"
+            ; "Date"
+            ; "UUID"
+            ; "Dict" ]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
@@ -1109,7 +1116,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
 
 
 (* Checks to see if autocomplete or command palette is opened
- * but not omnibox since it's not scrollable 
+ * but not omnibox since it's not scrollable
 *)
 let isOpened (ac : autocomplete) : bool =
   Option.isSome ac.target || ac.isCommandMode
