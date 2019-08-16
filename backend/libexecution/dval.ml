@@ -35,7 +35,7 @@ let rec tipe_to_string t : string =
   | TList ->
       "List"
   | TObj ->
-      "Obj"
+      "Dict"
   | TBlock ->
       "Block"
   | TIncomplete ->
@@ -125,6 +125,8 @@ let rec tipe_of_string str : tipe =
       TErrorRail
   | "result" ->
       TResult
+  | "dict" ->
+      TObj
   | _ ->
       (* otherwise *)
       if String.is_prefix str "[" && String.is_suffix str "]"
@@ -156,6 +158,8 @@ and parse_list_tipe (list_tipe : string) : tipe =
       TDbList TPassword
   | "uuid" ->
       TDbList TUuid
+  | "dict" ->
+      TDbList TObj
   | "obj" ->
       Exception.internal "todo"
   | "block" ->
