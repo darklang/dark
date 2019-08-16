@@ -2,6 +2,9 @@ open Tc
 open Types
 open Prelude
 
+(* Tea *)
+module Cmd = Tea.Cmd
+
 (* Dark *)
 module B = Blank
 module P = Pointer
@@ -25,6 +28,17 @@ let fromList (groups : group list) : group TLIDDict.t =
 
 let upsert (m : model) (g : group) : model =
   {m with groups = TD.insert ~tlid:g.gTLID ~value:g m.groups}
+
+
+let addToGroup (m : model) (gTLID : tlid) (tlid : tlid) : model * msg Cmd.t =
+  let group = TD.get ~tlid:gTLID m.groups in
+  match group with
+  | Some g ->
+      let newGroup = {g with members = [tlid] @ g.members} in
+      let newMod = upsert m newGroup in
+      (newMod, Cmd.none)
+  | None ->
+      (m, Cmd.none)
 
 
 let generateGroupName (_ : unit) : string =
