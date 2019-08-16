@@ -82,14 +82,6 @@ let t_permission_ord_instance () =
 let t_account_validation_works () =
   let check_result = AT.check (AT.result AT.unit AT.string) in
   check_result
-    "validate_password"
-    (Error "Invalid password for user 'test', must be at least 8 characters")
-    (Account.Testing.validate_password ~username:"test" "") ;
-  check_result
-    "short password"
-    (Error "Invalid password for user '', must be at least 8 characters")
-    (Account.Testing.validate_password ~username:"" "mypass") ;
-  check_result
     "validate_email"
     (Error "Invalid email 'novalidemail'")
     (Account.Testing.validate_email "novalidemail") ;
@@ -125,10 +117,6 @@ let t_account_validation_works () =
     "normal"
     (Ok ())
     (Account.Testing.validate_username "myusername09") ;
-  check_result
-    "password"
-    (Ok ())
-    (Account.Testing.validate_password ~username:"" "mypassword") ;
   check_result "paul" (Ok ()) (Account.Testing.validate_username "paul") ;
   check_result
     "email"

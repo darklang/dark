@@ -1,6 +1,6 @@
 open Core_kernel
 module Util = Libexecution.Util
-module Account = Libbackend.Account
+module Password = Libbackend.Password
 
 let usage () =
   Format.printf "Usage: %s [--prompt-for-password]\n" Sys.argv.(0) ;
@@ -32,7 +32,7 @@ let () =
   in
   let email = prompt "Email: " in
   let name = prompt "Name: " in
-  let hashed = Account.hash_password password in
+  let hashed = Password.from_plaintext password |> Password.to_bytes in
   (* print out the new entry for account.ml *)
   Format.printf
     "
@@ -40,7 +40,7 @@ let () =
      Insert everything after this into backend/libbackend/account.ml *)\n
   upsert_account
     { username = \"%s\"
-    ; password = \"%s\"
+    ; password = Password.from_hash \"%s\"
     ; email = \"%s\"
     ; name = \"%s\"};\n\n"
     password
