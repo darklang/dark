@@ -90,7 +90,7 @@ let validate_email (email : string) : (unit, string) Result.t =
 
 let validate_account (account : account) : (unit, string) Result.t =
   validate_username account.username
-  |> Prelude.Result.or_ (validate_email account.email)
+  |> Prelude.Result.and_ (validate_email account.email)
 
 
 let upsert_account ?(validate : bool = true) (account : account) :
