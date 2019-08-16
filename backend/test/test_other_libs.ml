@@ -303,6 +303,19 @@ let t_date_functions_work () =
   ()
 
 
+let t_internal_functions () =
+  Libbackend.Account.set_admin "test" true ;
+  check_dval
+    "We should get an error on failed validation"
+    (DResult
+       (ResError
+          (Dval.dstr_of_string_exn
+             "Invalid username 'Name with space', must match /^[a-z][a-z0-9_]{2,20}$/")))
+    (exec_ast
+       "(DarkInternal::upsertUser_v1 'Name with space' 'valid@email.com' 'accidentalusername')") ;
+  ()
+
+
 let t_old_functions_deprecated () =
   let counts = ref StrDict.empty in
   List.iter (Core.String.Map.to_alist !Libs.static_fns) ~f:(fun (name, fn) ->
@@ -330,4 +343,5 @@ let suite =
     , t_password_hashing_and_checking_works )
   ; ("JWT lib works.", `Quick, t_jwt_functions_work)
   ; ("Date lib works", `Quick, t_date_functions_work)
-  ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated) ]
+  ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
+  ; ("Internal functions work", `Quick, t_internal_functions) ]

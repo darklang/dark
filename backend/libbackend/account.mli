@@ -11,9 +11,6 @@ type user_info =
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
 
-(* hash a password to the format expected in account documents. *)
-val hash_password : string -> string
-
 val can_access_operations : username:string -> bool
 
 (* For a host, what user do we expect *)
@@ -63,8 +60,6 @@ val user_info_to_yojson : user_info -> Yojson.Safe.t
 
 module Testing : sig
   val validate_username : string -> (unit, string) Result.t
-
-  val validate_password : username:string -> string -> (unit, string) Result.t
 
   val validate_email : string -> (unit, string) Result.t
 end
