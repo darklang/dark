@@ -1743,7 +1743,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection selection ->
+  | UpdateFluidSelection (selection, clipboard) ->
       TweakModel
         (fun m ->
           match selection with
@@ -1755,7 +1755,8 @@ let update_ (msg : msg) (m : model) : modification =
                   { m.fluidState with
                     selection
                   ; oldPos = m.fluidState.newPos
-                  ; newPos = s.range |> Tuple2.second } }
+                  ; newPos = s.range |> Tuple2.second
+                  ; clipboard } }
           | None ->
               m )
   | ResetToast ->
