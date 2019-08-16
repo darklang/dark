@@ -1622,9 +1622,8 @@ let update_ (msg : msg) (m : model) : modification =
       and genName = DB.generateDBName () in
       DB.createDB genName center
   | CreateGroup ->
-      let center = findCenter m
-      and genName = Groups.generateGroupName () in
-      Groups.createEmptyGroup genName center
+      let center = findCenter m in
+      Groups.createEmptyGroup None center
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
