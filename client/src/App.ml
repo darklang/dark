@@ -23,21 +23,6 @@ let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
     avatars
 
 
-let createBrowserId : string =
-  BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
-
-
-let manageBrowserId : string =
-  (* Setting the browser id in session storage so it is stored per tab *)
-  match Dom.Storage.getItem "browserId" Dom.Storage.sessionStorage with
-  | Some browserId ->
-      browserId
-  | None ->
-      let newBrowserId = createBrowserId in
-      Dom.Storage.setItem "browserId" newBrowserId Dom.Storage.sessionStorage ;
-      newBrowserId
-
-
 let filterOpsAndResult
     (m : model) (params : addOpRPCParams) (result : addOpRPCResult option) :
     model * op list * addOpRPCResult option =
@@ -122,7 +107,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; origin = location.origin
     ; environment
     ; csrfToken
-    ; browserId = manageBrowserId
+    ; browserId = BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
     ; isAdmin
     ; buildHash }
   in
