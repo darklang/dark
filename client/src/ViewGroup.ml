@@ -20,7 +20,7 @@ let wc = ViewBlankOr.wc
 
 (* Spec for group views: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.isw58ukngvvf *)
 
-let blankOr2String (name : dbName blankOr) : dbName =
+let blankOr2String (name : string blankOr) : string =
   B.valueWithDefault "" name
 
 
