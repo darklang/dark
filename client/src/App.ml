@@ -823,25 +823,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearHover (tlid, id) ->
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
-    | AddToGroup (gTLID, toplevel) ->
+    | AddToGroup (gTLID, tlid) ->
         (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
-        let group = TD.get ~tlid:gTLID m.groups in
-        ( match group with
-        | Some g ->
-            let newMemberTlid =
-              match toplevel with
-              | TLHandler h ->
-                  h.hTLID
-              | TLDB b ->
-                  b.dbTLID
-              | _ ->
-                  impossible "cannot add any other type of handler"
-            in
-            let newGroup = {g with members = [newMemberTlid] @ g.members} in
-            let newMod = Groups.upsert m newGroup in
-            (newMod, Cmd.none)
-        | None ->
-            impossible "impossible" )
+        let newMod, newCmd = Groups.addToGroup m gTLID tlid in
+        (newMod, newCmd)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1093,7 +1078,9 @@ let update_ (msg : msg) (m : model) : modification =
                 in
                 match gTlid with
                 | Some tlid ->
-                    Many [SetCursorState origCursorState; AddToGroup (tlid, tl)]
+                    Many
+                      [ SetCursorState origCursorState
+                      ; AddToGroup (tlid, draggingTLID) ]
                 | None ->
                     Many
                       [ SetCursorState origCursorState
@@ -1300,11 +1287,10 @@ let update_ (msg : msg) (m : model) : modification =
                 (* Check if the new pos is in another group *)
                 ( match gTlid with
                 | Some gTlid ->
-                    let tl = TL.getExn m tlid in
                     Many
                       [ TweakModel (fun _m -> newMod)
                       ; SetCursorState origCursorState
-                      ; AddToGroup (gTlid, tl) ]
+                      ; AddToGroup (gTlid, tlid) ]
                 | None ->
                     (* update the toplevel pos with the curent event position  *)
                     Many
