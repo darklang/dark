@@ -3733,25 +3733,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     else impossible "string bool token should always be convertable to bool"
   in
   let toTokenDict ?(prefixIDs = false) toks =
-    (* List.map toks ~f:(fun t -> (FluidToken.tid t, t)) |> StrDict.fromList*)
     (* optionally prefix token names with their ID's to deduplicate between tokens in a compund expression e.g. ++ binops in a compound string concatenation *)
     List.map toks ~f:(fun (ID id, text, name) ->
         ((if prefixIDs then id ^ "-" ^ name else name), text) )
     |> StrDict.fromList
-  in
-  let topmostIDinSelection (tokens : fluidToken list) (ast : ast) : id option =
-    tokens
-    |> List.foldl ~init:None ~f:(fun t id ->
-           let tID = FluidToken.tid t in
-           let within =
-             findExpr tID ast
-             |> Option.map ~f:(toExpr ~inThread:false)
-             |> Option.andThen ~f:Blank.asF
-             |> Option.map ~f:(fun e ->
-                    match id with Some id -> AST.within e id | None -> true )
-             |> Option.withDefault ~default:false
-           in
-           if not within then Some tID else id )
+    (* List.map toks ~f:(fun t -> (FluidToken.tid t, t)) |> StrDict.fromList*)
   in
   let tokensInRange startPos endPos : fluidToken list =
     toTokens state ast
@@ -3765,21 +3751,22 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
   in
   let startPos, endPos = sel.range in
   (* main main recursive algorith *)
-  let rec reconstruct ?(topmostID = None) (startPos, endPos) : fluidExpr =
-    let topmostID =
-      Option.or_
-        topmostID
-        (topmostIDinSelection (tokensInRange startPos endPos) ast)
-    in
+  let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr =
+    Js.log2 "topmostID: " topmostID ;
     let topmostExpr =
       topmostID
       |> Option.andThen ~f:(fun id -> findExpr id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
+    Js.log2 "topmostExpr: " (eToString state topmostExpr) ;
     let toks =
       tokensInRange startPos endPos
       |> List.map ~f:(fun t -> FluidToken.(tid t, toText t, toTypeName t))
     in
+    Js.log2
+      "tokensInRange: "
+      ( List.map ~f:Token.toText (tokensInRange startPos endPos)
+      |> String.join ~sep:"" ) ;
     let reconstructExpr expr : fluidExpr option =
       let exprID = eid expr in
       exprRangeInAst ~state ~ast exprID
@@ -4058,7 +4045,10 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     | _, _ ->
         EBlank (gid ())
   in
-  Some (reconstruct (startPos, endPos))
+  let topmostID =
+    tokensInRange startPos endPos |> List.head |> Option.map ~f:Token.tid
+  in
+  Some (reconstruct ~topmostID (startPos, endPos))
 
 
 let toHtml
@@ -4248,7 +4238,12 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         ; Html.text
             ( s.selection
             |> Option.map ~f:(fun {range = a, b} ->
-                   string_of_int a ^ "->" ^ string_of_int b )
+                   string_of_int a ^ "->" ^ string_of_int b ) ) ]
+    ; Html.div
+        []
+        [ Html.text "clipboard: "
+        ; Html.text
+            ( Option.map s.clipboard ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
