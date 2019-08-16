@@ -82,7 +82,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["dissoc"]
     ; ins = []
     ; p = [par "obj" TObj; par "key" TStr]
@@ -96,7 +96,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["toForm"]
     ; ins = []
     ; p = [par "obj" TObj; par "submit" TStr]

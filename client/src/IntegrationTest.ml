@@ -195,7 +195,7 @@ let deleting_selects_the_blank (m : model) : testResult =
 
 let right_number_of_blanks (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "assoc"), [Blank _; Blank _; Blank _], _) ->
+  | FnCall (F (_, "Dict::set"), [Blank _; Blank _; Blank _], _) ->
       pass
   | e ->
       fail ~f:show_nExpr e

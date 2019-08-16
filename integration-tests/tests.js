@@ -438,7 +438,7 @@ test("deleting_selects_the_blank", async t => {
 
 test("right_number_of_blanks", async t => {
   await createRepl(t);
-  await t.typeText("#entry-box", "assoc").pressKey("enter");
+  await t.typeText("#entry-box", "Dict::set").pressKey("enter");
 });
 
 // This is how Ellen demos, and should be kept in sync with that if she
