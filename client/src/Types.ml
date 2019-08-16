@@ -1021,7 +1021,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of fluidSelection option
+  | UpdateFluidSelection of fluidSelection option * fluidExpr option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1282,7 +1282,8 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selection : fluidSelection option }
+  ; selection : fluidSelection option
+  ; clipboard : fluidExpr option }
 
 (* Avatars *)
 and avatar =
