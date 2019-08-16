@@ -149,6 +149,8 @@ and type_check db (obj : dval_map) : dval_map =
             value
         | TUuid, DUuid _ ->
             value
+        | TObj, DObj _ ->
+            value
         | _, DNull ->
             value (* allow nulls for now *)
         | expected_type, value_of_actual_type ->
