@@ -45,7 +45,8 @@ let generateGroupName (_ : unit) : string =
   "Group_" ^ (() |> Util.random |> string_of_int)
 
 
-let createEmptyGroup (name : string) (pos : pos) : modification =
+let createEmptyGroup (name : string option) (pos : pos) : modification =
+  let name = match name with Some n -> n | None -> generateGroupName () in
   let tlid = Prelude.gtlid () in
   let nameid = Prelude.gid () in
   let group = {gName = F (nameid, name); members = []; gTLID = tlid; pos} in
