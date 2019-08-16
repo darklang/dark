@@ -914,17 +914,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
     | NewGroup group ->
         (* This code is temp while we work on FE *)
-        let nameAlreadyUsed =
-          let allNames =
-            m.groups
-            |> TLIDDict.mapValues ~f:(fun group -> group.gName)
-            |> List.filterMap ~f:Blank.toMaybe
-          in
-          List.member
-            ~value:
-              (group.gName |> Blank.toMaybe |> Option.withDefault ~default:"")
-            allNames
-        in
+        let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
         if nameAlreadyUsed
         then (m, Cmd.none)
         else
@@ -936,6 +926,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
+    | RemoveTLFromGroup (tlid, g) ->
+        let newMod = Groups.upsert m g in
+        ( {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups}
+        , Cmd.none )
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1248,10 +1242,7 @@ let update_ (msg : msg) (m : model) : modification =
       let group = Groups.isFromDeletedGroup m tlid in
       ( match group with
       | Some g ->
-          let newMod = Groups.upsert m g in
-          TweakModel
-            (fun _ ->
-              {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups} )
+          RemoveTLFromGroup (tlid, g)
       | None ->
           RPC ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->

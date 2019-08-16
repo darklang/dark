@@ -18,8 +18,7 @@ let remove (m : model) (g : group) : model =
 
 (* Temporary to check if tlid is a deletedGroup *)
 let isFromDeletedGroup (m : model) (tlid : tlid) : group option =
-  let deletedGroupTLIDs = TD.get ~tlid m.deletedGroups in
-  deletedGroupTLIDs
+  TD.get ~tlid m.deletedGroups
 
 
 let fromList (groups : group list) : group TLIDDict.t =
@@ -41,6 +40,17 @@ let addToGroup (m : model) (gTLID : tlid) (tlid : tlid) : model * msg Cmd.t =
       (m, Cmd.none)
 
 
+let isGroupNameUnique (group : group) (groups : group TLIDDict.t) : bool =
+  let allNames =
+    groups
+    |> TD.filterMapValues ~f:(fun g ->
+           match g.gName with Blank _ -> None | F (_, name) -> Some name )
+  in
+  List.member
+    ~value:(group.gName |> Blank.toMaybe |> Option.withDefault ~default:"")
+    allNames
+
+
 let generateGroupName (_ : unit) : string =
   "Group_" ^ (() |> Util.random |> string_of_int)
 
@@ -53,12 +63,10 @@ let createEmptyGroup (name : string option) (pos : pos) : modification =
   Many [NewGroup group; Deselect]
 
 
-let isNotInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
+let isInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
   groups
-  |> TLIDDict.mapValues ~f:(fun group -> group)
-  |> List.filter ~f:(fun g -> List.member ~value:tlid g.members)
-  |> List.length
-  == 0
+  |> TLIDDict.values
+  |> List.any ~f:(fun g -> List.member ~value:tlid g.members)
 
 
 let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =

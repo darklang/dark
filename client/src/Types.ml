@@ -899,6 +899,7 @@ and modification =
   | ExpireAvatars
   | NewGroup of group
   | AddToGroup of tlid * tlid
+  | RemoveTLFromGroup of tlid * group
 
 (* ------------------- *)
 (* Msgs *)
