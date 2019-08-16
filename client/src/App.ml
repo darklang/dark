@@ -1099,7 +1099,8 @@ let update_ (msg : msg) (m : model) : modification =
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
-        ; ExecutingFunctionRPC (tlid, id, name) ]
+        ; ExecutingFunctionRPC (tlid, id, name)
+        ; Select (tlid, Some id) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
