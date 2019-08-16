@@ -1,7 +1,7 @@
 # How to add users
 
-To add customers/users, go to https://darklang.com/a/ops, and call
-`DarkInternal::upsertUser`.
+Go to https://ops-adduser.builtwithdark.com/gmail-oauth-login
 
-To add admins (contractors, employees), follow the instructions in the README.
+To change admins, go to https://darklang.com/a/ops-adduser and call DarkInternal::setAdmin.
+
 
