@@ -154,7 +154,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
     ; r = TResult
     ; d =
-        "Add a user. Returns a password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
+        "Add a user. Returns a result containing the password for the user, which was randomly generated. Usernames are unique: if you add the same username multiple times, it will overwrite the old settings (useful for changing password)."
     ; f =
         internal_fn (function
             | _, [DStr username; DStr email; DStr name] ->

@@ -31,6 +31,18 @@ module Result = struct
     match rb with Error _ -> ra | Ok _ -> rb
 
 
+  let and_ (ra : ('a, 'b) t) (rb : ('a, 'b) t) : ('a, 'b) t =
+    match (ra, rb) with
+    | Ok a, Ok _ ->
+        Ok a
+    | Ok _, Error b ->
+        Error b
+    | Error a, Ok _ ->
+        Error a
+    | Error a, Error _ ->
+        Error a
+
+
   let ok_or_internal_exception (msg : string) (t : (string, 'a) t) : 'a =
     match t with
     | Ok a ->
