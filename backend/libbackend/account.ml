@@ -53,7 +53,7 @@ type username = string [@@deriving yojson]
 
 type account =
   { username : username
-  ; password : string
+  ; password : Password.t
   ; email : string
   ; name : string }
 
@@ -80,18 +80,6 @@ let validate_username (username : string) : (unit, string) Result.t =
       ^ "', must match /^[a-z][a-z0-9_]{2,20}$/" )
 
 
-let validate_password ~(username : string) (password : string) :
-    (unit, string) Result.t =
-  (* rules: must be at least 8 characters *)
-  if String.length password > 8
-  then Ok ()
-  else
-    Error
-      ( "Invalid password for user '"
-      ^ username
-      ^ "', must be at least 8 characters" )
-
-
 let validate_email (email : string) : (unit, string) Result.t =
   (* just checking it's roughly the shape of an email *)
   let regex = Re2.create_exn ".+@.+\\..+" in
@@ -103,8 +91,6 @@ let validate_email (email : string) : (unit, string) Result.t =
 let validate_account (account : account) : (unit, string) Result.t =
   validate_username account.username
   |> Prelude.Result.or_ (validate_email account.email)
-  |> Prelude.Result.or_
-       (validate_password ~username:account.username account.password)
 
 
 let upsert_account ?(validate : bool = true) (account : account) :
@@ -128,7 +114,7 @@ let upsert_account ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String account.password ] )
+          ; String (Password.to_bytes account.password) ] )
 
 
 let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
@@ -156,7 +142,7 @@ let upsert_admin ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String account.password ] )
+          ; String (Password.to_bytes account.password) ] )
 
 
 let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
@@ -251,15 +237,6 @@ let authenticate ~(username : username) ~(password : string) : bool =
   valid_user ~username ~password
 
 
-let hash_password password =
-  password
-  |> Bytes.of_string
-  |> Hash.wipe_to_password
-  |> Hash.hash_password Sodium.Password_hash.interactive
-  |> Bytes.to_string
-  |> B64.encode
-
-
 let owner ~(auth_domain : string) : Uuidm.t option =
   let auth_domain = String.lowercase auth_domain in
   if List.mem banned_usernames auth_domain ~equal:( = )
@@ -296,7 +273,7 @@ let for_host_exn (host : string) : Uuidm.t =
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
     (string, string) Result.t =
   let plaintext = Util.random_string 16 in
-  let password = hash_password plaintext in
+  let password = Password.from_plaintext plaintext in
   upsert_account {username; email; name; password}
   |> Result.map ~f:(fun () -> plaintext)
 
@@ -304,17 +281,17 @@ let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
 let init_testing () : unit =
   upsert_account_exn
     { username = "test_unhashed"
-    ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; password = Password.from_hash "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password" } ;
   upsert_account_exn
     { username = "test"
-    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests" } ;
   upsert_admin_exn
     { username = "test_admin"
-    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Test Admin" } ;
   ()
@@ -324,49 +301,57 @@ let upsert_admins () : unit =
   upsert_admin_exn
     { username = "ian"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ian@darklang.com"
     ; name = "Ian Connolly" } ;
   upsert_admin_exn
     { username = "paul"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "paul@darklang.com"
     ; name = "Paul Biggar" } ;
   upsert_admin_exn
     { username = "ellen"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ellen@darklang.com"
     ; name = "Ellen Chisa" } ;
   upsert_admin_exn
     { username = "stefi"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkKzIyM3lwOWU4ZzdvOVFWN1RtbnpYQSQ2b0VsdTBLU0JzendBR3FDb1FUQVoyVGNlcERDaUZ4OE9haFRWbzZMTk9VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkKzIyM3lwOWU4ZzdvOVFWN1RtbnpYQSQ2b0VsdTBLU0JzendBR3FDb1FUQVoyVGNlcERDaUZ4OE9haFRWbzZMTk9VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "stefi@darklang.com"
     ; name = "Stefi Petit" } ;
   upsert_admin_exn
     { username = "alice"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "alice@darklang.com"
     ; name = "Alice Wong" } ;
   upsert_admin_exn
     { username = "ismith"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ismith@darklang.com"
     ; name = "Ian Smith" } ;
   upsert_admin_exn
     { username = "sydney"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
     ; name = "Sydney Noteboom" } ;
   upsert_admin_exn
     { username = "korede"
     ; password =
-        "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "korede@darklang.com"
     ; name = "Korede" } ;
   (* dark contractors *)
@@ -385,7 +370,7 @@ let upsert_useful_canvases () : unit =
   upsert_admin_exn
     ~validate:false
     { username = "sample"
-    ; password = ""
+    ; password = Password.invalid
     ; email = "nouser@example.com"
     ; name = "Sample Owner" }
 
@@ -397,8 +382,7 @@ let upsert_banned_accounts () : unit =
            upsert_account_exn
              ~validate:false
              { username
-             ; password =
-                 "" (* empty string isn't a valid hash, so can't login *)
+             ; password = Password.invalid
              ; email = "ops@darklang.com"
              ; name = "Disallowed account" } ) ) ;
   ()
@@ -418,6 +402,4 @@ module Testing = struct
   let validate_username = validate_username
 
   let validate_email = validate_email
-
-  let validate_password = validate_password
 end
