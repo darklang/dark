@@ -41,6 +41,13 @@ $pipe-color: $blue;
   }
 }
 
+@mixin is-dragging() {
+  &:active {
+    cursor: grabbing;
+    cursor: -moz-grabbing;
+    cursor: -webkit-grabbing;
+  }
+}
 .highlighted-indent {
   margin-left: $spacing-medium;
   padding-left: $spacing-medium;

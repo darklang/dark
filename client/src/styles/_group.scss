@@ -1,11 +1,7 @@
 .grouping-variant {
   // Todo: move to ast css file
   .toplevel {
-    &:active {
-      cursor: grabbing;
-      cursor: -moz-grabbing;
-      cursor: -webkit-grabbing;
-    }
+    @include is-dragging();
   }
   .toplevel.group {
     background: rgba(56, 56, 56, 0.8);
