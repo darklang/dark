@@ -1067,6 +1067,7 @@ let rec sym_exec
               sexe st rhs ;
               SymSet.add st ~value:name
           | Blank _ ->
+              sexe st rhs ;
               st
         in
         sexe bound body
