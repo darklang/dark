@@ -103,6 +103,8 @@ let asName (aci : autocompleteItem) : string =
       name
   | ACWorkerName name ->
       name
+  | ACReplName name ->
+      name
   | ACCronName name ->
       name
   | ACCronTiming timing ->
@@ -171,6 +173,8 @@ let asTypeString (item : autocompleteItem) : string =
       "route"
   | ACWorkerName _ ->
       "worker name"
+  | ACReplName _ ->
+      "REPL name"
   | ACCronName _ ->
       "cron job"
   | ACCronTiming _ ->
@@ -579,6 +583,8 @@ let toDynamicItems
         [ACHTTPRoute (cleanHTTPname q)]
     | Some HSCron ->
         [ACCronName (cleanEventName q)]
+    | Some HSRepl ->
+        [ACReplName (cleanEventName q)]
     | _ ->
         [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
@@ -1052,10 +1058,12 @@ let documentationForItem (aci : autocompleteItem) : string option =
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
   | ACExpr _ ->
       Some "An expression"
+  | ACReplName name ->
+      Some ("A REPL named " ^ name)
   | ACWorkerName name ->
-      Some ("Respond to workers named " ^ name)
-  | ACCronName name ->
-      Some ("Respond to CRON jobs named " ^ name)
+      Some ("Respond to events emitted to " ^ name)
+  | ACCronName _ ->
+      Some "Name of your CRON job"
   | ACHTTPRoute name ->
       Some ("Handle HTTP requests made to " ^ name)
   | ACDBName name ->
