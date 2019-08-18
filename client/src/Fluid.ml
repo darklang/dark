@@ -498,7 +498,30 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TNewline (Some (eid next, None))
       ; nested next ]
   | EString (id, str) ->
-      [TString (id, str)]
+      let size = 40 in
+      let strings =
+        if String.length str > size then String.segment ~size str else [str]
+      in
+      ( match strings with
+      | [] ->
+          [TString (id, "")]
+      | starting :: rest ->
+        ( match List.reverse rest with
+        | [] ->
+            [TString (id, str)]
+        | ending :: revrest ->
+            let nl = TNewline None in
+            let starting = [TStringMLStart (id, starting, 0, str); nl] in
+            let endingOffset = size * (List.length revrest + 1) in
+            let ending = [TStringMLEnd (id, ending, endingOffset, str)] in
+            let middle =
+              revrest
+              |> List.reverse
+              |> List.indexedMap ~f:(fun i s ->
+                     [TStringMLMiddle (id, s, size * (i + 1), str); nl] )
+              |> List.concat
+            in
+            starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
@@ -1844,6 +1867,9 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
     fluidExpr =
   match token with
+  | TStringMLStart (id, _, _, str)
+  | TStringMLMiddle (id, _, _, str)
+  | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
       replaceExpr id ~newExpr:(EString (id, f str)) ast
   | TPatternString (mID, id, str) ->
@@ -2432,8 +2458,11 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
-    | TPatternString _ | TString _ ->
+    | TPatternString _ | TString _ | TStringMLStart _ ->
         pos - ti.startPos - 2
+    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+      ->
+        pos - ti.startPos - 1 + strOffset
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
@@ -2501,6 +2530,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
   | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
   | TPatternString _
   | TRecordField _
   | TInteger _
@@ -2606,6 +2638,14 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLStart (id, _, _, str) ->
+      let str = removeCharAt str (offset - 1) in
+      (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLMiddle (id, _, strOffset, str)
+  | TStringMLEnd (id, _, strOffset, str) ->
+      let offset = offset + strOffset in
+      let str = removeCharAt str offset in
+      (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
   | TPatternString (mID, id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
@@ -2685,8 +2725,13 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   let letterStr = String.fromChar letter in
   let offset =
     match ti.token with
-    | TString _ | TPatternString _ ->
+    | TString _ | TPatternString _ | TStringMLStart (_, _, _, _) ->
+        (* account for the quote *)
         pos - ti.startPos - 1
+    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+      ->
+        (* no quote here, unline TStringMLStart *)
+        pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
   in
@@ -2758,7 +2803,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
       , moveTo (ti.endPos + 2) s )
   (* Ignore invalid situations *)
-  | (TString _ | TPatternString _) when offset < 0 ->
+  | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
       (ast, s)
   | TInteger _
   | TPatternInteger _
@@ -2796,6 +2841,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TRightPartial _
   | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
   | TPatternString _
   | TLetLHS _
   | TTrue _
@@ -3075,6 +3123,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* String-specific insertions *)
     | K.DoubleQuote, _, R (TPatternString _, ti)
     | K.DoubleQuote, _, R (TString _, ti)
+    | K.DoubleQuote, _, R (TStringMLEnd _, ti)
       when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)

@@ -26,6 +26,9 @@ let tid (t : token) : id =
   | TLetAssignment id
   | TLetLHS (id, _)
   | TString (id, _)
+  | TStringMLStart (id, _, _, _)
+  | TStringMLMiddle (id, _, _, _)
+  | TStringMLEnd (id, _, _, _)
   | TIfKeyword id
   | TIfThenKeyword id
   | TIfElseKeyword id
@@ -86,6 +89,9 @@ let isTextToken token : bool =
   | TPartialGhost _
   | TRecordField _
   | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
   | TTrue _
   | TFalse _
   | TNullToken _
@@ -136,8 +142,9 @@ let isTextToken token : bool =
 let isAppendable token : bool =
   match token with
   (* String should really be directly editable, but the extra quote at the end
-   makes it not so. *)
-  | TString _ | TPatternString _ ->
+   makes it not so; since there's no quote at the end of TStringMLStart or
+   TStringMLMiddle, then they are appendable *)
+  | TString _ | TPatternString _ | TStringMLEnd _ ->
       false
   | _ ->
       isTextToken token
@@ -225,6 +232,12 @@ let toText (t : token) : string =
       f
   | TString (_, str) ->
       "\"" ^ str ^ "\""
+  | TStringMLStart (_, str, _, _) ->
+      "\"" ^ str
+  | TStringMLMiddle (_, str, _, _) ->
+      str
+  | TStringMLEnd (_, str, _, _) ->
+      str ^ "\""
   | TTrue _ ->
       "true"
   | TFalse _ ->
@@ -368,8 +381,14 @@ let toTypeName (t : token) : string =
       "float-point"
   | TFloatFraction _ ->
       "float-fraction"
-  | TString (_, _) ->
+  | TString _ ->
       "string"
+  | TStringMLStart _ ->
+      "string-ml-start"
+  | TStringMLMiddle _ ->
+      "string-ml-middle"
+  | TStringMLEnd _ ->
+      "string-ml-end"
   | TTrue _ ->
       "true"
   | TFalse _ ->
@@ -476,8 +495,10 @@ let toTypeName (t : token) : string =
 
 let toCategoryName (t : token) : string =
   match t with
-  | TInteger _ | TString _ ->
-      "literal"
+  | TInteger _ ->
+      "integer"
+  | TString _ | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
+      "string"
   | TVariable _ | TNewline _ | TSep | TBlank _ | TPlaceholder _ ->
       ""
   | TPartial _ | TRightPartial _ | TPartialGhost _ ->
@@ -524,6 +545,16 @@ let toCategoryName (t : token) : string =
       "pattern"
 
 
+let toDebugInfo (t : token) : string =
+  match t with
+  | TStringMLStart (_, _, offset, _)
+  | TStringMLMiddle (_, _, offset, _)
+  | TStringMLEnd (_, _, offset, _) ->
+      string_of_int offset
+  | _ ->
+      ""
+
+
 let toCssClasses (t : token) : string list =
   let empty = if isBlank t then Some "fluid-empty" else None in
   let keyword = if isKeyword t then Some "fluid-keyword" else None in
@@ -537,10 +568,11 @@ let toCssClasses (t : token) : string list =
 
 let show_tokenInfo (ti : tokenInfo) =
   Printf.sprintf
-    "(%d, %d), '%s', %s (%s)"
+    "(%d, %d), '%s', %s (%s, %s)"
     ti.startPos
     ti.endPos
     (* ti.length *)
     (toText ti.token)
     (tid ti.token |> deID)
     (toTypeName ti.token)
+    (toDebugInfo ti.token)

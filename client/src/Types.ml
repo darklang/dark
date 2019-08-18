@@ -1123,6 +1123,10 @@ and placeholder = string * string
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
+  (* multi-line strings, id, segment, full-string, offset *)
+  | TStringMLStart of id * string * int * string
+  | TStringMLMiddle of id * string * int * string
+  | TStringMLEnd of id * string * int * string
   | TBlank of id
   | TPlaceholder of placeholder * id
   | TTrue of id
