@@ -488,6 +488,7 @@ let () =
       let letters = "abcdefghi," in
       let segment = nums ^ letters ^ nums ^ letters in
       let mlStr = EString (gid (), segment ^ segment ^ nums) in
+      let wrapIf e = EIf (gid (), e, newB (), newB ()) in
       t
         "insert into start string"
         mlStr
@@ -663,7 +664,7 @@ let () =
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc"
           ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
           ^ "123456789_\""
-        , 42 ) ;
+        , 43 ) ;
       t
         "insert end of middle string"
         mlStr
@@ -671,7 +672,7 @@ let () =
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
           ^ "123456789_abcdefghi,123456789_abcdefghi,\nc"
           ^ "123456789_\""
-        , 83 ) ;
+        , 84 ) ;
       t
         "insert end of end string"
         mlStr
@@ -680,6 +681,45 @@ let () =
           ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
           ^ "123456789_c\""
         , 94 ) ;
+      t
+        "string converts to ml string"
+        (EString (gid (), segment))
+        (insert 'c' 41)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\nc\"", 43) ;
+      t
+        "indented string converts to ml string"
+        (wrapIf (EString (gid (), segment)))
+        (insert 'c' 44)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 49 ) ;
+      t
+        "insert end of indented start string"
+        (wrapIf (EString (gid (), segment ^ segment)))
+        (insert 'c' 44)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c123456789_abcdefghi,123456789_abcdefghi\n"
+          ^ "   ,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 49 ) ;
+      t
+        "insert end of indented middle string"
+        (wrapIf (EString (gid (), segment ^ segment)))
+        (insert 'c' 88)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 93 ) ;
+      (* t *)
+      (*   "insert end of indented end string" *)
+      (*   inIf *)
+      (*   (insert 'c' 93) *)
+      (*   ( "\"123456789_abcdefghi,123456789_abcdefghi,\n" *)
+      (*     ^ "123456789_abcdefghi,123456789_abcdefghi,\n" *)
+      (*     ^ "123456789_c\"" *)
+      (*   , 94 ) ; *)
       t
         "del end of start string"
         mlStr

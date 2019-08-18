@@ -2835,6 +2835,22 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
+  | (TString (_, str) | TStringMLEnd (_, str, _, _))
+    when pos = ti.endPos - 1 && String.length str = 40 ->
+      (* Strings with end quotes *)
+      let s = recordAction ~pos ~ti "string to mlstring" s in
+      (* Inserting at the end of an multi-line segment goes to next segment *)
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+      (newAST, moveOneRight newState.newPos newState)
+  | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
+    when pos = ti.endPos && String.length str = 40 ->
+      (* Strings without end quotes *)
+      let s = recordAction ~pos ~ti "extend multiline string" s in
+      (* Inserting at the end of an multi-line segment goes to next segment *)
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+      (newAST, moveOneRight newState.newPos newState)
   | TRecordField _
   | TFieldName _
   | TVariable _
