@@ -2644,12 +2644,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
-  | TStringMLEnd (id, thisStr, strOffset, _)
-    when String.length thisStr = 1 && offset = strOffset ->
-      let f str = removeCharAt str offset in
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveBackTo id newAST s in
-      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TStringMLStart (id, _, _, str) ->
       let str = removeCharAt str (offset - 1) in
       (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
