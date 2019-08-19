@@ -822,7 +822,7 @@ let recordAction
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
-  {s with newPos = pos; upDownCol}
+  {s with newPos = pos; selection = None; upDownCol}
 
 
 let report (e : string) (s : state) =
@@ -3644,6 +3644,52 @@ let viewPlayIcon
       Vdom.noNode
 
 
+let tokenSelection state ast : fluidSelection option =
+  getToken state ast
+  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
+
+
+let expressionSelection state ast : fluidSelection option =
+  let astTokens = toTokens state ast in
+  getToken state ast
+  (* get token that the cursor is currently on *)
+  |> Option.andThen ~f:(fun t ->
+         (* get expression that the token belongs to *)
+         let expr =
+           let exprID = Token.tid t.token in
+           findExpr exprID ast
+         in
+         (* get the beginning and end of the range from
+            * the expression's first and last token 
+            * by cross-referencing the tokens it evaluates to via toTokens
+            * with the tokens for the whole ast.
+            *
+            * This is preferred to just getting all the tokens with the same exprID
+            * because the last expression in a token range 
+            * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
+            * different ID, (in the above case the last token TInt(2) belongs to the 
+            * second sub-expr of the FnCall) *)
+         let exprStartToken, exprEndToken =
+           expr
+           |> Option.map ~f:(toTokens state)
+           |> Option.withDefault ~default:[]
+           |> (fun exprTokens -> (List.head exprTokens, List.last exprTokens))
+           |> Tuple2.mapAll ~f:(function
+                  | Some exprTok ->
+                      List.find astTokens ~f:(fun astTok ->
+                          exprTok.token = astTok.token )
+                  | _ ->
+                      None )
+         in
+         match (exprStartToken, exprEndToken) with
+         (* range is from startPos of first token in expr to 
+          * endPos of last token in expr *)
+         | Some {startPos}, Some {endPos} ->
+             Some {range = (startPos, endPos)}
+         | _ ->
+             None )
+
+
 let toHtml
     ~(vs : ViewUtils.viewState)
     ~tlid
@@ -3665,11 +3711,29 @@ let toHtml
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
-        let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
+        let idStr = deID (Token.tid ti.token) in
+        let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-          ]
+            (* TODO(korede): figure out how to disable default selection while allowing click event *)
+          ; ViewUtils.eventNeither
+              ~key:("fluid-selection-click" ^ idStr)
+              "dblclick"
+              (fun ev ->
+                UpdateFluidSelection
+                  ( Entry.getCursorPosition ()
+                  |> Option.andThen ~f:(fun pos ->
+                         let state =
+                           {state with newPos = pos; oldPos = state.newPos}
+                         in
+                         match ev with
+                         | {detail = 2; altKey = true} ->
+                             expressionSelection state ast
+                         | {detail = 2; altKey = false} ->
+                             tokenSelection state ast
+                         | _ ->
+                             None ) ) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3801,7 +3865,15 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ] ]
+              |> Option.withDefault ~default:"" ) ) ]
+    ; Html.div
+        []
+        [ Html.text "selection: "
+        ; Html.text
+            ( s.selection
+            |> Option.map ~f:(fun {range = a, b} ->
+                   string_of_int a ^ "->" ^ string_of_int b )
+            |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
@@ -3867,13 +3939,20 @@ let renderCallback (m : model) =
   | FluidEntering _ ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
-      else
+      else (
         (* When you change the text of a node in the DOM, the browser resets
          * the cursor to the start of the node. After each rerender, we want to
          * make sure we set the cursor to it's exact place. We do it here to
          * make sure it's always set after a render, not waiting til the next
          * frame.
+         *
+         * However, if there currently is a selection, set that range instead of
+         * the new cursor position because otherwise the selection gets overwritten.
          *)
-        Entry.setCursorPosition m.fluidState.newPos
+        match m.fluidState.selection with
+        | Some {range} ->
+            Entry.setSelectionRange range
+        | None ->
+            Entry.setCursorPosition m.fluidState.newPos )
   | _ ->
       ()

@@ -20,6 +20,13 @@ let registerGlobal name key tagger decoder =
   Tea_sub.registration key enableCall
 
 
+let onCB name key tagger =
+  let open Vdom in
+  let fn ev = Some (tagger (Obj.magic ev)) in
+  let handler = EventHandlerCallback (key, fn) in
+  Event (name, handler, ref None)
+
+
 (* Same, but no JSON decoding *)
 let registerGlobalDirect name key tagger =
   let open Vdom in

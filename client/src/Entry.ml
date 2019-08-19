@@ -37,6 +37,7 @@ let focusWithOffset id offset =
       () )
 
 
+(* cursors *)
 external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -48,6 +49,89 @@ let getCursorPosition () : int option =
 
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
+
+(* selection *)
+type range =
+  < setStart : Web_node.t -> int -> unit [@bs.meth]
+  ; setEnd : Web_node.t -> int -> unit [@bs.meth] >
+  Js.t
+
+external createRange : unit -> range = "createRange"
+  [@@bs.val] [@@bs.scope "document"]
+
+type selection =
+  < toString : unit -> string [@bs.meth]
+  ; removeAllRanges : unit -> unit [@bs.meth]
+  ; addRange : range -> unit [@bs.meth] >
+  Js.t
+
+external getSelection : unit -> selection = "getSelection"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getSelectionRange () : (int * int) option =
+  let selection = getSelection () in
+  getCursorPosition ()
+  |> Option.map ~f:(fun endPos ->
+         let startPos = endPos - (selection##toString () |> String.length) in
+         (startPos, endPos) )
+
+
+external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
+  [@@bs.val] [@@bs.scope "document"]
+
+let setSelectionRange ((startPos, endPos) : int * int) : unit =
+  let range = createRange () in
+  querySelector ".selected #fluid-editor"
+  |> Js.Nullable.toOption
+  |> Option.map ~f:(fun editor ->
+         let endPos =
+           min endPos (Web_node.getProp editor "textContent" |> String.length)
+         in
+         let startPos =
+           (* ensure startPos < endPos *)
+           let startPos = min startPos endPos in
+           max startPos 0
+         in
+         (* loop to set startPos *)
+         let _, range =
+           List.foldl
+             (Array.toList editor##childNodes)
+             ~init:(0, range)
+             ~f:(fun node (offset, range) ->
+               let length =
+                 Web_node.getProp node "textContent" |> String.length
+               in
+               if startPos >= offset && startPos < offset + length
+               then
+                 List.getAt ~index:0 (Array.toList node##childNodes)
+                 |> Option.map ~f:(fun child ->
+                        range##setStart child (startPos - offset) )
+                 |> Option.withDefault ~default:() ;
+               (offset + length, range) )
+         in
+         let _, range =
+           List.foldl
+             (editor##childNodes |> Array.toList |> List.reverse)
+             ~init:
+               (Web_node.getProp editor "textContent" |> String.length, range)
+             ~f:(fun node (offset, range) ->
+               let length =
+                 Web_node.getProp node "textContent" |> String.length
+               in
+               if endPos <= offset && endPos > offset - length
+               then
+                 List.getAt ~index:0 (Array.toList node##childNodes)
+                 |> Option.map ~f:(fun child ->
+                        range##setEnd child (endPos - (offset - length)) )
+                 |> Option.withDefault ~default:() ;
+               (offset - length, range) )
+         in
+         let selection = getSelection () in
+         selection##removeAllRanges () ;
+         selection##addRange range )
+  |> ignore ;
+  ()
+
 
 type browserPlatform =
   | Mac
