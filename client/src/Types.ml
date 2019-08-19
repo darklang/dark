@@ -1243,10 +1243,6 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
-and fluidSelectionType =
-  | FSTExpr of fluidExpr
-  | FSTToken of fluidToken
-
 and fluidSelection = {range : int * int}
 
 and fluidState =

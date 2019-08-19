@@ -84,9 +84,13 @@ let setSelectionRange ((startPos, endPos) : int * int) : unit =
   querySelector ".selected #fluid-editor"
   |> Js.Nullable.toOption
   |> Option.map ~f:(fun editor ->
-         let startPos = max startPos 0 in
          let endPos =
            min endPos (Web_node.getProp editor "textContent" |> String.length)
+         in
+         let startPos =
+           (* ensure startPos < endPos *)
+           let startPos = min startPos endPos in
+           max startPos 0
          in
          (* loop to set startPos *)
          let _, range =
@@ -124,7 +128,6 @@ let setSelectionRange ((startPos, endPos) : int * int) : unit =
          in
          let selection = getSelection () in
          selection##removeAllRanges () ;
-         Js.log2 "range" range ;
          selection##addRange range )
   |> ignore ;
   ()
