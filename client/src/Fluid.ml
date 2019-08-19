@@ -4238,12 +4238,14 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         ; Html.text
             ( s.selection
             |> Option.map ~f:(fun {range = a, b} ->
-                   string_of_int a ^ "->" ^ string_of_int b ) ) ]
+                   string_of_int a ^ "->" ^ string_of_int b )
+            |> Option.withDefault ~default:"" ) ]
     ; Html.div
         []
         [ Html.text "clipboard: "
         ; Html.text
-            ( Option.map s.clipboard ~f:(eToString s)
+            ( s.clipboard
+            |> Option.map ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
