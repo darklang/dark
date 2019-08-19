@@ -270,7 +270,6 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
     Types.modification list =
-  Js.log2 "ApplyOpsToClient, updateCurrent" updateCurrent ;
   [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
   ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
   ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
