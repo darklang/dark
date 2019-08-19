@@ -793,6 +793,16 @@ let () =
           ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
           ^ "123456789_\""
         , 94 ) ;
+      (* TODO: bs end reducing from 3 to two lines *)
+      (* TODO: bs middle reducing from 3 to two lines *)
+      (* TODO: bs start reducing from 3 to two lines *)
+      (* TODO: del end reducing from 3 to two lines *)
+      (* TODO: del middle reducing from 3 to two lines *)
+      (* TODO: del start reducing from 3 to two lines *)
+      (* TODO: bs end reducing from 2 to 1 lines *)
+      (* TODO: bs start reducing from 2 to 1 lines *)
+      (* TODO: del end reducing from 2 to 1 lines *)
+      (* TODO: del start reducing from 2 to 1 lines *)
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
