@@ -55,7 +55,9 @@ let avatarDiv (avatar : avatar) : msg Html.html =
 
 
 let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
-  let avList = filterAvatarsByTlid avatars tlid in
+  let avList =
+    filterAvatarsByTlid avatars tlid |> List.uniqueBy ~f:(fun a -> a.username)
+  in
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map ~f:renderAvatar avList in
   Html.div [Html.class' "avatars"] avatars
