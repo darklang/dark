@@ -704,7 +704,10 @@ and autocompleteItem =
   | ACKeyword of keyword
   | ACCommand of command
   | ACHTTPModifier of string
-  | ACEventName of string
+  | ACHTTPRoute of string
+  | ACWorkerName of string
+  | ACReplName of string
+  | ACCronName of string
   | ACCronTiming of string
   | ACEventSpace of string
   | ACDBName of string

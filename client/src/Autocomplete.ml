@@ -99,7 +99,13 @@ let asName (aci : autocompleteItem) : string =
         "|>" )
   | ACHTTPModifier name ->
       name
-  | ACEventName name ->
+  | ACHTTPRoute name ->
+      name
+  | ACWorkerName name ->
+      name
+  | ACReplName name ->
+      name
+  | ACCronName name ->
       name
   | ACCronTiming timing ->
       timing
@@ -163,8 +169,14 @@ let asTypeString (item : autocompleteItem) : string =
       "keyword"
   | ACHTTPModifier _ ->
       "method"
-  | ACEventName _ ->
-      "event name"
+  | ACHTTPRoute _ ->
+      "route"
+  | ACWorkerName _ ->
+      "worker name"
+  | ACReplName _ ->
+      "REPL name"
+  | ACCronName _ ->
+      "cron job"
   | ACCronTiming _ ->
       "interval"
   | ACEventSpace _ ->
@@ -536,7 +548,9 @@ let isDynamicItem (item : autocompleteItem) : bool =
       true
   | ACEventSpace _ ->
       false (* false because we want the static items to be first *)
-  | ACEventName _ ->
+  | ACHTTPRoute _ ->
+      true
+  | ACWorkerName _ ->
       true
   | ACDBName _ ->
       true
@@ -564,10 +578,15 @@ let toDynamicItems
   | Some (_, PField _) ->
       [ACField q]
   | Some (_, PEventName _) ->
-      let isHttpHandler = space = Some HSHTTP in
-      if isHttpHandler
-      then [ACEventName (cleanHTTPname q)]
-      else [ACEventName (cleanEventName q)]
+    ( match space with
+    | Some HSHTTP ->
+        [ACHTTPRoute (cleanHTTPname q)]
+    | Some HSCron ->
+        [ACCronName (cleanEventName q)]
+    | Some HSRepl ->
+        [ACReplName (cleanEventName q)]
+    | _ ->
+        [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
@@ -1046,8 +1065,14 @@ let documentationForItem (aci : autocompleteItem) : string option =
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
   | ACExpr _ ->
       Some "An expression"
-  | ACEventName name ->
-      Some ("Respond to events/HTTP requests named " ^ name)
+  | ACReplName name ->
+      Some ("A REPL named " ^ name)
+  | ACWorkerName name ->
+      Some ("Respond to events emitted to " ^ name)
+  | ACCronName _ ->
+      Some "Name of your CRON job"
+  | ACHTTPRoute name ->
+      Some ("Handle HTTP requests made to " ^ name)
   | ACDBName name ->
       Some ("Set the DB's name to " ^ name)
   | ACDBColType tipe ->
