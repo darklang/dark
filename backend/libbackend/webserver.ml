@@ -774,7 +774,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
           Exception.internal "opCtr is approaching max safe value (2^31 - 1)/2"
         in
         ignore
-          (Rollbar.report
+          (Rollbar.report_lwt
              exn
              (Exception.get_backtrace ())
              (* we don't have access to the req here, so put in an empty request *)
