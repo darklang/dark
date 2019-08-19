@@ -912,7 +912,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
-    | NewGroup group ->
+    | AddGroup group ->
         (* This code is temp while we work on FE *)
         let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
         if nameAlreadyUsed
@@ -1269,28 +1269,25 @@ let update_ (msg : msg) (m : model) : modification =
           in
           let newGroup = {g with members = newMembers} in
           let newMod = Groups.upsert m newGroup in
-          if event.button = Defaults.leftButton
-          then
-            match m.cursorState with
-            | Dragging (_, _, _, origCursorState) ->
-                let mePos = Viewport.toAbsolute m event.mePos in
-                let gTlid = Groups.posInGroup mePos m.groups |> List.head in
-                (* Check if the new pos is in another group *)
-                ( match gTlid with
-                | Some gTlid ->
-                    Many
-                      [ TweakModel (fun _m -> newMod)
-                      ; SetCursorState origCursorState
-                      ; AddToGroup (gTlid, tlid) ]
-                | None ->
-                    (* update the toplevel pos with the curent event position  *)
-                    Many
-                      [ TweakModel (fun _m -> newMod)
-                      ; SetCursorState origCursorState
-                      ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
-            | _ ->
-                NoChange
-          else NoChange
+          ( match m.cursorState with
+          | Dragging (_, _, _, origCursorState) ->
+              let mePos = Viewport.toAbsolute m event.mePos in
+              let gTlid = Groups.posInGroup mePos m.groups |> List.head in
+              (* Check if the new pos is in another group *)
+              ( match gTlid with
+              | Some gTlid ->
+                  Many
+                    [ TweakModel (fun _m -> newMod)
+                    ; SetCursorState origCursorState
+                    ; AddToGroup (gTlid, tlid) ]
+              | None ->
+                  (* update the toplevel pos with the curent event position  *)
+                  Many
+                    [ TweakModel (fun _m -> newMod)
+                    ; SetCursorState origCursorState
+                    ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
+          | _ ->
+              NoChange )
       | _ ->
           NoChange )
   | DeleteUserTypeForever tlid ->

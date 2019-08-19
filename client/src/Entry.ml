@@ -495,7 +495,7 @@ let submitACItem
             | TLTipe t ->
                 wrapNew [SetType t] next
             | TLGroup g ->
-                NewGroup g
+                AddGroup g
             | TLDB _ ->
                 impossible ("no vars in DBs", tl)
         in

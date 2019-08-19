@@ -119,7 +119,6 @@ let defaultModel : model =
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
   ; usedTipes = TLIDDict.empty
-  ; usedGroups = TLIDDict.empty
   ; handlerProps = TLIDDict.empty
   ; staticDeploys = []
   ; tlRefersTo = TLIDDict.empty
