@@ -3819,8 +3819,6 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
-      ; ViewUtils.nothingMouseEvent "drag"
-      ; ViewUtils.nothingMouseEvent "mouseup"
       ; event ~key:eventKey "keydown" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
