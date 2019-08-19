@@ -1607,11 +1607,15 @@ let callback ~k8s_callback ip req body execution_id =
     try
       let bt = Exception.get_backtrace () in
       let%lwt _ =
-        Rollbar.report_lwt
-          e
-          bt
-          (Remote (request_to_rollbar body req))
-          (Types.show_id execution_id)
+        match e with
+        | Exception.DarkException e when e.tipe = EndUser ->
+            Lwt.return `Disabled
+        | _ ->
+            Rollbar.report_lwt
+              e
+              bt
+              (Remote (request_to_rollbar body req))
+              (Types.show_id execution_id)
       in
       let real_err =
         try
