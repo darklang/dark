@@ -60,7 +60,7 @@ let createEmptyGroup (name : string option) (pos : pos) : modification =
   let tlid = Prelude.gtlid () in
   let nameid = Prelude.gid () in
   let group = {gName = F (nameid, name); members = []; gTLID = tlid; pos} in
-  Many [NewGroup group; Deselect]
+  Many [AddGroup group; Deselect]
 
 
 let isInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
@@ -75,23 +75,16 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
   |> List.filter ~f:(fun (g : Types.group) ->
          match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
          | Some elem ->
-             let groupPos = Native.Ext.getBoundingClientRect elem in
-             let clientWidth, clientHeight =
-               let clientWidth =
-                 Native.Ext.rectWidth groupPos |> int_of_float
-               in
-               let clientHeight =
-                 Native.Ext.rectHeight groupPos |> int_of_float
-               in
-               (clientWidth, clientHeight)
+             let groupPos =
+               Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
              in
              (* Check if the toplevel pos is inside the group *)
              (* X *)
-             let horStart = g.pos.x in
-             let horEnd = horStart + clientWidth in
+             let horStart = groupPos.left in
+             let horEnd = groupPos.right in
              (* Y *)
-             let vertStart = g.pos.y in
-             let vertEnd = vertStart + clientHeight in
+             let vertStart = groupPos.top in
+             let vertEnd = groupPos.bottom in
              (* Check if mePos (x,y) is within the group box *)
              if mePos.x > horStart
                 && mePos.x < horEnd
@@ -108,34 +101,23 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
 let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
   match
     Native.Ext.querySelector (".tl-" ^ deTLID tlid)
-    |> Option.andThen ~f:(fun e -> Some (Native.Ext.getBoundingClientRect e))
+    |> Option.andThen ~f:(fun e ->
+           Some (Native.Ext.getBoundingClient e ("tl-" ^ deTLID tlid)) )
   with
   | Some tlPos ->
-      let tlLeft, tlRight, tlTop, tlBottom =
-        let tlTop = Native.Ext.rectTop tlPos in
-        let tlBottom = Native.Ext.rectBottom tlPos in
-        let tlLeft = Native.Ext.rectLeft tlPos in
-        let tlRight = Native.Ext.rectRight tlPos in
-        (tlLeft, tlRight, tlTop, tlBottom)
-      in
       groups
       |> TLIDDict.mapValues ~f:(fun group -> group)
       |> List.filter ~f:(fun (g : Types.group) ->
              match Native.Ext.querySelector (".tl-" ^ deTLID g.gTLID) with
              | Some elem ->
-                 let groupPos = Native.Ext.getBoundingClientRect elem in
-                 let gLeft, gRight, gTop, gBottom =
-                   let tlTop = Native.Ext.rectTop groupPos in
-                   let tlBottom = Native.Ext.rectBottom groupPos in
-                   let tlLeft = Native.Ext.rectLeft groupPos in
-                   let tlRight = Native.Ext.rectRight groupPos in
-                   (tlLeft, tlRight, tlTop, tlBottom)
+                 let groupPos =
+                   Native.Ext.getBoundingClient elem ("tl-" ^ deTLID g.gTLID)
                  in
                  (* Check if the toplevel is inside the group *)
-                 if tlRight < gLeft
-                    || tlLeft > gRight
-                    || tlBottom < gTop
-                    || tlTop > gBottom
+                 if tlPos.right < groupPos.left
+                    || tlPos.left > groupPos.right
+                    || tlPos.bottom < groupPos.top
+                    || tlPos.top > groupPos.bottom
                  then false
                  else true
              | None ->

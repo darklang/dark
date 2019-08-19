@@ -236,16 +236,14 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
   ; entries }
 
 
-let groupCategory (m : model) (groups : group list) : category =
+let groupCategory (groups : group list) : category =
   let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.gName) in
   let entries =
     List.map groups ~f:(fun (group : group) ->
         let name = group.gName |> Blank.toMaybe |> deOption "group name" in
         let minusButton =
           let hasMembers = List.length group.members > 0 in
-          if Refactor.usedGroup m name || hasMembers
-          then None
-          else Some (DeleteGroup group.gTLID)
+          if hasMembers then None else Some (DeleteGroup group.gTLID)
         in
         Entry
           { name
@@ -290,7 +288,7 @@ let standardCategories m hs dbs ufns tipes groups =
   in
   let groupCategory =
     if VariantTesting.variantIsActive m GroupVariant
-    then [groupCategory m groups]
+    then [groupCategory groups]
     else []
   in
   let catergories =
@@ -768,7 +766,6 @@ let rtCacheKey m =
   , m.unlockedDBs
   , m.usedDBs
   , m.usedFns
-  , m.usedGroups
   , m.userTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.deletedUserTipes |> TD.mapValues ~f:(fun t -> t.utName)
   , m.groups

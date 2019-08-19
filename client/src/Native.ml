@@ -103,6 +103,15 @@ module Ext = struct
 
   external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
 
+  let getBoundingClient (e : Dom.element) (s : string) : rect =
+    let client = getBoundingClientRect e in
+    { id = s
+    ; top = rectTop client |> int_of_float
+    ; left = rectLeft client |> int_of_float
+    ; right = rectRight client |> int_of_float
+    ; bottom = rectBottom client |> int_of_float }
+
+
   let windowSize : int * int = (windowWidth window, windowHeight window)
 end
 

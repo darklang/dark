@@ -897,7 +897,7 @@ and modification =
   | FluidCommandsClose
   | UpdateAvatarList of avatar list
   | ExpireAvatars
-  | NewGroup of group
+  | AddGroup of group
   | AddToGroup of tlid * tlid
   | RemoveTLFromGroup of tlid * group
 
@@ -1331,7 +1331,6 @@ and model =
   ; usedDBs : int StrDict.t
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
-  ; usedGroups : int StrDict.t
   ; handlerProps : handlerProp TLIDDict.t
   ; staticDeploys :
       staticDeploy list
