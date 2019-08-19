@@ -899,7 +899,8 @@ and modification =
   | ExpireAvatars
   | AddGroup of group
   | AddToGroup of tlid * tlid
-  | RemoveTLFromGroup of tlid * group
+  | UndoGroupDelete of tlid * group
+  | MoveMemberToNewGroup of tlid * tlid * model
 
 (* ------------------- *)
 (* Msgs *)
@@ -1017,7 +1018,7 @@ and msg =
   | UpdateMinimap of string option
   | GoToArchitecturalView
   | DeleteGroup of tlid
-  | RemoveGroupMember of tlid * tlid * mouseEvent
+  | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
 
 (* ----------------------------- *)

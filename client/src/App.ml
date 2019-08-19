@@ -827,6 +827,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
         let newMod, newCmd = Groups.addToGroup m gTLID tlid in
         (newMod, newCmd)
+    | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
+        let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
+        (newMod, newCmd)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -926,7 +929,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
-    | RemoveTLFromGroup (tlid, g) ->
+    | UndoGroupDelete (tlid, g) ->
         let newMod = Groups.upsert m g in
         ( {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
@@ -1242,7 +1245,7 @@ let update_ (msg : msg) (m : model) : modification =
       let group = Groups.isFromDeletedGroup m tlid in
       ( match group with
       | Some g ->
-          RemoveTLFromGroup (tlid, g)
+          UndoGroupDelete (tlid, g)
       | None ->
           RPC ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->
@@ -1259,7 +1262,7 @@ let update_ (msg : msg) (m : model) : modification =
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
       let tl = TL.getExn m tlid in
       Many [RemoveGroup tl]
-  | RemoveGroupMember (gTLID, tlid, event) ->
+  | DragGroupMember (gTLID, tlid, event) ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.s138ne3frlh0 *)
       let group = TD.get ~tlid:gTLID m.groups in
       ( match group with
@@ -1277,9 +1280,8 @@ let update_ (msg : msg) (m : model) : modification =
               ( match gTlid with
               | Some gTlid ->
                   Many
-                    [ TweakModel (fun _m -> newMod)
-                    ; SetCursorState origCursorState
-                    ; AddToGroup (gTlid, tlid) ]
+                    [ SetCursorState origCursorState
+                    ; MoveMemberToNewGroup (gTlid, tlid, newMod) ]
               | None ->
                   (* update the toplevel pos with the curent event position  *)
                   Many
