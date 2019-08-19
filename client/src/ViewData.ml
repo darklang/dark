@@ -15,10 +15,10 @@ let viewInput
     (isHover : bool)
     (tipe : tipe) : msg Html.html =
   let tlid = TL.id tl in
-  let activeClass = if isActive then ["active"] else [] in
-  let hoverClass = if isHover then ["mouseovered"] else [] in
-  let tipeClass = ["tipe-" ^ Runtime.tipe2str tipe] in
-  let classes = activeClass @ hoverClass @ tipeClass |> String.join ~sep:" " in
+  let activeClass = if isActive then "active" else "" in
+  let hoverClass = if isHover then "mouseovered" else "" in
+  let tipeClass = "tipe-" ^ Runtime.tipe2str tipe in
+  let classes = "" ^ activeClass ^ " " ^ hoverClass ^ " " ^ tipeClass ^ "" in
   let eventKey constructor =
     constructor ^ "-" ^ showTLID tlid ^ "-" ^ traceID
   in
@@ -41,7 +41,7 @@ let viewInput
           then "No input parameters"
           else asString
         in
-        Html.div [] [Html.text asString]
+        Html.div [Vdom.noProp] [Html.text asString]
   in
   let timestampDiv =
     match timestamp with
@@ -56,8 +56,8 @@ let viewInput
   in
   let dotHtml =
     if isHover && not isActive
-    then [Html.div [Html.class' "empty-dot"] []]
-    else [Html.div [] [Html.text {js|•|js}]]
+    then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
+    else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
   Html.li (Html.class' classes :: events) (dotHtml @ [viewData])
