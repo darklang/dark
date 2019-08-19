@@ -3644,61 +3644,39 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let tokenSelection ~state ~ast (sel : fluidSelection) : fluidSelection =
-  let tokens = toTokens state ast in
-  let pos = Tuple2.first sel.range in
-  List.foldl tokens ~init:sel ~f:(fun tok sel ->
-      if pos >= tok.startPos && pos <= tok.endPos
-      then {range = (tok.startPos, tok.endPos)}
-      else sel )
+let tokenSelection state ast : fluidSelection option =
+  getToken state ast
+  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
 
 
-let expressionSelection ~state ~ast (sel : fluidSelection) : fluidSelection =
+let expressionSelection state ast : fluidSelection option =
   let tokens = toTokens state ast in
-  let rangeStart, rangeEnd = sel.range in
-  let exprStartPos, exprEndPos =
-    (* get first token in selection range with a valid expr ID *)
-    List.foldl tokens ~init:None ~f:(fun tok init ->
-        if rangeStart <= tok.startPos
-           && rangeEnd >= tok.endPos
-           && Token.(tid tok.token |> validID)
-        then
-          Some tok
-          (* if the range is slightly smaller than the token due to extra
-         * whitespace e.g. with TMatchKeyword *)
-        else if rangeStart >= tok.startPos
-                && rangeEnd <= tok.endPos
-                && Token.(tid tok.token |> validID)
-        then Some tok
-        else init )
-    (* use expression ID to get tokens associated with the expression *)
-    |> Option.map ~f:(fun t ->
-           (* get the beginning and end of the range from
+  getToken state ast
+  (* use expression ID to get tokens associated with the expression *)
+  |> Option.andThen ~f:(fun t ->
+         (* get the beginning and end of the range from
             * the expression's first and last token *)
-           let exprStartToken, exprEndToken =
-             findExpr (Token.tid t.token) ast
-             |> Option.map
-                  ~f:(toTokens' state >> reflow ~x:t.startCol >> Tuple2.second)
-             |> Option.withDefault ~default:[]
-             |> (fun ts ->
-                  let t1, t2 = (List.head ts, List.last ts) in
-                  (t1, t2) )
-             |> Tuple2.mapAll ~f:(function
-                    | Some t ->
-                        List.find tokens ~f:(fun t' -> t = t'.token)
-                    | _ ->
-                        None )
-           in
-           match (exprStartToken, exprEndToken) with
-           | Some {startPos}, Some {endPos}
-           | Some {startPos; endPos}, None
-           | None, Some {startPos; endPos} ->
-               (startPos, endPos)
-           | _ ->
-               sel.range )
-    |> Option.withDefault ~default:sel.range
-  in
-  {range = (exprStartPos, exprEndPos)}
+         let exprStartToken, exprEndToken =
+           findExpr (Token.tid t.token) ast
+           |> Option.map
+                ~f:(toTokens' state >> reflow ~x:t.startCol >> Tuple2.second)
+           |> Option.withDefault ~default:[]
+           |> (fun ts ->
+                let t1, t2 = (List.head ts, List.last ts) in
+                (t1, t2) )
+           |> Tuple2.mapAll ~f:(function
+                  | Some t ->
+                      List.find tokens ~f:(fun t' -> t = t'.token)
+                  | _ ->
+                      None )
+         in
+         match (exprStartToken, exprEndToken) with
+         | Some {startPos}, Some {endPos}
+         | Some {startPos; endPos}, None
+         | None, Some {startPos; endPos} ->
+             Some {range = (startPos, endPos)}
+         | _ ->
+             None )
 
 
 let toHtml
@@ -3727,27 +3705,33 @@ let toHtml
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-            (*; Patched_tea_html.onWithOptions
-            ~key
-            "click" 
-            {stopPropagation = false; preventDefault = false}
-            (Decoders.wrapDecoder (decodeClickEvent constructor))*)
-          ; ViewUtils.eventNoPropagation
+            (* TODO(korede): figure out how to disable default selection while allowing click event
+          ; ViewUtils.eventPreventDefault
+              ~key:("fluid-overwrite-default-selection" ^ idStr)
+              "selectstart"
+              (fun e -> ToplevelClick (tlid, e) ) *)
+          ; ViewUtils.eventNeither
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
-              (fun e ->
+              (fun ev ->
                 UpdateFluidSelection
-                  ( Entry.getSelectionRange ()
-                  |> Option.map ~f:(fun range ->
-                         {range}
-                         |>
-                         match e with
+                  ( (* match ev with
+                  | {altKey = true} ->
+                      expressionSelection state ast
+                  | {altKey = false} ->
+                      tokenSelection state ast ) ) ] *)
+                    Entry.getCursorPosition ()
+                  |> Option.andThen ~f:(fun pos ->
+                         let state =
+                           {state with newPos = pos; oldPos = state.newPos}
+                         in
+                         match ev with
                          | {detail = 2; altKey = true} ->
-                             expressionSelection ~state ~ast
+                             expressionSelection state ast
                          | {detail = 2; altKey = false} ->
-                             tokenSelection ~state ~ast
+                             tokenSelection state ast
                          | _ ->
-                             identity ) ) ) ]
+                             None ) ) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3881,7 +3865,15 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ] ]
+              |> Option.withDefault ~default:"" ) ) ]
+    ; Html.div
+        []
+        [ Html.text "selection: "
+        ; Html.text
+            ( s.selection
+            |> Option.map ~f:(fun {range = a, b} ->
+                   string_of_int a ^ "->" ^ string_of_int b )
+            |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in

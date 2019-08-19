@@ -1644,9 +1644,13 @@ let update_ (msg : msg) (m : model) : modification =
           match selection with
           | Some s ->
               (* re-apply selection *)
-              Js.log2 "reapplying selection" s.range ;
               Entry.setSelectionRange s.range ;
-              {m with fluidState = {m.fluidState with selection}}
+              { m with
+                fluidState =
+                  { m.fluidState with
+                    selection
+                  ; oldPos = m.fluidState.newPos
+                  ; newPos = s.range |> Tuple2.second } }
           | None ->
               m )
   | ResetToast ->
