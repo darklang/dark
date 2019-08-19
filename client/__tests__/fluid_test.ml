@@ -704,7 +704,7 @@ let () =
           ^ "then\n  ___\nelse\n  ___"
         , 49 ) ;
       t
-        "insert end of indented middle string"
+        "insert end of indented end string"
         (wrapIf (EString (gid (), segment ^ segment)))
         (insert 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
@@ -712,14 +712,6 @@ let () =
           ^ "   c\"\n"
           ^ "then\n  ___\nelse\n  ___"
         , 93 ) ;
-      (* t *)
-      (*   "insert end of indented end string" *)
-      (*   inIf *)
-      (*   (insert 'c' 93) *)
-      (*   ( "\"123456789_abcdefghi,123456789_abcdefghi,\n" *)
-      (*     ^ "123456789_abcdefghi,123456789_abcdefghi,\n" *)
-      (*     ^ "123456789_c\"" *)
-      (*   , 94 ) ; *)
       t
         "del end of start string"
         mlStr
