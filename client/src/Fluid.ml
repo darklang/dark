@@ -3705,22 +3705,13 @@ let toHtml
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-            (* TODO(korede): figure out how to disable default selection while allowing click event
-          ; ViewUtils.eventPreventDefault
-              ~key:("fluid-overwrite-default-selection" ^ idStr)
-              "selectstart"
-              (fun e -> ToplevelClick (tlid, e) ) *)
+            (* TODO(korede): figure out how to disable default selection while allowing click event *)
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
               (fun ev ->
                 UpdateFluidSelection
-                  ( (* match ev with
-                  | {altKey = true} ->
-                      expressionSelection state ast
-                  | {altKey = false} ->
-                      tokenSelection state ast ) ) ] *)
-                    Entry.getCursorPosition ()
+                  ( Entry.getCursorPosition ()
                   |> Option.andThen ~f:(fun pos ->
                          let state =
                            {state with newPos = pos; oldPos = state.newPos}
