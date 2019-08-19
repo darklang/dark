@@ -793,16 +793,36 @@ let () =
           ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
           ^ "123456789_\""
         , 94 ) ;
-      (* TODO: bs end reducing from 3 to two lines *)
-      (* TODO: bs middle reducing from 3 to two lines *)
-      (* TODO: bs start reducing from 3 to two lines *)
-      (* TODO: del end reducing from 3 to two lines *)
-      (* TODO: del middle reducing from 3 to two lines *)
-      (* TODO: del start reducing from 3 to two lines *)
-      (* TODO: bs end reducing from 2 to 1 lines *)
-      (* TODO: bs start reducing from 2 to 1 lines *)
-      (* TODO: del end reducing from 2 to 1 lines *)
-      (* TODO: del start reducing from 2 to 1 lines *)
+      t
+        "bs, 3 lines to 2, end"
+        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (bs 93)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 88 ) ;
+      t
+        "bs, 2 lines to 1, end"
+        (wrapIf (EString (gid (), segment ^ "c")))
+        (bs 49)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 44 ) ;
+      t
+        "del, 3 lines to 2, end"
+        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (del 92)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 88 ) ;
+      t
+        "del, 2 lines to 1, end"
+        (wrapIf (EString (gid (), segment ^ "c")))
+        (del 48)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 44 ) ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;

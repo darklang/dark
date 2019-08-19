@@ -1303,7 +1303,7 @@ let moveTo (newPos : int) (s : state) : state =
 
 
 (* Starting from somewhere after the location, move back until we reach the
- * `target` expression, and return a state with it's location. If blank, will
+ * `target` expression, and return a state with its location. If blank, will
  * go to the start of the blank *)
 let moveBackTo (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveBackTo" s in
@@ -2529,6 +2529,12 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
+  | TStringMLEnd (id, thisStr, strOffset, _)
+    when String.length thisStr = 1 && offset = strOffset ->
+      let f str = removeCharAt str offset in
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveBackTo id newAST s in
+      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TString _
   | TStringMLStart _
   | TStringMLMiddle _
@@ -2638,14 +2644,30 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLEnd (id, thisStr, strOffset, _)
+    when String.length thisStr = 1 && offset = strOffset ->
+      let f str = removeCharAt str offset in
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveBackTo id newAST s in
+      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TStringMLStart (id, _, _, str) ->
       let str = removeCharAt str (offset - 1) in
       (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
-  | TStringMLMiddle (id, _, strOffset, str)
-  | TStringMLEnd (id, _, strOffset, str) ->
+  | TStringMLMiddle (id, _, strOffset, str) ->
       let offset = offset + strOffset in
       let str = removeCharAt str offset in
       (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLEnd (id, endStr, strOffset, _) ->
+      let f str = removeCharAt str (offset + strOffset) in
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState =
+        if String.length endStr = 1 && offset = 0
+        then
+          let moved = moveBackTo id newAST s in
+          {moved with newPos = moved.newPos - 1 (* quote *)}
+        else s
+      in
+      (newAST, newState)
   | TPatternString (mID, id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
