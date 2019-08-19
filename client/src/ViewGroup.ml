@@ -76,7 +76,7 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
     ViewUtils.eventNoPropagation
       ~key:("tlmd-" ^ showTLID tlid)
       "dragend"
-      (fun x -> RemoveGroupMember (gTLID, tlid, x))
+      (fun x -> DragGroupMember (gTLID, tlid, x))
   in
   Html.div
     [event; Vdom.attribute "" "draggable" "true"; Html.class' "member-wrap"]
