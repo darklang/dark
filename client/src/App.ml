@@ -44,7 +44,12 @@ let filterOpsAndResult
       params.ops
       |> List.filter ~f:(fun op ->
              match op with
-             | SetHandler _ | SetFunction _ | SetType _ | MoveTL _ ->
+             | SetHandler _
+             | SetFunction _
+             | SetType _
+             | MoveTL _
+             | SetDBColName _
+             | ChangeDBColName _ ->
                  false
              | _ ->
                  true )

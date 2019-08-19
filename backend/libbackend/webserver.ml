@@ -718,7 +718,12 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             params.ops
             |> List.filter ~f:(fun op ->
                    match op with
-                   | SetHandler _ | SetFunction _ | SetType _ | MoveTL _ ->
+                   | SetHandler _
+                   | SetFunction _
+                   | SetType _
+                   | MoveTL _
+                   | SetDBColName _
+                   | ChangeDBColName _ ->
                        false
                    | _ ->
                        true )
