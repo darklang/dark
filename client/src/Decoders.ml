@@ -484,7 +484,9 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  let opCtr = try field "opCtr" int j with _ -> -2 in
+  (* if we roll back the server, we might get new client code (this code), but
+   * no opCtr from the server, so handle that case *)
+  let opCtr = try Some (field "opCtr" int j) with _ -> None in
   {ops = field "ops" (list op) j; opCtr; browserId = field "browserId" string j}
 
 

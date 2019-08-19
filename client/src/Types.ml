@@ -553,7 +553,7 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpRPCParams =
   { ops : op list
-  ; opCtr : int
+  ; opCtr : int option
   ; browserId : string }
 
 and executeFunctionRPCParams =
@@ -1337,7 +1337,7 @@ and model =
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
   ; toast : toast
-  ; lastOpCtr : int
+  ; lastOpCtr : int option
   ; opCtrs : int StrDict.t
   ; permission : permission option }
 

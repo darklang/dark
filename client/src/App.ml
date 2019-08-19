@@ -16,6 +16,8 @@ module Key = Keyboard
 module Regex = Util.Regex
 module TD = TLIDDict
 
+let incOption x = Option.map x ~f:(fun x -> x + 1)
+
 let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
   let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
   List.filter
@@ -28,16 +30,14 @@ let filterOpsAndResult
     model * op list * addOpRPCResult option =
   let newOpCtrs =
     StrDict.update m.opCtrs ~key:params.browserId ~f:(fun oldCtr ->
-        match oldCtr with
-        | None ->
-            Some params.opCtr
-        | Some oldCtr ->
-            Some (max oldCtr params.opCtr) )
+        match (oldCtr, params.opCtr) with
+        | Some oldCtr, Some paramsOpCtr ->
+            Some (max oldCtr paramsOpCtr)
+        | _ ->
+            params.opCtr )
   in
   let m2 = {m with opCtrs = newOpCtrs} in
-  if StrDict.get m2.opCtrs ~key:params.browserId
-     |> Option.valueExn
-     = params.opCtr
+  if StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
   then (m2, params.ops, result)
   else
     let ops =
@@ -305,11 +305,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = h.ast
                  then []
                  else
-                   let newM = {newM with lastOpCtr = newM.lastOpCtr + 1} in
+                   let newM =
+                     {newM with lastOpCtr = incOption newM.lastOpCtr}
+                   in
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params =
-                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                     RPC.opsParams ops (incOption m.lastOpCtr) m.browserId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -318,11 +320,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = f.ufAST
                  then []
                  else
-                   let newM = {newM with lastOpCtr = newM.lastOpCtr + 1} in
+                   let newM =
+                     {newM with lastOpCtr = incOption newM.lastOpCtr}
+                   in
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
                    let params =
-                     RPC.opsParams ops (m.lastOpCtr + 1) m.browserId
+                     RPC.opsParams ops (incOption m.lastOpCtr) m.browserId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -336,7 +340,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
-      let m = {m with lastOpCtr = m.lastOpCtr + 1} in
+      let m = {m with lastOpCtr = incOption m.lastOpCtr} in
       let hasNonHandlers =
         List.any
           ~f:(fun c ->
@@ -433,7 +437,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops (m.lastOpCtr + 1) m.browserId) focus
+        handleRPC (RPC.opsParams ops (incOption m.lastOpCtr) m.browserId) focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1268,9 +1272,7 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
         ]
-  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = -2 ->
-      (* opCtr = -2 means we got a stroller msg from an old server, which isn't
-     * sending an opCtr - likely we rolled back *)
+  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
       HandleAPIError
         (ApiError.make
            ~context:"RPC - old server, no opCtr sent"

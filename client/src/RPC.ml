@@ -43,7 +43,7 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let opsParams (ops : op list) (opCtr : int) (browserId : string) :
+let opsParams (ops : op list) (opCtr : int option) (browserId : string) :
     addOpRPCParams =
   {ops; opCtr; browserId}
 
