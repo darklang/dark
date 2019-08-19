@@ -491,7 +491,7 @@ let cleanDBName (s : string) : string =
 let cleanGroupName (s : string) : string =
   s
   |> stripChars "[^a-zA-Z0-9_]"
-  |> stripCharsFromFront "[^a-zA-Z]"
+  |> stripCharsFromFront "[^A-Z]"
   |> String.capitalize
 
 
@@ -590,7 +590,7 @@ let toDynamicItems
       (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
       let all =
         if VariantTesting.variantIsActive m GroupVariant
-        then qGroup q :: standard
+        then standard @ [qGroup q]
         else standard
       in
       List.map ~f:(fun o -> ACOmniAction o) all
