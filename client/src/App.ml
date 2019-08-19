@@ -265,6 +265,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
     Types.modification list =
+  Js.log2 "ApplyOpsToClient, updateCurrent" updateCurrent ;
   [ UpdateToplevels (r.handlers, r.dbs, updateCurrent)
   ; UpdateDeletedToplevels (r.deletedHandlers, r.deletedDBs)
   ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, updateCurrent)
@@ -621,15 +622,37 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
     | UpdateToplevels (handlers, dbs, updateCurrent) ->
+        let m0 = m in
         let m =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
           ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (* Bring back the TL being edited, so we don't lose work done since the
+           API call *)
+        let m2 =
+          match tlidOf m.cursorState with
+          | Some tlid ->
+              if updateCurrent
+              then m
+              else
+                let tl = TL.getExn m0 tlid in
+                ( match tl with
+                | TLDB db ->
+                    DB.upsert m db
+                | TLHandler h ->
+                    Handlers.upsert m h
+                | TLTipe _ ->
+                    m
+                | TLFunc _ ->
+                    m )
+          | None ->
+              m
+        in
         updateMod
-          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
-          (m, Cmd.batch [cmd; acCmd])
+          (SetToplevels (TD.values m2.handlers, TD.values m2.dbs, updateCurrent))
+          (m2, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
           TD.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
