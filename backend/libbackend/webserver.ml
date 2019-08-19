@@ -336,8 +336,7 @@ let result_to_response
         ; execution_id
         ; status = `Internal_server_error
         ; body =
-            "Application error: the executed code was not complete. This error
-can be resolved by the application author by completing the incomplete code."
+            "Application error: the executed code was not complete. This error can be resolved by the application author by completing the incomplete code."
         }
   | RTT.DError _ ->
       Respond
