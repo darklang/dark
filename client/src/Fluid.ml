@@ -3650,30 +3650,41 @@ let tokenSelection state ast : fluidSelection option =
 
 
 let expressionSelection state ast : fluidSelection option =
-  let tokens = toTokens state ast in
+  let astTokens = toTokens state ast in
   getToken state ast
-  (* use expression ID to get tokens associated with the expression *)
+  (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
+         (* get expression that the token belongs to *)
+         let expr =
+           let exprID = Token.tid t.token in
+           findExpr exprID ast
+         in
          (* get the beginning and end of the range from
-            * the expression's first and last token *)
+            * the expression's first and last token 
+            * by cross-referencing the tokens it evaluates to via toTokens
+            * with the tokens for the whole ast.
+            *
+            * This is preferred to just getting all the tokens with the same exprID
+            * because the last expression in a token range 
+            * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
+            * different ID, (in the above case the last token TInt(2) belongs to the 
+            * second sub-expr of the FnCall) *)
          let exprStartToken, exprEndToken =
-           findExpr (Token.tid t.token) ast
-           |> Option.map
-                ~f:(toTokens' state >> reflow ~x:t.startCol >> Tuple2.second)
+           expr
+           |> Option.map ~f:(toTokens state)
            |> Option.withDefault ~default:[]
-           |> (fun ts ->
-                let t1, t2 = (List.head ts, List.last ts) in
-                (t1, t2) )
+           |> (fun exprTokens -> (List.head exprTokens, List.last exprTokens))
            |> Tuple2.mapAll ~f:(function
-                  | Some t ->
-                      List.find tokens ~f:(fun t' -> t = t'.token)
+                  | Some exprTok ->
+                      List.find astTokens ~f:(fun astTok ->
+                          exprTok.token = astTok.token )
                   | _ ->
                       None )
          in
          match (exprStartToken, exprEndToken) with
-         | Some {startPos}, Some {endPos}
-         | Some {startPos; endPos}, None
-         | None, Some {startPos; endPos} ->
+         (* range is from startPos of first token in expr to 
+          * endPos of last token in expr *)
+         | Some {startPos}, Some {endPos} ->
              Some {range = (startPos, endPos)}
          | _ ->
              None )
