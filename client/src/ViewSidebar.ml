@@ -191,7 +191,7 @@ let f404Category (m : model) : category =
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
-            ; verb = Some modifier } ) }
+            ; verb = (if space = "WORKER" then None else Some modifier) } ) }
 
 
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
