@@ -489,7 +489,7 @@ let () =
               expect
                 ( acFor m
                 |> setQuery m ""
-                |> itemPresent (ACEventName "/")
+                |> itemPresent (ACHTTPRoute "/")
                 |> not )
               |> toEqual true ) ;
           test "autocomplete supports password type" (fun () ->
