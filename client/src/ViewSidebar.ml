@@ -369,7 +369,11 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
       ( match e.destination with
       | Some dest ->
           let cl =
-            if e.uses = Some 0 then "default-link unused" else "default-link"
+            if tlidOf m.cursorState = Some e.tlid
+            then "default-link selected-entry"
+            else if e.uses = Some 0
+            then "default-link unused"
+            else "default-link"
           in
           [destinationLink dest cl name]
       | _ ->
