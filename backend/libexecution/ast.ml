@@ -654,7 +654,7 @@ and exec_fn
           (* Don't execute user functions if it's preview mode and we have a result *)
           ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
           | Preview, Some (result, _ts) ->
-              result
+              Dval.unwrap_from_errorrail result
           | _ ->
               (* It's okay to execute user functions in both Preview and Real contexts,
                * But in Preview we might not have all the data we need *)
