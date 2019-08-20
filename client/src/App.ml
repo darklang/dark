@@ -25,10 +25,23 @@ let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
     avatars
 
 
+(* We do some dropping of ops based on browserId+opCtr to preserve ordering.
+ * (opCtr is per-browserId, and inc'd client-side; thus we know, when processing
+ * a set of ops whether this is the latest seen so far from a given client, or
+ * has come in out of order.) This is initially done server-side, to guard
+ * against ops being processed there out of order; but we also need to do this
+ * client-side, since messages coming in from Pusher (and stroller) are not
+ * guaranteed to be delivered in order.
+ *
+ * Ordering is determined by model.opCtrs, and we return a model so we can also
+ * update the opCtrs map.
+ * *)
 let filterOpsAndResult
     (m : model) (params : addOpRPCParams) (result : addOpRPCResult option) :
     model * op list * addOpRPCResult option =
   let newOpCtrs =
+    (* if the opCtr in params is greater than the one in the map, we'll create
+     * an updated map *)
     StrDict.update m.opCtrs ~key:params.browserId ~f:(fun oldCtr ->
         match (oldCtr, params.opCtr) with
         | Some oldCtr, Some paramsOpCtr ->
@@ -37,6 +50,8 @@ let filterOpsAndResult
             params.opCtr )
   in
   let m2 = {m with opCtrs = newOpCtrs} in
+  (* if the new opCtrs map was updated by params.opCtr, then this msg was the
+   * latest; otherwise, we need to filter out some ops from params *)
   if StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
   then (m2, params.ops, result)
   else
@@ -55,6 +70,7 @@ let filterOpsAndResult
                  true )
     in
     let opTlids = params.ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
+    (* We also want to ignore the result of ops we ignored *)
     let result =
       Option.map result ~f:(fun (result : addOpRPCResult) ->
           { result with
