@@ -1634,6 +1634,18 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
+      let fluidCopy =
+        let ev : FluidKeyboard.keyEvent =
+          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
+          let metaKey = Entry.getBrowserPlatform () = Mac in
+          { key = FluidKeyboard.Letter 'c'
+          ; ctrlKey
+          ; metaKey
+          ; altKey = false
+          ; shiftKey = false }
+        in
+        Fluid.update m (FluidKeyPress ev)
+      in
       let toast =
         TweakModel
           (fun m ->
@@ -1643,24 +1655,48 @@ let update_ (msg : msg) (m : model) : modification =
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
           e##preventDefault () ;
-          toast
+          Many [toast; fluidCopy]
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
           e##preventDefault () ;
-          toast
+          Many [toast; fluidCopy]
       | `None ->
           () ;
           NoChange )
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
-      if json <> ""
+      if VariantTesting.isFluid m.tests
+      then
+        let ev : FluidKeyboard.keyEvent =
+          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
+          let metaKey = Entry.getBrowserPlatform () = Mac in
+          { key = FluidKeyboard.Letter 'v'
+          ; ctrlKey
+          ; metaKey
+          ; altKey = false
+          ; shiftKey = false }
+        in
+        Fluid.update m (FluidKeyPress ev)
+      else if json <> ""
       then Clipboard.paste m (`Json (Json.parseOrRaise json))
       else
         let text = e##clipboardData##getData "text/plain" in
         if text <> "" then Clipboard.paste m (`Text text) else NoChange
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
+      let fluidCut =
+        let ev : FluidKeyboard.keyEvent =
+          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
+          let metaKey = Entry.getBrowserPlatform () = Mac in
+          { key = FluidKeyboard.Letter 'c'
+          ; ctrlKey
+          ; metaKey
+          ; altKey = false
+          ; shiftKey = false }
+        in
+        Fluid.update m (FluidKeyPress ev)
+      in
       let toast =
         TweakModel
           (fun m ->
@@ -1670,7 +1706,7 @@ let update_ (msg : msg) (m : model) : modification =
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
           e##preventDefault () ;
-          Many [mod_; toast]
+          Many [mod_; toast; fluidCut]
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
@@ -1678,7 +1714,7 @@ let update_ (msg : msg) (m : model) : modification =
            * shouldn't get used to it *)
           e##clipboardData##setData "text/plain" data ;
           e##preventDefault () ;
-          Many [mod_; toast]
+          Many [mod_; toast; fluidCut]
       | `None ->
           () ;
           mod_ )
