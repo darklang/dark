@@ -790,9 +790,12 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
             ~execution_id
             `OK
-            (* if no changes are made, we return an empty string - does this cause a
-               * client error? *)
-            (Option.value ~default:"" strollerMsg) )
+            (Option.value
+               ~default:
+                 ( {result = Analysis.empty_to_add_op_rpc_result; params}
+                 |> Analysis.add_op_stroller_msg_to_yojson
+                 |> Yojson.Safe.to_string )
+               strollerMsg) )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
