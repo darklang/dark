@@ -27,6 +27,8 @@ let name (tl : toplevel) : string =
       ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
   | TLTipe t ->
       "Type: " ^ (t.utName |> B.toMaybe |> Option.withDefault ~default:"")
+  | TLGroup g ->
+      "Group: " ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let sortkey (tl : toplevel) : string =
@@ -41,6 +43,8 @@ let sortkey (tl : toplevel) : string =
       f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:""
   | TLTipe t ->
       t.utName |> B.toMaybe |> Option.withDefault ~default:""
+  | TLGroup g ->
+      g.gName |> B.toMaybe |> Option.withDefault ~default:""
 
 
 let id tl =
@@ -53,6 +57,8 @@ let id tl =
       f.ufTLID
   | TLTipe t ->
       t.utTLID
+  | TLGroup g ->
+      g.gTLID
 
 
 let pos tl =
@@ -61,6 +67,8 @@ let pos tl =
       h.pos
   | TLDB db ->
       db.pos
+  | TLGroup g ->
+      g.pos
   | TLFunc _ ->
       Debug.crash "no pos in a func"
   | TLTipe _ ->
@@ -77,6 +85,8 @@ let remove (m : model) (tl : toplevel) : model =
       Functions.remove m f
   | TLTipe ut ->
       UserTypes.remove m ut
+  | TLGroup g ->
+      Groups.remove m g
 
 
 let fromList (tls : toplevel list) : toplevel TLIDDict.t =
@@ -91,7 +101,10 @@ let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
           {h with pos = newPos h.pos} )
   ; dbs =
       TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
-          {db with pos = newPos db.pos} ) }
+          {db with pos = newPos db.pos} )
+  ; groups =
+      TD.updateIfPresent m.groups ~tlid ~f:(fun (group : group) ->
+          {group with pos = newPos group.pos} ) }
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
@@ -106,8 +119,16 @@ let asUserTipe (tl : toplevel) : userTipe option =
   match tl with TLTipe t -> Some t | _ -> None
 
 
+let asGroup (tl : toplevel) : group option =
+  match tl with TLGroup g -> Some g | _ -> None
+
+
 let isUserTipe (tl : toplevel) : bool =
   match tl with TLTipe _ -> true | _ -> false
+
+
+let isGroup (tl : toplevel) : bool =
+  match tl with TLGroup _ -> true | _ -> false
 
 
 let asHandler (tl : toplevel) : handler option =
@@ -158,6 +179,8 @@ let toOp (tl : toplevel) : op list =
       [SetFunction fn]
   | TLTipe t ->
       [SetType t]
+  | TLGroup _ ->
+      impossible "Groups are front end only"
   | TLDB _ ->
       impossible "This isn't how datastore ops work"
 
@@ -187,6 +210,8 @@ let allData (tl : toplevel) : pointerData list =
       Functions.allData f
   | TLTipe t ->
       UserTypes.allData t
+  | TLGroup g ->
+      Groups.allData g
 
 
 let isValidID (tl : toplevel) (id : id) : bool =
@@ -231,6 +256,8 @@ let clonePointerData (pd : pointerData) : pointerData =
       PTypeFieldTipe (B.clone identity tipe)
   | PDBColName _ | PDBColType _ | PDBName _ ->
       pd
+  | PGroupName name ->
+      PGroupName (B.clone identity name)
 
 
 (* ------------------------- *)
@@ -295,6 +322,8 @@ let getParentOf (tl : toplevel) (p : pointerData) : pointerData option =
   | TLTipe _ ->
       (* Type definitions are flat *)
       None
+  | TLGroup _ ->
+      None
 
 
 let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
@@ -307,6 +336,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
         AST.childrenOf pid f.ufAST
     | TLDB db ->
         db |> DB.astsFor |> List.map ~f:(AST.childrenOf pid) |> List.concat
+    | TLGroup _ ->
+        []
     | TLTipe _ ->
         []
   in
@@ -351,6 +382,8 @@ let getChildrenOf (tl : toplevel) (pd : pointerData) : pointerData list =
       []
   | PTypeFieldTipe _ ->
       []
+  | PGroupName _ ->
+      []
 
 
 let getAST (tl : toplevel) : expr option =
@@ -369,7 +402,7 @@ let setAST (tl : toplevel) (newAST : expr) : toplevel =
       TLHandler {h with ast = newAST}
   | TLFunc uf ->
       TLFunc {uf with ufAST = newAST}
-  | TLDB _ | TLTipe _ ->
+  | TLDB _ | TLTipe _ | TLGroup _ ->
       tl
 
 
@@ -394,7 +427,7 @@ let rootExpr (tl : toplevel) : expr option =
       Some h.ast
   | TLFunc f ->
       Some f.ufAST
-  | TLDB _ | TLTipe _ ->
+  | TLDB _ | TLTipe _ | TLGroup _ ->
       None
 
 
@@ -433,6 +466,10 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       let tipe = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
       let newTL = UserTypes.replace p replacement tipe in
       TLTipe newTL
+  | PGroupName _ ->
+      let group = tl |> asGroup |> deOption "TL.replace group ()" in
+      let newTL = Groups.replace p replacement group in
+      TLGroup newTL
 
 
 let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -450,6 +487,8 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
         [SetType t]
     | TLDB _ ->
         impossible ("no vars in DBs", tl)
+    | TLGroup _ ->
+        impossible "groups are front end only "
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -469,20 +508,23 @@ let combine
     (handlers : handler TD.t)
     (dbs : db TD.t)
     (userFunctions : userFunction TD.t)
-    (userTipes : userTipe TD.t) : toplevel TD.t =
+    (userTipes : userTipe TD.t)
+    (groups : group TD.t) : toplevel TD.t =
   TD.map ~f:(fun h -> TLHandler h) handlers
   |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) dbs)
   |> TD.mergeLeft (TD.map ~f:ufToTL userFunctions)
   |> TD.mergeLeft (TD.map ~f:utToTL userTipes)
+  |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) groups)
 
 
 let all (m : model) : toplevel TD.t =
-  combine m.handlers m.dbs m.userFunctions m.userTipes
+  combine m.handlers m.dbs m.userFunctions m.userTipes m.groups
 
 
 let structural (m : model) : toplevel TD.t =
   TD.map ~f:(fun h -> TLHandler h) m.handlers
   |> TD.mergeLeft (TD.map ~f:(fun db -> TLDB db) m.dbs)
+  |> TD.mergeLeft (TD.map ~f:(fun group -> TLGroup group) m.groups)
 
 
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
@@ -517,6 +559,8 @@ let asPage (tl : toplevel) (center : bool) : page =
       FocusedHandler (id tl, center)
   | TLDB _ ->
       FocusedDB (id tl, center)
+  | TLGroup _ ->
+      FocusedGroup (id tl, center)
   | TLFunc _ ->
       FocusedFn (id tl)
   | TLTipe _ ->
@@ -544,4 +588,6 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLTipe _ ->
         impossible ("no ast in Tipes", tl)
     | TLDB _ ->
-        impossible ("no ast in DBs", tl) )
+        impossible ("no ast in DBs", tl)
+    | TLGroup _ ->
+        impossible ("no ast in Groups", tl) )

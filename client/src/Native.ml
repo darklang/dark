@@ -90,7 +90,13 @@ module Ext = struct
 
   external rectBottom : Dom.domRect -> float = "bottom" [@@bs.get]
 
+  external rectRight : Dom.domRect -> float = "right" [@@bs.get]
+
+  external rectLeft : Dom.domRect -> float = "left" [@@bs.get]
+
   external rectHeight : Dom.domRect -> float = "height" [@@bs.get]
+
+  external rectWidth : Dom.domRect -> float = "width" [@@bs.get]
 
   let staticHost : unit -> string = [%bs.raw "function(){ return staticUrl; }"]
 
@@ -103,6 +109,15 @@ module Ext = struct
   external windowHeight : Dom.window -> int = "innerHeight" [@@bs.get]
 
   external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
+
+  let getBoundingClient (e : Dom.element) (s : string) : rect =
+    let client = getBoundingClientRect e in
+    { id = s
+    ; top = rectTop client |> int_of_float
+    ; left = rectLeft client |> int_of_float
+    ; right = rectRight client |> int_of_float
+    ; bottom = rectBottom client |> int_of_float }
+
 
   let windowSize : int * int = (windowWidth window, windowHeight window)
 end

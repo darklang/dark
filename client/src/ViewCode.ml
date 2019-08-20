@@ -225,6 +225,8 @@ and viewNExpr
             f.ufAST |> AST.threadPrevious id |> Option.toList
         | TLTipe _ ->
             []
+        | TLGroup _ ->
+            []
         | TLDB db ->
           ( match db.activeMigration with
           | None ->
