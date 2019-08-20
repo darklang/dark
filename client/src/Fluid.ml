@@ -3046,8 +3046,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (key, toTheLeft, toTheRight) with
-    (* Moving through a lambda arrow with - > 
-     * https://trello.com/c/ymZ5ZjQe/1076-typing-an-arrow-should-move-the-user-across-a-lambdas-arrow-much-like-pressing-equals-moves-you-across-a-lets-assignment-operato *)
+    (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
     | K.Minus, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
