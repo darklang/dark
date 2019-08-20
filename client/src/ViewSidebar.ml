@@ -277,6 +277,7 @@ let groupCategory (groups : group list) : category =
   ; name = "Groups"
   ; classname = "group"
   ; plusButton = Some CreateGroup
+  ; iconAction = None
   ; entries }
 
 
