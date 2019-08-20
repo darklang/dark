@@ -1212,17 +1212,17 @@ let () =
       t
         "type - after a lambda var to move into a lambda arrow"
         aLambda
-        (press ~debug:true Minus 4)
+        (press Minus 4)
         ("\\*** -> ___", 6) ;
       t
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
-        (press ~debug:true Minus 5)
+        (press Minus 5)
         ("\\*** -> ___", 6) ;
       t
         "type > inside a lambda arrow to move past it"
         aLambda
-        (press ~debug:true GreaterThan 6)
+        (press GreaterThan 6)
         ("\\*** -> ___", 8) ;
       (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
