@@ -181,10 +181,27 @@ let createFunction (fn : function_) : expr =
         , blanks (List.length fn.fnParameters)
         , r ) )
 
+
+(* I know these look like magic numbers, this logic will only exist
+ until we get architectural layouting of elements
+ This function should find a position to create a handler/db that should be within
+ the visible area of your viewport.*)
 let generatePos (cp : canvasProps) : pos =
-  let x = Native.Random.range (cp.offset.x + 100) (cp.viewportSize.w - 360) in
-  let y = Native.Random.range cp.offset.y (cp.viewportSize.h - 100) in
+  let approxSidebarWidth = 300 in
+  let approxHandlerWidth = 360 in
+  let approxHandlerHeight = 100 in
+  let x =
+    Native.Random.range
+      ((-1 * cp.offset.x) + approxSidebarWidth)
+      (cp.viewportSize.w - approxHandlerWidth)
+  in
+  let y =
+    Native.Random.range
+      (-1 * cp.offset.y)
+      (cp.viewportSize.h - approxHandlerHeight)
+  in
   {x; y}
+
 
 let newHandler m space name modifier pos =
   let tlid = gtlid () in
@@ -209,15 +226,19 @@ let newHandler m space name modifier pos =
   in
   Many
     ( RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
-    :: SetPage (FocusedHandler (tlid, true))
+    :: SetPage (FocusedHandler (tlid, false))
     :: fluidMods )
 
 
 let submitOmniAction (m : model) (pos : pos option) (action : omniAction) :
     modification =
-  let pos = match pos with 
-    | Some p -> {x = p.x - 17; y = p.y - 70}
-    | None -> generatePos m.canvasProps in
+  let pos =
+    match pos with
+    | Some p ->
+        {x = p.x - 17; y = p.y - 70}
+    | None ->
+        generatePos m.canvasProps
+  in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->
@@ -854,15 +875,15 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   (* TODO(alice) figure out if omnibox was opened intentionally on the spot *)
   match cursor with
   | Creating pos ->
-    let position = if m.isOmniTarget then Some pos else None in
-    ( match AC.highlighted m.complete with
-    | Some (ACOmniAction act) ->
-        submitOmniAction m position act
-    (* If empty, create an empty handler *)
-    | None when m.complete.value = "" ->
-        submitOmniAction m position (NewReplHandler None)
-    | _ ->
-        NoChange )
+      let position = if m.isOmniTarget then Some pos else None in
+      ( match AC.highlighted m.complete with
+      | Some (ACOmniAction act) ->
+          submitOmniAction m position act
+      (* If empty, create an empty handler *)
+      | None when m.complete.value = "" ->
+          submitOmniAction m position (NewReplHandler None)
+      | _ ->
+          NoChange )
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->

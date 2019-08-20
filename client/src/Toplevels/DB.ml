@@ -99,7 +99,7 @@ let createDB (name : string) (pos : pos) : modification =
         ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
           ; AddDBCol (tlid, next, Prelude.gid ()) ]
         , FocusExact (tlid, next) )
-    ; SetPage (FocusedDB (tlid, true)) ]
+    ; SetPage (FocusedDB (tlid, false)) ]
 
 
 let generateDBName (_ : unit) : string =
