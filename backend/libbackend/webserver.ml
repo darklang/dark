@@ -771,7 +771,9 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
       if float_of_int params.opCtr >= ((2.0 ** 31.0) -. 1.0) *. 0.8
       then
         let exn =
-          Exception.internal "opCtr is approaching max safe value (2^31 - 1)/2"
+          Exception.make_exception
+            DarkInternal
+            "opCtr is approaching max safe value (2^31 - 1)/2"
         in
         ignore
           (Rollbar.report_lwt
