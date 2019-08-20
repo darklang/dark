@@ -178,6 +178,7 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
+  let keyView = Html.div [Html.class' "col key"] [Html.text "key : String"] in
   let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
   let data = viewDBData vs db in
   let migrationView =
@@ -189,6 +190,6 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     | None ->
         []
   in
-  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)]
+  [Html.div [Html.class' "db"] (locked :: namediv :: keyView :: coldivs)]
   @ migrationView
   @ [data]

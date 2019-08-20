@@ -177,6 +177,11 @@
     justify-content: flex-start;
     align-items: center;
 
+    &.key {
+      font-size: 10px;
+      color: darken($grey3, 15%);
+    }
+
     .name,
     .type {
       flex: 1;
