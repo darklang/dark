@@ -246,6 +246,8 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
           ~default:(Util.Namer.generateAnimalWithPersonality ~space:"REPL" ())
       in
       newHandler m "REPL" (Some name) unused pos
+  | NewGroup name ->
+      Groups.createEmptyGroup name pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 
@@ -416,6 +418,8 @@ let getAstFromTopLevel tl =
       h.ast
   | TLFunc f ->
       f.ufAST
+  | TLGroup _ ->
+      impossible ("No ASTs in Groups", tl)
   | TLDB _ ->
       impossible ("No ASTs in DBs", tl)
   | TLTipe _ ->
@@ -480,6 +484,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.fieldNameValidator "type field name"
   | PTypeFieldTipe _ ->
       v AC.paramTypeValidator "type field type"
+  | PGroupName _ ->
+      v AC.groupNameValidator "group name"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralRepr value
@@ -573,6 +579,8 @@ let submitACItem
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
+            | TLGroup g ->
+                AddGroup g
             | TLDB _ ->
                 impossible ("no vars in DBs", tl)
         in
@@ -587,6 +595,8 @@ let submitACItem
               impossible ("no ASTs in DBs", tl)
           | TLTipe _ ->
               impossible ("no ASTs in Tipes", tl)
+          | TLGroup _ ->
+              impossible ("no ASTs in Groups", tl)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -750,6 +760,8 @@ let submitACItem
           | TLFunc f ->
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
+          | TLGroup _ ->
+              NoChange
           | TLTipe _ ->
               NoChange
           | TLDB db ->
@@ -818,6 +830,8 @@ let submitACItem
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
+        | PGroupName _, ACGroupName name ->
+            replace (PGroupName (B.newF name))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
@@ -879,6 +893,8 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeName value)
             | TypeFieldName ->
                 Some (ACTypeFieldName value)
+            | GroupName ->
+                Some (ACGroupName value)
             | _ ->
                 None )
           | None ->

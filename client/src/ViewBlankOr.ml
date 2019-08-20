@@ -275,7 +275,7 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
         Some h.ast
     | TLFunc f ->
         Some f.ufAST
-    | TLDB _ | TLTipe _ ->
+    | TLDB _ | TLTipe _ | TLGroup _ ->
         None )
     |> Option.andThen ~f:(fun ast ->
            match AST.getParamIndex ast id with
@@ -346,6 +346,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "field name"
   | TypeFieldTipe ->
       "field type"
+  | GroupName ->
+      "group name"
 
 
 let viewBlankOr

@@ -468,7 +468,7 @@ let inputVariables (tl : toplevel) : varName list =
   | TLFunc f ->
       f.ufMetadata.ufmParameters
       |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
-  | TLTipe _ | TLDB _ ->
+  | TLTipe _ | TLDB _ | TLGroup _ ->
       []
 
 

@@ -81,6 +81,12 @@ let asName (aci : autocompleteItem) : string =
           "New REPL named " ^ name
       | None ->
           "New REPL handler" )
+    | NewGroup maybeName ->
+      ( match maybeName with
+      | Some name ->
+          "New group named " ^ name
+      | None ->
+          "New group" )
     | Goto (_, _, desc) ->
         desc )
   | ACConstructorName name ->
@@ -126,7 +132,8 @@ let asName (aci : autocompleteItem) : string =
   | ACFnName name
   | ACParamName name
   | ACTypeName name
-  | ACTypeFieldName name ->
+  | ACTypeFieldName name
+  | ACGroupName name ->
       name
   | ACTypeFieldTipe tipe ->
       RT.tipe2str tipe
@@ -207,6 +214,8 @@ let asTypeString (item : autocompleteItem) : string =
       "type name"
   | ACTypeFieldName _ ->
       "type field name"
+  | ACGroupName _ ->
+      "group name"
   | ACTypeFieldTipe tipe ->
     ( match tipe with
     | TUserType (_, v) ->
@@ -394,6 +403,8 @@ let dbColNameValidator = "\\w+"
 
 let dbNameValidator = "[A-Z][a-zA-Z0-9_]*"
 
+let groupNameValidator = "[A-Z][a-zA-Z0-9_]*"
+
 let eventModifierValidator = "[a-zA-Z_][\\sa-zA-Z0-9_]*"
 
 let httpVerbValidator = "[A-Z]+"
@@ -489,6 +500,13 @@ let cleanDBName (s : string) : string =
   |> String.capitalize
 
 
+let cleanGroupName (s : string) : string =
+  s
+  |> stripChars "[^a-zA-Z0-9_]"
+  |> stripCharsFromFront "[^A-Z]"
+  |> String.capitalize
+
+
 let qNewDB (s : string) : omniAction =
   let name = cleanDBName s in
   if name = ""
@@ -529,6 +547,13 @@ let qReplHandler (s : string) : omniAction =
   else NewReplHandler (Some (assertValid eventNameValidator name))
 
 
+let qGroup (s : string) : omniAction =
+  let name = cleanGroupName s in
+  if name = ""
+  then NewGroup None
+  else NewGroup (Some (assertValid groupNameValidator name))
+
+
 let qHTTPHandler (s : string) : omniAction =
   let name = cleanEventName s in
   if name = ""
@@ -561,18 +586,28 @@ let isDynamicItem (item : autocompleteItem) : bool =
 let isStaticItem (item : autocompleteItem) : bool = not (isDynamicItem item)
 
 let toDynamicItems
-    (space : handlerSpace option) (target : target option) (q : string) :
-    autocompleteItem list =
+    (m : model)
+    (space : handlerSpace option)
+    (target : target option)
+    (q : string) : autocompleteItem list =
   match target with
   | None ->
       (* omnicompletion *)
-      [ qHTTPHandler q
-      ; qNewDB q
-      ; qFunction q
-      ; qWorkerHandler q
-      ; qCronHandler q
-      ; qReplHandler q ]
-      |> List.map ~f:(fun o -> ACOmniAction o)
+      let standard =
+        [ qHTTPHandler q
+        ; qNewDB q
+        ; qFunction q
+        ; qWorkerHandler q
+        ; qCronHandler q
+        ; qReplHandler q ]
+      in
+      (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
+      let all =
+        if VariantTesting.variantIsActive m GroupVariant
+        then standard @ [qGroup q]
+        else standard
+      in
+      List.map ~f:(fun o -> ACOmniAction o) all
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
@@ -604,7 +639,7 @@ let withDynamicItems
     |> Option.andThen ~f:(TL.get m)
     |> Option.andThen ~f:TL.spaceOf
   in
-  let new_ = toDynamicItems space target query in
+  let new_ = toDynamicItems m space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
   withoutDynamic @ new_
 
@@ -625,6 +660,9 @@ let tlGotoName (tl : toplevel) : string =
   | TLDB db ->
       "Jump to DB: "
       ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
+  | TLGroup g ->
+      "Jump to Group: "
+      ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"Undefined")
   | TLFunc _ ->
       Debug.crash "cannot happen"
   | TLTipe _ ->
@@ -1097,6 +1135,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("Set param name to " ^ paramName)
   | ACTypeName typeName ->
       Some ("Set type name to " ^ typeName)
+  | ACGroupName groupName ->
+      Some ("Set group name to " ^ groupName)
   | ACTypeFieldName _ ->
       None
 

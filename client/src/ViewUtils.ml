@@ -136,6 +136,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedType tlid_
       | FocusedFn tlid_
       | FocusedDB (tlid_, _)
+      | FocusedGroup (tlid_, _)
         when tlid_ = tlid ->
           m.avatarsList
       | _ ->
