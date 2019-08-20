@@ -1208,6 +1208,23 @@ let () =
        * constructor are randomly generated and would be hard to test *)
       () ) ;
   describe "Lambdas" (fun () ->
+      (* type -> to move through a lambda *)
+      t
+        "type - after a lambda var to move into a lambda arrow"
+        aLambda
+        (press ~debug:true Minus 4)
+        ("\\*** -> ___", 6) ;
+      t
+        "type - before a lambda arrow to move into a lambda arrow"
+        aLambda
+        (press ~debug:true Minus 5)
+        ("\\*** -> ___", 6) ;
+      t
+        "type > inside a lambda arrow to move past it"
+        aLambda
+        (press ~debug:true GreaterThan 6)
+        ("\\*** -> ___", 8) ;
+      (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
       t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
       t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) ("\\*** -> 5", 1) ;
