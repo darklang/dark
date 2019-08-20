@@ -1375,7 +1375,8 @@ and model =
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
   ; permission : permission option
-  ; toast : toast }
+  ; toast : toast
+  ; isOmniTarget : bool }
 
 (* Values that we serialize *)
 and serializableEditor =

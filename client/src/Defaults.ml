@@ -133,4 +133,5 @@ let defaultModel : model =
   ; buildHash = ""
   ; lastReload = None
   ; permission = None
-  ; toast = defaultToast }
+  ; toast = defaultToast
+  ; isOmniTarget = false }

@@ -853,12 +853,13 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   (* TODO(alice) figure out if omnibox was opened intentionally on the spot *)
   match cursor with
   | Creating pos ->
+    let position = if m.isOmniTarget then Some pos else None in
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction act) ->
-        submitOmniAction m (Some pos) act
+        submitOmniAction m position act
     (* If empty, create an empty handler *)
     | None when m.complete.value = "" ->
-        submitOmniAction m (Some pos) (NewReplHandler None)
+        submitOmniAction m position (NewReplHandler None)
     | _ ->
         NoChange )
   | _ ->

@@ -996,7 +996,8 @@ let update_ (msg : msg) (m : model) : modification =
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
-                ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+                ; Enter (Creating (Viewport.toAbsolute m event.mePos))
+                ; TweakModel (fun m -> {m with isOmniTarget = true}) ]
           | _ ->
               Deselect
         else NoChange )
