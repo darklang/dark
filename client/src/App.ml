@@ -1606,12 +1606,11 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
-      let center = findCenter m in
-      Entry.submitOmniAction m center action
+      Entry.submitOmniAction m None action
   | CreateDBTable ->
-      let center = findCenter m
-      and genName = DB.generateDBName () in
-      DB.createDB genName center
+      let pos = Entry.generatePos m.canvasProps in
+      let genName = DB.generateDBName () in
+      DB.createDB genName pos
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center

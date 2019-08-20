@@ -181,6 +181,10 @@ let createFunction (fn : function_) : expr =
         , blanks (List.length fn.fnParameters)
         , r ) )
 
+let generatePos (cp : canvasProps) : pos =
+  let x = Native.Random.range (cp.offset.x + 100) (cp.viewportSize.w - 360) in
+  let y = Native.Random.range cp.offset.y (cp.viewportSize.h - 100) in
+  {x; y}
 
 let newHandler m space name modifier pos =
   let tlid = gtlid () in
@@ -208,9 +212,11 @@ let newHandler m space name modifier pos =
     :: fluidMods )
 
 
-let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
+let submitOmniAction (m : model) (pos : pos option) (action : omniAction) :
     modification =
-  let pos = {x = pos.x - 17; y = pos.y - 70} in
+  let pos = match pos with 
+    | Some p -> {x = p.x - 17; y = p.y - 70}
+    | None -> generatePos m.canvasProps in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->
@@ -844,14 +850,15 @@ let submitACItem
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     =
+  (* TODO(alice) figure out if omnibox was opened intentionally on the spot *)
   match cursor with
   | Creating pos ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction act) ->
-        submitOmniAction m pos act
+        submitOmniAction m (Some pos) act
     (* If empty, create an empty handler *)
     | None when m.complete.value = "" ->
-        submitOmniAction m pos (NewReplHandler None)
+        submitOmniAction m (Some pos) (NewReplHandler None)
     | _ ->
         NoChange )
   | _ ->
