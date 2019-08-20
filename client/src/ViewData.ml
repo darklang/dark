@@ -30,10 +30,10 @@ let viewInput
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
           TraceMouseLeave (tlid, traceID, x) ) ]
   in
-  let valueDiv =
+  let valueDiv, valueStr =
     match value with
     | None ->
-        ViewUtils.fontAwesome "spinner"
+        (ViewUtils.fontAwesome "spinner", "loading")
     | Some v ->
         let asString = Runtime.inputValueAsString tl v in
         let asString =
@@ -41,7 +41,7 @@ let viewInput
           then "No input parameters"
           else asString
         in
-        Html.div [Vdom.noProp] [Html.text asString]
+        (Html.div [Vdom.noProp] [Html.text asString], "")
   in
   let timestampDiv =
     match timestamp with
@@ -54,13 +54,19 @@ let viewInput
         in
         Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
+  (* Fixes: https://trello.com/c/Vv8mMOls/1595-top-request-cursor-is-unselectable-10-6 *)
+  (* viewKey contains the:
+   traceID  - to update with every new traceId,
+   classes  - to update when hover/mouseover, 
+   valueStr - to update from loading to loaded *)
+  let viewKey = traceID ^ classes ^ valueStr in
   let dotHtml =
     if isHover && not isActive
     then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
     else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
   let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
-  Html.li (Html.class' classes :: events) (dotHtml @ [viewData])
+  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
 let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
