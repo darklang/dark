@@ -209,6 +209,7 @@ let newHandler m space name modifier pos =
   in
   Many
     ( RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
+    :: SetPage (FocusedHandler (tlid, true))
     :: fluidMods )
 
 
