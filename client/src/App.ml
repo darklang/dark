@@ -337,6 +337,22 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
   let newm, newcmd =
+    let bringBackCurrentTL (oldM : model) (newM : model) : model =
+      (* used with updateCurrent - if updateCurrent is false, we want to restore
+       * the current TL so we don't lose local changes made since the API call *)
+      match tlidOf oldM.cursorState with
+      | Some tlid ->
+          let tl = TL.getExn oldM tlid in
+          ( match tl with
+          | TLDB db ->
+              DB.upsert newM db
+          | TLHandler h ->
+              Handlers.upsert newM h
+          | TLTipe _ | TLFunc _ ->
+              newM )
+      | None ->
+          newM
+    in
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
@@ -599,27 +615,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m2 =
           {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
         in
-        (* Bring back the TL being edited, so we don't lose work done since the
+        (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m3 =
-          match tlidOf m.cursorState with
-          | Some tlid ->
-              if updateCurrent
-              then m2
-              else
-                let tl = TL.getExn m tlid in
-                ( match tl with
-                | TLDB db ->
-                    DB.upsert m2 db
-                | TLHandler h ->
-                    Handlers.upsert m2 h
-                | TLTipe _ ->
-                    m2
-                | TLFunc _ ->
-                    m2 )
-          | None ->
-              m2
-        in
+        let m3 = if updateCurrent then m2 else bringBackCurrentTL m m2 in
         let m4 =
           let hTLIDs = List.map ~f:(fun h -> h.hTLID) handlers in
           let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
@@ -630,37 +628,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m5 = Refactor.updateUsageCounts m4 in
         processAutocompleteMods m5 [ACRegenerate]
     | UpdateToplevels (handlers, dbs, updateCurrent) ->
-        let m0 = m in
-        let m =
+        let m2 =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
           ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
-        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
-        (* Bring back the TL being edited, so we don't lose work done since the
+        let m3, acCmd = processAutocompleteMods m2 [ACRegenerate] in
+        (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m2 =
-          match tlidOf m.cursorState with
-          | Some tlid ->
-              if updateCurrent
-              then m
-              else
-                let tl = TL.getExn m0 tlid in
-                ( match tl with
-                | TLDB db ->
-                    DB.upsert m db
-                | TLHandler h ->
-                    Handlers.upsert m h
-                | TLTipe _ ->
-                    m
-                | TLFunc _ ->
-                    m )
-          | None ->
-              m
-        in
+        let m4 = if updateCurrent then m3 else bringBackCurrentTL m m3 in
         updateMod
-          (SetToplevels (TD.values m2.handlers, TD.values m2.dbs, updateCurrent))
-          (m2, Cmd.batch [cmd; acCmd])
+          (SetToplevels (TD.values m4.handlers, TD.values m4.dbs, updateCurrent))
+          (m4, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
           TD.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
