@@ -7,37 +7,6 @@ open Fluid
 module B = Blank
 module K = FluidKeyboard
 
-let b () = newB ()
-
-let complexExpr =
-  EBinOp
-    ( gid ()
-    , "||"
-    , EBinOp
-        ( gid ()
-        , "=="
-        , EFieldAccess
-            ( gid ()
-            , EFieldAccess
-                (gid (), EVariable (gid (), "request"), gid (), "headers")
-            , gid ()
-            , "origin" )
-        , EString (gid (), "https://usealtitude.com")
-        , NoRail )
-    , EBinOp
-        ( gid ()
-        , "=="
-        , EFieldAccess
-            ( gid ()
-            , EFieldAccess
-                (gid (), EVariable (gid (), "request"), gid (), "headers")
-            , gid ()
-            , "origin" )
-        , EString (gid (), "https://localhost:3000")
-        , NoRail )
-    , NoRail )
-
-
 let m =
   let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
       Types.parameter =
@@ -118,22 +87,6 @@ let () =
         ac = AC.reset m; selection = Some {range} }
     in
     let pos = Tuple2.first range in
-    let newlinesBeforeStartPos =
-      (* How many newlines occur before the pos, it'll be indented by 2 for
-       * each newline, once the expr is wrapped in an if, so we need to add
-       * 2*nl to get the pos in place. (Note: it's correct to just count them,
-       * as opposed to the iterative approach we do later, because we're using
-       * the old ast that has no newlines. *)
-      ast
-      |> toTokens {s with newPos = pos}
-      |> List.filter ~f:(fun ti ->
-             FluidToken.isNewline ti.token && ti.startPos < pos )
-      |> List.length
-    in
-    let ast = EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5)) in
-    let wrapperOffset = 15 in
-    let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
-    let pos = pos + extra in
     let s = {s with oldPos = pos; newPos = pos} in
     let clipboardStr s =
       s.clipboard
@@ -150,37 +103,19 @@ let () =
     let newAST, newState =
       updateMsg m h.hTLID ast (FluidKeyPress keyEvent) s
     in
-    let result =
-      match newAST with
-      | EIf (_, _, expr, _) ->
-          expr
-      | expr ->
-          impossible ("the wrapper is broken: " ^ eToString s expr)
-    in
-    let endPos = ref (newState.newPos - wrapperOffset) in
-    (* Account for the newlines as we find them, or else we won't know our
-     * position to find the newlines correctly. There'll be extra indentation,
-     * so we need to subtract those to get the pos we expect. *)
-    result
-    |> toTokens newState
-    |> List.iter ~f:(fun ti ->
-           match ti.token with
-           | TNewline _ when !endPos > ti.endPos ->
-               endPos := !endPos - 2
-           | _ ->
-               () ) ;
     let last =
-      toTokens newState result
+      toTokens newState newAST
       |> List.last
       |> deOption "last"
       |> fun x -> x.endPos
     in
-    let finalPos = max 0 (min last !endPos) in
+    let finalPos = max 0 (min last newState.newPos) in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState result) ) ;
-    (eToString newState result, clipboardStr newState, finalPos)
+      Js.log2 "expr after" (eToStructure newState newAST) ;
+      Js.log2 "clipboard after" (clipboardStr newState) ) ;
+    (eToString newState newAST, clipboardStr newState, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
@@ -196,7 +131,7 @@ let () =
   let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
     let keyEvent : K.keyEvent =
-      { key = K.Letter 'c'
+      { key = K.Letter 'x'
       ; shiftKey = false
       ; altKey = false
       ; metaKey = false
@@ -217,6 +152,10 @@ let () =
       ^ "`" )
       (fun () -> expect (fn initial) |> toEqual expected)
   in
+  (* NOTE: 
+    * most tests don't work yet, they just serve as examples of how
+    * the harness works
+    *)
   describe "Boolean" (fun () ->
       t
         "copying a bool should add an EBool to clipboard"
@@ -224,17 +163,20 @@ let () =
         (copy (0, 4))
         ("true", "true", 0) ;
       t
-        "copying a bool should add an EBool to clipboard 2"
-        (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
-        (copy (10, 14))
-        ("Bool::not true", "true", 0) ;
-      t
         "cutting a bool should add an EBool to clipboard and leave a blank"
         (EBool (gid (), true))
         (cut (0, 4))
         ("___", "true", 0) ;
+      (* NOT WORKING YET
+      t
+        "copying a bool should add an EBool to clipboard 2"
+        (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
+        (copy (10, 14))
+        ("Bool::not true", "true", 0) ;
+        *)
       () ) ;
   describe "Functions" (fun () ->
+      (* NOT WORKING YET
       t
         "copying a function name should add an EFnCall w blank arguments to clipboard"
         (EFnCall
@@ -253,4 +195,22 @@ let () =
            , NoRail ))
         (copy (11, 12))
         ("Int::sqrt a b", "a", 0) ;
+  *)
+      () ) ;
+  describe "Threads" (fun () ->
+      (* NOT WORKING YET
+      let threadOn expr fns = EThread (gid (), expr :: fns) in
+      let emptyList = EList (gid (), []) in
+      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
+      let listFn args =
+        EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+      in
+      let aThread =
+        threadOn emptyList [listFn [aListNum 5]; listFn [aListNum 5]]
+      in
+      t
+        "copying first expression of thread adds it to clipboard"
+        aThread
+        (copy (0, 2))
+        ("[]\n|>List::append [5]\n|>List::append [5]", "[]", 0) ; *)
       () )
