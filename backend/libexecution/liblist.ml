@@ -125,6 +125,26 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["List::findFirst_v2"]
+    ; ins = []
+    ; p = [par "l" TList; func ["val"]]
+    ; r = TOption
+    ; d =
+        "Find the first element of the list, for which `f` returns true. Returns Nothing if none return true"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DBlock fn] ->
+              let f (dv : dval) : bool = DBool true = fn [dv] in
+              ( match List.find ~f l with
+              | None ->
+                  DOption OptNothing
+              | Some dv ->
+                  DOption (OptJust dv) )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["List::contains"]
     ; ins = []
