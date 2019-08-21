@@ -528,6 +528,10 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
+  ; opCtrs =
+      j
+      |> withDefault [] (field "op_ctrs" (list (tuple2 string int)))
+      |> StrDict.fromList
   ; permission = field "permission" (optional permission) j }
 
 

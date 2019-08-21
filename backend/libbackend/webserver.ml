@@ -677,8 +677,10 @@ let static_assets_upload_handler
 
 let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, params =
+  let t1, (params, canvas_id) =
     time "1-read-api-ops" (fun _ ->
+        let owner = Account.for_host_exn host in
+        let canvas_id = Serialize.fetch_canvas_id owner host in
         let params = Api.to_add_op_rpc_params body in
         (* Conditions:
          * - if request's op_ctr is the latest, and this browser_id's row is
@@ -712,13 +714,14 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
              * that it also handles the initial case where there is no
              * browser_id record yet *)
-            "INSERT INTO op_ctrs(browser_id,ctr,locked) VALUES($1, $2, true)
+            "INSERT INTO op_ctrs(browser_id,ctr,locked,canvas_id) VALUES($1, $2, true, $3)
              ON CONFLICT (browser_id)
              DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW(), locked = true
                        WHERE op_ctrs.ctr < EXCLUDED.ctr AND op_ctrs.locked = false"
             ~params:
               [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
-              ; Db.Int op_ctr ] ;
+              ; Db.Int op_ctr
+              ; Db.Uuid canvas_id ] ;
           let curr_lock =
             Db.fetch_one
               ~name:"get-current_op_ctrs_lock"
@@ -745,7 +748,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               ~loop_ctr:(loop_ctr + 1) )
         in
         if is_latest_op_request params.browserId params.opCtr
-        then params
+        then (params, canvas_id)
         else
           (* This add_op call came in out of order; we've already processed a
            * subsequent add_op call. So drop any ops that must be run in order
@@ -766,7 +769,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
                    | _ ->
                        true )
           in
-          {params with ops = filtered_ops} )
+          ({params with ops = filtered_ops}, canvas_id) )
   in
   let release_op_ctrs_lock unit : unit =
     Db.run
@@ -797,8 +800,6 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         (* To make this work with prodclone, we might want to have it specify
          * more ... else people's prodclones will stomp on each other ... *)
         time "5-send-ops-to-stroller" (fun _ ->
-            let owner = Account.for_host_exn host in
-            let canvas_id = Serialize.fetch_canvas_id owner host in
             if Api.causes_any_changes params
             then (
               let strollerMsg =
@@ -902,8 +903,22 @@ let initial_load
     in
     let t6, result =
       time "6-to-frontend" (fun _ ->
+          let op_ctrs =
+            Db.fetch
+              ~name:"fetch_op_ctrs_for_canvas"
+              "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
+              ~params:[Db.Uuid !c.id]
+            |> List.map ~f:(function
+                   | [browser_id; op_ctr] ->
+                       (browser_id, op_ctr |> int_of_string)
+                   | _ ->
+                       Exception.internal
+                         "wrong
+record shape from fetch_op_Ctrs_for_canvas" )
+          in
           Analysis.to_initial_load_rpc_result
             !c
+            op_ctrs
             permission
             f404s
             traces

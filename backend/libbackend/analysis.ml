@@ -312,11 +312,13 @@ type initial_load_rpc_result =
   ; assets : SA.static_deploy list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
+  ; op_ctrs : (string * int) list
   ; permission : Authorization.permission option }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
     (c : canvas)
+    (op_ctrs : (string * int) list)
     (permission : Authorization.permission option)
     (fofs : SE.four_oh_four list)
     (traces : tlid_traceid list)
@@ -333,6 +335,7 @@ let to_initial_load_rpc_result
   ; fofs
   ; traces
   ; assets
+  ; op_ctrs
   ; permission }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

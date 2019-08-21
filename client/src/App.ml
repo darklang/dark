@@ -1324,7 +1324,8 @@ let update_ (msg : msg) (m : model) : modification =
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
-          handlers = Handlers.fromList r.handlers
+          opCtrs = r.opCtrs
+        ; handlers = Handlers.fromList r.handlers
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
