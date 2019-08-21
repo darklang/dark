@@ -680,7 +680,27 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
   let t1, params =
     time "1-read-api-ops" (fun _ ->
         let params = Api.to_add_op_rpc_params body in
-        let is_latest_op_request browser_id op_ctr : bool =
+        (* Conditions:
+         * - if request's op_ctr is the latest, and this browser_id's row is
+         * unlocked, grab the lock and return true
+         * - if request's op_ctr is < teh one in the db, return false
+         * - else - op_ctr might be the latest, but we can't grab the lock yet,
+         * sleep and loop *)
+        let rec is_latest_op_request ?(loop_ctr = 1) browser_id op_ctr : bool =
+          Log.infO
+            "is_latest_op_request"
+            ~jsonparams:
+              [("browser_id", `String browser_id); ("loop_ctr", `Int loop_ctr)] ;
+          if loop_ctr > 3
+          then
+            (* if it's been locked for 3 cycles, _and_ the timestamp is more
+                  than 1s ago, clear the lock first *)
+            Db.run
+              ~name:"clear_op_ctrs_lock"
+              "UPDATE op_ctrs SET locked = false
+               WHERE browser_id = $1 AND timestamp < (NOW() - '1 second')"
+              ~params:
+                [Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)] ;
           (* We want to know if the incoming req is the latest add_op request
            * for this browser_id. We do that in two steps:
            * - UPDATE the browser_id's op_ctr (_if_ the request op_ctr is
@@ -692,18 +712,37 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
             (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
              * that it also handles the initial case where there is no
              * browser_id record yet *)
-            "INSERT INTO op_ctrs(browser_id,ctr) VALUES($1, $2)
+            "INSERT INTO op_ctrs(browser_id,ctr,locked) VALUES($1, $2, true)
              ON CONFLICT (browser_id)
-             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW() WHERE op_ctrs.ctr < EXCLUDED.ctr"
+             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW(), locked = true
+                       WHERE op_ctrs.ctr < EXCLUDED.ctr AND op_ctrs.locked = false"
             ~params:
               [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
               ; Db.Int op_ctr ] ;
-          Db.exists
-            ~name:"check-if_op_ctr-updated"
-            "SELECT 1 from op_ctrs WHERE browser_id = $1 AND ctr = $2"
-            ~params:
-              [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
-              ; Db.Int op_ctr ]
+          let curr_lock =
+            Db.fetch_one
+              ~name:"get-current_op_ctrs_lock"
+              "SELECT ctr, locked FROM op_ctrs WHERE browser_id = $1 AND locked = true"
+              ~params:
+                [Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)]
+            |> List.hd_exn
+            |> Int.of_string
+          in
+          Log.infO
+            "curr_lock"
+            ~jsonparams:[("curr_lock_op_ctr", `Int curr_lock)] ;
+          if curr_lock = params.opCtr
+          then true (* whoo, we grabbed the lock *)
+          else if curr_lock > params.opCtr
+          then false
+          else (
+            (* curr_lock < params.opCtr, but we need to wait for the lock
+                    to become available *)
+            Unix.sleepf 0.01 ;
+            is_latest_op_request
+              params.browserId
+              params.opCtr
+              ~loop_ctr:(loop_ctr + 1) )
         in
         if is_latest_op_request params.browserId params.opCtr
         then params
@@ -728,6 +767,14 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
                        true )
           in
           {params with ops = filtered_ops} )
+  in
+  let release_op_ctrs_lock unit : unit =
+    Db.run
+      ~name:"release_op_ctrs_lock"
+      "UPDATE op_ctrs SET locked = false
+            WHERE browser_id = $1"
+      ~params:
+        [Db.Uuid (params.browserId |> Uuidm.of_string |> Option.value_exn)]
   in
   let ops = params.ops in
   let tlids = List.filter_map ~f:Op.tlidOf ops in
@@ -789,6 +836,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
       Log.add_log_annotations
         [("op_ctr", `Int params.opCtr)]
         (fun _ ->
+          release_op_ctrs_lock () ;
           respond
             ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
             ~execution_id
@@ -801,6 +849,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
                strollerMsg) )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
+      release_op_ctrs_lock () ;
       respond
         ~resp_headers:(server_timing [t1; t2])
         ~execution_id
