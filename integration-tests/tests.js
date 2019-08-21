@@ -126,14 +126,14 @@ fixture`Integration Tests`
 //********************************
 async function createHTTPHandler(t) {
   await t
-    .pressKey("enter")
+    .click("#app", { offsetX: 500, offsetY: 500 })
     .pressKey("down")
     .pressKey("enter");
 }
 
 async function createWorkerHandler(t) {
   await t
-    .pressKey("enter")
+    .click("#app", { offsetX: 500, offsetY: 500 })
     .pressKey("down")
     .pressKey("down")
     .pressKey("down")
@@ -142,7 +142,7 @@ async function createWorkerHandler(t) {
 }
 
 async function createRepl(t) {
-  await t.pressKey("enter").pressKey("enter");
+  await t.click("#app", { offsetX: 500, offsetY: 500 }).pressKey("enter");
 }
 
 async function gotoAST(t) {
