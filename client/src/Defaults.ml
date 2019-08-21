@@ -133,4 +133,5 @@ let defaultModel : model =
   ; buildHash = ""
   ; lastReload = None
   ; permission = None
+  ; showTopbar = true
   ; toast = defaultToast }
