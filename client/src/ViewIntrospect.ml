@@ -38,9 +38,10 @@ let dbView
     (originIDs : id list)
     (tlid : tlid)
     (name : string)
-    (cols : dbColumn list) : msg Html.html =
+    (cols : dbColumn list)
+    (direction : string) : msg Html.html =
   Html.div
-    ( [ Html.class' "ref-block db"
+    ( [ Html.class' ("ref-block db " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-db-link" ^ showTLID tlid)
           "click"
@@ -55,7 +56,8 @@ let handlerView
     (tlid : tlid)
     (space : string)
     (name : string)
-    (modifier : string option) : msg Html.html =
+    (modifier : string option)
+    (direction : string) : msg Html.html =
   let modifier_ =
     match modifier with
     | Some "_" | None ->
@@ -64,7 +66,7 @@ let handlerView
         [Html.div [Html.class' "spec"] [Html.text m]]
   in
   Html.div
-    ( [ Html.class' "ref-block handler"
+    ( [ Html.class' ("ref-block handler " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-handler-link" ^ showTLID tlid)
           "click"
@@ -80,7 +82,8 @@ let fnView
     (originIDs : id list)
     (tlid : tlid)
     (name : string)
-    (params : userFunctionParameter list) : msg Html.html =
+    (params : userFunctionParameter list)
+    (direction : string) : msg Html.html =
   let header =
     [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#666"]
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
@@ -104,7 +107,7 @@ let fnView
     Html.div [Html.class' "fnparam"] [name; Html.text ":"; ptype]
   in
   Html.div
-    ( [ Html.class' "ref-block fn"
+    ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ showTLID tlid)
           "click"
@@ -114,10 +117,10 @@ let fnView
     ; Html.div [Html.class' "fnparams"] (List.map ~f:paramView params) ]
 
 
-let renderView originalTLID (tl, originalIDs) =
+let renderView originalTLID direction (tl, originalIDs) =
   match tl with
   | TLDB {dbTLID; dbName = F (_, name); cols} ->
-      dbView originalTLID originalIDs dbTLID name cols
+      dbView originalTLID originalIDs dbTLID name cols direction
   | TLHandler
       {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
       handlerView
@@ -127,28 +130,14 @@ let renderView originalTLID (tl, originalIDs) =
         space
         name
         (B.toMaybe modifier)
+        direction
   | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
-      fnView originalTLID originalIDs ufTLID name ufmParameters
+      fnView originalTLID originalIDs ufTLID name ufmParameters direction
   | _ ->
       Vdom.noNode
 
-
-let refersToViews (tlid : tlid) (refs : (toplevel * id list) list) :
-    msg Html.html =
-  let topOffset =
-    List.head refs
-    |> Option.andThen ~f:(fun (tl, _) ->
-           let id = tl |> TL.id |> showTLID in
-           Native.Ext.querySelector (".id-" ^ id) )
-    |> Option.andThen ~f:(fun e -> Some (Native.Ext.offsetTop e))
-    |> Option.withDefault ~default:0
-  in
-  Html.div
-    [ Html.class' "usages"
-    ; Html.styles [("top", string_of_int (topOffset - 16) ^ "px")] ]
-    (List.map ~f:(renderView tlid) refs)
-
-
-let usedInViews (tlid : tlid) (uses : toplevel list) : msg Html.html =
-  let uses = List.map ~f:(fun use -> (use, [])) uses in
-  Html.div [Html.class' "used-in"] (List.map ~f:(renderView tlid) uses)
+let allUsagesView (tlid : tlid) (uses : toplevel list) (refs : (toplevel * id list) list) :
+(msg Html.html) list =
+  let refersTo = List.map ~f:(renderView tlid "refers-to") refs in
+  let usedIn = List.map ~f:(fun use -> (renderView tlid "used-in") (use, [])) uses in
+  (usedIn @ refersTo)
