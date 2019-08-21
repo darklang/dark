@@ -3405,10 +3405,10 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
       ~(if_ : bool) ~(value : string) ?(emptyPartialAllowed = false) expr =
     let partial = EPartial (gid (), value, expr) in
     if if_
-    then partial
+    then Some partial
     else if value = "" && not emptyPartialAllowed
-    then EBlank (gid ())
-    else expr
+    then None
+    else Some expr
   in
   let toInt_ s =
     String.toInt s
@@ -3443,7 +3443,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     * find topmost expression by ID and 
     * reconstruct full/subset of expression 
     * recurse into children (that remain in subset) to reconstruct those too *)
-  let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr =
+  let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr option =
     let topmostExpr =
       topmostID
       |> Option.andThen ~f:(fun id -> findExpr id ast)
@@ -3456,7 +3456,12 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     let reconstructExpr expr : fluidExpr option =
       let exprID = eid expr in
       exprRangeInAst ~state ~ast exprID
-      |> Option.map ~f:(fun range -> reconstruct ~topmostID:(Some exprID) range)
+      |> Option.andThen ~f:(fun ((exprStartPos, exprEndPos) as newRange) ->
+             (* ensure expression range is not totally outside selection range *)
+             if exprStartPos > endPos || exprEndPos < startPos
+             then None
+             else Some newRange )
+      |> Option.andThen ~f:(reconstruct ~topmostID:(Some exprID))
     in
     let orDefaultExpr : fluidExpr option -> fluidExpr =
       Option.withDefault ~default:(EBlank (gid ()))
@@ -3464,108 +3469,141 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     let id = gid () in
     match (topmostExpr, simplifiedTokens) with
     | _, [] ->
-        EBlank (gid ())
-    (* sole keyword 
-          | e, [(_, tokName)] when String.endsWith ~suffix:"-keyword" tokName ->
-            let id =  *)
+        None
     (* basic, single/fixed-token expressions *)
-    | EInteger (_, _), [(_, newValue, "integer")] ->
-        EInteger (gid (), toInt_ newValue)
-    | EBool (_, value), [(_, newValue, "false")] ->
-        constructWithPartial
-          ~if_:(newValue <> string_of_bool value)
-          ~value:newValue
-          (EBool (id, false))
-    | EBool (_, value), [(_, newValue, "true")] ->
-        constructWithPartial
-          ~if_:(newValue <> string_of_bool value)
-          ~value:newValue
-          (EBool (id, true))
-    | ENull _, [(_, newValue, "bool")] ->
-        if newValue = "null"
-        then ENull id
-        else EPartial (gid (), newValue, ENull id)
-    | EString (_, _), [(_, newValue, "string")] ->
-        let newValue =
-          String.(newValue |> dropRight ~count:1 |> dropLeft ~count:1)
-        in
-        EString (id, newValue)
-    | ( EFloat (_, _, _)
-      , [ (_, newWhole, "float-whole")
-        ; (_, _, "float-point")
-        ; (_, newFraction, "float-fraction") ] ) ->
-        EFloat (id, newWhole, newFraction)
-    | ( EFloat (_, _, _)
-      , [(_, _, "float-point"); (_, newFraction, "float-fraction")] )
-    | EFloat (_, _, _), [(_, newFraction, "float-fraction")] ->
-        EInteger (id, toInt_ newFraction)
-    | EFloat (_, _, _), [(_, newWhole, "float-whole"); (_, _, "float-point")]
-    | EFloat (_, _, _), [(_, newWhole, "float-whole")] ->
-        EInteger (id, toInt_ newWhole)
-    | ENull _, [(_, value, "null")] ->
-        constructWithPartial ~if_:(value <> "null") ~value (ENull id)
+    | EInteger (eID, _), tokens ->
+        findTokenValue tokens eID "integer"
+        |> Option.map ~f:toInt_
+        |> Option.map ~f:(fun v -> EInteger (gid (), v))
+    | EBool (eID, value), tokens ->
+        Option.or_
+          (findTokenValue tokens eID "true")
+          (findTokenValue tokens eID "false")
+        |> Option.map ~f:toBool_
+        |> Option.andThen ~f:(fun newValue ->
+               constructWithPartial
+                 ~if_:(newValue <> value)
+                 ~value:(string_of_bool newValue)
+                 (EBool (id, value)) )
+    | ENull eID, tokens ->
+        findTokenValue tokens eID "null"
+        |> Option.map ~f:(fun newValue ->
+               if newValue = "null"
+               then ENull id
+               else EPartial (gid (), newValue, ENull id) )
+    | EString (eID, _), tokens ->
+        findTokenValue tokens eID "string"
+        |> Option.map ~f:(fun newValue ->
+               let newValue =
+                 String.(newValue |> dropRight ~count:1 |> dropLeft ~count:1)
+               in
+               EString (id, newValue) )
+    | EFloat (eID, _, _), tokens ->
+        let newWhole = findTokenValue tokens eID "float-whole" in
+        let pointSelected = findTokenValue tokens eID "float-point" <> None in
+        let newFraction = findTokenValue tokens eID "float-fraction" in
+        ( match (newWhole, pointSelected, newFraction) with
+        | Some value, _, None | None, false, Some value ->
+            Some (EInteger (id, toInt_ value))
+        | _, true, Some value ->
+            Some (EFloat (id, "0", value))
+        | Some whole, _, Some fraction ->
+            Some (EFloat (id, whole, fraction))
+        | _, _, _ ->
+            None )
     | EBlank _, _ ->
-        EBlank id
+        Some (EBlank id)
     (* empty let expr and subsets *)
     | ELet (eID, lhsID, _lhs, rhs, body), tokens ->
+        let letKeywordSelected =
+          findTokenValue tokens eID "let-keyword" <> None
+        in
         let newLhs =
           findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, Some e ->
-            e
+            Some e
         | Some e, None ->
-            e
+            Some e
         | Some newRhs, Some newBody ->
-            ELet (id, lhsID, newLhs, newRhs, newBody)
+            Some (ELet (id, lhsID, newLhs, newRhs, newBody))
+        | _, _ when letKeywordSelected ->
+            Some (ELet (id, lhsID, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
-            EBlank (gid ()) )
-    | EIf (_, cond, thenBody, elseBody), _ ->
-      ( match
-          ( reconstructExpr cond
-          , reconstructExpr thenBody
-          , reconstructExpr elseBody )
-        with
-      | Some e, None, None | None, Some e, None | None, None, Some e ->
-          e
-      | newCond, newThenBody, newElseBody ->
-          EIf
-            ( id
-            , newCond |> orDefaultExpr
-            , newThenBody |> orDefaultExpr
-            , newElseBody |> orDefaultExpr ) )
+            None )
+    | EIf (eID, cond, thenBody, elseBody), tokens ->
+        let ifKeywordSelected =
+          findTokenValue tokens eID "if-keyword" <> None
+        in
+        let thenKeywordSelected =
+          findTokenValue tokens eID "if-then-keyword" <> None
+        in
+        let elseKeywordSelected =
+          findTokenValue tokens eID "if-else-keyword" <> None
+        in
+        ( match
+            ( reconstructExpr cond
+            , reconstructExpr thenBody
+            , reconstructExpr elseBody )
+          with
+        | Some e, None, None | None, Some e, None | None, None, Some e ->
+            Some e
+        | newCond, newThenBody, newElseBody
+          when ifKeywordSelected || thenKeywordSelected || elseKeywordSelected
+          ->
+            Some
+              (EIf
+                 ( id
+                 , newCond |> orDefaultExpr
+                 , newThenBody |> orDefaultExpr
+                 , newElseBody |> orDefaultExpr ))
+        | _ ->
+            None )
     | EBinOp (eID, name, expr1, expr2, ster), tokens ->
         let newName =
           findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr expr1, reconstructExpr expr2) with
         | None, Some e ->
-            e
+            constructWithPartial
+              ~if_:(name <> newName)
+              ~value:newName
+              (EBinOp (id, name, EBlank (gid ()), e, ster))
         | Some e, None ->
-            e
+            constructWithPartial
+              ~if_:(name <> newName)
+              ~value:newName
+              (EBinOp (id, name, e, EBlank (gid ()), ster))
         | Some newExpr1, Some newExpr2 when newName = "" ->
           (* since we don't allow empty partials, reconstruct the binop as we would when 
            * the binop is manually deleted 
            * (by elevating the argument expressions into ELets provided they aren't blanks) *)
           ( match (newExpr1, newExpr2) with
           | EBlank _, EBlank _ ->
-              EBlank (gid ())
+              None
           | EBlank _, e | e, EBlank _ ->
-              ELet (gid (), gid (), "", e, EBlank (gid ()))
+              Some (ELet (gid (), gid (), "", e, EBlank (gid ())))
           | e1, e2 ->
-              ELet
-                ( gid ()
-                , gid ()
-                , ""
-                , e1
-                , ELet (gid (), gid (), "", e2, EBlank (gid ())) ) )
+              Some
+                (ELet
+                   ( gid ()
+                   , gid ()
+                   , ""
+                   , e1
+                   , ELet (gid (), gid (), "", e2, EBlank (gid ())) )) )
         | Some newExpr1, Some newExpr2 ->
             constructWithPartial
               ~if_:(name <> newName)
               ~value:newName
               (EBinOp (id, name, newExpr1, newExpr2, ster))
+        | None, None when newName <> "" ->
+            constructWithPartial
+              ~if_:(name <> newName)
+              ~value:newName
+              (EBinOp (id, name, EBlank (gid ()), EBlank (gid ()), ster))
         | _, _ ->
-            EBlank (gid ()) )
+            None )
     | ELambda (eID, vars, body), tokens ->
         (* might be an edge case here where one of the vars is not (fully) selected but 
          * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
@@ -3576,7 +3614,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                  |> Option.map ~f:(fun v -> (vID, v)) )
           |> Option.values
         in
-        ELambda (id, newVars, reconstructExpr body |> orDefaultExpr)
+        Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
     | EFieldAccess (_, e, fieldID, fieldName), tokens ->
         let newFieldName =
           findTokenValue tokens fieldID "field-name"
@@ -3584,7 +3622,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         in
         ( match reconstructExpr e with
         | Some e ->
-            EFieldAccess (id, e, gid (), newFieldName)
+            Some (EFieldAccess (id, e, gid (), newFieldName))
         | None ->
             constructWithPartial
               ~if_:(newFieldName <> "" || newFieldName <> fieldName)
@@ -3600,10 +3638,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           ~value:newValue
           (EVariable (id, value))
     | EFnCall (eID, fnName, args, ster), tokens ->
-        let newArgs =
-          List.map args ~f:reconstructExpr
-          |> List.map ~f:(function Some e -> e | None -> EBlank (gid ()))
-        in
+        let newArgs = List.map args ~f:(reconstructExpr >> orDefaultExpr) in
         let newFnName =
           findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
         in
@@ -3616,17 +3651,17 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         let newName =
           findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
         in
-        EPartial (id, newName, expr)
+        Some (EPartial (id, newName, expr))
     | ERightPartial (eID, _, expr), tokens ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
           findTokenValue tokens eID "partial-right"
           |> Option.withDefault ~default:""
         in
-        ERightPartial (id, newName, expr)
+        Some (ERightPartial (id, newName, expr))
     | EList (_, exprs), _ ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
-        EList (id, newExprs)
+        Some (EList (id, newExprs))
     | ERecord (_, entries), _ ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
@@ -3646,7 +3681,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                  | _ ->
                      None )
         in
-        ERecord (id, newEntries)
+        Some (ERecord (id, newEntries))
     | EThread (_, exprs), _ ->
         let newExprs =
           List.map exprs ~f:reconstructExpr
@@ -3659,7 +3694,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           | exprs ->
               exprs
         in
-        EThread (id, newExprs)
+        Some (EThread (id, newExprs))
     | EConstructor (_, nameID, name, exprs), tokens ->
         let newName =
           findTokenValue tokens nameID "constructor-name"
@@ -3720,7 +3755,9 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
               let newPattern = toksToPattern tokens (pid pattern) in
               (newPattern, reconstructExpr expr |> orDefaultExpr) )
         in
-        EMatch (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs)
+        Some
+          (EMatch
+             (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
     | EFeatureFlag (_, name, nameID, cond, thenBody, elseBody), _ ->
       ( match
           ( reconstructExpr cond
@@ -3728,21 +3765,22 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           , reconstructExpr elseBody )
         with
       | Some e, None, None | None, Some e, None | None, None, Some e ->
-          e
+          Some e
       | newCond, newThenBody, newElseBody ->
-          EFeatureFlag
-            ( id
-            , (* should probably do some stuff about if the name token isn't fully selected *)
-              name
-            , nameID
-            , newCond |> orDefaultExpr
-            , newThenBody |> orDefaultExpr
-            , newElseBody |> orDefaultExpr ) )
+          Some
+            (EFeatureFlag
+               ( id
+               , (* should probably do some stuff about if the name token isn't fully selected *)
+                 name
+               , nameID
+               , newCond |> orDefaultExpr
+               , newThenBody |> orDefaultExpr
+               , newElseBody |> orDefaultExpr )) )
     (* Unknowns:
      * - EThreadTarget: assuming it can't be selected since it doesn't produce tokens 
      * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
     | _, _ ->
-        EBlank (gid ())
+        Some (EBlank (gid ()))
   in
   let topmostID =
     (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
@@ -3757,7 +3795,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
            else (topmostID, topmostDepth) )
     |> Tuple2.first
   in
-  Some (reconstruct ~topmostID (startPos, endPos))
+  reconstruct ~topmostID (startPos, endPos)
 
 
 let pasteSelection ~state ~ast () : ast * fluidState =
@@ -3777,6 +3815,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
 
 let deleteSelection ~state ~ast sel : ast * fluidState =
   let rangeStart, rangeEnd = sel.range in
+  let clipboard = state.clipboard (* preserve clipboard *) in
   let state = {state with newPos = rangeEnd; oldPos = state.newPos} in
   (* repeat deletion operation over range, starting from last position till first *)
   Array.range ~from:rangeStart rangeEnd
@@ -3788,7 +3827,7 @@ let deleteSelection ~state ~ast sel : ast * fluidState =
            (* stop deleting if we reach range start*)
            (state.newPos >= rangeStart, ast, state)
          else (continue, ast, state) )
-  |> fun (_, ast, state) -> (ast, state)
+  |> fun (_, ast, state) -> (ast, {state with clipboard})
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
@@ -4119,7 +4158,6 @@ let viewPlayIcon
           [ViewUtils.fontAwesome icon]
   | _ ->
       Vdom.noNode
-
 
 
 let toHtml

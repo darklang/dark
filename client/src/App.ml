@@ -1663,7 +1663,7 @@ let update_ (msg : msg) (m : model) : modification =
           Many [toast; fluidCopy]
       | `None ->
           () ;
-          NoChange )
+          fluidCopy )
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
       if VariantTesting.isFluid m.tests
@@ -1689,7 +1689,7 @@ let update_ (msg : msg) (m : model) : modification =
         let ev : FluidKeyboard.keyEvent =
           let ctrlKey = Entry.getBrowserPlatform () <> Mac in
           let metaKey = Entry.getBrowserPlatform () = Mac in
-          { key = FluidKeyboard.Letter 'c'
+          { key = FluidKeyboard.Letter 'x'
           ; ctrlKey
           ; metaKey
           ; altKey = false
@@ -1717,7 +1717,7 @@ let update_ (msg : msg) (m : model) : modification =
           Many [mod_; toast; fluidCut]
       | `None ->
           () ;
-          mod_ )
+          Many [mod_; fluidCut] )
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
