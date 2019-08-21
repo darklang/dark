@@ -933,13 +933,8 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   let newCompletions, invalidCompletions =
     filter m old fudgedCompletions query
   in
-  let oldHighlight = highlighted old in
   let allCompletions = newCompletions @ invalidCompletions in
   let newCount = List.length allCompletions in
-  let oldHighlightNewPos =
-    oldHighlight
-    |> Option.andThen ~f:(fun oh -> List.elemIndex ~value:oh allCompletions)
-  in
   let index =
     (* Clear the highlight conditions *)
     if query = ""
@@ -947,22 +942,10 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
        && ( (old.index <> -1 && old.value <> query)
           (* or this condition previously held and nothing has changed *)
           || old.index = -1 )
+       (* if nothing matches, highlight nothing *)
+       || newCount = 0
     then -1
-    else
-      (* If an entry is highlighted, and you press another *)
-      (* valid key for that entry, keep it highlighted *)
-      match oldHighlightNewPos with
-      | Some i ->
-          i
-      (* If an entry vanishes, highlight 0 *)
-      | None ->
-          (* if nothing matches, highlight nothing *)
-          if newCount = 0
-          then
-            -1
-            (* we matched something but its gone, go to top of *)
-            (* list *)
-          else 0
+    else 0
   in
   { old with
     index
