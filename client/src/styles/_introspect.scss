@@ -1,6 +1,9 @@
+$space-between: 25px;
+$arrow-height: 24px;
+
 .use-wrapper {
   background: transparent;
-  margin-left: 20px;
+  margin-left: $space-between;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -36,18 +39,19 @@
     @extend .font-awesome;
     content: "";
     position: absolute;
-    font-size: 20px;
+    font-size: $arrow-height;
+    top: calc(50% - #{$arrow-height/2});
   }
 
   &.used-in::before {
     content: "\f30a";
-    left: -16px;
+    left: -1*($space-between - 4px);
     color: $live-value-background;
   }
 
   &.refers-to::before {
     content: "\f30b";
-    left: -20px;
+    left: -1*$space-between;
     color: $black2;
   }
 
@@ -98,16 +102,22 @@
     }
   }
 
+  .fnheader {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+  }
+
   .fnicon,
   .fnname {
     display: inline-block;
   }
 
   .fnname {
-    color: $white1;
+    margin-left: 1ch;
   }
 
-  .fnheader,
   .fnparams {
     display: block;
     width: 100%;
