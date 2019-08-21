@@ -114,7 +114,7 @@ let fns =
   ; { pns = ["List::findFirst"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
-    ; r = TList
+    ; r = TAny
     ; d = "Find the first element of the list, for which `f` returns true"
     ; f =
         InProcess
