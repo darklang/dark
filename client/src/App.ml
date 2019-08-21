@@ -57,6 +57,11 @@ let filterOpsAndResult
   else
     let ops =
       params.ops
+      (* filter down to only those ops which can be applied out of order without
+       * overwriting previous ops' state - eg, if we have SetHandler1 setting a
+       * handler's value to "aaa", and then SetHandler2's value is "aa",
+       * applying them out of order (SH2, SH1) will result in SH2's update being
+       * overwritten *)
       |> List.filter ~f:(fun op ->
              match op with
              | SetHandler _
@@ -64,7 +69,13 @@ let filterOpsAndResult
              | SetType _
              | MoveTL _
              | SetDBColName _
-             | ChangeDBColName _ ->
+             | ChangeDBColName _
+             | ChangeDBColType _
+             | SetExpr _
+             | CreateDBMigration _
+             | SetDBColNameInDBMigration _
+             | SetDBColTypeInDBMigration _
+             | RenameDBname _ ->
                  false
              | _ ->
                  true )
