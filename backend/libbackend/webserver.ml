@@ -750,13 +750,13 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         if is_latest_op_request params.browserId params.opCtr
         then (params, canvas_id)
         else
-          (* This add_op call came in out of order; we've already processed a
-           * subsequent add_op call. So drop any ops that must be run in order
-           * (for example, SetHandler is dropped, because we don't want earlier
-           * SH ops to overwrite later SH ops)
-           * *)
           let filtered_ops =
             params.ops
+            (* filter down to only those ops which can be applied out of order
+             * without overwriting previous ops' state - eg, if we have
+             * SetHandler1 setting a handler's value to "aaa", and then
+             * SetHandler2's value is "aa", applying them out of order (SH2,
+             * SH1) will result in SH2's update being overwritten *)
             |> List.filter ~f:(fun op ->
                    match op with
                    | SetHandler _
@@ -764,7 +764,13 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
                    | SetType _
                    | MoveTL _
                    | SetDBColName _
-                   | ChangeDBColName _ ->
+                   | ChangeDBColName _
+                   | ChangeDBColType _
+                   | SetExpr _
+                   | CreateDBMigration _
+                   | SetDBColNameInDBMigration _
+                   | SetDBColTypeInDBMigration _
+                   | RenameDBname _ ->
                        false
                    | _ ->
                        true )
