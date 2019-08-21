@@ -1038,6 +1038,7 @@ and msg =
 and variantTest =
   | StubVariant
   | FluidVariant
+  | FluidWithoutStatusVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant

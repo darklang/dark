@@ -5,8 +5,14 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
+let isFluidWithStatus (vts : variantTest list) : bool =
+  List.member ~value:FluidVariant vts
+  && not (List.member ~value:FluidWithoutStatusVariant vts)
+
+
 let isFluid (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
+  || List.member ~value:FluidWithoutStatusVariant vts
 
 
 let libtwitterAvailable (vts : variantTest list) : bool =
@@ -23,6 +29,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some StubVariant
     | "fluidv2" ->
         Some FluidVariant
+    | "fluid" ->
+        Some FluidWithoutStatusVariant
     | "libtwitter" ->
         Some LibtwitterVariant
     | "groups" ->
@@ -37,6 +45,8 @@ let toCSSClass (vt : variantTest) : string =
     | StubVariant ->
         "stub"
     | FluidVariant ->
+        "fluid"
+    | FluidWithoutStatusVariant ->
         "fluid"
     | LibtwitterVariant ->
         "libtwitter"
