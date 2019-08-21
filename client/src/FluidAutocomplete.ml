@@ -480,23 +480,19 @@ let refilter
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
   let index =
-    if queryString = ""
-    then None
-    else
-      (* If an entry is highlighted, and you press another *)
-      (* valid key for that entry, keep it highlighted *)
+    if queryString = "" || newCount = 0
+    then (* Do nothing if no queryString or autocomplete list *)
+      None
+    else if oldQueryString = queryString
+    then
+      (* If we didn't change anything, don't change anything *)
       match oldHighlightNewIndex with
       | Some newIndex ->
           Some newIndex
       | None ->
-          if newCount = 0
-          then (* if nothing matches, highlight nothing *)
-            None
-          else if oldQueryString = queryString
-          then (* If we didn't change anything, don't change anything *)
-            None
-          else (* If an entry vanishes, highlight 0 *)
-            Some 0
+          None
+    else (* If an entry vanishes, highlight 0 *)
+      Some 0
   in
   { old with
     index
