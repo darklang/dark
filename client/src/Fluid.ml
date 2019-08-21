@@ -3430,10 +3430,10 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
   let tokensInRange startPos endPos : fluidToken list =
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
-           if t.endPos > startPos
-              && startPos >= t.startPos
+           if t.startPos >= startPos
               && t.startPos < endPos
-              && endPos <= t.endPos
+              && t.endPos > startPos
+              && t.endPos <= endPos
            then toks @ [t.token]
            else toks )
   in
@@ -3444,21 +3444,15 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     * reconstruct full/subset of expression 
     * recurse into children (that remain in subset) to reconstruct those too *)
   let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr =
-    Js.log2 "topmostID: " topmostID ;
     let topmostExpr =
       topmostID
       |> Option.andThen ~f:(fun id -> findExpr id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
-    Js.log2 "topmostExpr: " (eToString state topmostExpr) ;
     let simplifiedTokens =
       tokensInRange startPos endPos
       |> List.map ~f:(fun t -> FluidToken.(tid t, toText t, toTypeName t))
     in
-    Js.log2
-      "tokensInRange: "
-      ( List.map ~f:Token.toText (tokensInRange startPos endPos)
-      |> String.join ~sep:"" ) ;
     let reconstructExpr expr : fluidExpr option =
       let exprID = eid expr in
       exprRangeInAst ~state ~ast exprID
@@ -3654,7 +3648,17 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         in
         ERecord (id, newEntries)
     | EThread (_, exprs), _ ->
-        let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
+        let newExprs =
+          List.map exprs ~f:reconstructExpr
+          |> Option.values
+          |> function
+          | [] ->
+              [EBlank (gid ()); EBlank (gid ())]
+          | [expr] ->
+              [expr; EBlank (gid ())]
+          | exprs ->
+              exprs
+        in
         EThread (id, newExprs)
     | EConstructor (_, nameID, name, exprs), tokens ->
         let newName =
@@ -3741,8 +3745,17 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         EBlank (gid ())
   in
   let topmostID =
-    (* naive approach, works for tokens*)
-    tokensInRange startPos endPos |> List.head |> Option.map ~f:Token.tid
+    (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
+    tokensInRange startPos endPos
+    |> List.foldl ~init:(None, 0) ~f:(fun tok (topmostID, topmostDepth) ->
+           let curID = Token.tid tok in
+           let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
+           if (curDepth < topmostDepth || topmostID = None)
+              && not (curDepth = 0 && findExpr curID ast != Some ast)
+              (* account for tokens that don't have ancestors (depth = 0) but are not the topmost expression in the AST *)
+           then (Some curID, curDepth)
+           else (topmostID, topmostDepth) )
+    |> Tuple2.first
   in
   Some (reconstruct ~topmostID (startPos, endPos))
 
@@ -3752,7 +3765,6 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     getToken state ast |> Option.map ~f:(fun ti -> ti.token |> Token.tid)
   in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
-  Js.log2 "pasting" expr ;
   match expr with
   | Some (EBlank exprID) ->
       ( state.clipboard
@@ -3766,17 +3778,23 @@ let pasteSelection ~state ~ast () : ast * fluidState =
 let deleteSelection ~state ~ast sel : ast * fluidState =
   let rangeStart, rangeEnd = sel.range in
   let state = {state with newPos = rangeEnd; oldPos = state.newPos} in
+  (* repeat deletion operation over range, starting from last position till first *)
   Array.range ~from:rangeStart rangeEnd
   |> Array.toList
-  |> List.foldl ~init:(ast, state) ~f:(fun _ (ast, state) ->
-         updateKey K.Delete ast state )
+  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
+         if continue
+         then
+           let ast, state = updateKey K.Backspace ast state in
+           (* stop deleting if we reach range start*)
+           (state.newPos >= rangeStart, ast, state)
+         else (continue, ast, state) )
+  |> fun (_, ast, state) -> (ast, state)
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
-  Js.log2 "updateMsg" msg ;
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
@@ -3789,7 +3807,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           (ast, {s with error = Some "found no pos"}) )
     | FluidKeyPress {key = K.Letter 'c'; metaKey; ctrlKey}
       when metaKey || ctrlKey ->
-        Js.log "copied" ;
         ( ast
         , { s with
             clipboard =
@@ -3797,7 +3814,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
               |> Option.andThen ~f:(reconstructSelection ~state:s ~ast) } )
     | FluidKeyPress {key = K.Letter 'x'; metaKey; ctrlKey}
       when metaKey || ctrlKey ->
-        Js.log "cut" ;
         s.selection
         |> Option.map ~f:(fun sel ->
                let ast, state =
@@ -3812,7 +3828,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         |> Option.withDefault ~default:(ast, s)
     | FluidKeyPress {key = K.Letter 'v'; metaKey; ctrlKey}
       when metaKey || ctrlKey ->
-        Js.log "pasted" ;
         pasteSelection ~state:s ~ast ()
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
