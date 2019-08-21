@@ -319,8 +319,8 @@ let () =
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::someOtherFunc"
-                |> setQuery m "T"
+                |> setQuery m "Twit::somef"
+                |> setQuery m "Twit::someO"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
