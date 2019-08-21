@@ -235,12 +235,12 @@ let () =
           test "empty autocomplete doesn't highlight" (fun () ->
               expect (acFor m |> fun x -> x.index) |> toEqual (-1) ) ;
           test
-            "pressing a letter from the selected entry keeps the entry selected"
+            "pressing a letter from the selected entry resets the entry selected"
             (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "Twit::someOtherFunc"
-                |> setQuery m "T"
+                |> setQuery m "Twit::somef"
+                |> setQuery m "Twit::someO"
                 |> highlighted
                 |> Option.map ~f:asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
