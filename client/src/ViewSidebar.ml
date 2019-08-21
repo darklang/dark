@@ -312,12 +312,12 @@ let standardCategories m hs dbs ufns tipes groups =
   in
   let catergories =
     [ httpCategory hs
-    ; dbCategory m dbs
-    ; userFunctionCategory m ufns
-    ; userTipeCategory m tipes
     ; workerCategory hs
     ; cronCategory hs
-    ; replCategory hs ]
+    ; replCategory hs
+    ; dbCategory m dbs
+    ; userFunctionCategory m ufns
+    ; userTipeCategory m tipes ]
   in
   catergories @ groupCategory
 
