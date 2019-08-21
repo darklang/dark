@@ -24,7 +24,7 @@
     "domready": "^1.0.8",
     "mouse-wheel": "^1.2.0",
     "pusher-js": "^5.0.0",
-    "rollbar": "^2.12.0",
+    "rollbar": "^2.12.1",
     "sha2": "^1.0.2",
     "tablecloth-bucklescript": "0.0.6",
     "html2canvas": "1.0.0-rc.3"
