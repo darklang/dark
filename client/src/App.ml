@@ -62,6 +62,7 @@ let filterOpsAndResult
        * handler's value to "aaa", and then SetHandler2's value is "aa",
        * applying them out of order (SH2, SH1) will result in SH2's update being
        * overwritten *)
+      (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST *)
       |> List.filter ~f:(fun op ->
              match op with
              | SetHandler _
