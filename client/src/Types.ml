@@ -646,7 +646,8 @@ and initialLoadRPCResult =
   ; traces : (tlid * traceID) list
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
-  ; permission : permission option }
+  ; permission : permission option
+  ; opCtrs : int StrDict.t }
 
 and saveTestRPCResult = string
 
