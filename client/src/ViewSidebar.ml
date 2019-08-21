@@ -685,13 +685,14 @@ let adminDebuggerView (m : model) : msg Html.html =
       ; stateInfoTohtml "cursor" (Html.text (pageToString m.currentPage)) ]
   in
   let toggleTimer =
+    let timerText =
+      if m.timersEnabled then "Disable Timers" else "Enable Timers"
+    in
     Html.div
       [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
       ; Html.class' "checkbox-row" ]
-      [ Html.input'
-          [Html.type' "checkbox"; Html.checked (m.timersEnabled == false)]
-          []
-      ; Html.p [] [Html.text "Enable Timers"] ]
+      [ Html.input' [Html.type' "checkbox"; Html.checked m.timersEnabled] []
+      ; Html.p [] [Html.text timerText] ]
   in
   let debugger =
     Html.a
