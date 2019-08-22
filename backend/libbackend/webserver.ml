@@ -727,9 +727,26 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
                    | CreateDBMigration _
                    | SetDBColNameInDBMigration _
                    | SetDBColTypeInDBMigration _
+                   | UndoTL _
+                   | RedoTL _
                    | RenameDBname _ ->
                        false
-                   | _ ->
+                   | CreateDB _
+                   | AddDBCol _
+                   | SetDBColType _
+                   | DeleteTL _
+                   | DeprecatedInitDbm _
+                   | TLSavepoint _
+                   | DeleteFunction _
+                   | AddDBColToDBMigration _
+                   | AbandonDBMigration _
+                   | DeleteColInDBMigration _
+                   | DeleteDBCol _
+                   | CreateDBWithBlankOr _
+                   | DeleteTLForever _
+                   | DeleteFunctionForever _
+                   | DeleteType _
+                   | DeleteTypeForever _ ->
                        true )
           in
           ({params with ops = filtered_ops}, canvas_id) )

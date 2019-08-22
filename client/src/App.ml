@@ -76,9 +76,26 @@ let filterOpsAndResult
              | CreateDBMigration _
              | SetDBColNameInDBMigration _
              | SetDBColTypeInDBMigration _
+             | UndoTL _
+             | RedoTL _
              | RenameDBname _ ->
                  false
-             | _ ->
+             | CreateDB _
+             | AddDBCol _
+             | SetDBColType _
+             | DeleteTL _
+             | DeprecatedInitDbm _
+             | TLSavepoint _
+             | DeleteFunction _
+             | AddDBColToDBMigration _
+             | AbandonDBMigration _
+             | DeleteColInDBMigration _
+             | DeleteDBCol _
+             | CreateDBWithBlankOr _
+             | DeleteTLForever _
+             | DeleteFunctionForever _
+             | DeleteType _
+             | DeleteTypeForever _ ->
                  true )
     in
     let opTlids = params.ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
@@ -640,7 +657,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, updateCurrent) ->
-      let oldM = m in
+        let oldM = m in
         let m =
           {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
         in
@@ -657,7 +674,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m = Refactor.updateUsageCounts m in
         processAutocompleteMods m [ACRegenerate]
     | UpdateToplevels (handlers, dbs, updateCurrent) ->
-      let oldM = m in
+        let oldM = m in
         let m =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
