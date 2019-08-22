@@ -16,13 +16,44 @@ module Key = Keyboard
 module Regex = Util.Regex
 module TD = TLIDDict
 
-let incOption x = Option.map x ~f:(fun x -> x + 1)
+let incOpCtr (m : model) : model =
+  { m with
+    opCtrs =
+      StrDict.update m.opCtrs ~key:m.browserId ~f:(function
+          | Some v ->
+              Some (v + 1)
+          | None ->
+              Some 1 ) }
+
+
+let opCtr (m : model) : int =
+  match StrDict.get ~key:m.browserId m.opCtrs with
+  | Some ctr ->
+      ctr
+  | None ->
+      0
+
 
 let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
   let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
   List.filter
     ~f:(fun av -> av.serverTime |> Js.Date.valueOf > fiveMinsAgo)
     avatars
+
+
+let createBrowserId : string =
+  BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
+
+
+let manageBrowserId : string =
+  (* Setting the browser id in session storage so it is stored per tab *)
+  match Dom.Storage.getItem "browserId" Dom.Storage.sessionStorage with
+  | Some browserId ->
+      browserId
+  | None ->
+      let newBrowserId = createBrowserId in
+      Dom.Storage.setItem "browserId" newBrowserId Dom.Storage.sessionStorage ;
+      newBrowserId
 
 
 (* We do some dropping of ops based on browserId+opCtr to preserve ordering.
@@ -157,7 +188,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; origin = location.origin
     ; environment
     ; csrfToken
-    ; browserId = BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
+    ; browserId = manageBrowserId
     ; isAdmin
     ; buildHash }
   in
@@ -350,13 +381,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = h.ast
                  then []
                  else
-                   let newM =
-                     {newM with lastOpCtr = incOption newM.lastOpCtr}
-                   in
+                   let newM = m |> incOpCtr in
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params =
-                     RPC.opsParams ops (incOption m.lastOpCtr) m.browserId
+                     RPC.opsParams ops (Some (opCtr newM)) m.browserId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -365,13 +394,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = f.ufAST
                  then []
                  else
-                   let newM =
-                     {newM with lastOpCtr = incOption newM.lastOpCtr}
-                   in
+                   let newM = newM |> incOpCtr in
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
                    let params =
-                     RPC.opsParams ops (incOption m.lastOpCtr) m.browserId
+                     RPC.opsParams ops (Some (newM |> opCtr)) m.browserId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -401,7 +428,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
-      let m = {m with lastOpCtr = incOption m.lastOpCtr} in
+      let m = m |> incOpCtr in
       let hasNonHandlers =
         List.any
           ~f:(fun c ->
@@ -498,7 +525,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops (incOption m.lastOpCtr) m.browserId) focus
+        handleRPC
+          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.browserId)
+          focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -1319,7 +1348,9 @@ let update_ (msg : msg) (m : model) : modification =
         else
           let m =
             { m with
-              lastOpCtr = params.opCtr
+              opCtrs =
+                StrDict.update m.opCtrs ~key:params.browserId ~f:(fun _ ->
+                    params.opCtr )
             ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
             ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)

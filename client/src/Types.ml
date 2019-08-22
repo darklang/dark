@@ -1338,7 +1338,6 @@ and model =
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
   ; toast : toast
-  ; lastOpCtr : int option
   ; opCtrs : int StrDict.t
   ; permission : permission option }
 
