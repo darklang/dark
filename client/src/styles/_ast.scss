@@ -196,8 +196,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
     &.complete {
       &:before {
-        @extend .font-awesome;
-        content: "\f00c";
+        @include font-awesome("\f00c");
         position: absolute;
         left: 0;
         opacity: 1;
