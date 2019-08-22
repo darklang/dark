@@ -86,50 +86,50 @@ let filterOpsAndResult
   if StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
   then (m2, params.ops, result)
   else
-    let ops =
-      params.ops
-      (* filter down to only those ops which can be applied out of order without
+    (* filter down to only those ops which can be applied out of order without
        * overwriting previous ops' state - eg, if we have SetHandler1 setting a
        * handler's value to "aaa", and then SetHandler2's value is "aa",
        * applying them out of order (SH2, SH1) will result in SH2's update being
        * overwritten *)
-      (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST *)
-      |> List.filter ~f:(fun op ->
-             match op with
-             | SetHandler _
-             | SetFunction _
-             | SetType _
-             | MoveTL _
-             | SetDBColName _
-             | ChangeDBColName _
-             | ChangeDBColType _
-             | SetExpr _
-             | CreateDBMigration _
-             | SetDBColNameInDBMigration _
-             | SetDBColTypeInDBMigration _
-             | UndoTL _
-             | RedoTL _
-             | RenameDBname _ ->
-                 false
-             | CreateDB _
-             | AddDBCol _
-             | SetDBColType _
-             | DeleteTL _
-             | DeprecatedInitDbm _
-             | TLSavepoint _
-             | DeleteFunction _
-             | AddDBColToDBMigration _
-             | AbandonDBMigration _
-             | DeleteColInDBMigration _
-             | DeleteDBCol _
-             | CreateDBWithBlankOr _
-             | DeleteTLForever _
-             | DeleteFunctionForever _
-             | DeleteType _
-             | DeleteTypeForever _ ->
-                 true )
+    (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE SERVER-SIDE LIST *)
+    let filter_ops_received_out_of_order =
+      List.filter ~f:(fun op ->
+          match op with
+          | SetHandler _
+          | SetFunction _
+          | SetType _
+          | MoveTL _
+          | SetDBColName _
+          | ChangeDBColName _
+          | ChangeDBColType _
+          | SetExpr _
+          | CreateDBMigration _
+          | SetDBColNameInDBMigration _
+          | SetDBColTypeInDBMigration _
+          | UndoTL _
+          | RedoTL _
+          | RenameDBname _ ->
+              false
+          | CreateDB _
+          | AddDBCol _
+          | SetDBColType _
+          | DeleteTL _
+          | DeprecatedInitDbm _
+          | TLSavepoint _
+          | DeleteFunction _
+          | AddDBColToDBMigration _
+          | AbandonDBMigration _
+          | DeleteColInDBMigration _
+          | DeleteDBCol _
+          | CreateDBWithBlankOr _
+          | DeleteTLForever _
+          | DeleteFunctionForever _
+          | DeleteType _
+          | DeleteTypeForever _ ->
+              true )
     in
-    let opTlids = params.ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
+    let ops = params.ops |> filter_ops_received_out_of_order in
+    let opTlids = ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
     (* We also want to ignore the result of ops we ignored *)
     let result =
       Option.map result ~f:(fun (result : addOpRPCResult) ->
