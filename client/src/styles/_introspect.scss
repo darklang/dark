@@ -34,21 +34,19 @@ $arrow-height: 24px;
   }
 
   &:before {
-    @extend .font-awesome;
-    content: "";
     position: absolute;
     font-size: $arrow-height;
     top: calc(50% - #{$arrow-height/2});
   }
 
   &.used-in::before {
-    content: "\f30a";
+    @include font-awesome("\f30a");
     left: -1 * ($space-between - 4px);
     color: $live-value-background;
   }
 
   &.refers-to::before {
-    content: "\f30b";
+    @include font-awesome("\f30b");
     left: -1 * $space-between;
     color: $black2;
   }

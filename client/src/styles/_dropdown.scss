@@ -153,8 +153,7 @@ $wrapper-background: $black2;
         // character is in line with the first character of the results
         margin-right: 4px;
 
-        @extend .font-awesome;
-        content: "\f002";
+        @include font-awesome("\f002");
         color: $grey2;
         font-size: 16px;
       }
