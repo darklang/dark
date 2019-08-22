@@ -3427,14 +3427,14 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         tID = tID' && typeName = typeName' )
     |> Option.map ~f:Tuple3.second
   in
-  let tokensInRange startPos endPos : fluidToken list =
+  let tokensInRange startPos endPos : fluidTokenInfo list =
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
            if t.startPos >= startPos
               && t.startPos < endPos
               && t.endPos > startPos
               && t.endPos <= endPos
-           then toks @ [t.token]
+           then toks @ [t]
            else toks )
   in
   let startPos, endPos = sel.range in
@@ -3450,8 +3450,17 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
     let simplifiedTokens =
+      (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos
-      |> List.map ~f:(fun t -> FluidToken.(tid t, toText t, toTypeName t))
+      |> List.map ~f:(fun ti ->
+             let t = ti.token in
+             let text =
+               Token.toText t
+               |> String.dropLeft
+                    ~count:(min ti.startPos startPos - ti.startPos)
+               |> String.dropRight ~count:(min ti.endPos endPos - ti.endPos)
+             in
+             Token.(tid t, text, toTypeName t) )
     in
     let reconstructExpr expr : fluidExpr option =
       let exprID = eid expr in
@@ -3667,7 +3676,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
           tokensInRange startPos endPos
-          |> List.filterMap ~f:(function
+          |> List.filterMap ~f:(fun ti ->
+                 match ti.token with
                  | TRecordField (_, index, newKey) ->
                      List.getAt ~index entries
                      |> Option.map
@@ -3785,8 +3795,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
   let topmostID =
     (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
     tokensInRange startPos endPos
-    |> List.foldl ~init:(None, 0) ~f:(fun tok (topmostID, topmostDepth) ->
-           let curID = Token.tid tok in
+    |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
+           let curID = Token.tid ti.token in
            let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
            if (curDepth < topmostDepth || topmostID = None)
               && not (curDepth = 0 && findExpr curID ast != Some ast)
