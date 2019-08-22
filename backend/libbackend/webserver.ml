@@ -754,11 +754,26 @@ let initial_load
     ~(permission : Authorization.permission option)
     body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c =
+    let t1, (c, op_ctrs) =
       time "1-load-saved-ops" (fun _ ->
-          C.load_all canvas []
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
+          let c =
+            C.load_all canvas []
+            |> Result.map_error ~f:(String.concat ~sep:", ")
+            |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
+          in
+          let op_ctrs =
+            Db.fetch
+              ~name:"fetch_op_ctrs_for_canvas"
+              "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
+              ~params:[Db.Uuid !c.id]
+            |> List.map ~f:(function
+                   | [browser_id; op_ctr] ->
+                       (browser_id, op_ctr |> int_of_string)
+                   | _ ->
+                       Exception.internal
+                         "wrong record shape from fetch_op_Ctrs_for_canvas" )
+          in
+          (c, op_ctrs) )
     in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -792,18 +807,6 @@ let initial_load
     in
     let t6, result =
       time "6-to-frontend" (fun _ ->
-          let op_ctrs =
-            Db.fetch
-              ~name:"fetch_op_ctrs_for_canvas"
-              "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
-              ~params:[Db.Uuid !c.id]
-            |> List.map ~f:(function
-                   | [browser_id; op_ctr] ->
-                       (browser_id, op_ctr |> int_of_string)
-                   | _ ->
-                       Exception.internal
-                         "wrong record shape from fetch_op_Ctrs_for_canvas" )
-          in
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
