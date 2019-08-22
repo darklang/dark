@@ -802,8 +802,7 @@ let initial_load
                        (browser_id, op_ctr |> int_of_string)
                    | _ ->
                        Exception.internal
-                         "wrong
-record shape from fetch_op_Ctrs_for_canvas" )
+                         "wrong record shape from fetch_op_Ctrs_for_canvas" )
           in
           Analysis.to_initial_load_rpc_result
             !c
