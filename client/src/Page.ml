@@ -26,9 +26,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
         false
   in
   let offset =
-    if center
-    then Viewport.centerCanvasOn tl m.canvasProps
-    else m.canvasProps.offset
+    if center then Viewport.centerCanvasOn tl else m.canvasProps.offset
   in
   let panAnimation = offset <> m.canvasProps.offset in
   let boId =

@@ -104,10 +104,6 @@ module Ext = struct
     Js.Nullable.toOption (_querySelector s)
 
 
-  external windowWidth : Dom.window -> int = "innerWidth" [@@bs.get]
-
-  external windowHeight : Dom.window -> int = "innerHeight" [@@bs.get]
-
   external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
 
   let getBoundingClient (e : Dom.element) (s : string) : rect =
@@ -117,9 +113,6 @@ module Ext = struct
     ; left = rectLeft client |> int_of_float
     ; right = rectRight client |> int_of_float
     ; bottom = rectBottom client |> int_of_float }
-
-
-  let windowSize : int * int = (windowWidth window, windowHeight window)
 end
 
 module Random = struct
@@ -159,35 +152,14 @@ module Location = struct
 end
 
 module Window = struct
-  module OnResize = struct
-    let decode =
-      let open Tea.Json.Decoder in
-      let decodeDetail =
-        map2
-          (fun width height -> (width, height))
-          (field "width" int)
-          (field "height" int)
-      in
-      map (fun msg -> msg) (field "detail" decodeDetail)
+  external viewportWidth : int = "innerWidth" [@@bs.val] [@@bs.scope "window"]
 
+  external viewportHeight : int = "innerHeight"
+    [@@bs.val] [@@bs.scope "window"]
 
-    let listen ~key tagger = registerGlobal "windowResize" key tagger decode
-  end
+  external pageWidth : int = "outerWidth" [@@bs.val] [@@bs.scope "window"]
 
-  module OnLoad = struct
-    let decode =
-      let open Tea.Json.Decoder in
-      let decodeDetail =
-        map2
-          (fun width height -> (width, height))
-          (field "width" int)
-          (field "height" int)
-      in
-      map (fun msg -> msg) (field "detail" decodeDetail)
-
-
-    let listen ~key tagger = registerGlobal "windowOnload" key tagger decode
-  end
+  external pageHeight : int = "outerHeight" [@@bs.val] [@@bs.scope "window"]
 
   module OnFocusChange = struct
     let decode =

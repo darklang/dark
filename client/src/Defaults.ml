@@ -51,7 +51,6 @@ let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
   ; lastOffset = None
-  ; viewportSize = {w = 0; h = 0}
   ; panAnimation = false
   ; minimap = None }
 
