@@ -5,6 +5,14 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
+let isFluidForCustomers (vts : variantTest list) : bool =
+  List.member ~value:FluidWithoutStatusVariant vts
+
+
+let isFluidV2 (vts : variantTest list) : bool =
+  List.member ~value:FluidVariant vts
+
+
 let isFluidWithStatus (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
   && not (List.member ~value:FluidWithoutStatusVariant vts)
