@@ -29,6 +29,12 @@ let atom = ViewBlankOr.atom
 
 let keyword = ViewBlankOr.keyword
 
+let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
+    msg Html.html =
+  let event = ViewUtils.eventNeither ~key "click" (fun _ -> handler) in
+  Html.a [event; Html.class' ""] [content]
+
+
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
@@ -398,7 +404,9 @@ let view (m : model) : msg Html.html =
     else []
   in
   let topbar =
-    if VariantTesting.isFluidV2 m.tests
+    if m.showTopbar = false
+    then []
+    else if VariantTesting.isFluidV2 m.tests
     then
       let fluid = VariantTesting.isFluidForCustomers m.tests in
       let fluidUrl =
@@ -415,27 +423,20 @@ let view (m : model) : msg Html.html =
       in
       [ Html.div
           [Html.styles []; Html.classList [("topbar", true)]]
-          [ Html.span
-              []
-              [ Html.a
-                  [Html.href fluidUrl; Html.style "color" "white"]
-                  [ Html.text
-                      (* NB: right now, this "old editor" link will take you
+          [ Html.a
+              [Html.href fluidUrl]
+              [ Html.text
+                  (* NB: right now, this "old editor" link will take you
                        * from ?fluidv2=1&fluid=1 -> ?fluidv2=1, so it won't take
                        * you to the structured editor, it'll just put the
                        * status/debug box back.  Once we remove the fluidv2
                        * feature flag - that is, ship it to customers - then
                        * it'll take you from fluid to not-fluid *)
-                      ( if fluid
-                      then "Back to the old editor"
-                      else "Try our new editor!" ) ] ]
+                  ( if fluid
+                  then "Back to the old editor"
+                  else "Try our new editor!" ) ]
           ; Html.text " "
-          ; Html.span
-              []
-              [ Html.a
-                  [Html.href fluidUrl; Html.style "color" "white"]
-                  [ Html.text
-                      "(hide this bar)" ] ] ] ]
+          ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
     else []
   in
   let content =
