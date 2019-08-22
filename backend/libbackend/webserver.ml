@@ -682,7 +682,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
         let params = Api.to_add_op_rpc_params body in
-        let is_latest_op_request ?(loop_ctr = 1) browser_id op_ctr : bool =
+        let is_latest_op_request browser_id op_ctr : bool =
           Db.run
             ~name:"update-browser_id-op_ctr"
             (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
