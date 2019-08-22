@@ -640,34 +640,36 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, updateCurrent) ->
-        let m2 =
+      let oldM = m in
+        let m =
           {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
         in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m3 = if updateCurrent then m2 else bringBackCurrentTL m m2 in
-        let m4 =
+        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
+        let m =
           let hTLIDs = List.map ~f:(fun h -> h.hTLID) handlers in
           let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
-          { m3 with
-            deletedHandlers = TD.removeMany m3.deletedHandlers ~tlids:hTLIDs
-          ; deletedDBs = TD.removeMany m3.deletedDBs ~tlids:dbTLIDs }
+          { m with
+            deletedHandlers = TD.removeMany m.deletedHandlers ~tlids:hTLIDs
+          ; deletedDBs = TD.removeMany m.deletedDBs ~tlids:dbTLIDs }
         in
-        let m5 = Refactor.updateUsageCounts m4 in
-        processAutocompleteMods m5 [ACRegenerate]
+        let m = Refactor.updateUsageCounts m in
+        processAutocompleteMods m [ACRegenerate]
     | UpdateToplevels (handlers, dbs, updateCurrent) ->
-        let m2 =
+      let oldM = m in
+        let m =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
           ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
-        let m3, acCmd = processAutocompleteMods m2 [ACRegenerate] in
+        let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m4 = if updateCurrent then m3 else bringBackCurrentTL m m3 in
+        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         updateMod
-          (SetToplevels (TD.values m4.handlers, TD.values m4.dbs, updateCurrent))
-          (m4, Cmd.batch [cmd; acCmd])
+          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
+          (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
           TD.mergeRight m.deletedHandlers (Handlers.fromList dhandlers)
