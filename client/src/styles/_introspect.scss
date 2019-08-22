@@ -1,41 +1,31 @@
+$space-between: 25px;
+$arrow-height: 24px;
+
 .use-wrapper {
   background: transparent;
-  margin-left: 10px;
+  margin-left: $space-between;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 
   &.fade {
     opacity: 0.3;
   }
-
-  .usages,
-  .used-in {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.usages {
-  position: absolute;
-  //Change after avatars to shown, quick fix: left 100% - 50px
-  left: calc(#{"100% + 30px"});
-
-  display: flex;
-  flex-direction: column;
 }
 
 .ref-block {
   display: block;
   box-sizing: content-box;
+  position: relative;
 
   min-width: 120px;
-  width: max-content;
 
   margin: $spacing-medium 0;
-  padding: 4px $spacing-medium;
+  padding: $spacing-medium;
 
   background-color: $live-value-background;
 
-  color: $queue-color;
+  color: $grey3;
   font-size: $code-font-size;
 
   &:first-child {
@@ -43,22 +33,22 @@
     margin-bottom: $spacing-medium;
   }
 
-  &.db {
-    margin: $spacing-small 0;
-
-    .dbtitle {
-      margin: 0 auto;
-      margin-bottom: 0;
-    }
-
-    .cols {
-      color: $grey3;
-    }
+  &:before {
+    position: absolute;
+    font-size: $arrow-height;
+    top: calc(50% - #{$arrow-height/2});
   }
 
-  &.handler {
-    display: flex;
-    flex-direction: row;
+  &.used-in::before {
+    @include font-awesome("\f30a");
+    left: -1 * ($space-between - 4px);
+    color: $live-value-background;
+  }
+
+  &.refers-to::before {
+    @include font-awesome("\f30b");
+    left: -1 * $space-between;
+    color: $black2;
   }
 
   &:hover {
@@ -70,6 +60,69 @@
     .cols .col .type {
       color: $hover-foreground;
     }
+
+    &.used-in::before {
+      color: darken($live-value-background, 10%);
+    }
+  }
+
+  .dbheader,
+  .fnheader {
+    display: flex;
+    width: 100%;
+    align-items: center;
+  }
+
+  .fnicon,
+  .fnname,
+  .dbheader i.fa,
+  .dbname {
+    display: inline-block;
+  }
+
+  .fnicon,
+  .dbheader i.fa {
+    color: $hover-foreground;
+    font-size: 14px;
+    height: 14px;
+  }
+
+  .fnname,
+  .dbname {
+    padding-left: 1ch;
+  }
+
+  .fields {
+    display: block;
+    width: max-content;
+    color: $grey3;
+    margin-left: 22px;
+  }
+
+  .field {
+    display: block;
+
+    font-size: 12px;
+    color: darken($grey3, 15%);
+
+    .name,
+    .type {
+      display: inline-block;
+    }
+
+    .type {
+      margin-left: 1ch;
+      &:before {
+        content: ":";
+        margin-right: 1ch;
+      }
+    }
+  }
+
+  &.handler {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
   }
 
   .spec {
@@ -81,35 +134,19 @@
     padding-left: 1ch;
     padding-right: 1ch;
 
+    width: max-content;
+
     &:first-child {
       margin-left: 0;
     }
-  }
 
-  .fnicon,
-  .fnname {
-    display: inline-block;
-  }
-
-  .fnname {
-    color: $white1;
-  }
-
-  .fnheader,
-  .fnparams {
-    display: block;
-    width: 100%;
-  }
-
-  .fnparam {
-    display: inline-block;
-    color: $grey2;
-    font-size: $code-font-size * 0.8;
-    margin: 0 12px;
-
-    .has-blanks {
-      color: lighten($red, 12%);
-      font-style: italic;
+    &.space {
+      color: $hover-foreground;
     }
+  }
+
+  .fnparam .has-blanks {
+    color: lighten($red, 12%);
+    font-style: italic;
   }
 }
