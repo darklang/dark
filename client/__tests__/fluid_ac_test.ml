@@ -315,7 +315,7 @@ let () =
           test "empty autocomplete doesn't highlight" (fun () ->
               expect (acFor m |> fun x -> x.index) |> toEqual None ) ;
           test
-            "pressing a letter from the AC.selected entry keeps the entry AC.selected"
+            "pressing a letter from the AC.selected entry does not keep the entry AC.selected"
             (fun () ->
               expect
                 ( acFor m
