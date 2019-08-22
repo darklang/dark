@@ -11,7 +11,6 @@ $arrow-height: 24px;
   &.fade {
     opacity: 0.3;
   }
-
 }
 
 .ref-block {
@@ -44,13 +43,13 @@ $arrow-height: 24px;
 
   &.used-in::before {
     content: "\f30a";
-    left: -1*($space-between - 4px);
+    left: -1 * ($space-between - 4px);
     color: $live-value-background;
   }
 
   &.refers-to::before {
     content: "\f30b";
-    left: -1*$space-between;
+    left: -1 * $space-between;
     color: $black2;
   }
 
@@ -69,41 +68,47 @@ $arrow-height: 24px;
     }
   }
 
-  &.db .title, .fnheader {
+  .dbheader,
+  .fnheader {
     display: flex;
     width: 100%;
     align-items: center;
   }
 
   .fnicon,
-  .fnname, &.db .title i.fa, &.db .title span.dbname {
+  .fnname,
+  .dbheader i.fa,
+  .dbname {
     display: inline-block;
   }
 
-  .fnicon, &.db .title i.fa {
+  .fnicon,
+  .dbheader i.fa {
     color: $hover-foreground;
     font-size: 14px;
     height: 14px;
   }
 
-  .fnname, &.db .title span.dbname {
+  .fnname,
+  .dbname {
     padding-left: 1ch;
   }
 
-  &.db .cols, .fnparams {
+  .fields {
     display: block;
     width: max-content;
     color: $grey3;
     margin-left: 22px;
   }
 
-  .dbcol, .fnparam {
+  .field {
     display: block;
 
     font-size: 12px;
     color: darken($grey3, 15%);
 
-    .name, .type {
+    .name,
+    .type {
       display: inline-block;
     }
 

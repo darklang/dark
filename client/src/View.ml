@@ -45,7 +45,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLGroup g ->
         ([ViewGroup.viewGroup m vs g], [])
   in
-  let usages = ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs in
+  let usages =
+    ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
+  in
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -186,9 +188,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
     ; avatars
-    ; Html.div
-        [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-        usages ]
+    ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
+    ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
