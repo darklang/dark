@@ -126,7 +126,7 @@ let fns =
               fail args)
     ; ps = true
     ; dep = true }
-  ; { pns = ["List::findFirst_v2"]
+  ; { pns = ["List::findFirst_v1"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
     ; r = TOption
