@@ -7,84 +7,15 @@ open Fluid
 module B = Blank
 module K = FluidKeyboard
 
-let m =
-  let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
-      Types.parameter =
-    { paramName = name
-    ; paramTipe = t
-    ; paramBlock_args = blockArgs
-    ; paramOptional = opt
-    ; paramDescription = "" }
-  in
-  let infixFn op tipe rtTipe =
-    { fnName = op
-    ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
-    ; fnReturnTipe = rtTipe
-    ; fnDescription = "Some infix function"
-    ; fnPreviewExecutionSafe = true
-    ; fnDeprecated = false
-    ; fnInfix = true }
-  in
-  { Defaults.defaultModel with
-    analyses =
-      StrDict.singleton (* The default traceID for TLID 7 *)
-        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
-        ~value:
-          { liveValues =
-              StrDict.singleton
-                ~key:"12"
-                ~value:
-                  (DObj
-                     (StrDict.fromList [("body", DNull); ("formBody", DNull)]))
-          }
-  ; builtInFunctions =
-      [ infixFn "<" TInt TBool
-      ; infixFn "+" TInt TInt
-      ; infixFn "==" TAny TBool
-      ; infixFn "<=" TInt TBool
-      ; infixFn "||" TBool TBool
-      ; { fnName = "Int::add"
-        ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-        ; fnReturnTipe = TInt
-        ; fnDescription = "Add two ints"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "Int::sqrt"
-        ; fnParameters = [fnParam "a" TInt false]
-        ; fnReturnTipe = TInt
-        ; fnDescription = "Get the square root of an Int"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "DB::getAll_v1"
-        ; fnParameters = [fnParam "table" TDB false]
-        ; fnReturnTipe = TList
-        ; fnDescription = "get all"
-        ; fnPreviewExecutionSafe = false
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "Dict::map"
-        ; fnParameters =
-            [ fnParam "dict" TObj false
-            ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-        ; fnReturnTipe = TObj
-        ; fnDescription =
-            "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false } ] }
-
-
-type testResult = string * string * int
-
-(* ast, clipboard, newPos *)
+type testResult = (* ast, clipboard, newPos *) string * string * int
 
 let () =
-  let process ~debug range ast (keyEvent : K.keyEvent) : testResult =
+  let m = Defaults.defaultModel in
+  let process ~debug ?(clipboard = None) range ast (keyEvent : K.keyEvent) :
+      testResult =
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; selection = Some {range} }
+        ac = AC.reset m; selection = Some {range}; clipboard }
     in
     let pos = Tuple2.first range in
     let s = {s with oldPos = pos; newPos = pos} in
@@ -139,6 +70,17 @@ let () =
     in
     process ~debug range expr keyEvent
   in
+  let paste ?(debug = false) ~clipboard (range : int * int) (expr : fluidExpr)
+      : testResult =
+    let keyEvent : K.keyEvent =
+      { key = K.Letter 'v'
+      ; shiftKey = false
+      ; altKey = false
+      ; metaKey = false
+      ; ctrlKey = true (* since tests are run on linux *) }
+    in
+    process ~debug ~clipboard:(Some clipboard) range expr keyEvent
+  in
   let t
       (name : string)
       (initial : fluidExpr)
@@ -152,28 +94,123 @@ let () =
       ^ "`" )
       (fun () -> expect (fn initial) |> toEqual expected)
   in
-  (* NOTE: 
-    * most tests don't work yet, they just serve as examples of how
-    * the harness works
-    *)
-  describe "Boolean" (fun () ->
+  describe "Booleans" (fun () ->
       t
         "copying a bool should add an EBool to clipboard"
         (EBool (gid (), true))
         (copy (0, 4))
         ("true", "true", 0) ;
       t
-        "cutting a bool should add an EBool to clipboard and leave a blank"
-        (EBool (gid (), true))
-        (cut (0, 4))
-        ("___", "true", 0) ;
-      (* NOT WORKING YET
-      t
         "copying a bool should add an EBool to clipboard 2"
         (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
         (copy (10, 14))
-        ("Bool::not true", "true", 0) ;
-        *)
+        ("Bool::not true", "true", 10) ;
+      t
+        "cutting a bool should add an EBool to clipboard and leave a blank"
+        (EBool (gid (), false))
+        (cut (0, 5))
+        ("___", "false", 0) ;
+      t
+        "cutting a bool should add an EBool to clipboard 2"
+        (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
+        (cut (10, 14))
+        ("Bool::not ___", "true", 10) ;
+      t
+        "pasting an EBool from clipboard on a blank should paste it"
+        (EBlank (gid ()))
+        (paste ~clipboard:(EBool (gid (), true)) (0, 0))
+        ("true", "true", 0) ;
+      () ) ;
+  describe "Nulls" (fun () ->
+      t
+        "copying a null should add an ENull to clipboard"
+        (ENull (gid ()))
+        (copy (0, 4))
+        ("null", "null", 0) ;
+      t
+        "copying a null should add an ENull to clipboard 2"
+        (EFnCall (gid (), "Bool::isNull", [ENull (gid ())], NoRail))
+        (copy (13, 17))
+        ("Bool::isNull null", "null", 13) ;
+      t
+        "cutting a null should add an ENull to clipboard and leave a blank"
+        (ENull (gid ()))
+        (cut (0, 4))
+        ("___", "null", 0) ;
+      t
+        "cutting a null should add an ENull to clipboard 2"
+        (EFnCall (gid (), "Bool::isNull", [ENull (gid ())], NoRail))
+        (cut (13, 17))
+        ("Bool::isNull ___", "null", 13) ;
+      t
+        "pasting an ENull from clipboard on a blank should paste it"
+        (EBlank (gid ()))
+        (paste ~clipboard:(ENull (gid ())) (0, 0))
+        ("null", "null", 0) ;
+      () ) ;
+  describe "Integers" (fun () ->
+      t
+        "copying an int should add an EInteger to clipboard"
+        (EInteger (gid (), 1000))
+        (copy (0, 4))
+        ("1000", "1000", 0) ;
+      t
+        "copying an int should add an EInteger to clipboard and leave a blank 2"
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 1000)], NoRail))
+        (copy (10, 14))
+        ("Int::sqrt 1000", "1000", 10) ;
+      t
+        "cutting an int should add an EInteger to clipboard and leave a blank"
+        (EInteger (gid (), 1000))
+        (cut (0, 4))
+        ("___", "1000", 0) ;
+      t
+        "cutting an int should add an EInteger to clipboard and leave a blank 2"
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 1000)], NoRail))
+        (cut (10, 14))
+        ("Int::sqrt ___", "1000", 10) ;
+      t
+        "pasting an EInteger from clipboard on a blank should paste it"
+        (EBlank (gid ()))
+        (paste ~clipboard:(EInteger (gid (), 1234)) (0, 0))
+        ("1234", "1234", 0) ;
+      () ) ;
+  describe "Strings" (fun () ->
+      t
+        "copying a string should add an EString to clipboard"
+        (EString (gid (), "abcd EFGH ijkl 1234"))
+        (copy (0, 21))
+        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 0) ;
+      t
+        "copying a string should add an EString to clipboard 2"
+        (EFnCall
+           ( gid ()
+           , "String::reverse"
+           , [EString (gid (), "abcd EFGH ijkl 1234")]
+           , NoRail ))
+        (copy (16, 37))
+        ( "String::reverse \"abcd EFGH ijkl 1234\""
+        , "\"abcd EFGH ijkl 1234\""
+        , 16 ) ;
+      t
+        "cutting a string should add an EString to clipboard"
+        (EString (gid (), "abcd EFGH ijkl 1234"))
+        (cut (0, 21))
+        ("___", "\"abcd EFGH ijkl 1234\"", 0) ;
+      t
+        "cutting a string should add an EString to clipboard 2"
+        (EFnCall
+           ( gid ()
+           , "String::reverse"
+           , [EString (gid (), "abcd EFGH ijkl 1234")]
+           , NoRail ))
+        (cut (16, 37))
+        ("String::reverse ___", "\"abcd EFGH ijkl 1234\"", 16) ;
+      t
+        "pasting an EString from clipboard on a blank should paste it"
+        (EBlank (gid ()))
+        (paste ~clipboard:(EString (gid (), "abcd EFGH ijkl 1234")) (0, 0))
+        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 0) ;
       () ) ;
   describe "Functions" (fun () ->
       (* NOT WORKING YET
