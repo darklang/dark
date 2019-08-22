@@ -10,7 +10,7 @@ let dbColsView (cols : dbColumn list) : msg Html.html =
     | F (_, nm), F (_, ty) ->
         let html =
           Html.div
-            [Html.class' "col"]
+            [Html.class' "dbcol"]
             [ Html.div [Html.class' "name"] [Html.text nm]
             ; Html.div [Html.class' "type"] [Html.text ty] ]
         in
@@ -47,7 +47,10 @@ let dbView
           "click"
           (fun _ -> GoTo (FocusedDB (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
-    [Html.span [Html.class' "dbtitle"] [Html.text name]; dbColsView cols]
+    [Html.div [Html.class' "title"]
+      [ ViewUtils.fontAwesome "database";
+      Html.span [Html.class' "dbname"] [Html.text name ]
+      ]; dbColsView cols]
 
 
 let handlerView
@@ -72,7 +75,7 @@ let handlerView
           "click"
           (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
-    ( [ Html.div [Html.class' "spec"] [Html.text space]
+    ( [ Html.div [Html.class' "spec space"] [Html.text space]
       ; Html.div [Html.class' "spec"] [Html.text name] ]
     @ modifier_ )
 
@@ -85,18 +88,18 @@ let fnView
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#666"]
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
     ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   let paramView p =
     let name =
       Html.span
-        [Html.classList [("has-blanks", Blank.isBlank p.ufpName)]]
+        [Html.classList [("name", true); ("has-blanks", Blank.isBlank p.ufpName)]]
         [Html.text (Blank.valueWithDefault "no name" p.ufpName)]
     in
     let ptype =
       Html.span
-        [Html.classList [("has-blanks", Blank.isBlank p.ufpTipe)]]
+        [Html.classList [("type", true);("has-blanks", Blank.isBlank p.ufpTipe)]]
         [ Html.text
             ( match p.ufpTipe with
             | F (_, v) ->
@@ -104,7 +107,7 @@ let fnView
             | Blank _ ->
                 "no type" ) ]
     in
-    Html.div [Html.class' "fnparam"] [name; Html.text ":"; ptype]
+    Html.div [Html.class' "fnparam"] [name; ptype]
   in
   Html.div
     ( [ Html.class' ("ref-block fn " ^ direction)

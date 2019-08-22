@@ -6,7 +6,7 @@ $arrow-height: 24px;
   margin-left: $space-between;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
 
   &.fade {
     opacity: 0.3;
@@ -20,14 +20,13 @@ $arrow-height: 24px;
   position: relative;
 
   min-width: 120px;
-  width: max-content;
 
   margin: $spacing-medium 0;
-  padding: 4px $spacing-medium;
+  padding: $spacing-medium;
 
   background-color: $live-value-background;
 
-  color: desaturate($hover-foreground, 20%);
+  color: $grey3;
   font-size: $code-font-size;
 
   &:first-child {
@@ -70,22 +69,57 @@ $arrow-height: 24px;
     }
   }
 
-  &.db {
-    margin: $spacing-small 0;
+  &.db .title, .fnheader {
+    display: flex;
+    width: 100%;
+    align-items: center;
+  }
 
-    .dbtitle {
-      margin: 0 auto;
-      margin-bottom: 0;
+  .fnicon,
+  .fnname, &.db .title i.fa, &.db .title span.dbname {
+    display: inline-block;
+  }
+
+  .fnicon, &.db .title i.fa {
+    color: $hover-foreground;
+    font-size: 14px;
+    height: 14px;
+  }
+
+  .fnname, &.db .title span.dbname {
+    padding-left: 1ch;
+  }
+
+  &.db .cols, .fnparams {
+    display: block;
+    width: max-content;
+    color: $grey3;
+    margin-left: 22px;
+  }
+
+  .dbcol, .fnparam {
+    display: block;
+
+    font-size: 12px;
+    color: darken($grey3, 15%);
+
+    .name, .type {
+      display: inline-block;
     }
 
-    .cols {
-      color: $grey3;
+    .type {
+      margin-left: 1ch;
+      &:before {
+        content: ":";
+        margin-right: 1ch;
+      }
     }
   }
 
   &.handler {
     display: flex;
     flex-direction: row;
+    justify-content: flex-start;
   }
 
   .spec {
@@ -97,41 +131,19 @@ $arrow-height: 24px;
     padding-left: 1ch;
     padding-right: 1ch;
 
+    width: max-content;
+
     &:first-child {
       margin-left: 0;
     }
-  }
 
-  .fnheader {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    width: 100%;
-  }
-
-  .fnicon,
-  .fnname {
-    display: inline-block;
-  }
-
-  .fnname {
-    margin-left: 1ch;
-  }
-
-  .fnparams {
-    display: block;
-    width: 100%;
-  }
-
-  .fnparam {
-    display: inline-block;
-    color: $grey2;
-    font-size: $code-font-size * 0.8;
-    margin: 0 12px;
-
-    .has-blanks {
-      color: lighten($red, 12%);
-      font-style: italic;
+    &.space {
+      color: $hover-foreground;
     }
+  }
+
+  .fnparam .has-blanks {
+    color: lighten($red, 12%);
+    font-style: italic;
   }
 }
