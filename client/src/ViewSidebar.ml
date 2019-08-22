@@ -2,6 +2,7 @@ open Tc
 open Prelude
 open Types
 open ViewUtils
+module Navigation = Tea_navigation
 module B = Blank
 module TL = Toplevel
 module TD = TLIDDict
@@ -766,6 +767,28 @@ let viewSidebar_ (m : model) : msg Html.html =
         Html.div [Html.class' "error-status"] [Html.text "Dark"]
   in
   let html =
+    let qp =
+      ("fluid", true) :: Url.queryParams
+      |> List.uniqueBy ~f:(fun (k, _) -> k)
+      |> List.filter ~f:(fun (_, v) -> v)
+      |> List.map ~f:(fun (k, _) -> k ^ "=1")
+      |> String.join ~sep:"&"
+      |> fun s -> "?" ^ s
+    in
+    let loc = {(Tea.Navigation.getLocation ()) with search = qp} in
+    let url =
+      loc.protocol ^ "//" ^ loc.host ^ loc.pathname ^ loc.search ^ loc.hash
+    in
+    let fluidLink =
+      if VariantTesting.isFluidWithStatus m.tests
+      then
+        [ Html.span
+            []
+            [ Html.a
+                [Html.href url; Html.style "color" "white"]
+                [Html.text "Fluid!"] ] ]
+      else []
+    in
     Html.div
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
       ; nothingMouseEvent "mouseup"
@@ -774,6 +797,7 @@ let viewSidebar_ (m : model) : msg Html.html =
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
             EnablePanning true ) ]
       ( [toggleSidebar m]
+      @ [Html.div [] fluidLink]
       @ [ Html.div
             [Html.classList [("groups-closed", isClosed); ("groups", true)]]
             ( List.map ~f:(showCategories m) cats

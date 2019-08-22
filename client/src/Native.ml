@@ -155,6 +155,8 @@ module Location = struct
   external reload : bool -> unit = "reload"
     [@@bs.val] [@@bs.scope "window", "location"]
 
+  external href : string = "href" [@@bs.val] [@@bs.scope "window", "location"]
+
   (* TODO write string query parser *)
 end
 
