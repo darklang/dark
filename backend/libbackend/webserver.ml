@@ -682,74 +682,12 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
         let params = Api.to_add_op_rpc_params body in
-        let is_latest_op_request browser_id op_ctr : bool =
-          Db.run
-            ~name:"update-browser_id-op_ctr"
-            (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
-             * that it also handles the initial case where there is no
-             * browser_id record yet *)
-            "INSERT INTO op_ctrs(browser_id,ctr,canvas_id) VALUES($1, $2, $3)
-             ON CONFLICT (browser_id)
-             DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
-                       WHERE op_ctrs.ctr < EXCLUDED.ctr"
-            ~params:
-              [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
-              ; Db.Int op_ctr
-              ; Db.Uuid canvas_id ] ;
-          Db.exists
-            ~name:"check-if-op_ctr-is-latest"
-            "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
-            ~params:
-              [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
-              ; Db.Int params.opCtr ]
-        in
-        if is_latest_op_request params.browserId params.opCtr
+        if Op.is_latest_op_request params.browserId params.opCtr canvas_id
         then (params, canvas_id)
         else
-          let filtered_ops =
-            params.ops
-            (* filter down to only those ops which can be applied out of order
-             * without overwriting previous ops' state - eg, if we have
-             * SetHandler1 setting a handler's value to "aaa", and then
-             * SetHandler2's value is "aa", applying them out of order (SH2,
-             * SH1) will result in SH2's update being overwritten *)
-            (* NOTE: DO NOT UPDATE WITHOUT UPDATING THE CLIENT-SIDE LIST *)
-            |> List.filter ~f:(fun op ->
-                   match op with
-                   | SetHandler _
-                   | SetFunction _
-                   | SetType _
-                   | MoveTL _
-                   | SetDBColName _
-                   | ChangeDBColName _
-                   | ChangeDBColType _
-                   | SetExpr _
-                   | CreateDBMigration _
-                   | SetDBColNameInDBMigration _
-                   | SetDBColTypeInDBMigration _
-                   | UndoTL _
-                   | RedoTL _
-                   | RenameDBname _ ->
-                       false
-                   | CreateDB _
-                   | AddDBCol _
-                   | SetDBColType _
-                   | DeleteTL _
-                   | DeprecatedInitDbm _
-                   | TLSavepoint _
-                   | DeleteFunction _
-                   | AddDBColToDBMigration _
-                   | AbandonDBMigration _
-                   | DeleteColInDBMigration _
-                   | DeleteDBCol _
-                   | CreateDBWithBlankOr _
-                   | DeleteTLForever _
-                   | DeleteFunctionForever _
-                   | DeleteType _
-                   | DeleteTypeForever _ ->
-                       true )
-          in
-          ({params with ops = filtered_ops}, canvas_id) )
+          ( { params with
+              ops = params.ops |> Op.filter_ops_received_out_of_order }
+          , canvas_id ) )
   in
   let ops = params.ops in
   let tlids = List.filter_map ~f:Op.tlidOf ops in
