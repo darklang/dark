@@ -787,25 +787,6 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               Some strollerMsg )
             else None )
       in
-      let%lwt _ =
-        (* This field is a postgres int of 4 bytes. Warn at (2^31 - 1)*0.8 *)
-        if float_of_int params.opCtr >= ((2.0 ** 31.0) -. 1.0) *. 0.8
-        then
-          let exn =
-            Exception.make_exception
-              DarkInternal
-              "opCtr is approaching max safe value (2^31 - 1)/2"
-          in
-          Rollbar.report_lwt
-            exn
-            (Exception.get_backtrace ())
-            (* we don't have access to the req here, so put in an empty request *)
-            (Other
-               ( `Assoc [("host", `String host); ("opCtr", `Int params.opCtr)]
-               |> Yojson.Safe.to_string ))
-            (Types.show_id execution_id)
-        else Lwt.return `Success
-      in
       Log.add_log_annotations
         [("op_ctr", `Int params.opCtr)]
         (fun _ ->
