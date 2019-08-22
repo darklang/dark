@@ -64,6 +64,7 @@ let viewFeatureFlag : msg Html.html =
 
 let viewCopyButton tlid value : msg Html.html =
   Html.div
+    ~key:value
     [ Html.class' "copy-value"
     ; Html.title "Copy this expression's value to the clipboard"
     ; ViewUtils.eventNoPropagation
