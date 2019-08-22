@@ -256,6 +256,17 @@ let t_typecheck_any () =
     (Type_checker.check_function_call ~user_tipes fn args |> Result.is_ok)
 
 
+let t_typechecker_error_isnt_wrapped_by_errorail () =
+  check_condition
+    "typechecker_error_dict_get"
+    (exec_ast "(Dict::get_v1 (List::empty) 'hello')")
+    ~f:(function
+      | DError _ ->
+          true
+      | _ ->
+          false )
+
+
 let t_int_functions_works () =
   check_condition
     "Int::random_v1 0 3 returns a number between [0,3]"
@@ -398,6 +409,9 @@ let suite =
     , `Quick
     , t_basic_typecheck_works_unhappy )
   ; ("Type checking supports `Any` in user functions", `Quick, t_typecheck_any)
+  ; ( "Type checking error isn't wrapped by error rail"
+    , `Quick
+    , t_typechecker_error_isnt_wrapped_by_errorail )
   ; ( "Error rail is propagated by functions"
     , `Quick
     , t_error_rail_is_propagated_by_functions )
