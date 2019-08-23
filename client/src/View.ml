@@ -42,9 +42,12 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
+    | TLGroup g ->
+        ([ViewGroup.viewGroup m vs g], [])
   in
-  let refersTo = ViewIntrospect.refersToViews tlid vs.refersToRefs in
-  let usedIn = ViewIntrospect.usedInViews tlid vs.usedInRefs in
+  let usages =
+    ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
+  in
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("tlmd-" ^ showTLID tlid)
@@ -72,8 +75,13 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     in
     [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
   in
+  (* Need to add aditional css class to remove backgroun color *)
+  let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
   let class_ =
-    ["toplevel"; "tl-" ^ deTLID tlid; (if selected then "selected" else "")]
+    [ "toplevel"
+    ; "tl-" ^ deTLID tlid
+    ; (if selected then "selected" else "")
+    ; isGroup ]
     |> String.join ~sep:" "
   in
   let id =
@@ -166,7 +174,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let top = match documentation with Some doc -> doc | _ -> [] in
   let pos =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         TL.pos tl
     | FocusedFn _ | FocusedType _ ->
         Defaults.centerPos
@@ -180,9 +188,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
     ; avatars
-    ; Html.div
-        [Html.classList [("use-wrapper", true); ("fade", hasFf)]]
-        [usedIn; refersTo] ]
+    ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
+    ]
   in
   ViewUtils.placeHtml pos boxClasses html
 
@@ -226,8 +233,19 @@ let tlCacheKeyTipe (m : model) tl =
     Some (tl, avatarsList)
 
 
+let tlCacheKeyGroup (m : model) tl =
+  let tlid = TL.id tl in
+  if Some tlid = tlidOf m.cursorState
+  then None
+  else
+    let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
+    Some (tl, avatarsList)
+
+
 let viewTL m tl =
   match tl with
+  | TLGroup _ ->
+      Cache.cache2m tlCacheKeyGroup viewTL_ m tl
   | TLTipe _ ->
       Cache.cache2m tlCacheKeyTipe viewTL_ m tl
   | TLDB _ ->
@@ -240,7 +258,7 @@ let viewCanvas (m : model) : msg Html.html =
   let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
-    | Architecture | FocusedHandler _ | FocusedDB _ ->
+    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         m
         |> TL.structural
         |> TD.values
@@ -249,6 +267,8 @@ let viewCanvas (m : model) : msg Html.html =
        * clicks going to the wrong toplevel. Sorting solves it, though I don't
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
+        (* Filter out toplevels that are not in a group *)
+        |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->
       ( match TD.get ~tlid m.userFunctions with
@@ -297,6 +317,8 @@ let viewCanvas (m : model) : msg Html.html =
         "focused-fn"
     | FocusedType _ ->
         "focused-type"
+    | FocusedGroup _ ->
+        "focused-group"
   in
   Html.div
     [ Html.id "canvas"

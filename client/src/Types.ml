@@ -231,6 +231,7 @@ and pointerData =
   | PTypeName of string blankOr
   | PTypeFieldName of string blankOr
   | PTypeFieldTipe of tipe blankOr
+  | PGroupName of string blankOr
 
 and pointerType =
   | VarBind
@@ -253,6 +254,7 @@ and pointerType =
   | TypeName
   | TypeFieldName
   | TypeFieldTipe
+  | GroupName
 
 and pointerOwner =
   | POSpecHeader
@@ -292,6 +294,13 @@ and handler =
   { ast : expr
   ; spec : handlerSpec
   ; hTLID : tlid
+  ; pos : pos }
+
+(* groups *)
+and group =
+  { gName : string blankOr
+  ; gTLID : tlid
+  ; members : tlid list
   ; pos : pos }
 
 (* dbs *)
@@ -364,6 +373,7 @@ and toplevel =
   | TLDB of db
   | TLFunc of userFunction
   | TLTipe of userTipe
+  | TLGroup of group
 
 (* ---------------------- *)
 (* dvals *)
@@ -407,7 +417,11 @@ and dval =
 (* ----------------------------- *)
 and mouseEvent =
   { mePos : vPos
-  ; button : int }
+  ; button : int
+  ; altKey : bool
+  ; ctrlKey : bool
+  ; shiftKey : bool
+  ; detail : int }
 
 and isLeftButton = bool
 
@@ -647,7 +661,9 @@ and initialLoadRPCResult =
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; permission : permission option
-  ; opCtrs : int StrDict.t }
+  ; opCtrs : int StrDict.t
+  ; groups : group list
+  ; deletedGroups : group list }
 
 and saveTestRPCResult = string
 
@@ -694,6 +710,7 @@ and omniAction =
   | NewWorkerHandler of string option
   | NewCronHandler of string option
   | NewReplHandler of string option
+  | NewGroup of string option
   | Goto of page * tlid * string
 
 and autocompleteItem =
@@ -726,6 +743,7 @@ and autocompleteItem =
   | ACParamName of string
   | ACTypeName of string
   | ACTypeFieldName of string
+  | ACGroupName of string
 
 and target = tlid * pointerData
 
@@ -794,6 +812,7 @@ and page =
   | FocusedHandler of tlid * centerPage
   | FocusedDB of tlid * centerPage
   | FocusedType of tlid
+  | FocusedGroup of tlid * centerPage
 
 and focus =
   | FocusNothing
@@ -839,7 +858,8 @@ and modification =
   | ClearHover of tlid * id
   | Deselect
   | RemoveToplevel of toplevel
-  | SetToplevels of handler list * db list * bool
+  | RemoveGroup of toplevel
+  | SetToplevels of handler list * db list * group list * bool
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
@@ -886,6 +906,10 @@ and modification =
   | FluidCommandsClose
   | UpdateAvatarList of avatar list
   | ExpireAvatars
+  | AddGroup of group
+  | AddToGroup of tlid * tlid
+  | UndoGroupDelete of tlid * group
+  | MoveMemberToNewGroup of tlid * tlid * model
 
 (* ------------------- *)
 (* Msgs *)
@@ -970,6 +994,7 @@ and msg =
   | DeleteUserFunctionForever of tlid
   | DeleteUserType of tlid
   | DeleteUserTypeForever of tlid
+  | DeleteGroupForever of tlid
   | RestoreToplevel of tlid
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
@@ -998,9 +1023,13 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
+  | UpdateFluidSelection of fluidSelection option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
+  | DeleteGroup of tlid
+  | DragGroupMember of tlid * tlid * mouseEvent
+  | CreateGroup
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1011,6 +1040,7 @@ and variantTest =
   | FluidVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
+  | GroupVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1128,6 +1158,10 @@ and placeholder = string * string
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
+  (* multi-line strings, id, segment, full-string, offset *)
+  | TStringMLStart of id * string * int * string
+  | TStringMLMiddle of id * string * int * string
+  | TStringMLEnd of id * string * int * string
   | TBlank of id
   | TPlaceholder of placeholder * id
   | TTrue of id
@@ -1236,6 +1270,8 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
+and fluidSelection = {range : int * int}
+
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1247,7 +1283,8 @@ and fluidState =
        * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
-  ; cp : fluidCommandState }
+  ; cp : fluidCommandState
+  ; selection : fluidSelection option }
 
 (* Avatars *)
 and avatar =
@@ -1276,6 +1313,7 @@ and model =
   ; cursorState : cursorState
   ; currentPage : page
   ; hovering : (tlid * id) list
+  ; groups : group TLIDDict.t
   ; handlers : handler TLIDDict.t
   ; deletedHandlers : handler TLIDDict.t
   ; dbs : db TLIDDict.t
@@ -1284,6 +1322,7 @@ and model =
   ; deletedUserFunctions : userFunction TLIDDict.t
   ; userTipes : userTipe TLIDDict.t
   ; deletedUserTipes : userTipe TLIDDict.t
+  ; deletedGroups : group TLIDDict.t
   ; traces : traces
   ; analyses : analyses
   ; f404s : fourOhFour list

@@ -168,6 +168,8 @@ let processFocus (m : model) (focus : focus) : modification =
             true
         | TLDB _ ->
             true
+        | TLGroup _ ->
+            true
         | TLFunc _ ->
             false
         | TLTipe _ ->
@@ -310,7 +312,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
-             | TLDB _ | TLTipe _ ->
+             | TLDB _ | TLTipe _ | TLGroup _ ->
                  [] )
       |> Option.withDefault ~default:[]
       |> fun rpc ->
@@ -328,7 +330,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               DB.upsert newM db
           | TLHandler h ->
               Handlers.upsert newM h
-          | TLTipe _ | TLFunc _ ->
+          | TLGroup _ | TLTipe _ | TLFunc _ ->
               newM )
       | None ->
           newM
@@ -593,10 +595,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
-    | SetToplevels (handlers, dbs, updateCurrent) ->
+    | RemoveGroup tl ->
+        (Toplevel.remove m tl, Cmd.none)
+    | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let oldM = m in
         let m =
-          {m with handlers = Handlers.fromList handlers; dbs = DB.fromList dbs}
+          { m with
+            handlers = Handlers.fromList handlers
+          ; dbs = DB.fromList dbs
+          ; groups = Groups.fromList groups }
         in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -622,7 +629,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
            API call *)
         let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         updateMod
-          (SetToplevels (TD.values m.handlers, TD.values m.dbs, updateCurrent))
+          (SetToplevels
+             ( TD.values m.handlers
+             , TD.values m.dbs
+             , TD.values m.groups
+             , updateCurrent ))
           (m, Cmd.batch [cmd; acCmd])
     | UpdateDeletedToplevels (dhandlers, ddbs) ->
         let dhandlers =
@@ -740,7 +751,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ( match tl with
                 | TLFunc f ->
                     Functions.upsert m f
-                | TLTipe _ | TLDB _ | TLHandler _ ->
+                | TLTipe _ | TLDB _ | TLHandler _ | TLGroup _ ->
                     m )
           | None ->
               m
@@ -773,6 +784,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ( match tl with
                 | TLTipe t ->
                     UserTypes.upsert m2 t
+                | TLGroup _ ->
+                    m2
                 | TLFunc _ ->
                     m2
                 | TLDB _ ->
@@ -838,6 +851,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearHover (tlid, id) ->
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
         ({m with hovering = nhovering}, Cmd.none)
+    | AddToGroup (gTLID, tlid) ->
+        (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
+        let newMod, newCmd = Groups.addToGroup m gTLID tlid in
+        (newMod, newCmd)
+    | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
+        let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
+        (newMod, newCmd)
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -923,10 +943,24 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
+    | AddGroup group ->
+        (* This code is temp while we work on FE *)
+        let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
+        if nameAlreadyUsed
+        then (m, Cmd.none)
+        else
+          ( { m with
+              groups = TLIDDict.insert ~tlid:group.gTLID ~value:group m.groups
+            }
+          , Cmd.none )
     | TweakModel fn ->
         (fn m, Cmd.none)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
+    | UndoGroupDelete (tlid, g) ->
+        let newMod = Groups.upsert m g in
+        ( {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups}
+        , Cmd.none )
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -940,7 +974,7 @@ let toggleTimers (m : model) : model =
 
 let findCenter (m : model) : pos =
   match m.currentPage with
-  | Architecture | FocusedHandler _ | FocusedDB _ ->
+  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       Viewport.toCenter m.canvasProps.offset
   | _ ->
       Defaults.centerPos
@@ -983,7 +1017,7 @@ let update_ (msg : msg) (m : model) : modification =
     ( match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
         NoChange
-    | Architecture | FocusedDB _ | FocusedHandler _ ->
+    | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
           match unwrapCursorState m.cursorState with
@@ -1022,7 +1056,11 @@ let update_ (msg : msg) (m : model) : modification =
         let yDiff = mousePos.y - startVPos.vy in
         let m2 = TL.move draggingTLID xDiff yDiff m in
         Many
-          [ SetToplevels (TD.values m2.handlers, TD.values m2.dbs, true)
+          [ SetToplevels
+              ( TD.values m2.handlers
+              , TD.values m2.dbs
+              , TD.values m2.groups
+              , true )
           ; Drag
               ( draggingTLID
               , {vx = mousePos.x; vy = mousePos.y}
@@ -1037,7 +1075,7 @@ let update_ (msg : msg) (m : model) : modification =
         match tl with
         | TLFunc _ | TLTipe _ ->
             NoChange
-        | TLHandler _ | TLDB _ ->
+        | TLHandler _ | TLDB _ | TLGroup _ ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (_, event) ->
@@ -1056,9 +1094,24 @@ let update_ (msg : msg) (m : model) : modification =
               (* we don't, perhaps due to overlapping click handlers *)
               (* There doesn't seem to be any harm in stopping dragging *)
               (* here though *)
-              Many
-                [ SetCursorState origCursorState
-                ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange) ]
+              if not (TL.isGroup tl)
+              then
+                (* Check if toplevel landed on top of a group *)
+                (* https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
+                let gTlid =
+                  Groups.landedInGroup draggingTLID m.groups |> List.head
+                in
+                match gTlid with
+                | Some tlid ->
+                    Many
+                      [ SetCursorState origCursorState
+                      ; AddToGroup (tlid, draggingTLID) ]
+                | None ->
+                    Many
+                      [ SetCursorState origCursorState
+                      ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                      ]
+              else SetCursorState origCursorState
             else SetCursorState origCursorState
         | _ ->
             NoChange
@@ -1217,7 +1270,13 @@ let update_ (msg : msg) (m : model) : modification =
   | DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusSame)
   | RestoreToplevel tlid ->
-      RPC ([UndoTL tlid], FocusNext (tlid, None))
+      (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
+      let group = Groups.isFromDeletedGroup m tlid in
+      ( match group with
+      | Some g ->
+          UndoGroupDelete (tlid, g)
+      | None ->
+          RPC ([UndoTL tlid], FocusNext (tlid, None)) )
   | DeleteUserFunctionForever tlid ->
       Many
         [ RPC ([DeleteFunctionForever tlid], FocusSame)
@@ -1228,12 +1287,52 @@ let update_ (msg : msg) (m : model) : modification =
               } ) ]
   | DeleteUserType tlid ->
       RPC ([DeleteType tlid], FocusSame)
+  | DeleteGroup tlid ->
+      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
+      let tl = TL.getExn m tlid in
+      Many [RemoveGroup tl]
+  | DragGroupMember (gTLID, tlid, event) ->
+      (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.s138ne3frlh0 *)
+      let group = TD.get ~tlid:gTLID m.groups in
+      ( match group with
+      | Some g ->
+          let newMembers =
+            g.members |> List.filter ~f:(fun member -> member != tlid)
+          in
+          let newGroup = {g with members = newMembers} in
+          let newMod = Groups.upsert m newGroup in
+          ( match m.cursorState with
+          | Dragging (_, _, _, origCursorState) ->
+              let mePos = Viewport.toAbsolute m event.mePos in
+              let gTlid = Groups.posInGroup mePos m.groups |> List.head in
+              (* Check if the new pos is in another group *)
+              ( match gTlid with
+              | Some gTlid ->
+                  Many
+                    [ SetCursorState origCursorState
+                    ; MoveMemberToNewGroup (gTlid, tlid, newMod) ]
+              | None ->
+                  (* update the toplevel pos with the curent event position  *)
+                  Many
+                    [ TweakModel (fun _m -> newMod)
+                    ; SetCursorState origCursorState
+                    ; RPC ([MoveTL (tlid, mePos)], FocusNoChange) ] )
+          | _ ->
+              NoChange )
+      | _ ->
+          NoChange )
   | DeleteUserTypeForever tlid ->
       Many
         [ RPC ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
               {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
+        ]
+  | DeleteGroupForever tlid ->
+      (* TODO: Add RPC *)
+      Many
+        [ TweakModel
+            (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
   | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
       HandleAPIError
@@ -1299,7 +1398,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
-        ; handlerProps = ViewUtils.createHandlerProp r.handlers }
+        ; handlerProps = ViewUtils.createHandlerProp r.handlers
+        ; groups = TLIDDict.empty }
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
@@ -1314,7 +1414,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.handlers, r.dbs, true)
+        [ SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
@@ -1561,6 +1661,9 @@ let update_ (msg : msg) (m : model) : modification =
       let center = findCenter m
       and genName = DB.generateDBName () in
       DB.createDB genName center
+  | CreateGroup ->
+      let center = findCenter m in
+      Groups.createEmptyGroup None center
   | CreateFunction ->
       let ufun = Refactor.generateEmptyFunction () in
       Many
@@ -1689,6 +1792,21 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
+  | UpdateFluidSelection selection ->
+      TweakModel
+        (fun m ->
+          match selection with
+          | Some s ->
+              (* re-apply selection *)
+              Entry.setSelectionRange s.range ;
+              { m with
+                fluidState =
+                  { m.fluidState with
+                    selection
+                  ; oldPos = m.fluidState.newPos
+                  ; newPos = s.range |> Tuple2.second } }
+          | None ->
+              m )
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

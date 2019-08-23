@@ -483,6 +483,347 @@ let () =
       t "bs space in string" aStr (bs 6) ("\"somestring\"", 5) ;
       t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
       () ) ;
+  describe "Multi-line Strings" (fun () ->
+      let nums = "123456789_" in
+      let letters = "abcdefghi," in
+      let segment = nums ^ letters ^ nums ^ letters in
+      let mlStr = EString (gid (), segment ^ segment ^ nums) in
+      let wrapIf e = EIf (gid (), e, newB (), newB ()) in
+      t
+        "insert into start string"
+        mlStr
+        (insert 'c' 3)
+        ( "\"12c3456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_\""
+        , 4 ) ;
+      t
+        "insert into middle string"
+        mlStr
+        (insert 'c' 44 (* quote + 2 + newline *))
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12c3456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_\""
+        , 45 ) ;
+      t
+        "insert into end string"
+        mlStr
+        (insert 'c' 85 (* quote + 2 + newline*2 *))
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12c3456789_\""
+        , 86 ) ;
+      t
+        "del mid start string"
+        mlStr
+        (del 3)
+        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 3 ) ;
+      t
+        "del mid middle string"
+        mlStr
+        (del 44)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 44 ) ;
+      t
+        "del mid end string"
+        mlStr
+        (del 85)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12456789_\""
+        , 85 ) ;
+      t
+        "bs mid start string"
+        mlStr
+        (bs 4)
+        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 3 ) ;
+      t
+        "bs mid middle string"
+        mlStr
+        (bs 45)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 44 ) ;
+      t
+        "bs mid end string"
+        mlStr
+        (bs 86)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "12456789_\""
+        , 85 ) ;
+      t
+        "insert outside string"
+        mlStr
+        (insert 'c' 0)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 0 ) ;
+      t
+        "del outside string"
+        mlStr
+        (del 0)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 0 ) ;
+      t
+        "bs outside string"
+        mlStr
+        (bs 0)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 0 ) ;
+      t
+        "insert start of start string"
+        mlStr
+        (insert 'c' 1)
+        ( "\"c123456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_\""
+        , 2 ) ;
+      t
+        "insert start of middle string"
+        mlStr
+        (insert 'c' 42)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "c123456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_\""
+        , 43 ) ;
+      t
+        "insert start of end string"
+        mlStr
+        (insert 'c' 83)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "c123456789_\""
+        , 84 ) ;
+      t
+        "del start of start string"
+        mlStr
+        (del 1)
+        ( "\"23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 1 ) ;
+      t
+        "del start of middle string"
+        mlStr
+        (del 42)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 42 ) ;
+      t
+        "del start of end string"
+        mlStr
+        (del 83)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "23456789_\""
+        , 83 ) ;
+      t
+        "bs start of start string"
+        mlStr
+        (bs 1)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 0 ) ;
+      t
+        "bs start of middle string"
+        mlStr
+        (bs 42)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 41 ) ;
+      t
+        "bs start of end string"
+        mlStr
+        (bs 83)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 82 ) ;
+      t
+        "insert end of start string"
+        mlStr
+        (insert 'c' 41)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc"
+          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+          ^ "123456789_\""
+        , 43 ) ;
+      t
+        "insert end of middle string"
+        mlStr
+        (insert 'c' 82)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\nc"
+          ^ "123456789_\""
+        , 84 ) ;
+      t
+        "insert end of end string"
+        mlStr
+        (insert 'c' 93)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_c\""
+        , 94 ) ;
+      t
+        "string converts to ml string"
+        (EString (gid (), segment))
+        (insert 'c' 41)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\nc\"", 43) ;
+      t
+        "indented string converts to ml string"
+        (wrapIf (EString (gid (), segment)))
+        (insert 'c' 44)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 49 ) ;
+      t
+        "insert end of indented start string"
+        (wrapIf (EString (gid (), segment ^ segment)))
+        (insert 'c' 44)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c123456789_abcdefghi,123456789_abcdefghi\n"
+          ^ "   ,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 49 ) ;
+      t
+        "insert end of indented end string"
+        (wrapIf (EString (gid (), segment ^ segment)))
+        (insert 'c' 88)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   c\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 93 ) ;
+      t
+        "del end of start string"
+        mlStr
+        (del 41)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 41 ) ;
+      t
+        "del end of middle string"
+        mlStr
+        (del 82)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 82 ) ;
+      t
+        "del end of end string"
+        mlStr
+        (del 93)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 93 ) ;
+      t
+        "bs end of start string"
+        mlStr
+        (bs 41)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi"
+          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+          ^ "1\n23456789_\""
+        , 40 ) ;
+      t
+        "bs end of middle string"
+        mlStr
+        (bs 82)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi"
+          ^ "1\n23456789_\""
+        , 81 ) ;
+      t
+        "bs end of end string"
+        mlStr
+        (bs 93)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789\""
+        , 92 ) ;
+      t
+        "insert after end of end string"
+        mlStr
+        (insert 'c' 94)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 94 ) ;
+      t
+        "del after end of end string"
+        mlStr
+        (del 94)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 94 ) ;
+      t
+        "bs after end of end string"
+        mlStr
+        (bs 94)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 93 ) ;
+      (* Skipped insert, del, bs of space, as it doesn't seem interesting *)
+      t
+        "final quote is swallowed"
+        mlStr
+        (insert '"' 93)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "123456789_\""
+        , 94 ) ;
+      t
+        "bs, 3 lines to 2, end"
+        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (bs 93)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 88 ) ;
+      t
+        "bs, 2 lines to 1, end"
+        (wrapIf (EString (gid (), segment ^ "c")))
+        (bs 49)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 44 ) ;
+      t
+        "del, 3 lines to 2, end"
+        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (del 92)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 88 ) ;
+      t
+        "del, 2 lines to 1, end"
+        (wrapIf (EString (gid (), segment ^ "c")))
+        (del 48)
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
+          ^ "then\n  ___\nelse\n  ___"
+        , 44 ) ;
+      () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
       t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
@@ -867,6 +1208,23 @@ let () =
        * constructor are randomly generated and would be hard to test *)
       () ) ;
   describe "Lambdas" (fun () ->
+      (* type -> to move through a lambda *)
+      t
+        "type - after a lambda var to move into a lambda arrow"
+        aLambda
+        (press Minus 4)
+        ("\\*** -> ___", 6) ;
+      t
+        "type - before a lambda arrow to move into a lambda arrow"
+        aLambda
+        (press Minus 5)
+        ("\\*** -> ___", 6) ;
+      t
+        "type > inside a lambda arrow to move past it"
+        aLambda
+        (press GreaterThan 6)
+        ("\\*** -> ___", 8) ;
+      (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
       t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
       t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) ("\\*** -> 5", 1) ;

@@ -63,7 +63,7 @@ https://github.com/chriskempson/tomorrow-theme */
   $comment: $grey3;
 
   $dropdown-background: lighten($selected-background, 10%);
-  $dropdown-selected-background: lighten($selected-background, 20%);
+  $dropdown-selected-background: darken($canvas-background, 10%);
   $dropdown-foreground: lighten($foreground, 10%);
   $dropdown-selected-foreground: $foreground;
 
@@ -96,8 +96,7 @@ https://github.com/chriskempson/tomorrow-theme */
     white-space: pre;
   }
 
-  .fluid-pattern-string,
-  .fluid-string {
+  .fluid-category-string {
     white-space: pre;
     color: $string-color;
   }
@@ -217,7 +216,6 @@ https://github.com/chriskempson/tomorrow-theme */
 since they are essentially both commands just acting upon different things. */
   .command-palette {
     background-color: $dropdown-background;
-    border-radius: 2px;
     position: absolute;
     left: 0;
     width: max-content;
@@ -227,6 +225,10 @@ since they are essentially both commands just acting upon different things. */
     flex-wrap: nowrap;
     align-items: stretch;
     z-index: 1000;
+    margin-top: 3px;
+    border: solid 1px black;
+    border-top: 0px;
+    border-radius: 1px 1px 3px 3px;
 
     #cmd-filter {
       background: transparent;
@@ -240,6 +242,8 @@ since they are essentially both commands just acting upon different things. */
       left: 0;
       background-color: transparent;
       box-shadow: 0 0 0 transparent;
+      border: 0px;
+      border-radius: 0px;
     }
   }
 
@@ -251,15 +255,20 @@ since they are essentially both commands just acting upon different things. */
     position: absolute;
     left: -1ch;
     box-shadow: 1px 1px 1px black;
-    width: max-content;
+    min-width: max-content;
+    width: 100%;
     max-height: 100px;
     overflow-y: scroll;
     padding: 0;
+    border: 1px solid black;
+    border-top: 0px;
+    border-radius: 0px 0px 2px 2px;
 
     ul {
       margin: 0;
       padding-inline-start: 0;
       color: $dropdown-selected-foreground;
+      padding-right: 5px;
 
       .fluid-selected {
         background-color: $dropdown-selected-background;
@@ -271,7 +280,7 @@ since they are essentially both commands just acting upon different things. */
         padding: 0 1ch;
         height: 16px;
         &:hover {
-          background: lighten($dropdown-background, 5%);
+          background: lighten($dropdown-selected-background, 5%);
         }
 
         .version {

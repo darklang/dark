@@ -532,7 +532,9 @@ and initialLoadRPCResult j : initialLoadRPCResult =
       j
       |> withDefault [] (field "op_ctrs" (list (tuple2 string int)))
       |> StrDict.fromList
-  ; permission = field "permission" (optional permission) j }
+  ; permission = field "permission" (optional permission) j
+  ; groups = List.filterMap ~f:TL.asGroup tls
+  ; deletedGroups = List.filterMap ~f:TL.asGroup tls }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

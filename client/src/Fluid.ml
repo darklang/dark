@@ -498,7 +498,30 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TNewline (Some (eid next, None))
       ; nested next ]
   | EString (id, str) ->
-      [TString (id, str)]
+      let size = 40 in
+      let strings =
+        if String.length str > size then String.segment ~size str else [str]
+      in
+      ( match strings with
+      | [] ->
+          [TString (id, "")]
+      | starting :: rest ->
+        ( match List.reverse rest with
+        | [] ->
+            [TString (id, str)]
+        | ending :: revrest ->
+            let nl = TNewline None in
+            let starting = [TStringMLStart (id, starting, 0, str); nl] in
+            let endingOffset = size * (List.length revrest + 1) in
+            let ending = [TStringMLEnd (id, ending, endingOffset, str)] in
+            let middle =
+              revrest
+              |> List.reverse
+              |> List.indexedMap ~f:(fun i s ->
+                     [TStringMLMiddle (id, s, size * (i + 1), str); nl] )
+              |> List.concat
+            in
+            starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
       [ TIfKeyword id
       ; nested cond
@@ -799,7 +822,7 @@ let recordAction
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
-  {s with newPos = pos; upDownCol}
+  {s with newPos = pos; selection = None; upDownCol}
 
 
 let report (e : string) (s : state) =
@@ -1280,7 +1303,7 @@ let moveTo (newPos : int) (s : state) : state =
 
 
 (* Starting from somewhere after the location, move back until we reach the
- * `target` expression, and return a state with it's location. If blank, will
+ * `target` expression, and return a state with its location. If blank, will
  * go to the start of the blank *)
 let moveBackTo (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveBackTo" s in
@@ -1844,6 +1867,9 @@ let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
 let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
     fluidExpr =
   match token with
+  | TStringMLStart (id, _, _, str)
+  | TStringMLMiddle (id, _, _, str)
+  | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
       replaceExpr id ~newExpr:(EString (id, f str)) ast
   | TPatternString (mID, id, str) ->
@@ -2432,8 +2458,11 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
-    | TPatternString _ | TString _ ->
+    | TPatternString _ | TString _ | TStringMLStart _ ->
         pos - ti.startPos - 2
+    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+      ->
+        pos - ti.startPos - 1 + strOffset
     | TFnVersion (_, partialName, _, _) ->
         (* Did this because we combine TFVersion and TFName into one partial so we need to get the startPos of the partial name *)
         let startPos = ti.endPos - String.length partialName in
@@ -2500,7 +2529,16 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveBackTo targetID ast s)
+  | TStringMLEnd (id, thisStr, strOffset, _)
+    when String.length thisStr = 1 && offset = strOffset ->
+      let f str = removeCharAt str offset in
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveBackTo id newAST s in
+      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
   | TPatternString _
   | TRecordField _
   | TInteger _
@@ -2606,6 +2644,24 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       else
         let str = removeCharAt str (offset - 1) in
         (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLStart (id, _, _, str) ->
+      let str = removeCharAt str (offset - 1) in
+      (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLMiddle (id, _, strOffset, str) ->
+      let offset = offset + strOffset in
+      let str = removeCharAt str offset in
+      (replaceExpr id ~newExpr:(EString (newID, str)) ast, s)
+  | TStringMLEnd (id, endStr, strOffset, _) ->
+      let f str = removeCharAt str (offset + strOffset) in
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState =
+        if String.length endStr = 1 && offset = 0
+        then
+          let moved = moveBackTo id newAST s in
+          {moved with newPos = moved.newPos - 1 (* quote *)}
+        else s
+      in
+      (newAST, newState)
   | TPatternString (mID, id, str) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
@@ -2685,8 +2741,13 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   let letterStr = String.fromChar letter in
   let offset =
     match ti.token with
-    | TString _ | TPatternString _ ->
+    | TString _ | TPatternString _ | TStringMLStart (_, _, _, _) ->
+        (* account for the quote *)
         pos - ti.startPos - 1
+    | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
+      ->
+        (* no quote here, unline TStringMLStart *)
+        pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
   in
@@ -2758,7 +2819,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
       ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
       , moveTo (ti.endPos + 2) s )
   (* Ignore invalid situations *)
-  | (TString _ | TPatternString _) when offset < 0 ->
+  | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
       (ast, s)
   | TInteger _
   | TPatternInteger _
@@ -2790,12 +2851,31 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
       (ast, s)
   (* Do the insert *)
+  | (TString (_, str) | TStringMLEnd (_, str, _, _))
+    when pos = ti.endPos - 1 && String.length str = 40 ->
+      (* Strings with end quotes *)
+      let s = recordAction ~pos ~ti "string to mlstring" s in
+      (* Inserting at the end of an multi-line segment goes to next segment *)
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+      (newAST, moveOneRight newState.newPos newState)
+  | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
+    when pos = ti.endPos && String.length str = 40 ->
+      (* Strings without end quotes *)
+      let s = recordAction ~pos ~ti "extend multiline string" s in
+      (* Inserting at the end of an multi-line segment goes to next segment *)
+      let newAST = replaceStringToken ~f ti.token ast in
+      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+      (newAST, moveOneRight newState.newPos newState)
   | TRecordField _
   | TFieldName _
   | TVariable _
   | TPartial _
   | TRightPartial _
   | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
   | TPatternString _
   | TLetLHS _
   | TTrue _
@@ -2966,6 +3046,15 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (key, toTheLeft, toTheRight) with
+    (* Moving through a lambda arrow with '->' *)
+    | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
+        (ast, moveOneRight (ti.startPos + 1) s)
+    | K.Minus, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+      when pos = ti.startPos + 1 ->
+        (ast, moveOneRight (ti.startPos + 1) s)
+    | K.GreaterThan, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+      when pos = ti.startPos + 2 ->
+        (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Deleting *)
     | K.Backspace, L (TPatternString _, ti), _
     | K.Backspace, L (TString _, ti), _
@@ -3075,6 +3164,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* String-specific insertions *)
     | K.DoubleQuote, _, R (TPatternString _, ti)
     | K.DoubleQuote, _, R (TString _, ti)
+    | K.DoubleQuote, _, R (TStringMLEnd _, ti)
       when pos = ti.endPos - 1 ->
         (* Allow pressing quote to go over the last quote *)
         (ast, moveOneRight pos s)
@@ -3563,6 +3653,52 @@ let viewPlayIcon
       Vdom.noNode
 
 
+let tokenSelection state ast : fluidSelection option =
+  getToken state ast
+  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
+
+
+let expressionSelection state ast : fluidSelection option =
+  let astTokens = toTokens state ast in
+  getToken state ast
+  (* get token that the cursor is currently on *)
+  |> Option.andThen ~f:(fun t ->
+         (* get expression that the token belongs to *)
+         let expr =
+           let exprID = Token.tid t.token in
+           findExpr exprID ast
+         in
+         (* get the beginning and end of the range from
+            * the expression's first and last token 
+            * by cross-referencing the tokens it evaluates to via toTokens
+            * with the tokens for the whole ast.
+            *
+            * This is preferred to just getting all the tokens with the same exprID
+            * because the last expression in a token range 
+            * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
+            * different ID, (in the above case the last token TInt(2) belongs to the 
+            * second sub-expr of the FnCall) *)
+         let exprStartToken, exprEndToken =
+           expr
+           |> Option.map ~f:(toTokens state)
+           |> Option.withDefault ~default:[]
+           |> (fun exprTokens -> (List.head exprTokens, List.last exprTokens))
+           |> Tuple2.mapAll ~f:(function
+                  | Some exprTok ->
+                      List.find astTokens ~f:(fun astTok ->
+                          exprTok.token = astTok.token )
+                  | _ ->
+                      None )
+         in
+         match (exprStartToken, exprEndToken) with
+         (* range is from startPos of first token in expr to 
+          * endPos of last token in expr *)
+         | Some {startPos}, Some {endPos} ->
+             Some {range = (startPos, endPos)}
+         | _ ->
+             None )
+
+
 let toHtml
     ~(vs : ViewUtils.viewState)
     ~tlid
@@ -3584,11 +3720,29 @@ let toHtml
       let element nested =
         let content = Token.toText ti.token in
         let classes = Token.toCssClasses ti.token in
-        let idclasses = ["id-" ^ deID (Token.tid ti.token)] in
+        let idStr = deID (Token.tid ti.token) in
+        let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
-          ]
+            (* TODO(korede): figure out how to disable default selection while allowing click event *)
+          ; ViewUtils.eventNeither
+              ~key:("fluid-selection-click" ^ idStr)
+              "dblclick"
+              (fun ev ->
+                UpdateFluidSelection
+                  ( Entry.getCursorPosition ()
+                  |> Option.andThen ~f:(fun pos ->
+                         let state =
+                           {state with newPos = pos; oldPos = state.newPos}
+                         in
+                         match ev with
+                         | {detail = 2; altKey = true} ->
+                             expressionSelection state ast
+                         | {detail = 2; altKey = false} ->
+                             tokenSelection state ast
+                         | _ ->
+                             None ) ) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3720,7 +3874,15 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
-              |> Option.withDefault ~default:"" ) ) ] ]
+              |> Option.withDefault ~default:"" ) ) ]
+    ; Html.div
+        []
+        [ Html.text "selection: "
+        ; Html.text
+            ( s.selection
+            |> Option.map ~f:(fun {range = a, b} ->
+                   string_of_int a ^ "->" ^ string_of_int b )
+            |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
@@ -3786,13 +3948,20 @@ let renderCallback (m : model) =
   | FluidEntering _ ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
-      else
+      else (
         (* When you change the text of a node in the DOM, the browser resets
          * the cursor to the start of the node. After each rerender, we want to
          * make sure we set the cursor to it's exact place. We do it here to
          * make sure it's always set after a render, not waiting til the next
          * frame.
+         *
+         * However, if there currently is a selection, set that range instead of
+         * the new cursor position because otherwise the selection gets overwritten.
          *)
-        Entry.setCursorPosition m.fluidState.newPos
+        match m.fluidState.selection with
+        | Some {range} ->
+            Entry.setSelectionRange range
+        | None ->
+            Entry.setCursorPosition m.fluidState.newPos )
   | _ ->
       ()
