@@ -3400,15 +3400,14 @@ let expressionSelection (state : fluidState) (ast : ast) :
 
 let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     =
+  let ast =
+    (* clone ast to prevent duplicates *)
+    toExpr ast |> AST.clone |> fromExpr state
+  in
   (* a few helpers *)
-  let constructWithPartial
-      ~(if_ : bool) ~(value : string) ?(emptyPartialAllowed = false) expr =
+  let constructWithPartial ~(if_ : bool) ~(value : string) expr =
     let partial = EPartial (gid (), value, expr) in
-    if if_
-    then Some partial
-    else if value = "" && not emptyPartialAllowed
-    then None
-    else Some expr
+    if value = "" then None else if if_ then Some partial else Some expr
   in
   let toInt_ s =
     String.toInt s
@@ -3512,11 +3511,13 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
         let newFraction = findTokenValue tokens eID "float-fraction" in
         ( match (newWhole, pointSelected, newFraction) with
-        | Some value, _, None | None, false, Some value ->
+        | Some value, true, None ->
+            Some (EFloat (id, value, "0"))
+        | Some value, false, None | None, false, Some value ->
             Some (EInteger (id, toInt_ value))
-        | _, true, Some value ->
+        | None, true, Some value ->
             Some (EFloat (id, "0", value))
-        | Some whole, _, Some fraction ->
+        | Some whole, true, Some fraction ->
             Some (EFloat (id, whole, fraction))
         | _, _, _ ->
             None )
@@ -3533,11 +3534,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         ( match (reconstructExpr rhs, reconstructExpr body) with
         | None, Some e ->
             Some e
-        | Some e, None ->
-            Some e
+        | Some newRhs, None ->
+            Some (ELet (id, lhsID, newLhs, newRhs, EBlank (gid ())))
         | Some newRhs, Some newBody ->
             Some (ELet (id, lhsID, newLhs, newRhs, newBody))
-        | _, _ when letKeywordSelected ->
+        | None, None when letKeywordSelected ->
             Some (ELet (id, lhsID, newLhs, EBlank (gid ()), EBlank (gid ())))
         | _, _ ->
             None )
@@ -3556,8 +3557,6 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
             , reconstructExpr thenBody
             , reconstructExpr elseBody )
           with
-        | Some e, None, None | None, Some e, None | None, None, Some e ->
-            Some e
         | newCond, newThenBody, newElseBody
           when ifKeywordSelected || thenKeywordSelected || elseKeywordSelected
           ->
@@ -3567,6 +3566,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                  , newCond |> orDefaultExpr
                  , newThenBody |> orDefaultExpr
                  , newElseBody |> orDefaultExpr ))
+        | Some e, None, None | None, Some e, None | None, None, Some e ->
+            Some e
         | _ ->
             None )
     | EBinOp (eID, name, expr1, expr2, ster), tokens ->
@@ -3613,30 +3614,32 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
               (EBinOp (id, name, EBlank (gid ()), EBlank (gid ()), ster))
         | _, _ ->
             None )
-    | ELambda (eID, vars, body), tokens ->
+    | ELambda (eID, _, body), tokens ->
         (* might be an edge case here where one of the vars is not (fully) selected but 
          * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
         let newVars =
-          vars
-          |> List.map ~f:(fun (vID, _) ->
-                 findTokenValue tokens eID "lambda-var"
-                 |> Option.map ~f:(fun v -> (vID, v)) )
-          |> Option.values
+          (* get lambda-var tokens that belong to this expression
+           * out of the list of tokens in the selection range *)
+          tokens
+          |> List.filterMap ~f:(function
+                 | vID, value, "lambda-var" when vID = eID ->
+                     Some (gid (), value)
+                 | _ ->
+                     None )
         in
         Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
-    | EFieldAccess (_, e, fieldID, fieldName), tokens ->
+    | EFieldAccess (eID, e, _, _), tokens ->
         let newFieldName =
-          findTokenValue tokens fieldID "field-name"
+          findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
         in
         ( match reconstructExpr e with
+        | e when newFieldName = "" ->
+            e
         | Some e ->
             Some (EFieldAccess (id, e, gid (), newFieldName))
         | None ->
-            constructWithPartial
-              ~if_:(newFieldName <> "" || newFieldName <> fieldName)
-              ~value:newFieldName
-              (EBlank (gid ())) )
+            None )
     | EVariable (eID, value), tokens ->
         let newValue =
           findTokenValue tokens eID "variable"
@@ -3769,23 +3772,16 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           (EMatch
              (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
     | EFeatureFlag (_, name, nameID, cond, thenBody, elseBody), _ ->
-      ( match
-          ( reconstructExpr cond
-          , reconstructExpr thenBody
-          , reconstructExpr elseBody )
-        with
-      | Some e, None, None | None, Some e, None | None, None, Some e ->
-          Some e
-      | newCond, newThenBody, newElseBody ->
-          Some
-            (EFeatureFlag
-               ( id
-               , (* should probably do some stuff about if the name token isn't fully selected *)
-                 name
-               , nameID
-               , newCond |> orDefaultExpr
-               , newThenBody |> orDefaultExpr
-               , newElseBody |> orDefaultExpr )) )
+        (* since we don't have any tokens associated with feature flags yet *)
+        Some
+          (EFeatureFlag
+             ( id
+             , (* should probably do some stuff about if the name token isn't fully selected *)
+               name
+             , nameID
+             , reconstructExpr cond |> orDefaultExpr
+             , reconstructExpr thenBody |> orDefaultExpr
+             , reconstructExpr elseBody |> orDefaultExpr ))
     (* Unknowns:
      * - EThreadTarget: assuming it can't be selected since it doesn't produce tokens 
      * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
@@ -3854,15 +3850,13 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
-    | FluidKeyPress {key = K.Letter 'c'; metaKey; ctrlKey}
-      when metaKey || ctrlKey ->
+    | FluidCopy ->
         ( ast
         , { s with
             clipboard =
               s.selection
               |> Option.andThen ~f:(reconstructSelection ~state:s ~ast) } )
-    | FluidKeyPress {key = K.Letter 'x'; metaKey; ctrlKey}
-      when metaKey || ctrlKey ->
+    | FluidCut ->
         s.selection
         |> Option.map ~f:(fun sel ->
                let ast, state =
@@ -3875,9 +3869,13 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
                in
                deleteSelection ~state ~ast sel )
         |> Option.withDefault ~default:(ast, s)
-    | FluidKeyPress {key = K.Letter 'v'; metaKey; ctrlKey}
-      when metaKey || ctrlKey ->
-        pasteSelection ~state:s ~ast ()
+    | FluidPaste ->
+        let ast, state =
+          s.selection
+          |> Option.map ~f:(deleteSelection ~state:s ~ast)
+          |> Option.withDefault ~default:(ast, s)
+        in
+        pasteSelection ~state ~ast ()
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)

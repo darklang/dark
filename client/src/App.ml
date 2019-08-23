@@ -1634,18 +1634,7 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
-      let fluidCopy =
-        let ev : FluidKeyboard.keyEvent =
-          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
-          let metaKey = Entry.getBrowserPlatform () = Mac in
-          { key = FluidKeyboard.Letter 'c'
-          ; ctrlKey
-          ; metaKey
-          ; altKey = false
-          ; shiftKey = false }
-        in
-        Fluid.update m (FluidKeyPress ev)
-      in
+      let fluidCopy = Fluid.update m FluidCopy in
       let toast =
         TweakModel
           (fun m ->
@@ -1665,38 +1654,20 @@ let update_ (msg : msg) (m : model) : modification =
           () ;
           fluidCopy )
   | ClipboardPasteEvent e ->
+      let fluidPaste = Fluid.update m FluidPaste in
       let json = e##clipboardData##getData "application/json" in
       if VariantTesting.isFluid m.tests
-      then
-        let ev : FluidKeyboard.keyEvent =
-          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
-          let metaKey = Entry.getBrowserPlatform () = Mac in
-          { key = FluidKeyboard.Letter 'v'
-          ; ctrlKey
-          ; metaKey
-          ; altKey = false
-          ; shiftKey = false }
-        in
-        Fluid.update m (FluidKeyPress ev)
+      then fluidPaste
       else if json <> ""
-      then Clipboard.paste m (`Json (Json.parseOrRaise json))
+      then Many [Clipboard.paste m (`Json (Json.parseOrRaise json)); fluidPaste]
       else
         let text = e##clipboardData##getData "text/plain" in
-        if text <> "" then Clipboard.paste m (`Text text) else NoChange
+        if text <> ""
+        then Many [Clipboard.paste m (`Text text); fluidPaste]
+        else fluidPaste
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
-      let fluidCut =
-        let ev : FluidKeyboard.keyEvent =
-          let ctrlKey = Entry.getBrowserPlatform () <> Mac in
-          let metaKey = Entry.getBrowserPlatform () = Mac in
-          { key = FluidKeyboard.Letter 'x'
-          ; ctrlKey
-          ; metaKey
-          ; altKey = false
-          ; shiftKey = false }
-        in
-        Fluid.update m (FluidKeyPress ev)
-      in
+      let fluidCut = Fluid.update m FluidCut in
       let toast =
         TweakModel
           (fun m ->
@@ -1757,7 +1728,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
            err)
-  | FluidMouseClick _ ->
+  | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
       TweakModel
