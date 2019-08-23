@@ -650,12 +650,19 @@ and exec_fn
             in
             Util.merge_left db_dvals args
           in
-          state.store_fn_arguments tlid args ;
           engine.trace_tlid tlid ;
-          let state = {state with tlid} in
-          let result = exec ~engine ~state args_with_dbs body in
-          state.store_fn_result sfr_desc arglist result ;
-          Dval.unwrap_from_errorrail result
+          (* Don't execute user functions if it's preview mode and we have a result *)
+          ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
+          | Preview, Some (result, _ts) ->
+              Dval.unwrap_from_errorrail result
+          | _ ->
+              (* It's okay to execute user functions in both Preview and Real contexts,
+               * But in Preview we might not have all the data we need *)
+              state.store_fn_arguments tlid args ;
+              let state = {state with tlid} in
+              let result = exec ~engine ~state args_with_dbs body in
+              state.store_fn_result sfr_desc arglist result ;
+              Dval.unwrap_from_errorrail result )
       | Error errs ->
           let error_msgs =
             errs

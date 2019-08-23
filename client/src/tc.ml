@@ -83,6 +83,15 @@ module String = struct
 
 
   let left ~(count : int) (s : string) : string = slice ~from:0 ~to_:count s
+
+  let rec segment ~(size : int) (s : string) : string list =
+    let front, back = splitAt ~index:size s in
+    if back = "" then [front] else front :: segment ~size back
+
+
+  let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s :
+      string =
+    slice ~from:0 ~to_:from s ^ replacement ^ slice ~from:to_ ~to_:(length s) s
 end
 
 module StrDict = struct

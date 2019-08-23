@@ -238,7 +238,6 @@ module Namer = struct
     ; "tripping"
     ; "twisted"
     ; "underhanded"
-    ; "ungodly"
     ; "unholy"
     ; "vengeful"
     ; "violent"

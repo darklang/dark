@@ -19,34 +19,43 @@ let enterable = ViewBlankOr.Enterable
 
 let dbName2String (name : dbName blankOr) : dbName = B.valueWithDefault "" name
 
+let viewDbCount (stats : dbStats) : msg Html.html =
+  Html.div
+    [Html.class' "db db-count"]
+    [ Html.span
+        [Html.class' "dbcount-txt"]
+        [Html.text ("# of Entries: " ^ string_of_int stats.count)] ]
+
+
+let viewDbLatestEnry (stats : dbStats) : msg Html.html =
+  let title =
+    Html.div
+      [Html.class' "title"]
+      [ Html.span
+          [ Html.classList
+              [("label", true); ("show", Option.isSome stats.example)] ]
+          [Html.text "Latest Entry:"] ]
+  in
+  let exampleHtml =
+    match stats.example with
+    | Some (example, key) ->
+        Html.div
+          [Html.class' "dbexample"]
+          [ Html.div [Html.class' "key"] [Html.text (key ^ ":")]
+          ; Html.div [Html.class' "value"] [Html.text (Runtime.toRepr example)]
+          ]
+    | None ->
+        Vdom.noNode
+  in
+  Html.div [Html.class' "db db-liveVal"] [title; exampleHtml]
+
+
 let viewDBData (vs : viewState) (db : db) : msg Html.html =
   match StrDict.get ~key:(deTLID db.dbTLID) vs.dbStats with
   | Some stats when tlidOf vs.cursorState = Some db.dbTLID ->
-      let exampleHtml =
-        match stats.example with
-        | Some (example, key) ->
-            [ Html.hr [] []
-            ; Html.div
-                [Html.class' "dbexample"]
-                [ Html.div [Html.class' "key"] [Html.text key]
-                ; Html.div
-                    [Html.class' "value"]
-                    [Html.text (Runtime.toRepr example)] ] ]
-        | None ->
-            [Vdom.noNode; Vdom.noNode]
-      in
-      Html.div
-        [Html.class' "db dbdata"]
-        ( Html.div
-            [Html.class' "title"]
-            [ Html.span
-                [ Html.classList
-                    [("label", true); ("show", Option.isSome stats.example)] ]
-                [Html.text "Latest Entry"]
-            ; Html.span
-                [Html.class' "dbcount"]
-                [Html.text ("# Entries: " ^ string_of_int stats.count)] ]
-        :: exampleHtml )
+      let liveVal = viewDbLatestEnry stats in
+      let count = viewDbCount stats in
+      Html.div [Html.class' "dbdata"] [count; liveVal]
   | _ ->
       Vdom.noNode
 
@@ -178,6 +187,7 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     then List.filter ~f:(fun (n, t) -> B.isF n && B.isF t) db.cols
     else db.cols
   in
+  let keyView = Html.div [Html.class' "col key"] [Html.text "key : String"] in
   let coldivs = List.map ~f:(viewDBCol vs false db.dbTLID) cols in
   let data = viewDBData vs db in
   let migrationView =
@@ -189,6 +199,6 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     | None ->
         []
   in
-  [Html.div [Html.class' "db"] (locked :: namediv :: coldivs)]
+  [Html.div [Html.class' "db"] (locked :: namediv :: keyView :: coldivs)]
   @ migrationView
   @ [data]

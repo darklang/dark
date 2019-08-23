@@ -43,7 +43,8 @@ let defaultFluidState : fluidState =
       ; completions = []
       ; invalidCompletions = []
       ; allCompletions = [] }
-  ; cp = {index = 0; commands = []; location = None; filter = None} }
+  ; cp = {index = 0; commands = []; location = None; filter = None}
+  ; selection = None }
 
 
 let defaultCanvasProps : canvasProps =
@@ -88,6 +89,7 @@ let defaultModel : model =
   ; currentPage = Architecture
   ; hovering = []
   ; tests = []
+  ; groups = TLIDDict.empty
   ; handlers = TLIDDict.empty
   ; deletedHandlers = TLIDDict.empty
   ; dbs = TLIDDict.empty
@@ -96,6 +98,7 @@ let defaultModel : model =
   ; deletedUserFunctions = TLIDDict.empty
   ; userTipes = TLIDDict.empty
   ; deletedUserTipes = TLIDDict.empty
+  ; deletedGroups = TLIDDict.empty
   ; analyses = StrDict.empty
   ; traces = StrDict.empty
   ; f404s = []

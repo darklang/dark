@@ -37,6 +37,7 @@ let focusWithOffset id offset =
       () )
 
 
+(* cursors *)
 external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -48,6 +49,89 @@ let getCursorPosition () : int option =
 
 
 let setCursorPosition (v : int) : unit = jsSetCursorPosition v
+
+(* selection *)
+type range =
+  < setStart : Web_node.t -> int -> unit [@bs.meth]
+  ; setEnd : Web_node.t -> int -> unit [@bs.meth] >
+  Js.t
+
+external createRange : unit -> range = "createRange"
+  [@@bs.val] [@@bs.scope "document"]
+
+type selection =
+  < toString : unit -> string [@bs.meth]
+  ; removeAllRanges : unit -> unit [@bs.meth]
+  ; addRange : range -> unit [@bs.meth] >
+  Js.t
+
+external getSelection : unit -> selection = "getSelection"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getSelectionRange () : (int * int) option =
+  let selection = getSelection () in
+  getCursorPosition ()
+  |> Option.map ~f:(fun endPos ->
+         let startPos = endPos - (selection##toString () |> String.length) in
+         (startPos, endPos) )
+
+
+external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
+  [@@bs.val] [@@bs.scope "document"]
+
+let setSelectionRange ((startPos, endPos) : int * int) : unit =
+  let range = createRange () in
+  querySelector ".selected #fluid-editor"
+  |> Js.Nullable.toOption
+  |> Option.map ~f:(fun editor ->
+         let endPos =
+           min endPos (Web_node.getProp editor "textContent" |> String.length)
+         in
+         let startPos =
+           (* ensure startPos < endPos *)
+           let startPos = min startPos endPos in
+           max startPos 0
+         in
+         (* loop to set startPos *)
+         let _, range =
+           List.foldl
+             (Array.toList editor##childNodes)
+             ~init:(0, range)
+             ~f:(fun node (offset, range) ->
+               let length =
+                 Web_node.getProp node "textContent" |> String.length
+               in
+               if startPos >= offset && startPos < offset + length
+               then
+                 List.getAt ~index:0 (Array.toList node##childNodes)
+                 |> Option.map ~f:(fun child ->
+                        range##setStart child (startPos - offset) )
+                 |> Option.withDefault ~default:() ;
+               (offset + length, range) )
+         in
+         let _, range =
+           List.foldl
+             (editor##childNodes |> Array.toList |> List.reverse)
+             ~init:
+               (Web_node.getProp editor "textContent" |> String.length, range)
+             ~f:(fun node (offset, range) ->
+               let length =
+                 Web_node.getProp node "textContent" |> String.length
+               in
+               if endPos <= offset && endPos > offset - length
+               then
+                 List.getAt ~index:0 (Array.toList node##childNodes)
+                 |> Option.map ~f:(fun child ->
+                        range##setEnd child (endPos - (offset - length)) )
+                 |> Option.withDefault ~default:() ;
+               (offset - length, range) )
+         in
+         let selection = getSelection () in
+         selection##removeAllRanges () ;
+         selection##addRange range )
+  |> ignore ;
+  ()
+
 
 type browserPlatform =
   | Mac
@@ -162,6 +246,8 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
           ~default:(Util.Namer.generateAnimalWithPersonality ~space:"REPL" ())
       in
       newHandler m "REPL" (Some name) unused pos
+  | NewGroup name ->
+      Groups.createEmptyGroup name pos
   | Goto (page, tlid, _) ->
       Many [SetPage page; Select (tlid, None)]
 
@@ -332,6 +418,8 @@ let getAstFromTopLevel tl =
       h.ast
   | TLFunc f ->
       f.ufAST
+  | TLGroup _ ->
+      impossible ("No ASTs in Groups", tl)
   | TLDB _ ->
       impossible ("No ASTs in DBs", tl)
   | TLTipe _ ->
@@ -396,6 +484,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.fieldNameValidator "type field name"
   | PTypeFieldTipe _ ->
       v AC.paramTypeValidator "type field type"
+  | PGroupName _ ->
+      v AC.groupNameValidator "group name"
   | PPattern currentPattern ->
       let validPattern value =
         Decoders.isLiteralRepr value
@@ -489,6 +579,8 @@ let submitACItem
                 wrapNew [SetFunction f] next
             | TLTipe t ->
                 wrapNew [SetType t] next
+            | TLGroup g ->
+                AddGroup g
             | TLDB _ ->
                 impossible ("no vars in DBs", tl)
         in
@@ -503,6 +595,8 @@ let submitACItem
               impossible ("no ASTs in DBs", tl)
           | TLTipe _ ->
               impossible ("no ASTs in Tipes", tl)
+          | TLGroup _ ->
+              impossible ("no ASTs in Groups", tl)
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -666,6 +760,8 @@ let submitACItem
           | TLFunc f ->
               let newast, newexpr = replaceExpr m f.ufAST e move item in
               saveAst newast (PExpr newexpr)
+          | TLGroup _ ->
+              NoChange
           | TLTipe _ ->
               NoChange
           | TLDB db ->
@@ -734,6 +830,8 @@ let submitACItem
             replace (PTypeFieldName (B.newF value))
         | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
             replace (PTypeFieldTipe (B.newF tipe))
+        | PGroupName _, ACGroupName name ->
+            replace (PGroupName (B.newF name))
         | pd, item ->
             DisplayAndReportError
               ( "Invalid autocomplete option"
@@ -795,6 +893,8 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeName value)
             | TypeFieldName ->
                 Some (ACTypeFieldName value)
+            | GroupName ->
+                Some (ACGroupName value)
             | _ ->
                 None )
           | None ->

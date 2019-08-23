@@ -1061,10 +1061,10 @@ let rec sym_exec
     | F (_, Variable _) ->
         ()
     | F (_, Let (lhs, rhs, body)) ->
+        sexe st rhs ;
         let bound =
           match lhs with
           | F (_, name) ->
-              sexe st rhs ;
               SymSet.add st ~value:name
           | Blank _ ->
               st

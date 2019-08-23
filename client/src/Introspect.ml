@@ -155,6 +155,8 @@ let getUsageFor
       findUsagesInAST f.ufTLID datastores handlers functions f.ufAST
   | TLTipe _ ->
       []
+  | TLGroup _ ->
+      []
 
 
 let refreshUsages (m : model) (tlids : tlid list) : model =

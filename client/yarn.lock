@@ -1690,10 +1690,10 @@ bs-fetch@^0.5.0:
   resolved "https://registry.yarnpkg.com/bs-fetch/-/bs-fetch-0.5.0.tgz#6913b1d1ddfa0b0a4b832357854e9763d61d4b28"
   integrity sha512-cGjwRpyNcIaX+p2ssy/38zs7BM/miKNgmOR3NEhxKFete5mR05JcvjuV4raG89oGCG281SU1b56TTAKmf9VCug==
 
-bs-platform@6.0.3:
-  version "6.0.3"
-  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-6.0.3.tgz#cb401aa4dadbf063dd4a183921195ef3c16d7b11"
-  integrity sha512-zptjWiSaioLVbEq0n3LPwfn1nyY3qt8fXzdI1O+yj6a6sBKmtT2kcx9oXJZl/cuLUnVumXKpb5ksTsYztbJPUg==
+bs-platform@6.1.0:
+  version "6.1.0"
+  resolved "https://registry.yarnpkg.com/bs-platform/-/bs-platform-6.1.0.tgz#dc4cbde176222b887eb140528c8f9f885a3cc0fa"
+  integrity sha512-4EFTVU75qznEOkFEsZ+BF1U57j7N0qO0mNsva0OSwnxJpae4SBPq8r3Sf8mlzBKYXmdyCFXYL9Q/eTUj0ExaFg==
 
 bs-uuid@^0.3.1:
   version "0.3.1"
@@ -1702,10 +1702,10 @@ bs-uuid@^0.3.1:
   dependencies:
     uuid "^3.2.1"
 
-bs-webapi@^0.15.2:
-  version "0.15.2"
-  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.2.tgz#0bf4174cffafde748df19c4ae42f6e8e6c6a22b1"
-  integrity sha512-P3YNG9i29FjGxBLN4UkhiQpBwB4ok+xiGK6kCiUixBB/mb/hwnFGPbxAY/Q2owx0/8ehM+BwRT6vFd01T0GRRQ==
+bs-webapi@^0.15.3:
+  version "0.15.3"
+  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.3.tgz#90c6c3c258b2dcec016b54247b78ad5dca637d88"
+  integrity sha512-n375p/bQx3hbCpYgYwj94cd42aYifIKUFrNVHVWdDJkNuoYqK+zjNrrvOReL9K5WyS0m7ugTaPCEfq7JH5SOtA==
 
 bser@^2.0.0:
   version "2.0.0"
@@ -5610,10 +5610,10 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^3.0.0"
     inherits "^2.0.1"
 
-rollbar@^2.11.0:
-  version "2.11.0"
-  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.11.0.tgz#ca331f49a28199d07afb060b4ae29381b8955c15"
-  integrity sha512-OAEYyoCyLuNxhWV5yzphH6H+CdJXdydPnbxvbcGml/f9LKUtPJbRP4JoLcQrPC6e+ZXmwPBxPHPGZB6i3BKoXw==
+rollbar@^2.12.2:
+  version "2.12.2"
+  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.12.2.tgz#46f7e52c7e21856d016260a0a76b1e4dce6fe425"
+  integrity sha512-KUZ3dhR55HNhVS1fsBc3UC8Sdh53T1tVMGhRY8IXxDHWxVCQIGH8HTMZ7mFGcidS0WQkNG9ElsTiV9B8IEpyBw==
   dependencies:
     async "~1.2.1"
     buffer-from ">=1.1"

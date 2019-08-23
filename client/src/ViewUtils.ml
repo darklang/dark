@@ -136,6 +136,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | FocusedType tlid_
       | FocusedFn tlid_
       | FocusedDB (tlid_, _)
+      | FocusedGroup (tlid_, _)
         when tlid_ = tlid ->
           m.avatarsList
       | _ ->
@@ -152,7 +153,11 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
   fn
     { mePos =
         {vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j}
-    ; button = JSD.field "button" JSD.int j }
+    ; button = JSD.field "button" JSD.int j
+    ; ctrlKey = JSD.field "ctrlKey" JSD.bool j
+    ; shiftKey = JSD.field "shiftKey" JSD.bool j
+    ; altKey = JSD.field "altKey" JSD.bool j
+    ; detail = JSD.field "detail" JSD.int j }
 
 
 let decodeTransEvent (fn : string -> 'a) j : 'a =
@@ -163,6 +168,26 @@ let decodeTransEvent (fn : string -> 'a) j : 'a =
 let decodeAnimEvent (fn : string -> 'a) j : 'a =
   let module JSD = Json_decode_extended in
   fn (JSD.field "animationName" JSD.string j)
+
+
+let eventBoth
+    ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    event
+    {stopPropagation = false; preventDefault = false}
+    (Decoders.wrapDecoder (decodeClickEvent constructor))
+
+
+let eventPreventDefault
+    ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
+    msg Vdom.property =
+  Patched_tea_html.onWithOptions
+    ~key
+    event
+    {stopPropagation = false; preventDefault = true}
+    (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
 let eventNeither
