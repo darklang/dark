@@ -860,6 +860,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     =
   match cursor with
   | Creating pos ->
+      (* We want it to appear closer to omnibox *)
       let pos = posAround pos 200 100 in
       ( match AC.highlighted m.complete with
       | Some (ACOmniAction act) ->

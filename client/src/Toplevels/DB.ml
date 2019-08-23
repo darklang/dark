@@ -99,8 +99,7 @@ let createDB (name : string) (pos : pos) : modification =
     ; RPC
         ( [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
           ; AddDBCol (tlid, next, Prelude.gid ()) ]
-        , focusOn )
-    ]
+        , focusOn ) ]
 
 
 let generateDBName (_ : unit) : string =
