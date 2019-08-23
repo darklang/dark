@@ -67,7 +67,8 @@ let () =
             ; refersToRefs = []
             ; hoveringRefs = []
             ; avatarsList = []
-            ; permission = Some ReadWrite }
+            ; permission = Some ReadWrite
+            ; varLookup = StrDict.empty }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
       () ) ;

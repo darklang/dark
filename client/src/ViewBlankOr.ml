@@ -400,7 +400,8 @@ let viewBlankOr
                 allowStringEntry
                 stringEntryWidth
                 placeholder
-                vs.ac ]
+                vs.ac
+                vs.varLookup ]
         else Html.text vs.ac.value
       else thisText
   | SelectingCommand (_, id) ->
@@ -413,7 +414,8 @@ let viewBlankOr
               StringEntryNotAllowed
               StringEntryNormalWidth
               "command"
-              vs.ac ]
+              vs.ac
+              vs.varLookup ]
       else thisText
   | _ ->
       thisText
