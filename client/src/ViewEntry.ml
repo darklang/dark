@@ -160,6 +160,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
+  let lv = Html.div [Html.class' "live-value"] [Html.text "some stuff"] in
   let input =
     Html.fieldset
       [Attributes.id "search-container"; widthInCh searchWidth]
@@ -168,7 +169,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let viewForm =
     Html.form
       [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
-      (if ac.visible then [input; autocomplete] else [input])
+      (if ac.visible then [lv; input; autocomplete] else [input])
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper
