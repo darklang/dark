@@ -347,18 +347,12 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
     .live-value {
       display: none;
-    }
-
-    &.display-livevalue.selected .live-value {
-      display: block;
-      position: absolute;
-      right: calc(#{"100% + 30px"});
-      font-style: normal;
 
       padding: 4px;
       width: max-content;
       max-width: 250px;
 
+      font-style: normal;
       white-space: pre-wrap;
       word-break: break-all;
       word-wrap: break-word;
@@ -378,6 +372,19 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
           opacity: 0.85;
         }
       }
+    }
+
+    &.display-livevalue.selected .live-value {
+      display: block;
+      position: absolute;
+      right: calc(#{"100% + 30px"});
+    }
+
+    &.entry .live-value.show {
+      display: block;
+      position: absolute;
+      right: calc(#{"100% + 30px"});
+      top: 1.5ch;
     }
   }
 
