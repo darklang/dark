@@ -484,7 +484,10 @@ and addOpRPCResult j : addOpRPCResult =
 
 
 and addOpRPCParams j : addOpRPCParams =
-  {ops = field "ops" (list op) j; browserId = field "browserId" string j}
+  (* if we roll back the server, we might get new client code (this code), but
+   * no opCtr from the server, so handle that case *)
+  let opCtr = try Some (field "opCtr" int j) with _ -> None in
+  {ops = field "ops" (list op) j; opCtr; browserId = field "browserId" string j}
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
@@ -525,6 +528,10 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; traces = field "traces" (list (pair tlid traceID)) j
   ; userTipes = field "user_tipes" (list userTipe) j
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
+  ; opCtrs =
+      j
+      |> withDefault [] (field "op_ctrs" (list (tuple2 string int)))
+      |> StrDict.fromList
   ; permission = field "permission" (optional permission) j
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls }
