@@ -11,8 +11,7 @@ type testResult = (* ast, clipboard, newPos *) string * string * int
 
 let () =
   let m = Defaults.defaultModel in
-  let process ~debug ?(clipboard = None) range ast (keyEvent : K.keyEvent) :
-      testResult =
+  let process ~debug ?(clipboard = None) range ast msg : testResult =
     let s =
       { Defaults.defaultFluidState with
         ac = AC.reset m; selection = Some {range}; clipboard }
@@ -31,9 +30,7 @@ let () =
       Js.log2 "clipboard before" (clipboardStr s) ) ;
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
-    let newAST, newState =
-      updateMsg m h.hTLID ast (FluidKeyPress keyEvent) s
-    in
+    let newAST, newState = updateMsg m h.hTLID ast msg s in
     let last =
       toTokens newState newAST
       |> List.last
@@ -50,36 +47,15 @@ let () =
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    let keyEvent : K.keyEvent =
-      { key = K.Letter 'c'
-      ; shiftKey = false
-      ; altKey = false
-      ; metaKey = false
-      ; ctrlKey = true (* since tests are run on linux *) }
-    in
-    process ~debug range expr keyEvent
+    process ~debug range expr FluidCopy
   in
   let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    let keyEvent : K.keyEvent =
-      { key = K.Letter 'x'
-      ; shiftKey = false
-      ; altKey = false
-      ; metaKey = false
-      ; ctrlKey = true (* since tests are run on linux *) }
-    in
-    process ~debug range expr keyEvent
+    process ~debug range expr FluidCut
   in
   let paste ?(debug = false) ~clipboard (range : int * int) (expr : fluidExpr)
       : testResult =
-    let keyEvent : K.keyEvent =
-      { key = K.Letter 'v'
-      ; shiftKey = false
-      ; altKey = false
-      ; metaKey = false
-      ; ctrlKey = true (* since tests are run on linux *) }
-    in
-    process ~debug ~clipboard:(Some clipboard) range expr keyEvent
+    process ~debug ~clipboard:(Some clipboard) range expr FluidPaste
   in
   let t
       (name : string)

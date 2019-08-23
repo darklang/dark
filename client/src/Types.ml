@@ -930,6 +930,9 @@ and msg =
   | FluidMouseClick of tlid
   | AutocompleteClick of int
   | FluidAutocompleteClick of fluidAutocompleteItem
+  | FluidCopy
+  | FluidCut
+  | FluidPaste
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
