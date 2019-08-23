@@ -89,7 +89,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
         [input] ]
 
 
-let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
+let normalEntryHtml (placeholder : string) (ac : autocomplete) (lv : dval StrDict.t) : msg Html.html
     =
   let toList acis class' index =
     List.indexedMap
@@ -160,7 +160,25 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
-  let lv = Html.div [Html.class' "live-value"] [Html.text "some stuff"] in
+  let liveValue = 
+    let valFor =
+      Autocomplete.highlighted ac
+      |> Option.andThen ~f:(fun aci ->
+        match aci with
+        | ACVariable var ->
+          StrDict.get ~key:var lv
+        | _ -> None
+      )
+    in
+    let valStr =
+      match valFor with
+      | Some v -> Runtime.toRepr v
+      | None -> ""
+    in
+    Html.div
+      [Html.classList [("live-value", true); ("show", ac.visible && Option.isSome valFor)]]
+      [Html.text valStr]
+  in
   let input =
     Html.fieldset
       [Attributes.id "search-container"; widthInCh searchWidth]
@@ -169,7 +187,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   let viewForm =
     Html.form
       [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
-      (if ac.visible then [lv; input; autocomplete] else [input])
+      (if ac.visible then [liveValue; input; autocomplete] else [input])
   in
   let wrapper = Html.div [Html.class' "entry"] [viewForm] in
   wrapper
@@ -179,14 +197,15 @@ let entryHtml
     (permission : stringEntryPermission)
     (width : stringEntryWidth)
     (placeholder : string)
-    (ac : autocomplete) : msg Html.html =
+    (ac : autocomplete)
+    (lv : dval StrDict.t) : msg Html.html =
   match permission with
   | StringEntryAllowed ->
       if Autocomplete.isStringEntry ac
       then stringEntryHtml ac width
-      else normalEntryHtml placeholder ac
+      else normalEntryHtml placeholder ac lv
   | StringEntryNotAllowed ->
-      normalEntryHtml placeholder ac
+      normalEntryHtml placeholder ac lv
 
 
 let viewEntry (m : model) : msg Html.html =
@@ -204,6 +223,6 @@ let viewEntry (m : model) : msg Html.html =
       in
       Html.div
         [Html.class' "omnibox"; styleProp]
-        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
+        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete StrDict.empty]
   | _ ->
       Vdom.noNode

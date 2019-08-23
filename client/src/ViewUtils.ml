@@ -35,7 +35,8 @@ type viewState =
   ; hoveringRefs : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
-  ; permission : permission option }
+  ; permission : permission option
+  ; varLookup : dval StrDict.t }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -141,7 +142,20 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; permission = m.permission }
+  ; permission = m.permission
+  ; varLookup =
+    match TL.getAST tl with
+    | Some ast ->
+      let varIds = AST.idsOfLastVarBinds ast in
+      let idLvs = Analysis.getCurrentLiveValuesDict m tlid in
+      varIds |> List.filterMap ~f:(fun (var, id) -> 
+        match StrDict.get ~key:(showID id) idLvs with
+        | Some lv -> Some (var, lv)
+        | None -> None
+      )
+      |> StrDict.fromList
+    | None -> StrDict.empty
+  }
 
 
 let fontAwesome (name : string) : msg Html.html =

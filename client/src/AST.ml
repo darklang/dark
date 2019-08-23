@@ -1128,3 +1128,9 @@ let variablesIn (ast : expr) : avDict =
   |> IDTable.toList
   |> StrDict.fromList
   |. StrDict.map ~f:SymSet.toList
+
+let idsOfLastVarBinds (ast : expr) : (varName * id) list =
+    allData ast
+    |> List.reverse
+    |> List.filterMap ~f:(fun pd -> match pd with PVarBind (F (id, v)) -> Some (v, id) | _ -> None )
+    |> List.uniqueBy ~f:(fun (name,_) -> name)
