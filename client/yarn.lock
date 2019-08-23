@@ -1702,10 +1702,10 @@ bs-uuid@^0.3.1:
   dependencies:
     uuid "^3.2.1"
 
-bs-webapi@^0.15.2:
-  version "0.15.2"
-  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.2.tgz#0bf4174cffafde748df19c4ae42f6e8e6c6a22b1"
-  integrity sha512-P3YNG9i29FjGxBLN4UkhiQpBwB4ok+xiGK6kCiUixBB/mb/hwnFGPbxAY/Q2owx0/8ehM+BwRT6vFd01T0GRRQ==
+bs-webapi@^0.15.3:
+  version "0.15.3"
+  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.3.tgz#90c6c3c258b2dcec016b54247b78ad5dca637d88"
+  integrity sha512-n375p/bQx3hbCpYgYwj94cd42aYifIKUFrNVHVWdDJkNuoYqK+zjNrrvOReL9K5WyS0m7ugTaPCEfq7JH5SOtA==
 
 bser@^2.0.0:
   version "2.0.0"
