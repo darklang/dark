@@ -817,6 +817,7 @@ and focus =
   | FocusExact of tlid * id
   | FocusNext of tlid * id option
   | FocusPageAndCursor of page * cursorState
+  | FocusPageOn of page * id
   | FocusSame
   (* unchanged *)
   | FocusNoChange

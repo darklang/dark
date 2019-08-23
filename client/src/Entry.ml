@@ -184,11 +184,10 @@ let createFunction (fn : function_) : expr =
 
 let newHandler m space name modifier pos =
   let tlid = gtlid () in
-  let spaceid = gid () in
   let handler =
     { ast = B.new_ ()
     ; spec =
-        { space = F (spaceid, space)
+        { space = B.newF space
         ; name = B.ofOption name
         ; modifier = B.ofOption modifier }
     ; hTLID = tlid
@@ -203,14 +202,29 @@ let newHandler m space name modifier pos =
       ; SetCursorState (FluidEntering tlid) ]
     else []
   in
-  Many
-    ( RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
-    :: fluidMods )
+  let focus =
+    let next =
+      match (space, name) with
+      | "HTTP", None | "CRON", None ->
+          B.toID handler.spec.name
+      | "HTTP", Some _ | "CRON", Some _ ->
+          B.toID handler.spec.modifier
+      | _ ->
+          B.toID handler.ast
+    in
+    FocusPageOn (FocusedHandler (tlid, false), next)
+  in
+  Many (RPC ([SetHandler (tlid, pos, handler)], focus) :: fluidMods)
+
+
+let posAround (pos : pos) (dx : int) (dy : int) : pos =
+  let xVariance = Native.Random.range 0 dx in
+  let yVariance = Native.Random.range 0 dy in
+  {x = pos.x + xVariance; y = pos.y + yVariance}
 
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
-  let pos = {x = pos.x - 17; y = pos.y - 70} in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->
@@ -846,14 +860,15 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
     =
   match cursor with
   | Creating pos ->
-    ( match AC.highlighted m.complete with
-    | Some (ACOmniAction act) ->
-        submitOmniAction m pos act
-    (* If empty, create an empty handler *)
-    | None when m.complete.value = "" ->
-        submitOmniAction m pos (NewReplHandler None)
-    | _ ->
-        NoChange )
+      let pos = posAround pos 200 100 in
+      ( match AC.highlighted m.complete with
+      | Some (ACOmniAction act) ->
+          submitOmniAction m pos act
+      (* If empty, create an empty handler *)
+      | None when m.complete.value = "" ->
+          submitOmniAction m pos (NewReplHandler None)
+      | _ ->
+          NoChange )
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->

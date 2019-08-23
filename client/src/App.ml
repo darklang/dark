@@ -140,6 +140,19 @@ let processFocus (m : model) (focus : focus) : modification =
           Deselect )
     | _ ->
         NoChange )
+  | FocusPageOn (page, id) ->
+      let blankOrFocus =
+        match Page.tlidOf page with
+        | Some tlid ->
+            let tl = TL.getExn m tlid in
+            let pd = TL.findExn tl id in
+            if P.isBlank pd || P.toContent pd = Some ""
+            then [Enter (Filling (tlid, id))]
+            else [Select (tlid, Some id)]
+        | None ->
+            []
+      in
+      Many (SetPage page :: blankOrFocus)
   | FocusPageAndCursor (page, cs) ->
       let setCS = SetCursorState cs in
       let noTarget = ACSetTarget None in
@@ -1600,12 +1613,12 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
-      let center = findCenter m in
-      Entry.submitOmniAction m center action
+      let pos = Entry.posAround (findCenter m) 400 300 in
+      Entry.submitOmniAction m pos action
   | CreateDBTable ->
-      let center = findCenter m
-      and genName = DB.generateDBName () in
-      DB.createDB genName center
+      let pos = Entry.posAround (findCenter m) 400 300 in
+      let genName = DB.generateDBName () in
+      DB.createDB genName pos
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center
