@@ -576,7 +576,7 @@ let isDynamicItem (item : autocompleteItem) : bool =
   | ACEventSpace _ ->
       false (* false because we want the static items to be first *)
   | ACHTTPRoute _ ->
-      true
+      false
   | ACWorkerName _ ->
       true
   | ACDBName _ ->
@@ -781,6 +781,17 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACCronTiming "Every 1min" ]
         | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
             [] )
+      | EventName ->
+          let fourOhFourList =
+            m.f404s
+            |> List.uniqueBy ~f:(fun f404 -> f404.path)
+            |> List.sortBy ~f:(fun f404 -> f404.path)
+            |> List.filterMap ~f:(fun f404 ->
+                   if f404.path != "/"
+                   then Some (ACHTTPRoute (cleanHTTPname f404.path))
+                   else None )
+          in
+          fourOhFourList
       | EventSpace ->
           (* Other spaces aren't allowed anymore *)
           [ ACEventSpace "HTTP"
