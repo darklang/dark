@@ -16,6 +16,24 @@ module Key = Keyboard
 module Regex = Util.Regex
 module TD = TLIDDict
 
+let incOpCtr (m : model) : model =
+  { m with
+    opCtrs =
+      StrDict.update m.opCtrs ~key:m.browserId ~f:(function
+          | Some v ->
+              Some (v + 1)
+          | None ->
+              Some 1 ) }
+
+
+let opCtr (m : model) : int =
+  match StrDict.get ~key:m.browserId m.opCtrs with
+  | Some ctr ->
+      ctr
+  | None ->
+      0
+
+
 let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
   let fiveMinsAgo : float = Js.Date.now () -. (5.0 *. 60.0 *. 1000.0) in
   List.filter
@@ -273,9 +291,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = h.ast
                  then []
                  else
+                   let newM = m |> incOpCtr in
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (Some (opCtr newM)) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLFunc f ->
@@ -283,9 +304,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  if replacement = f.ufAST
                  then []
                  else
+                   let newM = newM |> incOpCtr in
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
-                   let params = RPC.opsParams ops m.browserId in
+                   let params =
+                     RPC.opsParams ops (Some (newM |> opCtr)) m.browserId
+                   in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ | TLGroup _ ->
@@ -295,9 +319,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
   in
   let newm, newcmd =
+    let bringBackCurrentTL (oldM : model) (newM : model) : model =
+      (* used with updateCurrent - if updateCurrent is false, we want to restore
+       * the current TL so we don't lose local changes made since the API call *)
+      match tlidOf oldM.cursorState with
+      | Some tlid ->
+          let tl = TL.getExn oldM tlid in
+          ( match tl with
+          | TLDB db ->
+              DB.upsert newM db
+          | TLHandler h ->
+              Handlers.upsert newM h
+          | TLGroup _ | TLTipe _ | TLFunc _ ->
+              newM )
+      | None ->
+          newM
+    in
     let handleRPC params focus =
       (* immediately update the model based on SetHandler and focus, if
          possible *)
+      let m = m |> incOpCtr in
       let hasNonHandlers =
         List.any
           ~f:(fun c ->
@@ -394,7 +435,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ClearError ->
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
-        handleRPC (RPC.opsParams ops m.browserId) focus
+        handleRPC
+          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.browserId)
+          focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
@@ -555,51 +598,36 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RemoveGroup tl ->
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
-        let m2 =
+        let oldM = m in
+        let m =
           { m with
             handlers = Handlers.fromList handlers
           ; dbs = DB.fromList dbs
           ; groups = Groups.fromList groups }
         in
-        (* Bring back the TL being edited, so we don't lose work done since the
+        (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m3 =
-          match tlidOf m.cursorState with
-          | Some tlid ->
-              if updateCurrent
-              then m2
-              else
-                let tl = TL.getExn m tlid in
-                ( match tl with
-                | TLDB db ->
-                    DB.upsert m2 db
-                | TLHandler h ->
-                    Handlers.upsert m2 h
-                | TLGroup _ ->
-                    m2
-                | TLTipe _ ->
-                    m2
-                | TLFunc _ ->
-                    m2 )
-          | None ->
-              m2
-        in
-        let m4 =
+        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
+        let m =
           let hTLIDs = List.map ~f:(fun h -> h.hTLID) handlers in
           let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
-          { m3 with
-            deletedHandlers = TD.removeMany m3.deletedHandlers ~tlids:hTLIDs
-          ; deletedDBs = TD.removeMany m3.deletedDBs ~tlids:dbTLIDs }
+          { m with
+            deletedHandlers = TD.removeMany m.deletedHandlers ~tlids:hTLIDs
+          ; deletedDBs = TD.removeMany m.deletedDBs ~tlids:dbTLIDs }
         in
-        let m5 = Refactor.updateUsageCounts m4 in
-        processAutocompleteMods m5 [ACRegenerate]
+        let m = Refactor.updateUsageCounts m in
+        processAutocompleteMods m [ACRegenerate]
     | UpdateToplevels (handlers, dbs, updateCurrent) ->
+        let oldM = m in
         let m =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
           ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
+        (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
+           API call *)
+        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         updateMod
           (SetToplevels
              ( TD.values m.handlers
@@ -1306,7 +1334,18 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
         ]
+  | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC - old server, no opCtr sent"
+           ~importance:ImportantError
+           ~requestParams:(Encoders.addOpRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | AddOpRPCCallback (focus, params, Ok r) ->
+      let m, newOps, _ = RPC.filterOpsAndResult m params None in
+      let params = {params with ops = newOps} in
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
       in
@@ -1316,7 +1355,10 @@ let update_ (msg : msg) (m : model) : modification =
         else
           let m =
             { m with
-              handlers =
+              opCtrs =
+                StrDict.update m.opCtrs ~key:params.browserId ~f:(fun _ ->
+                    params.opCtr )
+            ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
             ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
             ; userFunctions =
@@ -1339,13 +1381,20 @@ let update_ (msg : msg) (m : model) : modification =
         (* msg was sent from this client, we've already handled it
                        in AddOpRPCCallback *)
       else
-        let initialMods = applyOpsToClient false msg.params msg.result in
+        let m, newOps, result =
+          RPC.filterOpsAndResult m msg.params (Some msg.result)
+        in
+        let params = {msg.params with ops = newOps} in
+        let initialMods =
+          applyOpsToClient false params (result |> Option.valueExn)
+        in
         Many (initialMods @ [MakeCmd (Entry.focusEntry m)])
   | InitialLoadRPCCallback
       (focus, extraMod (* for integration tests, maybe more *), Ok r) ->
       let pfM =
         { m with
-          handlers = Handlers.fromList r.handlers
+          opCtrs = r.opCtrs
+        ; handlers = Handlers.fromList r.handlers
         ; dbs = DB.fromList r.dbs
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes

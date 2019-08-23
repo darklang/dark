@@ -336,7 +336,7 @@ let result_to_response
         ; execution_id
         ; status = `Internal_server_error
         ; body =
-            "Application error: the executed code was not complete. This error can be resolve by the application author by completing the incomplete code."
+            "Application error: the executed code was not complete. This error can be resolved by the application author by completing the incomplete code."
         }
   | RTT.DError _ ->
       Respond
@@ -677,8 +677,17 @@ let static_assets_upload_handler
 
 let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  let t1, params =
-    time "1-read-api-ops" (fun _ -> Api.to_add_op_rpc_params body)
+  let t1, (params, canvas_id) =
+    time "1-read-api-ops" (fun _ ->
+        let owner = Account.for_host_exn host in
+        let canvas_id = Serialize.fetch_canvas_id owner host in
+        let params = Api.to_add_op_rpc_params body in
+        if Op.is_latest_op_request params.browserId params.opCtr canvas_id
+        then (params, canvas_id)
+        else
+          ( { params with
+              ops = params.ops |> Op.filter_ops_received_out_of_order }
+          , canvas_id ) )
   in
   let ops = params.ops in
   let tlids = List.filter_map ~f:Op.tlidOf ops in
@@ -692,7 +701,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
       in
       let t4, _ =
         time "4-save-to-disk" (fun _ ->
-            (* work out the result before we save it, incase it has a
+            (* work out the result before we save it, in case it has a
               stackoverflow or other crashing bug *)
             if Api.causes_any_changes params then C.save_tlids !c tlids else ()
         )
@@ -701,8 +710,6 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         (* To make this work with prodclone, we might want to have it specify
          * more ... else people's prodclones will stomp on each other ... *)
         time "5-send-ops-to-stroller" (fun _ ->
-            let owner = Account.for_host_exn host in
-            let canvas_id = Serialize.fetch_canvas_id owner host in
             if Api.causes_any_changes params
             then (
               let strollerMsg =
@@ -718,13 +725,19 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               Some strollerMsg )
             else None )
       in
-      respond
-        ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
-        ~execution_id
-        `OK
-        (* if no changes are made, we return an empty string - does this cause a
-         * client error? *)
-        (Option.value ~default:"" strollerMsg)
+      Log.add_log_annotations
+        [("op_ctr", `Int params.opCtr)]
+        (fun _ ->
+          respond
+            ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+            ~execution_id
+            `OK
+            (Option.value
+               ~default:
+                 ( {result = Analysis.empty_to_add_op_rpc_result; params}
+                 |> Analysis.add_op_stroller_msg_to_yojson
+                 |> Yojson.Safe.to_string )
+               strollerMsg) )
   | Error errs ->
       let body = String.concat ~sep:", " errs in
       respond
@@ -741,11 +754,26 @@ let initial_load
     ~(permission : Authorization.permission option)
     body : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   try
-    let t1, c =
+    let t1, (c, op_ctrs) =
       time "1-load-saved-ops" (fun _ ->
-          C.load_all canvas []
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
+          let c =
+            C.load_all canvas []
+            |> Result.map_error ~f:(String.concat ~sep:", ")
+            |> Prelude.Result.ok_or_internal_exception "Failed to load canvas"
+          in
+          let op_ctrs =
+            Db.fetch
+              ~name:"fetch_op_ctrs_for_canvas"
+              "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
+              ~params:[Db.Uuid !c.id]
+            |> List.map ~f:(function
+                   | [browser_id; op_ctr] ->
+                       (browser_id, op_ctr |> int_of_string)
+                   | _ ->
+                       Exception.internal
+                         "wrong record shape from fetch_op_Ctrs_for_canvas" )
+          in
+          (c, op_ctrs) )
     in
     let t2, unlocked =
       time "2-analyze-unlocked-dbs" (fun _ -> Analysis.unlocked !c)
@@ -781,6 +809,7 @@ let initial_load
       time "6-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
+            op_ctrs
             permission
             f404s
             traces

@@ -567,6 +567,7 @@ and sendPresenceParams = avatarModelMessage
 
 and addOpRPCParams =
   { ops : op list
+  ; opCtr : int option
   ; browserId : string }
 
 and executeFunctionRPCParams =
@@ -660,6 +661,7 @@ and initialLoadRPCResult =
   ; userTipes : userTipe list
   ; deletedUserTipes : userTipe list
   ; permission : permission option
+  ; opCtrs : int StrDict.t
   ; groups : group list
   ; deletedGroups : group list }
 
@@ -1374,8 +1376,9 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; permission : permission option
-  ; toast : toast }
+  ; toast : toast
+  ; opCtrs : int StrDict.t
+  ; permission : permission option }
 
 (* Values that we serialize *)
 and serializableEditor =
