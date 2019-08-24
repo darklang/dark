@@ -281,6 +281,13 @@ jobs:
             - v9-client-{{ checksum "rundir/minus1-timestamp" }}
             - v9-client-{{ checksum "rundir/minus2-timestamp" }}
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+      # We need the backend cache too because it has ocamlformat and ppxes
+      - restore_cache:
+          keys:
+            - v8-backend-{{ checksum "rundir/today-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - copy-into-container
