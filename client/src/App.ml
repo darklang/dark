@@ -1414,7 +1414,8 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ SetToplevels (r.handlers, r.dbs, r.groups, true)
+        [ TweakModel (fun m -> {m with opCtrs = r.opCtrs})
+        ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
