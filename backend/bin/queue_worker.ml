@@ -67,4 +67,4 @@ let () =
     (Log.add_log_annotations
        [ ( "execution_id"
          , `String (Libexecution.Types.string_of_id execution_id) ) ]
-       (fun _ -> queue_worker ()))
+       (fun _ -> Nocrypto_entropy_lwt.initialize () >>= queue_worker))
