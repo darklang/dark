@@ -1,0 +1,30 @@
+opam-version: "2.0"
+maintainer: "OCamlFormat Team <ocamlformat-team@fb.com>"
+authors: "Josh Berdine <jjb@fb.com>"
+homepage: "https://github.com/ocaml-ppx/ocamlformat"
+bug-reports: "https://github.com/ocaml-ppx/ocamlformat/issues"
+dev-repo: "git+https://github.com/ocaml-ppx/ocamlformat.git"
+url {
+  src: "https://github.com/ocaml-ppx/ocamlformat/archive/0.8.tar.gz"
+  checksum: [
+    "md5=c3462e7bc4176b4d1126403123a99dac"
+    "sha512=f0010926ccc5a8faa661d74b7b51bcd5fc65a23cfea4c9f3cf24d2998a46149e5f73775536d0432dd502d32bc9015ac12888edf6933ec2023c64cfb597a2bb36"
+  ]
+}
+license: "MIT"
+build: [
+  ["tools/gen_version.sh" "src/Version.ml" version] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "4.05"}
+  "base" {>= "v0.11.0" & < "v0.12"}
+  "base-unix"
+  "cmdliner"
+  "dune"
+  "fpath"
+  "ocaml-migrate-parsetree" {>= "1.0.10"}
+  "stdio" {< "v0.12"}
+]
+synopsis: "Auto-formatter for OCaml code"
+description: "OCamlFormat is a tool to automatically format OCaml code in a uniform style."

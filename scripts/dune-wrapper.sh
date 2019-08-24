@@ -12,7 +12,7 @@ errorline=
 # the exit code of dune.
 shopt -s lastpipe
 
-unbuffer dune "$@" 2>&1 | while read -r line; do
+unbuffer esy build --project /home/dark/app/backend dune "$@" 2>&1 | while read -r line; do
   # this error consistently breaks our compile, esp on CI
   if [[ "$line" == *"make inconsistent assumptions over "* ]]; then
     error=1;
@@ -28,7 +28,7 @@ if [[ "$error" == 1 ]]; then
   echo "Cleaning"
   rm -Rf backend/_build/*
   echo "Running again"
-  unbuffer dune "$@"
+  unbuffer esy build --project /home/dark/app/backend dune "$@"
 else
   exit $result
 fi

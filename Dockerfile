@@ -146,9 +146,11 @@ USER root
 #
 # And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
 # And then 11.14
-RUN sudo apt update && sudo apt install nodejs=11.15.0-1nodesource1
+RUN apt update && apt install nodejs=11.15.0-1nodesource1
 
 RUN npm install -g yarn@1.12.3
+
+RUN npm install -g esy@0.5.6 --unsafe-perm=true
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -190,74 +192,6 @@ RUN docker-credential-gcr config --token-source="gcloud"
 # crcmod for gsutil
 RUN pip install -U crcmod
 
-
-############################
-# Ocaml
-############################
-USER dark
-ENV FORCE_OCAML_BUILD 5
-RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
-ENV OPAMJOBS 4
-# disabling sandboxing as it breaks and isn't necessary cause Docker
-
-ENV OCAML_SWITCH ocaml-base-compiler.4.06.1
-# env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
-# we avoid having to source .bashrc before every command
-RUN opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing
-ENV PATH "/home/dark/.opam/${OCAML_SWITCH}/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
-ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
-ENV FORCE_OCAML_UPDATE 5
-RUN opam update
-
-#ENV OPAMDEBUG true
-RUN opam pin -y nocrypto git+https://github.com/gasche/ocaml-nocrypto.git#master-ocamlbuild-pack \
-  && opam pin -y jwt git+https://github.com/ismith/ocaml-jwt.git#rsa256-verification \
-  && opam pin -y gcloud git+https://github.com/ismith/ocaml-gcloud.git#builds-on-ocaml-4.07.0 \
-  && opam pin -y multipart-form-data git+https://github.com/darklang/multipart-form-data.git#master \
-  && opam install -y \
-  ppx_deriving.4.3 \
-  core.v0.11.2  \
-  core_extended.v0.11.0 \
-  dune.1.11.0 \
-  re2.v0.11.0 \
-  conf-libev.4-11 \
-  lwt.4.2.1 \
-  lwt_ppx.1.2.2 \
-  yojson.1.7.0 \
-  postgresql.4.4.0 \
-  ppx_deriving_yojson.3.4 \
-  cohttp-lwt-unix.2.0.0 \
-  ocurl.0.8.2 \
-  alcotest.0.8.3 \
-  merlin.3.2.2 \
-  ocp-indent.1.6.1 \
-  landmarks.1.1 \
-  cstruct.3.1.1 \
-  cstruct-lwt.3.1.1 \
-  lwt_ssl.1.1.2 \
-  ssl.0.5.5 \
-  uuidm.0.9.6 \
-  junit_alcotest.2.0 \
-  junit.2.0 \
-  js_of_ocaml.3.2.0 \
-  js_of_ocaml-ppx.3.2.0 \
-  js_of_ocaml-lwt.3.2.0 \
-  sodium.0.6.0 \
-  utop.2.4.0 \
-  ocamlformat.0.8 \
-  uuseg.11.0.0 \
-  uunf.11.0.0 \
-  magic-mime.1.1.1 \
-  ezgzip.0.2.1 \
-  tablecloth-native.0.0.6 \
-  session.0.4.1 \
-  session-cohttp.0.4.1 \
-  session-cohttp-lwt.0.4.1 \
-  session-postgresql.0.4.1 \
-  session-postgresql-lwt.0.4.1
 
 ############################
 # Shellcheck
@@ -323,7 +257,6 @@ ENV TERM=xterm-256color
 ######################
 
 RUN sudo apt install -y net-tools # for netstat
-
 
 ############################
 # Finish

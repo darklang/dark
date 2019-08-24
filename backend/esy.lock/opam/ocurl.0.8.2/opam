@@ -1,0 +1,37 @@
+opam-version: "2.0"
+maintainer: "ygrek@autistici.org"
+homepage: "http://ygrek.org.ua/p/ocurl/"
+license: "MIT"
+authors: [ "Lars Nilsson" "ygrek" ]
+doc: ["http://ygrek.org.ua/p/ocurl/api/index.html"]
+dev-repo: "git://github.com/ygrek/ocurl.git"
+bug-reports: "https://github.com/ygrek/ocurl/issues"
+tags: ["org:ygrek" "clib:curl"]
+build: [
+  ["./configure"]
+  [make]
+  [make "test"] {with-test}
+  [make "doc"] {with-doc}
+]
+install: [
+  [make "install"]
+]
+remove: [["ocamlfind" "remove" "curl"]]
+depends: [
+  "ocaml" {>= "4.02.0"}
+  "ocamlfind" {build}
+  "base-unix"
+  "conf-libcurl"
+]
+depopts: ["lwt"]
+synopsis: "Bindings to libcurl"
+description: """
+Client-side URL transfer library, supporting HTTP and a multitude of
+other network protocols (FTP/SMTP/RTSP/etc)."""
+flags: light-uninstall
+url {
+  src: "http://ygrek.org.ua/p/release/ocurl/ocurl-0.8.2.tar.gz"
+  checksum: "md5=194b65b5abb1e32be17f4d5c8c9a8627"
+  mirrors:
+    "https://github.com/ygrek/ocurl/releases/download/0.8.2/ocurl-0.8.2.tar.gz"
+}

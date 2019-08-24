@@ -1,0 +1,48 @@
+opam-version: "2.0"
+maintainer: "Fabrice Le Fessant <fabrice.le_fessant@ocamlpro.com>"
+authors: [
+  "Fabrice Le Fessant <fabrice.le_fessant@ocamlpro.com>"
+]
+homepage: "http://www.typerex.org/ocp-build.html"
+dev-repo: "git+https://github.com/OCamlPro/ocp-build.git"
+bug-reports: "https://github.com/OCamlPro/ocp-build/issues"
+build: [
+  [     "./configure"
+    "--prefix"
+    "%{prefix}%"
+  ]
+  [ make ]
+]
+install: [
+  [ make "install" ]
+]
+remove: [
+  [ "rm" "-f" "%{prefix}%/bin/ocp-build"   ]
+  [ "rm" "-f" "%{prefix}%/bin/ocp-pp"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocp-build"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-compat"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-debug"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-lang"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-subcmd"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-system"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/ocplib-unix"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/typerex/installed.ocp"   ]
+  [ "rm" "-rf" "%{prefix}%/lib/ocaml/site-ocp2/ocp-build"   ]
+  [ "sh" "-exc" "rmdir %{prefix}%/lib/ocaml/typerex || true"   ]
+]
+conflicts: [ "typerex"  {< "1.99.7"} "typerex-build" ]
+depends: [
+  "ocaml" {>= "4.02.1" & < "4.08.0"}
+  "ocamlfind"
+  "cmdliner" {>= "1.0"}
+]
+synopsis: "Project builder for OCaml"
+description: """
+ocp-build main features are:
+* simple library/program description
+* detection of ocamlfind libraries (parsing of META)
+* incremental and parallel compilation of OCaml projects"""
+url {
+  src: "http://github.com/OCamlPro/ocp-build/archive/1.99.20-beta.tar.gz"
+  checksum: "md5=72d9c1b1a42d1873628e2d6e7529d8cb"
+}
