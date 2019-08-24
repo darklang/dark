@@ -60,4 +60,4 @@ let () =
     (Log.add_log_annotations
        [ ( "execution_id"
          , `String (Libexecution.Types.string_of_id execution_id) ) ]
-       (fun _ -> cron_checker ()))
+       (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker))
