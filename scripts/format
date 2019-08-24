@@ -64,11 +64,8 @@ fi
 #######################
 # functions
 #######################
-OCAMLFORMAT=`esy exec-command --project /home/dark/app/backend/ which ocamlformat`
-
-ocamlformat() {
-  "$OCAMLFORMAT" "${@}"
-}
+OCAMLFORMAT=$(esy exec-command --project /home/dark/app/backend/ which ocamlformat)
+PATH=$(dirname "$OCAMLFORMAT"):$PATH
 
 is_dir() {
   [[ -d "$1" ]] 
