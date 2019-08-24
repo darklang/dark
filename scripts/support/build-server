@@ -40,7 +40,8 @@ def compile(files):
 
 def initial_backend_compile():
   files = [ "backend/bin/server.ml"
-          , "backend/test/test.ml" ]
+          , "backend/test/test.ml"
+          , "backend/esy.json" ]
   return compile(files)
 
 def initial_client_compile():
@@ -184,6 +185,9 @@ def main():
     return success
 
   run("sudo chown dark:dark backend/_build")
+  run("sudo chown dark:dark backend/_esy")
+  run("sudo chown dark:dark backend/node_modules")
+  run("sudo chown dark:dark /home/dark/.esy")
   run("sudo chown dark:dark client/node_modules")
   run("sudo chown dark:dark client/lib")
   run("sudo chown dark:dark stroller/target")

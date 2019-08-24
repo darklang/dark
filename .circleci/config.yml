@@ -201,10 +201,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v7-backend-{{ checksum "rundir/today-timestamp" }}
-            - v7-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v7-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v7-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v8-backend-{{ checksum "rundir/today-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v8-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -218,11 +218,13 @@ jobs:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/backend/_build backend/
+            docker cp vols:/home/dark/app/backend/_esy backend/
+            docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
       - save_cache:
           name: "Save daily backend cache"
-          paths: [ "backend/_build" ]
-          key: v7-backend-{{ checksum "rundir/today-timestamp" }}
+          paths: [ "backend/_build", "backend/_esy", "backend/node_modules" ]
+          key: v8-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
