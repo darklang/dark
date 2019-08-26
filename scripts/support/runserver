@@ -3,7 +3,7 @@
 set -euo pipefail
 
 
-BINPATH="backend/_build/default/bin"
+BINPATH="$(esy status | jq -r .rootBuildPath)/default/bin"
 SERVER_EXE="$BINPATH/server.exe"
 QW_EXE="$BINPATH/queue_worker.exe"
 CRON_EXE="$BINPATH/cron_checker.exe"
