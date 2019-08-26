@@ -3425,8 +3425,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
   let tokensInRange startPos endPos : fluidTokenInfo list =
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
-        (* this condition is a little flaky, sometimes selects wrong tokens 
-         * there's *)
+           (* this condition is a little flaky, sometimes selects wrong tokens *)
            if (* token fully inside range *)
               t.startPos >= startPos
               && t.startPos < endPos
