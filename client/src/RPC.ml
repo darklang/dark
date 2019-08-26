@@ -186,7 +186,8 @@ let filterOpsAndResult
   let m2 = {m with opCtrs = newOpCtrs} in
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
-  if StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
+  (* temporarily _don't_ filter ops *)
+  if true || StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
   then (m2, params.ops, result)
   else
     (* filter down to only those ops which can be applied out of order without
