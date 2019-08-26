@@ -1683,28 +1683,38 @@ let update_ (msg : msg) (m : model) : modification =
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      ( match Clipboard.copy m with
-      | `Text text ->
-          e##clipboardData##setData "text/plain" text ;
-          e##preventDefault () ;
-          toast
-      | `Json json ->
-          let data = Json.stringify json in
-          e##clipboardData##setData "application/json" data ;
-          e##preventDefault () ;
-          toast
-      | `None ->
-          () ;
-          NoChange )
+      if VariantTesting.isFluid m.tests
+      then Many [toast; Fluid.update m FluidCopy]
+      else (
+        match Clipboard.copy m with
+        | `Text text ->
+            e##clipboardData##setData "text/plain" text ;
+            e##preventDefault () ;
+            toast
+        | `Json json ->
+            let data = Json.stringify json in
+            e##clipboardData##setData "application/json" data ;
+            e##preventDefault () ;
+            toast
+        | `None ->
+            () ;
+            NoChange )
   | ClipboardPasteEvent e ->
       let json = e##clipboardData##getData "application/json" in
-      if json <> ""
+      if VariantTesting.isFluid m.tests
+      then Fluid.update m FluidPaste
+      else if json <> ""
       then Clipboard.paste m (`Json (Json.parseOrRaise json))
       else
         let text = e##clipboardData##getData "text/plain" in
         if text <> "" then Clipboard.paste m (`Text text) else NoChange
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
+      let mod_ =
+        if VariantTesting.isFluid m.tests
+        then Fluid.update m FluidCut
+        else mod_
+      in
       let toast =
         TweakModel
           (fun m ->
@@ -1765,7 +1775,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
            err)
-  | FluidMouseClick _ ->
+  | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
       impossible "Can never happen"
   | FluidCommandsFilter query ->
       TweakModel
@@ -1787,7 +1797,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection selection ->
+  | UpdateFluidSelection (selection, clipboard) ->
       TweakModel
         (fun m ->
           match selection with
@@ -1799,7 +1809,8 @@ let update_ (msg : msg) (m : model) : modification =
                   { m.fluidState with
                     selection
                   ; oldPos = m.fluidState.newPos
-                  ; newPos = s.range |> Tuple2.second } }
+                  ; newPos = s.range |> Tuple2.second
+                  ; clipboard } }
           | None ->
               m )
   | ResetToast ->
