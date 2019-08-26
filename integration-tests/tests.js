@@ -1089,3 +1089,10 @@ test("varnames_are_incomplete", async t => {
 
   await t.expect(Selector(".data").textContent).contains("a: <Incomplete>");
 });
+
+test("center_toplevel", async t => {
+  await t
+    .navigateTo("#handler=1445447347")
+    .expect(available(".tl-1445447347"))
+    .ok();
+});
