@@ -3347,6 +3347,541 @@ let shouldDoDefaultAction (key : K.key) : bool =
       true
 
 
+let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
+  (* get the beginning and end of the range from
+    * the expression's first and last token 
+    * by cross-referencing the tokens it evaluates to via toTokens
+    * with the tokens for the whole ast.
+    *
+    * This is preferred to just getting all the tokens with the same exprID
+    * because the last expression in a token range 
+    * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
+    * different ID, (in the above case the last token TInt(2) belongs to the 
+    * second sub-expr of the FnCall) *)
+  let astTokens = toTokens state ast in
+  let exprTokens =
+    findExpr exprID ast
+    |> Option.map ~f:(toTokens state)
+    |> Option.withDefault ~default:[]
+  in
+  let exprStartToken, exprEndToken =
+    (List.head exprTokens, List.last exprTokens)
+    |> Tuple2.mapAll ~f:(function
+           | Some exprTok ->
+               List.find astTokens ~f:(fun astTok ->
+                   exprTok.token = astTok.token )
+           | _ ->
+               None )
+  in
+  match (exprStartToken, exprEndToken) with
+  (* range is from startPos of first token in expr to 
+    * endPos of last token in expr *)
+  | Some {startPos}, Some {endPos} ->
+      Some (startPos, endPos)
+  | _ ->
+      None
+
+
+let tokenSelection (state : fluidState) (ast : ast) : fluidSelection option =
+  getToken state ast
+  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
+
+
+let expressionSelection (state : fluidState) (ast : ast) :
+    fluidSelection option =
+  getToken state ast
+  (* get token that the cursor is currently on *)
+  |> Option.andThen ~f:(fun t ->
+         (* get expression that the token belongs to *)
+         let exprID = Token.tid t.token in
+         exprRangeInAst ~state ~ast exprID )
+  |> Option.map ~f:(fun (eStartPos, eEndPos) -> {range = (eStartPos, eEndPos)})
+
+
+let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
+    =
+  let ast =
+    (* clone ast to prevent duplicates *)
+    toExpr ast |> AST.clone |> fromExpr state
+  in
+  (* a few helpers *)
+  let toInt_ s =
+    String.toInt s
+    |> Result.toOption
+    |> deOption "string integer token should always be convertable to int"
+  in
+  let toBool_ s =
+    if s = "true"
+    then true
+    else if s = "false"
+    then false
+    else impossible "string bool token should always be convertable to bool"
+  in
+  let findTokenValue tokens tID typeName =
+    List.find tokens ~f:(fun (tID', _, typeName') ->
+        tID = tID' && typeName = typeName' )
+    |> Option.map ~f:Tuple3.second
+  in
+  let tokensInRange startPos endPos : fluidTokenInfo list =
+    toTokens state ast
+    |> List.foldl ~init:[] ~f:(fun t toks ->
+           (* this condition is a little flaky, sometimes selects wrong tokens *)
+           if (* token fully inside range *)
+              t.startPos >= startPos
+              && t.startPos < endPos
+              && t.endPos > startPos
+              && t.endPos <= endPos
+              (* token partially inside range *)
+              (* - start is outside range but end is inside range *)
+              || t.startPos < startPos
+                 && t.endPos > startPos
+                 && t.endPos <= endPos
+              (* - start is inside range but end is outside range *)
+              || t.endPos > endPos
+                 && t.startPos < endPos
+                 && t.startPos >= startPos
+           then toks @ [t]
+           else toks )
+  in
+  let startPos, endPos = sel.range in
+  (* main main recursive algorith *)
+  (* algo: 
+    * find topmost expression by ID and 
+    * reconstruct full/subset of expression 
+    * recurse into children (that remain in subset) to reconstruct those too *)
+  let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr option =
+    let topmostExpr =
+      topmostID
+      |> Option.andThen ~f:(fun id -> findExpr id ast)
+      |> Option.withDefault ~default:(EBlank (gid ()))
+    in
+    let simplifiedTokens =
+      (* simplify tokens to make them homogenous, easier to parse *)
+      tokensInRange startPos endPos
+      |> List.map ~f:(fun ti ->
+             let t = ti.token in
+             let text =
+               (* trim tokens if they're on the edge of the range *)
+               Token.toText t
+               |> String.dropLeft
+                    ~count:
+                      ( if ti.startPos < startPos
+                      then startPos - ti.startPos
+                      else 0 )
+               |> String.dropRight
+                    ~count:
+                      (if ti.endPos > endPos then ti.endPos - endPos else 0)
+             in
+             Token.(tid t, text, toTypeName t) )
+    in
+    let reconstructExpr expr : fluidExpr option =
+      let exprID =
+        match expr with EThreadTarget _ -> None | _ -> Some (eid expr)
+      in
+      exprID
+      |> Option.andThen ~f:(exprRangeInAst ~state ~ast)
+      |> Option.andThen ~f:(fun ((exprStartPos, exprEndPos) as newRange) ->
+             (* ensure expression range is not totally outside selection range *)
+             if exprStartPos > endPos || exprEndPos < startPos
+             then None
+             else Some newRange )
+      |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
+    in
+    let orDefaultExpr : fluidExpr option -> fluidExpr =
+      Option.withDefault ~default:(EBlank (gid ()))
+    in
+    let id = gid () in
+    match (topmostExpr, simplifiedTokens) with
+    | _, [] ->
+        None
+    (* basic, single/fixed-token expressions *)
+    | EInteger (eID, _), tokens ->
+        findTokenValue tokens eID "integer"
+        |> Option.map ~f:toInt_
+        |> Option.map ~f:(fun v -> EInteger (gid (), v))
+    | EBool (eID, value), tokens ->
+        Option.or_
+          (findTokenValue tokens eID "true")
+          (findTokenValue tokens eID "false")
+        |> Option.andThen ~f:(fun newValue ->
+               if newValue = ""
+               then None
+               else if newValue <> string_of_bool value
+               then Some (EPartial (gid (), newValue, EBool (id, value)))
+               else Some (EBool (id, value)) )
+    | ENull eID, tokens ->
+        findTokenValue tokens eID "null"
+        |> Option.map ~f:(fun newValue ->
+               if newValue = "null"
+               then ENull id
+               else EPartial (gid (), newValue, ENull id) )
+    | EString (eID, _), tokens ->
+        findTokenValue tokens eID "string"
+        |> Option.map ~f:(fun newValue ->
+               let newValue =
+                 String.(newValue |> dropRight ~count:1 |> dropLeft ~count:1)
+               in
+               EString (id, newValue) )
+    | EFloat (eID, _, _), tokens ->
+        let newWhole = findTokenValue tokens eID "float-whole" in
+        let pointSelected = findTokenValue tokens eID "float-point" <> None in
+        let newFraction = findTokenValue tokens eID "float-fraction" in
+        ( match (newWhole, pointSelected, newFraction) with
+        | Some value, true, None ->
+            Some (EFloat (id, value, "0"))
+        | Some value, false, None | None, false, Some value ->
+            Some (EInteger (id, toInt_ value))
+        | None, true, Some value ->
+            Some (EFloat (id, "0", value))
+        | Some whole, true, Some fraction ->
+            Some (EFloat (id, whole, fraction))
+        | None, true, None ->
+            Some (EFloat (id, "0", "0"))
+        | _, _, _ ->
+            None )
+    | EBlank _, _ ->
+        Some (EBlank id)
+    (* empty let expr and subsets *)
+    | ELet (eID, lhsID, _lhs, rhs, body), tokens ->
+        let letKeywordSelected =
+          findTokenValue tokens eID "let-keyword" <> None
+        in
+        let newLhs =
+          findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
+        in
+        ( match (reconstructExpr rhs, reconstructExpr body) with
+        | None, Some e ->
+            Some e
+        | Some newRhs, None ->
+            Some (ELet (id, lhsID, newLhs, newRhs, EBlank (gid ())))
+        | Some newRhs, Some newBody ->
+            Some (ELet (id, lhsID, newLhs, newRhs, newBody))
+        | None, None when letKeywordSelected ->
+            Some (ELet (id, lhsID, newLhs, EBlank (gid ()), EBlank (gid ())))
+        | _, _ ->
+            None )
+    | EIf (eID, cond, thenBody, elseBody), tokens ->
+        let ifKeywordSelected =
+          findTokenValue tokens eID "if-keyword" <> None
+        in
+        let thenKeywordSelected =
+          findTokenValue tokens eID "if-then-keyword" <> None
+        in
+        let elseKeywordSelected =
+          findTokenValue tokens eID "if-else-keyword" <> None
+        in
+        ( match
+            ( reconstructExpr cond
+            , reconstructExpr thenBody
+            , reconstructExpr elseBody )
+          with
+        | newCond, newThenBody, newElseBody
+          when ifKeywordSelected || thenKeywordSelected || elseKeywordSelected
+          ->
+            Some
+              (EIf
+                 ( id
+                 , newCond |> orDefaultExpr
+                 , newThenBody |> orDefaultExpr
+                 , newElseBody |> orDefaultExpr ))
+        | Some e, None, None | None, Some e, None | None, None, Some e ->
+            Some e
+        | _ ->
+            None )
+    | EBinOp (eID, name, expr1, expr2, ster), tokens ->
+        let newName =
+          findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
+        in
+        Js.log2 "ebinop tokens" tokens ;
+        ( match (reconstructExpr expr1, reconstructExpr expr2) with
+        | Some newExpr1, Some newExpr2 when newName = "" ->
+          (* since we don't allow empty partials, reconstruct the binop as we would when 
+           * the binop is manually deleted 
+           * (by elevating the argument expressions into ELets provided they aren't blanks) *)
+          ( match (newExpr1, newExpr2) with
+          | EBlank _, EBlank _ ->
+              None
+          | EBlank _, e | e, EBlank _ ->
+              Some (ELet (gid (), gid (), "", e, EBlank (gid ())))
+          | e1, e2 ->
+              Some
+                (ELet
+                   ( gid ()
+                   , gid ()
+                   , ""
+                   , e1
+                   , ELet (gid (), gid (), "", e2, EBlank (gid ())) )) )
+        | None, Some e ->
+            let e = EBinOp (id, name, EBlank (gid ()), e, ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
+        | Some e, None ->
+            let e = EBinOp (id, name, e, EBlank (gid ()), ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
+        | Some newExpr1, Some newExpr2 ->
+            let e = EBinOp (id, name, newExpr1, newExpr2, ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
+        | None, None when newName <> "" ->
+            let e =
+              EBinOp (id, name, EBlank (gid ()), EBlank (gid ()), ster)
+            in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
+        | _, _ ->
+            None )
+    | ELambda (eID, _, body), tokens ->
+        (* might be an edge case here where one of the vars is not (fully) selected but 
+         * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
+        let newVars =
+          (* get lambda-var tokens that belong to this expression
+           * out of the list of tokens in the selection range *)
+          tokens
+          |> List.filterMap ~f:(function
+                 | vID, value, "lambda-var" when vID = eID ->
+                     Some (gid (), value)
+                 | _ ->
+                     None )
+        in
+        Some (ELambda (id, newVars, reconstructExpr body |> orDefaultExpr))
+    | EFieldAccess (eID, e, _, _), tokens ->
+        let newFieldName =
+          findTokenValue tokens eID "field-name"
+          |> Option.withDefault ~default:""
+        in
+        let fieldOpSelected = findTokenValue tokens eID "field-op" <> None in
+        let e = reconstructExpr e in
+        if fieldOpSelected
+        then Some (EFieldAccess (id, e |> orDefaultExpr, gid (), newFieldName))
+        else e
+    | EVariable (eID, value), tokens ->
+        let newValue =
+          findTokenValue tokens eID "variable"
+          |> Option.withDefault ~default:""
+        in
+        let e = EVariable (id, value) in
+        if newValue = ""
+        then None
+        else if value <> newValue
+        then Some (EPartial (gid (), newValue, e))
+        else Some e
+    | EFnCall (eID, fnName, args, ster), tokens ->
+        let newArgs = List.map args ~f:(reconstructExpr >> orDefaultExpr) in
+        let newFnName =
+          findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
+        in
+        let e = EFnCall (id, fnName, newArgs, ster) in
+        if newFnName = ""
+        then None
+        else if fnName <> newFnName
+        then Some (EPartial (gid (), newFnName, e))
+        else Some e
+    | EPartial (eID, _, expr), tokens ->
+        let expr = reconstructExpr expr |> orDefaultExpr in
+        let newName =
+          findTokenValue tokens eID "partial" |> Option.withDefault ~default:""
+        in
+        Some (EPartial (id, newName, expr))
+    | ERightPartial (eID, _, expr), tokens ->
+        let expr = reconstructExpr expr |> orDefaultExpr in
+        let newName =
+          findTokenValue tokens eID "partial-right"
+          |> Option.withDefault ~default:""
+        in
+        Some (ERightPartial (id, newName, expr))
+    | EList (_, exprs), _ ->
+        let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
+        Some (EList (id, newExprs))
+    | ERecord (_, entries), _ ->
+        let newEntries =
+          (* looping through original set of tokens (before transforming them into tuples)
+           * so we can get the index field *)
+          tokensInRange startPos endPos
+          |> List.filterMap ~f:(fun ti ->
+                 match ti.token with
+                 | TRecordField (_, index, newKey) ->
+                     List.getAt ~index entries
+                     |> Option.map
+                          ~f:
+                            (Tuple3.mapEach
+                               ~f:identity (* ID stays the same *)
+                               ~g:(fun _ -> newKey) (* replace key *)
+                               ~h:
+                                 (reconstructExpr >> orDefaultExpr)
+                                 (* reconstruct value expression *))
+                 | _ ->
+                     None )
+        in
+        Some (ERecord (id, newEntries))
+    | EThread (_, exprs), _ ->
+        let newExprs =
+          List.map exprs ~f:reconstructExpr
+          |> Option.values
+          |> function
+          | [] ->
+              [EBlank (gid ()); EBlank (gid ())]
+          | [expr] ->
+              [expr; EBlank (gid ())]
+          | exprs ->
+              exprs
+        in
+        Some (EThread (id, newExprs))
+    | EConstructor (_, nameID, name, exprs), tokens ->
+        let newName =
+          findTokenValue tokens nameID "constructor-name"
+          |> Option.withDefault ~default:""
+        in
+        let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
+        let e = EConstructor (id, nameID, name, newExprs) in
+        if newName = ""
+        then None
+        else if name <> newName
+        then Some (EPartial (gid (), newName, e))
+        else Some e
+    | EMatch (mID, cond, patternsAndExprs), tokens ->
+        let newPatternAndExprs =
+          List.map patternsAndExprs ~f:(fun (pattern, expr) ->
+              let toksToPattern tokens pID =
+                match
+                  tokens |> List.filter ~f:(fun (pID', _, _) -> pID = pID')
+                with
+                | [(id, _, "pattern-blank")] ->
+                    FPBlank (mID, id)
+                | [(id, value, "pattern-integer")] ->
+                    FPInteger (mID, id, toInt_ value)
+                | [(id, value, "pattern-variable")] ->
+                    FPVariable (mID, id, value)
+                | (id, value, "pattern-constructor-name") :: _subPatternTokens
+                  ->
+                    (* temporarily assuming that FPConstructor's sub-pattern tokens are always copied as well*)
+                    FPConstructor
+                      ( mID
+                      , id
+                      , value
+                      , match pattern with
+                        | FPConstructor (_, _, _, ps) ->
+                            ps
+                        | _ ->
+                            [] )
+                | [(id, "pattern-string", value)] ->
+                    FPString (mID, id, value)
+                | [(id, value, "pattern-true")] | [(id, value, "pattern-false")]
+                  ->
+                    FPBool (mID, id, toBool_ value)
+                | [(id, _, "pattern-null")] ->
+                    FPNull (mID, id)
+                | [ (id, whole, "pattern-float-whole")
+                  ; (_, _, "pattern-float-point")
+                  ; (_, fraction, "pattern-float-fraction") ] ->
+                    FPFloat (mID, id, whole, fraction)
+                | [ (id, value, "pattern-float-whole")
+                  ; (_, _, "pattern-float-point") ]
+                | [(id, value, "pattern-float-whole")] ->
+                    FPInteger (mID, id, toInt_ value)
+                | [ (_, _, "pattern-float-point")
+                  ; (id, value, "pattern-float-fraction") ]
+                | [(id, value, "pattern-float-fraction")] ->
+                    FPInteger (mID, id, toInt_ value)
+                | _ ->
+                    FPBlank (mID, gid ())
+              in
+              let newPattern = toksToPattern tokens (pid pattern) in
+              (newPattern, reconstructExpr expr |> orDefaultExpr) )
+        in
+        Some
+          (EMatch
+             (id, reconstructExpr cond |> orDefaultExpr, newPatternAndExprs))
+    | EFeatureFlag (_, name, nameID, cond, thenBody, elseBody), _ ->
+        (* since we don't have any tokens associated with feature flags yet *)
+        Some
+          (EFeatureFlag
+             ( id
+             , (* should probably do some stuff about if the name token isn't fully selected *)
+               name
+             , nameID
+             , reconstructExpr cond |> orDefaultExpr
+             , reconstructExpr thenBody |> orDefaultExpr
+             , reconstructExpr elseBody |> orDefaultExpr ))
+    (* Unknowns:
+     * - EThreadTarget: assuming it can't be selected since it doesn't produce tokens 
+     * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
+    | _, _ ->
+        Some (EBlank (gid ()))
+  in
+  let topmostID =
+    (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
+    tokensInRange startPos endPos
+    |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
+           let curID = Token.tid ti.token in
+           let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
+           (* check if current token is higher in the AST than the last token
+            * , or if there's no topmost ID yet *)
+           if (curDepth < topmostDepth || topmostID = None)
+              && not (curDepth = 0 && findExpr curID ast != Some ast)
+              (* account for tokens that don't have ancestors (depth = 0) but are not the topmost expression in the AST *)
+           then (Some curID, curDepth)
+           else (topmostID, topmostDepth) )
+    |> Tuple2.first
+  in
+  reconstruct ~topmostID (startPos, endPos)
+
+
+let pasteSelection ~state ~ast () : ast * fluidState =
+  let exprID =
+    getToken state ast |> Option.map ~f:(fun ti -> ti.token |> Token.tid)
+  in
+  let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
+  let newPos =
+    ( state.clipboard
+    |> Option.map ~f:(eToString state >> String.length)
+    |> Option.withDefault ~default:0 )
+    + state.newPos
+  in
+  let newState = {state with newPos; oldPos = newPos} in
+  match expr with
+  | Some (EBlank exprID) ->
+      ( state.clipboard
+        |> Option.map ~f:(fun newExpr -> replaceExpr ~newExpr exprID ast)
+        |> Option.withDefault ~default:ast
+      , newState )
+  | _ ->
+      (ast, state)
+
+
+let deleteSelection ~state ~ast sel : ast * fluidState =
+  let rangeStart, rangeEnd = sel.range in
+  let clipboard = state.clipboard (* preserve clipboard *) in
+  let state = {state with newPos = rangeEnd; oldPos = state.newPos} in
+  (* repeat deletion operation over range, starting from last position till first *)
+  Array.range ~from:rangeStart rangeEnd
+  |> Array.toList
+  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
+         let newAst, newState = updateKey K.Backspace ast state in
+         if not continue
+         then (false, ast, state)
+         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
+                 newState.newPos = state.newPos
+         then (false, ast, state)
+         else if (* stop deleting if we reach range start*)
+                 newState.newPos < rangeStart
+         then (false, ast, state)
+         else (true, newAst, newState) )
+  |> fun (_, ast, state) -> (ast, {state with clipboard})
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -3361,6 +3896,32 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
+    | FluidCopy ->
+        ( ast
+        , { s with
+            clipboard =
+              s.selection
+              |> Option.andThen ~f:(reconstructSelection ~state:s ~ast) } )
+    | FluidCut ->
+        s.selection
+        |> Option.map ~f:(fun sel ->
+               let ast, state =
+                 ( ast
+                 , { s with
+                     clipboard =
+                       s.selection
+                       |> Option.andThen
+                            ~f:(reconstructSelection ~state:s ~ast) } )
+               in
+               deleteSelection ~state ~ast sel )
+        |> Option.withDefault ~default:(ast, s)
+    | FluidPaste ->
+        let ast, state =
+          s.selection
+          |> Option.map ~f:(deleteSelection ~state:s ~ast)
+          |> Option.withDefault ~default:(ast, s)
+        in
+        pasteSelection ~state ~ast ()
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -3653,52 +4214,6 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let tokenSelection state ast : fluidSelection option =
-  getToken state ast
-  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
-
-
-let expressionSelection state ast : fluidSelection option =
-  let astTokens = toTokens state ast in
-  getToken state ast
-  (* get token that the cursor is currently on *)
-  |> Option.andThen ~f:(fun t ->
-         (* get expression that the token belongs to *)
-         let expr =
-           let exprID = Token.tid t.token in
-           findExpr exprID ast
-         in
-         (* get the beginning and end of the range from
-            * the expression's first and last token 
-            * by cross-referencing the tokens it evaluates to via toTokens
-            * with the tokens for the whole ast.
-            *
-            * This is preferred to just getting all the tokens with the same exprID
-            * because the last expression in a token range 
-            * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
-            * different ID, (in the above case the last token TInt(2) belongs to the 
-            * second sub-expr of the FnCall) *)
-         let exprStartToken, exprEndToken =
-           expr
-           |> Option.map ~f:(toTokens state)
-           |> Option.withDefault ~default:[]
-           |> (fun exprTokens -> (List.head exprTokens, List.last exprTokens))
-           |> Tuple2.mapAll ~f:(function
-                  | Some exprTok ->
-                      List.find astTokens ~f:(fun astTok ->
-                          exprTok.token = astTok.token )
-                  | _ ->
-                      None )
-         in
-         match (exprStartToken, exprEndToken) with
-         (* range is from startPos of first token in expr to 
-          * endPos of last token in expr *)
-         | Some {startPos}, Some {endPos} ->
-             Some {range = (startPos, endPos)}
-         | _ ->
-             None )
-
-
 let toHtml
     ~(vs : ViewUtils.viewState)
     ~tlid
@@ -3730,8 +4245,8 @@ let toHtml
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
               (fun ev ->
-                UpdateFluidSelection
-                  ( Entry.getCursorPosition ()
+                let sel =
+                  Entry.getCursorPosition ()
                   |> Option.andThen ~f:(fun pos ->
                          let state =
                            {state with newPos = pos; oldPos = state.newPos}
@@ -3742,7 +4257,9 @@ let toHtml
                          | {detail = 2; altKey = false} ->
                              tokenSelection state ast
                          | _ ->
-                             None ) ) ) ]
+                             None )
+                in
+                UpdateFluidSelection (sel, None) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -3882,6 +4399,13 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selection
             |> Option.map ~f:(fun {range = a, b} ->
                    string_of_int a ^ "->" ^ string_of_int b )
+            |> Option.withDefault ~default:"" ) ]
+    ; Html.div
+        []
+        [ Html.text "clipboard: "
+        ; Html.text
+            ( s.clipboard
+            |> Option.map ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
