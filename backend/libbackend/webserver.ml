@@ -684,7 +684,10 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         let params = Api.to_add_op_rpc_params body in
         (* temporarily _don't_ filter ops *)
         if true
-           || Op.is_latest_op_request params.browserId params.opCtr canvas_id
+           || Op.is_latest_op_request
+                params.clientOpCtrId
+                params.opCtr
+                canvas_id
         then (params, canvas_id)
         else
           ( { params with
@@ -769,8 +772,8 @@ let initial_load
               "SELECT browser_id, ctr FROM op_ctrs WHERE canvas_id = $1"
               ~params:[Db.Uuid !c.id]
             |> List.map ~f:(function
-                   | [browser_id; op_ctr] ->
-                       (browser_id, op_ctr |> int_of_string)
+                   | [clientOpCtr_id; op_ctr] ->
+                       (clientOpCtr_id, op_ctr |> int_of_string)
                    | _ ->
                        Exception.internal
                          "wrong record shape from fetch_op_Ctrs_for_canvas" )
