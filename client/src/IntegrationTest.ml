@@ -760,6 +760,11 @@ let varnames_are_incomplete (_m : model) : testResult =
   pass
 
 
+let center_toplevel (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -892,5 +897,7 @@ let trigger (test_name : string) : integrationTestState =
         fluid_double_click_with_alt_selects_expression
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
+    | "center_toplevel" ->
+        center_toplevel
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
