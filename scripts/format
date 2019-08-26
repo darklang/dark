@@ -64,9 +64,6 @@ fi
 #######################
 # functions
 #######################
-OCAMLFORMAT=$(esy exec-command which ocamlformat)
-PATH=$(dirname "$OCAMLFORMAT"):$PATH
-
 is_dir() {
   [[ -d "$1" ]] 
 }

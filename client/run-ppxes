@@ -2,8 +2,11 @@
 
 set -euo pipefail
 
-dir=$(esy exec-command ocamlfind query ppx_deriving)
+eval "$(opam env)"
+
+dir=$(ocamlfind query ppx_deriving)
 
 "$dir"/ppx_deriving \
   "$dir"/show/ppx_deriving_show.cma \
   "$@"
+
