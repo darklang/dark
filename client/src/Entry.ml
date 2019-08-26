@@ -686,7 +686,7 @@ let submitACItem
             in
             ( match f404s with
             | Some f404 ->
-                (* Autocomplete the event name + mod from 404 *)
+                (* Autocomplete the event name + mod from 404 Trello: https://trello.com/c/GAvqc81H/878-autocomplete-http-path-from-404s-35*)
                 let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
                 let new_ = B.newF value in
                 let specInfo : handlerSpec =
@@ -694,7 +694,9 @@ let submitACItem
                   ; name = B.newF f404.path
                   ; modifier = B.newF f404.modifier }
                 in
-                saveH {h with spec = specInfo} (PEventName new_)
+                Many
+                  [ saveH {h with spec = specInfo} (PEventName new_)
+                  ; Delete404 f404 ]
             | None ->
                 replace (PEventName (B.newF value)) )
         (* allow arbitrary HTTP modifiers *)
