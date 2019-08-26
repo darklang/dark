@@ -915,8 +915,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( { m with
             canvasProps =
               { m.canvasProps with
-                offset =
-                  Viewport.centerCanvasOn (TL.getExn m tlid) m.canvasProps
+                offset = Viewport.centerCanvasOn (TL.getExn m tlid)
               ; panAnimation = true } }
         , Cmd.none )
     | TriggerHandlerRPC tlid ->
@@ -1571,11 +1570,6 @@ let update_ (msg : msg) (m : model) : modification =
            err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
-  | WindowResize (w, h) | WindowOnLoad (w, h) ->
-      TweakModel
-        (fun m_ ->
-          {m_ with canvasProps = {m_.canvasProps with viewportSize = {w; h}}}
-          )
   | LocationChange loc ->
       Url.changeLocation loc
   | TimerFire (action, _) ->
@@ -1854,12 +1848,6 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           []
     else []
   in
-  let resizes =
-    [ Native.Window.OnResize.listen ~key:"window_on_resize" (fun (w, h) ->
-          WindowResize (w, h) )
-    ; Native.Window.OnLoad.listen ~key:"window_on_load" (fun (w, h) ->
-          WindowOnLoad (w, h) ) ]
-  in
   let dragSubs =
     match m.cursorState with
     (* we use IDs here because the node will change *)
@@ -1937,7 +1925,6 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        [ keySubs
        ; clipboardSubs
        ; dragSubs
-       ; resizes
        ; timers
        ; visibility
        ; onError
