@@ -1659,12 +1659,10 @@ let update_ (msg : msg) (m : model) : modification =
       if VariantTesting.isFluid m.tests
       then fluidPaste
       else if json <> ""
-      then Many [Clipboard.paste m (`Json (Json.parseOrRaise json)); fluidPaste]
+      then Clipboard.paste m (`Json (Json.parseOrRaise json))
       else
         let text = e##clipboardData##getData "text/plain" in
-        if text <> ""
-        then Many [Clipboard.paste m (`Text text); fluidPaste]
-        else fluidPaste
+        if text <> "" then Clipboard.paste m (`Text text) else NoChange
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
       let fluidCut = Fluid.update m FluidCut in

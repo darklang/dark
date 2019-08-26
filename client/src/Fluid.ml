@@ -3405,10 +3405,6 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     toExpr ast |> AST.clone |> fromExpr state
   in
   (* a few helpers *)
-  let constructWithPartial ~(if_ : bool) ~(value : string) expr =
-    let partial = EPartial (gid (), value, expr) in
-    if value = "" then None else if if_ then Some partial else Some expr
-  in
   let toInt_ s =
     String.toInt s
     |> Result.toOption
@@ -3429,10 +3425,22 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
   let tokensInRange startPos endPos : fluidTokenInfo list =
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
-           if t.startPos >= startPos
+        (* this condition is a little flaky, sometimes selects wrong tokens 
+         * there's *)
+           if (* token fully inside range *)
+              t.startPos >= startPos
               && t.startPos < endPos
               && t.endPos > startPos
               && t.endPos <= endPos
+              (* token partially inside range *)
+              (* - start is outside range but end is inside range *)
+              || t.startPos < startPos
+                 && t.endPos > startPos
+                 && t.endPos <= endPos
+              (* - start is inside range but end is outside range *)
+              || t.endPos > endPos
+                 && t.startPos < endPos
+                 && t.startPos >= startPos
            then toks @ [t]
            else toks )
   in
@@ -3454,22 +3462,31 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
       |> List.map ~f:(fun ti ->
              let t = ti.token in
              let text =
+               (* trim tokens if they're on the edge of the range *)
                Token.toText t
                |> String.dropLeft
-                    ~count:(min ti.startPos startPos - ti.startPos)
-               |> String.dropRight ~count:(min ti.endPos endPos - ti.endPos)
+                    ~count:
+                      ( if ti.startPos < startPos
+                      then startPos - ti.startPos
+                      else 0 )
+               |> String.dropRight
+                    ~count:
+                      (if ti.endPos > endPos then ti.endPos - endPos else 0)
              in
              Token.(tid t, text, toTypeName t) )
     in
     let reconstructExpr expr : fluidExpr option =
-      let exprID = eid expr in
-      exprRangeInAst ~state ~ast exprID
+      let exprID =
+        match expr with EThreadTarget _ -> None | _ -> Some (eid expr)
+      in
+      exprID
+      |> Option.andThen ~f:(exprRangeInAst ~state ~ast)
       |> Option.andThen ~f:(fun ((exprStartPos, exprEndPos) as newRange) ->
              (* ensure expression range is not totally outside selection range *)
              if exprStartPos > endPos || exprEndPos < startPos
              then None
              else Some newRange )
-      |> Option.andThen ~f:(reconstruct ~topmostID:(Some exprID))
+      |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
     in
     let orDefaultExpr : fluidExpr option -> fluidExpr =
       Option.withDefault ~default:(EBlank (gid ()))
@@ -3487,12 +3504,12 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         Option.or_
           (findTokenValue tokens eID "true")
           (findTokenValue tokens eID "false")
-        |> Option.map ~f:toBool_
         |> Option.andThen ~f:(fun newValue ->
-               constructWithPartial
-                 ~if_:(newValue <> value)
-                 ~value:(string_of_bool newValue)
-                 (EBool (id, value)) )
+               if newValue = ""
+               then None
+               else if newValue <> string_of_bool value
+               then Some (EPartial (gid (), newValue, EBool (id, value)))
+               else Some (EBool (id, value)) )
     | ENull eID, tokens ->
         findTokenValue tokens eID "null"
         |> Option.map ~f:(fun newValue ->
@@ -3519,6 +3536,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
             Some (EFloat (id, "0", value))
         | Some whole, true, Some fraction ->
             Some (EFloat (id, whole, fraction))
+        | None, true, None ->
+            Some (EFloat (id, "0", "0"))
         | _, _, _ ->
             None )
     | EBlank _, _ ->
@@ -3574,17 +3593,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         let newName =
           findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
         in
+        Js.log2 "ebinop tokens" tokens ;
         ( match (reconstructExpr expr1, reconstructExpr expr2) with
-        | None, Some e ->
-            constructWithPartial
-              ~if_:(name <> newName)
-              ~value:newName
-              (EBinOp (id, name, EBlank (gid ()), e, ster))
-        | Some e, None ->
-            constructWithPartial
-              ~if_:(name <> newName)
-              ~value:newName
-              (EBinOp (id, name, e, EBlank (gid ()), ster))
         | Some newExpr1, Some newExpr2 when newName = "" ->
           (* since we don't allow empty partials, reconstruct the binop as we would when 
            * the binop is manually deleted 
@@ -3602,16 +3612,36 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                    , ""
                    , e1
                    , ELet (gid (), gid (), "", e2, EBlank (gid ())) )) )
+        | None, Some e ->
+            let e = EBinOp (id, name, EBlank (gid ()), e, ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
+        | Some e, None ->
+            let e = EBinOp (id, name, e, EBlank (gid ()), ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
         | Some newExpr1, Some newExpr2 ->
-            constructWithPartial
-              ~if_:(name <> newName)
-              ~value:newName
-              (EBinOp (id, name, newExpr1, newExpr2, ster))
+            let e = EBinOp (id, name, newExpr1, newExpr2, ster) in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
         | None, None when newName <> "" ->
-            constructWithPartial
-              ~if_:(name <> newName)
-              ~value:newName
-              (EBinOp (id, name, EBlank (gid ()), EBlank (gid ()), ster))
+            let e =
+              EBinOp (id, name, EBlank (gid ()), EBlank (gid ()), ster)
+            in
+            if newName = ""
+            then None
+            else if name <> newName
+            then Some (EPartial (gid (), newName, e))
+            else Some e
         | _, _ ->
             None )
     | ELambda (eID, _, body), tokens ->
@@ -3633,31 +3663,33 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           findTokenValue tokens eID "field-name"
           |> Option.withDefault ~default:""
         in
-        ( match reconstructExpr e with
-        | e when newFieldName = "" ->
-            e
-        | Some e ->
-            Some (EFieldAccess (id, e, gid (), newFieldName))
-        | None ->
-            None )
+        let fieldOpSelected = findTokenValue tokens eID "field-op" <> None in
+        let e = reconstructExpr e in
+        if fieldOpSelected
+        then Some (EFieldAccess (id, e |> orDefaultExpr, gid (), newFieldName))
+        else e
     | EVariable (eID, value), tokens ->
         let newValue =
           findTokenValue tokens eID "variable"
           |> Option.withDefault ~default:""
         in
-        constructWithPartial
-          ~if_:(value <> newValue)
-          ~value:newValue
-          (EVariable (id, value))
+        let e = EVariable (id, value) in
+        if newValue = ""
+        then None
+        else if value <> newValue
+        then Some (EPartial (gid (), newValue, e))
+        else Some e
     | EFnCall (eID, fnName, args, ster), tokens ->
         let newArgs = List.map args ~f:(reconstructExpr >> orDefaultExpr) in
         let newFnName =
           findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
         in
-        constructWithPartial
-          ~if_:(fnName <> newFnName)
-          ~value:newFnName
-          (EFnCall (id, fnName, newArgs, ster))
+        let e = EFnCall (id, fnName, newArgs, ster) in
+        if newFnName = ""
+        then None
+        else if fnName <> newFnName
+        then Some (EPartial (gid (), newFnName, e))
+        else Some e
     | EPartial (eID, _, expr), tokens ->
         let expr = reconstructExpr expr |> orDefaultExpr in
         let newName =
@@ -3714,10 +3746,12 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           |> Option.withDefault ~default:""
         in
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
-        constructWithPartial
-          ~if_:(name <> newName)
-          ~value:newName
-          (EConstructor (id, nameID, name, newExprs))
+        let e = EConstructor (id, nameID, name, newExprs) in
+        if newName = ""
+        then None
+        else if name <> newName
+        then Some (EPartial (gid (), newName, e))
+        else Some e
     | EMatch (mID, cond, patternsAndExprs), tokens ->
         let newPatternAndExprs =
           List.map patternsAndExprs ~f:(fun (pattern, expr) ->
@@ -3794,6 +3828,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
            let curID = Token.tid ti.token in
            let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
+           (* check if current token is higher in the AST than the last token
+            * , or if there's no topmost ID yet *)
            if (curDepth < topmostDepth || topmostID = None)
               && not (curDepth = 0 && findExpr curID ast != Some ast)
               (* account for tokens that don't have ancestors (depth = 0) but are not the topmost expression in the AST *)
@@ -3809,14 +3845,21 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     getToken state ast |> Option.map ~f:(fun ti -> ti.token |> Token.tid)
   in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
+  let newPos =
+    ( state.clipboard
+    |> Option.map ~f:(eToString state >> String.length)
+    |> Option.withDefault ~default:0 )
+    + state.newPos
+  in
+  let newState = {state with newPos; oldPos = newPos} in
   match expr with
   | Some (EBlank exprID) ->
       ( state.clipboard
         |> Option.map ~f:(fun newExpr -> replaceExpr ~newExpr exprID ast)
         |> Option.withDefault ~default:ast
-      , state )
+      , newState )
   | _ ->
-      (ast, state |> moveToNextBlank ~pos:state.newPos ast)
+      (ast, state)
 
 
 let deleteSelection ~state ~ast sel : ast * fluidState =
@@ -3827,12 +3870,16 @@ let deleteSelection ~state ~ast sel : ast * fluidState =
   Array.range ~from:rangeStart rangeEnd
   |> Array.toList
   |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
-         if continue
-         then
-           let ast, state = updateKey K.Backspace ast state in
-           (* stop deleting if we reach range start*)
-           (state.newPos >= rangeStart, ast, state)
-         else (continue, ast, state) )
+         let newAst, newState = updateKey K.Backspace ast state in
+         if not continue
+         then (false, ast, state)
+         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
+                 newState.newPos = state.newPos
+         then (false, ast, state)
+         else if (* stop deleting if we reach range start*)
+                 newState.newPos < rangeStart
+         then (false, ast, state)
+         else (true, newAst, newState) )
   |> fun (_, ast, state) -> (ast, {state with clipboard})
 
 
