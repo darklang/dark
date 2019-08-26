@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+BUILDPATH=$(esy status | jq -r .rootBuildPath)
+"${BUILDPATH}/default/test/test.exe" "${@}"
+
+

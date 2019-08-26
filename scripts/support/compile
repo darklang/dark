@@ -149,9 +149,8 @@ def backend_test():
           "unbuffer scripts/dune-wrapper.sh build test/test.exe"
           + " && dropdb --if-exists testdb"
           + " && createdb testdb"
-          + " && cd " + rundir
           + " && " + dbenv
-          + " unbuffer ../backend/_build/default/test/test.exe"
+          + " unbuffer scripts/run-backend-tests"
           + " --show-errors "
           + ci
           + " 2>&1")
