@@ -1634,30 +1634,31 @@ let update_ (msg : msg) (m : model) : modification =
       let e = m.error in
       TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
-      let fluidCopy = Fluid.update m FluidCopy in
       let toast =
         TweakModel
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      ( match Clipboard.copy m with
-      | `Text text ->
-          e##clipboardData##setData "text/plain" text ;
-          e##preventDefault () ;
-          Many [toast; fluidCopy]
-      | `Json json ->
-          let data = Json.stringify json in
-          e##clipboardData##setData "application/json" data ;
-          e##preventDefault () ;
-          Many [toast; fluidCopy]
-      | `None ->
-          () ;
-          fluidCopy )
+      if VariantTesting.isFluid m.tests
+      then Many [toast; Fluid.update m FluidCopy]
+      else (
+        match Clipboard.copy m with
+        | `Text text ->
+            e##clipboardData##setData "text/plain" text ;
+            e##preventDefault () ;
+            toast
+        | `Json json ->
+            let data = Json.stringify json in
+            e##clipboardData##setData "application/json" data ;
+            e##preventDefault () ;
+            toast
+        | `None ->
+            () ;
+            NoChange )
   | ClipboardPasteEvent e ->
-      let fluidPaste = Fluid.update m FluidPaste in
       let json = e##clipboardData##getData "application/json" in
       if VariantTesting.isFluid m.tests
-      then fluidPaste
+      then Fluid.update m FluidPaste
       else if json <> ""
       then Clipboard.paste m (`Json (Json.parseOrRaise json))
       else
