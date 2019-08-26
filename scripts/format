@@ -34,7 +34,12 @@ done
 #######################
 # Parse rest of arguments
 #######################
-first="$1";
+first=${1:-};
+if [[ "${first}" == "" ]]; then
+  echo "Argument required - format or check?"
+  exit 1
+fi
+
 shift;
 # save all but first arg
 FILES=("${@}")
