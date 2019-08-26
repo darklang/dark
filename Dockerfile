@@ -192,6 +192,39 @@ RUN docker-credential-gcr config --token-source="gcloud"
 # crcmod for gsutil
 RUN pip install -U crcmod
 
+############################
+# Ocaml
+############################
+USER dark
+ENV FORCE_OCAML_BUILD 5
+RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
+ENV OPAMJOBS 4
+# disabling sandboxing as it breaks and isn't necessary cause Docker
+
+ENV OCAML_SWITCH ocaml-base-compiler.4.06.1
+# env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
+# we avoid having to source .bashrc before every command
+RUN opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing
+ENV PATH "/home/dark/.opam/${OCAML_SWITCH}/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
+ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
+ENV FORCE_OCAML_UPDATE 5
+RUN opam update
+
+#ENV OPAMDEBUG true
+RUN opam install -y \
+  ppx_deriving.4.3 \
+  dune.1.11.0 \
+  ppx_deriving_yojson.3.4 \
+  merlin.3.2.2 \
+  ocp-indent.1.6.1 \
+  ocamlformat.0.8
+
+
+ENV ESY__PROJECT=/home/dark/app/backend
+
 
 ############################
 # Shellcheck

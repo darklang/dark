@@ -3,5 +3,7 @@
 # A script to run ocamlformat within the container, same as we do for
 # ocamlmerlin.
 
+script=$(basename "$0")
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-"$DIR/run-in-docker" esy exec-command ocamlformat "${@}" <&0
+"$DIR/run-in-docker" "$script" "${@}" <&0
