@@ -4259,7 +4259,27 @@ let toHtml
                          | _ ->
                              None )
                 in
-                UpdateFluidSelection (sel, None) ) ]
+                UpdateFluidSelection (sel, state.clipboard) )
+          ; ViewUtils.eventNeither
+              ~key:("fluid-selection-shift-click" ^ idStr)
+              "click"
+              (fun ev ->
+                let sel =
+                  Entry.getSelectionRange ()
+                  |> Option.andThen ~f:(fun range ->
+                         Js.log2 "range" range ;
+                         if ev.shiftKey then Some {range} else None )
+                in
+                UpdateFluidSelection (sel, state.clipboard) )
+          ; ViewUtils.eventNeither
+              ~key:("fluid-selection-drag" ^ idStr)
+              "drag"
+              (fun _ ->
+                let sel =
+                  Entry.getSelectionRange ()
+                  |> Option.map ~f:(fun range -> {range})
+                in
+                UpdateFluidSelection (sel, state.clipboard) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -4345,6 +4365,14 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
+      ; ViewUtils.eventNeither
+          ~key:("fluid-ast-selection-drag" ^ deTLID tlid)
+          "drag"
+          (fun _ ->
+            let sel =
+              Entry.getSelectionRange () |> Option.map ~f:(fun range -> {range})
+            in
+            UpdateFluidSelection (sel, None) )
       ; event ~key:eventKey "keydown" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]

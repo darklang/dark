@@ -1798,11 +1798,20 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | UpdateFluidSelection (selection, clipboard) ->
+      Js.log3 "updating selection" selection clipboard ;
       TweakModel
         (fun m ->
           match selection with
+          (* if range width is 0, just change pos *)
+          | Some {range = a, b} when a = b ->
+              { m with
+                fluidState =
+                  { m.fluidState with
+                    oldPos = m.fluidState.newPos; newPos = b; selection = None
+                  } }
           | Some s ->
               (* re-apply selection *)
+              Js.log "reapplying selection" ;
               Entry.setSelectionRange s.range ;
               { m with
                 fluidState =
