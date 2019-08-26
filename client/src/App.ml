@@ -1665,7 +1665,11 @@ let update_ (msg : msg) (m : model) : modification =
         if text <> "" then Clipboard.paste m (`Text text) else NoChange
   | ClipboardCutEvent e ->
       let copyData, mod_ = Clipboard.cut m in
-      let fluidCut = Fluid.update m FluidCut in
+      let mod_ =
+        if VariantTesting.isFluid m.tests
+        then Fluid.update m FluidCut
+        else mod_
+      in
       let toast =
         TweakModel
           (fun m ->
@@ -1675,7 +1679,7 @@ let update_ (msg : msg) (m : model) : modification =
       | `Text text ->
           e##clipboardData##setData "text/plain" text ;
           e##preventDefault () ;
-          Many [mod_; toast; fluidCut]
+          Many [mod_; toast]
       | `Json json ->
           let data = Json.stringify json in
           e##clipboardData##setData "application/json" data ;
@@ -1683,10 +1687,10 @@ let update_ (msg : msg) (m : model) : modification =
            * shouldn't get used to it *)
           e##clipboardData##setData "text/plain" data ;
           e##preventDefault () ;
-          Many [mod_; toast; fluidCut]
+          Many [mod_; toast]
       | `None ->
           () ;
-          Many [mod_; fluidCut] )
+          mod_ )
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
