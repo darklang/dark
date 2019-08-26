@@ -682,12 +682,7 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
         let owner = Account.for_host_exn host in
         let canvas_id = Serialize.fetch_canvas_id owner host in
         let params = Api.to_add_op_rpc_params body in
-        (* temporarily _don't_ filter ops *)
-        if true
-           || Op.is_latest_op_request
-                params.clientOpCtrId
-                params.opCtr
-                canvas_id
+        if Op.is_latest_op_request params.clientOpCtrId params.opCtr canvas_id
         then (params, canvas_id)
         else
           ( { params with

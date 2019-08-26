@@ -187,7 +187,7 @@ let filterOpsAndResult
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
   (* temporarily _don't_ filter ops *)
-  if true || StrDict.get m2.opCtrs ~key:params.clientOpCtrId = params.opCtr
+  if StrDict.get m2.opCtrs ~key:params.clientOpCtrId = params.opCtr
   then (m2, params.ops, result)
   else
     (* filter down to only those ops which can be applied out of order without
