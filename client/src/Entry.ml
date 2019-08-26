@@ -673,10 +673,30 @@ let submitACItem
         | PVarBind _, ACVarBind varName ->
             replace (PVarBind (B.newF varName))
         | PEventName _, ACCronName value
-        | PEventName _, ACHTTPRoute value
         | PEventName _, ACReplName value
         | PEventName _, ACWorkerName value ->
             replace (PEventName (B.newF value))
+        | PEventName _, ACHTTPRoute value ->
+            (* Check if the ACHTTPRoute value is a 404 path *)
+            let f404s =
+              m.f404s
+              |> List.filterMap ~f:(fun f404 ->
+                     if f404.path == value then Some f404 else None )
+              |> List.head
+            in
+            ( match f404s with
+            | Some f404 ->
+                (* Autocomplete the event name + mod from 404 *)
+                let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
+                let new_ = B.newF value in
+                let specInfo : handlerSpec =
+                  { space = h.spec.space
+                  ; name = B.newF f404.path
+                  ; modifier = B.newF f404.modifier }
+                in
+                saveH {h with spec = specInfo} (PEventName new_)
+            | None ->
+                replace (PEventName (B.newF value)) )
         (* allow arbitrary HTTP modifiers *)
         | PEventModifier _, ACHTTPModifier value
         | PEventModifier _, ACCronTiming value
