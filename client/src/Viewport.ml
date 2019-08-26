@@ -51,8 +51,8 @@ let moveToOrigin : modification = MoveCanvasTo Defaults.origin
   min-widths defined in app.less. At some point we will want to find a
   less volatile method for the constant definitions.
 *)
-let centerCanvasOn (tl : toplevel) (props : canvasProps) : pos =
-  let windowWidth = props.viewportSize.w in
+let centerCanvasOn (tl : toplevel) : pos =
+  let windowWidth = Native.Window.viewportWidth in
   let sidebarWidth =
     let sidebar = Native.Ext.querySelector "#sidebar-left" in
     match sidebar with Some e -> Native.Ext.clientWidth e | None -> 320

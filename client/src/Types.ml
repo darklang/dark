@@ -831,7 +831,6 @@ and canvasProps =
   { offset : pos
   ; enablePan : bool
   ; lastOffset : pos option
-  ; viewportSize : size
   ; panAnimation : bool
   ; minimap : string option }
 
@@ -965,8 +964,6 @@ and msg =
   | ToggleTimers
   | ExecuteFunctionButton of tlid * id * string
   | CreateHandlerFrom404 of fourOhFour
-  | WindowResize of int * int
-  | WindowOnLoad of int * int
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
   | JSError of string
   | PageVisibilityChange of PageVisibility.visibility
