@@ -43,9 +43,9 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; withCredentials = false }
 
 
-let opsParams (ops : op list) (opCtr : int option) (browserId : string) :
+let opsParams (ops : op list) (opCtr : int option) (clientOpCtrId : string) :
     addOpRPCParams =
-  {ops; opCtr; browserId}
+  {ops; opCtr; clientOpCtrId}
 
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
@@ -159,8 +159,8 @@ let sendPresence (m : model) (av : avatarModelMessage) : msg Tea.Cmd.t =
   else Tea.Cmd.none
 
 
-(* We do some dropping of ops based on browserId+opCtr to preserve ordering.
- * (opCtr is per-browserId, and inc'd client-side; thus we know, when processing
+(* We do some dropping of ops based on clientOpCtrId+opCtr to preserve ordering.
+ * (opCtr is per-clientOpCtrId, and inc'd client-side; thus we know, when processing
  * a set of ops whether this is the latest seen so far from a given client, or
  * has come in out of order.) This is initially done server-side, to guard
  * against ops being processed there out of order; but we also need to do this
@@ -176,7 +176,7 @@ let filterOpsAndResult
   let newOpCtrs =
     (* if the opCtr in params is greater than the one in the map, we'll create
      * an updated map *)
-    StrDict.update m.opCtrs ~key:params.browserId ~f:(fun oldCtr ->
+    StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun oldCtr ->
         match (oldCtr, params.opCtr) with
         | Some oldCtr, Some paramsOpCtr ->
             Some (max oldCtr paramsOpCtr)
@@ -187,7 +187,7 @@ let filterOpsAndResult
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
   (* temporarily _don't_ filter ops *)
-  if true || StrDict.get m2.opCtrs ~key:params.browserId = params.opCtr
+  if true || StrDict.get m2.opCtrs ~key:params.clientOpCtrId = params.opCtr
   then (m2, params.ops, result)
   else
     (* filter down to only those ops which can be applied out of order without

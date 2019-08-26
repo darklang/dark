@@ -70,6 +70,7 @@ let defaultModel : model =
   ; lastMsg = IgnoreMsg
   ; lastMod = NoChange
   ; opCtrs = StrDict.empty
+  ; clientOpCtrId = ""
   ; complete =
       (* this is awkward, but avoids circular deps *)
       { functions = []
