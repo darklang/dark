@@ -229,7 +229,7 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/_build/default/bin
+            - backend/_esy/default/build
             - backend/static/analysis.js
       - run:
           name: Copy out artifacts
