@@ -183,7 +183,11 @@ let createFunction (fn : function_) : expr =
 
 
 let newHandler m space name modifier pos =
-  let tlid = gtlid () in
+  let tlid =
+    if VariantTesting.variantIsActive m GridLayout
+    then gtlidDT ()
+    else gtlid ()
+    in
   let spaceid = gid () in
   let handler =
     { ast = B.new_ ()
@@ -217,7 +221,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       let name =
         match maybeName with Some n -> n | None -> DB.generateDBName ()
       in
-      DB.createDB name pos
+      DB.createDB name pos m
   | NewFunction name ->
       let blankfn = Refactor.generateEmptyFunction () in
       let newfn =
