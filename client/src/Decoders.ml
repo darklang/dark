@@ -489,7 +489,7 @@ and addOpRPCParams j : addOpRPCParams =
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
   { ops = field "ops" (list op) j
   ; opCtr
-  ; clientOpCtrId = field "clientOpCtrId" string j }
+  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
