@@ -284,13 +284,10 @@ let viewCanvas (m : model) : msg Html.html =
           [] )
   in
   let canvasTransform =
-    if VariantTesting.variantIsActive m GridLayout
-    then []
-    else
-      let offset = m.canvasProps.offset in
-      let x = string_of_int (-offset.x) in
-      let y = string_of_int (-offset.y) in
-      [("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")]
+    let offset = m.canvasProps.offset in
+    let x = string_of_int (-offset.x) in
+    let y = string_of_int (-offset.y) in
+    [("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")]
   in
   let styles =
     ( "transition"
