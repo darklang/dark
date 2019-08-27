@@ -255,7 +255,6 @@ let viewTL m tl =
 
 
 let viewCanvas (m : model) : msg Html.html =
-  let entry = ViewEntry.viewEntry m in
   let asts =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
@@ -293,12 +292,14 @@ let viewCanvas (m : model) : msg Html.html =
     ( "transition"
       , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" ) :: canvasTransform
   in
-  let allDivs = asts @ entry in
+  let allDivs = asts in
   let overlay =
     let show =
       match m.currentPage with
       | FocusedHandler _ | FocusedDB _ ->
           true
+      | Architecture ->
+        (match unwrapCursorState m.cursorState with Entering (Creating _) -> true | _ -> false )
       | _ ->
           false
     in
@@ -389,6 +390,7 @@ let view (m : model) : msg Html.html =
   in
   let sidebar = ViewSidebar.viewSidebar m in
   let body = viewCanvas m in
+  let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
@@ -398,7 +400,7 @@ let view (m : model) : msg Html.html =
   in
   let content =
     ViewTopbar.html m
-    @ [sidebar; body; activeAvatars; viewToast m.toast]
+    @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
     @ fluidStatus
     @ footer
   in
