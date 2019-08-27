@@ -152,6 +152,34 @@ body #app * {
     display: flex;
     align-items: flex-start;
   }
+
+  .grid-layout-variant > & {
+    height: 100%;
+    max-height: 100%;
+
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: flex-start;
+
+    overflow-x: scroll;
+  }
+}
+
+.grid-layout-variant {
+  #sidebar-left + #canvas {
+    padding-left: 360px;
+  }
+
+  #sidebar-left.isClosed + #canvas {
+    padding-left: 80px;
+  }
+
+  #canvas > .node {
+    position: relative;
+    margin: 20px 50px;
+  }
 }
 
 .overlay {
