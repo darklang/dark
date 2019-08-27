@@ -123,6 +123,10 @@ $wrapper-background: $black2;
 }
 
 .omnibox {
+  position: fixed;
+  top: 200px;
+  left: 40%;
+
   $box-width: 400px;
   $left-margin: 24px;
 

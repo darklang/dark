@@ -188,14 +188,11 @@ let entryHtml
       normalEntryHtml placeholder ac
 
 
-let viewEntry (m : model) : msg Html.html list =
+let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
-  | Entering (Creating pos) ->
-      let html =
-        Html.div
-          [Html.class' "omnibox"]
-          [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
-      in
-      [placeHtml pos [] [html] m]
+  | Entering (Creating _pos) ->
+    Html.div
+      [Html.class' "omnibox"]
+      [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
   | _ ->
-      []
+      Vdom.noNode
