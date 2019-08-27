@@ -191,7 +191,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
   in
-  ViewUtils.placeHtml pos boxClasses html
+  ViewUtils.placeHtml pos boxClasses html m
 
 
 let tlCacheKey (m : model) tl =
@@ -284,15 +284,17 @@ let viewCanvas (m : model) : msg Html.html =
           [] )
   in
   let canvasTransform =
-    let offset = m.canvasProps.offset in
-    let x = string_of_int (-offset.x) in
-    let y = string_of_int (-offset.y) in
-    "translate(" ^ x ^ "px, " ^ y ^ "px)"
+    if VariantTesting.variantIsActive m GridLayout
+    then []
+    else
+      let offset = m.canvasProps.offset in
+      let x = string_of_int (-offset.x) in
+      let y = string_of_int (-offset.y) in
+      [("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")]
   in
   let styles =
-    [ ( "transition"
-      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
-    ; ("transform", canvasTransform) ]
+    ( "transition"
+      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" ) :: canvasTransform
   in
   let allDivs = asts @ entry in
   let overlay =
