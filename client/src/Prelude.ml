@@ -22,7 +22,14 @@ let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 
 let gtlidDT (unit : unit) : tlid =
-  TLID (Js.Date.now unit *. 1000.0 |> int_of_float |> string_of_int)
+  let id =
+    Js.Date.now unit
+    |> Js.Float.toString
+    |> Tc.String.split ~on:"."
+    |> Tc.List.head
+    |> Tc.Option.withDefault ~default:(Util.random unit |> string_of_int)
+  in
+  TLID id
 
 
 (* -------------------------------------- *)

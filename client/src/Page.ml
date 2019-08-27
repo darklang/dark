@@ -1,3 +1,4 @@
+open Tc
 open Types
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
@@ -26,7 +27,30 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
         false
   in
   let offset =
-    if center then Viewport.centerCanvasOn tl else m.canvasProps.offset
+    if VariantTesting.variantIsActive m GridLayout
+    then
+      let tlid = TL.id tl in
+      let o = m.canvasProps.offset in
+      let e =
+        Native.Ext.querySelector (".node .tl-" ^ Prelude.showTLID tlid)
+      in
+      let dx, dy =
+        e
+        |> Option.andThen ~f:(fun e ->
+               let r = Native.Ext.getBoundingClientRect e in
+               let px = Native.Ext.rectLeft r |> int_of_float in
+               let py = Native.Ext.rectTop r |> int_of_float in
+               Some (px, py) )
+        |> Option.withDefault ~default:(0, 0)
+      in
+      (* magic numbers come from sidebar mode, in _canvas.scss *)
+      let sidebarDx = if m.sidebarOpen then 360 else 80 in
+      let x = o.x + dx - sidebarDx in
+      let y = o.y + dy - 100 in
+      {x; y}
+    else if center
+    then Viewport.centerCanvasOn tl
+    else m.canvasProps.offset
   in
   let panAnimation = offset <> m.canvasProps.offset in
   let boId =
