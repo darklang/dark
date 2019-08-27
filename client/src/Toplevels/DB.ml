@@ -86,9 +86,9 @@ let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
 
 
-let createDB (name : string) (pos : pos) (m: model) : modification =
+let createDB (name : string) (pos : pos) (m : model) : modification =
   let next = Prelude.gid () in
-  let tlid = 
+  let tlid =
     if List.member ~value:GridLayout m.tests
     then Prelude.gtlidDT ()
     else Prelude.gtlid ()

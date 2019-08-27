@@ -232,20 +232,18 @@ let nothingMouseEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
 
-let placeHtml (pos : pos) (classes : 'a list) (html : msg Html.html list) (m: model) :
+let placeHtml
+    (pos : pos) (classes : 'a list) (html : msg Html.html list) (m : model) :
     msg Html.html =
-    let styles =
-      if VariantTesting.variantIsActive m GridLayout
-      then Vdom.noProp
-      else
-        Html.styles
+  let styles =
+    if VariantTesting.variantIsActive m GridLayout
+    then Vdom.noProp
+    else
+      Html.styles
         [ ("left", string_of_int pos.x ^ "px")
         ; ("top", string_of_int pos.y ^ "px") ]
   in
-  Html.div
-    [ Html.classList (("node", true) :: classes)
-    ; styles ]
-    html
+  Html.div [Html.classList (("node", true) :: classes); styles] html
 
 
 let inCh (w : int) : string = w |> string_of_int |> fun s -> s ^ "ch"
