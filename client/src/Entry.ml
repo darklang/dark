@@ -679,14 +679,10 @@ let submitACItem
         | PEventName _, ACHTTPRoute value ->
             (* Check if the ACHTTPRoute value is a 404 path *)
             let f404s =
-              m.f404s
-              |> List.filterMap ~f:(fun f404 ->
-                     if f404.path == value then Some f404 else None )
-              |> List.head
+              m.f404s |> List.find ~f:(fun f404 -> f404.path = value)
             in
             ( match f404s with
             | Some f404 ->
-                (* Autocomplete the event name + mod from 404 Trello: https://trello.com/c/GAvqc81H/878-autocomplete-http-path-from-404s-35*)
                 let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
                 let new_ = B.newF value in
                 let specInfo : handlerSpec =
