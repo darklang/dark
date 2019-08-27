@@ -255,7 +255,7 @@ let viewTL m tl =
 
 
 let viewCanvas (m : model) : msg Html.html =
-  let asts =
+  let allDivs =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         m
@@ -292,7 +292,6 @@ let viewCanvas (m : model) : msg Html.html =
     ( "transition"
       , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" ) :: canvasTransform
   in
-  let allDivs = asts in
   let overlay =
     let show =
       match m.currentPage with
