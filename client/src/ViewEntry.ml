@@ -191,8 +191,8 @@ let entryHtml
 let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
   | Entering (Creating _pos) ->
-    Html.div
-      [Html.class' "omnibox"]
-      [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
+      Html.div
+        [Html.class' "omnibox"]
+        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
   | _ ->
       Vdom.noNode

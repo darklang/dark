@@ -1593,7 +1593,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
       let center = findCenter m in
-      let tlid = 
+      let tlid =
         if VariantTesting.variantIsActive m GridLayout
         then gtlidDT ()
         else gtlid ()

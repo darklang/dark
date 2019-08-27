@@ -290,7 +290,8 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let styles =
     ( "transition"
-      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" ) :: canvasTransform
+    , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
+    :: canvasTransform
   in
   let overlay =
     let show =
@@ -298,7 +299,11 @@ let viewCanvas (m : model) : msg Html.html =
       | FocusedHandler _ | FocusedDB _ ->
           true
       | Architecture ->
-        (match unwrapCursorState m.cursorState with Entering (Creating _) -> true | _ -> false )
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Creating _) ->
+            true
+        | _ ->
+            false )
       | _ ->
           false
     in

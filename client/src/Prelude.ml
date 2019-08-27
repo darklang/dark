@@ -21,7 +21,9 @@ let gid (unit : unit) : id = ID (Util.random unit |> string_of_int)
 
 let gtlid (unit : unit) : tlid = TLID (Util.random unit |> string_of_int)
 
-let gtlidDT (unit : unit) : tlid = TLID (((Js.Date.now unit) *. 1000.0) |> int_of_float |> string_of_int)
+let gtlidDT (unit : unit) : tlid =
+  TLID (Js.Date.now unit *. 1000.0 |> int_of_float |> string_of_int)
+
 
 (* -------------------------------------- *)
 (* CursorState *)

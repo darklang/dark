@@ -187,7 +187,7 @@ let newHandler m space name modifier pos =
     if VariantTesting.variantIsActive m GridLayout
     then gtlidDT ()
     else gtlid ()
-    in
+  in
   let spaceid = gid () in
   let handler =
     { ast = B.new_ ()
