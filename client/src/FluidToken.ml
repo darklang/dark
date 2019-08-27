@@ -64,14 +64,14 @@ let tid (t : token) : id =
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
-  | TNewline (Some (id, _, _)) ->
+  | TNewline (Some (id, _, _, _)) ->
       id
   | TNewline None | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
       fakeid
 
 
 let parentExprID (t : token) : id =
-  match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
+  match t with TNewline (Some (_, id, _, _)) -> id | _ -> tid t
 
 
 let validID id = id <> fakeid
@@ -260,6 +260,10 @@ let toText (t : token) : string =
       shouldntBeEmpty str
   | TSep ->
       " "
+  | TNewline (Some (_, _, _, false)) ->
+      (* " " instead of "" makes it the same length as toTestText's "~", and we
+       * use css to make it display: none *)
+      " "
   | TNewline _ ->
       "\n"
   | TLetKeyword _ ->
@@ -423,7 +427,11 @@ let toTypeName (t : token) : string =
       "indent-to-here"
   | TIndent _ ->
       "indent"
-  | TNewline _ ->
+  | TNewline (Some (_, _, _, true)) ->
+      "newline"
+  | TNewline (Some (_, _, _, false)) ->
+      "newline-collapsed"
+  | TNewline None ->
       "newline"
   | TIfKeyword _ ->
       "if-keyword"
