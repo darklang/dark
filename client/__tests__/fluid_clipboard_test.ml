@@ -738,7 +738,7 @@ let () =
         "copying first expression of thread adds it to clipboard"
         aThread
         (copy (0, 2))
-        ("[]\n|>List::append [5]\n|>List::append [5]", "[]", 0) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", "[]", 0) ;
       () ) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET

@@ -371,6 +371,8 @@ let toTestText (t : token) : string =
             str |> String.dropLeft ~count:1 |> String.dropRight ~count:1
           in
           "@" ^ str ^ "@" )
+    | TNewline (Some (_, _, false)) ->
+        "~"
     | _ ->
         if isBlank t then "***" else toText t
   in

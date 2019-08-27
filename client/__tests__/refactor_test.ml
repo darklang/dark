@@ -321,5 +321,5 @@ let () =
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
           |> toEqual
-               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___\nvar\n|>Dict::set \"id\" id"
+               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___\nvar\n|>Dict::set \"id\" id~"
       ) )

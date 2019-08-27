@@ -1061,7 +1061,7 @@ let () =
         "piping into newline creates thread"
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
-        ("true\n|>___", 7) ;
+        ("true\n|>___~", 7) ;
       t
         "pressing bs to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b (), NoRail)))
@@ -1273,7 +1273,7 @@ let () =
             * so the arguments are adjusted based on the thread *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
-        ("___\n|>Dict::map \\key, value -> ___", 17) ;
+        ("___\n|>Dict::map \\key, value -> ___~", 17) ;
       t
         "deleting a lambda argument should work"
         lambdaWithTwoBindings
@@ -1347,32 +1347,32 @@ let () =
         "move to the front of match"
         emptyMatch
         (press K.GoToStartOfLine 6)
-        ("match ___\n  *** -> ___", 0) ;
+        ("match ___\n  *** -> ___~", 0) ;
       t
         "move to the end of match"
         emptyMatch
         (press K.GoToEndOfLine 0)
-        ("match ___\n  *** -> ___", 9) ;
+        ("match ___\n  *** -> ___~", 9) ;
       t
         "move to the front of match on line 2"
         emptyMatch
         (press K.GoToStartOfLine 15)
-        ("match ___\n  *** -> ___", 12) ;
+        ("match ___\n  *** -> ___~", 12) ;
       t
         "move to the end of match on line 2"
         emptyMatch
         (press K.GoToEndOfLine 12)
-        ("match ___\n  *** -> ___", 22) ;
+        ("match ___\n  *** -> ___~", 22) ;
       t
         "move back over match"
         emptyMatch
         (press K.Left 6)
-        ("match ___\n  *** -> ___", 0) ;
+        ("match ___\n  *** -> ___~", 0) ;
       t
         "move forward over match"
         emptyMatch
         (press K.Right 0)
-        ("match ___\n  *** -> ___", 6) ;
+        ("match ___\n  *** -> ___~", 6) ;
       t "bs over empty match" emptyMatch (bs 6) ("___", 0) ;
       t
         "bs over empty match with 2 patterns"
@@ -1383,7 +1383,7 @@ let () =
         "bs over match with 2 patterns"
         matchWithPatterns
         (bs 6)
-        ("match ___\n  3 -> ___", 6) ;
+        ("match ___\n  3 -> ___~", 6) ;
       t "del over empty match" emptyMatch (del 0) ("___", 0) ;
       t
         "del over empty match with 2 patterns"
@@ -1394,69 +1394,69 @@ let () =
         "del over match with 2 patterns"
         matchWithPatterns
         (del 0)
-        ("match ___\n  3 -> ___", 0) ;
+        ("match ___\n  3 -> ___~", 0) ;
       t
         "del constructor in match pattern"
         matchWithConstructorPattern
         (del 12)
-        ("match ___\n  ust -> ___", 12) ;
+        ("match ___\n  ust -> ___~", 12) ;
       t
         "bs constructor in match pattern"
         matchWithConstructorPattern
         (bs 16)
-        ("match ___\n  Jus -> ___", 15) ;
+        ("match ___\n  Jus -> ___~", 15) ;
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (EVariable (gid (), "binding")))
         (insert 'c' 19)
-        ("match ___\n  bindingc -> bindingc", 20) ;
+        ("match ___\n  bindingc -> bindingc~", 20) ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
         (insert 'c' 22)
-        ("match ___\n  Ok bindingc -> bindingc", 23) ;
+        ("match ___\n  Ok bindingc -> bindingc~", 23) ;
       t
         "insert space in blank match"
         emptyMatch
         (press K.Space 6)
-        ("match ___\n  *** -> ___", 6) ;
+        ("match ___\n  *** -> ___~", 6) ;
       t
         "insert space in blank match on line 2"
         emptyMatch
         (press K.Space 12)
-        ("match ___\n  *** -> ___", 12) ;
+        ("match ___\n  *** -> ___~", 12) ;
       t
         "enter at the end of the cond creates a new row"
         matchWithPatterns
         (enter 9)
-        ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
+        ("match ___\n  *** -> ___\n  3 -> ___~", 12) ;
       t
         "enter at the end of a row creates a new row"
         (* TODO: it doesn't work at the end of an ast *)
         (* TODO: it doesn't work on the last row *)
         emptyMatchWithTwoPatterns
         (enter 22)
-        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
+        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___~", 25) ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
         (enter 12)
-        ("match ___\n  *** -> ___\n  3 -> ___", 25) ;
+        ("match ___\n  *** -> ___\n  3 -> ___~", 25) ;
       t
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
-        ("match ___\n  *** -> ___", 9) ;
+        ("match ___\n  *** -> ___~", 9) ;
       t
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
         (bs 25)
-        ("match ___\n  *** -> ___", 22) ;
+        ("match ___\n  *** -> ___~", 22) ;
       t
         "backspacing only row doesn't delete"
         emptyMatch
         (bs 12)
-        ("match ___\n  *** -> ___", 9) ;
+        ("match ___\n  *** -> ___~", 9) ;
       (* delete row with delete *)
       () ) ;
   describe "Lets" (fun () ->
@@ -1531,7 +1531,7 @@ let () =
                 ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
                 ] )))
         (insert 'c' 11)
-        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
+        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc~"
         , 12 ) ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
@@ -1622,37 +1622,37 @@ let () =
         "move to the front of thread on line 1"
         aThread
         (press K.GoToStartOfLine 2)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 0) ;
       t
         "move to the end of thread on line 1"
         aThread
         (press K.GoToEndOfLine 0)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 2) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 2) ;
       t
         "move to the front of thread on line 2"
         aThread
         (press K.GoToStartOfLine 8)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 5) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 5) ;
       t
         "move to the end of thread on line 2"
         aThread
         (press K.GoToEndOfLine 5)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 21) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 21) ;
       t
         "move to the front of thread on line 3"
         aThread
         (press K.GoToStartOfLine 40)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 24) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 24) ;
       t
         "move to the end of thread on line 3"
         aThread
         (press K.GoToEndOfLine 24)
-        ("[]\n|>List::append [5]\n|>List::append [5]", 40) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 40) ;
       t
         "threads appear on new lines"
         aThread
         render
-        ("[]\n|>List::append [5]\n|>List::append [5]", 0) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]~", 0) ;
       let aNestedThread =
         threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
       in
@@ -1660,120 +1660,122 @@ let () =
         "nested threads will indent"
         aNestedThread
         render
-        ("[]\n|>List::append [5]\n               |>List::append [5]", 0) ;
+        ( "[]\n|>List::append [5]\n               |>List::append [5]~               ~"
+        , 0 ) ;
       t
         "backspacing a thread's first pipe works"
         aLongThread
         (bs 5)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 2) ;
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]~", 2) ;
       t
         "deleting a thread's first pipe works"
         aLongThread
         (del 3)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]", 3) ;
+        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]~", 3) ;
       t
         "backspacing a thread's second pipe works"
         aLongThread
         (bs 24)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 21) ;
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]~", 21) ;
       t
         "deleting a thread's second pipe works"
         aLongThread
         (del 22)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]", 22) ;
+        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]~", 22) ;
       t
         "backspacing a thread's third pipe works"
         aLongThread
         (bs 43)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 40) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]~", 40) ;
       t
         "deleting a thread's third pipe works"
         aLongThread
         (del 41)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]", 41) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]~", 41) ;
       t
         "backspacing a thread's last pipe works"
         aLongThread
         (bs 62)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~", 59) ;
       t
         "deleting a thread's last pipe works"
         aLongThread
         (del 60)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]", 59) ;
+        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~", 59) ;
       t
         "backspacing a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
         (bs 21)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]~  \nelse\n  ___"
         , 16 ) ;
       t
         "deleting a thread's first pipe that isn't in the first column works"
         aThreadInsideIf
         (del 19)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]~  \nelse\n  ___"
         , 19 ) ;
       t
         "backspacing a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
         (bs 42)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]~  \nelse\n  ___"
         , 37 ) ;
       t
         "deleting a thread's second pipe that isn't in the first column works"
         aThreadInsideIf
         (del 40)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]~  \nelse\n  ___"
         , 40 ) ;
       t
         "backspacing a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
         (bs 63)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]~  \nelse\n  ___"
         , 58 ) ;
       t
         "deleting a thread's third pipe that isn't in the first column works"
         aThreadInsideIf
         (del 61)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]~  \nelse\n  ___"
         , 61 ) ;
       t
         "backspacing a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
         (bs 84)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~  \nelse\n  ___"
         , 79 ) ;
       t
         "deleting a thread's fourth pipe that isn't in the first column works"
         aThreadInsideIf
         (del 82)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
+        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~  \nelse\n  ___"
         , 79 ) ;
       t
         "adding infix functions adds the right number of blanks"
         emptyThread
         (presses [K.Plus; K.Enter] 6)
-        ("___\n|>+ _________", 8) ;
+        ("___\n|>+ _________~", 8) ;
       t
         "enter at the end of a thread expr creates a new entry"
         aThread
         (enter 21)
-        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]", 24) ;
+        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]~", 24) ;
       t
         "enter at the end of the opening expr creates a new entry"
         aThread
         (enter 2)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 5) ;
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]~", 5) ;
       t
         "enter at the start of a line creates a new entry"
         aThread
         (enter 3)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 9) ;
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]~", 9) ;
       t
         "enter at start of blank (within pipe) creates a new entry"
         aThread
         (enter 5)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 11) ;
+        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]~", 11) ;
+      (* TODO ismith *)
       (* t *)
       (*   "enter at the end of the last expr creates a new entry" *)
       (*   aThread *)
@@ -2209,27 +2211,27 @@ let () =
         "thread moves to right place on blank"
         (b ())
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
-        ("___\n|>___", 6) ;
+        ("___\n|>___~", 6) ;
       t
         "thread moves to right place on placeholder"
         aFnCall
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 ___\n           |>___", 28) ;
+        ("Int::add 5 ___\n           |>___~           ", 28) ;
       t
         "thread moves to right place in if then"
         emptyIf
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
-        ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
+        ("if ___\nthen\n  ___\n  |>___~  \nelse\n  ___", 22) ;
       t
         "thread moves to right place in lambda body"
         aLambda
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
-        ("\\*** -> ___\n        |>___", 22) ;
+        ("\\*** -> ___\n        |>___~        ", 22) ;
       t
         "thread moves to right place in match body"
         emptyMatch
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
-        ("match ___\n  *** -> ___\n         |>___", 34) ;
+        ("match ___\n  *** -> ___\n         |>___~         ~", 34) ;
       t
         "autocomplete for Just"
         (EPartial (gid (), "Just", b ()))
@@ -2268,7 +2270,7 @@ let () =
                (gid (), EVariable (ID "12", "request"), gid (), "body")
            , [] ))
         (enter 18)
-        ("match request.body", 18) ;
+        ("match request.body~", 18) ;
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (bs (EVariable (5, "request"))). *)
       (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
