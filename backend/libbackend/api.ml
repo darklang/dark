@@ -8,7 +8,7 @@ type oplist = Op.op list [@@deriving yojson]
 type add_op_rpc_params =
   { ops : oplist
   ; opCtr : int
-  ; clientOpCtrId : string }
+  ; clientOpCtrId : string option }
 [@@deriving yojson]
 
 type db_stats_rpc_params = {tlids : tlid list} [@@deriving yojson]

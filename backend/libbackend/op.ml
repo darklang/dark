@@ -143,7 +143,16 @@ let ast_of (op : op) : Types.RuntimeT.expr option =
       None
 
 
-let is_latest_op_request browser_id op_ctr canvas_id : bool =
+let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
+  let client_op_ctr_id =
+    match client_op_ctr_id with
+    | Some s when s = "" ->
+        Uuidm.v `V4 |> Uuidm.to_string
+    | None ->
+        Uuidm.v `V4 |> Uuidm.to_string
+    | Some s ->
+        s
+  in
   Db.run
     ~name:"update-browser_id-op_ctr"
     (* This is "UPDATE ... WHERE browser_id = $1 AND ctr < $2" except
@@ -154,14 +163,14 @@ let is_latest_op_request browser_id op_ctr canvas_id : bool =
              DO UPDATE SET ctr = EXCLUDED.ctr, timestamp = NOW()
                        WHERE op_ctrs.ctr < EXCLUDED.ctr"
     ~params:
-      [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
+      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
       ; Db.Int op_ctr
       ; Db.Uuid canvas_id ] ;
   Db.exists
     ~name:"check-if-op_ctr-is-latest"
     "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
     ~params:
-      [ Db.Uuid (browser_id |> Uuidm.of_string |> Option.value_exn)
+      [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
       ; Db.Int op_ctr ]
 
 
