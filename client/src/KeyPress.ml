@@ -63,6 +63,7 @@ let undo_redo (m : model) (redo : bool) : modification =
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
+  let useCommandKey = Entry.getBrowserPlatform () = Mac in
   if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
   else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
@@ -304,6 +305,15 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             else NoChange
         | Key.O ->
             if event.altKey then CenterCanvasOn tlid else NoChange
+        | Key.K ->
+          ( match m.currentPage with
+          | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+              if (useCommandKey && event.metaKey)
+                 || ((not useCommandKey) && event.ctrlKey)
+              then Many [Deselect; Entry.openOmnibox m]
+              else NoChange
+          | _ ->
+              NoChange )
         | Key.Unknown _ ->
           ( (* colon *)
           match mId with
@@ -478,42 +488,41 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
     | Deselected ->
       ( match m.currentPage with
       | Architecture ->
-          let useCommandKey = Entry.getBrowserPlatform () = Mac in
-          ( match event.keyCode with
-          | Key.Enter ->
-              Entry.openOmnibox m
-          | Key.K ->
-              if (useCommandKey && event.metaKey)
-                 || ((not useCommandKey) && event.ctrlKey)
-              then Entry.openOmnibox m
-              else NoChange
-          | Key.A ->
-              if event.ctrlKey then Viewport.pageLeft m else NoChange
-          | Key.E ->
-              if event.ctrlKey then Viewport.pageRight m else NoChange
-          | Key.F ->
-              if event.ctrlKey then Viewport.pageDown m else NoChange
-          | Key.B ->
-              if event.ctrlKey then Viewport.pageUp m else NoChange
-          | Key.PageUp ->
-              Viewport.pageUp m
-          | Key.PageDown ->
-              Viewport.pageDown m
-          | Key.Up ->
-              Viewport.moveUp m (* NB: see `stopKeys` in ui.html *)
-          | Key.Down ->
-              Viewport.moveDown m (* NB: see `stopKeys` in ui.html *)
-          | Key.Left ->
-              Viewport.moveLeft m
-          | Key.Right ->
-              Viewport.moveRight m
-          | Key.Zero ->
-              Viewport.moveToOrigin
-          | Key.Tab ->
-              Selection.selectNextToplevel m None
-              (* NB: see `stopKeys` in ui.html *)
-          | _ ->
-              NoChange )
+        ( match event.keyCode with
+        | Key.Enter ->
+            Entry.openOmnibox m
+        | Key.K ->
+            if (useCommandKey && event.metaKey)
+               || ((not useCommandKey) && event.ctrlKey)
+            then Entry.openOmnibox m
+            else NoChange
+        | Key.A ->
+            if event.ctrlKey then Viewport.pageLeft m else NoChange
+        | Key.E ->
+            if event.ctrlKey then Viewport.pageRight m else NoChange
+        | Key.F ->
+            if event.ctrlKey then Viewport.pageDown m else NoChange
+        | Key.B ->
+            if event.ctrlKey then Viewport.pageUp m else NoChange
+        | Key.PageUp ->
+            Viewport.pageUp m
+        | Key.PageDown ->
+            Viewport.pageDown m
+        | Key.Up ->
+            Viewport.moveUp m (* NB: see `stopKeys` in ui.html *)
+        | Key.Down ->
+            Viewport.moveDown m (* NB: see `stopKeys` in ui.html *)
+        | Key.Left ->
+            Viewport.moveLeft m
+        | Key.Right ->
+            Viewport.moveRight m
+        | Key.Zero ->
+            Viewport.moveToOrigin
+        | Key.Tab ->
+            Selection.selectNextToplevel m None
+            (* NB: see `stopKeys` in ui.html *)
+        | _ ->
+            NoChange )
       | _ ->
           NoChange )
     | SelectingCommand (tlid, id) ->
