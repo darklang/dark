@@ -1818,6 +1818,8 @@ let update_ (msg : msg) (m : model) : modification =
   | UpdateMinimap data ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
+  | HideTopbar ->
+      TweakModel (fun m -> {m with showTopbar = false})
   | GoToArchitecturalView ->
       Many
         [ TweakModel

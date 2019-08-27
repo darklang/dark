@@ -1030,6 +1030,7 @@ and msg =
   | DeleteGroup of tlid
   | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
+  | HideTopbar
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1038,6 +1039,7 @@ and msg =
 and variantTest =
   | StubVariant
   | FluidVariant
+  | FluidWithoutStatusVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant
@@ -1377,9 +1379,10 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; toast : toast
   ; opCtrs : int StrDict.t
-  ; permission : permission option }
+  ; permission : permission option
+  ; showTopbar : bool
+  ; toast : toast }
 
 (* Values that we serialize *)
 and serializableEditor =
