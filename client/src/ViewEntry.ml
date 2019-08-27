@@ -190,9 +190,20 @@ let entryHtml
 
 let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
-  | Entering (Creating _pos) ->
+  | Entering (Creating pos) ->
+      let styleProp =
+        if VariantTesting.variantIsActive m GridLayout
+        then Vdom.noProp
+        else
+          let offset = m.canvasProps.offset in
+          let loc = Viewport.subPos pos offset in
+          Debug.loG "loc" loc ;
+          Html.styles
+            [ ("left", string_of_int loc.x ^ "px")
+            ; ("top", string_of_int loc.y ^ "px") ]
+      in
       Html.div
-        [Html.class' "omnibox"]
+        [Html.class' "omnibox"; styleProp]
         [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
   | _ ->
       Vdom.noNode
