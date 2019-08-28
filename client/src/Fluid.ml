@@ -3608,6 +3608,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
+        | None, None when newLhs <> "" ->
+            Some (EPartial (gid (), newLhs, EVariable (gid (), newLhs)))
         | None, Some e ->
             Some e
         | Some newRhs, None ->
@@ -3721,9 +3723,16 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         in
         let fieldOpSelected = findTokenValue tokens eID "field-op" <> None in
         let e = reconstructExpr e in
-        if fieldOpSelected
-        then Some (EFieldAccess (id, e |> orDefaultExpr, gid (), newFieldName))
-        else e
+        ( match (e, fieldOpSelected, newFieldName) with
+        | None, false, newFieldName when newFieldName != "" ->
+            Some
+              (EPartial (gid (), newFieldName, EVariable (gid (), newFieldName)))
+        | None, true, newFieldName when newFieldName != "" ->
+            Some (EFieldAccess (id, EBlank (gid ()), gid (), newFieldName))
+        | Some e, true, _ ->
+            Some (EFieldAccess (id, e, gid (), newFieldName))
+        | _ ->
+            e )
     | EVariable (eID, value), tokens ->
         let newValue =
           findTokenValue tokens eID "variable"
@@ -4451,45 +4460,31 @@ let toHtml
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
               (fun ev ->
-                let sel =
-                  Entry.getCursorPosition ()
-                  |> Option.andThen ~f:(fun pos ->
-                         let state =
-                           {state with newPos = pos; oldPos = state.newPos}
-                         in
-                         match ev with
-                         | {detail = 2; altKey = true} ->
-                             expressionSelection state ast
-                         | {detail = 2; altKey = false} ->
-                             tokenSelection state ast
-                         | _ ->
-                             None )
-                in
-                UpdateFluidSelection (sel, state.clipboard) )
+                Entry.getCursorPosition ()
+                |> function
+                | Some pos ->
+                    let state =
+                      {state with newPos = pos; oldPos = state.newPos}
+                    in
+                    ( match ev with
+                    | {detail = 2; altKey = true} ->
+                        UpdateFluidSelection (expressionSelection state ast)
+                    | {detail = 2; altKey = false} ->
+                        UpdateFluidSelection (tokenSelection state ast)
+                    | _ ->
+                        FluidSelectStart (tlid, vs.cursorState) )
+                | _ ->
+                    FluidSelectStart (tlid, vs.cursorState) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-shift-click" ^ idStr)
               "click"
               (fun ev ->
-                Entry.getCursorPosition ()
+                Entry.getSelectionRange ()
                 |> function
-                | Some pos when ev.shiftKey ->
-                    let range =
-                      if pos < state.newPos
-                      then (pos, state.newPos)
-                      else (state.newPos, pos)
-                    in
-                    UpdateFluidSelection (Some {range}, state.clipboard)
+                | Some range when ev.shiftKey ->
+                    UpdateFluidSelection (Some {range})
                 | _ ->
-                    ToplevelClick (tlid, ev) )
-          ; ViewUtils.eventNeither
-              ~key:("fluid-selection-drag" ^ idStr)
-              "drag"
-              (fun _ ->
-                let sel =
-                  Entry.getSelectionRange ()
-                  |> Option.map ~f:(fun range -> {range})
-                in
-                UpdateFluidSelection (sel, state.clipboard) ) ]
+                    FluidSelectStart (tlid, vs.cursorState) ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
@@ -4575,14 +4570,6 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Vdom.prop "contentEditable" "true"
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
-      ; ViewUtils.eventNeither
-          ~key:("fluid-ast-selection-drag" ^ deTLID tlid)
-          "drag"
-          (fun _ ->
-            let sel =
-              Entry.getSelectionRange () |> Option.map ~f:(fun range -> {range})
-            in
-            UpdateFluidSelection (sel, None) )
       ; event ~key:eventKey "keydown" ]
       (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
   ; errorRail ]
