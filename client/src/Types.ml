@@ -929,6 +929,7 @@ and msg =
   | GlobalKeyPress of Keyboard.keyEvent
   | FluidKeyPress of FluidKeyboard.keyEvent
   | FluidMouseClick of tlid
+  | FluidSelectStart of tlid * cursorState
   | AutocompleteClick of int
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidCopy
@@ -1023,7 +1024,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of fluidSelection option * fluidExpr option
+  | UpdateFluidSelection of fluidSelection option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView

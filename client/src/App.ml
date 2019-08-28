@@ -1178,6 +1178,13 @@ let update_ (msg : msg) (m : model) : modification =
         else NoChange
       in
       Many [click; fluid]
+  | FluidSelectStart (targetExnID, _) ->
+      if VariantTesting.isFluid m.tests
+      then
+        Many
+          [ Select (targetExnID, None)
+          ; Fluid.update m (FluidMouseClick targetExnID) ]
+      else NoChange
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1797,8 +1804,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection (selection, clipboard) ->
-      Js.log3 "updating selection" selection clipboard ;
+  | UpdateFluidSelection selection ->
       TweakModel
         (fun m ->
           match selection with
@@ -1811,15 +1817,13 @@ let update_ (msg : msg) (m : model) : modification =
                   } }
           | Some s ->
               (* re-apply selection *)
-              Js.log "reapplying selection" ;
               Entry.setSelectionRange s.range ;
               { m with
                 fluidState =
                   { m.fluidState with
                     selection
                   ; oldPos = m.fluidState.newPos
-                  ; newPos = s.range |> Tuple2.second
-                  ; clipboard } }
+                  ; newPos = s.range |> Tuple2.second } }
           | None ->
               m )
   | ResetToast ->
