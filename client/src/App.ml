@@ -1593,7 +1593,11 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (fun m_ -> {m_ with visibility = vis})
   | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
       let center = findCenter m in
-      let tlid = gtlid () in
+      let tlid =
+        if VariantTesting.variantIsActive m GridLayout
+        then gtlidDT ()
+        else gtlid ()
+      in
       let pos = center in
       let ast = B.new_ () in
       let aHandler =
@@ -1655,7 +1659,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = findCenter m
       and genName = DB.generateDBName () in
-      DB.createDB genName center
+      DB.createDB genName center m
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center

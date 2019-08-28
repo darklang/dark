@@ -1,3 +1,4 @@
+open Tc
 open Types
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
@@ -15,6 +16,31 @@ let tlidOf (page : page) : tlid option =
       Some tlid
 
 
+let offsetForGrid (tlid : tlid) (offset : pos) : pos =
+  let open Native.Ext in
+  let open Native.Window in
+  let toplevelSelector = ".node .tl-" ^ Prelude.showTLID tlid in
+  querySelector toplevelSelector
+  |> Option.andThen ~f:(fun e ->
+         let r = getBoundingClient e toplevelSelector in
+         let o : Native.rect =
+           { id = "canvas"
+           ; left = offset.y
+           ; top = offset.x
+           ; right = offset.x + (viewportWidth - 360)
+           ; bottom = offset.y + viewportHeight }
+         in
+         let topCheck = if o.top < r.top then 1 else 0 in
+         let leftCheck = if o.left < r.left then 1 else 0 in
+         let rightCheck = if o.right > r.right then 1 else 0 in
+         let bottomCheck = if o.bottom > r.bottom then 1 else 0 in
+         (* We probably want to check for partial containment, but for the case of Ellen's demo which this vflag is used for, full containment should be alright because unlike listo it does not have huge handlers *)
+         if topCheck + leftCheck + rightCheck + bottomCheck != 4
+         then Some {x = offset.x + r.left - 360; y = offset.y + r.top - 100}
+         else None )
+  |> Option.withDefault ~default:offset
+
+
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   let center =
     match page with
@@ -26,7 +52,11 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
         false
   in
   let offset =
-    if center then Viewport.centerCanvasOn tl else m.canvasProps.offset
+    if VariantTesting.variantIsActive m GridLayout
+    then offsetForGrid (TL.id tl) m.canvasProps.offset
+    else if center
+    then Viewport.centerCanvasOn tl
+    else m.canvasProps.offset
   in
   let panAnimation = offset <> m.canvasProps.offset in
   let boId =
