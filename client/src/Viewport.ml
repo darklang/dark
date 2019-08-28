@@ -15,8 +15,13 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let moveCanvasBy (m : model) (x : int) (y : int) : modification =
+  let dx, dy =
+    if VariantTesting.variantIsActive m GridLayout
+    then (x / 2, y / 2)
+    else (x, y)
+  in
   let offset = m.canvasProps.offset in
-  let pos = addPos offset {x; y} in
+  let pos = addPos offset {x = dx; y = dy} in
   MoveCanvasTo pos
 
 

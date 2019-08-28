@@ -1,0 +1,17 @@
+.topbar {
+  position: relative;
+  width: 100%;
+  background-color: darken($canvas-background, 10%);
+  align-items: center;
+  align-content: center;
+  text-align: center;
+  color: $white1;
+  a {
+    color: $white1;
+
+    &:hover {
+      cursor: pointer;
+    }
+  }
+  z-index: 100;
+}

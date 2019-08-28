@@ -86,9 +86,13 @@ let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
 
 
-let createDB (name : string) (pos : pos) : modification =
+let createDB (name : string) (pos : pos) (m : model) : modification =
   let next = Prelude.gid () in
-  let tlid = Prelude.gtlid () in
+  let tlid =
+    if List.member ~value:GridLayout m.tests
+    then Prelude.gtlidDT ()
+    else Prelude.gtlid ()
+  in
   (* This is not _strictly_ correct, as there's no guarantee that the new DB
    * doesn't share a name with an old DB in a weird state that still has
    * data in the user_data table. But it's 99.999% correct, which of course

@@ -191,7 +191,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
     ]
   in
-  ViewUtils.placeHtml pos boxClasses html
+  ViewUtils.placeHtml pos boxClasses html m
 
 
 let tlCacheKey (m : model) tl =
@@ -255,8 +255,7 @@ let viewTL m tl =
 
 
 let viewCanvas (m : model) : msg Html.html =
-  let entry = ViewEntry.viewEntry m in
-  let asts =
+  let allDivs =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         m
@@ -287,19 +286,24 @@ let viewCanvas (m : model) : msg Html.html =
     let offset = m.canvasProps.offset in
     let x = string_of_int (-offset.x) in
     let y = string_of_int (-offset.y) in
-    "translate(" ^ x ^ "px, " ^ y ^ "px)"
+    ("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")
   in
   let styles =
     [ ( "transition"
       , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
-    ; ("transform", canvasTransform) ]
+    ; canvasTransform ]
   in
-  let allDivs = asts @ entry in
   let overlay =
     let show =
       match m.currentPage with
       | FocusedHandler _ | FocusedDB _ ->
           true
+      | Architecture ->
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Creating _) ->
+            true
+        | _ ->
+            false )
       | _ ->
           false
     in
@@ -390,14 +394,18 @@ let view (m : model) : msg Html.html =
   in
   let sidebar = ViewSidebar.viewSidebar m in
   let body = viewCanvas m in
+  let entry = ViewEntry.viewEntry m in
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
-    if VariantTesting.isFluid m.tests
+    if VariantTesting.isFluidWithStatus m.tests
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
   let content =
-    [sidebar; body; activeAvatars; viewToast m.toast] @ fluidStatus @ footer
+    ViewTopbar.html m
+    @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
+    @ fluidStatus
+    @ footer
   in
   Html.div attributes content

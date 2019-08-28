@@ -931,6 +931,9 @@ and msg =
   | FluidMouseClick of tlid
   | AutocompleteClick of int
   | FluidAutocompleteClick of fluidAutocompleteItem
+  | FluidCopy
+  | FluidCut
+  | FluidPaste
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
@@ -1020,13 +1023,14 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of fluidSelection option
+  | UpdateFluidSelection of fluidSelection option * fluidExpr option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
   | DeleteGroup of tlid
   | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
+  | HideTopbar
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1035,9 +1039,11 @@ and msg =
 and variantTest =
   | StubVariant
   | FluidVariant
+  | FluidWithoutStatusVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant
+  | GridLayout
 
 (* ----------------------------- *)
 (* FeatureFlags *)
@@ -1281,7 +1287,8 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selection : fluidSelection option }
+  ; selection : fluidSelection option
+  ; clipboard : fluidExpr option }
 
 (* Avatars *)
 and avatar =
@@ -1373,10 +1380,11 @@ and model =
   ; isAdmin : bool
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; toast : toast
   ; opCtrs : int StrDict.t
   ; clientOpCtrId : string
-  ; permission : permission option }
+  ; permission : permission option
+  ; showTopbar : bool
+  ; toast : toast }
 
 (* Values that we serialize *)
 and serializableEditor =
