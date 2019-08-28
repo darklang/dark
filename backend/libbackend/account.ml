@@ -347,6 +347,13 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "korede@darklang.com"
     ; name = "Korede" } ;
+  upsert_admin_exn
+    { username = "julian"
+    ; password =
+        Password.from_hash
+          "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcmpSSWxTZUtLVWpQZVoyY0tkaVVGdyQ4YXBrY3FIcXlTZlJ6UXpWRVNTTG0wWUZ5cStWSVBJYVRlNlUybWFtZjFjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "julian@darklang.com"
+    ; name = "Julian" } ;
   (* dark contractors *)
   (* upsert_account_exn *)
   (*   { username = "lizzie" *)

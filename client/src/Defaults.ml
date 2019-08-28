@@ -44,7 +44,8 @@ let defaultFluidState : fluidState =
       ; invalidCompletions = []
       ; allCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
-  ; selection = None }
+  ; selection = None
+  ; clipboard = None }
 
 
 let defaultCanvasProps : canvasProps =
@@ -134,4 +135,5 @@ let defaultModel : model =
   ; buildHash = ""
   ; lastReload = None
   ; permission = None
+  ; showTopbar = true
   ; toast = defaultToast }
