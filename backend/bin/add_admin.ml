@@ -26,7 +26,7 @@ let () =
         usage ()
   in
   (* prompt command-line user for some fields... *)
-  let username = prompt "Username: " in
+  let username = prompt "Admin Username: " in
   let password =
     if prompt_for_password then prompt "Password: " else Util.random_string 16
   in
@@ -36,9 +36,9 @@ let () =
   (* print out the new entry for account.ml *)
   Format.printf
     "
-  (* This user's password is as follows: %s
-     Insert everything after this into backend/libbackend/account.ml *)\n
-  upsert_account
+  (* This admin's password is as follows: %s
+     Insert everything after this into backend/libbackend/account.ml in `let upsert_admins` *)\n
+  upsert_admin_exn
     { username = \"%s\"
     ; password = Password.from_hash \"%s\"
     ; email = \"%s\"

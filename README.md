@@ -10,8 +10,8 @@ To build and run the server you must have the following installed (and running):
 - Docker for Mac (https://docs.docker.com/docker-for-mac/install/)
 - The latest version of bash `brew install bash`
 - fswatch `brew install fswatch`
-- PIP `brew install pip`
-- live reload `pip install livereload`
+- PIP `brew install python`
+- live reload `pip3 install livereload`
 - Dnsmasq `brew install dnsmasq`
 
 ### First time setup
@@ -20,8 +20,10 @@ To build and run the server you must have the following installed (and running):
 The app and its dependencies are all held within the container. While code is edited on your machine, the application is compiled and run inside of the container.
 
 Ensure that docker:
-- set to use 4 CPUs and 2GB of RAM
+- set to use 4 CPUs, 4.0 GiB of Memory, and 4.0 GiB of Swap (under the Advanced preferences tab).
 - more than that significantly increases build time
+
+Ignore the other tabs (for example you don't need to enable Kubernetes).
 
 #### Dnsmasq
 
@@ -37,6 +39,7 @@ Follow brew's post-install instructions:
 ```
 brew info dnsmasq
 ```
+(probably `sudo brew services start dnsmasq`)
 
 Add the following to `(brew --prefix)/etc/dnsmasq.conf`
 ```
@@ -64,23 +67,32 @@ ping -c 1 www.google.com
 dig testing.builtwithdark.localhost @127.0.0.1
 ```
 
+#### Building and running for the first time
+
+- Run `scripts/builder --compile --watch --test`
+- Wait until the terminal says "Finished initial compile" - this means the build server is ready
+
 #### Create an account for yourself
 
 Accounts are currently created / managed in [./backend/libbackend/account.ml](./backend/libbackend/account.ml). See [./docs/add-user.md](./docs/add-user.md) for more thorough information.
 
 To add an account to local dev for yourself, start by running:
 ```
-scripts/run-in-docker backend/_build/default/bin/add_user.exe --prompt-for-password
+scripts/run-in-docker backend/_build/default/bin/add_admin.exe --prompt-for-password
 ```
 
-Open a PR adding your account data to `account.ml` in the `init` function. It will look someting like:
+This will output 
 ```
-upsert_admin
-    { username = "YOURNAME"
-    ; password = "..."
-    ; email = "developer@example.com"
-    ; name = "Ada Lovelace"};
+  upsert_admin_exn
+      { username = "YOURNAME"
+      ; password =
+          Password.from_hash
+            "..."
+      ; email = "developer@example.com"
+      ; name = "Ada Lovelace"};
 ```
+
+Open a PR adding this account data to `account.ml` in the `upsert_admins` function.
 
 ### Building and running
 
