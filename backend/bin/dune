@@ -9,9 +9,9 @@
 )
 
 (executable
-  (name add_user)
-  (public_name add_user)
-  (modules add_user)
+  (name add_admin)
+  (public_name add_admin)
+  (modules add_admin)
   (flags (-warn-error +A))
   (libraries libbackend)
   (package dark)
