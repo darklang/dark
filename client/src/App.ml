@@ -1478,7 +1478,10 @@ let update_ (msg : msg) (m : model) : modification =
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
   | Delete404RPC f404 ->
-      Many [(* This deletion is speculative *) Delete404 f404; MakeCmd (RPC.delete404 m f404)]
+      Many
+        [ (* This deletion is speculative *)
+          Delete404 f404
+        ; MakeCmd (RPC.delete404 m f404) ]
   | Delete404RPCCallback (params, result) ->
     ( match result with
     | Ok _ ->
