@@ -742,7 +742,7 @@ let fluid_double_click_selects_token (m : model) : testResult =
 
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
   match m.fluidState.selection with
-  | Some {range = 34, 964} ->
+  | Some {range = 34, 1007} ->
       pass
   | Some {range = a, b} ->
       fail
