@@ -489,7 +489,7 @@ and addOpRPCParams j : addOpRPCParams =
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
   { ops = field "ops" (list op) j
   ; opCtr
-    (* withDefault in case we roll back and have an old server that doesn't send
+      (* withDefault in case we roll back and have an old server that doesn't send
 * us this field *)
   ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
