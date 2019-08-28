@@ -27,15 +27,15 @@ let offsetForGrid (tlid : tlid) (offset : pos) : pos =
            { id = "canvas"
            ; left = offset.y
            ; top = offset.x
-           ; right = offset.x + viewportWidth
+           ; right = offset.x + (viewportWidth - 360)
            ; bottom = offset.y + viewportHeight }
          in
          let topCheck = if o.top < r.top then 1 else 0 in
          let leftCheck = if o.left < r.left then 1 else 0 in
          let rightCheck = if o.right > r.right then 1 else 0 in
          let bottomCheck = if o.bottom > r.bottom then 1 else 0 in
-         (* We probably want to check for 2 corners instead of 3, but for the case of Ellen's demo which this vflag is used for. It has mostly small handler so it should be alright. *)
-         if topCheck + leftCheck + rightCheck + bottomCheck < 3
+         (* We probably want to check for partial containment, but for the case of Ellen's demo which this vflag is used for, full containment should be alright because unlike listo it does not have huge handlers *)
+         if topCheck + leftCheck + rightCheck + bottomCheck != 4
          then Some {x = offset.x + r.left - 360; y = offset.y + r.top - 100}
          else None )
   |> Option.withDefault ~default:offset
