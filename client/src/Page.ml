@@ -53,7 +53,9 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   in
   let offset =
     if VariantTesting.variantIsActive m GridLayout
-    then offsetForGrid (TL.id tl) m.canvasProps.offset
+    then
+      m.canvasProps.offset
+      (* offsetForGrid (TL.id tl) m.canvasProps.offset (if m.sidebarOpen then 320 else 60) *)
     else if center
     then Viewport.centerCanvasOn tl
     else m.canvasProps.offset
