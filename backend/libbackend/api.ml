@@ -8,6 +8,8 @@ type oplist = Op.op list [@@deriving yojson]
 type add_op_rpc_params =
   { ops : oplist
   ; opCtr : int
+  (* option means that we can still deserialize if this field is null, as doc'd
+* at https://github.com/ocaml-ppx/ppx_deriving_yojson *)
   ; clientOpCtrId : string option }
 [@@deriving yojson]
 
