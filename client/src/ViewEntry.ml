@@ -197,7 +197,6 @@ let viewEntry (m : model) : msg Html.html =
         else
           let offset = m.canvasProps.offset in
           let loc = Viewport.subPos pos offset in
-          Debug.loG "loc" loc ;
           Html.styles
             [ ("left", string_of_int loc.x ^ "px")
             ; ("top", string_of_int loc.y ^ "px") ]

@@ -44,8 +44,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
         |> Option.withDefault ~default:(0, 0)
       in
       (* magic numbers come from sidebar mode, in _canvas.scss *)
-      let sidebarDx = if m.sidebarOpen then 360 else 80 in
-      let x = o.x + dx - sidebarDx in
+      let x = o.x + dx - 360 in
       let y = o.y + dy - 100 in
       {x; y}
     else if center

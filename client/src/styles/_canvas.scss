@@ -171,10 +171,6 @@ body #app * {
     padding-left: 360px;
   }
 
-  #sidebar-left.isClosed + #canvas {
-    padding-left: 80px;
-  }
-
   #canvas > .node {
     position: relative;
     margin: 20px 30px;
