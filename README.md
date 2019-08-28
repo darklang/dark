@@ -78,27 +78,21 @@ Accounts are currently created / managed in [./backend/libbackend/account.ml](./
 
 To add an account to local dev for yourself, start by running:
 ```
-scripts/run-in-docker backend/_build/default/bin/add_user.exe --prompt-for-password
+scripts/run-in-docker backend/_build/default/bin/add_admin.exe --prompt-for-password
 ```
 
 This will output 
 ```
-  upsert_account
-    { username = "..."
-      ...
-    };
+  upsert_admin_exn
+      { username = "YOURNAME"
+      ; password =
+          Password.from_hash
+            "..."
+      ; email = "developer@example.com"
+      ; name = "Ada Lovelace"};
 ```
 
-Open a PR adding your account data to `account.ml` in the `init` function. It will look something like the following (note the `upsert_admin_exn` instead of `upsert_account`):
-```
-upsert_admin_exn
-    { username = "YOURNAME"
-    ; password =
-        Password.from_hash
-          "..."
-    ; email = "developer@example.com"
-    ; name = "Ada Lovelace"};
-```
+Open a PR adding this account data to `account.ml` in the `upsert_admins` function.
 
 ### Building and running
 
