@@ -63,10 +63,12 @@ let undo_redo (m : model) (redo : bool) : modification =
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
-  let useCommandKey = Entry.getBrowserPlatform () = Mac in
-  if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  let osCmdKeyHeld =
+    if Entry.getBrowserPlatform () = Mac then event.metaKey else event.ctrlKey
+  in
+  if osCmdKeyHeld && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
-  else if (event.metaKey || event.ctrlKey) && event.keyCode = Key.Z
+  else if osCmdKeyHeld && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
   else
     match m.cursorState with
@@ -308,8 +310,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Key.K ->
           ( match m.currentPage with
           | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-              if (useCommandKey && event.metaKey)
-                 || ((not useCommandKey) && event.ctrlKey)
+              if osCmdKeyHeld
               then Many [Deselect; Entry.openOmnibox m]
               else NoChange
           | _ ->
@@ -492,10 +493,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Key.Enter ->
             Entry.openOmnibox m
         | Key.K ->
-            if (useCommandKey && event.metaKey)
-               || ((not useCommandKey) && event.ctrlKey)
-            then Entry.openOmnibox m
-            else NoChange
+            if osCmdKeyHeld then Entry.openOmnibox m else NoChange
         | Key.A ->
             if event.ctrlKey then Viewport.pageLeft m else NoChange
         | Key.E ->
