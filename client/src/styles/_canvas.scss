@@ -162,13 +162,13 @@ body #app * {
     flex-wrap: wrap;
     justify-content: flex-start;
     align-items: flex-start;
-    padding-top: 100px;
+    align-content: flex-start;
   }
 }
 
 .grid-layout-variant {
   #sidebar-left + #canvas {
-    padding-left: 360px;
+    padding-left: 320px;
   }
 
   #canvas > .node {
