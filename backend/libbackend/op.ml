@@ -197,6 +197,7 @@ let filter_ops_received_out_of_order (ops : op list) : op list =
          | SetDBColTypeInDBMigration _
          | UndoTL _
          | RedoTL _
+         | TLSavepoint _
          | RenameDBname _ ->
              false
          | CreateDB _
@@ -204,7 +205,6 @@ let filter_ops_received_out_of_order (ops : op list) : op list =
          | SetDBColType _
          | DeleteTL _
          | DeprecatedInitDbm _
-         | TLSavepoint _
          | DeleteFunction _
          | AddDBColToDBMigration _
          | AbandonDBMigration _

@@ -212,6 +212,7 @@ let filterOpsAndResult
           | SetDBColTypeInDBMigration _
           | UndoTL _
           | RedoTL _
+          | TLSavepoint _
           | RenameDBname _ ->
               false
           | CreateDB _
@@ -219,7 +220,6 @@ let filterOpsAndResult
           | SetDBColType _
           | DeleteTL _
           | DeprecatedInitDbm _
-          | TLSavepoint _
           | DeleteFunction _
           | AddDBColToDBMigration _
           | AbandonDBMigration _
