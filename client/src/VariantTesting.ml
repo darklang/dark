@@ -45,6 +45,8 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some LibtwitterVariant
     | "groups" ->
         Some GroupVariant
+    | "grid" ->
+        Some GridLayout
     | _ ->
         None )
 
@@ -62,6 +64,8 @@ let toCSSClass (vt : variantTest) : string =
         "libtwitter"
     | GroupVariant ->
         "grouping"
+    | GridLayout ->
+        "grid-layout"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
