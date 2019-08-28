@@ -44,9 +44,9 @@
 .omnibox .entry {
   #search-container,
   #autocomplete-holder {
-    // XXX(JULIAN): because the context of the z-index is local, this will not place the omnibox over
-    // non-siblings. e.g. .node .hovering below is in a different stacking context. See
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/z-index
+    /* XXX(JULIAN): because the context of the z-index is local, this will not place the omnibox over
+       non-siblings. e.g. .node .hovering below is in a different stacking context. See
+       https://developer.mozilla.org/en-US/docs/Web/CSS/z-index */
     z-index: 100;
   }
 }
