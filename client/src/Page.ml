@@ -16,6 +16,31 @@ let tlidOf (page : page) : tlid option =
       Some tlid
 
 
+let offsetForGrid (tlid : tlid) (offset : pos) : pos =
+  let open Native.Ext in
+  let open Native.Window in
+  let toplevelSelector = ".node .tl-" ^ Prelude.showTLID tlid in
+  querySelector toplevelSelector
+  |> Option.andThen ~f:(fun e ->
+         let r = getBoundingClient e toplevelSelector in
+         let o : Native.rect =
+           { id = "canvas"
+           ; left = offset.y
+           ; top = offset.x
+           ; right = offset.x + viewportWidth
+           ; bottom = offset.y + viewportHeight }
+         in
+         let topCheck = if o.top < r.top then 1 else 0 in
+         let leftCheck = if o.left < r.left then 1 else 0 in
+         let rightCheck = if o.right > r.right then 1 else 0 in
+         let bottomCheck = if o.bottom > r.bottom then 1 else 0 in
+         (* We probably want to check for 2 corners instead of 3, but for the case of Ellen's demo which this vflag is used for. It has mostly small handler so it should be alright. *)
+         if topCheck + leftCheck + rightCheck + bottomCheck < 3
+         then Some {x = offset.x + r.left - 360; y = offset.y + r.top - 100}
+         else None )
+  |> Option.withDefault ~default:offset
+
+
 let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   let center =
     match page with
@@ -28,25 +53,7 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   in
   let offset =
     if VariantTesting.variantIsActive m GridLayout
-    then
-      let tlid = TL.id tl in
-      let o = m.canvasProps.offset in
-      let e =
-        Native.Ext.querySelector (".node .tl-" ^ Prelude.showTLID tlid)
-      in
-      let dx, dy =
-        e
-        |> Option.andThen ~f:(fun e ->
-               let r = Native.Ext.getBoundingClientRect e in
-               let px = Native.Ext.rectLeft r |> int_of_float in
-               let py = Native.Ext.rectTop r |> int_of_float in
-               Some (px, py) )
-        |> Option.withDefault ~default:(0, 0)
-      in
-      (* magic numbers come from sidebar mode, in _canvas.scss *)
-      let x = o.x + dx - 360 in
-      let y = o.y + dy - 100 in
-      {x; y}
+    then offsetForGrid (TL.id tl) m.canvasProps.offset
     else if center
     then Viewport.centerCanvasOn tl
     else m.canvasProps.offset
