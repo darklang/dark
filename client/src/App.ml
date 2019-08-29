@@ -19,7 +19,7 @@ module TD = TLIDDict
 let incOpCtr (m : model) : model =
   { m with
     opCtrs =
-      StrDict.update m.opCtrs ~key:m.browserId ~f:(function
+      StrDict.update m.opCtrs ~key:m.clientOpCtrId ~f:(function
           | Some v ->
               Some (v + 1)
           | None ->
@@ -27,7 +27,7 @@ let incOpCtr (m : model) : model =
 
 
 let opCtr (m : model) : int =
-  match StrDict.get ~key:m.browserId m.opCtrs with
+  match StrDict.get ~key:m.clientOpCtrId m.opCtrs with
   | Some ctr ->
       ctr
   | None ->
@@ -42,6 +42,10 @@ let expireAvatars (avatars : Types.avatar list) : Types.avatar list =
 
 
 let createBrowserId : string =
+  BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
+
+
+let createClientOpCtrId : string =
   BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
 
 
@@ -97,6 +101,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; environment
     ; csrfToken
     ; browserId = manageBrowserId
+    ; clientOpCtrId = createClientOpCtrId
     ; isAdmin
     ; buildHash }
   in
@@ -295,7 +300,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params =
-                     RPC.opsParams ops (Some (opCtr newM)) m.browserId
+                     RPC.opsParams ops (Some (opCtr newM)) m.clientOpCtrId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -308,7 +313,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
                    let params =
-                     RPC.opsParams ops (Some (newM |> opCtr)) m.browserId
+                     RPC.opsParams ops (Some (newM |> opCtr)) m.clientOpCtrId
                    in
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
@@ -436,7 +441,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ({m with error = {message = None; showDetails = false}}, Cmd.none)
     | RPC (ops, focus) ->
         handleRPC
-          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.browserId)
+          (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
           focus
     | GetUnlockedDBsRPC ->
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
@@ -1355,7 +1360,7 @@ let update_ (msg : msg) (m : model) : modification =
           let m =
             { m with
               opCtrs =
-                StrDict.update m.opCtrs ~key:params.browserId ~f:(fun _ ->
+                StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun _ ->
                     params.opCtr )
             ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
@@ -1374,7 +1379,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many (initialMods @ focusMods)
   | AddOpStrollerMsg msg ->
-      if msg.params.browserId = m.browserId
+      if msg.params.clientOpCtrId = m.clientOpCtrId
       then
         NoChange
         (* msg was sent from this client, we've already handled it

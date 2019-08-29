@@ -349,7 +349,7 @@ and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
   object_
     [ ("ops", ops params.ops)
     ; ("opCtr", int (params.opCtr |> Option.valueExn))
-    ; ("browserId", string params.browserId) ]
+    ; ("clientOpCtrId", string params.clientOpCtrId) ]
 
 
 and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
