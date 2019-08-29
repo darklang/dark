@@ -3062,30 +3062,28 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
+    | K.Backspace, _, R (TRecordField (_, _, ""), _)
+      when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
-      ( match s.selection with
-      | Some sel ->
-          deleteSelection ~state:s ~ast sel
-      | None ->
-          doBackspace ~pos ti ast s )
+        doBackspace ~pos ti ast s
+    | K.Backspace, _, R (TPatternBlank (_, _), _)
+      when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
-      ( match s.selection with
-      | Some sel ->
-          deleteSelection ~state:s ~ast sel
-      | None ->
-          doBackspace ~pos ti ast s )
+        doBackspace ~pos ti ast s
+    | K.Backspace, L (_, _), _ when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, L (_, ti), _ ->
-      ( match s.selection with
-      | Some sel ->
-          deleteSelection ~state:s ~ast sel
-      | None ->
-          doBackspace ~pos ti ast s )
+        doBackspace ~pos ti ast s
+    | K.Delete, _, R (_, _) when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Delete, _, R (_, ti) ->
-      ( match s.selection with
-      | Some sel ->
-          deleteSelection ~state:s ~ast sel
-      | None ->
-          doDelete ~pos ti ast s )
+        doDelete ~pos ti ast s
     (* Autocomplete menu *)
     (* Note that these are spelt out explicitly on purpose, else they'll
      * trigger on the wrong element sometimes. *)
