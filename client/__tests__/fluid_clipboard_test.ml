@@ -161,7 +161,7 @@ let () =
         (paste ~clipboard:(EInteger (gid (), 1234)) (0, 0))
         ("1234", "1234", 4) ;
       t
-        "pasting an EInteger into another integer should join the integers paste it"
+        "pasting an EInteger into another integer should join the integers"
         (EInteger (gid (), 5678))
         (paste ~clipboard:(EInteger (gid (), 1234)) (1, 3))
         ("512348", "1234", 5) ;
@@ -176,6 +176,11 @@ let () =
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (0, 0))
         ("12.345678", "12.34", 9) ;
       t
+        "pasting an EFloat into an integer should convert to float 3"
+        (EInteger (gid (), 5678))
+        (paste ~clipboard:(EFloat (gid (), "12", "34")) (4, 4))
+        ("567812.34", "12.34", 9) ;
+      t
         "pasting an EVariable into an integer should convert to parital"
         (EInteger (gid (), 5678))
         (paste ~clipboard:(EVariable (gid (), "myVar")) (0, 0))
@@ -185,6 +190,26 @@ let () =
         (EInteger (gid (), 5678))
         (paste ~clipboard:(EVariable (gid (), "myVar")) (1, 1))
         ("5myVar678", "myVar", 6) ;
+      t
+        "pasting an int-only EString into an integer should extend integer"
+        (EInteger (gid (), 5678))
+        (paste ~clipboard:(EString (gid (), "1234")) (0, 0))
+        ("12345678", "\"1234\"", 4) ;
+      t
+        "pasting an int-only EString into an integer should extend integer 2"
+        (EInteger (gid (), 5678))
+        (paste ~clipboard:(EString (gid (), "1234")) (4, 4))
+        ("56781234", "\"1234\"", 8) ;
+      t
+        "pasting an int-only EString into an integer should extend integer 2"
+        (EInteger (gid (), 5678))
+        (paste ~clipboard:(EString (gid (), "1234")) (2, 2))
+        ("56123478", "\"1234\"", 6) ;
+      t
+        "pasting an int-only EString over part of an integer should extend integer"
+        (EInteger (gid (), 5678))
+        (paste ~clipboard:(EString (gid (), "1234")) (1, 3))
+        ("512348", "\"1234\"", 5) ;
       () ) ;
   describe "Strings" (fun () ->
       t
@@ -356,6 +381,21 @@ let () =
         (EFloat (gid (), "1234", "5678"))
         (paste ~clipboard:(EInteger (gid (), 9000)) (6, 8))
         ("1234.590008", "9000", 10) ;
+      t
+        "pasting an EInteger before a float point should paste it"
+        (EFloat (gid (), "1234", "5678"))
+        (paste ~clipboard:(EInteger (gid (), 9000)) (4, 4))
+        ("12349000.5678", "9000", 8) ;
+      t
+        "pasting an EInteger after a float point should paste it"
+        (EFloat (gid (), "1234", "5678"))
+        (paste ~clipboard:(EInteger (gid (), 9000)) (5, 5))
+        ("1234.90005678", "9000", 9) ;
+      t
+        "pasting an EInteger over a float point should paste it"
+        (EFloat (gid (), "1234", "5678"))
+        (paste ~clipboard:(EInteger (gid (), 9000)) (3, 6))
+        ("1239000678", "9000", 7) ;
       () ) ;
   describe "Variables" (fun () ->
       t

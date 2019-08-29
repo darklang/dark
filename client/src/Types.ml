@@ -1181,8 +1181,9 @@ and fluidToken =
   | TPartialGhost of id * string
   | TSep
   (* Newlines sometimes need to hold context. When there are many things in the
-   * id with the newline, the extra context is the index of which one it is. *)
-  | TNewline of (id * int option) option
+   * id with the newline, the extra context is the index of which one it is. 
+   * The second id is that of the Newline's parent expression*)
+  | TNewline of (id * id * int option) option
   (* All newlines in the nested tokens start indented to this position. *)
   | TIndentToHere of fluidToken list
   (* Increase the level of indentation for all these tokens. *)
