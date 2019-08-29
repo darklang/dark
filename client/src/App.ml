@@ -1181,9 +1181,14 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidSelectStart (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
+        let selection = m.fluidState.selection in
         Many
           [ Select (targetExnID, None)
-          ; Fluid.update m (FluidMouseClick targetExnID) ]
+          ; (* set new position based on mouseclick, *)
+            Fluid.update m (FluidMouseClick targetExnID)
+          ; (* then re-apply old selection *)
+            TweakModel
+              (fun m -> {m with fluidState = {m.fluidState with selection}}) ]
       else NoChange
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1825,7 +1830,7 @@ let update_ (msg : msg) (m : model) : modification =
                   ; oldPos = m.fluidState.newPos
                   ; newPos = s.range |> Tuple2.second } }
           | None ->
-              m )
+              {m with fluidState = {m.fluidState with selection = None}} )
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

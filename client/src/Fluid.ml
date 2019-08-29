@@ -495,7 +495,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline (Some (eid next, None))
+      ; TNewline (Some (eid next, id, None))
       ; nested next ]
   | EString (id, str) ->
       let size = 40 in
@@ -531,12 +531,12 @@ let rec toTokens' (s : state) (e : ast) : token list =
          * to press Enter on the expression inside. It might be better to
          * instead have a special newline where an id is relevant, and another
          * newline which is boring. *)
-      ; TNewline (Some (eid if', None))
+      ; TNewline (Some (eid if', id, None))
       ; TIndent 2
       ; nested if'
       ; TNewline None
       ; TIfElseKeyword id
-      ; TNewline (Some (eid else', None))
+      ; TNewline (Some (eid else', id, None))
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -632,14 +632,15 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline (Some (id, Some i))
+              [ TNewline (Some (id, id, Some i))
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline (Some (id, Some (List.length fields))); TRecordClose id] ]
+        ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
+        ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -652,7 +653,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline (Some (id, Some 0))
+        ; TNewline (Some (id, id, Some 0))
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
@@ -661,7 +662,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    in
                    if i == 0
                    then thread
-                   else TNewline (Some (id, Some i)) :: thread )
+                   else TNewline (Some (id, id, Some i)) :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -674,7 +675,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-            [TNewline (Some (id, Some i)); TIndent 2]
+            [TNewline (Some (id, id, Some i)); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -2160,8 +2161,8 @@ let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
     let newToken =
       List.find tokens ~f:(fun ti ->
           match ti.token with
-          | TNewline (Some (tid, tindex)) when id = tid && tindex = !nextIndex
-            ->
+          | TNewline (Some (tid, _, tindex))
+            when id = tid && tindex = !nextIndex ->
               true
           | _ ->
               false )
@@ -3190,14 +3191,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline (Some (id, index)), ti) ->
+    | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
     | K.Enter, L (TThreadPipe (id, index, _), _), _ ->
         let newAST, newState = addEntryAbove id (Some index) ast s in
         (newAST, {newState with newPos = newState.newPos + 2})
-    | K.Enter, L (TNewline (Some (id, index)), _), _ ->
+    | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
@@ -3452,11 +3453,6 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     toExpr ast |> AST.clone |> fromExpr state
   in
   (* a few helpers *)
-  let toInt_ s =
-    String.toInt s
-    |> Result.toOption
-    |> deOption "string integer token should always be convertable to int"
-  in
   let toBool_ s =
     if s = "true"
     then true
@@ -3559,7 +3555,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* basic, single/fixed-token expressions *)
     | EInteger (eID, _), tokens ->
         findTokenValue tokens eID "integer"
-        |> Option.map ~f:toInt_
+        |> Option.map ~f:safe_int_of_string
         |> Option.map ~f:(fun v -> EInteger (gid (), v))
     | EBool (eID, value), tokens ->
         Option.or_
@@ -3588,7 +3584,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         | Some value, true, None ->
             Some (EFloat (id, value, "0"))
         | Some value, false, None | None, false, Some value ->
-            Some (EInteger (id, toInt_ value))
+            Some (EInteger (id, safe_int_of_string value))
         | None, true, Some value ->
             Some (EFloat (id, "0", value))
         | Some whole, true, Some fraction ->
@@ -3827,7 +3823,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [(id, _, "pattern-blank")] ->
                     FPBlank (mID, id)
                 | [(id, value, "pattern-integer")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | [(id, value, "pattern-variable")] ->
                     FPVariable (mID, id, value)
                 | (id, value, "pattern-constructor-name") :: _subPatternTokens
@@ -3856,11 +3852,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [ (id, value, "pattern-float-whole")
                   ; (_, _, "pattern-float-point") ]
                 | [(id, value, "pattern-float-whole")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | [ (_, _, "pattern-float-point")
                   ; (id, value, "pattern-float-fraction") ]
                 | [(id, value, "pattern-float-fraction")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | _ ->
                     FPBlank (mID, gid ())
               in
@@ -3891,7 +3887,13 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
     tokensInRange startPos endPos
     |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-           let curID = Token.tid ti.token in
+           let curID =
+             match ti.token with
+             | TNewline (Some (_, id, _)) ->
+                 id
+             | _ ->
+                 Token.tid ti.token
+           in
            let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
            if (* check if current token is higher in the AST than the last token,
                * or if there's no topmost ID yet *)
@@ -3915,13 +3917,16 @@ let pasteSelection ~state ~ast () : ast * fluidState =
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
-  match (state.clipboard, expr, token) with
+  let clipboardExpr =
+    state.clipboard
+    |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
+  in
+  match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
         (clipboardExpr |> eToString state |> String.length) + state.newPos
       in
-      ( replaceExpr ~newExpr:clipboardExpr exprID ast
-      , {state with newPos; oldPos = state.newPos} )
+      (replaceExpr ~newExpr:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
   | ( Some (ERecord (_, [(_, insert, EBlank _)]))
     , Some (EString (_, str))
@@ -3953,10 +3958,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       let insert = string_of_int clippedInt in
       let newVal =
         String.insertAt ~insert ~index (string_of_int pasting)
-        |> String.toInt
-        |> Result.toOption
-        |> deOption
-             "inserting integer into another integer should always be valid"
+        |> safe_int_of_string
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -4002,6 +4004,21 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = state.newPos + String.length varName})
+  (* inserting int-only string into an integer *)
+  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos}
+    when String.toInt insert |> Result.toOption <> None ->
+      let index = state.newPos - startPos in
+      let newVal =
+        String.insertAt ~insert ~index (string_of_int pasting)
+        |> safe_int_of_string
+      in
+      let newExpr = EInteger (gid (), newVal) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length insert})
   (* inserting integer into a float whole *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4032,6 +4049,19 @@ let pasteSelection ~state ~ast () : ast * fluidState =
           , whole
           , String.insertAt ~index ~insert:(string_of_int intVal) fraction )
       in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (string_of_int intVal) } )
+  (* inserting integer after float point *)
+  | ( Some (EInteger (_, intVal))
+    , Some (EFloat (_, whole, fraction))
+    , Some {token = TFloatPoint _} ) ->
+      let newExpr = EFloat (gid (), whole, string_of_int intVal ^ fraction) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
@@ -4136,7 +4166,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           |> Option.map ~f:(deleteSelection ~state:s ~ast)
           |> Option.withDefault ~default:(ast, s)
         in
-        pasteSelection ~state ~ast ()
+        let ast, state = pasteSelection ~state ~ast () in
+        (ast, updateAutocomplete m tlid ast state)
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -4456,6 +4487,7 @@ let toHtml
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
             (* TODO(korede): figure out how to disable default selection while allowing click event *)
+          ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
@@ -4472,9 +4504,9 @@ let toHtml
                     | {detail = 2; altKey = false} ->
                         UpdateFluidSelection (tokenSelection state ast)
                     | _ ->
-                        FluidSelectStart (tlid, vs.cursorState) )
+                        UpdateFluidSelection None )
                 | _ ->
-                    FluidSelectStart (tlid, vs.cursorState) )
+                    UpdateFluidSelection None )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-shift-click" ^ idStr)
               "click"
@@ -4484,7 +4516,7 @@ let toHtml
                 | Some range when ev.shiftKey ->
                     UpdateFluidSelection (Some {range})
                 | _ ->
-                    FluidSelectStart (tlid, vs.cursorState) ) ]
+                    UpdateFluidSelection None ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
