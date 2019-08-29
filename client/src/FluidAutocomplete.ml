@@ -329,7 +329,7 @@ let generateExprs m tl a ti =
     ti.token
     |> FluidToken.tid
     |> Analysis.getCurrentAvailableVarnames m tl
-    |> List.map ~f:(fun x -> FACVariable x)
+    |> List.map ~f:(fun (varname, _) -> FACVariable varname)
   in
   let keywords =
     List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KThread]

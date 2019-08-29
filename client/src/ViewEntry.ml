@@ -91,7 +91,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
 
 
 let normalEntryHtml
-    (placeholder : string) (ac : autocomplete) (lv : dval StrDict.t) :
+    (placeholder : string) (ac : autocomplete) (_lv : dval StrDict.t) :
     msg Html.html =
   let toList acis class' index =
     List.indexedMap
@@ -107,9 +107,8 @@ let normalEntryHtml
         in
         let typeStr =
           match item with
-          | ACVariable (varname, _) ->
-              StrDict.get ~key:varname lv
-              |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
+          | ACVariable (_, dv) ->
+              dv |> Option.map ~f:(fun v -> v |> RT.typeOf |> RT.tipe2str)
               |> Option.withDefault ~default:"variable"
           | _ ->
               Autocomplete.asTypeString item

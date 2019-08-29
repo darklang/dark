@@ -172,18 +172,25 @@ let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
       Some (RT.typeOf dv)
 
 
+(* Maybe return (varName * dval option) list *)
 let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
-    varName list =
+    (varName * dval option) list =
   (* TODO: Calling out is so slow that calculating on the fly is faster. But we
    * can also cache this so that's it's not in the display hot-path. *)
+  let liveValues = getCurrentLiveValuesDict m (TL.id tl) in
   let varsFor ast =
     ast
     |> AST.variablesIn
     |> StrDict.get ~key:id
-    |> Option.withDefault ~default:[]
+    |> Option.withDefault ~default:StrDict.empty
+    |> StrDict.toList
+    |> List.map ~f:(fun v ->
+      let varname, id = v in
+      (varname, liveValues |> StrDict.get ~key:(showID id))
+    )
   in
-  let glob = TL.allGloballyScopedVarnames m.dbs in
-  let inputVariables = RT.inputVariables tl in
+  let glob = TL.allGloballyScopedVarnames m.dbs |> List.map ~f:(fun v -> (v, None)) in
+  let inputVariables = RT.inputVariables tl |> List.map ~f:(fun v -> (v, None)) in
   match tl with
   | TLHandler h ->
       varsFor h.ast @ glob @ inputVariables
