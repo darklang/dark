@@ -6,6 +6,7 @@ open ViewUtils
 (* Tea *)
 module Attributes = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
+module RT = Runtime
 
 let onSubmit ~key fn =
   Html.onWithOptions
@@ -37,7 +38,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     | StringEntryShortWidth ->
         40
   in
-  let value = ac.value |> Runtime.stripQuotes in
+  let value = ac.value |> RT.stripQuotes in
   let longestLineLength =
     value
     |> String.split ~on:"\n"
@@ -64,7 +65,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
       ; Events.onInput (fun x ->
             (* DisplayString can hold things that literals can't (eg naked
              * backslashes), so don't convert back to literal yet *)
-            EntryInputMsg (Runtime.addQuotes x) )
+            EntryInputMsg (RT.addQuotes x) )
       ; defaultPasteHandler
       ; Attributes.value value
       ; Attributes.spellcheck false (* Stop other events firing *)
@@ -104,6 +105,15 @@ let normalEntryHtml
           | _ ->
               Html.span [Html.class' "name"] [Html.text name]
         in
+        let typeStr =
+          match item with
+          | ACVariable varname ->
+              StrDict.get ~key:varname lv
+              |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
+              |> Option.withDefault ~default:"variable"
+          | _ ->
+              Autocomplete.asTypeString item
+        in
         Html.li
           [ Attributes.classList
               [ ("autocomplete-item", true)
@@ -114,10 +124,7 @@ let normalEntryHtml
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick i ) ]
-          [ view item
-          ; Html.span
-              [Html.class' "types"]
-              [Html.text <| Autocomplete.asTypeString item] ] )
+          [view item; Html.span [Html.class' "types"] [Html.text typeStr]] )
       acis
   in
   let invalidIndex = ac.index - List.length ac.completions in
@@ -171,7 +178,7 @@ let normalEntryHtml
              | _ ->
                  None )
     in
-    let valStr = match valFor with Some v -> Runtime.toRepr v | None -> "" in
+    let valStr = match valFor with Some v -> RT.toRepr v | None -> "" in
     Html.div
       [ Html.classList
           [("live-value", true); ("show", ac.visible && Option.isSome valFor)]
