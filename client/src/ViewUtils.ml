@@ -36,7 +36,8 @@ type viewState =
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
   ; permission : permission option
-  ; varLookup : dval StrDict.t }
+  ; liveValues : lvDict
+  ; pointers : pointerData list }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -143,19 +144,11 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           [] )
   ; permission = m.permission
-  ; varLookup =
-    match TL.getAST tl with
-    | Some ast ->
-      let varIds = AST.idsOfLastVarBinds ast in
-      let idLvs = Analysis.getCurrentLiveValuesDict m tlid in
-      varIds |> List.filterMap ~f:(fun (var, id) -> 
-        match StrDict.get ~key:(showID id) idLvs with
-        | Some lv -> Some (var, lv)
-        | None -> None
-      )
-      |> StrDict.fromList
-    | None -> StrDict.empty
-  }
+  ; liveValues = Analysis.getCurrentLiveValuesDict m tlid
+  ; pointers =
+      TL.getAST tl
+      |> Option.map ~f:(fun ast -> AST.allData ast)
+      |> Option.withDefault ~default:[] }
 
 
 let fontAwesome (name : string) : msg Html.html =

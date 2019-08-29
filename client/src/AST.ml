@@ -1129,8 +1129,15 @@ let variablesIn (ast : expr) : avDict =
   |> StrDict.fromList
   |. StrDict.map ~f:SymSet.toList
 
-let idsOfLastVarBinds (ast : expr) : (varName * id) list =
-    allData ast
-    |> List.reverse
-    |> List.filterMap ~f:(fun pd -> match pd with PVarBind (F (id, v)) -> Some (v, id) | _ -> None )
-    |> List.uniqueBy ~f:(fun (name,_) -> name)
+
+let idsOfVarBindsBefore (id : id) (allPointers : pointerData list) :
+    (varName * id) list =
+  allPointers
+  |> List.findIndex ~f:(fun pd -> P.toID pd = id)
+  |> Option.map ~f:(fun index ->
+         if index = 0 then [] else List.take ~count:(index - 1) allPointers )
+  |> Option.withDefault ~default:[]
+  |> List.reverse
+  |> List.filterMap ~f:(fun pd ->
+         match pd with PVarBind (F (id, v)) -> Some (v, id) | _ -> None )
+  |> List.uniqueBy ~f:(fun (name, _) -> name)

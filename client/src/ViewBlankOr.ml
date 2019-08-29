@@ -351,6 +351,19 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "group name"
 
 
+let varVal (id : id) (idLvs : lvDict) (pointers : pointerData list) :
+    dval StrDict.t =
+  pointers
+  |> AST.idsOfVarBindsBefore id
+  |> List.filterMap ~f:(fun (var, id) ->
+         match StrDict.get ~key:(showID id) idLvs with
+         | Some lv ->
+             Some (var, lv)
+         | None ->
+             None )
+  |> StrDict.fromList
+
+
 let viewBlankOr
     (htmlFn : ViewUtils.viewState -> htmlConfig list -> 'a -> msg Html.html)
     (pt : pointerType)
@@ -393,6 +406,7 @@ let viewBlankOr
             else StringEntryNormalWidth
           in
           let placeholder = placeHolderFor vs id pt in
+          let varLvs = varVal id vs.liveValues vs.pointers in
           div
             vs
             (c @ wID id)
@@ -401,7 +415,7 @@ let viewBlankOr
                 stringEntryWidth
                 placeholder
                 vs.ac
-                vs.varLookup ]
+                varLvs ]
         else Html.text vs.ac.value
       else thisText
   | SelectingCommand (_, id) ->
@@ -415,7 +429,7 @@ let viewBlankOr
               StringEntryNormalWidth
               "command"
               vs.ac
-              vs.varLookup ]
+              StrDict.empty ]
       else thisText
   | _ ->
       thisText
