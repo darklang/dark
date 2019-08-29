@@ -10,9 +10,25 @@ let missingEventSpaceDesc : string = "Undefined"
 
 let missingEventRouteDesc : string = "Undefined"
 
+type identifier =
+  | Tlid of tlid
+  | Other of string
+
+let tlidOfIdentifier identifier : tlid option =
+  match identifier with Tlid tlid -> Some tlid | Other _ -> None
+
+
+let entryKeyFromIdentifier identifier : string =
+  match identifier with
+  | Tlid tlid ->
+      "entry-" ^ showTLID tlid
+  | Other s ->
+      "entry-" ^ s
+
+
 type entry =
   { name : string
-  ; tlid : tlid
+  ; identifier : identifier
   ; destination : page option (* where to go when clicked *)
   ; uses : int option
   ; minusButton : msg option
@@ -96,7 +112,7 @@ let handlerCategory
                 |> Blank.toMaybe
                 |> Option.withDefault ~default:missingEventRouteDesc
             ; uses = None
-            ; tlid
+            ; identifier = Tlid tlid
             ; destination = Some (FocusedHandler (tlid, true))
             ; minusButton = None
             ; killAction = Some (ToplevelDeleteForever tlid)
@@ -158,7 +174,7 @@ let dbCategory (m : model) (dbs : db list) : category =
         in
         Entry
           { name = B.valueWithDefault "Untitled DB" db.dbName
-          ; tlid = db.dbTLID
+          ; identifier = Tlid db.dbTLID
           ; uses = Some uses
           ; destination = Some (FocusedDB (db.dbTLID, true))
           ; minusButton
@@ -188,7 +204,7 @@ let f404Category (m : model) : category =
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None
-            ; tlid = TLID "no-tlid-for-404"
+            ; identifier = Other (fof.space ^ fof.path ^ fof.modifier)
             ; destination = None
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
@@ -210,7 +226,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
         in
         Entry
           { name
-          ; tlid = fn.ufTLID
+          ; identifier = Tlid fn.ufTLID
           ; uses = Some (Refactor.fnUseCount m name)
           ; minusButton
           ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
@@ -238,7 +254,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
         in
         Entry
           { name
-          ; tlid = tipe.utTLID
+          ; identifier = Tlid tipe.utTLID
           ; uses = Some (Refactor.tipeUseCount m name)
           ; minusButton
           ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
@@ -265,7 +281,7 @@ let groupCategory (groups : group list) : category =
         in
         Entry
           { name
-          ; tlid = group.gTLID
+          ; identifier = Tlid group.gTLID
           ; uses = None
           ; minusButton
           ; killAction = Some (DeleteGroupForever group.gTLID)
@@ -343,7 +359,10 @@ let deletedCategory (m : model) : category =
                    | Entry e ->
                        Entry
                          { e with
-                           plusButton = Some (RestoreToplevel e.tlid)
+                           plusButton =
+                             e.identifier
+                             |> tlidOfIdentifier
+                             |> Option.map ~f:(fun tlid -> RestoreToplevel tlid)
                          ; uses = None
                          ; minusButton = e.killAction
                          ; destination = None }
@@ -369,7 +388,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
       ( match e.destination with
       | Some dest ->
           let cl =
-            if tlidOf m.cursorState = Some e.tlid
+            if tlidOf m.cursorState = tlidOfIdentifier e.identifier
             then "default-link selected-entry"
             else if e.uses = Some 0
             then "default-link unused"
@@ -403,7 +422,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
             if m.permission = Some ReadWrite
             then
               [ buttonLink
-                  ~key:("entry-" ^ showTLID e.tlid)
+                  ~key:(entryKeyFromIdentifier e.identifier)
                   (fontAwesome "times-circle")
                   msg ]
             else []
@@ -424,7 +443,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
       [Html.classList [("aux", true); (httpMethod, true)]]
       (verb @ pluslink)
   in
-  let selected = Some e.tlid = tlidOf m.cursorState in
+  let selected = tlidOfIdentifier e.identifier = tlidOf m.cursorState in
   Html.div
     [Html.classList [("simple-item handler", true); ("selected", selected)]]
     [minuslink; mainlink; auxViews]
