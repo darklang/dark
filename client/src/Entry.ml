@@ -53,7 +53,8 @@ let setCursorPosition (v : int) : unit = jsSetCursorPosition v
 (* selection *)
 type range =
   < setStart : Web_node.t -> int -> unit [@bs.meth]
-  ; setEnd : Web_node.t -> int -> unit [@bs.meth] >
+  ; setEnd : Web_node.t -> int -> unit [@bs.meth]
+  ; startContainer : Web_node.t [@bs.get] >
   Js.t
 
 external createRange : unit -> range = "createRange"
@@ -62,7 +63,11 @@ external createRange : unit -> range = "createRange"
 type selection =
   < toString : unit -> string [@bs.meth]
   ; removeAllRanges : unit -> unit [@bs.meth]
-  ; addRange : range -> unit [@bs.meth] >
+  ; addRange : range -> unit [@bs.meth]
+  ; anchorOffset : int [@bs.get]
+  ; focusOffset : int [@bs.get]
+  ; anchorNode : Web_node.t [@bs.get]
+  ; getRangeAt : int -> range [@bs.meth] >
   Js.t
 
 external getSelection : unit -> selection = "getSelection"
@@ -72,7 +77,26 @@ let getSelectionRange () : (int * int) option =
   let selection = getSelection () in
   getCursorPosition ()
   |> Option.map ~f:(fun endPos ->
-         let startPos = endPos - (selection##toString () |> String.length) in
+         let isReverse =
+           let rangeStartContainer =
+             (selection##getRangeAt 0)##startContainer
+           in
+           if (* if anchor node where selection starts is different 
+            * from the first container in the range. only works when
+            * selection crosses multiple nodes *)
+              selection##anchorNode <> rangeStartContainer
+           then true
+           else
+             (* account for when selection has only one node by seeing if 
+              * the anchor offset (where the selection starts) is greater than the
+              * focus offset (where the selection ends) *)
+             selection##anchorOffset > selection##focusOffset
+         in
+         let startPos, endPos =
+           if isReverse
+           then (endPos, endPos + (selection##toString () |> String.length))
+           else (endPos - (selection##toString () |> String.length), endPos)
+         in
          (startPos, endPos) )
 
 

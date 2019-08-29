@@ -64,10 +64,14 @@ let tid (t : token) : id =
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
-  | TNewline (Some (id, _)) ->
+  | TNewline (Some (id, _, _)) ->
       id
   | TNewline None | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
       fakeid
+
+
+let parentExprID (t : token) : id =
+  match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
 
 
 let validID id = id <> fakeid
