@@ -568,7 +568,7 @@ and sendPresenceParams = avatarModelMessage
 and addOpRPCParams =
   { ops : op list
   ; opCtr : int option
-  ; browserId : string }
+  ; clientOpCtrId : string }
 
 and executeFunctionRPCParams =
   { efpTLID : tlid
@@ -1381,6 +1381,7 @@ and model =
   ; buildHash : string
   ; lastReload : (Js.Date.t[@opaque]) option
   ; opCtrs : int StrDict.t
+  ; clientOpCtrId : string
   ; permission : permission option
   ; showTopbar : bool
   ; toast : toast }

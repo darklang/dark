@@ -487,7 +487,11 @@ and addOpRPCParams j : addOpRPCParams =
   (* if we roll back the server, we might get new client code (this code), but
    * no opCtr from the server, so handle that case *)
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
-  {ops = field "ops" (list op) j; opCtr; browserId = field "browserId" string j}
+  { ops = field "ops" (list op) j
+  ; opCtr
+      (* withDefault in case we roll back and have an old server that doesn't send
+* us this field *)
+  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
 
 and addOpRPCStrollerMsg j : addOpStrollerMsg =
