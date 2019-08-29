@@ -366,6 +366,7 @@ $prodColor: black;
       .verb {
         font-size: 14px;
         text-decoration: none;
+        margin-right: 1ch;
       }
       &.GET a,
       &.GET span {
@@ -528,7 +529,8 @@ $prodColor: black;
 }
 
 .sidebar-section.deploys,
-.simple-route.deploy {
+.simple-route.deploy,
+.simple-item.deploy {
   color: $grey3;
   align-self: flex-start;
   summary {
