@@ -70,6 +70,10 @@ let tid (t : token) : id =
       fakeid
 
 
+let parentExprID (t : token) : id =
+  match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
+
+
 let validID id = id <> fakeid
 
 let isTextToken token : bool =
