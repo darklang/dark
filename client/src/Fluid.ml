@@ -3887,13 +3887,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
     tokensInRange startPos endPos
     |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-           let curID =
-             match ti.token with
-             | TNewline (Some (_, id, _)) ->
-                 id
-             | _ ->
-                 Token.tid ti.token
-           in
+           let curID = Token.parentExprID ti.token in
            let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
            if (* check if current token is higher in the AST than the last token,
                * or if there's no topmost ID yet *)
