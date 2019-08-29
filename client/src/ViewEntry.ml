@@ -89,8 +89,9 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
         [input] ]
 
 
-let normalEntryHtml (placeholder : string) (ac : autocomplete) (lv : dval StrDict.t) : msg Html.html
-    =
+let normalEntryHtml
+    (placeholder : string) (ac : autocomplete) (lv : dval StrDict.t) :
+    msg Html.html =
   let toList acis class' index =
     List.indexedMap
       ~f:(fun i item ->
@@ -160,23 +161,21 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) (lv : dval StrDic
       [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
-  let liveValue = 
+  let liveValue =
     let valFor =
       Autocomplete.highlighted ac
       |> Option.andThen ~f:(fun aci ->
-        match aci with
-        | ACVariable var ->
-          StrDict.get ~key:var lv
-        | _ -> None
-      )
+             match aci with
+             | ACVariable var ->
+                 StrDict.get ~key:var lv
+             | _ ->
+                 None )
     in
-    let valStr =
-      match valFor with
-      | Some v -> Runtime.toRepr v
-      | None -> ""
-    in
+    let valStr = match valFor with Some v -> Runtime.toRepr v | None -> "" in
     Html.div
-      [Html.classList [("live-value", true); ("show", ac.visible && Option.isSome valFor)]]
+      [ Html.classList
+          [("live-value", true); ("show", ac.visible && Option.isSome valFor)]
+      ]
       [Html.text valStr]
   in
   let input =
@@ -223,6 +222,11 @@ let viewEntry (m : model) : msg Html.html =
       in
       Html.div
         [Html.class' "omnibox"; styleProp]
-        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete StrDict.empty]
+        [ entryHtml
+            StringEntryAllowed
+            StringEntryNormalWidth
+            ""
+            m.complete
+            StrDict.empty ]
   | _ ->
       Vdom.noNode
