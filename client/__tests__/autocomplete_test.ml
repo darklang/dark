@@ -447,16 +447,17 @@ let () =
               expect
                 ( acFor m
                 |> setQuery m "request"
-                |> itemPresent (ACVariable "request") )
+                |> itemPresent (ACVariable ("request", None)) )
               |> toEqual true ) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
                  [ ac
                    |> setQuery m "request"
-                   |> itemPresent (ACVariable "request")
-                 ; ac |> setQuery m "event" |> itemPresent (ACVariable "event")
-                 ])
+                   |> itemPresent (ACVariable ("request", None))
+                 ; ac
+                   |> setQuery m "event"
+                   |> itemPresent (ACVariable ("event", None)) ])
               |> toEqual [true; true] ) ;
           test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
@@ -480,7 +481,8 @@ let () =
               let target = Some (fntlid, PExpr dbNameBlank) in
               let ac = acFor ~target m in
               let newM = {m with complete = ac} in
-              expect (setQuery newM "" ac |> itemPresent (ACVariable "MyDB"))
+              expect
+                (setQuery newM "" ac |> itemPresent (ACVariable ("MyDB", None)))
               |> toEqual true ) ;
           test
             "autocomplete does not have slash when handler is not HTTP"
@@ -510,8 +512,10 @@ let () =
                   ()
               in
               let ac = acFor m in
-              let _valid, invalid = filter m ac [ACVariable "MyDB"] "" in
-              expect (List.member ~value:(ACVariable "MyDB") invalid)
+              let _valid, invalid =
+                filter m ac [ACVariable ("MyDB", None)] ""
+              in
+              expect (List.member ~value:(ACVariable ("MyDB", None)) invalid)
               |> toEqual true ) ;
           let consAC =
             [ ACConstructorName "Just"

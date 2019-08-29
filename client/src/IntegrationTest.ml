@@ -151,7 +151,8 @@ let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (_, Variable "request"), Blank _) ->
     ( match m.complete.completions with
-    | [ACVariable "request"; ACFunction {fnName = "Http::badRequest"}] ->
+    | [ACVariable ("request", None); ACFunction {fnName = "Http::badRequest"}]
+      ->
         pass
     | cs ->
         fail ~f:(show_list ~f:show_autocompleteItem) cs )

@@ -717,7 +717,7 @@ and autocompleteItem =
   | ACFunction of function_
   | ACConstructorName of string
   | ACField of string
-  | ACVariable of varName
+  | ACVariable of varName * dval option
   | ACLiteral of literal
   | ACOmniAction of omniAction
   | ACKeyword of keyword
