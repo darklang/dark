@@ -72,14 +72,20 @@ dig testing.builtwithdark.localhost @127.0.0.1
 - Run `scripts/builder --compile --watch --test`
 - Wait until the terminal says "Finished initial compile" - this means the build server is ready
 
-#### Create an account for yourself
+#### Get a Dark account for yourself
 
-Accounts are currently created / managed in [./backend/libbackend/account.ml](./backend/libbackend/account.ml). See [./docs/add-user.md](./docs/add-user.md) for more thorough information.
+Accounts are currently created / managed in [./backend/libbackend/account.ml](./backend/libbackend/account.ml).
 
-To add an account to local dev for yourself, start by running:
+As per [./docs/add-user.md](./docs/add-user.md), add yourself as a user by visiting  https://ops-adduser.builtwithdark.com/gmail-oauth-login. You should get an email with your password. Yes, this is bad security practice and we're hoping to fix it soon.
+
+Ask a team member to use https://darklang.com/a/ops-adduser to call DarkInternal::setAdmin to make you an admin user.
+
+To add your account to local dev for yourself, run:
 ```
 scripts/run-in-docker backend/_build/default/bin/add_admin.exe --prompt-for-password
 ```
+which will prompt you for your password (this can be the same as the one in prod),
+username, email, and name.
 
 This will output 
 ```
@@ -92,7 +98,7 @@ This will output
       ; name = "Ada Lovelace"};
 ```
 
-Open a PR adding this account data to `account.ml` in the `upsert_admins` function.
+Then open a PR adding this account data to `account.ml` in the `upsert_admins` function.
 
 ### Building and running
 
