@@ -664,7 +664,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    then thread
                    else TNewline (Some (id, id, Some i, true)) :: thread )
             |> List.concat )
-        ; TNewline (Some (id, id, Some (List.length exprs), false)) ] )
+        ; TNewline (Some (id, id, Some (List.length tail), false)) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
