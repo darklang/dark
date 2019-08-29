@@ -245,7 +245,7 @@ let fromFluidACI (aci : fluidAutocompleteItem) : Types.autocompleteItem option
   | FACField name ->
       Some (ACField name)
   | FACVariable name ->
-      Some (ACVariable name)
+      Some (ACVariable (name, None))
   | FACLiteral lit ->
       Some (ACLiteral lit)
   | FACKeyword kw ->

@@ -107,7 +107,7 @@ let normalEntryHtml
         in
         let typeStr =
           match item with
-          | ACVariable varname ->
+          | ACVariable (varname, _) ->
               StrDict.get ~key:varname lv
               |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
               |> Option.withDefault ~default:"variable"
@@ -172,11 +172,7 @@ let normalEntryHtml
     let valFor =
       Autocomplete.highlighted ac
       |> Option.andThen ~f:(fun aci ->
-             match aci with
-             | ACVariable var ->
-                 StrDict.get ~key:var lv
-             | _ ->
-                 None )
+             match aci with ACVariable (_, v) -> v | _ -> None )
     in
     let valStr = match valFor with Some v -> RT.toRepr v | None -> "" in
     Html.div

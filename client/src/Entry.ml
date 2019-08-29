@@ -320,7 +320,7 @@ let parseAst
       Some (F (eid, Value str))
   | ACFunction fn ->
       Some (createFunction fn)
-  | ACVariable varname ->
+  | ACVariable (varname, _) ->
       Some (B.newF (Variable varname))
   | _ ->
       (* TODO: remove all these cases, replacing them with autocomplete options *)
