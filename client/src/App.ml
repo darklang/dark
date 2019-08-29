@@ -1846,7 +1846,11 @@ let update_ (msg : msg) (m : model) : modification =
                   ; oldPos = m.fluidState.newPos
                   ; newPos = s.range |> Tuple2.second } }
           | None ->
-              {m with fluidState = {m.fluidState with selection = None}} )
+              let newPos =
+                Entry.getCursorPosition ()
+                |> Option.withDefault ~default:m.fluidState.newPos
+              in
+              {m with fluidState = {m.fluidState with newPos; selection}} )
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
