@@ -1482,8 +1482,24 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateAvatarList avatarsList
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
-  | Delete404RPCCallback (f404, Ok ()) ->
-      Delete404 f404
+  | Delete404RPC f404 ->
+      Many
+        [ (* This deletion is speculative *)
+          Delete404 f404
+        ; MakeCmd (RPC.delete404 m f404) ]
+  | Delete404RPCCallback (params, result) ->
+    ( match result with
+    | Ok _ ->
+        NoChange
+    | Error err ->
+        Many
+          [ Append404s [params] (* Rollback the speculative deletion *)
+          ; HandleAPIError
+              (ApiError.make
+                 ~context:"Delete404"
+                 ~importance:ImportantError
+                 ~requestParams:(Encoders.fof params)
+                 err) ] )
   | ReceiveAnalysis result ->
     ( match result with
     | Ok (id, analysisResults) ->
@@ -1566,13 +1582,6 @@ let update_ (msg : msg) (m : model) : modification =
                ~context:"GetUnlockedDBs"
                ~importance:IgnorableError
                err) ]
-  | Delete404RPCCallback (params, Error err) ->
-      HandleAPIError
-        (ApiError.make
-           ~context:"Delete404"
-           ~importance:ImportantError
-           ~requestParams:(Encoders.fof params)
-           err)
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
   | LocationChange loc ->
@@ -1646,8 +1655,6 @@ let update_ (msg : msg) (m : model) : modification =
               ( [SetHandler (tlid, pos, aHandler)]
               , FocusExact (tlid, B.toID ast) )
           ; Delete404 fof ] )
-  | Delete404RPC fof ->
-      MakeCmd (RPC.delete404 m fof)
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
         (fun m ->
