@@ -495,7 +495,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, lhs)
       ; TLetAssignment id
       ; nested rhs
-      ; TNewline (Some (eid next, None))
+      ; TNewline (Some (eid next, id, None))
       ; nested next ]
   | EString (id, str) ->
       let size = 40 in
@@ -531,12 +531,12 @@ let rec toTokens' (s : state) (e : ast) : token list =
          * to press Enter on the expression inside. It might be better to
          * instead have a special newline where an id is relevant, and another
          * newline which is boring. *)
-      ; TNewline (Some (eid if', None))
+      ; TNewline (Some (eid if', id, None))
       ; TIndent 2
       ; nested if'
       ; TNewline None
       ; TIfElseKeyword id
-      ; TNewline (Some (eid else', None))
+      ; TNewline (Some (eid else', id, None))
       ; TIndent 2
       ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
@@ -632,14 +632,15 @@ let rec toTokens' (s : state) (e : ast) : token list =
       else
         [ [TRecordOpen id]
         ; List.mapi fields ~f:(fun i (_, fname, expr) ->
-              [ TNewline (Some (id, Some i))
+              [ TNewline (Some (id, id, Some i))
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, i, fname)
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline (Some (id, Some (List.length fields))); TRecordClose id] ]
+        ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
+        ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
@@ -652,7 +653,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
     | head :: tail ->
         let length = List.length exprs in
         [ nested head
-        ; TNewline (Some (id, Some 0))
+        ; TNewline (Some (id, id, Some 0))
         ; TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
@@ -661,7 +662,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    in
                    if i == 0
                    then thread
-                   else TNewline (Some (id, Some i)) :: thread )
+                   else TNewline (Some (id, id, Some i)) :: thread )
             |> List.concat ) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -674,7 +675,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-            [TNewline (Some (id, Some i)); TIndent 2]
+            [TNewline (Some (id, id, Some i)); TIndent 2]
             @ patternToToken pattern
             @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat ]
@@ -2160,8 +2161,8 @@ let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
     let newToken =
       List.find tokens ~f:(fun ti ->
           match ti.token with
-          | TNewline (Some (tid, tindex)) when id = tid && tindex = !nextIndex
-            ->
+          | TNewline (Some (tid, _, tindex))
+            when id = tid && tindex = !nextIndex ->
               true
           | _ ->
               false )
@@ -3061,12 +3062,26 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
+    | K.Backspace, _, R (TRecordField (_, _, ""), _)
+      when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
         doBackspace ~pos ti ast s
+    | K.Backspace, _, R (TPatternBlank (_, _), _)
+      when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
+    | K.Backspace, L (_, _), _ when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
+    | K.Delete, _, R (_, _) when Option.isSome s.selection ->
+        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
+        |> Option.withDefault ~default:(ast, s)
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
@@ -3174,14 +3189,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
-    | K.Enter, _, R (TNewline (Some (id, index)), ti) ->
+    | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
     | K.Enter, L (TThreadPipe (id, index, _), _), _ ->
         let newAST, newState = addEntryAbove id (Some index) ast s in
         (newAST, {newState with newPos = newState.newPos + 2})
-    | K.Enter, L (TNewline (Some (id, index)), _), _ ->
+    | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
@@ -3268,6 +3283,29 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         else (newAST, newState)
     | _ ->
         (newAST, newState)
+
+
+and deleteSelection ~state ~ast sel : ast * fluidState =
+  let rangeStart, rangeEnd = sel.range in
+  let clipboard = state.clipboard (* preserve clipboard *) in
+  let state =
+    {state with newPos = rangeEnd; oldPos = state.newPos; selection = None}
+  in
+  (* repeat deletion operation over range, starting from last position till first *)
+  Array.range ~from:rangeStart rangeEnd
+  |> Array.toList
+  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
+         let newAst, newState = updateKey K.Backspace ast state in
+         if not continue
+         then (false, ast, state)
+         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
+                 newState.newPos = state.newPos
+         then (false, ast, state)
+         else if (* stop deleting if we reach range start*)
+                 newState.newPos < rangeStart
+         then (false, ast, state)
+         else (true, newAst, newState) )
+  |> fun (_, ast, state) -> (ast, {state with clipboard})
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
@@ -3398,6 +3436,14 @@ let expressionSelection (state : fluidState) (ast : ast) :
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> {range = (eStartPos, eEndPos)})
 
 
+let trimQuotes s : string =
+  let open String in
+  s
+  |> fun v ->
+  (if endsWith ~suffix:"\"" v then dropRight ~count:1 v else v)
+  |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
+
+
 let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     =
   let ast =
@@ -3405,11 +3451,6 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     toExpr ast |> AST.clone |> fromExpr state
   in
   (* a few helpers *)
-  let toInt_ s =
-    String.toInt s
-    |> Result.toOption
-    |> deOption "string integer token should always be convertable to int"
-  in
   let toBool_ s =
     if s = "true"
     then true
@@ -3426,25 +3467,34 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
            (* this condition is a little flaky, sometimes selects wrong tokens *)
-           if (* token fully inside range *)
+           if (* token fully inside range 
+               * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
               t.startPos >= startPos
               && t.startPos < endPos
               && t.endPos > startPos
               && t.endPos <= endPos
               (* token partially inside range *)
-              (* - start is outside range but end is inside range *)
+              (* - start is outside range but end is inside range
+               * e.g. `Int::add va^l1^ val2` - val1 token is partially within range *)
               || t.startPos < startPos
                  && t.endPos > startPos
                  && t.endPos <= endPos
-              (* - start is inside range but end is outside range *)
+              (* - start is inside range but end is outside range
+               * e.g. `Int::add ^va^l1 val2` - val1 token is partially within range *)
               || t.endPos > endPos
                  && t.startPos < endPos
                  && t.startPos >= startPos
+              (* selection range is within token range
+               * e.g. `Int::add v^al^1 val2` - range is within val1 token *)
+              || t.startPos <= startPos
+                 && t.startPos < endPos
+                 && t.endPos > startPos
+                 && t.endPos >= endPos
            then toks @ [t]
            else toks )
   in
   let startPos, endPos = sel.range in
-  (* main main recursive algorith *)
+  (* main main recursive algorithm *)
   (* algo: 
     * find topmost expression by ID and 
     * reconstruct full/subset of expression 
@@ -3459,18 +3509,24 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
       (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos
       |> List.map ~f:(fun ti ->
+             let open String in
              let t = ti.token in
              let text =
                (* trim tokens if they're on the edge of the range *)
                Token.toText t
-               |> String.dropLeft
+               |> dropLeft
                     ~count:
                       ( if ti.startPos < startPos
                       then startPos - ti.startPos
                       else 0 )
-               |> String.dropRight
+               |> dropRight
                     ~count:
                       (if ti.endPos > endPos then ti.endPos - endPos else 0)
+               |> fun text ->
+               (* if string, do extra trim to account for quotes, then re-append quotes *)
+               if Token.toTypeName ti.token = "string"
+               then "\"" ^ trimQuotes text ^ "\""
+               else text
              in
              Token.(tid t, text, toTypeName t) )
     in
@@ -3480,11 +3536,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
       in
       exprID
       |> Option.andThen ~f:(exprRangeInAst ~state ~ast)
-      |> Option.andThen ~f:(fun ((exprStartPos, exprEndPos) as newRange) ->
+      |> Option.andThen ~f:(fun (exprStartPos, exprEndPos) ->
              (* ensure expression range is not totally outside selection range *)
              if exprStartPos > endPos || exprEndPos < startPos
              then None
-             else Some newRange )
+             else Some (max exprStartPos startPos, min exprEndPos endPos) )
       |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
     in
     let orDefaultExpr : fluidExpr option -> fluidExpr =
@@ -3497,7 +3553,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* basic, single/fixed-token expressions *)
     | EInteger (eID, _), tokens ->
         findTokenValue tokens eID "integer"
-        |> Option.map ~f:toInt_
+        |> Option.map ~f:safe_int_of_string
         |> Option.map ~f:(fun v -> EInteger (gid (), v))
     | EBool (eID, value), tokens ->
         Option.or_
@@ -3517,11 +3573,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                else EPartial (gid (), newValue, ENull id) )
     | EString (eID, _), tokens ->
         findTokenValue tokens eID "string"
-        |> Option.map ~f:(fun newValue ->
-               let newValue =
-                 String.(newValue |> dropRight ~count:1 |> dropLeft ~count:1)
-               in
-               EString (id, newValue) )
+        |> Option.map ~f:(fun newValue -> EString (id, trimQuotes newValue))
     | EFloat (eID, _, _), tokens ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
@@ -3530,7 +3582,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         | Some value, true, None ->
             Some (EFloat (id, value, "0"))
         | Some value, false, None | None, false, Some value ->
-            Some (EInteger (id, toInt_ value))
+            Some (EInteger (id, safe_int_of_string value))
         | None, true, Some value ->
             Some (EFloat (id, "0", value))
         | Some whole, true, Some fraction ->
@@ -3550,6 +3602,8 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           findTokenValue tokens eID "let-lhs" |> Option.withDefault ~default:""
         in
         ( match (reconstructExpr rhs, reconstructExpr body) with
+        | None, None when newLhs <> "" ->
+            Some (EPartial (gid (), newLhs, EVariable (gid (), newLhs)))
         | None, Some e ->
             Some e
         | Some newRhs, None ->
@@ -3592,7 +3646,6 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         let newName =
           findTokenValue tokens eID "binop" |> Option.withDefault ~default:""
         in
-        Js.log2 "ebinop tokens" tokens ;
         ( match (reconstructExpr expr1, reconstructExpr expr2) with
         | Some newExpr1, Some newExpr2 when newName = "" ->
           (* since we don't allow empty partials, reconstruct the binop as we would when 
@@ -3664,9 +3717,16 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         in
         let fieldOpSelected = findTokenValue tokens eID "field-op" <> None in
         let e = reconstructExpr e in
-        if fieldOpSelected
-        then Some (EFieldAccess (id, e |> orDefaultExpr, gid (), newFieldName))
-        else e
+        ( match (e, fieldOpSelected, newFieldName) with
+        | None, false, newFieldName when newFieldName != "" ->
+            Some
+              (EPartial (gid (), newFieldName, EVariable (gid (), newFieldName)))
+        | None, true, newFieldName when newFieldName != "" ->
+            Some (EFieldAccess (id, EBlank (gid ()), gid (), newFieldName))
+        | Some e, true, _ ->
+            Some (EFieldAccess (id, e, gid (), newFieldName))
+        | _ ->
+            e )
     | EVariable (eID, value), tokens ->
         let newValue =
           findTokenValue tokens eID "variable"
@@ -3739,13 +3799,13 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
               exprs
         in
         Some (EThread (id, newExprs))
-    | EConstructor (_, nameID, name, exprs), tokens ->
+    | EConstructor (eID, _, name, exprs), tokens ->
         let newName =
-          findTokenValue tokens nameID "constructor-name"
+          findTokenValue tokens eID "constructor-name"
           |> Option.withDefault ~default:""
         in
-        let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
-        let e = EConstructor (id, nameID, name, newExprs) in
+        let newExprs = List.map exprs ~f:(reconstructExpr >> orDefaultExpr) in
+        let e = EConstructor (id, gid (), name, newExprs) in
         if newName = ""
         then None
         else if name <> newName
@@ -3761,7 +3821,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [(id, _, "pattern-blank")] ->
                     FPBlank (mID, id)
                 | [(id, value, "pattern-integer")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | [(id, value, "pattern-variable")] ->
                     FPVariable (mID, id, value)
                 | (id, value, "pattern-constructor-name") :: _subPatternTokens
@@ -3790,11 +3850,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [ (id, value, "pattern-float-whole")
                   ; (_, _, "pattern-float-point") ]
                 | [(id, value, "pattern-float-whole")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | [ (_, _, "pattern-float-point")
                   ; (id, value, "pattern-float-fraction") ]
                 | [(id, value, "pattern-float-fraction")] ->
-                    FPInteger (mID, id, toInt_ value)
+                    FPInteger (mID, id, safe_int_of_string value)
                 | _ ->
                     FPBlank (mID, gid ())
               in
@@ -3825,13 +3885,14 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
     tokensInRange startPos endPos
     |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-           let curID = Token.tid ti.token in
+           let curID = Token.parentExprID ti.token in
            let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
-           (* check if current token is higher in the AST than the last token
-            * , or if there's no topmost ID yet *)
-           if (curDepth < topmostDepth || topmostID = None)
+           if (* check if current token is higher in the AST than the last token,
+               * or if there's no topmost ID yet *)
+              (curDepth < topmostDepth || topmostID = None)
+              (* account for tokens that don't have ancestors (depth = 0) 
+               * but are not the topmost expression in the AST *)
               && not (curDepth = 0 && findExpr curID ast != Some ast)
-              (* account for tokens that don't have ancestors (depth = 0) but are not the topmost expression in the AST *)
            then (Some curID, curDepth)
            else (topmostID, topmostDepth) )
     |> Tuple2.first
@@ -3840,46 +3901,222 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
 
 
 let pasteSelection ~state ~ast () : ast * fluidState =
-  let exprID =
-    getToken state ast |> Option.map ~f:(fun ti -> ti.token |> Token.tid)
+  let ast, state =
+    state.selection
+    |> Option.map ~f:(deleteSelection ~state ~ast)
+    |> Option.withDefault ~default:(ast, state)
   in
+  let token = getToken state ast in
+  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
-  let newPos =
-    ( state.clipboard
-    |> Option.map ~f:(eToString state >> String.length)
-    |> Option.withDefault ~default:0 )
-    + state.newPos
+  let clipboardExpr =
+    state.clipboard
+    |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
   in
-  let newState = {state with newPos; oldPos = newPos} in
-  match expr with
-  | Some (EBlank exprID) ->
-      ( state.clipboard
-        |> Option.map ~f:(fun newExpr -> replaceExpr ~newExpr exprID ast)
+  match (clipboardExpr, expr, token) with
+  | Some clipboardExpr, Some (EBlank exprID), _ ->
+      let newPos =
+        (clipboardExpr |> eToString state |> String.length) + state.newPos
+      in
+      (replaceExpr ~newExpr:clipboardExpr exprID ast, {state with newPos})
+  (* inserting record key (record expression with single key and no value) into string *)
+  | ( Some (ERecord (_, [(_, insert, EBlank _)]))
+    , Some (EString (_, str))
+    , Some {startPos} ) ->
+      let index = state.newPos - startPos - 1 in
+      let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
-      , newState )
+      in
+      (newAST, {state with newPos = state.newPos + String.length insert})
+  (* inserting other kinds of expressions into string *)
+  | Some clipboardExpr, Some (EString (_, str)), Some {startPos} ->
+      let insert = eToString state clipboardExpr |> trimQuotes in
+      let index = state.newPos - startPos - 1 in
+      let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length insert})
+  (* inserting integer into another integer *)
+  | ( Some (EInteger (_, clippedInt))
+    , Some (EInteger (_, pasting))
+    , Some {startPos} ) ->
+      let index = state.newPos - startPos in
+      let insert = string_of_int clippedInt in
+      let newVal =
+        String.insertAt ~insert ~index (string_of_int pasting)
+        |> safe_int_of_string
+      in
+      let newExpr = EInteger (gid (), newVal) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length insert})
+  (* inserting float into an integer *)
+  | ( Some (EFloat (_, whole, fraction))
+    , Some (EInteger (_, pasting))
+    , Some {startPos} ) ->
+      let whole', fraction' =
+        let str = string_of_int pasting in
+        String.
+          ( slice ~from:0 ~to_:(state.newPos - startPos) str
+          , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str
+          )
+      in
+      let newExpr = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos =
+            state.newPos
+            + (whole' ^ whole ^ "." ^ fraction ^ fraction' |> String.length) }
+      )
+  (* inserting variable into an integer *)
+  | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some {startPos}
+    ->
+      let index = state.newPos - startPos in
+      let newVal =
+        String.insertAt ~insert:varName ~index (string_of_int intVal)
+      in
+      let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length varName})
+  (* inserting int-only string into an integer *)
+  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos}
+    when String.toInt insert |> Result.toOption <> None ->
+      let index = state.newPos - startPos in
+      let newVal =
+        String.insertAt ~insert ~index (string_of_int pasting)
+        |> safe_int_of_string
+      in
+      let newExpr = EInteger (gid (), newVal) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length insert})
+  (* inserting integer into a float whole *)
+  | ( Some (EInteger (_, intVal))
+    , Some (EFloat (_, whole, fraction))
+    , Some {startPos; token = TFloatWhole _} ) ->
+      let index = state.newPos - startPos in
+      let newExpr =
+        EFloat
+          ( gid ()
+          , String.insertAt ~index ~insert:(string_of_int intVal) whole
+          , fraction )
+      in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (string_of_int intVal) } )
+  (* inserting integer into a float fraction *)
+  | ( Some (EInteger (_, intVal))
+    , Some (EFloat (_, whole, fraction))
+    , Some {startPos; token = TFloatFraction _} ) ->
+      let index = state.newPos - startPos in
+      let newExpr =
+        EFloat
+          ( gid ()
+          , whole
+          , String.insertAt ~index ~insert:(string_of_int intVal) fraction )
+      in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (string_of_int intVal) } )
+  (* inserting integer after float point *)
+  | ( Some (EInteger (_, intVal))
+    , Some (EFloat (_, whole, fraction))
+    , Some {token = TFloatPoint _} ) ->
+      let newExpr = EFloat (gid (), whole, string_of_int intVal ^ fraction) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (string_of_int intVal) } )
+  (* inserting variable into let LHS *)
+  | ( Some (EVariable (_, varName))
+    , Some (ELet (_, _, lhs, rhs, body))
+    , Some {startPos; token = TLetLHS _} ) ->
+      let index = state.newPos - startPos in
+      let newLhs =
+        if lhs <> ""
+        then String.insertAt ~insert:varName ~index lhs
+        else varName
+      in
+      let newExpr = ELet (gid (), gid (), newLhs, rhs, body) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      (newAST, {state with newPos = state.newPos + String.length varName})
+  (* inserting list expression into another list at separator *)
+  | ( Some (EList (_, itemsToPaste) as exprToPaste)
+    , Some (EList (_, items))
+    , Some {token = TListSep (_, index)} ) ->
+      let newItems =
+        let front, back = List.splitAt ~index items in
+        front @ itemsToPaste @ back
+      in
+      let newExpr = EList (gid (), newItems) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (eToString state exprToPaste)
+        } )
+  (* inserting other expressions into list *)
+  | ( Some exprToPaste
+    , Some (EList (_, items))
+    , Some {token = TListSep (_, index)} ) ->
+      let newItems = List.insertAt ~value:exprToPaste ~index items in
+      let newExpr = EList (gid (), newItems) in
+      let newAST =
+        exprID
+        |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
+        |> Option.withDefault ~default:ast
+      in
+      ( newAST
+      , { state with
+          newPos = state.newPos + String.length (eToString state exprToPaste)
+        } )
+  (* TODO:
+   * - inserting thread after expression 
+   * - *)
   | _ ->
       (ast, state)
-
-
-let deleteSelection ~state ~ast sel : ast * fluidState =
-  let rangeStart, rangeEnd = sel.range in
-  let clipboard = state.clipboard (* preserve clipboard *) in
-  let state = {state with newPos = rangeEnd; oldPos = state.newPos} in
-  (* repeat deletion operation over range, starting from last position till first *)
-  Array.range ~from:rangeStart rangeEnd
-  |> Array.toList
-  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
-         let newAst, newState = updateKey K.Backspace ast state in
-         if not continue
-         then (false, ast, state)
-         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
-                 newState.newPos = state.newPos
-         then (false, ast, state)
-         else if (* stop deleting if we reach range start*)
-                 newState.newPos < rangeStart
-         then (false, ast, state)
-         else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, {state with clipboard})
 
 
 let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
@@ -3921,7 +4158,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           |> Option.map ~f:(deleteSelection ~state:s ~ast)
           |> Option.withDefault ~default:(ast, s)
         in
-        pasteSelection ~state ~ast ()
+        let ast, state = pasteSelection ~state ~ast () in
+        (ast, updateAutocomplete m tlid ast state)
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -4241,25 +4479,36 @@ let toHtml
           [ Attrs.class'
               (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
             (* TODO(korede): figure out how to disable default selection while allowing click event *)
+          ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-click" ^ idStr)
               "dblclick"
               (fun ev ->
-                let sel =
-                  Entry.getCursorPosition ()
-                  |> Option.andThen ~f:(fun pos ->
-                         let state =
-                           {state with newPos = pos; oldPos = state.newPos}
-                         in
-                         match ev with
-                         | {detail = 2; altKey = true} ->
-                             expressionSelection state ast
-                         | {detail = 2; altKey = false} ->
-                             tokenSelection state ast
-                         | _ ->
-                             None )
-                in
-                UpdateFluidSelection (sel, None) ) ]
+                Entry.getCursorPosition ()
+                |> function
+                | Some pos ->
+                    let state =
+                      {state with newPos = pos; oldPos = state.newPos}
+                    in
+                    ( match ev with
+                    | {detail = 2; altKey = true} ->
+                        UpdateFluidSelection (expressionSelection state ast)
+                    | {detail = 2; altKey = false} ->
+                        UpdateFluidSelection (tokenSelection state ast)
+                    | _ ->
+                        UpdateFluidSelection None )
+                | _ ->
+                    UpdateFluidSelection None )
+          ; ViewUtils.eventNoPropagation
+              ~key:("fluid-selection-shift-click" ^ idStr)
+              "click"
+              (fun ev ->
+                Entry.getSelectionRange ()
+                |> function
+                | Some range when ev.shiftKey ->
+                    UpdateFluidSelection (Some {range})
+                | _ ->
+                    UpdateFluidSelection None ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
