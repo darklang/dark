@@ -1050,11 +1050,14 @@ type sym_set = id SymSet.t
 type sym_store = sym_set IDTable.t
 
 let updateDictWithList st l =
-    l |> List.foldl ~init:st ~f:(fun v d ->
-            match v with
-            | F (id, varname) -> SymSet.update ~key:varname ~f:(fun _v -> Some id) d
-            | Blank _ -> d
-          )
+  l
+  |> List.foldl ~init:st ~f:(fun v d ->
+         match v with
+         | F (id, varname) ->
+             SymSet.update ~key:varname ~f:(fun _v -> Some id) d
+         | Blank _ ->
+             d )
+
 
 let rec sym_exec
     ~(trace : expr -> sym_set -> unit) (st : sym_set) (expr : expr) : unit =
@@ -1072,7 +1075,7 @@ let rec sym_exec
         let bound =
           match lhs with
           | F (id, name) ->
-              SymSet.update ~key:name ~f:(fun _v ->  Some id) st
+              SymSet.update ~key:name ~f:(fun _v -> Some id) st
           | Blank _ ->
               st
         in
@@ -1086,11 +1089,13 @@ let rec sym_exec
         sexe st elsebody
     | F (_, Lambda (vars, body)) ->
         let new_st =
-            vars |> List.foldl ~init:st ~f:(fun v d ->
-            match v with
-            | F (id, varname) -> SymSet.update ~key:varname ~f:(fun _v -> Some id) d
-            | Blank _ -> d
-          )
+          vars
+          |> List.foldl ~init:st ~f:(fun v d ->
+                 match v with
+                 | F (id, varname) ->
+                     SymSet.update ~key:varname ~f:(fun _v -> Some id) d
+                 | Blank _ ->
+                     d )
         in
         sexe new_st body
     | F (_, Thread exprs) ->
@@ -1114,10 +1119,11 @@ let rec sym_exec
         sexe st matchExpr ;
         List.iter cases ~f:(fun (p, caseExpr) ->
             let new_st =
-              p |> variables_in_pattern |> List.foldl ~init:st ~f:(fun v d ->
-              let id, varname = v in
-              SymSet.update ~key:varname ~f:(fun _v -> Some id) d
-            )
+              p
+              |> variables_in_pattern
+              |> List.foldl ~init:st ~f:(fun v d ->
+                     let id, varname = v in
+                     SymSet.update ~key:varname ~f:(fun _v -> Some id) d )
             in
             sexe new_st caseExpr )
     | F (_, ObjectLiteral exprs) ->
@@ -1135,19 +1141,4 @@ let variablesIn (ast : expr) : avDict =
   let sym_store = IDTable.make () in
   let trace expr st = IDTable.set sym_store (deID (Blank.toID expr)) st in
   sym_exec ~trace SymSet.empty ast ;
-  sym_store
-  |> IDTable.toList
-  |> StrDict.fromList
-
-
-let idsOfVarBindsBefore (id : id) (allPointers : pointerData list) :
-    (varName * id) list =
-  allPointers
-  |> List.findIndex ~f:(fun pd -> P.toID pd = id)
-  |> Option.map ~f:(fun index ->
-         if index = 0 then [] else List.take ~count:(index - 1) allPointers )
-  |> Option.withDefault ~default:[]
-  |> List.reverse
-  |> List.filterMap ~f:(fun pd ->
-         match pd with PVarBind (F (id, v)) -> Some (v, id) | _ -> None )
-  |> List.uniqueBy ~f:(fun (name, _) -> name)
+  sym_store |> IDTable.toList |> StrDict.fromList

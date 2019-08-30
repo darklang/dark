@@ -90,9 +90,8 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
         [input] ]
 
 
-let normalEntryHtml
-    (placeholder : string) (ac : autocomplete) (_lv : dval StrDict.t) :
-    msg Html.html =
+let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
+    =
   let toList acis class' index =
     List.indexedMap
       ~f:(fun i item ->
@@ -108,7 +107,8 @@ let normalEntryHtml
         let typeStr =
           match item with
           | ACVariable (_, dv) ->
-              dv |> Option.map ~f:(fun v -> v |> RT.typeOf |> RT.tipe2str)
+              dv
+              |> Option.map ~f:(fun v -> v |> RT.typeOf |> RT.tipe2str)
               |> Option.withDefault ~default:"variable"
           | _ ->
               Autocomplete.asTypeString item
@@ -198,15 +198,14 @@ let entryHtml
     (permission : stringEntryPermission)
     (width : stringEntryWidth)
     (placeholder : string)
-    (ac : autocomplete)
-    (lv : dval StrDict.t) : msg Html.html =
+    (ac : autocomplete) : msg Html.html =
   match permission with
   | StringEntryAllowed ->
       if Autocomplete.isStringEntry ac
       then stringEntryHtml ac width
-      else normalEntryHtml placeholder ac lv
+      else normalEntryHtml placeholder ac
   | StringEntryNotAllowed ->
-      normalEntryHtml placeholder ac lv
+      normalEntryHtml placeholder ac
 
 
 let viewEntry (m : model) : msg Html.html =
@@ -224,11 +223,6 @@ let viewEntry (m : model) : msg Html.html =
       in
       Html.div
         [Html.class' "omnibox"; styleProp]
-        [ entryHtml
-            StringEntryAllowed
-            StringEntryNormalWidth
-            ""
-            m.complete
-            StrDict.empty ]
+        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
   | _ ->
       Vdom.noNode

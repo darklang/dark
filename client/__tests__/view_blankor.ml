@@ -67,9 +67,7 @@ let () =
             ; refersToRefs = []
             ; hoveringRefs = []
             ; avatarsList = []
-            ; permission = Some ReadWrite
-            ; liveValues = StrDict.empty
-            ; pointers = [] }
+            ; permission = Some ReadWrite }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
       () ) ;
