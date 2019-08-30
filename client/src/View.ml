@@ -398,7 +398,7 @@ let view (m : model) : msg Html.html =
   let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
-    if VariantTesting.isFluidWithStatus m.tests
+    if VariantTesting.isFluidV2 m.tests
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
