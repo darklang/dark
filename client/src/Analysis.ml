@@ -177,7 +177,13 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     (varName * dval option) list =
   (* TODO: Calling out is so slow that calculating on the fly is faster. But we
    * can also cache this so that's it's not in the display hot-path. *)
-  let liveValues = getCurrentLiveValuesDict m (TL.id tl) in
+  let tlid = TL.id tl in
+  let liveValues = getCurrentLiveValuesDict m tlid in
+  let traceDict = 
+    getCurrentTrace m tlid
+    |> Option.andThen ~f:(fun (_tid,td) -> td)
+    |> Option.andThen ~f:(fun t -> Some t.input)
+    |> Option.withDefault ~default:StrDict.empty in
   let varsFor ast =
     ast
     |> AST.variablesIn
@@ -190,7 +196,7 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
     )
   in
   let glob = TL.allGloballyScopedVarnames m.dbs |> List.map ~f:(fun v -> (v, None)) in
-  let inputVariables = RT.inputVariables tl |> List.map ~f:(fun v -> (v, None)) in
+  let inputVariables = RT.inputVariables tl |> List.map ~f:(fun varname -> (varname, traceDict |> StrDict.get ~key:varname)) in
   match tl with
   | TLHandler h ->
       varsFor h.ast @ glob @ inputVariables
