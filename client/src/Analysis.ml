@@ -195,7 +195,8 @@ let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
            (varname, liveValues |> StrDict.get ~key:(showID id)) )
   in
   let glob =
-    TL.allGloballyScopedVarnames m.dbs |> List.map ~f:(fun v -> (v, Some (DDB v)))
+    TL.allGloballyScopedVarnames m.dbs
+    |> List.map ~f:(fun v -> (v, Some (DDB v)))
   in
   let inputVariables =
     RT.inputVariables tl
