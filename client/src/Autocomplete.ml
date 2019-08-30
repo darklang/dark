@@ -619,11 +619,11 @@ let toDynamicItems
     | Some HSHTTP ->
         [ACHTTPRoute (cleanHTTPname q)]
     | Some HSCron ->
-        [ACCronName (cleanEventName q)]
+        if q = "" then [] else [ACCronName (cleanEventName q)]
     | Some HSRepl ->
-        [ACReplName (cleanEventName q)]
+        if q = "" then [] else [ACReplName (cleanEventName q)]
     | _ ->
-        [ACWorkerName (cleanEventName q)] )
+        if q = "" then [] else [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
