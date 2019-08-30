@@ -187,6 +187,9 @@ let () =
                   |> fun x -> acFor x )
               |> not_
               |> toThrow ) ;
+          test "variable that holds value will have dval tiped" (fun () ->
+              expect (ACVariable ("cookies", Some (DInt 3)) |> asTypeString)
+              |> toEqual "Int" ) ;
           () ) ;
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
@@ -482,7 +485,8 @@ let () =
               let ac = acFor ~target m in
               let newM = {m with complete = ac} in
               expect
-                (setQuery newM "" ac |> itemPresent (ACVariable ("MyDB", None)))
+                ( setQuery newM "" ac
+                |> itemPresent (ACVariable ("MyDB", Some (DDB "MyDB"))) )
               |> toEqual true ) ;
           test
             "autocomplete does not have slash when handler is not HTTP"
