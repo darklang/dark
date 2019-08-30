@@ -744,7 +744,7 @@ let () =
       (* NOT WORKING YET
       t
         "copying opening bracket adds empty list expr to clipboard"
-        (EList (gid (), [EInteger (gid (), 123)]))
+        (EList (gid (), [EInteger (gid (), "123")]))
         (copy (0, 1))
         ("[123]", "[]", 0) ; *)
       t
@@ -771,19 +771,19 @@ let () =
         "pasting an expression into list expr at separator works"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (4, 5))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (4, 5))
         ("[123,9000,456,789]", "9000", 9) ;
         *)
       t
         "pasting an expression over subset of list expr works"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
         (paste ~clipboard:(EInteger (gid (), "9000")) (5, 12))
         ("[123,9000]", "9000", 9) ;
       () ) ;
