@@ -11,8 +11,7 @@ let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
 let html (m : model) =
   if m.showTopbar = false
   then []
-  else if VariantTesting.isFluidV2 m.tests
-  then
+  else
     let fluid = VariantTesting.isFluidForCustomers m.tests in
     let fluidUrl =
       let qp =
@@ -46,4 +45,3 @@ let html (m : model) =
                 else "Try our new editor!" ) ]
         ; Html.text " "
         ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
-  else []
