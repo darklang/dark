@@ -14,12 +14,6 @@ let isFluidV2 (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
 
 
-(* This is fluid as Dark employees see it, with the status box *)
-let isFluidWithStatus (vts : variantTest list) : bool =
-  List.member ~value:FluidVariant vts
-  && not (List.member ~value:FluidWithoutStatusVariant vts)
-
-
 let isFluid (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
   || List.member ~value:FluidWithoutStatusVariant vts
