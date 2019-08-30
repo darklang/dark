@@ -43,10 +43,8 @@ end
 module Result = struct
   include Tablecloth.Result
 
-  let isOk (v: ('err,'ok) t ) : bool =
-    match v with
-    | Ok _ -> true
-    | _ -> false
+  let isOk (v : ('err, 'ok) t) : bool =
+    match v with Ok _ -> true | _ -> false
 end
 
 module List = struct
