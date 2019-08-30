@@ -1049,7 +1049,6 @@ type sym_set = id VarDict.t
 
 type sym_store = sym_set IDTable.t
 
-
 let rec sym_exec
     ~(trace : expr -> sym_set -> unit) (st : sym_set) (expr : expr) : unit =
   let sexe = sym_exec ~trace in
@@ -1066,7 +1065,7 @@ let rec sym_exec
         let bound =
           match lhs with
           | F (id, name) ->
-            VarDict.update ~key:name ~f:(fun _v -> Some id) st
+              VarDict.update ~key:name ~f:(fun _v -> Some id) st
           | Blank _ ->
               st
         in
@@ -1084,7 +1083,7 @@ let rec sym_exec
           |> List.foldl ~init:st ~f:(fun v d ->
                  match v with
                  | F (id, varname) ->
-                    VarDict.update ~key:varname ~f:(fun _v -> Some id) d
+                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d
                  | Blank _ ->
                      d )
         in
