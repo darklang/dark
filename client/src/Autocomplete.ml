@@ -613,7 +613,7 @@ let toDynamicItems
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
-      [ACField q]
+      if q = "" then [] else [ACField q]
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
@@ -643,7 +643,7 @@ let withDynamicItems
   in
   let new_ = toDynamicItems m space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
-  withoutDynamic @ new_
+  List.uniqueBy ~f:asName (new_ @ withoutDynamic)
 
 
 let fnGotoName (name : string) : string = "Just to function: " ^ name
