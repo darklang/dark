@@ -784,6 +784,36 @@ let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
       fail "no selection range"
 
 
+let fluid_shift_alt_right_selects_token (m : model) : testResult =
+  match m.fluidState.selection with
+  | Some {range = 34, 40} ->
+      pass
+  | Some {range = a, b} ->
+      fail
+        ( "incorrect selection range for token: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_shift_ctrl_right_selects_expression (m : model) : testResult =
+  match m.fluidState.selection with
+  | Some {range = 34, 964} ->
+      pass
+  | Some {range = a, b} ->
+      fail
+        ( "incorrect selection range for expression: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
 let varnames_are_incomplete (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -926,6 +956,10 @@ let trigger (test_name : string) : integrationTestState =
         fluid_double_click_selects_token
     | "fluid_double_click_with_alt_selects_expression" ->
         fluid_double_click_with_alt_selects_expression
+    | "fluid_shift_alt_right_selects_token" ->
+        fluid_shift_alt_right_selects_token
+    | "fluid_shift_ctrl_right_selects_expression" ->
+        fluid_shift_ctrl_right_selects_expression
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->

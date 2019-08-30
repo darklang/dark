@@ -4169,8 +4169,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
-    | FluidKeyPress ({key = K.Right; altKey; ctrlKey; shiftKey} as kp)
-      when altKey || ctrlKey ->
+    | FluidKeyPress ({key = K.Right; altKey; ctrlKey; metaKey; shiftKey} as kp)
+      when altKey || ctrlKey || metaKey ->
         let oldRangeStart, oldRangeEnd =
           s.selection
           |> Option.map ~f:(fun {range} -> range)
@@ -4185,7 +4185,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         let ast, newS = updateKey kp.key ast s in
         let selection =
           (* select from current position to end of current token or, if ctrl is pressed, current expr *)
-          ( if ctrlKey && not altKey
+          ( if (ctrlKey || metaKey) && not altKey
           then expressionSelection newS ast
           else tokenSelection newS ast )
           |> Option.map ~f:(fun {range = startPos, endPos} ->
@@ -4201,8 +4201,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         ( ast
         , {newS with selection = (if shiftKey then selection else None); newPos}
         )
-    | FluidKeyPress ({key = K.Left; altKey; ctrlKey; shiftKey} as kp)
-      when altKey || ctrlKey ->
+    | FluidKeyPress ({key = K.Left; altKey; ctrlKey; metaKey; shiftKey} as kp)
+      when altKey || ctrlKey || metaKey ->
         let oldRangeStart, oldRangeEnd =
           s.selection
           |> Option.map ~f:(fun {range} -> range)
@@ -4216,7 +4216,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         let ast, newS = updateKey kp.key ast {s with lastKey = kp.key} in
         let selection =
           (* select from start of current token or current expr, if ctrl is pressed, to current position *)
-          ( if ctrlKey && not altKey
+          ( if (ctrlKey || metaKey) && not altKey
           then expressionSelection newS ast
           else tokenSelection newS ast )
           |> Option.map ~f:(fun {range = startPos, endPos} ->
