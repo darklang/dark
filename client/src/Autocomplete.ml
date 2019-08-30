@@ -842,7 +842,9 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let exprs =
     if isExpression
     then
-      let varnames = List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames in
+      let varnames =
+        List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames
+      in
       let keywords =
         List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in

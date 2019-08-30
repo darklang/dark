@@ -35,9 +35,7 @@ type viewState =
   ; hoveringRefs : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
-  ; permission : permission option
-  ; liveValues : lvDict
-  ; pointers : pointerData list }
+  ; permission : permission option }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -143,12 +141,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; permission = m.permission
-  ; liveValues = Analysis.getCurrentLiveValuesDict m tlid
-  ; pointers =
-      TL.getAST tl
-      |> Option.map ~f:(fun ast -> AST.allData ast)
-      |> Option.withDefault ~default:[] }
+  ; permission = m.permission }
 
 
 let fontAwesome (name : string) : msg Html.html =

@@ -452,7 +452,7 @@ and timerAction =
 
 and lvDict = dval StrDict.t
 
-and avDict = (id StrDict.t) StrDict.t
+and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dval StrDict.t
 
