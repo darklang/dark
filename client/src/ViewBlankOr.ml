@@ -146,11 +146,6 @@ let div
     match vs.cursorState with Selecting (_, Some id) -> Some id | _ -> None
   in
   let selected = thisID = selectedID && Option.isSome thisID in
-  let displayLivevalue =
-    (thisID = idOf vs.cursorState || showROP)
-    && Option.isSome thisID
-    && vs.showLivevalue
-  in
   let showParamName =
     configs
     |> List.filterMap ~f:(fun a ->
@@ -170,7 +165,6 @@ let div
   let allClasses =
     classes
     @ idClasses
-    @ (if displayLivevalue then ["display-livevalue"] else [])
     @ (if selected then ["selected"] else [])
     @ (if isCommandTarget then ["commandTarget"] else [])
     @ mouseoverClass
@@ -201,16 +195,23 @@ let div
          * noProp to indicate that the property at idx N has changed. *)
         [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
-  let liveValueString = renderLiveValue vs thisID in
   let liveValueHtml =
+    let displayLivevalue =
+      (thisID = idOf vs.cursorState || showROP)
+      && Option.isSome thisID
+      && vs.showLivevalue
+      && vs.ac.index = -1
+      && selected
+    in
+    let liveValueString = renderLiveValue vs thisID in
     if displayLivevalue
     then
-      [ Html.div
-          [Html.class' "live-value"]
-          [Html.text liveValueString; viewCopyButton tlid liveValueString] ]
-    else []
+    Html.div
+      [Html.class' "live-value"]
+      [Html.text liveValueString; viewCopyButton tlid liveValueString]
+    else Vdom.noNode
   in
-  let leftSideHtml = liveValueHtml @ showParamName in
+  let leftSideHtml = liveValueHtml :: showParamName in
   let idAttr =
     match thisID with Some i -> Html.id (showID i) | _ -> Vdom.noProp
   in
@@ -393,10 +394,24 @@ let viewBlankOr
             else StringEntryNormalWidth
           in
           let placeholder = placeHolderFor vs id pt in
+          let liveValue =
+            let valFor =
+              Autocomplete.highlighted vs.ac
+              |> Option.andThen ~f:(fun aci ->
+                     match aci with ACVariable (_, v) -> v | _ -> None )
+            in
+            let valStr = match valFor with Some v -> Runtime.toRepr v | None -> "" in
+            if vs.ac.visible && Option.isSome valFor
+            then
+              Html.div
+                [ Html.class' "live-value ac" ]
+                [Html.text valStr]
+            else Vdom.noNode
+          in
           div
             vs
             (c @ wID id)
-            [ ViewEntry.entryHtml
+            [ liveValue; ViewEntry.entryHtml
                 allowStringEntry
                 stringEntryWidth
                 placeholder

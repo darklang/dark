@@ -346,7 +346,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     vertical-align: top;
 
     .live-value {
-      display: none;
+      display: block;
 
       padding: 4px;
       width: max-content;
@@ -361,6 +361,13 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
       background-color: $live-value-background;
 
+      position: absolute;
+      right: calc(#{"100% + 30px"});
+
+      &.ac {
+        margin-top: 1.2ch;
+      }
+
       .copy-value {
         position: absolute;
         top: -4px;
@@ -374,18 +381,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
       }
     }
 
-    &.display-livevalue.selected .live-value {
-      display: block;
-      position: absolute;
-      right: calc(#{"100% + 30px"});
-    }
-
-    &.entry .live-value.show {
-      display: block;
-      position: absolute;
-      right: calc(#{"100% + 30px"});
-      top: 1.5ch;
-    }
   }
 
   .value-error {
