@@ -1093,27 +1093,26 @@ test("fluid_double_click_with_alt_selects_expression", async t => {
     });
 });
 
-test("fluid_shift_alt_right_selects_token", async t => {
+test("fluid_shift_right_selects_chars_in_front", async t => {
   await t
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
     .expect(available(".selected #fluid-editor"))
     .ok()
-    .doubleClick(Selector(".fluid-match-keyword"), { caretPos: 0 });
+    .click(Selector(".fluid-fn-name"), { caretPos: 0 })
+    .pressKey("up shift+right shift+right");
 });
 
-test("fluid_shift_ctrl_right_selects_expression", async t => {
+test("fluid_shift_left_selects_chars_at_back", async t => {
   await t
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok()
     .expect(available(".selected #fluid-editor"))
     .ok()
-    .doubleClick(Selector(".fluid-match-keyword"), {
-      caretPos: 0,
-      modifiers: { alt: true },
-    });
+    .click(Selector(".fluid-fn-name"), { caretPos: 4 })
+    .pressKey("up shift+left shift+left");
 });
 
 test("varnames_are_incomplete", async t => {

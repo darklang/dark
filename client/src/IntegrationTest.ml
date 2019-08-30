@@ -784,9 +784,9 @@ let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
       fail "no selection range"
 
 
-let fluid_shift_alt_right_selects_token (m : model) : testResult =
+let fluid_shift_right_selects_chars_in_front (m : model) : testResult =
   match m.fluidState.selection with
-  | Some {range = 34, 40} ->
+  | Some {range = 0, 2} ->
       pass
   | Some {range = a, b} ->
       fail
@@ -799,9 +799,9 @@ let fluid_shift_alt_right_selects_token (m : model) : testResult =
       fail "no selection range"
 
 
-let fluid_shift_ctrl_right_selects_expression (m : model) : testResult =
+let fluid_shift_left_selects_chars_at_back (m : model) : testResult =
   match m.fluidState.selection with
-  | Some {range = 34, 964} ->
+  | Some {range = 2, 4} ->
       pass
   | Some {range = a, b} ->
       fail
@@ -956,10 +956,10 @@ let trigger (test_name : string) : integrationTestState =
         fluid_double_click_selects_token
     | "fluid_double_click_with_alt_selects_expression" ->
         fluid_double_click_with_alt_selects_expression
-    | "fluid_shift_alt_right_selects_token" ->
-        fluid_shift_alt_right_selects_token
-    | "fluid_shift_ctrl_right_selects_expression" ->
-        fluid_shift_ctrl_right_selects_expression
+    | "fluid_shift_right_selects_chars_in_front" ->
+        fluid_shift_right_selects_chars_in_front
+    | "fluid_shift_left_selects_chars_at_back" ->
+        fluid_shift_left_selects_chars_at_back
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->
