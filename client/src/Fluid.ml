@@ -3966,8 +3966,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       let index = state.newPos - startPos in
       let insert = clippedInt in
       let newVal =
-        String.insertAt ~insert ~index pasting
-        |> coerceStringTo63BitInt
+        String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -4003,9 +4002,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
   | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some {startPos}
     ->
       let index = state.newPos - startPos in
-      let newVal =
-        String.insertAt ~insert:varName ~index intVal
-      in
+      let newVal = String.insertAt ~insert:varName ~index intVal in
       let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
       let newAST =
         exprID
@@ -4018,8 +4015,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     when String.toInt insert |> Result.toOption <> None ->
       let index = state.newPos - startPos in
       let newVal =
-        String.insertAt ~insert ~index pasting
-        |> coerceStringTo63BitInt
+        String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -4034,38 +4030,28 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some {startPos; token = TFloatWhole _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
-        EFloat
-          ( gid ()
-          , String.insertAt ~index ~insert:intVal whole
-          , fraction )
+        EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
       in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length intVal } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting integer into a float fraction *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
     , Some {startPos; token = TFloatFraction _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
-        EFloat
-          ( gid ()
-          , whole
-          , String.insertAt ~index ~insert:intVal fraction )
+        EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
       in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length intVal } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting integer after float point *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4076,9 +4062,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length intVal } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
     , Some (ELet (_, _, lhs, rhs, body))
