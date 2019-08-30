@@ -104,15 +104,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           | _ ->
               Html.span [Html.class' "name"] [Html.text name]
         in
-        let typeStr =
-          match item with
-          | ACVariable (_, dv) ->
-              dv
-              |> Option.map ~f:(fun v -> v |> RT.typeOf |> RT.tipe2str)
-              |> Option.withDefault ~default:"variable"
-          | _ ->
-              Autocomplete.asTypeString item
-        in
+        let typeStr = Autocomplete.asTypeString item in
         Html.li
           [ Attributes.classList
               [ ("autocomplete-item", true)

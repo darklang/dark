@@ -2209,7 +2209,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       (EMatch (matchID, newB (), [(FPBlank (matchID, gid ()), newB ())]), 6)
   | FACKeyword KThread ->
       (EThread (gid (), [newB (); newB ()]), 6)
-  | FACVariable name ->
+  | FACVariable (name, _) ->
       (EVariable (gid (), name), String.length name)
   | FACLiteral "true" ->
       (EBool (gid (), true), 4)
@@ -4290,7 +4290,13 @@ let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
                | None ->
                    [ViewUtils.fontAwesome "spinner"]
                | Some v ->
-                   let str = Runtime.toRepr v in
+                   let str =
+                     match AC.highlighted state.ac with
+                     | Some (FACVariable (_, Some dv)) ->
+                         Runtime.toRepr dv
+                     | _ ->
+                         Runtime.toRepr v
+                   in
                    [Html.text str; viewCopyButton tlid str]
              in
              Some (liveValuesOfToken, true, ti.startRow)
