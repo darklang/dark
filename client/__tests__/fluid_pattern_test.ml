@@ -28,7 +28,7 @@ let () =
   let oneCharStr = FPString (mID, gid (), "c") in
   let aShortInt = FPInteger (mID, gid (), "1") in
   let anInt = FPInteger (mID, gid (), "12345") in
-  let aHugeInt = FPInteger (mID, gid (), "2000000000") in
+  let aHugeInt = FPInteger (mID, gid (), "2000000000000000000") in
   let aFloat = FPFloat (mID, gid (), "123", "456") in
   let aHugeFloat = FPFloat (mID, gid (), "123456789", "123456789") in
   let aPartialFloat = FPFloat (mID, gid (), "1", "") in
@@ -167,9 +167,35 @@ let () =
       t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
       t "del end of number" anInt (del 5) ("12345", 5) ;
       t "bs end of number" anInt (bs 5) ("1234", 4) ;
-      t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ;
-      t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ;
-      t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 5)
+        ("2000090000000000000", 6) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 0)
+        ("920000000000000000", 1) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 19)
+        ("2000000000000000000", 19) ;
+      (* let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in *)
+      let oneShorterThanMax62BitInt =
+        FPInteger (mID, gid (), "461168601842738790")
+      in
+      t
+        "insert number at scale"
+        oneShorterThanMax62BitInt
+        (insert '3' 18)
+        ("4611686018427387903", 19) ;
+      t
+        "insert number at scale"
+        oneShorterThanMax62BitInt
+        (insert '4' 18)
+        ("461168601842738790", 18) ;
       () ) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
@@ -187,9 +213,19 @@ let () =
       t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
       t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
       t "del dot" aFloat (del 3) ("123456", 3) ;
-      t "del dot at scale" aHugeFloat (del 9) ("1234567891", 9) ;
-      t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "del dot at scale" aHugeFloat (del 9) ("123456789123456789", 9) ;
+      let maxPosIntWithDot =
+        FPFloat (mID, gid (), "4611686018427387", "903")
+      in
+      let maxPosIntPlus1WithDot =
+        FPFloat (mID, gid (), "4611686018427387", "904")
+      in
+      t "del dot at limit" maxPosIntWithDot (del 16) ("4611686018427387903", 16) ;
+      t
+        "del dot at limit"
+        maxPosIntPlus1WithDot
+        (del 16)
+        ("461168601842738790", 16) ;
       t "del start of whole" aFloat (del 0) ("23.456", 0) ;
       t "del middle of whole" aFloat (del 1) ("13.456", 1) ;
       t "del end of whole" aFloat (del 2) ("12.456", 2) ;
@@ -199,7 +235,13 @@ let () =
       t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
       t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
       t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "bs dot at scale" aHugeFloat (bs 10) ("123456789123456789", 9) ;
+      t "bs dot at limit" maxPosIntWithDot (bs 17) ("4611686018427387903", 16) ;
+      t
+        "bs dot at limit"
+        maxPosIntPlus1WithDot
+        (bs 17)
+        ("461168601842738790", 16) ;
       t "bs start of whole" aFloat (bs 1) ("23.456", 0) ;
       t "bs middle of whole" aFloat (bs 2) ("13.456", 1) ;
       t "bs end of whole" aFloat (bs 3) ("12.456", 2) ;
