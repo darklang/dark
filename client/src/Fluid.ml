@@ -639,8 +639,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
                   ; TRecordSep (id, i)
                   ; nested expr ] ] )
           |> List.concat
-        ; [TNewline (Some (id, id, Some (List.length fields), true)); TRecordClose id]
-        ]
+        ; [ TNewline (Some (id, id, Some (List.length fields), true))
+          ; TRecordClose id ] ]
         |> List.concat
   | EThread (id, exprs) ->
     ( match exprs with
