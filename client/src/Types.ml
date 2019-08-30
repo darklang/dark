@@ -1246,7 +1246,7 @@ and fluidAutocompleteItem =
   | FACFunction of function_
   | FACConstructorName of string * int
   | FACField of string
-  | FACVariable of varName
+  | FACVariable of varName * dval option
   | FACLiteral of literal
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete

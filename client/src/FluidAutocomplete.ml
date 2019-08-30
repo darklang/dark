@@ -59,7 +59,7 @@ let asName (aci : autocompleteItem) : string =
       fnName
   | FACField name ->
       name
-  | FACVariable name ->
+  | FACVariable (name, _) ->
       name
   | FACLiteral lit ->
       lit
@@ -97,7 +97,11 @@ let asTypeString (item : autocompleteItem) : string =
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | FACField _ ->
       "field"
-  | FACVariable _ | FACPattern (FPAVariable _) ->
+  | FACVariable (_, odv) ->
+      odv
+      |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
+      |> Option.withDefault ~default:"variable"
+  | FACPattern (FPAVariable _) ->
       "variable"
   | FACConstructorName (name, _) | FACPattern (FPAConstructor (_, _, name, _))
     ->
@@ -288,7 +292,7 @@ let matcher
   match item with
   | FACFunction fn ->
       matchTypesOfFn tipeConstraintOnTarget fn
-  | FACVariable var ->
+  | FACVariable (var, _) ->
       if List.member ~value:var dbnames
       then match tipeConstraintOnTarget with TDB -> true | _ -> false
       else true
@@ -329,7 +333,7 @@ let generateExprs m tl a ti =
     ti.token
     |> FluidToken.tid
     |> Analysis.getCurrentAvailableVarnames m tl
-    |> List.map ~f:(fun (varname, _) -> FACVariable varname)
+    |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
     List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KThread]
@@ -573,7 +577,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
       Some ("TODO: this should never occur: the constructor " ^ name)
   | FACField fieldname ->
       Some ("The '" ^ fieldname ^ "' field of the object")
-  | FACVariable var ->
+  | FACVariable (var, _) ->
       if String.isCapitalized var
       then Some ("The datastore '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")
@@ -596,7 +600,7 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
     | FPAConstructor (_, _, name, args) ->
         documentationForItem (FACConstructorName (name, List.length args))
     | FPAVariable (_, _, name) ->
-        documentationForItem (FACVariable name)
+        documentationForItem (FACVariable (name, None))
     | FPABool (_, _, var) ->
         documentationForItem (FACLiteral (string_of_bool var))
     | FPANull _ ->
