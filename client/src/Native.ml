@@ -221,6 +221,12 @@ module Clipboard = struct
   external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
 end
 
+module BigInt = struct
+  type t
+  external asUintN : int -> string -> t = "asUintN" [@@bs.val] [@@bs.scope "BigInt"]
+  external toString : t -> string = "toString" [@@bs.send]
+end
+
 module Decoder = struct
   let tuple2 decodeA decodeB =
     let open Tea.Json.Decoder in
