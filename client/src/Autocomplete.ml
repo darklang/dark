@@ -782,16 +782,20 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
             [] )
       | EventName ->
-          let fourOhFourList =
-            m.f404s
-            |> List.uniqueBy ~f:(fun f404 -> f404.path)
-            |> List.sortBy ~f:(fun f404 -> f404.path)
-            |> List.filterMap ~f:(fun f404 ->
-                   if f404.path != "/"
-                   then Some (ACHTTPRoute (cleanHTTPname f404.path))
-                   else None )
-          in
-          fourOhFourList
+        ( match space with
+        | Some HSHTTP ->
+            let fourOhFourList =
+              m.f404s
+              |> List.uniqueBy ~f:(fun f404 -> f404.path)
+              |> List.sortBy ~f:(fun f404 -> f404.path)
+              |> List.filterMap ~f:(fun f404 ->
+                     if f404.path != "/"
+                     then Some (ACHTTPRoute (cleanHTTPname f404.path))
+                     else None )
+            in
+            fourOhFourList
+        | _ ->
+            [] )
       | EventSpace ->
           (* Other spaces aren't allowed anymore *)
           [ ACEventSpace "HTTP"
