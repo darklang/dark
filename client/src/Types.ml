@@ -1108,7 +1108,8 @@ and fluidPattern =
   | FPVariable of id * id * fluidName
   | FPConstructor of id * id * fluidName * fluidPattern list
   (* TODO: support char *)
-  | FPInteger of id * id * int
+  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  | FPInteger of id * id * string
   | FPBool of id * id * bool
   | FPString of id * id * string
   | FPFloat of id * id * string * string
@@ -1124,7 +1125,8 @@ and fluidPatternAutocomplete =
 
 and fluidExpr =
   (* Several of these expressions have extra IDs for roundtripping to the old expr *)
-  | EInteger of id * int
+  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  | EInteger of id * string
   | EBool of id * bool
   | EString of id * string
   | EFloat of id * string * string

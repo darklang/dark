@@ -91,8 +91,8 @@ let complexExpr =
         , gid ()
         , ""
         , b ()
-        , EFnCall (gid (), "Http::Forbidden", [EInteger (gid (), 403)], NoRail)
-        )
+        , EFnCall
+            (gid (), "Http::Forbidden", [EInteger (gid (), "403")], NoRail) )
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
@@ -102,22 +102,22 @@ let () =
   let aStr = EString (gid (), "some string") in
   let emptyStr = EString (gid (), "") in
   let oneCharStr = EString (gid (), "c") in
-  let aShortInt = EInteger (gid (), 1) in
-  let anInt = EInteger (gid (), 12345) in
-  let aHugeInt = EInteger (gid (), 2000000000) in
+  let aShortInt = EInteger (gid (), "1") in
+  let anInt = EInteger (gid (), "12345") in
+  let aHugeInt = EInteger (gid (), "2000000000000000000") in
   let aFloat = EFloat (gid (), "123", "456") in
   let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
   let aPartialFloat = EFloat (gid (), "1", "") in
   let trueBool = EBool (gid (), true) in
   let falseBool = EBool (gid (), false) in
   let aNull = ENull (gid ()) in
-  let five = EInteger (gid (), 5) in
-  let six = EInteger (gid (), 6) in
-  let fiftySix = EInteger (gid (), 56) in
-  let seventyEight = EInteger (gid (), 78) in
+  let five = EInteger (gid (), "5") in
+  let six = EInteger (gid (), "6") in
+  let fiftySix = EInteger (gid (), "56") in
+  let seventyEight = EInteger (gid (), "78") in
   let aPartialVar = EPartial (gid (), "req", b ()) in
   let completelyEmptyLet = ELet (gid (), gid (), "", b (), b ()) in
-  let emptyLet = ELet (gid (), gid (), "", b (), EInteger (gid (), 5)) in
+  let emptyLet = ELet (gid (), gid (), "", b (), EInteger (gid (), "5")) in
   let emptyMatch =
     let mID = gid () in
     EMatch (mID, b (), [(FPBlank (mID, gid ()), b ())])
@@ -131,7 +131,7 @@ let () =
   in
   let matchWithPatterns =
     let mID = gid () in
-    EMatch (mID, b (), [(FPInteger (mID, gid (), 3), b ())])
+    EMatch (mID, b (), [(FPInteger (mID, gid (), "3"), b ())])
   in
   let matchWithConstructorPattern =
     let mID = gid () in
@@ -151,22 +151,23 @@ let () =
           , expr ) ] )
   in
   let nonEmptyLet =
-    ELet (gid (), gid (), "", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
   in
   let twoLets =
     ELet
       ( gid ()
       , gid ()
       , "x"
-      , EInteger (gid (), 5)
-      , ELet (gid (), gid (), "y", EInteger (gid (), 6), EInteger (gid (), 7))
+      , EInteger (gid (), "5")
+      , ELet
+          (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
       )
   in
   let letWithLhs =
-    ELet (gid (), gid (), "n", EInteger (gid (), 6), EInteger (gid (), 5))
+    ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
   in
   let letWithBinding (bindingName : string) (expr : fluidExpr) =
-    ELet (gid (), gid (), bindingName, EInteger (gid (), 6), expr)
+    ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
   in
   let letWithUsedBinding (bindingName : string) =
     letWithBinding bindingName (EVariable (gid (), bindingName))
@@ -176,18 +177,21 @@ let () =
   let emptyIf = EIf (gid (), b (), b (), b ()) in
   let plainIf =
     EIf
-      (gid (), EInteger (gid (), 5), EInteger (gid (), 6), EInteger (gid (), 7))
+      ( gid ()
+      , EInteger (gid (), "5")
+      , EInteger (gid (), "6")
+      , EInteger (gid (), "7") )
   in
   let nestedIf =
     EIf
       ( gid ()
-      , EInteger (gid (), 5)
+      , EInteger (gid (), "5")
       , EIf
           ( gid ()
-          , EInteger (gid (), 5)
-          , EInteger (gid (), 6)
-          , EInteger (gid (), 7) )
-      , EInteger (gid (), 7) )
+          , EInteger (gid (), "5")
+          , EInteger (gid (), "6")
+          , EInteger (gid (), "7") )
+      , EInteger (gid (), "7") )
   in
   let aLambda = ELambda (gid (), [(gid (), "")], b ()) in
   let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
@@ -238,7 +242,7 @@ let () =
       ( gid ()
       , gid ()
       , "var"
-      , EIf (gid (), b (), EInteger (gid (), 6), EInteger (gid (), 7))
+      , EIf (gid (), b (), EInteger (gid (), "6"), EInteger (gid (), "7"))
       , EVariable (gid (), "var") )
   in
   let m =
@@ -341,7 +345,9 @@ let () =
              FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
     in
-    let ast = EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), 5)) in
+    let ast =
+      EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
+    in
     let wrapperOffset = 15 in
     let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
     let pos = pos + extra in
@@ -834,9 +840,35 @@ let () =
       t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
       t "del end of number" anInt (del 5) ("12345", 5) ;
       t "bs end of number" anInt (bs 5) ("1234", 4) ;
-      t "insert number at scale" aHugeInt (insert '9' 5) ("2000090000", 6) ;
-      t "insert number at scale" aHugeInt (insert '9' 0) ("920000000", 1) ;
-      t "insert number at scale" aHugeInt (insert '9' 10) ("2000000000", 10) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 5)
+        ("2000090000000000000", 6) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 0)
+        ("920000000000000000", 1) ;
+      t
+        "insert number at scale"
+        aHugeInt
+        (insert '9' 19)
+        ("2000000000000000000", 19) ;
+      (* let max62BitInt = EInteger (gid (), "4611686018427387903") in *)
+      let oneShorterThanMax62BitInt =
+        EInteger (gid (), "461168601842738790")
+      in
+      t
+        "insert number at scale"
+        oneShorterThanMax62BitInt
+        (insert '3' 18)
+        ("4611686018427387903", 19) ;
+      t
+        "insert number at scale"
+        oneShorterThanMax62BitInt
+        (insert '4' 18)
+        ("461168601842738790", 18) ;
       () ) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
@@ -854,9 +886,15 @@ let () =
       t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
       t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
       t "del dot" aFloat (del 3) ("123456", 3) ;
-      t "del dot at scale" aHugeFloat (del 9) ("1234567891", 9) ;
-      t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "del dot at scale" aHugeFloat (del 9) ("123456789123456789", 9) ;
+      let maxPosIntWithDot = EFloat (gid (), "4611686018427387", "903") in
+      let maxPosIntPlus1WithDot = EFloat (gid (), "4611686018427387", "904") in
+      t "del dot at limit" maxPosIntWithDot (del 16) ("4611686018427387903", 16) ;
+      t
+        "del dot at limit"
+        maxPosIntPlus1WithDot
+        (del 16)
+        ("461168601842738790", 16) ;
       t "del start of whole" aFloat (del 0) ("23.456", 0) ;
       t "del middle of whole" aFloat (del 1) ("13.456", 1) ;
       t "del end of whole" aFloat (del 2) ("12.456", 2) ;
@@ -866,7 +904,13 @@ let () =
       t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
       t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
       t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("1234567891", 9) ;
+      t "bs dot at scale" aHugeFloat (bs 10) ("123456789123456789", 9) ;
+      t "bs dot at limit" maxPosIntWithDot (bs 17) ("4611686018427387903", 16) ;
+      t
+        "bs dot at limit"
+        maxPosIntPlus1WithDot
+        (bs 17)
+        ("461168601842738790", 16) ;
       t "bs start of whole" aFloat (bs 1) ("23.456", 0) ;
       t "bs middle of whole" aFloat (bs 2) ("13.456", 1) ;
       t "bs end of whole" aFloat (bs 3) ("12.456", 2) ;
@@ -1167,7 +1211,7 @@ let () =
           ( gid ()
           , "||"
           , EVariable (gid (), "myvar")
-          , EInteger (gid (), 5)
+          , EInteger (gid (), "5")
           , NoRail )
       in
       tp "show ghost partial" aFullBinOp (bs 8) ("myvar |@ 5", 7) ;
@@ -1528,8 +1572,8 @@ let () =
               , b ()
               , [ ( FPVariable (gid (), gid (), "binding")
                   , EVariable (gid (), "binding") )
-                ; (FPInteger (gid (), gid (), 5), EVariable (gid (), "binding"))
-                ] )))
+                ; ( FPInteger (gid (), gid (), "5")
+                  , EVariable (gid (), "binding") ) ] )))
         (insert 'c' 11)
         ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc"
         , 12 ) ;
@@ -1611,10 +1655,10 @@ let () =
       let aLongThread =
         threadOn
           emptyList
-          [ listFn [aListNum 2]
-          ; listFn [aListNum 3]
-          ; listFn [aListNum 4]
-          ; listFn [aListNum 5] ]
+          [ listFn [aListNum "2"]
+          ; listFn [aListNum "3"]
+          ; listFn [aListNum "4"]
+          ; listFn [aListNum "5"] ]
       in
       let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)

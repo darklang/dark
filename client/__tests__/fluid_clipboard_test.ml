@@ -127,87 +127,87 @@ let () =
   describe "Integers" (fun () ->
       t
         "copying an int adds an EInteger to clipboard"
-        (EInteger (gid (), 1000))
+        (EInteger (gid (), "1000"))
         (copy (0, 4))
         ("1000", "1000", 0) ;
       t
         "copying an int adds an EInteger to clipboard 2"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 1000)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (copy (10, 14))
         ("Int::sqrt 1000", "1000", 10) ;
       t
         "copying part of an int adds part of the EInteger to clipboard"
-        (EInteger (gid (), 1234))
+        (EInteger (gid (), "1234"))
         (copy (0, 2))
         ("1234", "12", 0) ;
       t
         "cutting an int adds an EInteger to clipboard and leaves a blank"
-        (EInteger (gid (), 1000))
+        (EInteger (gid (), "1000"))
         (cut (0, 4))
         ("___", "1000", 0) ;
       t
         "cutting an int adds an EInteger to clipboard and leaves a blank 2"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 1000)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (cut (10, 14))
         ("Int::sqrt ___", "1000", 10) ;
       t
         "cutting part of an int adds part of the EInteger to clipboard and leaves the remaining EInteger"
-        (EInteger (gid (), 1234))
+        (EInteger (gid (), "1234"))
         (cut (0, 2))
         ("34", "12", 0) ;
       t
         "pasting an EInteger from clipboard on a blank should paste it"
         (EBlank (gid ()))
-        (paste ~clipboard:(EInteger (gid (), 1234)) (0, 0))
+        (paste ~clipboard:(EInteger (gid (), "1234")) (0, 0))
         ("1234", "1234", 4) ;
       t
         "pasting an EInteger into another integer should join the integers"
-        (EInteger (gid (), 5678))
-        (paste ~clipboard:(EInteger (gid (), 1234)) (1, 3))
+        (EInteger (gid (), "5678"))
+        (paste ~clipboard:(EInteger (gid (), "1234")) (1, 3))
         ("512348", "1234", 5) ;
       t
         "pasting an EFloat into an integer should convert to float"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (1, 3))
         ("512.348", "12.34", 7) ;
       t
         "pasting an EFloat into an integer should convert to float 2"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (0, 0))
         ("12.345678", "12.34", 9) ;
       t
         "pasting an EFloat into an integer should convert to float 3"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (4, 4))
         ("567812.34", "12.34", 9) ;
       t
         "pasting an EVariable into an integer should convert to parital"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EVariable (gid (), "myVar")) (0, 0))
         ("myVar5678", "myVar", 5) ;
       t
         "pasting an EVariable into an integer should convert to parital 2"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EVariable (gid (), "myVar")) (1, 1))
         ("5myVar678", "myVar", 6) ;
       t
         "pasting an int-only EString into an integer should extend integer"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (0, 0))
         ("12345678", "\"1234\"", 4) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (4, 4))
         ("56781234", "\"1234\"", 8) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (2, 2))
         ("56123478", "\"1234\"", 6) ;
       t
         "pasting an int-only EString over part of an integer should extend integer"
-        (EInteger (gid (), 5678))
+        (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (1, 3))
         ("512348", "\"1234\"", 5) ;
       () ) ;
@@ -265,7 +265,7 @@ let () =
       t
         "pasting an EInteger in a string should paste it"
         (EString (gid (), "abcd EFGH ijkl 1234"))
-        (paste ~clipboard:(EInteger (gid (), 5678)) (11, 15))
+        (paste ~clipboard:(EInteger (gid (), "5678")) (11, 15))
         ("\"abcd EFGH 5678 1234\"", "5678", 15) ;
       t
         "pasting an ERecord with a single key & no value in a string should paste key"
@@ -279,7 +279,7 @@ let () =
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
            ~clipboard:
-             (ERecord (gid (), [(gid (), "key1", EInteger (gid (), 9876))]))
+             (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "9876"))]))
            (11, 15))
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
       () ) ;
@@ -364,37 +364,37 @@ let () =
       t
         "pasting an EInteger in a float whole part should paste it"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (0, 0))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (0, 0))
         ("90001234.5678", "9000", 4) ;
       t
         "pasting an EInteger in a float whole part should paste it 2"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (1, 3))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (1, 3))
         ("190004.5678", "9000", 5) ;
       t
         "pasting an EInteger in a float fraction part should paste it"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (8, 8))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (8, 8))
         ("1234.56790008", "9000", 12) ;
       t
         "pasting an EInteger over a float fraction part should paste it and remove selection"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (6, 8))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (6, 8))
         ("1234.590008", "9000", 10) ;
       t
         "pasting an EInteger before a float point should paste it"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (4, 4))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (4, 4))
         ("12349000.5678", "9000", 8) ;
       t
         "pasting an EInteger after a float point should paste it"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (5, 5))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (5, 5))
         ("1234.90005678", "9000", 9) ;
       t
         "pasting an EInteger over a float point should paste it"
         (EFloat (gid (), "1234", "5678"))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (3, 6))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (3, 6))
         ("1239000678", "9000", 7) ;
       () ) ;
   describe "Variables" (fun () ->
@@ -667,7 +667,7 @@ let () =
       t
         "copying a single-char operator works"
         (EBinOp
-           (gid (), "<", EInteger (gid (), 123), EInteger (gid (), 456), NoRail))
+           (gid (), "<", EInteger (gid (), "123"), EInteger (gid (), "456"), NoRail))
         (copy (6, 7))
         ("123 < 456", "_________ < _________", 4) ;
       t
@@ -675,8 +675,8 @@ let () =
         (EBinOp
            ( gid ()
            , "=="
-           , EInteger (gid (), 123)
-           , EInteger (gid (), 456)
+           , EInteger (gid (), "123")
+           , EInteger (gid (), "456")
            , NoRail ))
         (copy (4, 6))
         ("123 == 456", "_________ == _________", 4) ;
@@ -685,8 +685,8 @@ let () =
         (EBinOp
            ( gid ()
            , "=="
-           , EInteger (gid (), 123)
-           , EInteger (gid (), 456)
+           , EInteger (gid (), "123")
+           , EInteger (gid (), "456")
            , NoRail ))
         (copy (4, 5))
         ("123 == 456", "_________ =@ _________", 4) ;
@@ -695,32 +695,32 @@ let () =
   describe "Functions" (fun () ->
       t
         "copying a function name adds an EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 9))
         ("Int::sqrt 122", "Int::sqrt ___", 0) ;
       t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 4))
         ("Int::sqrt 122", "Int:@sqr@ ___", 0) ;
       t
         "copying a function's argument adds the argument's expression to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (10, 13))
         ("Int::sqrt 122", "122", 10) ;
       t
         "cutting a function name adds an EFnCall w blank arguments to clipboard and leaves a blank"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 9))
         ("___", "Int::sqrt ___", 0) ;
       t
         "cutting part of a fn name adds a partial EFnCall w blank arguments to clipboard and leaves a partial"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 4))
         (":sqrt@qr@ 122", "Int:@sqr@ ___", 0) ;
       t
         "cutting a function's argument adds the argument's expression to clipboard and leaves a blank there"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), 122)], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (10, 13))
         ("Int::sqrt ___", "122", 10) ;
       () ) ;
@@ -732,7 +732,7 @@ let () =
         EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
       in
       let aThread =
-        threadOn emptyList [listFn [aListNum 5]; listFn [aListNum 5]]
+        threadOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
       in
       t
         "copying first expression of thread adds it to clipboard"
@@ -744,25 +744,25 @@ let () =
       (* NOT WORKING YET
       t
         "copying opening bracket adds empty list expr to clipboard"
-        (EList (gid (), [EInteger (gid (), 123)]))
+        (EList (gid (), [EInteger (gid (), "123")]))
         (copy (0, 1))
         ("[123]", "[]", 0) ; *)
       t
         "copying subset of elements adds subset list expr to clipboard"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
         (copy (5, 12))
         ("[123,456,789]", "[456,789]", 5) ;
       t
         "cutting subset of elements adds subset list expr to clipboard and leaves remainder"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
         (cut (5, 12))
         ("[123,___]", "[456,789]", 5) ;
       (* NOT WORKING b/c placing the cursor on either side of a separator
@@ -771,63 +771,63 @@ let () =
         "pasting an expression into list expr at separator works"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (4, 5))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (4, 5))
         ("[123,9000,456,789]", "9000", 9) ;
         *)
       t
         "pasting an expression over subset of list expr works"
         (EList
            ( gid ()
-           , [ EInteger (gid (), 123)
-             ; EInteger (gid (), 456)
-             ; EInteger (gid (), 789) ] ))
-        (paste ~clipboard:(EInteger (gid (), 9000)) (5, 12))
+           , [ EInteger (gid (), "123")
+             ; EInteger (gid (), "456")
+             ; EInteger (gid (), "789") ] ))
+        (paste ~clipboard:(EInteger (gid (), "9000")) (5, 12))
         ("[123,9000]", "9000", 9) ;
       () ) ;
   describe "Records" (fun () ->
       t
         "copying opening bracket adds empty record expr to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), 1234))]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (0, 1))
         ("{\n  key1 : 1234\n}", "{}", 0) ;
       t
         "copying a single key adds record w single key to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), 1234))]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (4, 8))
         ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 4) ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), 1234))]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (cut (4, 8))
         ("{\n  *** : 1234\n}", "{\n  key1 : ___\n}", 4) ;
       t
         "copying a single k-v pair adds record w single k-v pair to clipboard"
-        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), 1234))]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 2) ;
       () ) ;
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), 100)]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 8))
         ("Just 100", "Just 100", 0) ;
       t
         "copying part adds partial EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), 100)]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 3))
         ("Just 100", "Jus@ ___", 0) ;
       t
         "cutting adds EConstructor to clipboard and leaves blank"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), 100)]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 8))
         ("___", "Just 100", 0) ;
       t
         "cutting part adds partial EConstructor to clipboard and leaves partial"
-        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), 100)]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 3))
         ("t@s@ 100", "Jus@ ___", 0) ;
       () ) ;

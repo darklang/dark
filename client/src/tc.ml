@@ -18,7 +18,7 @@ include (
     with module Option := Tablecloth.Option
     with module Int := Tablecloth.Int
     with module String := Tablecloth.String
-    (*  and module Result := Tablecloth.Result *)
+     and module Result := Tablecloth.Result
      and module List := Tablecloth.List )
 
 module Option = struct
@@ -38,6 +38,13 @@ module Option = struct
 
   let orElseLazy (v : unit -> 'a option) (v2 : 'a option) : 'a option =
     match v2 with Some v2 -> Some v2 | None -> v ()
+end
+
+module Result = struct
+  include Tablecloth.Result
+
+  let isOk (v : ('err, 'ok) t) : bool =
+    match v with Ok _ -> true | _ -> false
 end
 
 module List = struct

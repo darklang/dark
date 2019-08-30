@@ -221,6 +221,21 @@ module Clipboard = struct
   external copyToClipboard : string -> unit = "clipboard-copy" [@@bs.module]
 end
 
+module BigInt = struct
+  type t
+
+  (* asUintNExn throws an exception when given stringified non-ints and truncates the most significant bits
+     of numbers with magnitude too large to be represented in the given # of bits *)
+  external asUintNExn : int -> string -> t = "asUintN"
+    [@@bs.val] [@@bs.scope "BigInt"]
+
+  let asUintN ~(nBits : int) (str : string) : t Option.t =
+    try Some (asUintNExn nBits str) with _ -> None
+
+
+  external toString : t -> string = "toString" [@@bs.send]
+end
+
 module Decoder = struct
   let tuple2 decodeA decodeB =
     let open Tea.Json.Decoder in

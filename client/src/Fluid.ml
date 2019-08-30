@@ -51,11 +51,35 @@ let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
 
 
-let safe_int_of_string (s : string) : int =
-  (* 2,147,483,647 *)
-  try String.left ~count:10 s |> int_of_string with _ ->
-    String.left ~count:9 s |> int_of_string
+(* truncateStringTo63BitInt only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
+(* If it is not an int after truncation, returns an error *)
+let truncateStringTo63BitInt (s : string) : (string, string) Result.t =
+  let is62BitInt s =
+    match Native.BigInt.asUintN ~nBits:62 s with
+    | Some i ->
+        Native.BigInt.toString i = s
+    | None ->
+        false
+  in
+  (* 4611686018427387903 is largest 62 bit number, which has 19 characters *)
+  (* We use 62 bit checks instead of 63 because the most significanty bit is for sign in two's complement -- which is not yet handled *)
+  let trunc19 = String.left ~count:19 s in
+  if is62BitInt trunc19
+  then Ok trunc19
+  else
+    let trunc18 = String.left ~count:18 s in
+    if is62BitInt trunc18
+    then Ok trunc18
+    else Error "Invalid 63bit number even after truncate"
 
+
+(* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
+let coerceStringTo63BitInt (s : string) : string =
+  Result.withDefault (truncateStringTo63BitInt s) ~default:"0"
+
+
+(* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
+let is63BitInt (s : string) : bool = Result.isOk (truncateStringTo63BitInt s)
 
 exception FExc of string
 
@@ -74,7 +98,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
-      | `Int of int
+      | `Int of string
       | `Null
       | `Float of string * string
       | `Unknown ] =
@@ -87,7 +111,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
       then Some `Null
       else None
     in
-    let asInt = try Some (`Int (int_of_string str)) with _ -> None in
+    let asInt = if is63BitInt str then Some (`Int str) else None in
     let asFloat =
       try
         (* for the exception *)
@@ -221,11 +245,12 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
 
 
 let literalToString
-    (v : [> `Bool of bool | `Int of int | `Null | `Float of string * string]) :
+    (v :
+      [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
     string =
   match v with
   | `Int i ->
-      Int.toString i
+      i
   | `String str ->
       "\"" ^ str ^ "\""
   | `Bool b ->
@@ -429,7 +454,7 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
       let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
       List.concat ([TPatternConstructorName (mid, id, name)] :: args)
   | FPInteger (mid, id, i) ->
-      [TPatternInteger (mid, id, string_of_int i)]
+      [TPatternInteger (mid, id, i)]
   | FPBool (mid, id, b) ->
       if b then [TPatternTrue (mid, id)] else [TPatternFalse (mid, id)]
   | FPString (mid, id, s) ->
@@ -477,7 +502,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   in
   match e with
   | EInteger (id, i) ->
-      [TInteger (id, string_of_int i)]
+      [TInteger (id, i)]
   | EBool (id, b) ->
       if b then [TTrue id] else [TFalse id]
   | ENull id ->
@@ -1880,9 +1905,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let newExpr =
         if str = ""
         then EBlank id
-        else
-          let value = try safe_int_of_string str with _ -> 0 in
-          EInteger (id, value)
+        else EInteger (id, coerceStringTo63BitInt str)
       in
       replaceExpr id ~newExpr ast
   | TPatternInteger (mID, id, str) ->
@@ -1890,9 +1913,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       let newPat =
         if str = ""
         then FPBlank (mID, id)
-        else
-          let value = try safe_int_of_string str with _ -> 0 in
-          FPInteger (mID, id, value)
+        else FPInteger (mID, id, coerceStringTo63BitInt str)
       in
       replacePattern mID id ~newPat ast
   | TPatternNullToken (mID, id) ->
@@ -1971,7 +1992,7 @@ let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
   updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPFloat (matchID, _, whole, fraction) ->
-          let i = safe_int_of_string (whole ^ fraction) in
+          let i = coerceStringTo63BitInt (whole ^ fraction) in
           FPInteger (matchID, gid (), i)
       | _ ->
           fail "Not an int" )
@@ -2010,8 +2031,7 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun expr ->
       match expr with
       | EInteger (_, i) ->
-          let str = Int.toString i in
-          let whole, fraction = String.splitAt ~index:offset str in
+          let whole, fraction = String.splitAt ~index:offset i in
           EFloat (gid (), whole, fraction)
       | _ ->
           fail "Not an int" )
@@ -2022,8 +2042,7 @@ let convertPatternIntToFloat
   updatePattern matchID patID ast ~f:(fun expr ->
       match expr with
       | FPInteger (matchID, _, i) ->
-          let str = Int.toString i in
-          let whole, fraction = String.splitAt ~index:offset str in
+          let whole, fraction = String.splitAt ~index:offset i in
           FPFloat (matchID, gid (), whole, fraction)
       | _ ->
           fail "Not an int" )
@@ -2033,7 +2052,7 @@ let removePointFromFloat (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun expr ->
       match expr with
       | EFloat (_, whole, fraction) ->
-          let i = safe_int_of_string (whole ^ fraction) in
+          let i = coerceStringTo63BitInt (whole ^ fraction) in
           EInteger (gid (), i)
       | _ ->
           fail "Not an int" )
@@ -2797,7 +2816,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     else if letter = ','
     then EBlank newID (* new separators *)
     else if isNumber letterStr
-    then EInteger (newID, letterStr |> safe_int_of_string)
+    then EInteger (newID, letterStr |> coerceStringTo63BitInt)
     else EPartial (newID, letterStr, EBlank (gid ()))
   in
   match ti.token with
@@ -2890,9 +2909,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLambdaVar _ ->
       (replaceStringToken ~f ti.token ast, right)
   | TPatternInteger (_, _, i) | TInteger (_, i) ->
-      let newLength =
-        f i |> safe_int_of_string |> string_of_int |> String.length
-      in
+      let newLength = f i |> coerceStringTo63BitInt |> String.length in
       let move = if newLength > offset then right else s in
       (replaceStringToken ~f ti.token ast, move)
   | TFloatWhole (id, str) ->
@@ -2914,7 +2931,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         if letter = '"'
         then FPString (mID, newID, "")
         else if isNumber letterStr
-        then FPInteger (mID, newID, letterStr |> safe_int_of_string)
+        then FPInteger (mID, newID, letterStr |> coerceStringTo63BitInt)
         else FPVariable (mID, newID, letterStr)
       in
       (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
@@ -3553,7 +3570,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
     (* basic, single/fixed-token expressions *)
     | EInteger (eID, _), tokens ->
         findTokenValue tokens eID "integer"
-        |> Option.map ~f:safe_int_of_string
+        |> Option.map ~f:coerceStringTo63BitInt
         |> Option.map ~f:(fun v -> EInteger (gid (), v))
     | EBool (eID, value), tokens ->
         Option.or_
@@ -3582,7 +3599,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
         | Some value, true, None ->
             Some (EFloat (id, value, "0"))
         | Some value, false, None | None, false, Some value ->
-            Some (EInteger (id, safe_int_of_string value))
+            Some (EInteger (id, coerceStringTo63BitInt value))
         | None, true, Some value ->
             Some (EFloat (id, "0", value))
         | Some whole, true, Some fraction ->
@@ -3821,7 +3838,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [(id, _, "pattern-blank")] ->
                     FPBlank (mID, id)
                 | [(id, value, "pattern-integer")] ->
-                    FPInteger (mID, id, safe_int_of_string value)
+                    FPInteger (mID, id, coerceStringTo63BitInt value)
                 | [(id, value, "pattern-variable")] ->
                     FPVariable (mID, id, value)
                 | (id, value, "pattern-constructor-name") :: _subPatternTokens
@@ -3850,11 +3867,11 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
                 | [ (id, value, "pattern-float-whole")
                   ; (_, _, "pattern-float-point") ]
                 | [(id, value, "pattern-float-whole")] ->
-                    FPInteger (mID, id, safe_int_of_string value)
+                    FPInteger (mID, id, coerceStringTo63BitInt value)
                 | [ (_, _, "pattern-float-point")
                   ; (id, value, "pattern-float-fraction") ]
                 | [(id, value, "pattern-float-fraction")] ->
-                    FPInteger (mID, id, safe_int_of_string value)
+                    FPInteger (mID, id, coerceStringTo63BitInt value)
                 | _ ->
                     FPBlank (mID, gid ())
               in
@@ -3947,10 +3964,9 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some (EInteger (_, pasting))
     , Some {startPos} ) ->
       let index = state.newPos - startPos in
-      let insert = string_of_int clippedInt in
+      let insert = clippedInt in
       let newVal =
-        String.insertAt ~insert ~index (string_of_int pasting)
-        |> safe_int_of_string
+        String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -3964,7 +3980,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some (EInteger (_, pasting))
     , Some {startPos} ) ->
       let whole', fraction' =
-        let str = string_of_int pasting in
+        let str = pasting in
         String.
           ( slice ~from:0 ~to_:(state.newPos - startPos) str
           , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str
@@ -3986,9 +4002,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
   | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some {startPos}
     ->
       let index = state.newPos - startPos in
-      let newVal =
-        String.insertAt ~insert:varName ~index (string_of_int intVal)
-      in
+      let newVal = String.insertAt ~insert:varName ~index intVal in
       let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
       let newAST =
         exprID
@@ -4001,8 +4015,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     when String.toInt insert |> Result.toOption <> None ->
       let index = state.newPos - startPos in
       let newVal =
-        String.insertAt ~insert ~index (string_of_int pasting)
-        |> safe_int_of_string
+        String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -4017,51 +4030,39 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some {startPos; token = TFloatWhole _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
-        EFloat
-          ( gid ()
-          , String.insertAt ~index ~insert:(string_of_int intVal) whole
-          , fraction )
+        EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
       in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting integer into a float fraction *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
     , Some {startPos; token = TFloatFraction _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
-        EFloat
-          ( gid ()
-          , whole
-          , String.insertAt ~index ~insert:(string_of_int intVal) fraction )
+        EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
       in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting integer after float point *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
     , Some {token = TFloatPoint _} ) ->
-      let newExpr = EFloat (gid (), whole, string_of_int intVal ^ fraction) in
+      let newExpr = EFloat (gid (), whole, intVal ^ fraction) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      ( newAST
-      , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+      (newAST, {state with newPos = state.newPos + String.length intVal})
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
     , Some (ELet (_, _, lhs, rhs, body))
