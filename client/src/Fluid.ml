@@ -3964,10 +3964,10 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some (EInteger (_, pasting))
     , Some {startPos} ) ->
       let index = state.newPos - startPos in
-      let insert = string_of_int clippedInt in
+      let insert = clippedInt in
       let newVal =
-        String.insertAt ~insert ~index (string_of_int pasting)
-        |> safe_int_of_string
+        String.insertAt ~insert ~index pasting
+        |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -3981,7 +3981,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     , Some (EInteger (_, pasting))
     , Some {startPos} ) ->
       let whole', fraction' =
-        let str = string_of_int pasting in
+        let str = pasting in
         String.
           ( slice ~from:0 ~to_:(state.newPos - startPos) str
           , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str
@@ -4004,7 +4004,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     ->
       let index = state.newPos - startPos in
       let newVal =
-        String.insertAt ~insert:varName ~index (string_of_int intVal)
+        String.insertAt ~insert:varName ~index intVal
       in
       let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
       let newAST =
@@ -4018,8 +4018,8 @@ let pasteSelection ~state ~ast () : ast * fluidState =
     when String.toInt insert |> Result.toOption <> None ->
       let index = state.newPos - startPos in
       let newVal =
-        String.insertAt ~insert ~index (string_of_int pasting)
-        |> safe_int_of_string
+        String.insertAt ~insert ~index pasting
+        |> coerceStringTo63BitInt
       in
       let newExpr = EInteger (gid (), newVal) in
       let newAST =
@@ -4036,7 +4036,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       let newExpr =
         EFloat
           ( gid ()
-          , String.insertAt ~index ~insert:(string_of_int intVal) whole
+          , String.insertAt ~index ~insert:intVal whole
           , fraction )
       in
       let newAST =
@@ -4046,7 +4046,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       in
       ( newAST
       , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+          newPos = state.newPos + String.length intVal } )
   (* inserting integer into a float fraction *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4056,7 +4056,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         EFloat
           ( gid ()
           , whole
-          , String.insertAt ~index ~insert:(string_of_int intVal) fraction )
+          , String.insertAt ~index ~insert:intVal fraction )
       in
       let newAST =
         exprID
@@ -4065,12 +4065,12 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       in
       ( newAST
       , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+          newPos = state.newPos + String.length intVal } )
   (* inserting integer after float point *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
     , Some {token = TFloatPoint _} ) ->
-      let newExpr = EFloat (gid (), whole, string_of_int intVal ^ fraction) in
+      let newExpr = EFloat (gid (), whole, intVal ^ fraction) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
@@ -4078,7 +4078,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       in
       ( newAST
       , { state with
-          newPos = state.newPos + String.length (string_of_int intVal) } )
+          newPos = state.newPos + String.length intVal } )
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
     , Some (ELet (_, _, lhs, rhs, body))
