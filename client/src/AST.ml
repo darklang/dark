@@ -1042,21 +1042,12 @@ let freeVariables (ast : expr) : (id * varName) list =
   |> List.uniqueBy ~f:(fun (_, name) -> name)
 
 
-module SymSet = StrDict
+module VarDict = StrDict
 module IDTable = Belt.MutableMap.String
 
-type sym_set = id SymSet.t
+type sym_set = id VarDict.t
 
 type sym_store = sym_set IDTable.t
-
-let updateDictWithList st l =
-  l
-  |> List.foldl ~init:st ~f:(fun v d ->
-         match v with
-         | F (id, varname) ->
-             SymSet.update ~key:varname ~f:(fun _v -> Some id) d
-         | Blank _ ->
-             d )
 
 
 let rec sym_exec
@@ -1075,7 +1066,7 @@ let rec sym_exec
         let bound =
           match lhs with
           | F (id, name) ->
-              SymSet.update ~key:name ~f:(fun _v -> Some id) st
+            VarDict.update ~key:name ~f:(fun _v -> Some id) st
           | Blank _ ->
               st
         in
@@ -1093,7 +1084,7 @@ let rec sym_exec
           |> List.foldl ~init:st ~f:(fun v d ->
                  match v with
                  | F (id, varname) ->
-                     SymSet.update ~key:varname ~f:(fun _v -> Some id) d
+                    VarDict.update ~key:varname ~f:(fun _v -> Some id) d
                  | Blank _ ->
                      d )
         in
@@ -1123,7 +1114,7 @@ let rec sym_exec
               |> variables_in_pattern
               |> List.foldl ~init:st ~f:(fun v d ->
                      let id, varname = v in
-                     SymSet.update ~key:varname ~f:(fun _v -> Some id) d )
+                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d )
             in
             sexe new_st caseExpr )
     | F (_, ObjectLiteral exprs) ->
@@ -1140,5 +1131,5 @@ let rec sym_exec
 let variablesIn (ast : expr) : avDict =
   let sym_store = IDTable.make () in
   let trace expr st = IDTable.set sym_store (deID (Blank.toID expr)) st in
-  sym_exec ~trace SymSet.empty ast ;
+  sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
