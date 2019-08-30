@@ -159,19 +159,6 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
       [Html.text search]
   in
-  let _liveValue =
-    let valFor =
-      Autocomplete.highlighted ac
-      |> Option.andThen ~f:(fun aci ->
-             match aci with ACVariable (_, v) -> v | _ -> None )
-    in
-    let valStr = match valFor with Some v -> RT.toRepr v | None -> "" in
-    Html.div
-      [ Html.classList
-          [("live-value", true); ("show", ac.visible && Option.isSome valFor)]
-      ]
-      [Html.text valStr]
-  in
   let input =
     Html.fieldset
       [Attributes.id "search-container"; widthInCh searchWidth]

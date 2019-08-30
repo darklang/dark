@@ -168,7 +168,7 @@ let () =
         (fun () ->
           (* This doesn't really work in non-fluid because so, instead the operation just returns a lambda with a single default "var" binding*)
           expect Pass |> toEqual Pass ) ;
-      (* test
+      test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
           let testId = ID "testme" in
@@ -176,12 +176,8 @@ let () =
           let outer =
             B.newF (Let (B.newF "variable", B.newF (Value "4"), inner))
           in
-          (* let variable = 4
-           * let _ = _ (id: "testme") -- "variable" should be available
-           * _
-           *)
-          let vars = variablesIn outer in
-          expect (StrDict.get ~key:"testme" vars)
-          |> toEqual (Some [("variable", Some (DInt 4))]) ) ; *)
+          let vars = variablesIn outer |> StrDict.get ~key:"testme" in
+          let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
+          expect varsFor |> toEqual (Some ["variable"]) ) ;
       () ) ;
   ()

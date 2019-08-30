@@ -492,15 +492,15 @@ let () =
           test "Lambda works" (fun () ->
               expect (acFor m |> setQuery m "lambda" |> AC.highlighted)
               |> toEqual (Some (FACKeyword KLambda)) ) ;
-          (* test "http handlers have request" (fun () ->
+          test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
               let m = enteringHandler ~space () in
               expect
                 ( acFor m
                 |> setQuery m "request"
                 |> itemPresent (FACVariable ("request", None)) )
-              |> toEqual true ) ; *)
-          (* test "handlers with no route have request and event" (fun () ->
+              |> toEqual true ) ;
+          test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
                  [ ac
@@ -509,7 +509,7 @@ let () =
                  ; ac
                    |> setQuery m "event"
                    |> itemPresent (FACVariable ("event", None)) ])
-              |> toEqual [true; true] ) ; *)
+              |> toEqual [true; true] ) ;
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
@@ -539,16 +539,20 @@ let () =
           ) ;*)
           () ) ;
       describe "filter" (fun () ->
-          (* test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
+          test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m =
                 defaultModel ~cursorState:(fillingCS ()) ~dbs:[aDB ()] ()
               in
               let ac = acFor m in
               let _valid, invalid =
-                AC.filter m ac [FACVariable "MyDB"] (defaultFullQuery m "")
+                AC.filter
+                  m
+                  ac
+                  [FACVariable ("MyDB", None)]
+                  (defaultFullQuery m "")
               in
-              expect (List.member ~value:(FACVariable "MyDB") invalid)
-              |> toEqual true ) ; *)
+              expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
+              |> toEqual true ) ;
           let consFAC =
             [ FACConstructorName ("Just", 1)
             ; FACConstructorName ("Nothing", 0)

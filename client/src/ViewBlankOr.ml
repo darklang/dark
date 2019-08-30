@@ -206,9 +206,9 @@ let div
     let liveValueString = renderLiveValue vs thisID in
     if displayLivevalue
     then
-    Html.div
-      [Html.class' "live-value"]
-      [Html.text liveValueString; viewCopyButton tlid liveValueString]
+      Html.div
+        [Html.class' "live-value"]
+        [Html.text liveValueString; viewCopyButton tlid liveValueString]
     else Vdom.noNode
   in
   let leftSideHtml = liveValueHtml :: showParamName in
@@ -400,18 +400,18 @@ let viewBlankOr
               |> Option.andThen ~f:(fun aci ->
                      match aci with ACVariable (_, v) -> v | _ -> None )
             in
-            let valStr = match valFor with Some v -> Runtime.toRepr v | None -> "" in
+            let valStr =
+              match valFor with Some v -> Runtime.toRepr v | None -> ""
+            in
             if vs.ac.visible && Option.isSome valFor
-            then
-              Html.div
-                [ Html.class' "live-value ac" ]
-                [Html.text valStr]
+            then Html.div [Html.class' "live-value ac"] [Html.text valStr]
             else Vdom.noNode
           in
           div
             vs
             (c @ wID id)
-            [ liveValue; ViewEntry.entryHtml
+            [ liveValue
+            ; ViewEntry.entryHtml
                 allowStringEntry
                 stringEntryWidth
                 placeholder
