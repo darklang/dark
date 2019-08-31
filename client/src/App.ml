@@ -519,6 +519,17 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           else (m, Cmd.none)
         in
         let m = {m with cursorState} in
+        let m, acCmd =
+          match p with
+          | Some id ->
+              let tl = TL.getExn m tlid in
+              let pd = TL.findExn tl id in
+              processAutocompleteMods m [ACSetTarget (Some (tlid, pd))]
+          | None ->
+              (* Ensure that when we click out of an entry box that the AC is
+               * reset, else we can't scroll. *)
+              processAutocompleteMods m [ACReset]
+        in
         let m, afCmd = Analysis.analyzeFocused m in
         let timeStamp = Js.Date.now () /. 1000.0 in
         let avMessage : avatarModelMessage =
@@ -528,7 +539,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; timestamp = timeStamp }
         in
         let commands =
-          [hashcmd] @ closeBlanks m @ [afCmd] @ [RPC.sendPresence m avMessage]
+          [hashcmd]
+          @ closeBlanks m
+          @ [acCmd; afCmd]
+          @ [RPC.sendPresence m avMessage]
         in
         (m, Cmd.batch commands)
     | Deselect ->
@@ -1163,7 +1177,10 @@ let update_ (msg : msg) (m : model) : modification =
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
-      then Fluid.update m (FluidMouseClick targetExnID)
+      then
+        Many
+          [ Select (targetExnID, None)
+          ; Fluid.update m (FluidMouseClick targetExnID) ]
       else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
