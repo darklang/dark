@@ -1162,7 +1162,9 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
-      let click =
+      if VariantTesting.isFluid m.tests
+      then Fluid.update m (FluidMouseClick targetExnID)
+      else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
             SetCursorState origCursorState
@@ -1175,14 +1177,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Entering _ ->
             Select (targetExnID, None)
         | FluidEntering _ ->
-            Select (targetExnID, None)
-      in
-      let fluid =
-        if VariantTesting.isFluid m.tests
-        then Fluid.update m (FluidMouseClick targetExnID)
-        else NoChange
-      in
-      Many [click; fluid]
+            NoChange )
   | FluidSelectStart (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
