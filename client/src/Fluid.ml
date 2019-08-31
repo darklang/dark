@@ -3445,7 +3445,8 @@ let collapseSelection (sel : fluidSelection option) : fluidSelection option =
 
 let tokenSelection (state : fluidState) (ast : ast) : fluidSelection option =
   getToken state ast
-  |> Option.map ~f:(fun t -> {range = (t.startPos, t.endPos)})
+  |> Option.map ~f:(fun t ->
+         {range = (t.startPos, t.endPos); direction = FSDRight} )
 
 
 let expressionSelection (state : fluidState) (ast : ast) :
@@ -3456,7 +3457,8 @@ let expressionSelection (state : fluidState) (ast : ast) :
          (* get expression that the token belongs to *)
          let exprID = Token.tid t.token in
          exprRangeInAst ~state ~ast exprID )
-  |> Option.map ~f:(fun (eStartPos, eEndPos) -> {range = (eStartPos, eEndPos)})
+  |> Option.map ~f:(fun (eStartPos, eEndPos) ->
+         {range = (eStartPos, eEndPos); direction = FSDRight} )
 
 
 let trimQuotes s : string =
@@ -4169,124 +4171,56 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
-    | FluidKeyPress ({key = K.Right; altKey; ctrlKey; metaKey; shiftKey} as kp)
-      when altKey || ctrlKey || metaKey ->
-        let oldRangeStart, oldRangeEnd =
+    | FluidKeyPress {key; altKey; ctrlKey; metaKey; shiftKey = true}
+      when key = K.Right || key = K.Left || key = K.Up || key = K.Down ->
+        let oldRangeStart, oldRangeEnd, oldDirection =
           s.selection
-          |> Option.map ~f:(fun {range} -> range)
-          |> Option.withDefault ~default:(s.oldPos, s.newPos)
+          |> Option.map ~f:(fun {range = a, b; direction} -> (a, b, direction))
+          |> Option.withDefault ~default:(s.newPos, s.newPos, FSDRight)
         in
-        let selectionDirectionChanged =
-          s.lastKey = K.Left
-          && kp.key = Right
-          && collapseSelection s.selection <> None
+        let s = {s with lastKey = key} in
+        let ast, newS = updateKey key ast s in
+        let singleCharSelection =
+          if newS.newPos >= newS.oldPos
+          then (newS.oldPos, newS.newPos)
+          else (newS.newPos, newS.oldPos)
         in
-        let s = {s with lastKey = kp.key} in
-        let ast, newS = updateKey kp.key ast s in
         let selection =
-          (* select from current position to end of current token or, if ctrl is pressed, current expr *)
           ( if (ctrlKey || metaKey) && not altKey
           then expressionSelection newS ast
-          else tokenSelection newS ast )
+          else if altKey && not (ctrlKey || metaKey)
+          then tokenSelection newS ast
+          else Some {range = singleCharSelection; direction = FSDRight} )
           |> Option.map ~f:(fun {range = startPos, endPos} ->
-                 { range =
-                     ( if selectionDirectionChanged
-                     then (oldRangeStart + (endPos - startPos), oldRangeEnd)
-                     else (oldRangeStart, endPos) ) } )
+                 match key with
+                 | K.Down | K.Right ->
+                     (* select from current position to end of current token or, if ctrl is pressed, current expr *)
+                     if oldDirection = FSDLeft && oldRangeStart <> oldRangeEnd
+                     then
+                       { range =
+                           (oldRangeStart + (endPos - startPos), oldRangeEnd)
+                       ; direction = oldDirection }
+                     else
+                       {range = (oldRangeStart, endPos); direction = FSDRight}
+                 | K.Up | K.Left ->
+                     (* select from start of current token or current expr, if ctrl is pressed, to current position *)
+                     if oldDirection = FSDRight && oldRangeStart <> oldRangeEnd
+                     then
+                       { range =
+                           (oldRangeStart, oldRangeEnd - (endPos - startPos))
+                       ; direction = oldDirection }
+                     else {range = (startPos, oldRangeEnd); direction = FSDLeft}
+                 | _ ->
+                     { range = (oldRangeEnd, oldRangeEnd)
+                     ; direction = oldDirection } )
+          |> collapseSelection
         in
         let newPos =
-          Option.map selection ~f:(fun {range} -> Tuple2.second range)
+          Option.map selection ~f:(fun {range = rangeStart, rangeEnd} ->
+              if key = K.Right || key = K.Down then rangeEnd else rangeStart )
           |> Option.withDefault ~default:s.newPos
         in
-        ( ast
-        , {newS with selection = (if shiftKey then selection else None); newPos}
-        )
-    | FluidKeyPress ({key = K.Left; altKey; ctrlKey; metaKey; shiftKey} as kp)
-      when altKey || ctrlKey || metaKey ->
-        let oldRangeStart, oldRangeEnd =
-          s.selection
-          |> Option.map ~f:(fun {range} -> range)
-          |> Option.withDefault ~default:(s.oldPos, s.newPos)
-        in
-        let selectionDirectionChanged =
-          s.lastKey = K.Right
-          && kp.key = K.Left
-          && collapseSelection s.selection <> None
-        in
-        let ast, newS = updateKey kp.key ast {s with lastKey = kp.key} in
-        let selection =
-          (* select from start of current token or current expr, if ctrl is pressed, to current position *)
-          ( if (ctrlKey || metaKey) && not altKey
-          then expressionSelection newS ast
-          else tokenSelection newS ast )
-          |> Option.map ~f:(fun {range = startPos, endPos} ->
-                 { range =
-                     ( if selectionDirectionChanged
-                     then (oldRangeStart, oldRangeEnd - (endPos - startPos))
-                     else (startPos, oldRangeEnd) ) } )
-        in
-        let newPos =
-          Option.map selection ~f:(fun {range} -> Tuple2.second range)
-          |> Option.withDefault ~default:s.newPos
-        in
-        ( ast
-        , {newS with selection = (if shiftKey then selection else None); newPos}
-        )
-    (* - moving/selecting over characters with direction/shift-direction *)
-    | FluidKeyPress ({key = K.Down; shiftKey = true} as kp)
-    | FluidKeyPress ({key = K.Right; shiftKey = true} as kp) ->
-        let oldRangeStart, oldRangeEnd =
-          s.selection
-          |> Option.map ~f:(fun {range} -> range)
-          |> Option.withDefault ~default:(s.oldPos, s.newPos)
-        in
-        let selectionDirectionChanged =
-          s.lastKey = K.Left
-          && kp.key = Right
-          && collapseSelection s.selection <> None
-        in
-        let ast, newS = updateKey kp.key ast {s with lastKey = kp.key} in
-        let selection =
-          Some
-            { range =
-                ( if selectionDirectionChanged
-                then (oldRangeStart + 1, oldRangeEnd)
-                else (oldRangeStart, newS.newPos) ) }
-        in
-        ( ast
-        , { newS with
-            selection
-          ; (* keep track of lastKey to determine direction of selection *)
-            lastKey =
-              (if selectionDirectionChanged then s.lastKey else newS.lastKey)
-          } )
-    | FluidKeyPress ({key = K.Up; shiftKey = true} as kp)
-    | FluidKeyPress ({key = K.Left; shiftKey = true} as kp) ->
-        let oldRangeStart, oldRangeEnd =
-          s.selection
-          |> Option.map ~f:(fun {range} -> range)
-          |> Option.withDefault ~default:(s.newPos, s.oldPos)
-        in
-        let selectionDirectionChanged =
-          s.lastKey = K.Right
-          && kp.key = K.Left
-          && collapseSelection s.selection <> None
-        in
-        let ast, newS = updateKey kp.key ast {s with lastKey = kp.key} in
-        let selection =
-          Some
-            { range =
-                ( if selectionDirectionChanged
-                then (oldRangeStart, oldRangeEnd - 1)
-                else (newS.newPos, oldRangeEnd) ) }
-        in
-        ( ast
-        , { newS with
-            selection
-          ; (* keep track of lastKey to determine direction of selection *)
-            lastKey =
-              (if selectionDirectionChanged then s.lastKey else newS.lastKey)
-          } )
+        (ast, {newS with selection; newPos})
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -4635,7 +4569,7 @@ let toHtml
                 match Entry.getSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then UpdateFluidSelection (tlid, Some {range})
+                    then UpdateFluidSelection (tlid, Some {range; direction = FSDRight})
                     else UpdateFluidSelection (tlid, None)
                 | None ->
                     (* This will happen if it gets a selection and there is no

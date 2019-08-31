@@ -14,7 +14,9 @@ let () =
   let process ~debug ?(clipboard = None) range ast msg : testResult =
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; selection = Some {range}; clipboard }
+        ac = AC.reset m
+      ; selection = Some {range; direction = FSDRight}
+      ; clipboard }
     in
     let pos = Tuple2.first range in
     let s = {s with oldPos = pos; newPos = pos} in
