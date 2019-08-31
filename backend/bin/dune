@@ -69,5 +69,5 @@
 (alias
   (name analysis.js)
   (deps (file ../jsanalysis/jsanalysis.bc.js) (universe))
-  (action (system "cp ../jsanalysis/jsanalysis.bc.js ../../../../../../../static/analysis.js")))
+  (action (system "cp ../jsanalysis/jsanalysis.bc.js ../../../static/analysis.js")))
 
