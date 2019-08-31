@@ -2322,9 +2322,11 @@ let acClear (s : state) : state =
   {s with ac = {s.ac with index = None}}
 
 
-let acShow (s : state) : state =
+let acMaybeShow (ti : tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
-  if s.ac.index = None then {s with ac = {s.ac with index = Some 0}} else s
+  if isAutocompleting ti s && s.ac.index = None
+  then {s with ac = {s.ac with index = Some 0}}
+  else s
 
 
 let acMoveUp (s : state) : state =
@@ -3154,13 +3156,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
     | K.Left, L (_, ti), _ ->
-        (ast, doLeft ~pos ti s |> acShow)
+        (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | K.Right, _, R (_, ti) ->
-        (ast, doRight ~pos ~next:mNext ti s |> acShow)
+        (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
     | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
         (ast, moveToStartOfLine ast ti s)
     | K.GoToEndOfLine, _, R (_, ti) ->
-        (ast, moveToEndOfLine ast ti s |> acShow)
+        (ast, moveToEndOfLine ast ti s)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
