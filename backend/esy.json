@@ -4,7 +4,8 @@
   "description": "Dark backend",
   "license": "Proprietary",
   "esy": {
-    "build": []
+    "build": [],
+    "buildsInSource": "_build"
   },
   "dependencies": {
     "@opam/alcotest": "0.8.3",
