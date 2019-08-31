@@ -201,10 +201,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v8-backend-{{ checksum "rundir/today-timestamp" }}
-            - v8-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v8-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v8-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v9-backend-{{ checksum "rundir/today-timestamp" }}
+            - v9-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v9-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v9-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -224,7 +224,7 @@ jobs:
       - save_cache:
           name: "Save daily backend cache"
           paths: [ "backend/_build", "backend/_esy", "backend/node_modules" ]
-          key: v8-backend-{{ checksum "rundir/today-timestamp" }}
+          key: v9-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
