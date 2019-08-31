@@ -701,7 +701,10 @@ let adminDebuggerView (m : model) : msg Html.html =
       [Html.class' "state-info"]
       [ stateInfoTohtml "env" (Html.text m.environment)
       ; stateInfoTohtml "flags" (Html.text flagText)
-      ; stateInfoTohtml "cursor" (Html.text (pageToString m.currentPage)) ]
+      ; stateInfoTohtml "page" (Html.text (pageToString m.currentPage))
+      ; stateInfoTohtml
+          "cursorState"
+          (Html.text (show_cursorState m.cursorState)) ]
   in
   let toggleTimer =
     let timerText =
