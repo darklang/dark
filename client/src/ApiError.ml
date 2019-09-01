@@ -112,6 +112,14 @@ let parseResponse (body : Http.responseBody) : string =
   |> Option.withDefault ~default:str
 
 
+let isAuthError (e : apiError) : bool =
+  match e.originalError with
+  | Http.BadStatus response ->
+      response.status.code = 401
+  | _ ->
+      false
+
+
 let isCSRF (e : apiError) : bool =
   match e.originalError with
   | Http.BadStatus response ->

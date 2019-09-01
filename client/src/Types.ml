@@ -913,6 +913,11 @@ and modification =
 (* ------------------- *)
 (* Msgs *)
 (* ------------------- *)
+and loginMsg =
+  | LoginFormSetUsername of string
+  | LoginFormSetPassword of string
+  | LoginFormSubmit
+
 and msg =
   | GlobalClick of mouseEvent
   | IgnoreMsg
@@ -1032,6 +1037,11 @@ and msg =
   | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
   | HideTopbar
+  | Login of loginMsg
+  | (* Probably should combine into Login but RPCs are slightly more
+       challenging *)
+      LoginRPCCallback of
+      (unit, httpError) Tea.Result.t [@printer opaque "LoginRPCCallback"]
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1311,6 +1321,12 @@ and avatarModelMessage =
   ; canvasName : string
   ; timestamp : float }
 
+and loginState =
+  { loginFormUsername : string
+  ; loginFormPassword : string
+  ; (* None means unknown *)
+    loggedIn : bool option }
+
 and model =
   { error : darkError
   ; lastMsg : msg
@@ -1388,7 +1404,8 @@ and model =
   ; clientOpCtrId : string
   ; permission : permission option
   ; showTopbar : bool
-  ; toast : toast }
+  ; toast : toast
+  ; loginState : loginState }
 
 (* Values that we serialize *)
 and serializableEditor =

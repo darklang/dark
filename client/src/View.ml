@@ -403,9 +403,12 @@ let view (m : model) : msg Html.html =
     else []
   in
   let content =
-    ViewTopbar.html m
-    @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
-    @ fluidStatus
-    @ footer
+    if Login.isLoggedIn m.loginState
+    then Login.viewLoginForm m.loginState
+    else
+      ViewTopbar.html m
+      @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
+      @ fluidStatus
+      @ footer
   in
   Html.div attributes content

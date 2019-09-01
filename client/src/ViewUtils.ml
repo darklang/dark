@@ -228,9 +228,11 @@ let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
     (Decoders.wrapDecoder (decodeAnimEvent listener))
 
 
-let nothingMouseEvent (name : string) : msg Vdom.property =
+let nothingEvent (name : string) : msg Vdom.property =
   eventNoPropagation ~key:"" name (fun _ -> IgnoreMsg)
 
+
+let nothingMouseEvent (name : string) : msg Vdom.property = nothingEvent name
 
 let placeHtml
     (pos : pos) (classes : 'a list) (html : msg Html.html list) (m : model) :

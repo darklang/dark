@@ -415,7 +415,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ApiError.isCSRF apiError || (buildHashMismatch && reloadAllowed)
         in
         let cmd =
-          if shouldReload
+          if ApiError.isAuthError apiError
+          then Cmd.none
+          else if shouldReload
           then
             let m = {m with lastReload = Some now} in
             [ Tea_task.nativeBinding (fun _ -> Editor.serialize m)
@@ -434,7 +436,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
-          {m with error; lastReload}
+          if ApiError.isAuthError apiError
+          then {m with loginState = Login.logout m.loginState}
+          else {m with error; lastReload}
         in
         (newM, cmd)
     | ClearError ->
@@ -1876,6 +1880,18 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               {m with canvasProps = {m.canvasProps with minimap = None}} )
         ; MakeCmd (Url.navigateTo Architecture) ]
+  | Login loginMsg ->
+      let loginState, cmd = Login.update m.loginState loginMsg in
+      Many [TweakModel (fun m -> {m with loginState}); MakeCmd cmd]
+  | LoginRPCCallback (Ok ()) ->
+      let loginState = Login.login m.loginState in
+      Many [TweakModel (fun m -> {m with loginState})]
+  | LoginRPCCallback (Error err) ->
+      let loginState = Login.logout m.loginState in
+      Many
+        [ TweakModel (fun m -> {m with loginState})
+        ; HandleAPIError
+            (ApiError.make ~context:"Login" ~importance:ImportantError err) ]
 
 
 let rec filter_read_only (m : model) (modification : modification) =
@@ -1923,7 +1939,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
         []
   in
   let timers =
-    if m.timersEnabled
+    if m.timersEnabled && Login.isLoggedIn m.loginState
     then
       match m.visibility with
       | Hidden ->
