@@ -29,7 +29,7 @@ let loginRPC (l : loginState) : msg Cmd.t =
     Tea.Http.request
       { method' = "POST"
       ; headers = [Header ("Content-type", "application/json")]
-      ; url = "/api/login"
+      ; url = "/login"
       ; body = Web.XMLHttpRequest.StringBody (Json.stringify (encoder l))
       ; expect = Tea.Http.expectStringResponse (fun _ -> Ok ())
       ; timeout = None
@@ -48,22 +48,24 @@ let update (l : loginState) (msg : loginMsg) : loginState * msg Cmd.t =
       ({l with loginFormPassword = password}, Cmd.none)
 
 
-let viewLoginForm (l : loginState) : msg Html.html list =
-  [ Html.form
-      ~key:"login"
-      [ Html.class' "login"
-      ; ViewEntry.onSubmit ~key:"login" (fun _ -> Login LoginFormSubmit) ]
-      [ Html.label
-          [Html.class' "username"]
-          [ Html.text "Username"
-          ; Html.input'
-              [ ViewUtils.nothingEvent "input"
-              ; Events.onInput (fun u -> Login (LoginFormSetUsername u)) ]
-              [Html.text l.loginFormUsername] ]
-      ; Html.div
-          [Html.class' "password"]
-          [ Html.div [] [Html.text "Password"]
-          ; Html.input'
-              [ ViewUtils.nothingEvent "input"
-              ; Events.onInput (fun pw -> Login (LoginFormSetPassword pw)) ]
-              [Html.text l.loginFormPassword] ] ] ]
+let viewLoginForm (l : loginState) : msg Html.html =
+  Html.form
+    ~key:"login"
+    [ Html.class' "login-page"
+    ; ViewEntry.onSubmit ~key:"login" (fun _ ->
+          Js.log "submit" ;
+          Login LoginFormSubmit ) ]
+    [ Html.label
+        [Html.class' "username"]
+        [ Html.span [Html.class' "label"] [Html.text "Username"]
+        ; Html.input'
+            [Events.onInput (fun u -> Login (LoginFormSetUsername u))]
+            [Html.text l.loginFormUsername] ]
+    ; Html.label
+        [Html.class' "password"]
+        [ Html.span [Html.class' "label"] [Html.text "Password"]
+        ; Html.input'
+            [ Events.onInput (fun pw -> Login (LoginFormSetPassword pw))
+            ; Html.type' "password" ]
+            [Html.text l.loginFormPassword] ]
+    ; Html.input' [Html.type' "submit"; Html.class' "submit"] [] ]

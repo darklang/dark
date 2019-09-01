@@ -367,7 +367,7 @@ let viewToast (t : toast) : msg Html.html =
     [Html.text msg]
 
 
-let view (m : model) : msg Html.html =
+let viewEditor (m : model) : msg Html.html =
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
     | "" ->
@@ -377,6 +377,8 @@ let view (m : model) : msg Html.html =
   in
   let attributes =
     [ Html.id "app"
+    ; Vdom.attribute "" "onKeyDown" "stopKeys(event)"
+    ; Vdom.attribute "" "onKeyUp" "stopKeys(event)"
     ; activeVariantsClass
     ; Html.onWithOptions
         ~key:"app-mu"
@@ -403,12 +405,15 @@ let view (m : model) : msg Html.html =
     else []
   in
   let content =
-    if Login.isLoggedIn m.loginState
-    then Login.viewLoginForm m.loginState
-    else
-      ViewTopbar.html m
-      @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
-      @ fluidStatus
-      @ footer
+    ViewTopbar.html m
+    @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
+    @ fluidStatus
+    @ footer
   in
   Html.div attributes content
+
+
+let view (m : model) : msg Html.html =
+  if not (Login.isLoggedIn m.loginState)
+  then Login.viewLoginForm m.loginState
+  else viewEditor m
