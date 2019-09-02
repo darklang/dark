@@ -1251,7 +1251,20 @@ let handle_login_page ~execution_id req body =
               (S.respond_redirect ~uri:(Uri.of_string redirect_to) ()) )
     | _ ->
         (* TODO: reload with error *)
-        respond ~execution_id `Unauthorized "Bad credentials"
+        let uri = Uri.of_string "/login" in
+        let uri =
+          match redirect with
+          | Some redirect ->
+              Uri.add_query_param' uri ("redirect", redirect)
+          | None ->
+              uri
+        in
+        let uri =
+          Uri.add_query_param'
+            uri
+            ("error", "Invalid username or password" |> Uri.pct_encode)
+        in
+        S.respond_redirect ~uri ()
 
 
 (* Checks for a cookie, prompts for basic auth if there isn't one,
