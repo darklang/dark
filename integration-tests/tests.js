@@ -40,7 +40,7 @@ fixture`Integration Tests`
       .navigateTo(url)
       .typeText("#username", "test")
       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
-      .pressKey("enter") ;
+      .pressKey("enter");
 
     await Selector("#finishIntegrationTest").exists;
 
