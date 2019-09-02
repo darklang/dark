@@ -178,6 +178,7 @@ let t_authenticate_then_handle_code_and_cookie () =
            (fun ~session ~csrf_token req ->
              Webserver.respond ~execution_id:test_id `OK "test handler" )
            req
+           ""
        in
        let code = resp |> Resp.status |> Code.code_of_status in
        resp
