@@ -19,10 +19,10 @@
         font-size: 13px;
         font-weight: bold;
         line-height: 20px;
-        text-shadow: 1px 1px rgba(250,250,250,.3);
+        text-shadow: 1px 1px rgba(250, 250, 250, 0.3);
       }
       #error-text:empty {
-        display: none
+        display: none;
       }
     </style>
   </head>
@@ -40,8 +40,8 @@
     </div>
     <script>
       const urlParams = new URLSearchParams(window.location.search);
-      const redirect = urlParams.get('redirect');
-      const error = urlParams.get('error');
+      const redirect = urlParams.get("redirect");
+      const error = urlParams.get("error");
       if (error) {
         document.getElementById("error-text").innerHTML = decodeURI(error);
       }
