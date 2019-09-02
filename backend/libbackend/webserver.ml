@@ -1205,14 +1205,9 @@ let login_template = File.readfile ~root:Templates "login.html"
 let handle_login_page ~execution_id req body =
   if CRequest.meth req = `GET
   then
-    let redirect_to =
-      Uri.get_query_param (CRequest.uri req) "redirect"
-      |> Option.value ~default:""
-    in
-    let body =
-      login_template |> Util.string_replace "{{REDIRECT}}" redirect_to
-    in
-    respond ~execution_id `OK body
+    (* In the future we should move this into the "outer" frontend app, but for
+     * now this is fine. *)
+    respond ~execution_id `OK login_template
   else
     (* Responds to a form submitted from login.html *)
     let params = Uri.query_of_encoded body in
