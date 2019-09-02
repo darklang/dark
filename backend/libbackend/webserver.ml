@@ -1025,6 +1025,10 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
   with e -> raise e
 
 
+(* ------------------- *)
+(* Loading html pages *)
+(* ------------------- *)
+
 let hashed_filename (file : string) (hash : string) : string =
   match List.rev (String.split ~on:'.' file) with
   | [] ->
@@ -1153,6 +1157,108 @@ let check_csrf_then_handle ~execution_id ~session handler req =
   else handler req
 
 
+(* used to provide information to honeycomb *)
+let username_header username = ("x-dark-username", username)
+
+(* get the domain of a request *)
+let domain req =
+  (* For why we use 'darklang.com' and not '.darklang.com', see
+   * https://www.mxsasha.eu/blog/2014/03/04/definitive-guide-to-cookie-domains/
+   * tl;dr: with a leading-dot was the specified behavior prior to
+   * RFC6265 (2011), and in theory is still okay because the leading
+   * dot is ignored, but .darklang.localhost doesn't work and
+   * darklang.localhost does, so ... no leading dot works better for
+   * us. *)
+  req
+  |> CRequest.headers
+  |> fun h ->
+  Header.get h "host"
+  |> Option.value ~default:"darklang.com"
+  (* Host: darklang.localhost:8000 is properly set in-cookie as
+                   * "darklang.localhost", the cookie domain doesn't want the
+                   * port *)
+  |> String.substr_replace_all ~pattern:":8000" ~with_:""
+
+
+type login_page =
+  { username : string
+  ; password : string }
+[@@deriving yojson]
+
+let login_template = File.readfile ~root:Templates "login.html"
+
+(* The login flow:
+ *
+ * If you are not logged in (via a lack of a session or an expired one), then
+ * you are redirected to /login with a redirect parameter indicating where
+ * you will be redirected after login.  The /login GET page shows a form to
+ * login from, using templates/login.html, which posts to /login.
+ *
+ * The /login POST page verifies the user, sets the cookies, and redirects to
+ * the redirect page provided or else the users "username" canvas.
+ *
+ * On failure, the user is redirected back to the form with an error message.
+ *
+ * The login page isn't involved in CSRFs - that's taken care of when they
+ * arrive at their destination.
+ *)
+let handle_login_page ~execution_id req body =
+  if CRequest.meth req = `GET
+  then
+    let redirect_to =
+      Uri.get_query_param (CRequest.uri req) "redirect"
+      |> Option.value ~default:""
+    in
+    let body =
+      login_template |> Util.string_replace "{{REDIRECT}}" redirect_to
+    in
+    respond ~execution_id `OK body
+  else
+    (* Responds to a form submitted from login.html *)
+    let params = Uri.query_of_encoded body in
+    let username, password, redirect =
+      List.fold params ~init:(None, None, None) ~f:(fun (u, p, r) (k, vs) ->
+          if k = "username"
+          then (List.hd vs, p, r)
+          else if k = "password"
+          then (u, List.hd vs, r)
+          else if k = "redirect"
+          then (u, p, List.hd vs)
+          else (u, p, r) )
+    in
+    match (username, password) with
+    | Some username, Some password
+      when Account.authenticate ~username ~password ->
+        Log.add_log_annotations
+          [("username", `String username)]
+          (fun _ ->
+            let%lwt session = Auth.Session.new_for_username username in
+            let https_only_cookie = req |> CRequest.uri |> should_use_https in
+            let headers =
+              username_header username
+              :: Auth.Session.to_cookie_hdrs
+                   ~http_only:true
+                   ~secure:https_only_cookie
+                   ~domain:(domain req)
+                   ~path:"/"
+                   Auth.Session.cookie_key
+                   session
+            in
+            let redirect_to =
+              match redirect with
+              | None | Some "" ->
+                  "/a/" ^ Uri.pct_encode username
+              | Some redir ->
+                  Uri.pct_decode redir
+            in
+            over_headers_promise
+              ~f:(fun h -> Header.add_list h headers)
+              (S.respond_redirect ~uri:(Uri.of_string redirect_to) ()) )
+    | _ ->
+        (* TODO: reload with error *)
+        respond ~execution_id `Unauthorized "Bad credentials"
+
+
 (* Checks for a cookie, prompts for basic auth if there isn't one,
    returns Unauthorized if basic auth doesn't work.
 
@@ -1164,12 +1270,12 @@ let check_csrf_then_handle ~execution_id ~session handler req =
    to users in HTML.
 
    Also implements logout (!). *)
-let authenticate_then_handle ~(execution_id : Types.id) handler req =
-  let path = req |> CRequest.uri |> Uri.path in
-  let headers = req |> CRequest.headers in
-  let username_header username = ("x-dark-username", username) in
+let authenticate_then_handle ~(execution_id : Types.id) handler req body =
+  let req_uri = CRequest.uri req in
+  let path = Uri.path req_uri in
+  let login_uri = Uri.of_string "/login" in
   match%lwt Auth.Session.of_request req with
-  | Ok (Some session) ->
+  | Ok (Some session) when path <> "/login" ->
       let username = Auth.Session.username_for session in
       let csrf_token = Auth.Session.csrf_token_for session in
       Log.add_log_annotations
@@ -1183,62 +1289,24 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req =
                 ( username_header username
                 :: Auth.Session.clear_hdrs Auth.Session.cookie_key )
             in
-            let uri = Uri.of_string ("/a/" ^ Uri.pct_encode username) in
-            S.respond_redirect ~headers ~uri () )
+            S.respond_redirect ~headers ~uri:login_uri () )
           else
             let headers = [username_header username] in
             over_headers_promise
               ~f:(fun h -> Header.add_list h headers)
               (handler ~session ~csrf_token req) )
   | _ ->
-    ( match Header.get_authorization headers with
-    | Some (`Basic (username, password)) ->
-        if Account.authenticate ~username ~password
-        then
-          Log.add_log_annotations
-            [("username", `String username)]
-            (fun _ ->
-              let%lwt session = Auth.Session.new_for_username username in
-              let https_only_cookie =
-                req |> CRequest.uri |> should_use_https
-              in
-              (* For why we use 'darklang.com' and not '.darklang.com', see
-               * https://www.mxsasha.eu/blog/2014/03/04/definitive-guide-to-cookie-domains/
-               * tl;dr: with a leading-dot was the specified behavior prior to
-               * RFC6265 (2011), and in theory is still okay because the leading
-               * dot is ignored, but .darklang.localhost doesn't work and
-               * darklang.localhost does, so ... no leading dot works better for
-               * us. *)
-              let domain =
-                req
-                |> CRequest.headers
-                |> fun h ->
-                Header.get h "host"
-                |> Option.value ~default:"darklang.com"
-                (* Host: darklang.localhost:8000 is properly set in-cookie as
-                   * "darklang.localhost", the cookie domain doesn't want the
-                   * port *)
-                |> String.substr_replace_all ~pattern:":8000" ~with_:""
-              in
-              let headers =
-                username_header username
-                :: Auth.Session.to_cookie_hdrs
-                     ~http_only:true
-                     ~secure:https_only_cookie
-                     ~domain
-                     ~path:"/"
-                     Auth.Session.cookie_key
-                     session
-              in
-              let csrf_token = Auth.Session.csrf_token_for session in
-              over_headers_promise
-                ~f:(fun h -> Header.add_list h headers)
-                (handler ~session ~csrf_token req) )
-        else respond ~execution_id `Unauthorized "Bad credentials"
-    | None ->
-        S.respond_need_auth ~auth:(`Basic "dark") ()
-    | _ ->
-        respond ~execution_id `Unauthorized "Invalid session" )
+      if path = "/login"
+      then handle_login_page ~execution_id req body
+      else if path = "/logout"
+      then S.respond_redirect ~uri:login_uri ()
+      else
+        let uri =
+          Uri.add_query_param'
+            login_uri
+            ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
+        in
+        S.respond_redirect ~uri ()
 
 
 let admin_ui_handler
@@ -1725,6 +1793,7 @@ let callback ~k8s_callback ip req body execution_id =
                         r
                     with e -> handle_error ~include_internals:true e )
                   req
+                  body
               with e -> handle_error ~include_internals:false e )
           | None ->
               k8s_callback req ~execution_id ) ) )
