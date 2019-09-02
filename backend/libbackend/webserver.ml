@@ -1051,13 +1051,14 @@ let to_assoc_list etags_json : (string * string) list =
       Exception.internal "etags.json must be a top-level object."
 
 
+let admin_ui_template = File.readfile ~root:Templates "ui.html"
+
 let admin_ui_html
     ~(canvas_id : Uuidm.t)
     ~(csrf_token : string)
     ~(local : string option)
     username
     admin =
-  let template = File.readfile_lwt ~root:Templates "ui.html" in
   let static_host =
     match local with
     (* TODO: if you want access, we can make this more general *)
@@ -1071,62 +1072,61 @@ let admin_ui_html
     if local = None then Config.hash_static_filenames else false
   in
   (* TODO: allow APPSUPPORT in here *)
-  template
-  >|= Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
-  >|= Util.string_replace
-        "{{LIVERELOADJS}}"
-        ( if Config.browser_reload_enabled
-        then
-          "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
-        else "" )
-  >|= Util.string_replace "{{STATIC}}" static_host
-  >|= Util.string_replace "{{IS_ADMIN}}" admin
-  >|= Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
-  >|= Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
-  >|= Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
-  >|= Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
-  >|= Util.string_replace "{{USERNAME}}" username
-  >|= Util.string_replace
-        "{{USER_ID}}"
-        ( username
-        |> Account.id_of_username
-        |> Option.value_exn
-        |> Uuidm.to_string )
-  >|= Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
-  >|= Util.string_replace
-        "{{APPSUPPORT}}"
-        (File.readfile ~root:Webroot "appsupport.js")
-  >|= Util.string_replace "{{STATIC}}" static_host
-  >|= (fun x ->
-        if not hash_static_filenames
-        then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
-        else
-          let etags_str = File.readfile ~root:Webroot "etags.json" in
-          let etags_json = Yojson.Safe.from_string etags_str in
-          let etag_assoc_list =
-            to_assoc_list etags_json
-            |> List.filter ~f:(fun (file, _) ->
-                   not (String.equal "__date" file) )
-            |> List.filter (* Only hash our assets, not vendored assets *)
-                 ~f:(fun (file, _) ->
-                   not (String.is_substring ~substring:"vendor/" file) )
-          in
-          x
-          |> fun instr ->
-          etag_assoc_list
-          |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
-                 (Util.string_replace file (hashed_filename file hash)) acc )
-          |> fun instr ->
-          Util.string_replace
-            "{{HASH_REPLACEMENTS}}"
-            ( etag_assoc_list
-            |> List.map ~f:(fun (k, v) ->
-                   ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
-            |> (fun x -> `Assoc x)
-            |> Yojson.Safe.to_string )
-            instr )
-  >|= Util.string_replace "{{CSRF_TOKEN}}" csrf_token
-  >|= Util.string_replace "{{BUILD_HASH}}" Config.build_hash
+  admin_ui_template
+  |> Util.string_replace "{{ALLFUNCTIONS}}" (Api.functions ~username)
+  |> Util.string_replace
+       "{{LIVERELOADJS}}"
+       ( if Config.browser_reload_enabled
+       then
+         "<script type=\"text/javascript\" src=\"//localhost:35729/livereload.js\"> </script>"
+       else "" )
+  |> Util.string_replace "{{STATIC}}" static_host
+  |> Util.string_replace "{{IS_ADMIN}}" admin
+  |> Util.string_replace "{{ROLLBARCONFIG}}" rollbar_js
+  |> Util.string_replace "{{PUSHERCONFIG}}" Config.pusher_js
+  |> Util.string_replace "{{USER_CONTENT_HOST}}" Config.user_content_host
+  |> Util.string_replace "{{ENVIRONMENT_NAME}}" Config.env_display_name
+  |> Util.string_replace "{{USERNAME}}" username
+  |> Util.string_replace
+       "{{USER_ID}}"
+       ( username
+       |> Account.id_of_username
+       |> Option.value_exn
+       |> Uuidm.to_string )
+  |> Util.string_replace "{{CANVAS_ID}}" (Uuidm.to_string canvas_id)
+  |> Util.string_replace
+       "{{APPSUPPORT}}"
+       (File.readfile ~root:Webroot "appsupport.js")
+  |> Util.string_replace "{{STATIC}}" static_host
+  |> (fun x ->
+       if not hash_static_filenames
+       then Util.string_replace "{{HASH_REPLACEMENTS}}" "{}" x
+       else
+         let etags_str = File.readfile ~root:Webroot "etags.json" in
+         let etags_json = Yojson.Safe.from_string etags_str in
+         let etag_assoc_list =
+           to_assoc_list etags_json
+           |> List.filter ~f:(fun (file, _) -> not (String.equal "__date" file))
+           |> List.filter (* Only hash our assets, not vendored assets *)
+                ~f:(fun (file, _) ->
+                  not (String.is_substring ~substring:"vendor/" file) )
+         in
+         x
+         |> fun instr ->
+         etag_assoc_list
+         |> List.fold ~init:instr ~f:(fun acc (file, hash) ->
+                (Util.string_replace file (hashed_filename file hash)) acc )
+         |> fun instr ->
+         Util.string_replace
+           "{{HASH_REPLACEMENTS}}"
+           ( etag_assoc_list
+           |> List.map ~f:(fun (k, v) ->
+                  ("/" ^ k, `String ("/" ^ hashed_filename k v)) )
+           |> (fun x -> `Assoc x)
+           |> Yojson.Safe.to_string )
+           instr )
+  |> Util.string_replace "{{CSRF_TOKEN}}" csrf_token
+  |> Util.string_replace "{{BUILD_HASH}}" Config.build_hash
 
 
 let save_test_handler ~(execution_id : Types.id) host =
@@ -1298,24 +1298,14 @@ let admin_ui_handler
             "Dark Internal Error: Dark - the service running this application - encountered an error when loading this canvas. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
-  let serve_or_error ~(canvas_id : Uuidm.t) =
-    Lwt.try_bind
-      (fun _ -> admin_ui_html ~canvas_id ~csrf_token ~local username admin)
-      (fun body -> respond ~resp_headers:html_hdrs ~execution_id `OK body)
-      (fun e ->
-        let bt = Exception.get_backtrace () in
-        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond
-          ~execution_id
-          `Internal_server_error
-          "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
-        )
-  in
   match (verb, path) with
   | `GET, ["a"; canvas] ->
       when_can_view ~canvas (fun canvas_id ->
           if integration_test then Canvas.load_and_resave_from_test_file canvas ;
-          serve_or_error ~canvas_id )
+          let html =
+            admin_ui_html ~canvas_id ~csrf_token ~local username admin
+          in
+          respond ~resp_headers:html_hdrs ~execution_id `OK html )
   | _ ->
       respond ~execution_id `Not_found "Not found"
 
