@@ -23,7 +23,7 @@
     "clipboard-copy": "^3.1.0",
     "domready": "^1.0.8",
     "mouse-wheel": "^1.2.0",
-    "pusher-js": "^5.0.0",
+    "pusher-js": "^5.0.1",
     "rollbar": "^2.12.3",
     "sha2": "^1.0.2",
     "tablecloth-bucklescript": "0.0.6",
