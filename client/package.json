@@ -18,7 +18,7 @@
     "@glennsl/bs-json": "5.0.0",
     "bs-fetch": "^0.5.0",
     "bs-uuid": "^0.3.1",
-    "bs-webapi": "^0.15.3",
+    "bs-webapi": "^0.15.4",
     "bucklescript-tea": "darklang/bucklescript-tea#master",
     "clipboard-copy": "^3.1.0",
     "domready": "^1.0.8",
