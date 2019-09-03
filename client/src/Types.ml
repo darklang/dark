@@ -452,7 +452,7 @@ and timerAction =
 
 and lvDict = dval StrDict.t
 
-and avDict = varName list StrDict.t
+and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dval StrDict.t
 
@@ -717,7 +717,7 @@ and autocompleteItem =
   | ACFunction of function_
   | ACConstructorName of string
   | ACField of string
-  | ACVariable of varName
+  | ACVariable of varName * dval option
   | ACLiteral of literal
   | ACOmniAction of omniAction
   | ACKeyword of keyword
@@ -1250,7 +1250,7 @@ and fluidAutocompleteItem =
   | FACFunction of function_
   | FACConstructorName of string * int
   | FACField of string
-  | FACVariable of varName
+  | FACVariable of varName * dval option
   | FACLiteral of literal
   | FACKeyword of keyword
   | FACPattern of fluidPatternAutocomplete

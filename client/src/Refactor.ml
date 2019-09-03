@@ -127,7 +127,9 @@ let extractVarInAst
     |> List.takeWhile ~f:(fun elem ->
            let id = B.toID elem in
            let availableVars =
-             Analysis.getCurrentAvailableVarnames m tl id |> StrSet.fromList
+             Analysis.getCurrentAvailableVarnames m tl id
+             |> List.map ~f:(fun (varname, _) -> varname)
+             |> StrSet.fromList
            in
            let allRequiredVariablesAvailable =
              StrSet.diff freeVariables availableVars |> StrSet.isEmpty

@@ -37,7 +37,7 @@ let asName (aci : autocompleteItem) : string =
       fnName
   | ACField name ->
       name
-  | ACVariable name ->
+  | ACVariable (name, _) ->
       name
   | ACCommand command ->
       ":" ^ command.commandName
@@ -149,8 +149,10 @@ let asTypeString (item : autocompleteItem) : string =
       |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
   | ACField _ ->
       "field"
-  | ACVariable _ ->
-      "variable"
+  | ACVariable (_, optVal) ->
+      optVal
+      |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
+      |> Option.withDefault ~default:"variable"
   | ACCommand _ ->
       ""
   | ACConstructorName name ->
@@ -697,7 +699,7 @@ let matcher
   match item with
   | ACFunction fn ->
       matchTypesOfFn tipeConstraintOnTarget fn
-  | ACVariable var ->
+  | ACVariable (var, _) ->
       if List.member ~value:var dbnames
       then match tipeConstraintOnTarget with TDB -> true | _ -> false
       else true
@@ -840,7 +842,9 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let exprs =
     if isExpression
     then
-      let varnames = List.map ~f:(fun x -> ACVariable x) varnames in
+      let varnames =
+        List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames
+      in
       let keywords =
         List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in
@@ -1048,7 +1052,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("TODO: this should never occur: the constructor " ^ name)
   | ACField fieldname ->
       Some ("The '" ^ fieldname ^ "' field of the object")
-  | ACVariable var ->
+  | ACVariable (var, _) ->
       if String.isCapitalized var
       then Some ("The datastore '" ^ var ^ "'")
       else Some ("The variable '" ^ var ^ "'")

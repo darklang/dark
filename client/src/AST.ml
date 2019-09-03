@@ -1042,10 +1042,10 @@ let freeVariables (ast : expr) : (id * varName) list =
   |> List.uniqueBy ~f:(fun (_, name) -> name)
 
 
-module SymSet = StrSet
+module VarDict = StrDict
 module IDTable = Belt.MutableMap.String
 
-type sym_set = SymSet.t
+type sym_set = id VarDict.t
 
 type sym_store = sym_set IDTable.t
 
@@ -1064,8 +1064,8 @@ let rec sym_exec
         sexe st rhs ;
         let bound =
           match lhs with
-          | F (_, name) ->
-              SymSet.add st ~value:name
+          | F (id, name) ->
+              VarDict.update ~key:name ~f:(fun _v -> Some id) st
           | Blank _ ->
               st
         in
@@ -1080,9 +1080,12 @@ let rec sym_exec
     | F (_, Lambda (vars, body)) ->
         let new_st =
           vars
-          |> List.filterMap ~f:Blank.toMaybe
-          |> SymSet.ofList
-          |> SymSet.union st
+          |> List.foldl ~init:st ~f:(fun v d ->
+                 match v with
+                 | F (id, varname) ->
+                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d
+                 | Blank _ ->
+                     d )
         in
         sexe new_st body
     | F (_, Thread exprs) ->
@@ -1098,15 +1101,19 @@ let rec sym_exec
               []
           | F (_, PLiteral _) ->
               []
-          | F (_, PVariable v) ->
-              [v]
+          | F (id, PVariable v) ->
+              [(id, v)]
           | F (_, PConstructor (_, inner)) ->
               inner |> List.map ~f:variables_in_pattern |> List.concat
         in
         sexe st matchExpr ;
         List.iter cases ~f:(fun (p, caseExpr) ->
             let new_st =
-              p |> variables_in_pattern |> SymSet.ofList |> SymSet.union st
+              p
+              |> variables_in_pattern
+              |> List.foldl ~init:st ~f:(fun v d ->
+                     let id, varname = v in
+                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d )
             in
             sexe new_st caseExpr )
     | F (_, ObjectLiteral exprs) ->
@@ -1123,8 +1130,5 @@ let rec sym_exec
 let variablesIn (ast : expr) : avDict =
   let sym_store = IDTable.make () in
   let trace expr st = IDTable.set sym_store (deID (Blank.toID expr)) st in
-  sym_exec ~trace SymSet.empty ast ;
-  sym_store
-  |> IDTable.toList
-  |> StrDict.fromList
-  |. StrDict.map ~f:SymSet.toList
+  sym_exec ~trace VarDict.empty ast ;
+  sym_store |> IDTable.toList |> StrDict.fromList

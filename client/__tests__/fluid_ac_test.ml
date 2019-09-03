@@ -244,8 +244,8 @@ let fromFluidACI (aci : fluidAutocompleteItem) : Types.autocompleteItem option
       Some (ACConstructorName name)
   | FACField name ->
       Some (ACField name)
-  | FACVariable name ->
-      Some (ACVariable name)
+  | FACVariable (name, dv) ->
+      Some (ACVariable (name, dv))
   | FACLiteral lit ->
       Some (ACLiteral lit)
   | FACKeyword kw ->
@@ -498,17 +498,17 @@ let () =
               expect
                 ( acFor m
                 |> setQuery m "request"
-                |> itemPresent (FACVariable "request") )
+                |> itemPresent (FACVariable ("request", None)) )
               |> toEqual true ) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
                  [ ac
                    |> setQuery m "request"
-                   |> itemPresent (FACVariable "request")
+                   |> itemPresent (FACVariable ("request", None))
                  ; ac
                    |> setQuery m "event"
-                   |> itemPresent (FACVariable "event") ])
+                   |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true] ) ;
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
@@ -545,9 +545,13 @@ let () =
               in
               let ac = acFor m in
               let _valid, invalid =
-                AC.filter m ac [FACVariable "MyDB"] (defaultFullQuery m "")
+                AC.filter
+                  m
+                  ac
+                  [FACVariable ("MyDB", None)]
+                  (defaultFullQuery m "")
               in
-              expect (List.member ~value:(FACVariable "MyDB") invalid)
+              expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
               |> toEqual true ) ;
           let consFAC =
             [ FACConstructorName ("Just", 1)

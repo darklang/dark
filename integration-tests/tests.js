@@ -258,7 +258,7 @@ test("field_access", async t => {
   await gotoAST(t);
   await t
     .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestvariable"))
+    .expect(acHighlightedText("requestdict"))
     .ok()
     .typeText("#entry-box", ".")
 
@@ -273,7 +273,7 @@ test("field_access_closes", async t => {
   await gotoAST(t);
   await t
     .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestvariable"))
+    .expect(acHighlightedText("requestdict"))
     .ok()
     .typeText("#entry-box", ".")
 
@@ -291,7 +291,7 @@ test("field_access_pipes", async t => {
   await t
     .typeText("#entry-box", "req")
     .expect(acHighlightedText())
-    .eql("requestvariable")
+    .contains("request")
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
@@ -307,7 +307,7 @@ test("field_access_nested", async t => {
 
     .typeText("#entry-box", "req")
     .expect(acHighlightedText())
-    .eql("requestvariable")
+    .contains("request")
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
@@ -372,7 +372,7 @@ test("editing_request_edits_request", async t => {
   await gotoAST(t);
   await t
     .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestvariable"))
+    .expect(acHighlightedText("requestdict"))
     .ok()
     .typeText("#entry-box", ".")
 
