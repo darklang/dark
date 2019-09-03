@@ -176,12 +176,23 @@ let () =
           let outer =
             B.newF (Let (B.newF "variable", B.newF (Value "4"), inner))
           in
-          (* let variable = 4
-           * let _ = _ (id: "testme") -- "variable" should be available
-           * _
-           *)
-          let vars = variablesIn outer in
-          expect (StrDict.get ~key:"testme" vars)
-          |> toEqual (Some ["variable"]) ) ;
+          let vars = variablesIn outer |> StrDict.get ~key:"testme" in
+          let varsFor = vars |> Option.map ~f:(fun d -> StrDict.keys d) in
+          expect varsFor |> toEqual (Some ["variable"]) ) ;
+      test "variablesIn correctly gets id of latest let definition" (fun () ->
+          let a0id = ID "a0id" in
+          let a0def, a0assign = (F (a0id, "a"), B.newF (Value "4")) in
+          let a1id = ID "a1id" in
+          let a1def, a1assign = (F (a1id, "a"), B.newF (Value "9")) in
+          let lastBlank = Blank (ID "lastBlankid") in
+          let ast =
+            B.newF
+              (Let (a0def, a0assign, B.newF (Let (a1def, a1assign, lastBlank))))
+          in
+          expect
+            ( variablesIn ast
+            |> StrDict.get ~key:"lastBlankid"
+            |> Option.andThen ~f:(fun d -> StrDict.get ~key:"a" d) )
+          |> toEqual (Some a1id) ) ;
       () ) ;
   ()

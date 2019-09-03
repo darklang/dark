@@ -346,19 +346,13 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     vertical-align: top;
 
     .live-value {
-      display: none;
-    }
-
-    &.display-livevalue.selected .live-value {
       display: block;
-      position: absolute;
-      right: calc(#{"100% + 30px"});
-      font-style: normal;
 
       padding: 4px;
       width: max-content;
       max-width: 250px;
 
+      font-style: normal;
       white-space: pre-wrap;
       word-break: break-all;
       word-wrap: break-word;
@@ -366,6 +360,13 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
       color: $live-value-foreground;
 
       background-color: $live-value-background;
+
+      position: absolute;
+      right: calc(#{"100% + 30px"});
+
+      &.ac {
+        margin-top: 1.2ch;
+      }
 
       .copy-value {
         position: absolute;
