@@ -4278,30 +4278,41 @@ let toHtml
   |> List.flatten
 
 
+type lvType =
+  | LValue of string * int
+  | LSpinner of int
+  | LVNone
+
 let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
   let liveValues, show, offset =
-    getToken state ast
-    |> Option.andThen ~f:(fun ti ->
-           let id = Token.tid ti.token in
-           if FluidToken.validID id
-           then
-             let liveValuesOfToken =
-               match StrDict.get ~key:(deID id) currentResults.liveValues with
-               | None ->
-                   [ViewUtils.fontAwesome "spinner"]
-               | Some v ->
-                   let str =
-                     match AC.highlighted state.ac with
-                     | Some (FACVariable (_, Some dv)) ->
-                         Runtime.toRepr dv
-                     | _ ->
-                         Runtime.toRepr v
-                   in
-                   [Html.text str; viewCopyButton tlid str]
-             in
-             Some (liveValuesOfToken, true, ti.startRow)
-           else None )
-    |> Option.withDefault ~default:([Vdom.noNode], false, 0)
+    let lv =
+      (* Flatten conditions to eval live values *)
+      getToken state ast
+      |> Option.map ~f:(fun ti ->
+             let id = Token.tid ti.token in
+             if FluidToken.validID id
+             then
+               StrDict.get ~key:(deID id) currentResults.liveValues
+               |> Option.map ~f:(fun exprValue ->
+                      match AC.highlighted state.ac with
+                      | Some (FACVariable (_, Some acValue)) ->
+                          LValue (Runtime.toRepr acValue, ti.startRow)
+                      | Some _ ->
+                          LVNone
+                      | None ->
+                          LValue (Runtime.toRepr exprValue, ti.startRow) )
+               |> Option.withDefault ~default:(LSpinner ti.startRow)
+             else LVNone )
+      |> Option.withDefault ~default:LVNone
+    in
+    (* Render live values *)
+    match lv with
+    | LValue (s, row) ->
+        ([Html.text s; viewCopyButton tlid s], true, row)
+    | LSpinner row ->
+        ([ViewUtils.fontAwesome "spinner"], true, row)
+    | LVNone ->
+        ([Vdom.noNode], false, 0)
   in
   let offset = float_of_int offset +. 1.5 in
   Html.div
