@@ -8,6 +8,8 @@
    * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
  *)
 
+[%%debugger.chrome]
+
 (* open Webapi.Dom *)
 open Tc
 open Types
@@ -516,12 +518,21 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EBlank id ->
       [TBlank id]
   | ELet (id, varId, lhs, rhs, next) ->
+      let last_in_nested_is_newline (e : Types.fluidToken) : bool =
+        match e with
+        | TIndentToHere tokens ->
+          (match List.last tokens with Some (TNewline _) -> true | _ -> false)
+        | _ ->
+            false
+      in
       [ TLetKeyword (id, varId)
       ; TLetLHS (id, varId, lhs)
       ; TLetAssignment (id, varId)
-      ; nested rhs
-      ; TNewline (Some (eid next, id, None))
-      ; nested next ]
+      ; nested rhs ]
+      @ ( if last_in_nested_is_newline (nested rhs)
+        then []
+        else [TNewline (Some (eid next, id, None))] )
+      @ [nested next]
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -688,23 +699,24 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    if i == 0
                    then thread
                    else TNewline (Some (id, id, Some i)) :: thread )
-            |> List.concat ) ] )
+            |> List.concat )
+        ; TNewline (Some (id, id, Some (List.length tail))) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
-      [ [TMatchKeyword id; nested mexpr]
-      ; List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-            (* It was probably a mistake to put the newline at the start, as it
+      [TMatchKeyword id; nested mexpr]
+      @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
+              (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-            [TNewline (Some (id, id, Some i)); TIndent 2]
-            @ patternToToken pattern
-            @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
-        |> List.concat ]
-      |> List.concat
+              [TNewline (Some (id, id, Some i)); TIndent 2]
+              @ patternToToken pattern
+              @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
+        |> List.concat )
+      @ [TNewline (Some (id, id, Some (List.length pairs - 1)))]
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
@@ -718,22 +730,28 @@ let rec toTokens' (s : state) (e : ast) : token list =
 (* TODO: we need some sort of reflow thing that handles line length. *)
 let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
   let startingX = x in
-  List.foldl startingTokens ~init:(x, []) ~f:(fun t (x, old) ->
-      let text = Token.toText t in
-      let len = String.length text in
-      match t with
-      | TIndented tokens ->
-          let newX, newTokens = reflow ~x:(x + 2) tokens in
-          (newX, old @ [TIndent (startingX + 2)] @ newTokens)
-      | TIndentToHere tokens ->
-          let newX, newTokens = reflow ~x tokens in
-          (newX, old @ newTokens)
-      | TNewline _ ->
-          if startingX = 0
-          then (startingX, old @ [t])
-          else (startingX, old @ [t; TIndent startingX])
-      | _ ->
-          (x + len, old @ [t]) )
+  List.indexedMap startingTokens ~f:(fun i e -> (i, e))
+  |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) ->
+         let text = Token.toText t in
+         let len = String.length text in
+         match t with
+         | TIndented tokens ->
+             let newX, newTokens = reflow ~x:(x + 2) tokens in
+             (newX, old @ [TIndent (startingX + 2)] @ newTokens)
+         | TIndentToHere tokens ->
+             let newX, newTokens = reflow ~x tokens in
+             (newX, old @ newTokens)
+         | TNewline _ ->
+             (* if this TNewline is at the very end of a set of tokens (for
+            * example - the TNewline at the end of an EMatch) - then we don't
+            * want to add a TIndent, because that will indent the following,
+            * non-EMatch, expr. *)
+             let is_last = i == List.length startingTokens - 1 in
+             if startingX = 0 || is_last
+             then (startingX, old @ [t])
+             else (startingX, old @ [t; TIndent startingX])
+         | _ ->
+             (x + len, old @ [t]) )
 
 
 let infoize ~(pos : int) tokens : tokenInfo list =
