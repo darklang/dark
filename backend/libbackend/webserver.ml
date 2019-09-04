@@ -1309,12 +1309,50 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
       else if path = "/logout"
       then S.respond_redirect ~uri:login_uri ()
       else
-        let uri =
-          Uri.add_query_param'
-            login_uri
-            ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
-        in
-        S.respond_redirect ~uri ()
+        let headers = CRequest.headers req in
+        ( match Header.get_authorization headers with
+        (* If we don't have a session, but we do have basic auth, this is the
+           * dark-cli, so respond with the old cookie-and-csrf token body *)
+        | Some (`Basic (username, password)) ->
+            if Account.authenticate ~username ~password
+            then
+              (* This is dupe of the "real" (/login) session code; since we're gonna
+           * rip this basic auth codepath out post-Strangeloop, I don't feel
+           * like DRYing it up *)
+              let%lwt session = Auth.Session.new_for_username username in
+              let https_only_cookie =
+                req |> CRequest.uri |> should_use_https
+              in
+              let domain =
+                Header.get headers "host"
+                |> Option.value ~default:"darklang.com"
+                |> String.substr_replace_all ~pattern:":8000" ~with_:""
+              in
+              let csrf_token = Auth.Session.csrf_token_for session in
+              (* this is silly, but dark-cli regexes the csrf_token from the body
+             * for historical reasons
+             *)
+              let body = "const csrfToken = \"" ^ csrf_token ^ "\";" in
+              let resp_headers =
+                username_header username
+                :: Auth.Session.to_cookie_hdrs
+                     ~http_only:true
+                     ~secure:https_only_cookie
+                     ~domain
+                     ~path:"/"
+                     Auth.Session.cookie_key
+                     session
+                |> Cohttp.Header.of_list
+              in
+              respond ~execution_id ~resp_headers `OK body
+            else respond ~execution_id `Unauthorized "Bad credentials"
+        | _ ->
+            let uri =
+              Uri.add_query_param'
+                login_uri
+                ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
+            in
+            S.respond_redirect ~uri () )
 
 
 let admin_ui_handler
