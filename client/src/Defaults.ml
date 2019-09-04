@@ -17,6 +17,8 @@ let pageHeight : int = 400
 
 let pageWidth : int = 500
 
+let unsetCSRF : string = "UNSET_CSRF"
+
 let defaultEditor : serializableEditor =
   { timersEnabled = true
   ; cursorState = Deselected
@@ -117,7 +119,7 @@ let defaultModel : model =
   ; userContentHost = "builtwithdark.com"
   ; origin = ""
   ; environment = "none"
-  ; csrfToken = "UNSET_CSRF"
+  ; csrfToken = unsetCSRF
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty

@@ -738,10 +738,17 @@ let adminDebuggerView (m : model) : msg Html.html =
       ; Html.class' "state-info-row save-state" ]
       [Html.text "SAVE STATE FOR INTEGRATION TEST"]
   in
+  let logout =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
+            LogoutOfDark )
+      ; Html.class' "state-info-row save-state" ]
+      [Html.text "Logout"]
+  in
   let hoverView =
     [ Html.div
         [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; debugger; saveTestButton] ]
+        [stateInfo; toggleTimer; debugger; saveTestButton; logout] ]
   in
   let icon =
     Html.div

@@ -123,3 +123,6 @@ let recoverable (msg : 'a) (val_ : 'b) : 'b =
 
 (* Like impossible but with the message TODO *)
 let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)
+
+(* Auth stuff *)
+let isLoggedIn (m : model) : bool = m.csrfToken != Defaults.unsetCSRF

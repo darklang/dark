@@ -1900,6 +1900,10 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
   | HideTopbar ->
       TweakModel (fun m -> {m with showTopbar = false})
+  | LogoutOfDark ->
+      MakeCmd (RPC.logout m)
+  | LogoutRPCCallback ->
+      TweakModel (fun m -> {m with csrfToken = Defaults.unsetCSRF})
   | GoToArchitecturalView ->
       Many
         [ TweakModel
@@ -1929,105 +1933,104 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
-  let keySubs =
-    [Keyboard.downs (fun x -> GlobalKeyPress x)]
-    @
-    if VariantTesting.isFluid m.tests
-    then
+  if isLoggedIn m
+  then
+    let keySubs =
+      [Keyboard.downs (fun x -> GlobalKeyPress x)]
+      @
+      if VariantTesting.isFluid m.tests
+      then
+        match m.cursorState with
+        | FluidEntering _ ->
+            [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+        | _ ->
+            []
+      else []
+    in
+    let dragSubs =
       match m.cursorState with
-      | FluidEntering _ ->
-          [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+      (* we use IDs here because the node will change *)
+      (* before they're triggered *)
+      | Dragging (id, _, _, _) ->
+          let listenerKey = "mouse_moves_" ^ deTLID id in
+          [ Native.DarkMouse.moves ~key:listenerKey (fun x ->
+                DragToplevel (id, x) ) ]
       | _ ->
           []
-    else []
-  in
-  let dragSubs =
-    match m.cursorState with
-    (* we use IDs here because the node will change *)
-    (* before they're triggered *)
-    | Dragging (id, _, _, _) ->
-        let listenerKey = "mouse_moves_" ^ deTLID id in
-        [ Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x)
-          ) ]
-    | _ ->
-        []
-  in
-  let timers =
-    if m.timersEnabled
-    then
-      match m.visibility with
-      | Hidden ->
-          []
-      | Visible ->
-          [ Patched_tea_time.every
-              ~key:"refresh_analysis"
-              Tea.Time.second
-              (fun f -> TimerFire (RefreshAnalysis, f) ) ]
-          @ [ Patched_tea_time.every
-                ~key:"refresh_avatars"
+    in
+    let timers =
+      if m.timersEnabled
+      then
+        match m.visibility with
+        | Hidden ->
+            []
+        | Visible ->
+            [ Patched_tea_time.every
+                ~key:"refresh_analysis"
                 Tea.Time.second
                 (fun f -> TimerFire (RefreshAvatars, f) ) ]
     else []
-  in
-  let onError =
-    [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
-          JSError s ) ]
-  in
-  let visibility =
-    [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
-          if v
-          then PageVisibilityChange Visible
-          else PageVisibilityChange Hidden ) ]
-  in
-  let mousewheelSubs =
-    if (m.canvasProps.enablePan && not (isACOpened m))
-       (* TODO: disabled this cause it was buggy and it completely fucked up
-        * ellen's demo. We need to make sure targets are always set perfectly
-        * for this to never get stuck, which feels optimistic. *)
-       || VariantTesting.variantIsActive m GridLayout
-    then
-      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
-            MouseWheel (dx, dy) ) ]
-    else []
-  in
-  let analysisSubs =
-    [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
-          ReceiveAnalysis s )
-    ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
-          NewTracePush s )
-    ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
-    ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
-          NewStaticDeployPush s )
-    ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
-          ReceiveFetch s )
-    ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
-          NewPresencePush s )
-    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s) ]
-  in
-  let clipboardSubs =
-    [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
-          ClipboardCopyEvent e )
-    ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
-          ClipboardCutEvent e )
-    ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
-          e##preventDefault () ;
-          ClipboardPasteEvent e ) ]
-  in
-  let onCaptureView =
-    [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
-          UpdateMinimap (Some s) ) ]
-  in
-  Tea.Sub.batch
-    (List.concat
-       [ keySubs
-       ; clipboardSubs
-       ; dragSubs
-       ; timers
-       ; visibility
-       ; onError
-       ; mousewheelSubs
-       ; analysisSubs
-       ; onCaptureView ])
+    in
+    let onError =
+      [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
+            JSError s ) ]
+    in
+    let visibility =
+      [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
+            if v
+            then PageVisibilityChange Visible
+            else PageVisibilityChange Hidden ) ]
+    in
+    let mousewheelSubs =
+      if (m.canvasProps.enablePan && not (isACOpened m))
+        (* TODO: disabled this cause it was buggy and it completely fucked up
+          * ellen's demo. We need to make sure targets are always set perfectly
+          * for this to never get stuck, which feels optimistic. *)
+        || VariantTesting.variantIsActive m GridLayout
+      then
+        [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
+              MouseWheel (dx, dy) ) ]
+      else []
+    in
+    let analysisSubs =
+      [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
+            ReceiveAnalysis s )
+      ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
+            NewTracePush s )
+      ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
+      ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
+            NewStaticDeployPush s )
+      ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
+            ReceiveFetch s )
+      ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
+            NewPresencePush s )
+      ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s) ]
+    in
+    let clipboardSubs =
+      [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
+            ClipboardCopyEvent e )
+      ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
+            ClipboardCutEvent e )
+      ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
+            e##preventDefault () ;
+            ClipboardPasteEvent e ) ]
+    in
+    let onCaptureView =
+      [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
+            UpdateMinimap (Some s) ) ]
+    in
+    Tea.Sub.batch
+      (List.concat
+        [ keySubs
+        ; clipboardSubs
+        ; dragSubs
+        ; timers
+        ; visibility
+        ; onError
+        ; mousewheelSubs
+        ; analysisSubs
+        ; onCaptureView ])
+  else Tea.Sub.none
 
 
 let debugging =

@@ -960,6 +960,7 @@ and msg =
       triggerHandlerRPCParams
       * (triggerHandlerRPCResult, httpError) Tea.Result.t
       [@printer opaque "TriggerHandlerRPCCallback"]
+  | LogoutRPCCallback [@printer opaque "LogoutRPCCallback"]
   | Delete404RPC of fourOhFour
   | NewPresencePush of avatar list
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
@@ -1032,6 +1033,7 @@ and msg =
   | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
   | HideTopbar
+  | LogoutOfDark
 
 (* ----------------------------- *)
 (* AB tests *)
