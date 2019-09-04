@@ -676,7 +676,7 @@ let stateInfoTohtml (key : string) (value : msg Html.html) : msg Html.html =
     ; Html.p [Html.class' "value"] [value] ]
 
 
-let adminDebuggerView (m : model) : msg Html.html =
+let settingsView (m : model) (isClosed : bool) : msg Html.html =
   let environmentName =
     if m.environment == "prodclone" then "clone" else m.environment
   in
@@ -735,31 +735,37 @@ let adminDebuggerView (m : model) : msg Html.html =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
             SaveTestButton )
-      ; Html.class' "state-info-row save-state" ]
+      ; Html.class' "state-info-row state-button" ]
       [Html.text "SAVE STATE FOR INTEGRATION TEST"]
   in
   let logout =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
             LogoutOfDark )
-      ; Html.class' "state-info-row save-state" ]
+      ; Html.class' "state-info-row state-button" ]
       [Html.text "Logout"]
   in
   let hoverView =
-    [ Html.div
-        [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; debugger; saveTestButton; logout] ]
+    let adminOptions =
+      if m.isAdmin
+      then [stateInfo; toggleTimer; debugger; saveTestButton]
+      else []
+    in
+    let userOptions = [logout] in
+    [Html.div [Html.class' "hover setting-state"] (adminOptions @ userOptions)]
   in
   let icon =
     Html.div
-      [ Html.class' "header-icon admin-settings"
+      [ Html.class' "header-icon settings"
       ; Html.title "Admin"
       ; Vdom.attribute "" "role" "img"
       ; Vdom.attribute "" "alt" "Admin" ]
       [fontAwesome "cog"]
   in
   Html.div
-    [Html.class' "collapsed admin"]
+    [ Html.classList
+        [("collapsed", isClosed); ("settings", true); ("is-admin", m.isAdmin)]
+    ]
     [ Html.div
         [Html.class' ("collapsed-icon " ^ m.environment)]
         ([environment; icon] @ hoverView) ]
@@ -771,9 +777,7 @@ let viewSidebar_ (m : model) : msg Html.html =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
     @ [f404Category m; deletedCategory m]
   in
-  let showAdminDebugger =
-    if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode
-  in
+  let showAdminDebugger = settingsView m isClosed in
   let showCategories =
     if isClosed then closedCategory2html else category2html
   in
