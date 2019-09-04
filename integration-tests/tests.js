@@ -25,6 +25,7 @@ async function fixBrowserSize(t) {
 
 fixture`Integration Tests`
   // To add this user, run the backend tests
+  .httpAuth({ username: "test", password: "fVm2CUePzGKCwoEQQdNJktUQ" })
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
     await fixBrowserSize(t);
@@ -36,12 +37,7 @@ fixture`Integration Tests`
     if (testname.match(/^fluid_/)) {
       url += "&fluidv2=1";
     }
-    await t
-      .navigateTo(url)
-      .typeText("#username", "test")
-      .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
-      .pressKey("enter");
-
+    await t.navigateTo(url);
     await Selector("#finishIntegrationTest").exists;
 
     /* Testcafe runs everything through a proxy, wrapping all values and
