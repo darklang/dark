@@ -576,7 +576,7 @@ let isDynamicItem (item : autocompleteItem) : bool =
   | ACEventSpace _ ->
       false (* false because we want the static items to be first *)
   | ACHTTPRoute _ ->
-      true
+      false
   | ACWorkerName _ ->
       true
   | ACDBName _ ->
@@ -613,17 +613,17 @@ let toDynamicItems
   | Some (_, PExpr _) ->
       Option.values [qLiteral q]
   | Some (_, PField _) ->
-      [ACField q]
+      if q = "" then [] else [ACField q]
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
         [ACHTTPRoute (cleanHTTPname q)]
     | Some HSCron ->
-        [ACCronName (cleanEventName q)]
+        if q = "" then [] else [ACCronName (cleanEventName q)]
     | Some HSRepl ->
-        [ACReplName (cleanEventName q)]
+        if q = "" then [] else [ACReplName (cleanEventName q)]
     | _ ->
-        [ACWorkerName (cleanEventName q)] )
+        if q = "" then [] else [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
       if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
@@ -643,7 +643,7 @@ let withDynamicItems
   in
   let new_ = toDynamicItems m space target query in
   let withoutDynamic = List.filter ~f:isStaticItem acis in
-  withoutDynamic @ new_
+  List.uniqueBy ~f:asName (new_ @ withoutDynamic)
 
 
 let fnGotoName (name : string) : string = "Just to function: " ^ name
@@ -780,6 +780,21 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACCronTiming "Every 12hrs"
             ; ACCronTiming "Every 1min" ]
         | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
+            [] )
+      | EventName ->
+        ( match space with
+        | Some HSHTTP ->
+            let fourOhFourList =
+              m.f404s
+              |> List.uniqueBy ~f:(fun f404 -> f404.path)
+              |> List.sortBy ~f:(fun f404 -> f404.path)
+              |> List.filterMap ~f:(fun f404 ->
+                     if f404.path != "/"
+                     then Some (ACHTTPRoute (cleanHTTPname f404.path))
+                     else None )
+            in
+            fourOhFourList
+        | _ ->
             [] )
       | EventSpace ->
           (* Other spaces aren't allowed anymore *)

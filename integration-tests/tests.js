@@ -263,6 +263,7 @@ test("field_access", async t => {
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
+    .pressKey("down")
     .expect(acHighlightedText("bodyfield"))
     .ok()
     .pressKey("enter");
@@ -295,6 +296,7 @@ test("field_access_pipes", async t => {
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
+    .pressKey("down")
     .expect(acHighlightedText())
     .eql("bodyfield")
     .pressKey("shift+enter");
@@ -311,6 +313,7 @@ test("field_access_nested", async t => {
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
+    .pressKey("down")
     .expect(acHighlightedText())
     .eql("bodyfield")
     .typeText("#entry-box", ".")
