@@ -312,8 +312,6 @@ def mark(should, f):
                   or ("libtarget.js" in f)):
     should.backend_build = True
 
-  elif ("templates/" in f) and (".html" in f):
-    should.backend_build = True
   # Touch this to rerun the server
   elif "scripts/support/runserver" in f:
     should.reload_server = True
