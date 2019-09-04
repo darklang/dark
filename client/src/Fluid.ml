@@ -515,9 +515,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
       whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
-  | ELet (id, _, lhs, rhs, next) ->
+  | ELet (id, varId, lhs, rhs, next) ->
       [ TLetKeyword id
-      ; TLetLHS (id, lhs)
+      ; TLetLHS (varId, lhs)
       ; TLetAssignment id
       ; nested rhs
       ; TNewline (Some (eid next, id, None))
