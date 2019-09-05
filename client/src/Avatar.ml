@@ -74,3 +74,14 @@ let viewAllAvatars (avatars : avatar list) : msg Html.html =
   Html.div
     [Html.classList [("all-avatars", List.length avatars > 0)]]
     [Html.div [Html.class' "avatars-wrapper"] avatarView]
+
+
+let myAvatar (m : model) : avatar =
+  { canvasId = m.canvasName
+  ; canvasName = m.canvasName
+  ; serverTime = Js.Date.make ()
+  ; tlid = None
+  ; username = m.account.username
+  ; email = m.account.email
+  ; fullname = Some m.account.name
+  ; browserId = m.browserId }
