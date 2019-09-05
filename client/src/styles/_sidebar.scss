@@ -605,7 +605,6 @@ $prodColor: black;
   }
   .title {
     align-self: flex-start;
-    border-bottom: 1px solid;
     .title {
       border-bottom: none;
     }
@@ -642,7 +641,40 @@ $prodColor: black;
   }
 }
 
-.account {
+.viewing-table > .groups > .account {
+  &:not(.collapsed) {
+    width: 100%;
+    margin-top: 10px;
+    margin-left: 5px;
+    margin-right: 5px;
+
+    padding-left: 10px;
+
+    .avatar {
+      display: none;
+    }
+
+    .title {
+      display: block;
+      color: lighten($yellow, 10%);
+      margin-bottom: 6px;
+
+      &:before {
+        @include font-awesome("\f2bd");
+        margin-right: 8px;
+      }
+    }
+
+    .hover {
+      display: block;
+      margin-left: 20px;
+    }
+  }
+
+  .title {
+    display: none;
+  }
+
   a.action-link {
     color: $white2;
 

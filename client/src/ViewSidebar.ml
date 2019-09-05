@@ -758,7 +758,7 @@ let adminDebuggerView (m : model) : msg Html.html =
         ([environment; icon] @ hoverView) ]
 
 
-let accountView (m : model) : msg Html.html =
+let accountView (m : model) (isClosed : bool) : msg Html.html =
   let logout =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
@@ -767,8 +767,9 @@ let accountView (m : model) : msg Html.html =
       [Html.text "Logout"]
   in
   Html.div
-    [Html.class' "collapsed account"]
+    [Html.class' ("account" ^ if isClosed then " collapsed" else "")]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
+    ; Html.div [Html.class' "title"] [Html.text "Account"]
     ; Html.div [Html.class' "hover"] [logout] ]
 
 
@@ -820,7 +821,7 @@ let viewSidebar_ (m : model) : msg Html.html =
       @ [ Html.div
             [Html.classList [("groups", true); ("groups-closed", isClosed)]]
             ( List.map ~f:(showCategories m) cats
-            @ [showDeployStats m; showAdminDebugger; accountView m] )
+            @ [showDeployStats m; showAdminDebugger; accountView m isClosed] )
         ; status ] )
   in
   Html.div [Html.id "sidebar-left"] [html]
