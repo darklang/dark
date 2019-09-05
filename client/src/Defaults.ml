@@ -68,6 +68,8 @@ let defaultHandlerProp : handlerProp =
 
 let defaultToast : toast = {toastMessage = None; toastPos = None}
 
+let defaultAccount : account = {name = ""; email = ""; username = ""}
+
 let defaultModel : model =
   { error = {message = None; showDetails = false}
   ; lastMsg = IgnoreMsg
@@ -139,4 +141,5 @@ let defaultModel : model =
   ; lastReload = None
   ; permission = None
   ; showTopbar = true
-  ; toast = defaultToast }
+  ; toast = defaultToast
+  ; account = defaultAccount }

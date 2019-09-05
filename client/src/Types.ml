@@ -618,6 +618,11 @@ and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
 and delete404RPCParams = fourOhFour
 
+and account =
+  { name : string
+  ; email : string
+  ; username : string }
+
 (* results *)
 and addOpRPCResult =
   { handlers : handler list
@@ -663,7 +668,8 @@ and initialLoadRPCResult =
   ; permission : permission option
   ; opCtrs : int StrDict.t
   ; groups : group list
-  ; deletedGroups : group list }
+  ; deletedGroups : group list
+  ; account : account }
 
 and saveTestRPCResult = string
 
@@ -1394,7 +1400,8 @@ and model =
   ; permission : permission option
   ; showTopbar : bool
   ; toast : toast
-  ; username : string }
+  ; username : string
+  ; account : account }
 
 (* Values that we serialize *)
 and serializableEditor =
