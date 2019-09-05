@@ -1310,10 +1310,22 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
       then S.respond_redirect ~uri:login_uri ()
       else
         let headers = CRequest.headers req in
-        ( match Header.get_authorization headers with
-        (* If we don't have a session, but we do have basic auth, this is the
-           * dark-cli, so respond with the old cookie-and-csrf token body *)
-        | Some (`Basic (username, password)) ->
+        let useragent_is_darkcli =
+          Header.get headers "user-agent"
+          |> Option.map ~f:(fun s ->
+                 Re2.matches (Re2.create_exn "reqwest") s
+                 || Re2.matches (Re2.create_exn "dark-cli") s )
+        in
+        ( match (Header.get_authorization headers, useragent_is_darkcli) with
+        (* If we don't have a session, but we do have basic auth and the user
+         * agent includes "reqwests", this is the dark-cli, so respond with the
+         * old cookie-and-csrf token body.
+         *
+         * (If you logged in with basic auth, and then went to /logout, and then
+         * to /a/<canvas>, your browser will still present basic auth, but we
+         * want to redirect you to the /login page, hence checking the
+         * user-agent. *)
+        | Some (`Basic (username, password)), Some true ->
             if Account.authenticate ~username ~password
             then
               (* This is dupe of the "real" (/login) session code; since we're gonna
