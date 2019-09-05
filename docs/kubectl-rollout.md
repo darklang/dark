@@ -29,6 +29,10 @@ CI/CD is fixed.
 spec from taking effect (that is, `kubectl apply` and `kubectl set image` will
 still run successfully, but they will not scale up).
 
+NOTE: DO NOT DO THIS WHILE A ROLLBACK IS IN PROGRESS. `kubectl rollout undo ...`
+followed by `kubectl rollout pause ...` will pause the rollback in progress.
+Wait until the rollback is complete before pausing.
+
 `kubectl rollout resume <deployment>` will resume updates; note that this
 doesn't just allow new images to be deployed; it also applies the latest
 (paused) update.
