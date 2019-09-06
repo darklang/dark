@@ -497,6 +497,14 @@ let () =
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
       ((expectedStr, expectedPos) : string * int) =
+    let insertCursor
+        (((str, (selection, cursor)), res) :
+          (string * (int option * int)) * bool) :
+        (string * (int option * int)) * bool =
+      let cursorString = "~" in
+      match str |> String.splitAt ~index:cursor with a, b ->
+        (([a; b] |> String.join ~sep:cursorString, (selection, cursor)), res)
+    in
     test
       ( name
       ^ " - `"
@@ -504,8 +512,9 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial)
-        |> toEqual ((expectedStr, (None, expectedPos)), false) )
+        expect (fn initial |> insertCursor)
+        |> toEqual (insertCursor ((expectedStr, (None, expectedPos)), false))
+        )
   in
   let tp
       (name : string)
