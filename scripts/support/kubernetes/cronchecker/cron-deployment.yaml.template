@@ -53,7 +53,7 @@ spec:
             initialDelaySeconds: 120
             periodSeconds: 10 # every 10 seconds
             timeoutSeconds: 10 # time out after 10 seconds
-            failureThreshold: 3 # kill container after 3 successive time outs
+            failureThreshold: 9 # kill container after 9 successive time outs
           ports:
             - name: cron-ctr-port
               containerPort: 8081
