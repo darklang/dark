@@ -22,8 +22,8 @@ let tid (t : token) : id =
   | TPartial (id, _)
   | TRightPartial (id, _)
   | TPartialGhost (id, _)
-  | TLetKeyword id
-  | TLetAssignment id
+  | TLetKeyword (id, _)
+  | TLetAssignment (id, _)
   | TLetLHS (id, _, _)
   | TString (id, _)
   | TStringMLStart (id, _, _, _)
@@ -49,7 +49,7 @@ let tid (t : token) : id =
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _, _)
-  | TRecordSep (id, _)
+  | TRecordSep (id, _, _)
   | TMatchSep id
   | TMatchKeyword id
   | TConstructorName (id, _)
@@ -72,11 +72,12 @@ let tid (t : token) : id =
 
 let analysisID (t : token) : id =
   match t with
-  | TLetLHS (_, id, _) ->
-      id
-  | TRecordField (_, id, _, _) ->
-      id
-  | TLambdaVar (_, id, _, _) ->
+  | TLetLHS (_, id, _)
+  | TLetKeyword (_, id)
+  | TLetAssignment (_, id)
+  | TRecordField (_, id, _, _)
+  | TLambdaVar (_, id, _, _)
+  | TRecordSep (_, _, id) ->
       id
   | _ ->
       tid t
