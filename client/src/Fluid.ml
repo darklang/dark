@@ -4484,7 +4484,7 @@ let toHtml
             (* TODO(korede): figure out how to disable default selection while allowing click event *)
           ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
-              ~key:("fluid-selection-click" ^ idStr)
+              ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
               (fun ev ->
                 Entry.getCursorPosition ()
@@ -4503,13 +4503,15 @@ let toHtml
                 | _ ->
                     UpdateFluidSelection None )
           ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-shift-click" ^ idStr)
+              ~key:("fluid-selection-click" ^ idStr)
               "click"
               (fun ev ->
                 Entry.getSelectionRange ()
                 |> function
-                | Some range when ev.shiftKey ->
-                    UpdateFluidSelection (Some {range})
+                | Some range ->
+                    if ev.shiftKey
+                    then UpdateFluidSelection (Some {range})
+                    else FluidSelectStart (tlid, vs.cursorState)
                 | _ ->
                     UpdateFluidSelection None ) ]
           ([Html.text content] @ nested)
