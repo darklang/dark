@@ -713,11 +713,20 @@ let rec toTokens' (s : state) (e : ast) : token list =
               (* It was probably a mistake to put the newline at the start, as it
              * makes the Enter-on-newline behaviour not work on the last row,
              * which is often the most important. Will need to fix later. *)
-              [TNewline (Some (id, id, Some i)); TIndent 2]
+              ( if i == 0 && last_in_nested_is_newline (nested mexpr)
+              then []
+              else [TNewline (Some (id, id, Some i)); TIndent 2] )
               @ patternToToken pattern
               @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat )
-      @ [TNewline (Some (id, id, Some (List.length pairs - 1)))]
+      @
+      if List.last pairs
+         |> Option.map ~f:Tuple2.second
+         |> Option.map ~f:(fun e -> nested e)
+         |> Option.map ~f:last_in_nested_is_newline
+         |> Option.withDefault ~default:false
+      then []
+      else [TNewline (Some (id, id, Some (List.length pairs - 1)))]
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
@@ -809,6 +818,7 @@ let eToString (s : state) (e : ast) : string =
   (* TNewline at end of AST doesn't display, so don't put it in the test
      * string *)
   |> Regex.replace ~re:(Regex.regex "\n$") ~repl:""
+  |> Regex.replace ~re:(Regex.regex "\n$") ~repl:"*"
 
 
 let eToStructure (s : state) (e : fluidExpr) : string =
