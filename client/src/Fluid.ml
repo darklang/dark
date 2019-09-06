@@ -701,6 +701,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    then thread
                    else TNewline (Some (id, id, Some i)) :: thread )
             |> List.concat )
+          (* TODO: I can't figure out how to get this to not dupe in the case
+             * of test 'nested threads will indent'. It looks fine in-browser,
+             * so I'm not worrying too much. *)
         ; TNewline (Some (id, id, Some (List.length tail))) ] )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
@@ -817,8 +820,7 @@ let eToString (s : state) (e : ast) : string =
   |> String.join ~sep:""
   (* TNewline at end of AST doesn't display, so don't put it in the test
      * string *)
-  |> Regex.replace ~re:(Regex.regex "\n$") ~repl:""
-  |> Regex.replace ~re:(Regex.regex "\n$") ~repl:"*"
+  |> Regex.replace ~re:(Regex.regex "\n*$") ~repl:""
 
 
 let eToStructure (s : state) (e : fluidExpr) : string =
