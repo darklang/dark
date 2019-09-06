@@ -382,59 +382,59 @@ let viewToast (t : toast) : msg Html.html =
     [Html.text msg]
 
 
-let loggedOutView () : msg Html.html =
+let accountView (m : model) : msg Html.html =
+  let logout =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
+            LogoutOfDark )
+      ; Html.class' "action-link" ]
+      [Html.text "Logout"]
+  in
   Html.div
-    [Html.class' "logged-out"]
-    [ Html.h1 [] [Html.text "Logged out"]
-    ; Html.p [] [Html.text "Refresh to log back in"] ]
+    [Html.class' "my-account"]
+    [ m |> Avatar.myAvatar |> Avatar.avatarDiv
+    ; Html.div [Html.class' "account-actions"] [logout] ]
 
 
 let view (m : model) : msg Html.html =
-  if isLoggedIn m
-  then
-    let activeVariantsClass =
-      match VariantTesting.activeCSSClasses m with
-      | "" ->
-          Vdom.noProp
-      | str ->
-          Html.class' str
-    in
-    let attributes =
-      [ Html.id "app"
-      ; activeVariantsClass
-      ; Html.onWithOptions
-          ~key:"app-mu"
-          "mouseup"
-          {stopPropagation = false; preventDefault = true}
-          (Decoders.wrapDecoder
-             (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
-    in
-    let errorBar =
-      if m.isAdmin then [ViewScaffold.viewError m.error] else []
-    in
-    let footer =
-      [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
-      ; ViewScaffold.readOnlyMessage m
-      ; viewMinimap m.canvasProps.minimap ]
-      @ errorBar
-    in
-    let sidebar = ViewSidebar.viewSidebar m in
-    let body = viewCanvas m in
-    let entry = ViewEntry.viewEntry m in
-    let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
-    let ast =
-      TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ())
-    in
-    let fluidStatus =
-      if VariantTesting.isFluidV2 m.tests
-      then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
-      else []
-    in
-    let content =
-      ViewTopbar.html m
-      @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
-      @ fluidStatus
-      @ footer
-    in
-    Html.div attributes content
-  else loggedOutView ()
+  let activeVariantsClass =
+    match VariantTesting.activeCSSClasses m with
+    | "" ->
+        Vdom.noProp
+    | str ->
+        Html.class' str
+  in
+  let attributes =
+    [ Html.id "app"
+    ; activeVariantsClass
+    ; Html.onWithOptions
+        ~key:"app-mu"
+        "mouseup"
+        {stopPropagation = false; preventDefault = true}
+        (Decoders.wrapDecoder
+           (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
+  in
+  let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
+  let footer =
+    [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
+    ; ViewScaffold.readOnlyMessage m
+    ; viewMinimap m.canvasProps.minimap ]
+    @ errorBar
+  in
+  let sidebar = ViewSidebar.viewSidebar m in
+  let body = viewCanvas m in
+  let entry = ViewEntry.viewEntry m in
+  let activeAvatars = Avatar.viewAllAvatars m.avatarsList in
+  let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
+  let fluidStatus =
+    if VariantTesting.isFluidV2 m.tests
+    then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
+    else []
+  in
+  let content =
+    ViewTopbar.html m
+    @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
+    @ fluidStatus
+    @ footer
+  in
+  Html.div attributes content
