@@ -515,10 +515,10 @@ let rec toTokens' (s : state) (e : ast) : token list =
       whole @ [TFloatPoint id] @ fraction
   | EBlank id ->
       [TBlank id]
-  | ELet (id, _, lhs, rhs, next) ->
-      [ TLetKeyword id
-      ; TLetLHS (id, lhs)
-      ; TLetAssignment id
+  | ELet (id, varId, lhs, rhs, next) ->
+      [ TLetKeyword (id, varId)
+      ; TLetLHS (id, varId, lhs)
+      ; TLetAssignment (id, varId)
       ; nested rhs
       ; TNewline (Some (eid next, id, None))
       ; nested next ]
@@ -604,8 +604,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | ELambda (id, names, body) ->
       let tnames =
         names
-        |> List.indexedMap ~f:(fun i (_, name) ->
-               [TLambdaVar (id, i, name); TLambdaSep (id, i); TSep] )
+        |> List.indexedMap ~f:(fun i (aid, name) ->
+               [TLambdaVar (id, aid, i, name); TLambdaSep (id, i); TSep] )
         |> List.concat
         (* Remove the extra seperator *)
         |> List.dropRight ~count:2
@@ -656,12 +656,12 @@ let rec toTokens' (s : state) (e : ast) : token list =
       then [TRecordOpen id; TRecordClose id]
       else
         [ [TRecordOpen id]
-        ; List.mapi fields ~f:(fun i (_, fname, expr) ->
+        ; List.mapi fields ~f:(fun i (aid, fname, expr) ->
               [ TNewline (Some (id, id, Some i))
               ; TIndentToHere
                   [ TIndent 2
-                  ; TRecordField (id, i, fname)
-                  ; TRecordSep (id, i)
+                  ; TRecordField (id, aid, i, fname)
+                  ; TRecordSep (id, i, aid)
                   ; nested expr ] ] )
           |> List.concat
         ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
@@ -1930,11 +1930,11 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordField (id, index, str) ->
+  | TRecordField (id, _, index, str) ->
       replaceRecordField ~index (f str) id ast
-  | TLetLHS (id, str) ->
+  | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
-  | TLambdaVar (id, index, str) ->
+  | TLambdaVar (id, _, index, str) ->
       replaceLamdaVar ~index str (f str) id ast
   | TVariable (id, str) ->
       replaceWithPartial (f str) id ast
@@ -2509,7 +2509,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (removeListSepToken id ast idx, left s)
   | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
-  | TRecordField (id, i, "") when pos = ti.startPos ->
+  | TRecordField (id, _, i, "") when pos = ti.startPos ->
       ( removeRecordField id i ast
       , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
   | TPatternBlank (mID, id) when pos = ti.startPos ->
@@ -2837,7 +2837,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   (* lambda *)
   | TLambdaSymbol id when letter = ',' ->
       (insertLambdaVar ~index:0 id ~name:"" ast, s)
-  | TLambdaVar (id, index, _) when letter = ',' ->
+  | TLambdaVar (id, _, index, _) when letter = ',' ->
       ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
       , moveTo (ti.endPos + 2) s )
   (* Ignore invalid situations *)
@@ -3081,11 +3081,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordField (_, _, ""), _)
+    | K.Backspace, _, R (TRecordField (_, _, _, ""), _)
       when Option.isSome s.selection ->
         Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
         |> Option.withDefault ~default:(ast, s)
-    | K.Backspace, _, R (TRecordField (_, _, ""), ti) ->
+    | K.Backspace, _, R (TRecordField (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank (_, _), _)
       when Option.isSome s.selection ->
@@ -3175,7 +3175,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Comma, L (TLambdaVar _, toTheLeft), _
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
-    | K.Comma, _, R (TLambdaVar (id, index, _), _) when onEdge ->
+    | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
@@ -3791,7 +3791,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
           tokensInRange startPos endPos
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordField (_, index, newKey) ->
+                 | TRecordField (_, _, index, newKey) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
@@ -4541,7 +4541,7 @@ let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
       (* Flatten conditions to eval live values *)
       getToken state ast
       |> Option.map ~f:(fun ti ->
-             let id = Token.tid ti.token in
+             let id = Token.analysisID ti.token in
              if FluidToken.validID id
              then
                StrDict.get ~key:(deID id) currentResults.liveValues
