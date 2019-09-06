@@ -6,6 +6,7 @@ open Prelude
 open Fluid
 module B = Blank
 module K = FluidKeyboard
+module Regex = Util.Regex
 
 type testResult = (* ast, clipboard, newPos *) string * string * int
 
@@ -56,13 +57,21 @@ let () =
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
       (expected : string * string * int) =
+    let insertCursor (str, clipboardStr, pos) : string * string * int =
+      let cursorString = "~" in
+      ( match str |> String.splitAt ~index:pos with a, b ->
+          [a; b] |> String.join ~sep:cursorString )
+      |> fun s -> (s, clipboardStr, pos)
+    in
     test
       ( name
       ^ " - `"
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual expected)
+      (fun () ->
+        expect (fn initial |> insertCursor)
+        |> toEqual (expected |> insertCursor) )
   in
   describe "Booleans" (fun () ->
       t
