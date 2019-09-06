@@ -502,6 +502,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
     in
     TIndentToHere tokens
   in
+  let last_in_nested_is_newline (e : Types.fluidToken) : bool =
+    match e with
+    | TIndentToHere tokens ->
+      (match List.last tokens with Some (TNewline _) -> true | _ -> false)
+    | _ ->
+        false
+  in
   match e with
   | EInteger (id, i) ->
       [TInteger (id, i)]
@@ -518,13 +525,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EBlank id ->
       [TBlank id]
   | ELet (id, varId, lhs, rhs, next) ->
-      let last_in_nested_is_newline (e : Types.fluidToken) : bool =
-        match e with
-        | TIndentToHere tokens ->
-          (match List.last tokens with Some (TNewline _) -> true | _ -> false)
-        | _ ->
-            false
-      in
       [ TLetKeyword (id, varId)
       ; TLetLHS (id, varId, lhs)
       ; TLetAssignment (id, varId)
@@ -559,22 +559,23 @@ let rec toTokens' (s : state) (e : ast) : token list =
             in
             starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
-      [ TIfKeyword id
-      ; nested cond
-      ; TNewline None
-      ; TIfThenKeyword id
-        (* The newline ID is pretty hacky here. It's used to make it possible
+      [TIfKeyword id; nested cond]
+      @ ( if last_in_nested_is_newline (nested cond)
+        then []
+        else [TNewline None] )
+      @ [ TIfThenKeyword id
+          (* The newline ID is pretty hacky here. It's used to make it possible
          * to press Enter on the expression inside. It might be better to
          * instead have a special newline where an id is relevant, and another
          * newline which is boring. *)
-      ; TNewline (Some (eid if', id, None))
-      ; TIndent 2
-      ; nested if'
-      ; TNewline None
-      ; TIfElseKeyword id
-      ; TNewline (Some (eid else', id, None))
-      ; TIndent 2
-      ; nested else' ]
+        ; TNewline (Some (eid if', id, None))
+        ; TIndent 2
+        ; nested if' ]
+      @ (if last_in_nested_is_newline (nested if') then [] else [TNewline None])
+      @ [ TIfElseKeyword id
+        ; TNewline (Some (eid else', id, None))
+        ; TIndent 2
+        ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
       (* Specifialized for being in a thread *)
       [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
