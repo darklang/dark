@@ -1198,10 +1198,10 @@ and fluidToken =
   (* TIndentToHere and TIndented are preprocessed to the right indentation
    * and turned into TIndents *)
   | TIndent of int
-  | TLetKeyword of id
+  | TLetKeyword of id * analysisId
   (* Let-expr id * varBind id * varname *)
   | TLetLHS of id * analysisId * string
-  | TLetAssignment of id
+  | TLetAssignment of id * analysisId
   | TIfKeyword of id
   | TIfThenKeyword of id
   | TIfElseKeyword of id
@@ -1224,7 +1224,7 @@ and fluidToken =
   | TThreadPipe of id * int * int
   | TRecordOpen of id
   | TRecordField of id * analysisId * int * string
-  | TRecordSep of id * int
+  | TRecordSep of id * int * analysisId
   | TMatchKeyword of id
   | TMatchSep of id
   | TPatternVariable of id * id * string

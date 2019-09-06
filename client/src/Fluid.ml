@@ -516,9 +516,9 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EBlank id ->
       [TBlank id]
   | ELet (id, varId, lhs, rhs, next) ->
-      [ TLetKeyword id
+      [ TLetKeyword (id, varId)
       ; TLetLHS (id, varId, lhs)
-      ; TLetAssignment id
+      ; TLetAssignment (id, varId)
       ; nested rhs
       ; TNewline (Some (eid next, id, None))
       ; nested next ]
@@ -661,7 +661,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
               ; TIndentToHere
                   [ TIndent 2
                   ; TRecordField (id, aid, i, fname)
-                  ; TRecordSep (id, i)
+                  ; TRecordSep (id, i, aid)
                   ; nested expr ] ] )
           |> List.concat
         ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
