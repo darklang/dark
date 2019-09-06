@@ -113,6 +113,10 @@ module Ext = struct
     ; left = rectLeft client |> int_of_float
     ; right = rectRight client |> int_of_float
     ; bottom = rectBottom client |> int_of_float }
+
+
+  external redirect : string -> unit = "replace"
+    [@@bs.val] [@@bs.scope "window", "location"]
 end
 
 module Random = struct
