@@ -779,7 +779,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
 
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
   match fluidGetSelectionRange m.fluidState with
-  | Some (34, 964) ->
+  | Some (34, 965) ->
       pass
   | Some (a, b) ->
       fail
