@@ -1418,10 +1418,7 @@ let admin_ui_handler
             [("canvas", `String canvas)]
             (fun _ -> f (Serialize.fetch_canvas_id owner canvasname))
       | None ->
-          respond
-            ~execution_id
-            `Internal_server_error
-            "Dark Internal Error: Dark - the service running this application - encountered an error when loading this canvas. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
+          respond ~execution_id `Not_found "Not found"
     else respond ~execution_id `Unauthorized "Unauthorized"
   in
   match (verb, path) with
