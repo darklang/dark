@@ -22,9 +22,9 @@ let tid (t : token) : id =
   | TPartial (id, _)
   | TRightPartial (id, _)
   | TPartialGhost (id, _)
-  | TLetKeyword id
-  | TLetAssignment id
-  | TLetLHS (id, _)
+  | TLetKeyword (id, _)
+  | TLetAssignment (id, _)
+  | TLetLHS (id, _, _)
   | TString (id, _)
   | TStringMLStart (id, _, _, _)
   | TStringMLMiddle (id, _, _, _)
@@ -38,7 +38,7 @@ let tid (t : token) : id =
   | TVariable (id, _)
   | TFnName (id, _, _, _, _)
   | TFnVersion (id, _, _, _)
-  | TLambdaVar (id, _, _)
+  | TLambdaVar (id, _, _, _)
   | TLambdaArrow id
   | TLambdaSymbol id
   | TLambdaSep (id, _)
@@ -48,8 +48,8 @@ let tid (t : token) : id =
   | TThreadPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
-  | TRecordField (id, _, _)
-  | TRecordSep (id, _)
+  | TRecordField (id, _, _, _)
+  | TRecordSep (id, _, _)
   | TMatchSep id
   | TMatchKeyword id
   | TConstructorName (id, _)
@@ -68,6 +68,19 @@ let tid (t : token) : id =
       id
   | TNewline None | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
       fakeid
+
+
+let analysisID (t : token) : id =
+  match t with
+  | TLetLHS (_, id, _)
+  | TLetKeyword (_, id)
+  | TLetAssignment (_, id)
+  | TRecordField (_, id, _, _)
+  | TLambdaVar (_, id, _, _)
+  | TRecordSep (_, _, id) ->
+      id
+  | _ ->
+      tid t
 
 
 let parentExprID (t : token) : id =
@@ -158,11 +171,11 @@ let isBlank t =
   match t with
   | TBlank _
   | TPlaceholder _
-  | TRecordField (_, _, "")
+  | TRecordField (_, _, _, "")
   | TVariable (_, "")
   | TFieldName (_, _, "")
-  | TLetLHS (_, "")
-  | TLambdaVar (_, _, "")
+  | TLetLHS (_, _, "")
+  | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
   | TRightPartial (_, "")
   | TPatternBlank _ ->
@@ -266,7 +279,7 @@ let toText (t : token) : string =
       "let "
   | TLetAssignment _ ->
       " = "
-  | TLetLHS (_, name) ->
+  | TLetLHS (_, _, name) ->
       canBeEmpty name
   | TIfKeyword _ ->
       "if "
@@ -284,7 +297,7 @@ let toText (t : token) : string =
       canBeEmpty name
   | TFnName (_, _, displayName, _, _) | TFnVersion (_, _, displayName, _) ->
       shouldntBeEmpty displayName
-  | TLambdaVar (_, _, name) ->
+  | TLambdaVar (_, _, _, name) ->
       canBeEmpty name
   | TLambdaSymbol _ ->
       "\\"
@@ -310,7 +323,7 @@ let toText (t : token) : string =
       "{"
   | TRecordClose _ ->
       "}"
-  | TRecordField (_, _, name) ->
+  | TRecordField (_, _, _, name) ->
       canBeEmpty name
   | TRecordSep _ ->
       " : "
@@ -443,7 +456,7 @@ let toTypeName (t : token) : string =
       "fn-name"
   | TFnVersion _ ->
       "fn-version"
-  | TLambdaVar (_, _, _) ->
+  | TLambdaVar (_, _, _, _) ->
       "lambda-var"
   | TLambdaSymbol _ ->
       "lambda-symbol"

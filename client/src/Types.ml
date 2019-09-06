@@ -1161,6 +1161,8 @@ and fluidExpr =
 
 and placeholder = string * string
 
+and analysisId = id
+
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
@@ -1196,9 +1198,10 @@ and fluidToken =
   (* TIndentToHere and TIndented are preprocessed to the right indentation
    * and turned into TIndents *)
   | TIndent of int
-  | TLetKeyword of id
-  | TLetLHS of id * string
-  | TLetAssignment of id
+  | TLetKeyword of id * analysisId
+  (* Let-expr id * varBind id * varname *)
+  | TLetLHS of id * analysisId * string
+  | TLetAssignment of id * analysisId
   | TIfKeyword of id
   | TIfThenKeyword of id
   | TIfElseKeyword of id
@@ -1213,15 +1216,15 @@ and fluidToken =
   | TLambdaSep of id * int
   | TLambdaArrow of id
   | TLambdaSymbol of id
-  | TLambdaVar of id * int * string
+  | TLambdaVar of id * analysisId * int * string
   | TListOpen of id
   | TListClose of id
   | TListSep of id * int
   (* 2nd int is the number of pipe segments there are *)
   | TThreadPipe of id * int * int
   | TRecordOpen of id
-  | TRecordField of id * int * string
-  | TRecordSep of id * int
+  | TRecordField of id * analysisId * int * string
+  | TRecordSep of id * int * analysisId
   | TMatchKeyword of id
   | TMatchSep of id
   | TPatternVariable of id * id * string
