@@ -216,7 +216,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true (* This doesn't mean anything *) }
   ; { pns = ["Date::year"]
     ; ins = []
     ; p = [par "date" TDate]
