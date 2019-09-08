@@ -300,6 +300,11 @@ let t_date_functions_work () =
     "Invalid Date::parse_v1 produces an Error result"
     (DResult (ResError (Dval.dstr_of_string_exn "Invalid date format")))
     (exec_ast "(Date::parse_v1 'asd')") ;
+  check_dval
+    "Valid Date::parse_v1 roundtrips"
+    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:00Z")))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::toString d)))") ;
   ()
 
 

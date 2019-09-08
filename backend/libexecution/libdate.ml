@@ -42,6 +42,20 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Date::toString"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d = "Print a string in the ISO format"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              Dval.dstr_of_string_exn (Util.isostring_of_date d)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Date::now"]
     ; ins = []
     ; p = []
