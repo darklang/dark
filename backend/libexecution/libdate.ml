@@ -9,7 +9,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TDate
     ; d =
-        "Parses a string representing a date in the ISO format and returns a Date"
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
     ; f =
         InProcess
           (function
@@ -25,7 +25,7 @@ let fns : Lib.shortfn list =
     ; p = [par "s" TStr]
     ; r = TResult
     ; d =
-        "Parses a string representing a date in the ISO format and returns a Date"
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
     ; f =
         InProcess
           (function
@@ -38,6 +38,20 @@ let fns : Lib.shortfn list =
               with e ->
                 DResult
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::toString"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d = "Print a string in the ISO format"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              Dval.dstr_of_string_exn (Util.isostring_of_date d)
           | args ->
               fail args)
     ; ps = true
@@ -199,6 +213,109 @@ let fns : Lib.shortfn list =
               let diff = f time in
               let diff = if diff = "" then "less than a minute" else diff in
               Dval.dstr_of_string_exn diff
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true (* This doesn't mean anything *) }
+  ; { pns = ["Date::year"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the year portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::month"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the month portion of the Date as an int between 1 and 12"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_date ~zone:Time.Zone.utc
+              |> Date.month
+              |> Month.to_int
+              |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::day"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the day portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::hour"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the hour portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_hr
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::minute"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the minute portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_min
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::second"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the second portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_sec
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
           | args ->
               fail args)
     ; ps = true
