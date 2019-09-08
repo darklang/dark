@@ -305,6 +305,37 @@ let t_date_functions_work () =
     (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:00Z")))
     (exec_ast
        "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::toString d)))") ;
+  (* Subparts of a date *)
+  check_dval
+    "Year works"
+    (DResult (ResOk (Dval.dint 2019)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::year d)))") ;
+  check_dval
+    "Month works"
+    (DResult (ResOk (Dval.dint 7)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::month d)))") ;
+  check_dval
+    "Day works"
+    (DResult (ResOk (Dval.dint 28)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::day d)))") ;
+  check_dval
+    "Date::hour works"
+    (DResult (ResOk (Dval.dint 22)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::hour d)))") ;
+  check_dval
+    "Date::minute works"
+    (DResult (ResOk (Dval.dint 42)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::minute d)))") ;
+  check_dval
+    "Date::second works"
+    (DResult (ResOk (Dval.dint 45)))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (Date::second d)))") ;
   ()
 
 

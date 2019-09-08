@@ -216,4 +216,107 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::year"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the year portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d |> Time.to_date ~zone:Time.Zone.utc |> Date.year |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::month"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the month portion of the Date as an int between 1 and 12"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_date ~zone:Time.Zone.utc
+              |> Date.month
+              |> Month.to_int
+              |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::day"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the day portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d |> Time.to_date ~zone:Time.Zone.utc |> Date.day |> Dval.dint
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::hour"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the hour portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_hr
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::minute"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the minute portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_min
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::second"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TInt
+    ; d = "Returns the second portion of the Date as an int"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              d
+              |> Time.to_span_since_epoch
+              |> Time.Span.to_sec
+              |> (fun x -> Float.mod_float x 60.0)
+              |> Dint.of_float
+              |> DInt
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
