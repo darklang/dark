@@ -1195,18 +1195,6 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | FluidEntering _ ->
             NoChange )
-  | FluidSelectStart (targetExnID, _) ->
-      if VariantTesting.isFluid m.tests
-      then
-        let selection = m.fluidState.selection in
-        Many
-          [ Select (targetExnID, None)
-          ; (* set new position based on mouseclick, *)
-            Fluid.update m (FluidMouseClick targetExnID)
-          ; (* then re-apply old selection *)
-            TweakModel
-              (fun m -> {m with fluidState = {m.fluidState with selection}}) ]
-      else NoChange
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
         [ ExecutingFunctionBegan (tlid, id)
@@ -1837,32 +1825,36 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection selection ->
-      TweakModel
-        (fun m ->
-          match selection with
-          (* if range width is 0, just change pos *)
-          | Some {range = a, b} when a = b ->
-              { m with
-                fluidState =
-                  { m.fluidState with
-                    oldPos = m.fluidState.newPos; newPos = b; selection = None
-                  } }
-          | Some s ->
-              (* re-apply selection *)
-              Entry.setSelectionRange s.range ;
-              { m with
-                fluidState =
-                  { m.fluidState with
-                    selection
-                  ; oldPos = m.fluidState.newPos
-                  ; newPos = s.range |> Tuple2.second } }
-          | None ->
-              let newPos =
-                Entry.getCursorPosition ()
-                |> Option.withDefault ~default:m.fluidState.newPos
-              in
-              {m with fluidState = {m.fluidState with newPos; selection}} )
+  | UpdateFluidSelection (targetExnID, selection) ->
+      Many
+        [ Select (targetExnID, None)
+        ; TweakModel
+            (fun m ->
+              match selection with
+              (* if range width is 0, just change pos *)
+              | Some {range = a, b} when a = b ->
+                  { m with
+                    fluidState =
+                      { m.fluidState with
+                        oldPos = m.fluidState.newPos
+                      ; newPos = b
+                      ; selection = None } }
+              | Some s ->
+                  (* re-apply selection *)
+                  Entry.setSelectionRange s.range ;
+                  { m with
+                    fluidState =
+                      { m.fluidState with
+                        selection
+                      ; oldPos = m.fluidState.newPos
+                      ; newPos = s.range |> Tuple2.second } }
+              | None ->
+                  let newPos =
+                    Entry.getCursorPosition ()
+                    |> Option.withDefault ~default:m.fluidState.newPos
+                  in
+                  {m with fluidState = {m.fluidState with newPos; selection}}
+              ) ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
