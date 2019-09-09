@@ -420,12 +420,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             let m = {m with lastReload = Some now} in
             (* Previously, this was two calls to Tea_task.nativeBinding. But
              * only the first got called, unclear why. *)
-            [ Tea_task.nativeBinding (fun _ ->
-                  Editor.serialize m ;
-                  Native.Location.reload true ) ]
-            |> Tea_task.sequence
-            (* No callback bc of reload *)
-            |> Tea_task.attempt (fun _ -> IgnoreMsg)
+            Cmd.call (fun _ ->
+                Editor.serialize m ;
+                Native.Location.reload true )
           else if ApiError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
           else Cmd.none
