@@ -1559,11 +1559,14 @@ let () =
         ("match ___\n  *** -> ___\n  3 -> ___", 12) ;
       t
         "enter at the end of a row creates a new row"
-        (* TODO: it doesn't work at the end of an ast *)
-        (* TODO: it doesn't work on the last row *)
         emptyMatchWithTwoPatterns
         (enter 22)
         ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 25) ;
+      t
+        "enter at the end of the last row creates a new row"
+        emptyMatchWithTwoPatterns
+        (enter 35)
+        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___", 38) ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
@@ -1925,11 +1928,11 @@ let () =
         aThread
         (enter 5)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]", 11) ;
-      (* t *)
-      (*   "enter at the end of the last expr creates a new entry" *)
-      (*   aThread *)
-      (*   (enter 39) *)
-      (*   ("[]\n|>List::append [5]\n|>List::append [5]\n|>___", 42) ; *)
+      t
+        "enter at the end of the last expr creates a new entry"
+        aThread
+        (enter 40)
+        ("[]\n|>List::append [5]\n|>List::append [5]\n|>___", 43) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
