@@ -1,0 +1,30 @@
+[
+    [ "TLSavepoint", 598813411 ],
+    [
+      "SetHandler",
+      598813411,
+      { "x": 458, "y": 130 },
+      {
+        "tlid": 598813411,
+        "ast": [
+          "Filled",
+          2068425241,
+          [
+            "Let",
+            [ "Filled", 992608100, "someVar" ],
+            [ "Filled", 195624092, [ "Value", "\"Some Text\"" ] ],
+            [ "Blank", 1071108287 ]
+          ]
+        ],
+        "spec": {
+          "module": [ "Filled", 1619806723, "HTTP" ],
+          "name": [ "Blank", 650436342 ],
+          "modifier": [ "Blank", 1732275448 ],
+          "types": {
+            "input": [ "Blank", 1979464203 ],
+            "output": [ "Blank", 652301560 ]
+          }
+        }
+      }
+    ]
+]

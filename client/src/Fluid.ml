@@ -4484,34 +4484,39 @@ let toHtml
             (* TODO(korede): figure out how to disable default selection while allowing click event *)
           ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
-              ~key:("fluid-selection-click" ^ idStr)
+              ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
               (fun ev ->
-                Entry.getCursorPosition ()
-                |> function
+                match Entry.getCursorPosition () with
                 | Some pos ->
                     let state =
                       {state with newPos = pos; oldPos = state.newPos}
                     in
                     ( match ev with
                     | {detail = 2; altKey = true} ->
-                        UpdateFluidSelection (expressionSelection state ast)
+                        UpdateFluidSelection
+                          (tlid, expressionSelection state ast)
                     | {detail = 2; altKey = false} ->
-                        UpdateFluidSelection (tokenSelection state ast)
+                        UpdateFluidSelection (tlid, tokenSelection state ast)
                     | _ ->
-                        UpdateFluidSelection None )
-                | _ ->
-                    UpdateFluidSelection None )
+                        (* We expect that this doesn't happen *)
+                        UpdateFluidSelection (tlid, None) )
+                | None ->
+                    (* We expect that this doesn't happen *)
+                    UpdateFluidSelection (tlid, None) )
           ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-shift-click" ^ idStr)
+              ~key:("fluid-selection-click" ^ idStr)
               "click"
               (fun ev ->
-                Entry.getSelectionRange ()
-                |> function
-                | Some range when ev.shiftKey ->
-                    UpdateFluidSelection (Some {range})
-                | _ ->
-                    UpdateFluidSelection None ) ]
+                match Entry.getSelectionRange () with
+                | Some range ->
+                    if ev.shiftKey
+                    then UpdateFluidSelection (tlid, Some {range})
+                    else UpdateFluidSelection (tlid, None)
+                | None ->
+                    (* This will happen if it gets a selection and there is no
+                     focused node (weird browser problem?) *)
+                    IgnoreMsg ) ]
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
