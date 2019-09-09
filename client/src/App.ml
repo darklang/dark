@@ -414,7 +414,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (* Reload if it's an auth failure or the frontend is out of date *)
           ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
-        Js.log2 "HAE" shouldReload ;
         let cmd =
           if shouldReload
           then
