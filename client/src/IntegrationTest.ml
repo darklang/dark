@@ -768,6 +768,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
   Result.combine [focusedPass; browserCursorPass; cursorPass]
   |> Result.map (fun _ -> ())
 
+
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
   match m.fluidState.selection with
   | Some {range = 34, 964} ->
