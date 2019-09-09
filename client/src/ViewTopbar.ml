@@ -9,7 +9,9 @@ let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
 
 
 let html (m : model) =
-  if m.showTopbar = false
+  (* Right now, we're hiding topbar from everyone - remove `|| true` to bring it
+   * back *)
+  if m.showTopbar = false || true
   then []
   else
     let fluid = VariantTesting.isFluidForCustomers m.tests in
