@@ -844,6 +844,7 @@ and apiError =
   { context : string
   ; originalError : httpError (* the Tea_http error *)
   ; requestParams : (Js.Json.t[@opaque]) option
+  ; reload : bool
   ; importance : errorImportance }
 
 and modification =

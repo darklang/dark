@@ -112,13 +112,15 @@ let parseResponse (body : Http.responseBody) : string =
   |> Option.withDefault ~default:str
 
 
-let isCSRF (e : apiError) : bool =
-  match e.originalError with
-  | Http.BadStatus response ->
-      response.status.code = 401
-      && String.startsWith (parseResponse response.body) ~prefix:"Bad CSRF"
-  | _ ->
-      false
+let isBadAuth (e : apiError) : bool =
+  if e.reload
+  then true
+  else
+    match e.originalError with
+    | Http.BadStatus response ->
+        response.status.code = 401
+    | _ ->
+        false
 
 
 let msg (e : apiError) : string =
@@ -146,5 +148,5 @@ let msg (e : apiError) : string =
   withoutContext ^ " (" ^ e.context ^ ")"
 
 
-let make ?requestParams ~context ~importance originalError =
-  {requestParams; importance; originalError; context}
+let make ?requestParams ?(reload = false) ~context ~importance originalError =
+  {requestParams; importance; originalError; context; reload}

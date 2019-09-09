@@ -1359,12 +1359,16 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
               respond ~execution_id ~resp_headers `OK body
             else respond ~execution_id `Unauthorized "Bad credentials"
         | _ ->
-            let uri =
-              Uri.add_query_param'
-                login_uri
-                ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
-            in
-            S.respond_redirect ~uri () )
+            (* If it's an api, don't try to redirect *)
+            if Re2.matches (Re2.create_exn "^/api/") path
+            then respond ~execution_id `Unauthorized "Bad credentials"
+            else
+              let uri =
+                Uri.add_query_param'
+                  login_uri
+                  ("redirect", req_uri |> Uri.to_string |> Uri.pct_encode)
+              in
+              S.respond_redirect ~uri () )
 
 
 let admin_ui_handler

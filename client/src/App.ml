@@ -411,15 +411,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | None ->
                 true
           in
-          (* Reload if it's a CSRF failure or the frontend is out of date *)
-          ApiError.isCSRF apiError || (buildHashMismatch && reloadAllowed)
+          (* Reload if it's an auth failure or the frontend is out of date *)
+          ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
+        Js.log2 "HAE" shouldReload ;
         let cmd =
           if shouldReload
           then
             let m = {m with lastReload = Some now} in
-            [ Tea_task.nativeBinding (fun _ -> Editor.serialize m)
-            ; Tea_task.nativeBinding (fun _ -> Native.Location.reload true) ]
+            (* Previously, this was two calls to Tea_task.nativeBinding. But
+             * only the first got called, unclear why. *)
+            [ Tea_task.nativeBinding (fun _ ->
+                  Editor.serialize m ;
+                  Native.Location.reload true ) ]
             |> Tea_task.sequence
             (* No callback bc of reload *)
             |> Tea_task.attempt (fun _ -> IgnoreMsg)
@@ -1520,6 +1524,16 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
+  | ReceiveFetch (TraceFetchFailure (params, _, "Bad credentials")) ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~reload:true
+           ~requestParams:(Encoders.getTraceDataRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
@@ -1544,6 +1558,16 @@ let update_ (msg : msg) (m : model) : modification =
           params.gtdrpTraceID
       in
       MakeCmd cmd
+  | ReceiveFetch (DbStatsFetchFailure (params, _, "Bad credentials")) ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~reload:true
+           ~requestParams:(Encoders.dbStatsRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
