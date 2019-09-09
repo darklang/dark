@@ -741,6 +741,34 @@ let fluid_double_click_selects_token (m : model) : testResult =
       fail "no selection range"
 
 
+let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
+    testResult =
+  let focusedPass =
+    match m.currentPage with
+    | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
+        pass
+    | _ ->
+        fail "handler is not focused"
+  in
+  let expectedCursorPos = 6 in
+  let browserCursorPass =
+    if Entry.getCursorPosition () = Some expectedCursorPos
+    then pass
+    else fail "incorrect browser cursor position"
+  in
+  let cursorPass =
+    match m.cursorState with
+    | FluidEntering _ ->
+        if m.fluidState.newPos = expectedCursorPos
+        then pass
+        else fail "incorrect cursor position"
+    | _ ->
+        fail "incorrect cursor state"
+  in
+  Result.combine [focusedPass; browserCursorPass; cursorPass]
+  |> Result.map (fun _ -> ())
+
+
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
   match m.fluidState.selection with
   | Some {range = 34, 964} ->
@@ -892,6 +920,8 @@ let trigger (test_name : string) : integrationTestState =
         load_with_unnamed_function
     | "extract_from_function" ->
         extract_from_function
+    | "fluid_single_click_on_token_in_deselected_handler_focuses" ->
+        fluid_single_click_on_token_in_deselected_handler_focuses
     | "fluid_double_click_selects_token" ->
         fluid_double_click_selects_token
     | "fluid_double_click_with_alt_selects_expression" ->
