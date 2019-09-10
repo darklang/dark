@@ -67,7 +67,8 @@ let init (flagString : string) (location : Web.Location.location) =
       ; environment
       ; csrfToken
       ; isAdmin
-      ; buildHash } =
+      ; buildHash
+      ; username } =
     Flags.fromString flagString
   in
   let variants = VariantTesting.enabledVariantTests in
@@ -103,7 +104,8 @@ let init (flagString : string) (location : Web.Location.location) =
     ; browserId = manageBrowserId
     ; clientOpCtrId = createClientOpCtrId
     ; isAdmin
-    ; buildHash }
+    ; buildHash
+    ; username }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =

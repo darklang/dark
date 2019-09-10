@@ -77,11 +77,21 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   in
   (* Need to add aditional css class to remove backgroun color *)
   let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
+  let ellensHack =
+    match tl with
+    | TLHandler {spec}
+      when Blank.toMaybe spec.name = Some "sendDM"
+           || Blank.toMaybe spec.name = Some "sendText" ->
+        "ellenDemoSendDMHack"
+    | _ ->
+        ""
+  in
   let class_ =
     [ "toplevel"
     ; "tl-" ^ deTLID tlid
     ; (if selected then "selected" else "")
-    ; isGroup ]
+    ; isGroup
+    ; ellensHack ]
     |> String.join ~sep:" "
   in
   let id =

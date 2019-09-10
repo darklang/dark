@@ -33,7 +33,8 @@ type flags =
   ; environment : string
   ; csrfToken : string
   ; isAdmin : bool
-  ; buildHash : string }
+  ; buildHash : string
+  ; username : string }
 
 let fromString (strJ : string) : flags =
   let open Json_decode_extended in
@@ -44,4 +45,5 @@ let fromString (strJ : string) : flags =
   ; environment = field "environment" string j
   ; csrfToken = field "csrfToken" string j
   ; isAdmin = field "isAdmin" bool j
-  ; buildHash = field "buildHash" string j }
+  ; buildHash = field "buildHash" string j
+  ; username = field "username" string j }
