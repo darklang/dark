@@ -175,4 +175,23 @@ let fns =
           | args ->
               fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["Jwt::encodeForKostas"]
+    ; ins = []
+    ; p = [par "b64_secret" TStr; par "kid" TStr; par "iss" TStr]
+    ; r = TStr
+    ; d =
+        "Takes a base64-encoded secret - likely a DER certificate - and a kid
+        and iss, and returns a JWT"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr b64_secret; DStr kid; DStr iss] ->
+              let b64_secret = Unicode_string.to_string b64_secret in
+              let kid = Unicode_string.to_string kid in
+              let iss = Unicode_string.to_string iss in
+              Dval.dstr_of_string_exn (Jwt.encode ~b64_secret ~kid ~iss)
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
