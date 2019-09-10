@@ -222,6 +222,32 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args )
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::getUserByEmail"]
+    ; ins = []
+    ; p = [par "email" TStr]
+    ; r = TOption
+    ; d = "Return a user for the email. Does not include passwords."
+    ; f =
+        internal_fn (function
+            | _, [DStr email] ->
+                let info =
+                  Account.get_user_by_email (Unicode_string.to_string email)
+                in
+                ( match info with
+                | None ->
+                    DOption OptNothing
+                | Some {username; name; admin; email} ->
+                    DOption
+                      (OptJust
+                         (Dval.to_dobj_exn
+                            [ ("username", Dval.dstr_of_string_exn username)
+                            ; ("name", Dval.dstr_of_string_exn name)
+                            ; ("email", Dval.dstr_of_string_exn email)
+                            ; ("admin", DBool admin) ])) )
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::setAdmin"]
     ; ins = []
     ; p = [par "username" TStr; par "admin" TBool]
