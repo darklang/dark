@@ -403,7 +403,7 @@ setTimeout(function() {
     csrfToken: csrfToken,
     isAdmin: isAdmin,
     buildHash: buildHash,
-    username: username
+    username: username,
   });
   var urlParams = new URLSearchParams(window.location.search);
   var enableDebugger = urlParams.get("debugger");
