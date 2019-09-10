@@ -177,6 +177,12 @@ body #app * {
     position: relative;
     margin: 20px 30px;
   }
+
+  #canvas .ellenDemoSendDMHack {
+    // This is extra on top of the  .node margin
+    position: relative;
+    margin: 40px 0px;
+  }
 }
 
 .overlay {
