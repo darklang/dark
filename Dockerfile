@@ -322,6 +322,9 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+# For https://trello.com/c/leM9kNRO/1654-add-jwt-ecdsa-for-kostas
+COPY jwt /home/dark/bin
+
 
 ############################
 # Finish
