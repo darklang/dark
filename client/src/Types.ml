@@ -1390,7 +1390,8 @@ and model =
   ; clientOpCtrId : string
   ; permission : permission option
   ; showTopbar : bool
-  ; toast : toast }
+  ; toast : toast
+  ; username : string }
 
 (* Values that we serialize *)
 and serializableEditor =

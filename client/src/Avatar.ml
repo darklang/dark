@@ -68,7 +68,7 @@ let viewAllAvatars (avatars : avatar list) : msg Html.html =
     avatars
     |> List.sortBy ~f:(fun avatar -> avatar.serverTime)
     |> List.reverse
-    |> List.uniqueBy ~f:(fun avatar -> avatar.username)
+    |> List.uniqueBy ~f:(fun (avatar : avatar) -> avatar.username)
   in
   let avatarView = List.map ~f:avatarDiv avatars in
   Html.div

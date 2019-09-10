@@ -133,6 +133,7 @@ let defaultModel : model =
   ; sidebarOpen = true
   ; isAdmin = false
   ; buildHash = ""
+  ; username = "defaultUsername"
   ; lastReload = None
   ; permission = None
   ; showTopbar = true

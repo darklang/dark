@@ -326,14 +326,20 @@ let standardCategories m hs dbs ufns tipes groups =
     then [groupCategory groups]
     else []
   in
+  (* For the demo video in the launch, we need to hide tipes to
+   * make it fit on ellen's screen. We should be able to remove
+   * this in October 2019 *)
+  let tipes =
+    if m.username = "ellen" then [] else [userTipeCategory m tipes]
+  in
   let catergories =
     [ httpCategory hs
     ; workerCategory hs
     ; cronCategory hs
     ; replCategory hs
     ; dbCategory m dbs
-    ; userFunctionCategory m ufns
-    ; userTipeCategory m tipes ]
+    ; userFunctionCategory m ufns ]
+    @ tipes
   in
   catergories @ groupCategory
 
