@@ -79,7 +79,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
   let ellensHack =
     match tl with
-    | TLHandler {spec} when Blank.toMaybe spec.name = Some "sendDM" ->
+    | TLHandler {spec}
+      when Blank.toMaybe spec.name = Some "sendDM"
+           || Blank.toMaybe spec.name = Some "sendText" ->
         "ellenDemoSendDMHack"
     | _ ->
         ""
