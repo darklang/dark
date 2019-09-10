@@ -57,6 +57,16 @@
 )
 
 (executable
+  (name test_case_for_jwt)
+  (public_name test_case_for_jwt)
+  (modules test_case_for_jwt)
+  (flags (-warn-error +A))
+  (libraries libbackend)
+  (preprocess (pps lwt_ppx))
+  (package dark)
+)
+
+(executable
   (name migration_to_deprecate_old_types)
   (public_name migration_to_deprecate_old_types)
   (modules migration_to_deprecate_old_types)
