@@ -187,6 +187,20 @@ let get_user username =
              None )
 
 
+let get_user_by_email email =
+  Db.fetch_one_option
+    ~name:"get_user_by_email"
+    ~subject:email
+    "SELECT name, username, admin from accounts
+     WHERE accounts.email = $1"
+    ~params:[String email]
+  |> Option.bind ~f:(function
+         | [name; username; admin] ->
+             Some {username; name; admin = admin = "t"; email}
+         | _ ->
+             None )
+
+
 let get_users () =
   Db.fetch ~name:"get_users" "SELECT username from accounts" ~params:[]
   |> List.map ~f:List.hd_exn
