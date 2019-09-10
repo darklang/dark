@@ -148,5 +148,5 @@ let msg (e : apiError) : string =
   withoutContext ^ " (" ^ e.context ^ ")"
 
 
-let make ?requestParams ?(reload = false) ~context ~importance originalError =
+let make ?requestParams ~reload ~context ~importance originalError =
   {requestParams; importance; originalError; context; reload}
