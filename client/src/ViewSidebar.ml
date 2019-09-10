@@ -791,7 +791,7 @@ let viewSidebar_ (m : model) : msg Html.html =
                   then "Hide details"
                   else "See details" ) ] ]
     | _ ->
-        Html.div [Html.class' "error-status"] [Html.text "Dark"]
+        Html.noNode
   in
   let html =
     Html.div
