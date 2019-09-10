@@ -1016,4 +1016,22 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args )
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::clearStaticAssets"]
+    ; ins = []
+    ; p = []
+    ; r = TList
+    ; d =
+        "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
+    ; f =
+        internal_fn (function
+            | _, [DStr host] ->
+                let host = Unicode_string.to_string host in
+                let owner = Account.for_host_exn host in
+                let canvas_id = Serialize.fetch_canvas_id owner host in
+                Static_assets.delete_assets_for_ellens_demo canvas_id ;
+                DNull
+            | args ->
+                fail args )
+    ; ps = false
     ; dep = false } ]
