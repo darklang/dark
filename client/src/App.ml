@@ -413,18 +413,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | None ->
                 true
           in
-          (* Reload if it's a CSRF failure or the frontend is out of date *)
-          ApiError.isCSRF apiError || (buildHashMismatch && reloadAllowed)
+          (* Reload if it's an auth failure or the frontend is out of date *)
+          ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
         let cmd =
           if shouldReload
           then
             let m = {m with lastReload = Some now} in
-            [ Tea_task.nativeBinding (fun _ -> Editor.serialize m)
-            ; Tea_task.nativeBinding (fun _ -> Native.Location.reload true) ]
-            |> Tea_task.sequence
-            (* No callback bc of reload *)
-            |> Tea_task.attempt (fun _ -> IgnoreMsg)
+            (* Previously, this was two calls to Tea_task.nativeBinding. But
+             * only the first got called, unclear why. *)
+            Cmd.call (fun _ ->
+                Editor.serialize m ;
+                Native.Location.reload true )
           else if ApiError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
           else Cmd.none
@@ -1358,6 +1358,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"RPC - old server, no opCtr sent"
            ~importance:ImportantError
            ~requestParams:(Encoders.addOpRPCParams params)
+           ~reload:false
            (* not a great error ... but this is an api error without a
             * corresponding actual http error *)
            Tea.Http.Aborted)
@@ -1513,6 +1514,7 @@ let update_ (msg : msg) (m : model) : modification =
                  ~context:"Delete404"
                  ~importance:ImportantError
                  ~requestParams:(Encoders.fof params)
+                 ~reload:false
                  err) ] )
   | ReceiveAnalysis result ->
     ( match result with
@@ -1522,6 +1524,16 @@ let update_ (msg : msg) (m : model) : modification =
         DisplayError str
     | Error (AnalysisParseError str) ->
         DisplayError str )
+  | ReceiveFetch (TraceFetchFailure (params, _, "Bad credentials")) ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~reload:true
+           ~requestParams:(Encoders.getTraceDataRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
@@ -1546,6 +1558,16 @@ let update_ (msg : msg) (m : model) : modification =
           params.gtdrpTraceID
       in
       MakeCmd cmd
+  | ReceiveFetch (DbStatsFetchFailure (params, _, "Bad credentials")) ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~reload:true
+           ~requestParams:(Encoders.dbStatsRPCParams params)
+           (* not a great error ... but this is an api error without a
+            * corresponding actual http error *)
+           Tea.Http.Aborted)
   | ReceiveFetch (DbStatsFetchFailure (params, url, error)) ->
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
@@ -1572,6 +1594,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"RPC"
            ~importance:ImportantError
            ~requestParams:(Encoders.addOpRPCParams params)
+           ~reload:false
            err)
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
@@ -1581,13 +1604,22 @@ let update_ (msg : msg) (m : model) : modification =
            ~context:"ExecuteFunction"
            ~importance:ImportantError
            ~requestParams:(Encoders.executeFunctionRPCParams params)
+           ~reload:false
            err)
   | TriggerHandlerRPCCallback (_, Error err) ->
       HandleAPIError
-        (ApiError.make ~context:"TriggerHandler" ~importance:ImportantError err)
+        (ApiError.make
+           ~context:"TriggerHandler"
+           ~importance:ImportantError
+           err
+           ~reload:false)
   | InitialLoadRPCCallback (_, _, Error err) ->
       HandleAPIError
-        (ApiError.make ~context:"InitialLoad" ~importance:ImportantError err)
+        (ApiError.make
+           ~context:"InitialLoad"
+           ~importance:ImportantError
+           err
+           ~reload:false)
   | GetUnlockedDBsRPCCallback (Error err) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
@@ -1595,6 +1627,7 @@ let update_ (msg : msg) (m : model) : modification =
             (ApiError.make
                ~context:"GetUnlockedDBs"
                ~importance:IgnorableError
+               ~reload:false
                err) ]
   | JSError msg_ ->
       DisplayError ("Error in JS: " ^ msg_)
@@ -1804,6 +1837,7 @@ let update_ (msg : msg) (m : model) : modification =
         (ApiError.make
            ~context:"TriggerSendPresenceCallback"
            ~importance:IgnorableError
+           ~reload:false
            err)
   | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
       impossible "Can never happen"
