@@ -36,6 +36,9 @@ val set_admin : username:string -> bool -> unit
 (* Get a user's info *)
 val get_user : string -> user_info option
 
+(* Get a user's info by their email address *)
+val get_user_by_email : string -> user_info option
+
 (* Get a list of all users *)
 val get_users : unit -> string list
 

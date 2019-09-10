@@ -187,6 +187,20 @@ let get_user username =
              None )
 
 
+let get_user_by_email email =
+  Db.fetch_one_option
+    ~name:"get_user_by_email"
+    ~subject:email
+    "SELECT name, username, admin from accounts
+     WHERE accounts.email = $1"
+    ~params:[String email]
+  |> Option.bind ~f:(function
+         | [name; username; admin] ->
+             Some {username; name; admin = admin = "t"; email}
+         | _ ->
+             None )
+
+
 let get_users () =
   Db.fetch ~name:"get_users" "SELECT username from accounts" ~params:[]
   |> List.map ~f:List.hd_exn
@@ -281,7 +295,7 @@ let init_testing () : unit =
   upsert_account_exn
     { username = "test_unhashed"
     ; password = Password.from_hash "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
+    ; email = "test+unhashed@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password" } ;
   upsert_account_exn
     { username = "test"
@@ -291,7 +305,7 @@ let init_testing () : unit =
   upsert_admin_exn
     { username = "test_admin"
     ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
+    ; email = "test+admin@darklang.com"
     ; name = "Dark OCaml Test Admin" } ;
   ()
 
@@ -382,7 +396,7 @@ let upsert_banned_accounts () : unit =
              ~validate:false
              { username
              ; password = Password.invalid
-             ; email = "ops@darklang.com"
+             ; email = "ops+" ^ username ^ "@darklang.com"
              ; name = "Disallowed account" } ) ) ;
   ()
 
