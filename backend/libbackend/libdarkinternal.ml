@@ -1045,7 +1045,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; dep = false }
   ; { pns = ["DarkInternal::clearStaticAssets"]
     ; ins = []
-    ; p = []
+    ; p = [par "host" TStr]
     ; r = TNull
     ; d =
         "Deletes our record of static assets for a handler. Does not delete the data from the bucket. This is a hack for making Ellen's demo easier and should not be used for other uses in this form."
