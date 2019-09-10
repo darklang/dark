@@ -107,7 +107,6 @@ let upsert_account ?(validate : bool = true) (account : account) :
     ON CONFLICT (username)
     DO UPDATE SET name = EXCLUDED.name,
                   email = EXCLUDED.email,
-                  admin = false,
                   password = EXCLUDED.password"
         ~params:
           [ Uuid (Util.create_uuid ())
