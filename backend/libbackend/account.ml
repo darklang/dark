@@ -295,7 +295,7 @@ let init_testing () : unit =
   upsert_account_exn
     { username = "test_unhashed"
     ; password = Password.from_hash "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
+    ; email = "test+unhashed@darklang.com"
     ; name = "Dark OCaml Tests with Unhashed Password" } ;
   upsert_account_exn
     { username = "test"
@@ -305,7 +305,7 @@ let init_testing () : unit =
   upsert_admin_exn
     { username = "test_admin"
     ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
+    ; email = "test+admin@darklang.com"
     ; name = "Dark OCaml Test Admin" } ;
   ()
 
@@ -396,7 +396,7 @@ let upsert_banned_accounts () : unit =
              ~validate:false
              { username
              ; password = Password.invalid
-             ; email = "ops@darklang.com"
+             ; email = "ops+" ^ username ^ "@darklang.com"
              ; name = "Disallowed account" } ) ) ;
   ()
 
