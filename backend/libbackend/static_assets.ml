@@ -224,7 +224,7 @@ let start_static_asset_deploy
 let delete_assets_for_ellens_demo (canvas_id : Uuidm.t) : unit =
   Db.delete
     ~name:"delete_ellens_assets"
-    ~subject:""
+    ~subject:(Uuidm.to_string canvas_id)
     "DELETE FROM static_asset_deploys where canvas_id = $1"
     ~params:[Uuid canvas_id]
   |> ignore
