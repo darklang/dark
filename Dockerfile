@@ -293,6 +293,7 @@ RUN sudo apt install -y net-tools # for netstat
 
 # For https://trello.com/c/leM9kNRO/1654-add-jwt-ecdsa-for-kostas
 COPY jwt /home/dark/bin
+RUN sudo chown dark:dark /home/dark/bin/jwt && chmod +x /home/dark/bin/jwt
 
 ############################
 # Finish
