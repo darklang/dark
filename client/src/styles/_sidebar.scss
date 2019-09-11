@@ -88,7 +88,10 @@ $prodColor: black;
       padding: 15px 5px;
       color: $grey2;
       width: 100%;
-
+      &.deleted.empty {
+        // Dont show trash can if it's empty
+        display: none;
+      }
       .collapsed-icon {
         display: flex;
         align-items: center;
