@@ -69,7 +69,7 @@ $prodColor: black;
   .groups {
     display: flex;
     flex-direction: column;
-    height: calc(#{"100% - 160px"});
+    height: 100%;
     overflow-y: scroll;
     width: 100%;
     &.groups-closed {
