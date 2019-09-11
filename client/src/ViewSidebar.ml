@@ -610,13 +610,14 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   let icon =
     Html.div
       ( event
-      @ [ Html.classList [("header-icon", true); ("empty", c.count = 0)]
+      @ [ Html.classList [("header-icon", true)]
         ; Vdom.attribute "" "role" "img"
         ; Vdom.attribute "" "alt" c.name ] )
       (categoryIcon c.classname)
   in
   Html.div
-    [Html.class' "collapsed"]
+    [ Html.classList
+        [("collapsed", true); (c.classname, true); ("empty", c.count = 0)] ]
     ([Html.div [Html.class' "collapsed-icon"] (icon :: plusButton)] @ hoverView)
 
 
