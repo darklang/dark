@@ -9,7 +9,7 @@ spec:
   selector:
     matchLabels:
       app: bwd-app
-  replicas: 36
+  replicas: 72
   template:
     metadata:
       labels:
