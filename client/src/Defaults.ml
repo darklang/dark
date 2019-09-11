@@ -44,7 +44,7 @@ let defaultFluidState : fluidState =
       ; invalidCompletions = []
       ; allCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
-  ; selection = None
+  ; selectionStart = None
   ; clipboard = None }
 
 
