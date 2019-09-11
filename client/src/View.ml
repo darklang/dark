@@ -78,13 +78,18 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   (* Need to add aditional css class to remove backgroun color *)
   let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
   let ellensHack =
-    match tl with
-    | TLHandler {spec}
-      when Blank.toMaybe spec.name = Some "sendDM"
-           || Blank.toMaybe spec.name = Some "sendText" ->
-        "ellenDemoSendDMHack"
-    | _ ->
-        ""
+    if m.username = "ellen"
+    then
+      match tl with
+      | TLHandler {spec}
+        when Blank.toMaybe spec.name = Some "sendDM"
+             || Blank.toMaybe spec.name = Some "sendText" ->
+          "ellenDemoSendDMHack"
+      | TLDB {dbName} when Blank.toMaybe dbName = Some "Visits" ->
+          "ellenDemoSendDMHack"
+      | _ ->
+          ""
+    else ""
   in
   let class_ =
     [ "toplevel"
