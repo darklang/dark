@@ -1978,7 +1978,12 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           else PageVisibilityChange Hidden ) ]
   in
   let mousewheelSubs =
-    if m.canvasProps.enablePan && not (isACOpened m)
+    if m.canvasProps.enablePan
+       && (not (isACOpened m))
+       (* TODO: disabled this cause it was buggy and it completely fucked up
+        * ellen's demo. We need to make sure targets are always set perfectly
+        * for this to never get stuck, which feels optimistic. *)
+       && not (VariantTesting.variantIsActive m GridLayout)
     then
       [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy) ) ]
