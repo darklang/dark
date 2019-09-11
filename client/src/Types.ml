@@ -1024,7 +1024,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of tlid * fluidSelection option
+  | UpdateFluidSelection of tlid * ((int * int) option)
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1280,13 +1280,13 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
-and fluidSelectionDirection =
+(* and fluidSelectionDirection =
   | FSDLeft
   | FSDRight
 
 and fluidSelection =
   { range : int * int
-  ; direction : fluidSelectionDirection }
+  ; direction : fluidSelectionDirection } *)
 
 and fluidState =
   { error : string option
@@ -1300,7 +1300,7 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selection : fluidSelection option
+  ; selectionStart : int option (* The selection ends at newPos *)
   ; clipboard : fluidExpr option }
 
 (* Avatars *)

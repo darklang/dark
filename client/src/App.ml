@@ -1870,20 +1870,20 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               match selection with
               (* if range width is 0, just change pos *)
-              | Some {range = a, b} when a = b ->
+              | Some (selBegin, selEnd) when selBegin = selEnd ->
                   { m with
                     fluidState =
                       { m.fluidState with
                         oldPos = m.fluidState.newPos
-                      ; newPos = b
-                      ; selection = None } }
+                      ; newPos = selEnd
+                      ; selectionStart = None } }
               | Some s ->
                   (* re-apply selection *)
-                  Entry.setSelectionRange s.range ;
+                  Entry.setFluidSelectionRange s;
                   { m with
                     fluidState =
                       { m.fluidState with
-                        selection
+                        selectionStart
                       ; oldPos = m.fluidState.newPos
                       ; newPos = s.range |> Tuple2.second } }
               | None ->

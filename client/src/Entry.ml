@@ -84,8 +84,11 @@ let getFluidSelectionRange () : (int * int) option =
   | Some [| beginIdx; endIdx |] -> Some (beginIdx, endIdx)
   | _ -> None (* We know the array either has 2 values or is undefined *)
 
-let setFluidSelectionRange (beginIdx, endIdx) : unit = 
+let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit = 
   jsSetFluidSelectionRange [| beginIdx; endIdx |]
+
+let setFluidCaret (idx : int) : unit = 
+  jsSetFluidSelectionRange [| idx; idx |]
 
 let getSelectionRange () : (int * int) option =
   let selection = getSelection () in

@@ -848,7 +848,7 @@ let recordAction
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
-  {s with newPos = pos; selection = None; upDownCol}
+  {s with newPos = pos; selectionStart = None; upDownCol}
 
 
 let report (e : string) (s : state) =
@@ -2994,6 +2994,17 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   |> Option.withDefault ~default:NoChange
 
 
+(* Always returns a selection represented as two ints with the smaller int first.
+   The numbers are identical if there is no selection. *)
+let fluidGetLeftToRightSelectionRange (s:fluidState) : (int*int) =
+  let endIdx = s.newPos in
+  match s.selectionStart with
+  | Some beginIdx -> 
+    (if beginIdx > endIdx then
+    (endIdx, beginIdx)
+    else (beginIdx, endIdx))
+  | None -> (endIdx, endIdx)
+
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     ast * state =
   let pos = s.newPos in
@@ -3082,25 +3093,21 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, _, ""), _)
-      when Option.isSome s.selection ->
-        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
-        |> Option.withDefault ~default:(ast, s)
+      when Option.isSome s.selectionStart ->
+        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, _, R (TRecordField (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank (_, _), _)
-      when Option.isSome s.selection ->
-        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
-        |> Option.withDefault ~default:(ast, s)
+      when Option.isSome s.selectionStart ->
+        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, L (_, _), _ when Option.isSome s.selection ->
-        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
-        |> Option.withDefault ~default:(ast, s)
+    | K.Backspace, L (_, _), _ when Option.isSome s.selectionStart ->
+        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
-    | K.Delete, _, R (_, _) when Option.isSome s.selection ->
-        Option.map s.selection ~f:(deleteSelection ~state:s ~ast)
-        |> Option.withDefault ~default:(ast, s)
+    | K.Delete, _, R (_, _) when Option.isSome s.selectionStart ->
+        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
@@ -3304,11 +3311,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-and deleteSelection ~state ~ast sel : ast * fluidState =
-  let rangeStart, rangeEnd = sel.range in
+and deleteSelection ~state ~ast (sel:(int*int)) : ast * fluidState =
+  let rangeStart, rangeEnd = sel in
   let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
-    {state with newPos = rangeEnd; oldPos = state.newPos; selection = None}
+    {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
   (* repeat deletion operation over range, starting from last position till first *)
   Array.range ~from:rangeStart rangeEnd
@@ -3439,8 +3446,8 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
       None
 
 
-let collapseSelection (sel : fluidSelection option) : fluidSelection option =
-  Option.andThen sel ~f:(fun {range = a, b} -> if a = b then None else sel)
+(* let collapseSelection (sel : fluidSelection option) : fluidSelection option =
+  Option.andThen sel ~f:(fun {range = a, b} -> if a = b then None else sel) *)
 
 
 let tokenSelection (state : fluidState) (ast : ast) : fluidSelection option =
