@@ -187,8 +187,102 @@ function setCursorPosition(pos) {
   }
 }
 
+// getFluidSelectionRange() returns the [begin, end] indices of the last
+// selection/caret placement within a fluid editor, or undefined if
+// there has been no selection/caret placement, or if the selected nodes are not
+// part of a fluid editor. Begin may be > or < end,
+// depending on the selection direction. If there is no true selection
+// but rather a placement, begin == end.
+function getFluidSelectionRange() {
+  // OPT(JULIAN): There's likely a more performant way of getting selection
+  // start and end than to walk all prior nodes twice.
+  let sel = window.getSelection();
+  if (sel.focusNode == null
+  || !isChildOfEditor(sel.focusNode)
+  || !isChildOfEditor(sel.anchorNode)) return undefined;
+  // The 'anchorNode' is the node where the selection began
+  // and the offset is where the cursor is located
+  // within the text of that node.
+  let selBeginIdx = sel.anchorOffset;
+  {
+      let node = sel.anchorNode.parentNode;
+      while (node.previousSibling) {
+          node = node.previousSibling;
+          selBeginIdx += node.textContent.length;
+      }
+  }
+  // The 'focusNode' is the node where the selection ended
+  // and the offset is where the cursor is located
+  // within the text of that node.
+  let selEndIdx = sel.focusOffset;
+  {
+      let node = sel.focusNode.parentNode;
+      while (node.previousSibling) {
+          node = node.previousSibling;
+          selEndIdx += node.textContent.length;
+      }
+  }
+  return [selBeginIdx, selEndIdx];
+}
+
+
+// setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
+// region in the currently selected fluid editor, if there is one.
+// if beginIdx == endIdx, it sets the caret position (0-width selection)
+function setFluidSelectionRange([beginIdx, endIdx]) {
+  let clamp = function (num, min, max) {
+      if (num < min) {
+          return min;
+      }
+      if (num > max) {
+          return max;
+      }
+      return num;
+  }
+
+  let editorOrNull = document.querySelector(".selected #fluid-editor");
+  if (editorOrNull) {
+      let editor = editorOrNull;
+      let maxChars = editor.textContent.length;
+      let anchorNodeOffset = clamp(beginIdx, 0, maxChars);
+      let focusNodeOffset = clamp(endIdx, 0, maxChars);
+      let anchorNode, focusNode; // The beginIdx is in the anchorNode and the endIdx is in the focusNode
+      let childNodes = editor.childNodes;
+      for (let i = 0; i < childNodes.length; i++) {
+          let nodeLen = childNodes[i].textContent.length;
+          if (anchorNodeOffset <= nodeLen) { // the beginIdx must be inside this node
+              // We need to get the text node rather than the span,
+              // which is why we do 'firstChild'
+              anchorNode = childNodes[i].firstChild;
+              break;
+          } else {
+              anchorNodeOffset -= nodeLen;
+          }
+      }
+      for (let i = 0; i < childNodes.length; i++) {
+          let nodeLen = childNodes[i].textContent.length;
+          if (focusNodeOffset <= nodeLen) { // the endIdx must be inside this node
+              // We need to get the text node rather than the span,
+              // which is why we do 'firstChild'
+              focusNode = childNodes[i].firstChild;
+              break;
+          } else {
+              focusNodeOffset -= nodeLen;
+          }
+      }
+      if (anchorNode !== null
+      && focusNode != null
+      && isChildOfEditor(anchorNode)
+      && isChildOfEditor(focusNode)) {
+          window.getSelection().setBaseAndExtent(anchorNode, anchorNodeOffset, focusNode, focusNodeOffset);
+      }
+  }
+}
+
 window.getCursorPosition = getCursorPosition;
 window.setCursorPosition = setCursorPosition;
+window.getFluidSelectionRange = getFluidSelectionRange;
+window.setFluidSelectionRange = setFluidSelectionRange;
 
 // ---------------------------
 // Analysis

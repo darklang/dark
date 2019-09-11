@@ -73,6 +73,20 @@ type selection =
 external getSelection : unit -> selection = "getSelection"
   [@@bs.val] [@@bs.scope "window"]
 
+external jsGetFluidSelectionRange : unit -> (int array) Js.Nullable.t = "getFluidSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
+external jsSetFluidSelectionRange : int array -> unit = "setFluidSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getFluidSelectionRange () : (int * int) option = 
+  match Js.Nullable.toOption (jsGetFluidSelectionRange ()) with
+  | Some [| beginIdx; endIdx |] -> Some (beginIdx, endIdx)
+  | _ -> None (* We know the array either has 2 values or is undefined *)
+
+let setFluidSelectionRange (beginIdx, endIdx) : unit = 
+  jsSetFluidSelectionRange [| beginIdx; endIdx |]
+
 let getSelectionRange () : (int * int) option =
   let selection = getSelection () in
   getCursorPosition ()
