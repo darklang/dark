@@ -6215,10 +6215,10 @@ testcafe-browser-tools@1.6.8:
     read-file-relative "^1.2.0"
     which-promise "^1.0.0"
 
-testcafe-hammerhead@14.9.0:
-  version "14.9.0"
-  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-14.9.0.tgz#4faec0232b6f22710a3d207cb899de3e76626fb7"
-  integrity sha512-4vbZjpQ0J8mA9044Ottuh4YcWNgsQ4HrIBiYZ27bbsG3iAQBHqnR+t80WeaZ+Q+/JFH1KhiuE+IVTdgF9vRJWw==
+testcafe-hammerhead@14.9.2:
+  version "14.9.2"
+  resolved "https://registry.yarnpkg.com/testcafe-hammerhead/-/testcafe-hammerhead-14.9.2.tgz#5ab3f32a08d994f189885f4bf648d9bbe90f9be2"
+  integrity sha512-0rO9NTTueDXPqeWASThKEHX5AGF0FDhiPVRdkkWnKUOAtfPJz/qovZnIEpoC7q0DdmgbYYvK3if9Si8SdFNk0A==
   dependencies:
     acorn-hammerhead "^0.3.0"
     asar "^2.0.1"
@@ -6237,7 +6237,6 @@ testcafe-hammerhead@14.9.0:
     nanoid "^0.2.2"
     os-family "^1.0.0"
     parse5 "2.2.3"
-    pify "^2.3.0"
     pinkie "1.0.0"
     read-file-relative "^1.2.0"
     semver "5.5.0"
@@ -6289,10 +6288,10 @@ testcafe-reporter-xunit@^2.1.0:
   resolved "https://registry.yarnpkg.com/testcafe-reporter-xunit/-/testcafe-reporter-xunit-2.1.0.tgz#e6d66c572ce15af266706af0fd610b2a841dd443"
   integrity sha1-5tZsVyzhWvJmcGrw/WELKoQd1EM=
 
-testcafe@1.4.3:
-  version "1.4.3"
-  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.4.3.tgz#92361a875307f84f79006a148aff475bb71155cd"
-  integrity sha512-fj/W5Xp+ebhfTGk48Rjk++BrmxrZt3Ap2NHMEg5t2/+Mo/JgqlahR2xX8xUqetY4WW24f4nPkpcH6Xj8YVHlPA==
+testcafe@1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/testcafe/-/testcafe-1.5.0.tgz#536b606207b358edc408c735cd18a4ccf8441721"
+  integrity sha512-qtSUH8csayEW/zVLFNmhglBmQIM38rV0dtWzz5khC1BXyIk1xW+Os5vcrepkS8hIXblpJRG0ugi/2FMzBHhH/A==
   dependencies:
     "@types/node" "^10.12.19"
     async-exit-hook "^1.1.2"
@@ -6354,7 +6353,7 @@ testcafe@1.4.3:
     source-map-support "^0.5.5"
     strip-bom "^2.0.0"
     testcafe-browser-tools "1.6.8"
-    testcafe-hammerhead "14.9.0"
+    testcafe-hammerhead "14.9.2"
     testcafe-legacy-api "3.1.11"
     testcafe-reporter-json "^2.1.0"
     testcafe-reporter-list "^2.1.0"
