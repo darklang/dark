@@ -2,6 +2,13 @@
 
 set -euo pipefail
 
+if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+  # Because we use `-v`
+  echo "We require bash >= 4. Assuming you're on a Mac and have homebrew installed,"
+  echo "upgrade by running \`brew install bash\`."
+  exit 1
+fi
+
 # --------------
 # Build image from clean start
 # --------------
