@@ -43,7 +43,7 @@
       const redirect = urlParams.get("redirect");
       const error = urlParams.get("error");
       if (error) {
-        document.getElementById("error-text").innerHTML = decodeURI(error);
+        document.getElementById("error-text").textContent = decodeURI(error);
       }
       if (redirect) {
         // Keep this one encoded to send to the server
