@@ -2992,8 +2992,7 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
          |> Option.andThen ~f:(fun ti ->
                 Some (FluidCommandsShow (TL.id tl, ti.token)) ) )
   |> Option.withDefault ~default:NoChange
-
-
+    
 (* Always returns a selection represented as two ints with the smaller int first.
    The numbers are identical if there is no selection. *)
 let fluidGetLeftToRightSelectionRange (s:fluidState) : (int*int) =
@@ -3004,6 +3003,32 @@ let fluidGetLeftToRightSelectionRange (s:fluidState) : (int*int) =
     (endIdx, beginIdx)
     else (beginIdx, endIdx))
   | None -> (endIdx, endIdx)
+
+
+let fluidGetCollapsedSelectionStart (s:fluidState) : int =
+  fluidGetLeftToRightSelectionRange s |> Tuple2.first
+let fluidGetOptionalLeftToRightSelectionRange (s:fluidState) : (int*int) option =
+  let endIdx = s.newPos in
+  match s.selectionStart with
+  | Some beginIdx -> 
+    (if beginIdx > endIdx then
+    Some (endIdx, beginIdx)
+    else Some (beginIdx, endIdx))
+  | None -> None
+
+(* Always returns a selection represented as two ints with the smaller int first.
+   The numbers are identical if there is no selection. *)
+let fluidGetSelectionRange (s:fluidState) : (int*int) =
+  let endIdx = s.newPos in
+  match s.selectionStart with
+  | Some beginIdx -> (beginIdx, endIdx)
+  | None -> (endIdx, endIdx)
+
+let fluidGetOptionalSelectionRange (s:fluidState) : (int*int) option =
+  let endIdx = s.newPos in
+  match s.selectionStart with
+  | Some beginIdx -> Some (beginIdx, endIdx)
+  | None -> None
 
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     ast * state =
@@ -3094,20 +3119,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, _, ""), _)
       when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
+        deleteLeftToRightSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, _, R (TRecordField (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank (_, _), _)
       when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
+        deleteLeftToRightSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, L (_, _), _ when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
+        deleteLeftToRightSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, _) when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
+        deleteLeftToRightSelection ~state:s ~ast (fluidGetLeftToRightSelectionRange s)
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
@@ -3311,7 +3336,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-and deleteSelection ~state ~ast (sel:(int*int)) : ast * fluidState =
+and deleteLeftToRightSelection ~state ~ast (sel:(int*int)) : ast * fluidState =
   let rangeStart, rangeEnd = sel in
   let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
@@ -3446,18 +3471,17 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
       None
 
 
-(* let collapseSelection (sel : fluidSelection option) : fluidSelection option =
-  Option.andThen sel ~f:(fun {range = a, b} -> if a = b then None else sel) *)
+let collapseOptionalRange (sel : (int * int) option) : (int * int) option =
+  Option.andThen sel ~f:(fun (a, b) -> if a = b then None else sel)
 
-
-let tokenSelection (state : fluidState) (ast : ast) : fluidSelection option =
+let getTokenRangeAtCaret (state : fluidState) (ast : ast) : (int * int) option =
   getToken state ast
   |> Option.map ~f:(fun t ->
-         {range = (t.startPos, t.endPos); direction = FSDRight} )
+         (t.startPos, t.endPos) )
 
 
-let expressionSelection (state : fluidState) (ast : ast) :
-    fluidSelection option =
+let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
+    (int * int) option =
   getToken state ast
   (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
@@ -3465,7 +3489,7 @@ let expressionSelection (state : fluidState) (ast : ast) :
          let exprID = Token.tid t.token in
          exprRangeInAst ~state ~ast exprID )
   |> Option.map ~f:(fun (eStartPos, eEndPos) ->
-         {range = (eStartPos, eEndPos); direction = FSDRight} )
+         (eStartPos, eEndPos) )
 
 
 let trimQuotes s : string =
@@ -3476,7 +3500,7 @@ let trimQuotes s : string =
   |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
 
 
-let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
+let reconstructExprFromLeftToRightRange ~state ~ast (sel : (int * int)) : fluidExpr option
     =
   let ast =
     (* clone ast to prevent duplicates *)
@@ -3525,7 +3549,7 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
            then toks @ [t]
            else toks )
   in
-  let startPos, endPos = sel.range in
+  let startPos, endPos = sel in
   (* main main recursive algorithm *)
   (* algo: 
     * find topmost expression by ID and 
@@ -3934,13 +3958,14 @@ let reconstructSelection ~state ~ast (sel : fluidSelection) : fluidExpr option
 
 let pasteSelection ~state ~ast () : ast * fluidState =
   let ast, state =
-    state.selection
-    |> Option.map ~f:(deleteSelection ~state ~ast)
+    (fluidGetOptionalLeftToRightSelectionRange state)
+    |> Option.map ~f:(deleteLeftToRightSelection ~state ~ast)
     |> Option.withDefault ~default:(ast, state)
   in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
+  let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr =
     state.clipboard
     |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
@@ -3948,7 +3973,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
-        (clipboardExpr |> eToString state |> String.length) + state.newPos
+        (clipboardExpr |> eToString state |> String.length) + collapsedSelStart
       in
       (replaceExpr ~newExpr:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
@@ -3962,7 +3987,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length insert})
+      (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting other kinds of expressions into string *)
   | Some clipboardExpr, Some (EString (_, str)), Some {startPos} ->
       let insert = eToString state clipboardExpr |> trimQuotes in
@@ -3973,7 +3998,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length insert})
+      (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
     , Some (EInteger (_, pasting))
@@ -3989,7 +4014,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length insert})
+      (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting float into an integer *)
   | ( Some (EFloat (_, whole, fraction))
     , Some (EInteger (_, pasting))
@@ -4010,8 +4035,8 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       ( newAST
       , { state with
           newPos =
-            state.newPos
-            + (whole' ^ whole ^ "." ^ fraction ^ fraction' |> String.length) }
+            collapsedSelStart
+            + (whole ^ "." ^ fraction |> String.length) }
       )
   (* inserting variable into an integer *)
   | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some {startPos}
@@ -4024,7 +4049,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length varName})
+      (newAST, {state with newPos = collapsedSelStart + String.length varName})
   (* inserting int-only string into an integer *)
   | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos}
     when String.toInt insert |> Result.toOption <> None ->
@@ -4038,7 +4063,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length insert})
+      (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting integer into a float whole *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4052,7 +4077,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length intVal})
+      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
   (* inserting integer into a float fraction *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4066,7 +4091,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length intVal})
+      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
   (* inserting integer after float point *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
@@ -4077,7 +4102,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length intVal})
+      (newAST, {state with newPos = collapsedSelStart + String.length intVal})
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
     , Some (ELet (_, _, lhs, rhs, body))
@@ -4094,7 +4119,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = state.newPos + String.length varName})
+      (newAST, {state with newPos = collapsedSelStart + String.length varName})
   (* inserting list expression into another list at separator *)
   | ( Some (EList (_, itemsToPaste) as exprToPaste)
     , Some (EList (_, items))
@@ -4111,7 +4136,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       in
       ( newAST
       , { state with
-          newPos = state.newPos + String.length (eToString state exprToPaste)
+          newPos = collapsedSelStart + String.length (eToString state exprToPaste)
         } )
   (* inserting other expressions into list *)
   | ( Some exprToPaste
@@ -4126,7 +4151,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       in
       ( newAST
       , { state with
-          newPos = state.newPos + String.length (eToString state exprToPaste)
+          newPos = collapsedSelStart + String.length (eToString state exprToPaste)
         } )
   (* TODO:
    * - inserting thread after expression 
@@ -4153,40 +4178,46 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         ( ast
         , { s with
             clipboard =
-              s.selection
-              |> Option.andThen ~f:(reconstructSelection ~state:s ~ast) } )
+              (fluidGetOptionalLeftToRightSelectionRange s)
+              |> Option.andThen ~f:(reconstructExprFromLeftToRightRange ~state:s ~ast) } )
     | FluidCut ->
-        s.selection
+        (fluidGetOptionalLeftToRightSelectionRange s)
         |> Option.map ~f:(fun sel ->
                let ast, state =
                  ( ast
                  , { s with
                      clipboard =
-                       s.selection
-                       |> Option.andThen
-                            ~f:(reconstructSelection ~state:s ~ast) } )
+                       (reconstructExprFromLeftToRightRange ~state:s ~ast) sel } )
                in
-               deleteSelection ~state ~ast sel )
+               deleteLeftToRightSelection ~state ~ast sel )
         |> Option.withDefault ~default:(ast, s)
     | FluidPaste ->
         let ast, state =
-          s.selection
-          |> Option.map ~f:(deleteSelection ~state:s ~ast)
+          (fluidGetOptionalLeftToRightSelectionRange s)
+          |> Option.map ~f:(deleteLeftToRightSelection ~state:s ~ast)
           |> Option.withDefault ~default:(ast, s)
         in
         let ast, state = pasteSelection ~state ~ast () in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
-    | FluidKeyPress {key; altKey; ctrlKey; metaKey; shiftKey = true}
+    | FluidKeyPress {key; (* altKey; ctrlKey; metaKey; *) shiftKey = true}
       when key = K.Right || key = K.Left || key = K.Up || key = K.Down ->
-        let oldRangeStart, oldRangeEnd, oldDirection =
-          s.selection
-          |> Option.map ~f:(fun {range = a, b; direction} -> (a, b, direction))
-          |> Option.withDefault ~default:(s.newPos, s.newPos, FSDRight)
+        (* Ultimately, all we want is for shift to move the end of the selection to where the caret would have been if shift were not held.
+         * Since the caret is tracked the same for end of selection and movement, we actually just want to store the start position in selection
+         * if there is no selection yet.
+         *)
+         (* XXX(JULIAN): We need to be able to release the selection! *)
+         (* XXX(JULIAN): We need to be able to use alt and ctrl and meta to change selection! *)
+        let ast, newS = updateKey key ast s in
+        (match s.selectionStart with
+        | None -> (ast, {newS with newPos = newS.newPos; selectionStart = Some s.newPos;})
+        | Some pos -> (ast, {newS with newPos = newS.newPos; selectionStart = Some pos;}))(* if pos = newS.newPos
+        then (ast, {newS with selectionStart = None;})
+        else (ast, {newS with selectionStart = Some s.newPos;})) *)
+(*         let oldRangeStart, oldRangeEnd = (fluidGetSelectionRange s)
         in
         let s = {s with lastKey = key} in
-        let ast, newS = updateKey key ast s in
         let singleCharSelection =
           if newS.newPos >= newS.oldPos
           then (newS.oldPos, newS.newPos)
@@ -4194,40 +4225,35 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         in
         let selection =
           ( if (ctrlKey || metaKey) && not altKey
-          then expressionSelection newS ast
+          then getExpressionRangeAtCaret newS ast
           else if altKey && not (ctrlKey || metaKey)
-          then tokenSelection newS ast
-          else Some {range = singleCharSelection; direction = FSDRight} )
-          |> Option.map ~f:(fun {range = startPos, endPos} ->
+          then getTokenRangeAtCaret newS ast
+          else Some singleCharSelection )
+          |> Option.map ~f:(fun (startPos, endPos) ->
                  match key with
                  | K.Down | K.Right ->
                      (* select from current position to end of current token or, if ctrl is pressed, current expr *)
-                     if oldDirection = FSDLeft && oldRangeStart <> oldRangeEnd
+                     if oldRangeStart <> oldRangeEnd
                      then
-                       { range =
-                           (oldRangeStart + (endPos - startPos), oldRangeEnd)
-                       ; direction = oldDirection }
+                        (oldRangeStart + (endPos - startPos), oldRangeEnd)
                      else
-                       {range = (oldRangeStart, endPos); direction = FSDRight}
+                       (oldRangeStart, endPos)
                  | K.Up | K.Left ->
                      (* select from start of current token or current expr, if ctrl is pressed, to current position *)
-                     if oldDirection = FSDRight && oldRangeStart <> oldRangeEnd
+                     if oldRangeStart <> oldRangeEnd
                      then
-                       { range =
-                           (oldRangeStart, oldRangeEnd - (endPos - startPos))
-                       ; direction = oldDirection }
-                     else {range = (startPos, oldRangeEnd); direction = FSDLeft}
+                       (oldRangeStart, oldRangeEnd - (endPos - startPos))
+                     else (startPos, oldRangeEnd)
                  | _ ->
-                     { range = (oldRangeEnd, oldRangeEnd)
-                     ; direction = oldDirection } )
-          |> collapseSelection
+                     (oldRangeEnd, oldRangeEnd))
+          |> collapseOptionalRange
         in
         let newPos =
-          Option.map selection ~f:(fun {range = rangeStart, rangeEnd} ->
+          Option.map selection ~f:(fun (rangeStart, rangeEnd) ->
               if key = K.Right || key = K.Down then rangeEnd else rangeStart )
           |> Option.withDefault ~default:s.newPos
         in
-        (ast, {newS with selection; newPos})
+        (ast, {newS with selection; newPos}) *)
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -4560,9 +4586,9 @@ let toHtml
                     ( match ev with
                     | {detail = 2; altKey = true} ->
                         UpdateFluidSelection
-                          (tlid, expressionSelection state ast)
+                          (tlid, getExpressionRangeAtCaret state ast)
                     | {detail = 2; altKey = false} ->
-                        UpdateFluidSelection (tlid, tokenSelection state ast)
+                        UpdateFluidSelection (tlid, getTokenRangeAtCaret state ast)
                     | _ ->
                         (* We expect that this doesn't happen *)
                         UpdateFluidSelection (tlid, None) )
@@ -4573,10 +4599,10 @@ let toHtml
               ~key:("fluid-selection-click" ^ idStr)
               "click"
               (fun ev ->
-                match Entry.getSelectionRange () with
+                match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then UpdateFluidSelection (tlid, Some {range; direction = FSDRight})
+                    then UpdateFluidSelection (tlid, Some range)
                     else UpdateFluidSelection (tlid, None)
                 | None ->
                     (* This will happen if it gets a selection and there is no
@@ -4735,9 +4761,9 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         []
         [ Html.text "selection: "
         ; Html.text
-            ( s.selection
-            |> Option.map ~f:(fun {range = a, b} ->
-                   string_of_int a ^ "->" ^ string_of_int b )
+            ( s.selectionStart
+            |> Option.map ~f:(fun selStart ->
+                   string_of_int selStart ^ "->" ^ string_of_int s.newPos )
             |> Option.withDefault ~default:"" ) ]
     ; Html.div
         []
@@ -4821,10 +4847,10 @@ let renderCallback (m : model) =
          * However, if there currently is a selection, set that range instead of
          * the new cursor position because otherwise the selection gets overwritten.
          *)
-        match m.fluidState.selection with
-        | Some {range} ->
-            Entry.setSelectionRange range
+        match m.fluidState.selectionStart with
+        | Some selStart ->
+            Entry.setFluidSelectionRange (selStart, m.fluidState.newPos)
         | None ->
-            Entry.setCursorPosition m.fluidState.newPos )
+            Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
