@@ -73,22 +73,30 @@ type selection =
 external getSelection : unit -> selection = "getSelection"
   [@@bs.val] [@@bs.scope "window"]
 
-external jsGetFluidSelectionRange : unit -> (int array) Js.Nullable.t = "getFluidSelectionRange"
+external jsGetFluidSelectionRange :
+  unit -> int array Js.Nullable.t
+  = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
-external jsSetFluidSelectionRange : int array -> unit = "setFluidSelectionRange"
+external jsSetFluidSelectionRange :
+  int array -> unit
+  = "setFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
-let getFluidSelectionRange () : (int * int) option = 
+let getFluidSelectionRange () : (int * int) option =
   match Js.Nullable.toOption (jsGetFluidSelectionRange ()) with
-  | Some [| beginIdx; endIdx |] -> Some (beginIdx, endIdx)
-  | _ -> None (* We know the array either has 2 values or is undefined *)
+  | Some [|beginIdx; endIdx|] ->
+      Some (beginIdx, endIdx)
+  | _ ->
+      (* We know the array either has 2 values or is undefined *)
+      None
 
-let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit = 
-  jsSetFluidSelectionRange [| beginIdx; endIdx |]
 
-let setFluidCaret (idx : int) : unit = 
-  jsSetFluidSelectionRange [| idx; idx |]
+let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit =
+  jsSetFluidSelectionRange [|beginIdx; endIdx|]
+
+
+let setFluidCaret (idx : int) : unit = jsSetFluidSelectionRange [|idx; idx|]
 
 let getSelectionRange () : (int * int) option =
   let selection = getSelection () in

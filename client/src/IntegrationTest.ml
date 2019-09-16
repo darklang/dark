@@ -725,10 +725,14 @@ let extract_from_function (m : model) : testResult =
   | _ ->
       fail (show_cursorState m.cursorState)
 
-let fluidGetSelectionRange (s: fluidState) : (int * int) option =
+
+let fluidGetSelectionRange (s : fluidState) : (int * int) option =
   match s.selectionStart with
-  | Some beginIdx -> Some (beginIdx, s.newPos)
-  | None -> None
+  | Some beginIdx ->
+      Some (beginIdx, s.newPos)
+  | None ->
+      None
+
 
 let fluid_double_click_selects_token (m : model) : testResult =
   match fluidGetSelectionRange m.fluidState with
@@ -774,7 +778,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
 
 
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
-  match (fluidGetSelectionRange m.fluidState) with
+  match fluidGetSelectionRange m.fluidState with
   | Some (34, 964) ->
       pass
   | Some (a, b) ->
@@ -789,7 +793,7 @@ let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
 
 
 let fluid_shift_right_selects_chars_in_front (m : model) : testResult =
-  match (fluidGetSelectionRange m.fluidState) with
+  match fluidGetSelectionRange m.fluidState with
   | Some (0, 2) ->
       pass
   | Some (a, b) ->
@@ -804,7 +808,7 @@ let fluid_shift_right_selects_chars_in_front (m : model) : testResult =
 
 
 let fluid_shift_left_selects_chars_at_back (m : model) : testResult =
-  match (fluidGetSelectionRange m.fluidState) with
+  match fluidGetSelectionRange m.fluidState with
   | Some (2, 4) ->
       pass
   | Some (a, b) ->

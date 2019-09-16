@@ -11,12 +11,10 @@ type testResult = (* ast, clipboard, newPos *) string * string * int
 
 let () =
   let m = Defaults.defaultModel in
-  let process ~debug ?(clipboard = None) (st,ed) ast msg : testResult =
+  let process ~debug ?(clipboard = None) (st, ed) ast msg : testResult =
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m
-      ; selectionStart = Some st
-      ; clipboard }
+        ac = AC.reset m; selectionStart = Some st; clipboard }
     in
     let pos = ed in
     let s = {s with oldPos = pos; newPos = pos} in
@@ -33,7 +31,7 @@ let () =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
     let newAST, newState = updateMsg m h.hTLID ast msg s in
-(*     let last =
+    (*     let last =
       toTokens newState newAST
       |> List.last
       |> deOption "last"
