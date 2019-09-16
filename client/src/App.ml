@@ -1877,21 +1877,25 @@ let update_ (msg : msg) (m : model) : modification =
                         oldPos = m.fluidState.newPos
                       ; newPos = selEnd
                       ; selectionStart = None } }
-              | Some s ->
+              | Some (selBegin, selEnd) ->
                   (* re-apply selection *)
-                  Entry.setFluidSelectionRange s;
+                  Entry.setFluidSelectionRange (selBegin, selEnd);
                   { m with
                     fluidState =
                       { m.fluidState with
-                        selectionStart
+                        selectionStart = Some selBegin
                       ; oldPos = m.fluidState.newPos
-                      ; newPos = s.range |> Tuple2.second } }
+                      ; newPos = selEnd } }
               | None ->
-                  let newPos =
-                    Entry.getCursorPosition ()
-                    |> Option.withDefault ~default:m.fluidState.newPos
-                  in
-                  {m with fluidState = {m.fluidState with newPos; selection}}
+                  match Entry.getFluidSelectionRange () with
+                  | Some (selBegin, selEnd) ->
+                    {m with fluidState = {m.fluidState with 
+                      newPos = selEnd;
+                      selectionStart = Some selBegin}}
+                  | None -> 
+                    {m with fluidState = {m.fluidState with 
+                      (* newPos = selEnd; *)
+                      selectionStart = None}}
               ) ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
