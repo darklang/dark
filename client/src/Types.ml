@@ -1024,7 +1024,7 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of tlid * ((int * int) option)
+  | UpdateFluidSelection of tlid * (int * int) option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1287,7 +1287,6 @@ and fluidCommandState =
 and fluidSelection =
   { range : int * int
   ; direction : fluidSelectionDirection } *)
-
 and fluidState =
   { error : string option
   ; actions : string list
