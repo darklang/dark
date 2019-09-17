@@ -39,6 +39,8 @@ commands:
           command: |
             mkdir -p artifacts
             docker cp vols:/home/dark/app/rundir artifacts/rundir
+            tar -czvf artifacts/rundir.tar.gz artifacts/rundir
+            rm -r artifacts/rundir
             docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
             ls -la backend/static > artifacts/asset-list.txt
       - store_artifacts:
