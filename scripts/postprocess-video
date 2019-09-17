@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# If we're in OS X, attempt to use gnu-getopt
-if [ -f "which brew" ] ; then
- FLAGS_GETOPT_CMD="$(brew --prefix gnu-getopt)/bin/getopt"
- export FLAGS_GETOPT_CMD
-fi
-
-if [[ "$(getopt 2>&1 | head -n 1)" != "getopt: missing optstring argument" ]];
-then
-  echo "I think you're using BSD getopt, and we want gnu getopt."
-  echo "Asssuming you're on a Mac: \`brew install gnu-getopt\`."
-fi
-
 if [ $# -eq 0 ]; then
   echo "This script takes two mandatory options - \$1 is the input video, \$2 is the
   input subtitles."
