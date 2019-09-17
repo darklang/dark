@@ -8,10 +8,7 @@ let () =
   Libbackend.Init.init ~run_side_effects:false ;
   let execution_id = Libexecution.Util.create_id () in
   (* spin up health http server *)
-  let run_health_check_server =
-    if Array.length Sys.argv >= 2
-    then not (Sys.argv.(1) = "--no-health-check")
-    else true
+  let run_health_check_server = false
   in
   if run_health_check_server
   then

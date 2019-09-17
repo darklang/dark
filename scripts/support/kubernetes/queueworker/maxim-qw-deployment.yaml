@@ -1,0 +1,146 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: maxim-qw-deployment
+  annotations:
+    kubernetes.io/change-cause: 'circle=manual-deploy ; orig-time: Sat May 18 00:43:06 UTC 2019'
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: maxim-qw-worker
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: maxim-qw-worker
+    spec:
+      containers:
+        - name: qw-ctr
+          # hardcoded maxim-qw image
+          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:79c22cdb088d'
+          # Resource request intentionally less than resource limit, to ensure
+          # this pod is a 'Burstable' pod, ref:
+          #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "100m"
+            limits:
+              memory: "800Mi"
+              cpu: "200m"
+          lifecycle:
+            preStop:
+              httpGet:
+                # ???? https://github.com/kubernetes/kubernetes/issues/56770
+                path: pkill
+                port: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8081
+            # Giving 2 minutes grace here, there's an outstanding k8s issue
+            # preventing you from specifying "start checking liveness after an
+            # ok from readiness", which is what you'd expect.
+            # https://github.com/kubernetes/kubernetes/issues/27114
+            initialDelaySeconds: 120
+            periodSeconds: 10 # every 10 seconds
+            timeoutSeconds: 10 # time out after 10 seconds
+            failureThreshold: 3 # kill container after 3 successive time outs
+          ports:
+            - name: qw-ctr-port
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: gke-dark-prod
+          env:
+            - name: DARK_CONFIG_RUNNING_IN_GKE
+              value: "true"
+
+#########################
+# Postgres proxy config
+# To connect to postgres from kubernetes, we need to add a proxy. See
+# https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+# Note in particular that we needed to create a service account and a
+# set of GKE secrets, listed below, to manage this.
+#########################
+            # connect to sql proxy in the same pod
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+
+        - name: cloudsql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "100m"
+            limits:
+              memory: "500Mi"
+              cpu: "150m"
+          command: ["/bin/sh",
+                    "-c",
+                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:dark-west=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+            - name: cloudsql-instance-credentials
+              mountPath: /secrets/cloudsql
+              readOnly: true
+
+#########################
+# Stroller (push proxy) config
+#########################
+        - name: stroller
+          image: "gcr.io/balmy-ground-195100/dark-gcp-stroller:c9395135c15d"
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+            limits:
+              memory: "250Mi"
+              cpu: "75m"
+          envFrom:
+            - configMapRef:
+                name: gke-dark-prod
+          lifecycle:
+            preStop:
+              httpGet:
+                path: pkill
+                port: 3001
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3001
+            # Giving 2 minutes grace here, there's an outstanding k8s issue
+            # preventing you from specifying "start checking liveness after an
+            # ok from readiness", which is what you'd expect.
+            # https://github.com/kubernetes/kubernetes/issues/27114
+            initialDelaySeconds: 120
+            periodSeconds: 10 # every 10 seconds
+            timeoutSeconds: 10 # time out after 10 seconds
+            failureThreshold: 3 # kill container after 3 successive time outs
+
+      volumes:
+        - name: cloudsql-instance-credentials
+          secret:
+            secretName: cloudsql-instance-credentials

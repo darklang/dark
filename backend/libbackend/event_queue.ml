@@ -45,7 +45,8 @@ let enqueue
 
 let dequeue transaction : t option =
   (* TODO: The magic UUID here is reify-modification-migrator (ie. maxim)
-   * REMOVE AFTER STRANGELOOP *)
+   * This is a specially-built binary for that canvas only, that we'll run sans
+   * health checks *)
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
@@ -54,7 +55,7 @@ let dequeue transaction : t option =
        JOIN canvases AS c ON e.canvas_id = c.id
        WHERE delay_until < CURRENT_TIMESTAMP
        AND status = 'new'
-       AND e.canvas_id <> '745f5b77-ff32-41b8-b1ee-a7bba72ce606'::uuid
+       AND e.canvas_id = '745f5b77-ff32-41b8-b1ee-a7bba72ce606'::uuid
        ORDER BY id DESC, retries ASC
        FOR UPDATE OF e SKIP LOCKED
        LIMIT 1"
