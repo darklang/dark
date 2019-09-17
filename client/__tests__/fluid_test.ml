@@ -100,8 +100,8 @@ let complexExpr =
 type testResult = (string * (int option * int)) * bool
 
 type shiftState =
-| ShiftHeld
-| ShiftNotHeld
+  | ShiftHeld
+  | ShiftNotHeld
 
 let () =
   let aStr = EString (gid (), "some string") in
@@ -175,8 +175,11 @@ let () =
       , "firstLetName"
       , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
       , ELet
-          (gid (), gid (), "secondLetName", EString (gid (), "0123456789"), EString (gid (), "RESULT"))
-      )
+          ( gid ()
+          , gid ()
+          , "secondLetName"
+          , EString (gid (), "0123456789")
+          , EString (gid (), "RESULT") ) )
   in
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
@@ -328,7 +331,8 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
-  let processMsg (keys : (K.key*shiftState) list) (s : fluidState) (ast : ast) :
+  let processMsg
+      (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
@@ -339,17 +343,20 @@ let () =
           ast
           (FluidKeyPress
              { key
-             ; shiftKey = (shiftHeld = ShiftHeld)
+             ; shiftKey = shiftHeld = ShiftHeld
              ; altKey = false
              ; metaKey = false
              ; ctrlKey = false })
           s )
   in
-(*   let simplify (((resStr, (selStart, caretPos)), partialsFound): selectionTestResult) :
+  (*   let simplify (((resStr, (selStart, caretPos)), partialsFound): selectionTestResult) :
     testResult =
     ((resStr, caretPos), partialsFound) in *)
-  let process ~(debug : bool) (keys : (K.key*shiftState) list) (pos : int) (ast : ast) :
-      testResult =
+  let process
+      ~(debug : bool)
+      (keys : (K.key * shiftState) list)
+      (pos : int)
+      (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -383,34 +390,36 @@ let () =
       | expr ->
           impossible ("the wrapper is broken: " ^ eToString s expr)
     in
-    let removeWrapperFromCaretPos (p: int)
-      : int =
-          (let endPos = ref (p - wrapperOffset) in
-          (* Account for the newlines as we find them, or else we won't know our
+    let removeWrapperFromCaretPos (p : int) : int =
+      let endPos = ref (p - wrapperOffset) in
+      (* Account for the newlines as we find them, or else we won't know our
           * position to find the newlines correctly. There'll be extra indentation,
           * so we need to subtract those to get the pos we expect. *)
-          result
-          |> toTokens newState
-          |> List.iter ~f:(fun ti ->
-                match ti.token with
-                | TNewline _ when !endPos > ti.endPos ->
-                    endPos := !endPos - 2
-                | _ ->
-                    () ) ;
-          let last =
-            toTokens newState result
-            |> List.last
-            |> deOption "last"
-            |> fun x -> x.endPos
-          in
-          (* even though the wrapper allows tests to go past the start and end, it's
+      result
+      |> toTokens newState
+      |> List.iter ~f:(fun ti ->
+             match ti.token with
+             | TNewline _ when !endPos > ti.endPos ->
+                 endPos := !endPos - 2
+             | _ ->
+                 () ) ;
+      let last =
+        toTokens newState result
+        |> List.last
+        |> deOption "last"
+        |> fun x -> x.endPos
+      in
+      (* even though the wrapper allows tests to go past the start and end, it's
           * weird to test for *)
-          max 0 (min last !endPos))
+      max 0 (min last !endPos)
     in
     let finalPos = removeWrapperFromCaretPos newState.newPos in
-    let selPos = match newState.selectionStart with
-    | Some p -> Some (removeWrapperFromCaretPos p)
-    | None -> None
+    let selPos =
+      match newState.selectionStart with
+      | Some p ->
+          Some (removeWrapperFromCaretPos p)
+      | None ->
+          None
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
@@ -457,8 +466,10 @@ let () =
     process ~debug (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys) pos expr
   in
   let modPresses
-      ?(debug = false) (keys : (K.key*shiftState) list) (pos : int) (expr : fluidExpr) :
-      testResult =
+      ?(debug = false)
+      (keys : (K.key * shiftState) list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     process ~debug keys pos expr
   in
   let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
@@ -478,7 +489,9 @@ let () =
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual ((expectedStr, (None, expectedPos)), false))
+      (fun () ->
+        expect (fn initial)
+        |> toEqual ((expectedStr, (None, expectedPos)), false) )
   in
   let tp
       (name : string)
@@ -491,7 +504,9 @@ let () =
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual ((expectedStr, (None, expectedPos)), true))
+      (fun () ->
+        expect (fn initial)
+        |> toEqual ((expectedStr, (None, expectedPos)), true) )
   in
   let ts
       (name : string)
@@ -1682,7 +1697,10 @@ let () =
           (* Test doesn't work wrapped *)
           expect
             (let ast, state =
-               processMsg [(K.Enter, ShiftNotHeld)] Defaults.defaultFluidState anInt
+               processMsg
+                 [(K.Enter, ShiftNotHeld)]
+                 Defaults.defaultFluidState
+                 anInt
              in
              (eToString state ast, state.newPos))
           |> toEqual ("let *** = ___\n12345", 14) ) ;
@@ -2518,12 +2536,13 @@ let () =
              |> fun (_, s) -> s.ac.index)
           |> toEqual None ) ;
       () ) ;
-  describe "Selection Movement" (fun () -> 
+  describe "Selection Movement" (fun () ->
       ts
         "shift right selects"
         longLets
         (modPresses [(K.Right, ShiftHeld)] 0)
-        ("let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"", (Some 0, 4)) ;
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 0, 4) ) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
