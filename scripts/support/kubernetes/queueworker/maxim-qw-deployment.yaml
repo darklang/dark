@@ -18,7 +18,7 @@ spec:
       containers:
         - name: qw-ctr
           # hardcoded maxim-qw image
-          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:79c22cdb088d'
+          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:79c22cdb088d"
           # Resource request intentionally less than resource limit, to ensure
           # this pod is a 'Burstable' pod, ref:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
