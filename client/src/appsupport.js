@@ -150,43 +150,6 @@ function isChildOfEditor(node) {
   return false;
 }
 
-function getCursorPosition() {
-  var selection = window.getSelection();
-  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
-
-  count = selection.focusOffset;
-  node = selection.focusNode.parentNode;
-  while (node.previousSibling) {
-    node = node.previousSibling;
-    count += node.textContent.length;
-  }
-  return count;
-}
-
-function setCursorPosition(pos) {
-  editor = document.querySelector(".selected #fluid-editor");
-  if (!editor) return;
-  if (pos < 0) pos = 0;
-  if (pos > editor.textContent.length) pos = editor.textContent.length;
-  for (var i = 0; i < editor.childNodes.length; i++) {
-    let node = editor.childNodes[i];
-    let length = node.textContent.length;
-    if (pos <= length) {
-      let range = document.createRange();
-      range.setStart(node.childNodes[0], pos);
-      range.setEnd(node.childNodes[0], pos);
-      range.collapse(true);
-      selection = document.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      node.focus();
-      return;
-    } else {
-      pos -= length;
-    }
-  }
-}
-
 // getFluidSelectionRange() returns the [begin, end] indices of the last
 // selection/caret placement within a fluid editor, or undefined if
 // there has been no selection/caret placement, or if the selected nodes are not
@@ -285,8 +248,6 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
   }
 }
 
-window.getCursorPosition = getCursorPosition;
-window.setCursorPosition = setCursorPosition;
 window.getFluidSelectionRange = getFluidSelectionRange;
 window.setFluidSelectionRange = setFluidSelectionRange;
 
