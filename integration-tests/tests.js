@@ -1100,8 +1100,8 @@ test("fluid_shift_right_selects_chars_in_front", async t => {
     .ok()
     .expect(available(".selected #fluid-editor"))
     .ok()
-    .click(Selector(".fluid-fn-name"), { caretPos: 0 })
-    .pressKey("up shift+right shift+right");
+    .click(Selector(".fluid-category-string"), { caretPos: 2 })
+    .pressKey("shift+right shift+down shift+right");
 });
 
 test("fluid_shift_left_selects_chars_at_back", async t => {
@@ -1111,8 +1111,8 @@ test("fluid_shift_left_selects_chars_at_back", async t => {
     .ok()
     .expect(available(".selected #fluid-editor"))
     .ok()
-    .click(Selector(".fluid-fn-name"), { caretPos: 4 })
-    .pressKey("up shift+left shift+left");
+    .click(Selector(".fluid-category-string"), { caretPos: 2 })
+    .pressKey("down shift+left shift+up");
 });
 
 test("varnames_are_incomplete", async t => {
