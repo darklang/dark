@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
