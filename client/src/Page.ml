@@ -186,3 +186,11 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
       [Native.OnCaptureView.capture ()]
   | _ ->
       []
+
+
+let shouldChangePage (tlid : tlid) (page : page) : modification list =
+  match tlidOf page with
+  | Some ptlid when ptlid = tlid ->
+      [SetPage Architecture]
+  | _ ->
+      []
