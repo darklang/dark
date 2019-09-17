@@ -8,8 +8,6 @@
    * https://trello.com/c/IK9fQZoW/1072-support-ctrl-a-ctrl-e-ctrl-d-ctrl-k
  *)
 
-[%%debugger.chrome]
-
 (* open Webapi.Dom *)
 open Tc
 open Types
