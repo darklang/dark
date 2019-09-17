@@ -4192,7 +4192,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
     match msg with
     | FluidMouseClick _ ->
       (* TODO: if mouseclick on blank put cursor at beginning of it *)
-      ( match Entry.getCursorPosition () with
+      ( match Entry.getFluidCaretPos () with
       | Some newPos ->
           updateMouseClick newPos ast s
       | None ->
@@ -4232,7 +4232,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
          * Since the caret is tracked the same for end of selection and movement, we actually just want to store the start position in selection
          * if there is no selection yet.
          *)
-        (* XXX(JULIAN): We need to be able to release the selection! *)
+        (* TODO(JULIAN): We need to refactor updateKey and key handling in general so that modifiers compose more easily with shift *)
+        (* TODO(JULIAN): We need to fix left/right arrow behavior without shift in the presence of a selection *)
         (* XXX(JULIAN): We need to be able to use alt and ctrl and meta to change selection! *)
         let ast, newS = updateKey key ast s in
         ( match s.selectionStart with
@@ -4243,48 +4244,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         | Some pos ->
             (ast, {newS with newPos = newS.newPos; selectionStart = Some pos})
         )
-    (* if pos = newS.newPos
-        then (ast, {newS with selectionStart = None;})
-        else (ast, {newS with selectionStart = Some s.newPos;})) *)
-    (*         let oldRangeStart, oldRangeEnd = (fluidGetSelectionRange s)
-        in
-        let s = {s with lastKey = key} in
-        let singleCharSelection =
-          if newS.newPos >= newS.oldPos
-          then (newS.oldPos, newS.newPos)
-          else (newS.newPos, newS.oldPos)
-        in
-        let selection =
-          ( if (ctrlKey || metaKey) && not altKey
-          then getExpressionRangeAtCaret newS ast
-          else if altKey && not (ctrlKey || metaKey)
-          then getTokenRangeAtCaret newS ast
-          else Some singleCharSelection )
-          |> Option.map ~f:(fun (startPos, endPos) ->
-                 match key with
-                 | K.Down | K.Right ->
-                     (* select from current position to end of current token or, if ctrl is pressed, current expr *)
-                     if oldRangeStart <> oldRangeEnd
-                     then
-                        (oldRangeStart + (endPos - startPos), oldRangeEnd)
-                     else
-                       (oldRangeStart, endPos)
-                 | K.Up | K.Left ->
-                     (* select from start of current token or current expr, if ctrl is pressed, to current position *)
-                     if oldRangeStart <> oldRangeEnd
-                     then
-                       (oldRangeStart, oldRangeEnd - (endPos - startPos))
-                     else (startPos, oldRangeEnd)
-                 | _ ->
-                     (oldRangeEnd, oldRangeEnd))
-          |> collapseOptionalRange
-        in
-        let newPos =
-          Option.map selection ~f:(fun (rangeStart, rangeEnd) ->
-              if key = K.Right || key = K.Down then rangeEnd else rangeStart )
-          |> Option.withDefault ~default:s.newPos
-        in
-        (ast, {newS with selection; newPos}) *)
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
@@ -4609,7 +4568,7 @@ let toHtml
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
               (fun ev ->
-                match Entry.getCursorPosition () with
+                match Entry.getFluidCaretPos () with
                 | Some pos ->
                     let state =
                       {state with newPos = pos; oldPos = state.newPos}

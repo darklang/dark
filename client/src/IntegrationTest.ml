@@ -760,7 +760,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
   in
   let expectedCursorPos = 6 in
   let browserCursorPass =
-    if Entry.getCursorPosition () = Some expectedCursorPos
+    if Entry.getFluidCaretPos () = Some expectedCursorPos
     then pass
     else fail "incorrect browser cursor position"
   in
