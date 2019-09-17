@@ -1286,7 +1286,8 @@ let update_ (msg : msg) (m : model) : modification =
                 deletedHandlers = TD.remove ~tlid m.deletedHandlers
               ; deletedDBs = TD.remove ~tlid m.deletedDBs } ) ]
   | DeleteUserFunction tlid ->
-      RPC ([DeleteFunction tlid], FocusSame)
+      let page = Page.shouldChangePage tlid m.currentPage in
+      Many (RPC ([DeleteFunction tlid], FocusSame) :: page)
   | RestoreToplevel tlid ->
       (* Temporary check if tlid is a deleted group and add to model manually until groups has a BE *)
       let group = Groups.isFromDeletedGroup m tlid in
@@ -1304,7 +1305,8 @@ let update_ (msg : msg) (m : model) : modification =
                 deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
               } ) ]
   | DeleteUserType tlid ->
-      RPC ([DeleteType tlid], FocusSame)
+      let page = Page.shouldChangePage tlid m.currentPage in
+      Many (RPC ([DeleteType tlid], FocusSame) :: page)
   | DeleteGroup tlid ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
       let tl = TL.getExn m tlid in
