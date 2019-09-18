@@ -60,8 +60,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TDate
-    ; d =
-        "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
+    ; d = "Returns the current time."
     ; f =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; ps = false
