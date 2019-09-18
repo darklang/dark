@@ -5610,10 +5610,10 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^3.0.0"
     inherits "^2.0.1"
 
-rollbar@^2.12.3:
-  version "2.12.3"
-  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.12.3.tgz#ae0e4c5ba58528ea4483a9b6590045c324d22d25"
-  integrity sha512-r+d3YiRr8U5ucpI19YzO081UIN7vXRTRsRMtSnLwgfoOUmCMHJPklYMbV0bhfGYyGpq7LAej7N89O6aI3zMGtw==
+rollbar@^2.13.0:
+  version "2.13.0"
+  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.13.0.tgz#6b16a96058ddc929bef43efa3e94ac7b94c8fb26"
+  integrity sha512-bIJeTkaeZ8nD/fw/bTkf1m1jlCfZkx6yE+qdzZM+QE1M0dDO0uW4LEXlBrVEYrmn359ITubRTlt4vH5Ezaulhg==
   dependencies:
     async "~1.2.1"
     buffer-from ">=1.1"
