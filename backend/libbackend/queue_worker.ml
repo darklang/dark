@@ -169,5 +169,6 @@ let run (execution_id : Types.id) :
     Ok None )
   else
     Log.add_log_annotations
-      [("execution_id", execution_id |> Types.id_to_yojson)]
+      [ ("execution_id", execution_id |> Types.id_to_yojson)
+      ; ("start_timer", `Float (Unix.gettimeofday () *. 1000.0)) ]
       (fun _ -> dequeue_and_process execution_id)
