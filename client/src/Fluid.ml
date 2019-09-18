@@ -711,9 +711,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EMatch (id, mexpr, pairs) ->
       [TMatchKeyword id; nested mexpr]
       @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-              (* It was probably a mistake to put the newline at the start, as it
-             * makes the Enter-on-newline behaviour not work on the last row,
-             * which is often the most important. Will need to fix later. *)
               ( if i == 0 && last_in_nested_is_newline (nested mexpr)
               then []
               else [TNewline (Some (id, id, Some i)); TIndent 2] )
