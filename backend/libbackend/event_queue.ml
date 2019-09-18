@@ -2,6 +2,7 @@ open Core_kernel
 open Libexecution
 open Types
 open Types.RuntimeT
+open Libcommon
 
 type transaction = id
 
@@ -21,6 +22,99 @@ let to_event_desc t = (t.space, t.name, t.modifier)
 (* Public API *)
 (* ------------------------- *)
 
+type queue_action =
+  | Enqueue
+  | Dequeue
+  | None
+
+let show_queue_action qa =
+  match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
+
+
+(* None in case we want to log on a timer or something, not
+                     just on enqueue/dequeue *)
+
+let log_queue_size
+    (queue_action : queue_action)
+    ?(host : string option)
+    (canvas_id : string)
+    (space : string)
+    (name : string)
+    (modifier : string) =
+  (* Prefixing all of these with queue so we don't overwrite - e.g., 'enqueue'
+   * from a handler that has a space, etc *)
+  let params =
+    [ ("queue_action", show_queue_action queue_action)
+    ; ("queue_canvas_id", canvas_id)
+    ; ("queue_event_space", space)
+    ; ("queue_event_name", name)
+    ; ("queue_event_modifier", modifier) ]
+  in
+  (* host is optional b/c we have it when we dequeue, but not enqueue. We could
+   * also do a db lookup here if we decide querying by canvas name in honeycomb
+   * is important *)
+  let host =
+    (* Our Option module seems not to have an or_else type function ("if none,
+     * then run this function" *)
+    match host with
+    | Some host ->
+        Some host
+    | None ->
+        Db.fetch_one
+          ~name:"fetch_canvas_name"
+          "SELECT name FROM canvases WHERE id = $1"
+          ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
+        |> List.hd
+  in
+  (* I suppose we could do a subquery that'd batch these three conditionals, but
+   * I'm not sure it's worth the added complexity - we could look at the
+   * postgres logs in honeycomb if we wanted to get a sense of how long this
+   * takes *)
+  (* TODO: what statuses? *)
+  let dark_queue_size =
+    Db.fetch_one
+      ~name:"dark queue size"
+      "SELECT count(*) FROM events WHERE status != 'done'"
+      ~params:[]
+    |> List.hd_exn
+  in
+  let canvas_queue_size =
+    Db.fetch_one
+      ~name:"canvas queue size"
+      ~subject:canvas_id
+      "SELECT count(*) FROM events WHERE status != 'done' AND canvas_id = $1"
+      ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
+    |> List.hd_exn
+  in
+  let worker_queue_size =
+    Db.fetch_one
+      ~name:"canvas queue size"
+      ~subject:canvas_id
+      "SELECT count(*) FROM events WHERE status != 'done' AND canvas_id = $1 AND
+space = $2 AND name = $3 AND modifier = $4"
+      ~params:
+        [ Uuid (Uuidm.of_string canvas_id |> Option.value_exn)
+        ; String space
+        ; String name
+        ; String modifier ]
+    |> List.hd_exn
+  in
+  let params =
+    params
+    @ [ ("dark_queue_size", dark_queue_size)
+      ; ("canvas_queue_size", canvas_queue_size)
+      ; ("worker_queue_size", worker_queue_size) ]
+  in
+  let params =
+    match host with
+    | None ->
+        params
+    | Some host ->
+        ("queue_canvas_name", host) :: params
+  in
+  Log.infO "queue size" ~params
+
+
 let enqueue
     ~account_id
     ~canvas_id
@@ -28,6 +122,7 @@ let enqueue
     (name : string)
     (modifier : string)
     (data : dval) : unit =
+  log_queue_size Enqueue (canvas_id |> Uuidm.to_string) space name modifier ;
   Db.run
     ~name:"enqueue"
     "INSERT INTO events
@@ -64,6 +159,7 @@ let dequeue transaction : t option =
   | None ->
       None
   | Some [id; value; retries; canvas_id; host; space; name; modifier] ->
+      log_queue_size Dequeue ~host canvas_id space name modifier ;
       Some
         { id = int_of_string id
         ; value = Dval.of_internal_roundtrippable_v0 value
