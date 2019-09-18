@@ -44,9 +44,9 @@ let fns : Lib.shortfn list =
     ; dep = false }
   ; { pns = ["Date::toString"]
     ; ins = []
-    ; p = [par "s" TStr]
-    ; r = TResult
-    ; d = "Print a string in the ISO format"
+    ; p = [par "date" TDate]
+    ; r = TStr
+    ; d = "Print a date in the ISO format"
     ; f =
         InProcess
           (function
