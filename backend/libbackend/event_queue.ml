@@ -127,8 +127,8 @@ let enqueue
     ~name:"enqueue"
     "INSERT INTO events
      (status, dequeued_by, canvas_id, account_id,
-      space, name, modifier, value, delay_until)
-     VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)"
+      space, name, modifier, value, delay_until, enqueued_at)
+     VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
     ~params:
       [ Uuid canvas_id
       ; Uuid account_id
@@ -144,7 +144,8 @@ let dequeue transaction : t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
-      "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier
+      "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier,
+         (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
        WHERE delay_until < CURRENT_TIMESTAMP
@@ -158,8 +159,27 @@ let dequeue transaction : t option =
   match fetched with
   | None ->
       None
-  | Some [id; value; retries; canvas_id; host; space; name; modifier] ->
+  | Some
+      [ id
+      ; value
+      ; retries
+      ; canvas_id
+      ; host
+      ; space
+      ; name
+      ; modifier
+      ; queue_delay_ms ] ->
       log_queue_size Dequeue ~host canvas_id space name modifier ;
+      Log.infO
+        "queue_delay"
+        ~params:
+          [ ("host", host)
+          ; ("canvas_id", canvas_id)
+          ; ("space", space)
+          ; ("name", name)
+          ; ("modifier", modifier) ]
+        ~jsonparams:
+          [("queue_delay_ms", `Float (queue_delay_ms |> float_of_string))] ;
       Some
         { id = int_of_string id
         ; value = Dval.of_internal_roundtrippable_v0 value
@@ -195,12 +215,20 @@ let with_transaction f =
 
 
 let put_back transaction (item : t) ~status : unit =
+  let show_status s =
+    match s with `OK -> "Ok" | `Err -> "Err" | `Incomplete -> "Incomplete"
+  in
+  Log.infO
+    "event_queue: put_back_transaction"
+    ~jsonparams:
+      [ ("status", `String (status |> show_status))
+      ; ("retries", `Int item.retries) ] ;
   match status with
   | `OK ->
       Db.run
         ~name:"put_back_OK"
         "UPDATE \"events\"
-      SET status = 'done'
+      SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
       WHERE id = $1"
         ~params:[Int item.id]
   | `Err ->
@@ -212,6 +240,7 @@ let put_back transaction (item : t) ~status : unit =
         SET status = 'new'
           , retries = $1
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+          , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $2"
           ~params:[Int (item.retries + 1); Int item.id]
       else
@@ -219,6 +248,7 @@ let put_back transaction (item : t) ~status : unit =
           ~name:"put_back_Err>=2"
           "UPDATE events
         SET status = 'error'
+          , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $1"
           ~params:[Int item.id]
   | `Incomplete ->
@@ -227,6 +257,7 @@ let put_back transaction (item : t) ~status : unit =
         "UPDATE events
         SET status = 'new'
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+          , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $1"
         ~params:[Int item.id]
 
