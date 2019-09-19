@@ -289,7 +289,7 @@ let convertDisplayStringToLiteral (s : string) : string =
     |> Regex.replace ~re:[%re "/\\\\\"/g"] ~repl:"\""
   in
   if isStringLiteral s
-  then s |> stripQuotes |> conversion |> addQuotes |> Debug.log "done"
+  then s |> stripQuotes |> conversion |> addQuotes
   else conversion s
 
 
