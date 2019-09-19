@@ -1895,9 +1895,8 @@ let update_ (msg : msg) (m : model) : modification =
                           newPos = selEnd; selectionStart = Some selBegin } }
                 | None ->
                     { m with
-                      fluidState =
-                        { m.fluidState with
-                          selectionStart = None } } ) ) ]
+                      fluidState = {m.fluidState with selectionStart = None} }
+                ) ) ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
