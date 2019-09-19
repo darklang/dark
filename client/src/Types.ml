@@ -1024,6 +1024,10 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
+  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
+   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
+   * This bi-directionality is not ideal and could use some rethinking.
+   *)
   | UpdateFluidSelection of tlid * (int * int) option
   | ResetToast
   | UpdateMinimap of string option
