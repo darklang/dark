@@ -364,14 +364,14 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let userFns = TD.values m.userFunctions in
   let userTipes = TD.values m.userTipes in
   let trace = getTrace m tlid traceID in
-  let tl = TL.getExn m tlid in
+  let tl = TL.get m tlid in
   match (tl, trace) with
-  | TLHandler h, Some (_, Some traceData) ->
+  | Some (TLHandler h), Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
                {handler = h; traceID; traceData; dbs; userFns; userTipes}) )
-  | TLFunc f, Some (_, Some traceData) ->
+  | Some (TLFunc f), Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
