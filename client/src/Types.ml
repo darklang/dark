@@ -1024,7 +1024,11 @@ and msg =
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  | UpdateFluidSelection of tlid * fluidSelection option
+  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
+   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
+   * This bi-directionality is not ideal and could use some rethinking.
+   *)
+  | UpdateFluidSelection of tlid * (int * int) option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1280,8 +1284,6 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
-and fluidSelection = {range : int * int}
-
 and fluidState =
   { error : string option
   ; actions : string list
@@ -1294,7 +1296,7 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selection : fluidSelection option
+  ; selectionStart : int option (* The selection ends at newPos *)
   ; clipboard : fluidExpr option }
 
 (* Avatars *)

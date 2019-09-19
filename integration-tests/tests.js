@@ -1093,6 +1093,28 @@ test("fluid_double_click_with_alt_selects_expression", async t => {
     });
 });
 
+test("fluid_shift_right_selects_chars_in_front", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-category-string"), { caretPos: 2 })
+    .pressKey("shift+right shift+down shift+right");
+});
+
+test("fluid_shift_left_selects_chars_at_back", async t => {
+  await t
+    .navigateTo("#handler=123")
+    .expect(available(".tl-123"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-category-string"), { caretPos: 2 })
+    .pressKey("down shift+left shift+up");
+});
+
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")

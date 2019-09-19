@@ -39,7 +39,7 @@ module K = FluidKeyboard
  *  - Wrap:
  *      When I started writing these tests, I discovered that they kept passing
  *      despite there being a bug. Whenever the cursor went over the end, it
- *      would stay in the last place, giving a false positive. To avoid this,
+ *      would stay in the last place, giving a false pass. To avoid this,
  *      I wrapped all test cases:
  *         ```
  *         if true
@@ -96,7 +96,11 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
-type testResult = (string * int) * bool
+type testResult = (string * (int option * int)) * bool
+
+type shiftState =
+  | ShiftHeld
+  | ShiftNotHeld
 
 let () =
   let aStr = EString (gid (), "some string") in
@@ -162,6 +166,19 @@ let () =
       , ELet
           (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
       )
+  in
+  let longLets =
+    ELet
+      ( gid ()
+      , gid ()
+      , "firstLetName"
+      , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+      , ELet
+          ( gid ()
+          , gid ()
+          , "secondLetName"
+          , EString (gid (), "0123456789")
+          , EString (gid (), "RESULT") ) )
   in
   let letWithLhs =
     ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
@@ -313,25 +330,29 @@ let () =
           ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
-  let processMsg (keys : K.key list) (s : fluidState) (ast : ast) :
+  let processMsg
+      (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
-    List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
+    List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
         updateMsg
           m
           h.hTLID
           ast
           (FluidKeyPress
              { key
-             ; shiftKey = false
+             ; shiftKey = shiftHeld = ShiftHeld
              ; altKey = false
              ; metaKey = false
              ; ctrlKey = false })
           s )
   in
-  let process ~(debug : bool) (keys : K.key list) (pos : int) (ast : ast) :
-      testResult =
+  let process
+      ~(debug : bool)
+      (keys : (K.key * shiftState) list)
+      (pos : int)
+      (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     let newlinesBeforeStartPos =
       (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -348,6 +369,7 @@ let () =
     let ast =
       EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
     in
+    (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
     let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
     let pos = pos + extra in
@@ -364,27 +386,37 @@ let () =
       | expr ->
           impossible ("the wrapper is broken: " ^ eToString s expr)
     in
-    let endPos = ref (newState.newPos - wrapperOffset) in
-    (* Account for the newlines as we find them, or else we won't know our
-     * position to find the newlines correctly. There'll be extra indentation,
-     * so we need to subtract those to get the pos we expect. *)
-    result
-    |> toTokens newState
-    |> List.iter ~f:(fun ti ->
-           match ti.token with
-           | TNewline _ when !endPos > ti.endPos ->
-               endPos := !endPos - 2
-           | _ ->
-               () ) ;
-    let last =
-      toTokens newState result
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
+    let removeWrapperFromCaretPos (p : int) : int =
+      let endPos = ref (p - wrapperOffset) in
+      (* Account for the newlines as we find them, or else we won't know our
+          * position to find the newlines correctly. There'll be extra indentation,
+          * so we need to subtract those to get the pos we expect. *)
+      result
+      |> toTokens newState
+      |> List.iter ~f:(fun ti ->
+             match ti.token with
+             | TNewline _ when !endPos > ti.endPos ->
+                 endPos := !endPos - 2
+             | _ ->
+                 () ) ;
+      let last =
+        toTokens newState result
+        |> List.last
+        |> deOption "last"
+        |> fun x -> x.endPos
+      in
+      (* even though the wrapper allows tests to go past the start and end, it's
+          * weird to test for *)
+      max 0 (min last !endPos)
     in
-    (* even though the wrapper allows tests to go past the start and end, it's
-     * weird to test for *)
-    let finalPos = max 0 (min last !endPos) in
+    let finalPos = removeWrapperFromCaretPos newState.newPos in
+    let selPos =
+      match newState.selectionStart with
+      | Some p ->
+          Some (removeWrapperFromCaretPos p)
+      | None ->
+          None
+    in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
@@ -397,49 +429,86 @@ let () =
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
-    ((eToString s result, finalPos), partialsFound)
+    ((eToString s result, (selPos, finalPos)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
     process ~debug:false [] 0 expr
   in
   let del ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.Delete] pos expr
+    process ~debug [(K.Delete, ShiftNotHeld)] pos expr
   in
   let bs ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.Backspace] pos expr
+    process ~debug [(K.Backspace, ShiftNotHeld)] pos expr
   in
   let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.Tab] pos expr
+    process ~debug [(K.Tab, ShiftNotHeld)] pos expr
   in
   let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.ShiftTab] pos expr
+    process ~debug [(K.ShiftTab, ShiftNotHeld)] pos expr
   in
   let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.Space] pos expr
+    process ~debug [(K.Space, ShiftNotHeld)] pos expr
   in
   let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [K.Enter] pos expr
+    process ~debug [(K.Enter, ShiftNotHeld)] pos expr
   in
   let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~debug [key] pos expr
+    process ~debug [(key, ShiftNotHeld)] pos expr
   in
   let presses
       ?(debug = false) (keys : K.key list) (pos : int) (expr : fluidExpr) :
       testResult =
+    process ~debug (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys) pos expr
+  in
+  let modPresses
+      ?(debug = false)
+      (keys : (K.key * shiftState) list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     process ~debug keys pos expr
   in
   let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
       testResult =
     let key = K.fromChar char in
-    process ~debug [key] pos expr
+    process ~debug [(key, ShiftNotHeld)] pos expr
   in
   let blank = "___" in
   let t
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      (expected : string * int) =
+      ((expectedStr, expectedPos) : string * int) =
+    test
+      ( name
+      ^ " - `"
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ "`" )
+      (fun () ->
+        expect (fn initial)
+        |> toEqual ((expectedStr, (None, expectedPos)), false) )
+  in
+  let tp
+      (name : string)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> testResult)
+      ((expectedStr, expectedPos) : string * int) =
+    test
+      ( name
+      ^ " - `"
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ "`" )
+      (fun () ->
+        expect (fn initial)
+        |> toEqual ((expectedStr, (None, expectedPos)), true) )
+  in
+  let ts
+      (name : string)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> testResult)
+      (expected : string * (int option * int)) =
     test
       ( name
       ^ " - `"
@@ -447,19 +516,6 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () -> expect (fn initial) |> toEqual (expected, false))
-  in
-  let tp
-      (name : string)
-      (initial : fluidExpr)
-      (fn : fluidExpr -> testResult)
-      (expected : string * int) =
-    test
-      ( name
-      ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-      ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual (expected, true))
   in
   describe "Strings" (fun () ->
       t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
@@ -1637,7 +1693,10 @@ let () =
           (* Test doesn't work wrapped *)
           expect
             (let ast, state =
-               processMsg [K.Enter] Defaults.defaultFluidState anInt
+               processMsg
+                 [(K.Enter, ShiftNotHeld)]
+                 Defaults.defaultFluidState
+                 anInt
              in
              (eToString state ast, state.newPos))
           |> toEqual ("let *** = ___\n12345", 14) ) ;
@@ -2472,6 +2531,26 @@ let () =
              |> (fun (ast, s) -> updateKey K.Escape ast s)
              |> fun (_, s) -> s.ac.index)
           |> toEqual None ) ;
+      () ) ;
+  describe "Selection Movement" (fun () ->
+      ts
+        "shift right selects"
+        longLets
+        (modPresses [(K.Right, ShiftHeld)] 0)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 0, 4) ) ;
+      ts
+        "shift down selects"
+        longLets
+        (modPresses [(K.Down, ShiftHeld)] 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 4, 52) ) ;
+      ts
+        "shift left selects"
+        longLets
+        (modPresses [(K.Left, ShiftHeld)] 52)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (Some 52, 48) ) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
