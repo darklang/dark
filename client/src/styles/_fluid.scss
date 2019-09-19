@@ -97,6 +97,11 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-category-string {
+    // I don't know why this works inside &:not(.fa) and not a level up ... but
+    // I tried it, since that's how we do it in _canvas.scss
+    //
+    // The intent here is that chars in strings should not have ligatures (see
+    // https://github.com/darklang/dark/pull/1412 for screenshots).
     &:not(.fa) {
       font-family: "Fira Mono", monospace;
     }
