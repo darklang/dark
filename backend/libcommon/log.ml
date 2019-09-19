@@ -272,22 +272,8 @@ let pP
         | None ->
             []
       in
-      (* If thread_params contains a start_timer, then add a timer value, in
-       * millliseconds since start_timer *)
-      let time =
-        thread_params
-        |> List.find ~f:(fun (key, _) -> key = "start_timer")
-        |> Option.map ~f:(function
-               | _, `Float start ->
-                   [ ( "timer"
-                     , `Float (start -. (Unix.gettimeofday () *. 1000.0)) ) ]
-               | _ ->
-                   [] )
-        |> Option.value ~default:[]
-      in
       let params =
-        time
-        @ thread_params
+        thread_params
         @ [ ("name", `String name)
           (* operation time *)
           (* timestamp *)

@@ -65,20 +65,6 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
        *
        *)
           let should_run_after = Time.add lrt interval in
-          (* How long was it between when we expected to run and when we
-           * enqueued it to the events queue? (There may be further delay if the
-           * events queue is backed up ... ) *)
-          Log.infO
-            "cron_delay"
-            ~params:
-              [ ( "interval"
-                , Handler.modifier_for h
-                  |> Option.value ~default:"<empty
-modifier>" ) ]
-            ~jsonparams:
-              [ ( "delay_ms"
-                , `Float (Time.Span.to_ms (Time.diff now should_run_after)) )
-              ] ;
           now >= should_run_after )
 
 
@@ -158,30 +144,27 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
            List.iter
              ~f:(fun cr ->
                if should_execute !c.id cr
-               then
+               then (
                  let space = Handler.module_for_exn cr in
                  let name = Handler.event_name_for_exn cr in
                  let modifier = Handler.modifier_for_exn cr in
-                 Log.add_log_annotations
-                   [("cron", `Bool true)]
-                   (fun _ ->
-                     Event_queue.enqueue
-                       ~account_id:!c.owner
-                       ~canvas_id:!c.id
-                       space
-                       name
-                       modifier
-                       DNull ;
-                     record_execution !c.id cr ;
-                     Log.infO
-                       "cron_checker"
-                       ~data:"enqueued event"
-                       ~params:
-                         [ ("execution_id", Types.string_of_id execution_id)
-                         ; ("host", endp)
-                         ; ("tlid", Types.string_of_id cr.tlid)
-                         ; ("event_name", name)
-                         ; ("cron_freq", modifier) ] ) )
+                 Event_queue.enqueue
+                   ~account_id:!c.owner
+                   ~canvas_id:!c.id
+                   space
+                   name
+                   modifier
+                   DNull ;
+                 record_execution !c.id cr ;
+                 Log.infO
+                   "cron_checker"
+                   ~data:"enqueued event"
+                   ~params:
+                     [ ("execution_id", Types.string_of_id execution_id)
+                     ; ("host", endp)
+                     ; ("tlid", Types.string_of_id cr.tlid)
+                     ; ("event_name", name)
+                     ; ("cron_freq", modifier) ] ) )
              crons )
     |> Ok
   with e ->
