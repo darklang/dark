@@ -319,6 +319,7 @@ since they are essentially both commands just acting upon different things. */
   }
 
   .error-indicator {
+    position: absolute;
     left: 6px;
   }
 }
