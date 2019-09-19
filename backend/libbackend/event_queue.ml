@@ -170,6 +170,10 @@ let dequeue transaction : t option =
       ; modifier
       ; queue_delay_ms ] ->
       log_queue_size Dequeue ~host canvas_id space name modifier ;
+      let queue_delay =
+        try [("queue_delay_ms", `Float (queue_delay_ms |> float_of_string))]
+        with e -> []
+      in
       Log.infO
         "queue_delay"
         ~params:
@@ -178,8 +182,7 @@ let dequeue transaction : t option =
           ; ("space", space)
           ; ("name", name)
           ; ("modifier", modifier) ]
-        ~jsonparams:
-          [("queue_delay_ms", `Float (queue_delay_ms |> float_of_string))] ;
+        ~jsonparams:queue_delay ;
       Some
         { id = int_of_string id
         ; value = Dval.of_internal_roundtrippable_v0 value
