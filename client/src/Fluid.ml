@@ -14,7 +14,6 @@ open Types
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
-module Regex = Util.Regex
 module TL = Toplevel
 
 (* Tea *)
@@ -813,9 +812,6 @@ let eToString (s : state) (e : ast) : string =
   |> toTokens s
   |> List.map ~f:(fun ti -> Token.toTestText ti.token)
   |> String.join ~sep:""
-  (* TNewline at end of AST doesn't display, so don't put it in the test
-     * string *)
-  |> Regex.replace ~re:(Regex.regex "\n*$") ~repl:""
 
 
 let eToStructure (s : state) (e : fluidExpr) : string =
