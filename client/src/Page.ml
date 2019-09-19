@@ -186,3 +186,13 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
       [Native.OnCaptureView.capture ()]
   | _ ->
       []
+
+
+(* Go back to Architecture view if user is on the type/fn page
+    and then deletes same UserType/UserFunction *)
+let maybeChangeFromPage (tlid : tlid) (page : page) : modification list =
+  match tlidOf page with
+  | Some ptlid when ptlid = tlid ->
+      [SetPage Architecture]
+  | _ ->
+      []
