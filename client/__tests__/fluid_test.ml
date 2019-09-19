@@ -95,8 +95,6 @@ let complexExpr =
             (gid (), "Http::Forbidden", [EInteger (gid (), "403")], NoRail) )
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
-
-(* (string * int) * bool *)
 type testResult = (string * (int option * int)) * bool
 
 type shiftState =
@@ -349,9 +347,6 @@ let () =
              ; ctrlKey = false })
           s )
   in
-  (*   let simplify (((resStr, (selStart, caretPos)), partialsFound): selectionTestResult) :
-    testResult =
-    ((resStr, caretPos), partialsFound) in *)
   let process
       ~(debug : bool)
       (keys : (K.key * shiftState) list)

@@ -1897,7 +1897,6 @@ let update_ (msg : msg) (m : model) : modification =
                     { m with
                       fluidState =
                         { m.fluidState with
-                          (* newPos = selEnd; *)
                           selectionStart = None } } ) ) ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
