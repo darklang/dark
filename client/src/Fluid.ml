@@ -499,10 +499,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
     in
     TIndentToHere tokens
   in
-  let last_in_nested_is_newline (e : Types.fluidToken) : bool =
+  let rec last_in_nested_is_newline (e : Types.fluidToken) : bool =
     match e with
+    | TNewline _ ->
+        true
     | TIndentToHere tokens ->
-      (match List.last tokens with Some (TNewline _) -> true | _ -> false)
+      ( match List.last tokens with
+      | Some t ->
+          last_in_nested_is_newline t
+      | _ ->
+          false )
     | _ ->
         false
   in
@@ -686,9 +692,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
         [nested single]
     | head :: tail ->
         let length = List.length exprs in
-        [ nested head
-        ; TNewline (Some (id, id, Some 0))
-        ; TIndentToHere
+        let tailTokens =
+          TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
@@ -698,10 +703,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    then thread
                    else TNewline (Some (id, id, Some i)) :: thread )
             |> List.concat )
-          (* TODO: I can't figure out how to get this to not dupe in the case
-             * of test 'nested threads will indent'. It looks fine in-browser,
-             * so I'm not worrying too much. *)
-        ; TNewline (Some (id, id, Some (List.length tail))) ] )
+        in
+        let withNewline =
+          if last_in_nested_is_newline tailTokens
+          then [tailTokens; TNewline (Some (id, id, Some (List.length tail)))]
+          else [tailTokens]
+        in
+        [nested head; TNewline (Some (id, id, Some 0))] @ withNewline )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
@@ -798,12 +806,22 @@ let validateTokens (tokens : fluidToken list) : fluidToken list =
   tokens
 
 
+let stripFinalNewline (tokens : fluidToken list) : fluidToken list =
+  (* only remove a single newline. Nested newlines are handled before this *)
+  match List.last tokens with
+  | Some (TNewline _) ->
+      List.init tokens |> Option.withDefault ~default:[]
+  | _ ->
+      tokens
+
+
 let toTokens (s : state) (e : ast) : tokenInfo list =
   e
   |> toTokens' s
   |> validateTokens
   |> reflow ~x:0
   |> Tuple2.second
+  |> stripFinalNewline
   |> infoize ~pos:0
 
 
