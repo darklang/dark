@@ -2994,31 +2994,10 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   |> Option.withDefault ~default:NoChange
 
 
-(* Always returns a selection represented as two ints with the smaller int first.
-   The numbers are identical if there is no selection. *)
-let fluidGetLeftToRightSelectionRange (s : fluidState) : int * int =
-  let endIdx = s.newPos in
-  match s.selectionStart with
-  | Some beginIdx ->
-      if beginIdx > endIdx then (endIdx, beginIdx) else (beginIdx, endIdx)
-  | None ->
-      (endIdx, endIdx)
-
-
-let fluidGetCollapsedSelectionStart (s : fluidState) : int =
-  fluidGetLeftToRightSelectionRange s |> Tuple2.first
-
-
-let fluidGetOptionalLeftToRightSelectionRange (s : fluidState) :
-    (int * int) option =
-  let endIdx = s.newPos in
-  match s.selectionStart with
-  | Some beginIdx ->
-      if beginIdx > endIdx
-      then Some (endIdx, beginIdx)
-      else Some (beginIdx, endIdx)
-  | None ->
-      None
+let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
+  if rangeBegin > rangeEnd
+  then (rangeEnd, rangeBegin)
+  else (rangeBegin, rangeEnd)
 
 
 (* Always returns a selection represented as two ints with the smaller int first.
@@ -3030,6 +3009,10 @@ let fluidGetSelectionRange (s : fluidState) : int * int =
       (beginIdx, endIdx)
   | None ->
       (endIdx, endIdx)
+
+
+let fluidGetCollapsedSelectionStart (s : fluidState) : int =
+  fluidGetSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
 let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
@@ -3130,32 +3113,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordField (_, _, _, ""), _)
       when Option.isSome s.selectionStart ->
-        deleteLeftToRightSelection
-          ~state:s
-          ~ast
-          (fluidGetLeftToRightSelectionRange s)
+        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TRecordField (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank (_, _), _)
       when Option.isSome s.selectionStart ->
-        deleteLeftToRightSelection
-          ~state:s
-          ~ast
-          (fluidGetLeftToRightSelectionRange s)
+        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, L (_, _), _ when Option.isSome s.selectionStart ->
-        deleteLeftToRightSelection
-          ~state:s
-          ~ast
-          (fluidGetLeftToRightSelectionRange s)
+        deleteSelection ~state:s ~ast
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, _) when Option.isSome s.selectionStart ->
-        deleteLeftToRightSelection
-          ~state:s
-          ~ast
-          (fluidGetLeftToRightSelectionRange s)
+        deleteSelection ~state:s ~ast
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
@@ -3359,9 +3330,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-and deleteLeftToRightSelection ~state ~ast (sel : int * int) : ast * fluidState
-    =
-  let rangeStart, rangeEnd = sel in
+and deleteSelection ~state ~ast : ast * fluidState =
+  let rangeStart, rangeEnd =
+    fluidGetSelectionRange state |> orderRangeFromSmallToBig
+  in
   let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
@@ -3523,8 +3495,8 @@ let trimQuotes s : string =
   |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
 
 
-let reconstructExprFromLeftToRightRange ~state ~ast (sel : int * int) :
-    fluidExpr option =
+let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
+    =
   let ast =
     (* clone ast to prevent duplicates *)
     toExpr ast |> AST.clone |> fromExpr state
@@ -3572,7 +3544,7 @@ let reconstructExprFromLeftToRightRange ~state ~ast (sel : int * int) :
            then toks @ [t]
            else toks )
   in
-  let startPos, endPos = sel in
+  let startPos, endPos = orderRangeFromSmallToBig range in
   (* main main recursive algorithm *)
   (* algo: 
     * find topmost expression by ID and 
@@ -3980,11 +3952,7 @@ let reconstructExprFromLeftToRightRange ~state ~ast (sel : int * int) :
 
 
 let pasteSelection ~state ~ast () : ast * fluidState =
-  let ast, state =
-    fluidGetOptionalLeftToRightSelectionRange state
-    |> Option.map ~f:(deleteLeftToRightSelection ~state ~ast)
-    |> Option.withDefault ~default:(ast, state)
-  in
+  let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
@@ -4201,27 +4169,22 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
         ( ast
         , { s with
             clipboard =
-              fluidGetOptionalLeftToRightSelectionRange s
-              |> Option.andThen
-                   ~f:(reconstructExprFromLeftToRightRange ~state:s ~ast) } )
+              fluidGetOptionalSelectionRange s
+              |> Option.andThen ~f:(reconstructExprFromRange ~state:s ~ast) }
+        )
     | FluidCut ->
-        fluidGetOptionalLeftToRightSelectionRange s
+        fluidGetOptionalSelectionRange s
         |> Option.map ~f:(fun sel ->
                let ast, state =
                  ( ast
                  , { s with
-                     clipboard =
-                       (reconstructExprFromLeftToRightRange ~state:s ~ast) sel
+                     clipboard = (reconstructExprFromRange ~state:s ~ast) sel
                    } )
                in
-               deleteLeftToRightSelection ~state ~ast sel )
+               deleteSelection ~state ~ast )
         |> Option.withDefault ~default:(ast, s)
     | FluidPaste ->
-        let ast, state =
-          fluidGetOptionalLeftToRightSelectionRange s
-          |> Option.map ~f:(deleteLeftToRightSelection ~state:s ~ast)
-          |> Option.withDefault ~default:(ast, s)
-        in
+        let ast, state = deleteSelection ~state:s ~ast in
         let ast, state = pasteSelection ~state ~ast () in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
