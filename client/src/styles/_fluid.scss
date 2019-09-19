@@ -97,6 +97,9 @@ https://github.com/chriskempson/tomorrow-theme */
   }
 
   .fluid-category-string {
+    &:not(.fa) {
+      font-family: "Fira Mono", monospace;
+    }
     white-space: pre;
     color: $string-color;
   }
