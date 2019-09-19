@@ -1280,13 +1280,6 @@ and fluidCommandState =
   ; location : (tlid * fluidToken) option
   ; filter : string option }
 
-(* and fluidSelectionDirection =
-  | FSDLeft
-  | FSDRight
-
-and fluidSelection =
-  { range : int * int
-  ; direction : fluidSelectionDirection } *)
 and fluidState =
   { error : string option
   ; actions : string list

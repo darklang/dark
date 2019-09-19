@@ -31,12 +31,6 @@ let () =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
     let newAST, newState = updateMsg m h.hTLID ast msg s in
-    (*     let last =
-      toTokens newState newAST
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
-    in *)
     let finalPos = newState.newPos in
     if debug
     then (
