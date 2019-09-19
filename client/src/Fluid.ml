@@ -996,39 +996,6 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
           fail "adjustedPosFor" )
 
 
-(* Find the first token of the current row and the next row *)
-let getFirstTokenOfNeighborRows (s : state) (ast : ast) :
-    tokenInfo option * tokenInfo option =
-  let pos = s.oldPos in
-  let tokens = toTokens s ast in
-  let toTheLeft, _, mNext = getNeighbours ~pos tokens in
-  let getPosOfRowBeginning (tokenInfo : fluidTokenInfo) : int =
-    (* Gets the row number*)
-    let row = tokenInfo.startRow in
-    (* Returns the pos of the first thing in the row*)
-    posFor ~row ~col:0 tokens
-  in
-  let topRow =
-    match toTheLeft with
-    | L (_, info) ->
-        let top = getPosOfRowBeginning info in
-        let _, mCurrent, _ = getTokensAtPosition ~pos:top tokens in
-        (match mCurrent with Some _ -> mCurrent | None -> None)
-    | _ ->
-        None
-  in
-  let bottomRow =
-    match mNext with
-    | Some info ->
-        let bottom = getPosOfRowBeginning info in
-        let _, mCurrent, _ = getTokensAtPosition ~pos:bottom tokens in
-        (match mCurrent with Some _ -> mCurrent | None -> None)
-    | None ->
-        None
-  in
-  (topRow, bottomRow)
-
-
 (* ------------- *)
 (* Getting expressions *)
 (* ------------- *)
@@ -2145,26 +2112,11 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
+        | None, ELet _ ->
+            ELet (gid (), gid (), "", newB (), e)
         | None, e ->
-            let topRow, bottomRow = getFirstTokenOfNeighborRows s ast in
-            let isLet =
-              match (topRow, bottomRow) with
-              | Some top, Some bottom ->
-                ( match (top.token, bottom.token) with
-                | TLetKeyword _, TLetKeyword _ ->
-                    true
-                | _ ->
-                    false )
-              | _ ->
-                  false
-            in
-            (* If there's a let above and below then insert a blank let between them *)
-            (* https://trello.com/c/7s0YeB3y/1678-if-you-press-enter-at-the-end-of-a-line-and-theres-a-blank-on-the-next-line-dont-add-a-let *)
-            if isLet
-            then ELet (gid (), gid (), "", newB (), e)
-            else (
-              cursor := `NextToken ;
-              e )
+            cursor := `NextToken ;
+            e
         | Some index, ERecord (id, fields) ->
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
