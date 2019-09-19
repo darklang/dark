@@ -284,6 +284,52 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   margin-top: $spacing-medium;
 }
 
+.error-indicator {
+  position: absolute;
+  left: calc(100% - 2ch);
+  width: 12px;
+  height: 12px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.5;
+
+  &:hover {
+    opacity: 1;
+    cursor: pointer;
+  }
+
+  &:hover:after {
+    @extend .tooltip;
+
+    content: "Handle errors that arise from this function yourself";
+
+    position: absolute;
+    left: 25px;
+    top: -2px;
+  }
+
+  &.Option {
+    background-image: url("/icons/option_just.svg");
+
+    &.ErrorRail {
+      background-image: url("/icons/option_nothing.svg");
+    }
+  }
+
+  &.Result {
+    background-image: url("/icons/result_ok.svg");
+
+    &.ErrorRail {
+      background-image: url("/icons/result_error.svg");
+    }
+  }
+
+  &.Result.EvalFail,
+  &.Option.EvalFail {
+    background-image: none;
+  }
+}
+
 .ast {
   font-size: 10pt;
   padding-right: $spacing-medium;
@@ -294,52 +340,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   width: max-content;
   display: inline-block;
   vertical-align: top;
-
-  .error-indicator {
-    position: absolute;
-    left: calc(100% - 2ch);
-    width: 12px;
-    height: 12px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    opacity: 0.5;
-
-    &:hover {
-      opacity: 1;
-      cursor: pointer;
-    }
-
-    &:hover:after {
-      @extend .tooltip;
-
-      content: "Handle errors that arise from this function yourself";
-
-      position: absolute;
-      left: 25px;
-      top: -2px;
-    }
-
-    &.Option {
-      background-image: url("/icons/option_just.svg");
-
-      &.ErrorRail {
-        background-image: url("/icons/option_nothing.svg");
-      }
-    }
-
-    &.Result {
-      background-image: url("/icons/result_ok.svg");
-
-      &.ErrorRail {
-        background-image: url("/icons/result_error.svg");
-      }
-    }
-
-    &.Result.EvalFail,
-    &.Option.EvalFail {
-      background-image: none;
-    }
-  }
 
   div {
     display: inline-block;
