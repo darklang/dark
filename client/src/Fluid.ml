@@ -477,7 +477,7 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
-  let nested ?(placeholderFor : (string * int) option = None) b =
+  let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
     let tokens =
       match (b, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
