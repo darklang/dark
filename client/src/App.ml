@@ -1870,29 +1870,33 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               match selection with
               (* if range width is 0, just change pos *)
-              | Some {range = a, b} when a = b ->
+              | Some (selBegin, selEnd) when selBegin = selEnd ->
                   { m with
                     fluidState =
                       { m.fluidState with
                         oldPos = m.fluidState.newPos
-                      ; newPos = b
-                      ; selection = None } }
-              | Some s ->
+                      ; newPos = selEnd
+                      ; selectionStart = None } }
+              | Some (selBegin, selEnd) ->
                   (* re-apply selection *)
-                  Entry.setSelectionRange s.range ;
+                  Entry.setFluidSelectionRange (selBegin, selEnd) ;
                   { m with
                     fluidState =
                       { m.fluidState with
-                        selection
+                        selectionStart = Some selBegin
                       ; oldPos = m.fluidState.newPos
-                      ; newPos = s.range |> Tuple2.second } }
+                      ; newPos = selEnd } }
               | None ->
-                  let newPos =
-                    Entry.getCursorPosition ()
-                    |> Option.withDefault ~default:m.fluidState.newPos
-                  in
-                  {m with fluidState = {m.fluidState with newPos; selection}}
-              ) ]
+                ( match Entry.getFluidSelectionRange () with
+                | Some (selBegin, selEnd) ->
+                    { m with
+                      fluidState =
+                        { m.fluidState with
+                          newPos = selEnd; selectionStart = Some selBegin } }
+                | None ->
+                    { m with
+                      fluidState = {m.fluidState with selectionStart = None} }
+                ) ) ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

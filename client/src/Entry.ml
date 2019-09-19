@@ -37,19 +37,6 @@ let focusWithOffset id offset =
       () )
 
 
-(* cursors *)
-external jsGetCursorPosition : unit -> int Js.Nullable.t = "getCursorPosition"
-  [@@bs.val] [@@bs.scope "window"]
-
-external jsSetCursorPosition : int -> unit = "setCursorPosition"
-  [@@bs.val] [@@bs.scope "window"]
-
-let getCursorPosition () : int option =
-  jsGetCursorPosition () |> Js.Nullable.toOption
-
-
-let setCursorPosition (v : int) : unit = jsSetCursorPosition v
-
 (* selection *)
 type range =
   < setStart : Web_node.t -> int -> unit [@bs.meth]
@@ -73,89 +60,45 @@ type selection =
 external getSelection : unit -> selection = "getSelection"
   [@@bs.val] [@@bs.scope "window"]
 
-let getSelectionRange () : (int * int) option =
-  let selection = getSelection () in
-  getCursorPosition ()
-  |> Option.map ~f:(fun endPos ->
-         let isReverse =
-           let rangeStartContainer =
-             (selection##getRangeAt 0)##startContainer
-           in
-           if (* if anchor node where selection starts is different 
-            * from the first container in the range. only works when
-            * selection crosses multiple nodes *)
-              selection##anchorNode <> rangeStartContainer
-           then true
-           else
-             (* account for when selection has only one node by seeing if 
-              * the anchor offset (where the selection starts) is greater than the
-              * focus offset (where the selection ends) *)
-             selection##anchorOffset > selection##focusOffset
-         in
-         let startPos, endPos =
-           if isReverse
-           then (endPos, endPos + (selection##toString () |> String.length))
-           else (endPos - (selection##toString () |> String.length), endPos)
-         in
-         (startPos, endPos) )
+external jsGetFluidSelectionRange :
+  unit -> int array Js.Nullable.t
+  = "getFluidSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
 
+external jsSetFluidSelectionRange :
+  int array -> unit
+  = "setFluidSelectionRange"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getFluidSelectionRange () : (int * int) option =
+  match Js.Nullable.toOption (jsGetFluidSelectionRange ()) with
+  | Some [|beginIdx; endIdx|] ->
+      Some (beginIdx, endIdx)
+  | _ ->
+      (* We know the array either has 2 values or is undefined *)
+      None
+
+
+let getFluidCaretPos () : int option =
+  match getFluidSelectionRange () with
+  | Some (selStart, selEnd) ->
+      if selStart = selEnd
+      then Some selEnd
+      else
+        (* Should we change this to return None in selection cases? *)
+        Some selEnd
+  | None ->
+      None
+
+
+let setFluidSelectionRange ((beginIdx, endIdx) : int * int) : unit =
+  jsSetFluidSelectionRange [|beginIdx; endIdx|]
+
+
+let setFluidCaret (idx : int) : unit = jsSetFluidSelectionRange [|idx; idx|]
 
 external querySelector : string -> Web_node.t Js.Nullable.t = "querySelector"
   [@@bs.val] [@@bs.scope "document"]
-
-let setSelectionRange ((startPos, endPos) : int * int) : unit =
-  let range = createRange () in
-  querySelector ".selected #fluid-editor"
-  |> Js.Nullable.toOption
-  |> Option.map ~f:(fun editor ->
-         let endPos =
-           min endPos (Web_node.getProp editor "textContent" |> String.length)
-         in
-         let startPos =
-           (* ensure startPos < endPos *)
-           let startPos = min startPos endPos in
-           max startPos 0
-         in
-         (* loop to set startPos *)
-         let _, range =
-           List.foldl
-             (Array.toList editor##childNodes)
-             ~init:(0, range)
-             ~f:(fun node (offset, range) ->
-               let length =
-                 Web_node.getProp node "textContent" |> String.length
-               in
-               if startPos >= offset && startPos < offset + length
-               then
-                 List.getAt ~index:0 (Array.toList node##childNodes)
-                 |> Option.map ~f:(fun child ->
-                        range##setStart child (startPos - offset) )
-                 |> Option.withDefault ~default:() ;
-               (offset + length, range) )
-         in
-         let _, range =
-           List.foldl
-             (editor##childNodes |> Array.toList |> List.reverse)
-             ~init:
-               (Web_node.getProp editor "textContent" |> String.length, range)
-             ~f:(fun node (offset, range) ->
-               let length =
-                 Web_node.getProp node "textContent" |> String.length
-               in
-               if endPos <= offset && endPos > offset - length
-               then
-                 List.getAt ~index:0 (Array.toList node##childNodes)
-                 |> Option.map ~f:(fun child ->
-                        range##setEnd child (endPos - (offset - length)) )
-                 |> Option.withDefault ~default:() ;
-               (offset - length, range) )
-         in
-         let selection = getSelection () in
-         selection##removeAllRanges () ;
-         selection##addRange range )
-  |> ignore ;
-  ()
-
 
 type browserPlatform =
   | Mac

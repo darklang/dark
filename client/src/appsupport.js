@@ -150,45 +150,113 @@ function isChildOfEditor(node) {
   return false;
 }
 
-function getCursorPosition() {
-  var selection = window.getSelection();
-  if (selection.focusNode == null || !isChildOfEditor(selection.focusNode)) return;
-
-  count = selection.focusOffset;
-  node = selection.focusNode.parentNode;
-  while (node.previousSibling) {
-    node = node.previousSibling;
-    count += node.textContent.length;
-  }
-  return count;
-}
-
-function setCursorPosition(pos) {
-  editor = document.querySelector(".selected #fluid-editor");
-  if (!editor) return;
-  if (pos < 0) pos = 0;
-  if (pos > editor.textContent.length) pos = editor.textContent.length;
-  for (var i = 0; i < editor.childNodes.length; i++) {
-    let node = editor.childNodes[i];
-    let length = node.textContent.length;
-    if (pos <= length) {
-      let range = document.createRange();
-      range.setStart(node.childNodes[0], pos);
-      range.setEnd(node.childNodes[0], pos);
-      range.collapse(true);
-      selection = document.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-      node.focus();
-      return;
-    } else {
-      pos -= length;
+// getFluidSelectionRange() returns the [begin, end] indices of the last
+// selection/caret placement within a fluid editor, or undefined if
+// there has been no selection/caret placement, or if the selected nodes are not
+// part of a fluid editor. Begin may be > or < end,
+// depending on the selection direction. If there is no true selection
+// but rather a placement, begin == end.
+// This function assumes there are no nested DOM nodes, just a flat list of spans
+function getFluidSelectionRange() {
+  // OPT(JULIAN): There's likely a more performant way of getting selection
+  // start and end than to walk all prior nodes twice.
+  let sel = window.getSelection();
+  if (
+    sel.focusNode == null ||
+    !isChildOfEditor(sel.focusNode) ||
+    !isChildOfEditor(sel.anchorNode)
+  )
+    return undefined;
+  // The 'anchorNode' is the node where the selection began
+  // and the offset is the relative position where the selection began
+  // within the text of that node.
+  let selBeginIdx = sel.anchorOffset;
+  {
+    let node = sel.anchorNode.parentNode;
+    // This only works because there is no nesting
+    while (node.previousSibling) {
+      node = node.previousSibling;
+      selBeginIdx += node.textContent.length;
     }
   }
+  // The 'focusNode' is the node where the selection ended
+  // and the offset is the relative position where the selection ended
+  // (and where the cursor is now located) within the text of that node.
+  let selEndIdx = sel.focusOffset;
+  {
+    let node = sel.focusNode.parentNode;
+    // This only works because there is no nesting
+    while (node.previousSibling) {
+      node = node.previousSibling;
+      selEndIdx += node.textContent.length;
+    }
+  }
+  return [selBeginIdx, selEndIdx];
 }
 
-window.getCursorPosition = getCursorPosition;
-window.setCursorPosition = setCursorPosition;
+// setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
+// region in the currently selected fluid editor, if there is one.
+// If beginIdx == endIdx, it sets the caret position (0-width selection).
+// This function assumes there are no nested DOM nodes, just a flat list of spans.
+function setFluidSelectionRange([beginIdx, endIdx]) {
+  let clamp = function(num, min, max) {
+    if (num < min) {
+      return min;
+    }
+    if (num > max) {
+      return max;
+    }
+    return num;
+  };
+
+  let editorOrNull = document.querySelector(".selected #fluid-editor");
+  if (!editorOrNull) {
+    return;
+  }
+  let editor = editorOrNull;
+  let maxChars = editor.textContent.length;
+  let anchorNodeOffset = clamp(beginIdx, 0, maxChars);
+  let focusNodeOffset = clamp(endIdx, 0, maxChars);
+  let anchorNode, focusNode; // The beginIdx is in the anchorNode and the endIdx is in the focusNode
+  let childNodes = editor.childNodes;
+  // This only works because there is no nesting
+  for (let i = 0; i < childNodes.length; i++) {
+    let nodeLen = childNodes[i].textContent.length;
+    if (anchorNodeOffset <= nodeLen /* the beginIdx must be inside this node */) {
+      // We need to get the text node rather than the span,
+      // which is why we do 'firstChild'
+      anchorNode = childNodes[i].firstChild;
+      break;
+    } else {
+      anchorNodeOffset -= nodeLen;
+    }
+  }
+  // This only works because there is no nesting
+  for (let i = 0; i < childNodes.length; i++) {
+    let nodeLen = childNodes[i].textContent.length;
+    if (focusNodeOffset <= nodeLen /* the endIdx must be inside this node */) {
+      // We need to get the text node rather than the span,
+      // which is why we do 'firstChild'
+      focusNode = childNodes[i].firstChild;
+      break;
+    } else {
+      focusNodeOffset -= nodeLen;
+    }
+  }
+  if (
+    anchorNode &&
+    focusNode &&
+    isChildOfEditor(anchorNode) &&
+    isChildOfEditor(focusNode)
+  ) {
+    window
+      .getSelection()
+      .setBaseAndExtent(anchorNode, anchorNodeOffset, focusNode, focusNodeOffset);
+  }
+}
+
+window.getFluidSelectionRange = getFluidSelectionRange;
+window.setFluidSelectionRange = setFluidSelectionRange;
 
 // ---------------------------
 // Analysis

@@ -726,11 +726,19 @@ let extract_from_function (m : model) : testResult =
       fail (show_cursorState m.cursorState)
 
 
+let fluidGetSelectionRange (s : fluidState) : (int * int) option =
+  match s.selectionStart with
+  | Some beginIdx ->
+      Some (beginIdx, s.newPos)
+  | None ->
+      None
+
+
 let fluid_double_click_selects_token (m : model) : testResult =
-  match m.fluidState.selection with
-  | Some {range = 34, 40} ->
+  match fluidGetSelectionRange m.fluidState with
+  | Some (34, 40) ->
       pass
-  | Some {range = a, b} ->
+  | Some (a, b) ->
       fail
         ( "incorrect selection range for token: ("
         ^ string_of_int a
@@ -752,7 +760,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
   in
   let expectedCursorPos = 6 in
   let browserCursorPass =
-    if Entry.getCursorPosition () = Some expectedCursorPos
+    if Entry.getFluidCaretPos () = Some expectedCursorPos
     then pass
     else fail "incorrect browser cursor position"
   in
@@ -770,10 +778,40 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
 
 
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
-  match m.fluidState.selection with
-  | Some {range = 34, 964} ->
+  match fluidGetSelectionRange m.fluidState with
+  | Some (34, 964) ->
       pass
-  | Some {range = a, b} ->
+  | Some (a, b) ->
+      fail
+        ( "incorrect selection range for expression: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_shift_right_selects_chars_in_front (m : model) : testResult =
+  match fluidGetSelectionRange m.fluidState with
+  | Some (262, 341) ->
+      pass
+  | Some (a, b) ->
+      fail
+        ( "incorrect selection range for token: ("
+        ^ string_of_int a
+        ^ ", "
+        ^ string_of_int b
+        ^ ")" )
+  | None ->
+      fail "no selection range"
+
+
+let fluid_shift_left_selects_chars_at_back (m : model) : testResult =
+  match fluidGetSelectionRange m.fluidState with
+  | Some (339, 261) ->
+      pass
+  | Some (a, b) ->
       fail
         ( "incorrect selection range for expression: ("
         ^ string_of_int a
@@ -926,6 +964,10 @@ let trigger (test_name : string) : integrationTestState =
         fluid_double_click_selects_token
     | "fluid_double_click_with_alt_selects_expression" ->
         fluid_double_click_with_alt_selects_expression
+    | "fluid_shift_right_selects_chars_in_front" ->
+        fluid_shift_right_selects_chars_in_front
+    | "fluid_shift_left_selects_chars_at_back" ->
+        fluid_shift_left_selects_chars_at_back
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->

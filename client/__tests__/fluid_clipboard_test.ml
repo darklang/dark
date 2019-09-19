@@ -11,12 +11,12 @@ type testResult = (* ast, clipboard, newPos *) string * string * int
 
 let () =
   let m = Defaults.defaultModel in
-  let process ~debug ?(clipboard = None) range ast msg : testResult =
+  let process ~debug ?(clipboard = None) (st, ed) ast msg : testResult =
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; selection = Some {range}; clipboard }
+        ac = AC.reset m; selectionStart = Some st; clipboard }
     in
-    let pos = Tuple2.first range in
+    let pos = ed in
     let s = {s with oldPos = pos; newPos = pos} in
     let clipboardStr s =
       s.clipboard
@@ -31,13 +31,7 @@ let () =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
     let newAST, newState = updateMsg m h.hTLID ast msg s in
-    let last =
-      toTokens newState newAST
-      |> List.last
-      |> deOption "last"
-      |> fun x -> x.endPos
-    in
-    let finalPos = max 0 (min last newState.newPos) in
+    let finalPos = newState.newPos in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
@@ -75,12 +69,12 @@ let () =
         "copying a bool adds an EBool to clipboard"
         (EBool (gid (), true))
         (copy (0, 4))
-        ("true", "true", 0) ;
+        ("true", "true", 4) ;
       t
         "copying a bool adds an EBool to clipboard 2"
         (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
         (copy (10, 14))
-        ("Bool::not true", "true", 10) ;
+        ("Bool::not true", "true", 14) ;
       t
         "cutting a bool adds an EBool to clipboard and leave a blank"
         (EBool (gid (), false))
@@ -102,12 +96,12 @@ let () =
         "copying a null adds an ENull to clipboard"
         (ENull (gid ()))
         (copy (0, 4))
-        ("null", "null", 0) ;
+        ("null", "null", 4) ;
       t
         "copying a null adds an ENull to clipboard 2"
         (EFnCall (gid (), "Bool::isNull", [ENull (gid ())], NoRail))
         (copy (13, 17))
-        ("Bool::isNull null", "null", 13) ;
+        ("Bool::isNull null", "null", 17) ;
       t
         "cutting a null adds an ENull to clipboard and leave a blank"
         (ENull (gid ()))
@@ -129,17 +123,17 @@ let () =
         "copying an int adds an EInteger to clipboard"
         (EInteger (gid (), "1000"))
         (copy (0, 4))
-        ("1000", "1000", 0) ;
+        ("1000", "1000", 4) ;
       t
         "copying an int adds an EInteger to clipboard 2"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (copy (10, 14))
-        ("Int::sqrt 1000", "1000", 10) ;
+        ("Int::sqrt 1000", "1000", 14) ;
       t
         "copying part of an int adds part of the EInteger to clipboard"
         (EInteger (gid (), "1234"))
         (copy (0, 2))
-        ("1234", "12", 0) ;
+        ("1234", "12", 2) ;
       t
         "cutting an int adds an EInteger to clipboard and leaves a blank"
         (EInteger (gid (), "1000"))
@@ -169,12 +163,12 @@ let () =
         "pasting an EFloat into an integer should convert to float"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (1, 3))
-        ("512.348", "12.34", 7) ;
+        ("512.348", "12.34", 6) ;
       t
         "pasting an EFloat into an integer should convert to float 2"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EFloat (gid (), "12", "34")) (0, 0))
-        ("12.345678", "12.34", 9) ;
+        ("12.345678", "12.34", 5) ;
       t
         "pasting an EFloat into an integer should convert to float 3"
         (EInteger (gid (), "5678"))
@@ -216,7 +210,7 @@ let () =
         "copying a string adds an EString to clipboard"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (copy (0, 21))
-        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 0) ;
+        ("\"abcd EFGH ijkl 1234\"", "\"abcd EFGH ijkl 1234\"", 21) ;
       t
         "copying a string adds an EString to clipboard 2"
         (EFnCall
@@ -227,12 +221,12 @@ let () =
         (copy (16, 37))
         ( "String::reverse \"abcd EFGH ijkl 1234\""
         , "\"abcd EFGH ijkl 1234\""
-        , 16 ) ;
+        , 37 ) ;
       t
         "copying part of a string adds an EString to clipboard"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (copy (4, 14))
-        ("\"abcd EFGH ijkl 1234\"", "\"d EFGH ijk\"", 4) ;
+        ("\"abcd EFGH ijkl 1234\"", "\"d EFGH ijk\"", 14) ;
       t
         "cutting a string adds an EString to clipboard"
         (EString (gid (), "abcd EFGH ijkl 1234"))
@@ -288,38 +282,38 @@ let () =
         "copying a float adds an EFloat to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (0, 9))
-        ("1234.5678", "1234.5678", 0) ;
+        ("1234.5678", "1234.5678", 9) ;
       t
         "copying a float adds an EFloat to clipboard 2"
         (EFnCall
            (gid (), "Float::round", [EFloat (gid (), "1234", "5678")], NoRail))
         (copy (13, 22))
-        ("Float::round 1234.5678", "1234.5678", 13) ;
+        ("Float::round 1234.5678", "1234.5678", 22) ;
       t
         "copying the whole part w/o the point adds an EInt to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (0, 4))
-        ("1234.5678", "1234", 0) ;
+        ("1234.5678", "1234", 4) ;
       t
         "copying the whole part w/ the point adds an EFloat with fraction value of 0 to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (0, 5))
-        ("1234.5678", "1234.0", 0) ;
+        ("1234.5678", "1234.0", 5) ;
       t
         "copying the fraction part w/o the point adds an EInt to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (5, 9))
-        ("1234.5678", "5678", 5) ;
+        ("1234.5678", "5678", 9) ;
       t
         "copying the fraction part w/ the point adds an EFloat with whole value of 0 to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (4, 9))
-        ("1234.5678", "0.5678", 4) ;
+        ("1234.5678", "0.5678", 9) ;
       t
         "copying just the point adds an EFloat with 0.0 to clipboard"
         (EFloat (gid (), "1234", "5678"))
         (copy (4, 5))
-        ("1234.5678", "0.0", 4) ;
+        ("1234.5678", "0.0", 5) ;
       t
         "cutting a float adds an EFloat to clipboard"
         (EFloat (gid (), "1234", "5678"))
@@ -402,12 +396,12 @@ let () =
         "copying adds an EVariable to clipboard"
         (EVariable (gid (), "varName"))
         (copy (0, 7))
-        ("varName", "varName", 0) ;
+        ("varName", "varName", 7) ;
       t
         "copying part of it adds an EVariable to clipboard"
         (EVariable (gid (), "varName"))
         (copy (0, 3))
-        ("varName", "var", 0) ;
+        ("varName", "var", 3) ;
       t
         "cutting adds an EVariable to clipboard and leaves a blank"
         (EVariable (gid (), "varName"))
@@ -444,12 +438,12 @@ let () =
         "copying adds an EFieldAccess to clipboard"
         (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
         (copy (0, 12))
-        ("request.body", "request.body", 0) ;
+        ("request.body", "request.body", 12) ;
       t
         "copying the preceding expresssion adds it to clipboard"
         (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
         (copy (0, 7))
-        ("request.body", "request", 0) ;
+        ("request.body", "request", 7) ;
       (* NOT WORKING YET
       t
         "copying field part adds an EVariable to clipboard"
@@ -483,7 +477,7 @@ let () =
         (copy (0, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
-        , 0 ) ;
+        , 45 ) ;
       t
         "cutting the whole expression adds an EIf to clipboard and leaves a blank"
         (EIf
@@ -501,7 +495,7 @@ let () =
            , EString (gid (), "then body")
            , EString (gid (), "else body") ))
         (copy (3, 7))
-        ("if true\nthen\n  \"then body\"\nelse\n  \"else body\"", "true", 3) ;
+        ("if true\nthen\n  \"then body\"\nelse\n  \"else body\"", "true", 7) ;
       t
         "copying the if keyword and the condition adds an EIf with blank then & else body to clipboard"
         (EIf
@@ -512,7 +506,7 @@ let () =
         (copy (0, 7))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  ___\nelse\n  ___"
-        , 0 ) ;
+        , 7 ) ;
       t
         "copying the condition and the then keyword adds an EIf with blank then & else body to clipboard"
         (EIf
@@ -523,7 +517,7 @@ let () =
         (copy (3, 12))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if true\nthen\n  ___\nelse\n  ___"
-        , 3 ) ;
+        , 12 ) ;
       t
         "copying just the then body adds the then expression to clipboard"
         (EIf
@@ -534,7 +528,7 @@ let () =
         (copy (15, 26))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "\"then body\""
-        , 15 ) ;
+        , 26 ) ;
       t
         "copying the then keyword and the then body adds an EIf with blank condition & else body to clipboard"
         (EIf
@@ -545,7 +539,7 @@ let () =
         (copy (8, 26))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if ___\nthen\n  \"then body\"\nelse\n  ___"
-        , 8 ) ;
+        , 26 ) ;
       t
         "copying the then body and the else keyword adds an EIf with blank condition & else body to clipboard"
         (EIf
@@ -556,7 +550,7 @@ let () =
         (copy (12, 31))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if ___\nthen\n  \"then body\"\nelse\n  ___"
-        , 12 ) ;
+        , 31 ) ;
       t
         "copying just the else body adds the else expression to clipboard"
         (EIf
@@ -567,7 +561,7 @@ let () =
         (copy (34, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "\"else body\""
-        , 34 ) ;
+        , 45 ) ;
       t
         "copying the else keyword and else body adds an EIf with blank condition &then body to clipboard"
         (EIf
@@ -578,7 +572,7 @@ let () =
         (copy (27, 45))
         ( "if true\nthen\n  \"then body\"\nelse\n  \"else body\""
         , "if ___\nthen\n  ___\nelse\n  \"else body\""
-        , 27 ) ;
+        , 45 ) ;
       t
         "cutting just the condition adds then condition expression to clipboard "
         (EIf
@@ -697,17 +691,17 @@ let () =
         "copying a function name adds an EFnCall w blank arguments to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 9))
-        ("Int::sqrt 122", "Int::sqrt ___", 0) ;
+        ("Int::sqrt 122", "Int::sqrt ___", 9) ;
       t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 4))
-        ("Int::sqrt 122", "Int:@sqr@ ___", 0) ;
+        ("Int::sqrt 122", "Int:@sqr@ ___", 4) ;
       t
         "copying a function's argument adds the argument's expression to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (10, 13))
-        ("Int::sqrt 122", "122", 10) ;
+        ("Int::sqrt 122", "122", 13) ;
       t
         "cutting a function name adds an EFnCall w blank arguments to clipboard and leaves a blank"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
@@ -738,7 +732,7 @@ let () =
         "copying first expression of thread adds it to clipboard"
         aThread
         (copy (0, 2))
-        ("[]\n|>List::append [5]\n|>List::append [5]", "[]", 0) ;
+        ("[]\n|>List::append [5]\n|>List::append [5]", "[]", 2) ;
       () ) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
@@ -755,7 +749,7 @@ let () =
              ; EInteger (gid (), "456")
              ; EInteger (gid (), "789") ] ))
         (copy (5, 12))
-        ("[123,456,789]", "[456,789]", 5) ;
+        ("[123,456,789]", "[456,789]", 12) ;
       t
         "cutting subset of elements adds subset list expr to clipboard and leaves remainder"
         (EList
@@ -792,12 +786,12 @@ let () =
         "copying opening bracket adds empty record expr to clipboard"
         (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (0, 1))
-        ("{\n  key1 : 1234\n}", "{}", 0) ;
+        ("{\n  key1 : 1234\n}", "{}", 1) ;
       t
         "copying a single key adds record w single key to clipboard"
         (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (4, 8))
-        ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 4) ;
+        ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 8) ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
         (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
@@ -807,19 +801,19 @@ let () =
         "copying a single k-v pair adds record w single k-v pair to clipboard"
         (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
-        ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 2) ;
+        ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
       () ) ;
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
         (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 8))
-        ("Just 100", "Just 100", 0) ;
+        ("Just 100", "Just 100", 8) ;
       t
         "copying part adds partial EConstructor to clipboard"
         (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 3))
-        ("Just 100", "Jus@ ___", 0) ;
+        ("Just 100", "Jus@ ___", 3) ;
       t
         "cutting adds EConstructor to clipboard and leaves blank"
         (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
