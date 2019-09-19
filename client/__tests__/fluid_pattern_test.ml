@@ -4,6 +4,7 @@ open Tc
 open Types
 open Prelude
 open Fluid
+module Regex = Util.Regex
 module K = FluidKeyboard
 module TL = Toplevel
 
