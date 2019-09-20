@@ -154,6 +154,19 @@ let () =
               (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
           , expr ) ] )
   in
+  let matchWithTwoLets =
+    let mID = gid () in
+    EMatch
+      ( mID
+      , b ()
+      , [ ( FPBlank (mID, gid ())
+          , ELet
+              ( gid ()
+              , gid ()
+              , ""
+              , b ()
+              , ELet (gid (), gid (), "", b (), EBlank (gid ())) ) ) ] )
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
   in
@@ -1689,6 +1702,18 @@ let () =
         twoLets
         (enter 9)
         ("let x = 5\nlet *** = ___\nlet y = 6\n7", 14) ;
+      t
+        "enter on the end of first let inserts new let"
+        matchWithTwoLets
+        (enter 32)
+        ( "match ___\n  *** -> let *** = ___\n         let *** = ___\n         let *** = ___\n         ___"
+        , 46 ) ;
+      t
+        "enter on the end of second let goes to blank"
+        matchWithTwoLets
+        (enter 55)
+        ( "match ___\n  *** -> let *** = ___\n         let *** = ___\n         ___"
+        , 65 ) ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
