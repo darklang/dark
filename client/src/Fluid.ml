@@ -3333,19 +3333,23 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
   let newAST, newState =
-    (* This is a hack to support Enter causing a new entry in matches and
-     * threads. They generate newlines at the end of the canvas, we don't want
-     * those newlines to appear. However, we also can't get rid of them because
-     * it's a significant challenge to know what to do in those cases. So
-     * instead, we allow them to be created and deal with the consequences.
+    (* This is a hack to make Enter create a new entry in matches and threads
+     * at the end of an AST. Matches/Threads generate newlines at the end of
+     * the canvas: we don't want those newlines to appear in editor, however,
+     * we also can't get rid of them because it's a significant challenge to
+     * know what to do in those cases without that information. So instead, we
+     * allow them to be created and deal with the consequences.
      *
      * They don't appear in the browser, so we can ignore that.
      *
-     * Instead, the major consequence is that there is an extra space at the
-     * end of the AST (the one after the newline). Users can perceive that they
-     * put their cursor all the way to the end of the AST, and then they press
-     * left and the cursor doesn't move (since the browser doesn't display the
-     * final newline, the cursor goes to the same spot).
+     * The major consequence is that there is an extra space at the end of the
+     * AST (the one after the newline). Users can put their cursor all the way
+     * to the end of the AST, and then they press left and the cursor doesn't
+     * move (since the browser doesn't display the final newline, the cursor
+     * goes to the same spot).
+     *
+     * We handle this by checking if we're in that situation and moving the
+     * cursor back to the right place if so.
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it.  *)
