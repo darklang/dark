@@ -822,6 +822,10 @@ let eToString (s : state) (e : ast) : string =
   |> String.join ~sep:""
 
 
+let tokensToString (tis : tokenInfo list) : string =
+  tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
+
+
 let eToStructure (s : state) (e : fluidExpr) : string =
   e
   |> toTokens s
@@ -3318,6 +3322,32 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
+  in
+  let newAST, newState =
+    (* This is a hack to support Enter causing a new entry in matches and
+     * threads. They generate newlines at the end of the canvas, we don't want
+     * those newlines to appear. However, we also can't get rid of them because
+     * it's a significant challenge to know what to do in those cases. So
+     * instead, we allow them to be created and deal with the consequences.
+     *
+     * They don't appear in the browser, so we can ignore that.
+     *
+     * Instead, the major consequence is that there is an extra space at the
+     * end of the AST (the one after the newline). Users can perceive that they
+     * put their cursor all the way to the end of the AST, and then they press
+     * left and the cursor doesn't move (since the browser doesn't display the
+     * final newline, the cursor goes to the same spot).
+     *
+     * TODO: there may be ways of getting the cursor to the end without going
+     * through this code, if so we need to move it.  *)
+    let tokens = toTokens newState newAST in
+    let text = tokensToString tokens in
+    let last = List.last tokens in
+    match last with
+    | Some {token = TNewline _} when String.length text = newState.newPos ->
+        (newAST, {newState with newPos = newState.newPos - 1})
+    | _ ->
+        (newAST, newState)
   in
   (* If we were on a partial and have moved off it, we may want to commit that
    * partial. This is done here because the logic is different that clicking.
