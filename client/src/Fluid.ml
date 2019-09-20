@@ -499,16 +499,12 @@ let rec toTokens' (s : state) (e : ast) : token list =
     in
     TIndentToHere tokens
   in
-  let rec last_in_nested_is_newline (e : Types.fluidToken) : bool =
+  let rec endsInNewline (e : Types.fluidToken) : bool =
     match e with
     | TNewline _ ->
         true
     | TIndentToHere tokens ->
-      ( match List.last tokens with
-      | Some t ->
-          last_in_nested_is_newline t
-      | _ ->
-          false )
+      (match List.last tokens with Some t -> endsInNewline t | _ -> false)
     | _ ->
         false
   in
@@ -532,7 +528,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TLetLHS (id, varId, lhs)
       ; TLetAssignment (id, varId)
       ; nested rhs ]
-      @ ( if last_in_nested_is_newline (nested rhs)
+      @ ( if endsInNewline (nested rhs)
         then []
         else [TNewline (Some (eid next, id, None))] )
       @ [nested next]
@@ -563,9 +559,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
       [TIfKeyword id; nested cond]
-      @ ( if last_in_nested_is_newline (nested cond)
-        then []
-        else [TNewline None] )
+      @ (if endsInNewline (nested cond) then [] else [TNewline None])
       @ [ TIfThenKeyword id
           (* The newline ID is pretty hacky here. It's used to make it possible
          * to press Enter on the expression inside. It might be better to
@@ -574,7 +568,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TNewline (Some (eid if', id, None))
         ; TIndent 2
         ; nested if' ]
-      @ (if last_in_nested_is_newline (nested if') then [] else [TNewline None])
+      @ (if endsInNewline (nested if') then [] else [TNewline None])
       @ [ TIfElseKeyword id
         ; TNewline (Some (eid else', id, None))
         ; TIndent 2
@@ -705,7 +699,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
             |> List.concat )
         in
         let withNewline =
-          if last_in_nested_is_newline tailTokens
+          if endsInNewline tailTokens
           then [tailTokens]
           else [tailTokens; TNewline (Some (id, id, Some (List.length tail)))]
         in
@@ -718,7 +712,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EMatch (id, mexpr, pairs) ->
       [TMatchKeyword id; nested mexpr]
       @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-              ( if i == 0 && last_in_nested_is_newline (nested mexpr)
+              ( if i == 0 && endsInNewline (nested mexpr)
               then []
               else [TNewline (Some (id, id, Some i)); TIndent 2] )
               @ patternToToken pattern
@@ -728,7 +722,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       if List.last pairs
          |> Option.map ~f:Tuple2.second
          |> Option.map ~f:(fun e -> nested e)
-         |> Option.map ~f:last_in_nested_is_newline
+         |> Option.map ~f:endsInNewline
          |> Option.withDefault ~default:false
       then []
       else [TNewline (Some (id, id, Some (List.length pairs)))]
@@ -761,8 +755,8 @@ let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
             * example - the TNewline at the end of an EMatch) - then we don't
             * want to add a TIndent, because that will indent the following,
             * non-EMatch, expr. *)
-             let is_last = i == List.length startingTokens - 1 in
-             if startingX = 0 || is_last
+             let isLast = i == List.length startingTokens - 1 in
+             if startingX = 0 || isLast
              then (startingX, old @ [t])
              else (startingX, old @ [t; TIndent startingX])
          | _ ->
