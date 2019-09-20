@@ -524,13 +524,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EBlank id ->
       [TBlank id]
   | ELet (id, varId, lhs, rhs, next) ->
+      let newline =
+        if endsInNewline (nested rhs)
+        then []
+        else [TNewline (Some (eid next, id, None))]
+      in
       [ TLetKeyword (id, varId)
       ; TLetLHS (id, varId, lhs)
       ; TLetAssignment (id, varId)
       ; nested rhs ]
-      @ ( if endsInNewline (nested rhs)
-        then []
-        else [TNewline (Some (eid next, id, None))] )
+      @ newline
       @ [nested next]
   | EString (id, str) ->
       let size = 40 in
@@ -558,8 +561,14 @@ let rec toTokens' (s : state) (e : ast) : token list =
             in
             starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
+      let condNewline =
+        if endsInNewline (nested cond) then [] else [TNewline None]
+      in
+      let thenNewline =
+        if endsInNewline (nested if') then [] else [TNewline None]
+      in
       [TIfKeyword id; nested cond]
-      @ (if endsInNewline (nested cond) then [] else [TNewline None])
+      @ condNewline
       @ [ TIfThenKeyword id
           (* The newline ID is pretty hacky here. It's used to make it possible
          * to press Enter on the expression inside. It might be better to
@@ -568,7 +577,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TNewline (Some (eid if', id, None))
         ; TIndent 2
         ; nested if' ]
-      @ (if endsInNewline (nested if') then [] else [TNewline None])
+      @ thenNewline
       @ [ TIfElseKeyword id
         ; TNewline (Some (eid else', id, None))
         ; TIndent 2
@@ -698,34 +707,40 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    else TNewline (Some (id, id, Some i)) :: thread )
             |> List.concat )
         in
-        let withNewline =
+        let tailNewline =
           if endsInNewline tailTokens
-          then [tailTokens]
-          else [tailTokens; TNewline (Some (id, id, Some (List.length tail)))]
+          then []
+          else [TNewline (Some (id, id, Some (List.length tail)))]
         in
-        [nested head; TNewline (Some (id, id, Some 0))] @ withNewline )
+        [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
+        @ tailNewline )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
+      let finalNewline =
+        if List.last pairs
+           |> Option.map ~f:Tuple2.second
+           |> Option.map ~f:(fun e -> nested e)
+           |> Option.map ~f:endsInNewline
+           |> Option.withDefault ~default:false
+        then []
+        else [TNewline (Some (id, id, Some (List.length pairs)))]
+      in
       [TMatchKeyword id; nested mexpr]
       @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-              ( if i == 0 && endsInNewline (nested mexpr)
-              then []
-              else [TNewline (Some (id, id, Some i)); TIndent 2] )
+              let patternNewline =
+                if i == 0 && endsInNewline (nested mexpr)
+                then []
+                else [TNewline (Some (id, id, Some i)); TIndent 2]
+              in
+              patternNewline
               @ patternToToken pattern
               @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
         |> List.concat )
-      @
-      if List.last pairs
-         |> Option.map ~f:Tuple2.second
-         |> Option.map ~f:(fun e -> nested e)
-         |> Option.map ~f:endsInNewline
-         |> Option.withDefault ~default:false
-      then []
-      else [TNewline (Some (id, id, Some (List.length pairs)))]
+      @ finalNewline
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
