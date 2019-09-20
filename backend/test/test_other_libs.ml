@@ -274,7 +274,7 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                  (let publickey '%s'
                    (let payload (obj (abc 'def'))
                      (let extraHeaders (obj (ghi 'jkl'))
-                       (JWT::verifyAndExtract publickey
+                       (`JWT::verifyAndExtract_v1 publickey
                          (`JWT::signAndEncodeWithHeaders_v1
                            privatekey
                            extraHeaders
@@ -306,20 +306,20 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                ; ("alg", Dval.dstr_of_string_exn "RS256")
                ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
-    |> fun x -> DOption (OptJust (DObj x)) )
+    |> DObj )
     (exec_ast (ast_v1 privatekey publickey)) ;
-  check_dval
-    "JWT::signAndEncodeWithheaders_v1 gives error for pubkey"
-    (DErrorRail
-       (DResult
-          (ResError (Dval.dstr_of_string_exn "Invalid RSA keys provided"))))
-    (exec_ast (ast_v1 privatekey "invalid public key")) ;
   check_dval
     "JWT::signAndEncodeWithheaders_v1 gives error for private key"
     (DErrorRail
        (DResult
-          (ResError (Dval.dstr_of_string_exn "Invalid RSA keys provided"))))
-    (exec_ast (ast_v1 "invalid private key" publickey))
+          (ResError
+             (Dval.dstr_of_string_exn "Invalid private key: not an RSA key"))))
+    (exec_ast (ast_v1 "invalid private key" publickey)) ;
+  check_dval
+    "JWT::verifyAndExtract_v1 gives error for pubkey"
+    (DErrorRail
+       (DResult (ResError (Dval.dstr_of_string_exn "Invalid public key"))))
+    (exec_ast (ast_v1 privatekey "invalid public key"))
 
 
 let t_date_functions_work () =
