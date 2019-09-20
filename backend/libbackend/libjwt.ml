@@ -56,7 +56,7 @@ let sign_and_encode
   body ^ "." ^ signature
 
 
-let verify_and_extract ~(key : Rsa.pub) ~(token : string) :
+let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
     (string * string) option =
   match String.split ~on:'.' token with
   | [header; payload; signature] ->
@@ -87,13 +87,44 @@ let verify_and_extract ~(key : Rsa.pub) ~(token : string) :
       None
 
 
+let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
+    (string * string, string) Result.t =
+  match String.split ~on:'.' token with
+  | [header; payload; signature] ->
+    (* do the minimum of parsing and decoding before verifying signature.
+        c.f. "cryptographic doom principle". *)
+    ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
+    | None ->
+        Error "Unable to base64-decode signature"
+    | Some signature ->
+        if header ^ "." ^ payload
+           |> Cstruct.of_string
+           |> (fun x -> `Message x)
+           |> Rsa.PKCS1.verify
+                ~hashp:(( = ) `SHA256)
+                ~key
+                ~signature:(Cstruct.of_string signature)
+        then
+          match
+            ( B64.decode_opt ~alphabet:B64.uri_safe_alphabet header
+            , B64.decode_opt ~alphabet:B64.uri_safe_alphabet payload )
+          with
+          | Some header, Some payload ->
+              Ok (header, payload)
+          | Some header, None ->
+              Error "Unable to base64-decode header"
+          | _ ->
+              Error "Unable to base64-decode payload"
+        else Error "Unable to verify signature" )
+  | _ ->
+      Error "Invalid token format"
+
+
 let handle_error (fn : unit -> dval) =
   try DResult (ResOk (fn ())) with Invalid_argument msg ->
     let msg =
       if msg = "No RSA keys"
       then "Invalid private key: not an RSA key"
-      else if msg = "No public keys"
-      then "Invalid public key"
       else msg
     in
     DResult (ResError (Dval.dstr_of_string_exn msg))
@@ -224,7 +255,7 @@ let fns =
                 DOption OptNothing
             | `RSA key ->
               ( match
-                  verify_and_extract
+                  verify_and_extract_v0
                     ~key
                     ~token:(Unicode_string.to_string token)
                 with
@@ -237,6 +268,49 @@ let fns =
                   |> DOption
               | None ->
                   DOption OptNothing ) )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["JWT::verifyAndExtract_v1"]
+    ; ins = []
+    ; p = [par "pemPubKey" TStr; par "token" TStr]
+    ; r = TResult
+    ; d =
+        "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr key; DStr token] ->
+            ( try
+                match
+                  key
+                  |> Unicode_string.to_string
+                  |> Cstruct.of_string
+                  |> X509.Encoding.Pem.Public_key.of_pem_cstruct1
+                with
+                | `EC_pub _ ->
+                    DOption OptNothing
+                | `RSA key ->
+                  ( match
+                      verify_and_extract_v1
+                        ~key
+                        ~token:(Unicode_string.to_string token)
+                    with
+                  | Ok (headers, payload) ->
+                      [ ("header", Dval.of_unknown_json_v1 headers)
+                      ; ("payload", Dval.of_unknown_json_v1 payload) ]
+                      |> Prelude.StrDict.from_list_exn
+                      |> DObj
+                      |> ResOk
+                      |> DResult
+                  | Error msg ->
+                      DResult (ResError (Dval.dstr_of_string_exn msg)) )
+              with Invalid_argument msg ->
+                let msg =
+                  if msg = "No public keys" then "Invalid public key" else msg
+                in
+                DResult (ResError (Dval.dstr_of_string_exn msg)) )
           | args ->
               fail args)
     ; ps = false
