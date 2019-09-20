@@ -731,7 +731,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
          |> Option.map ~f:last_in_nested_is_newline
          |> Option.withDefault ~default:false
       then []
-      else [TNewline (Some (id, id, Some (List.length pairs - 1)))]
+      else [TNewline (Some (id, id, Some (List.length pairs)))]
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
