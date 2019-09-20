@@ -806,22 +806,12 @@ let validateTokens (tokens : fluidToken list) : fluidToken list =
   tokens
 
 
-let stripFinalNewline (tokens : fluidToken list) : fluidToken list =
-  (* only remove a single newline. Nested newlines are handled before this *)
-  match List.last tokens with
-  | Some (TNewline _) ->
-      List.init tokens |> Option.withDefault ~default:[]
-  | _ ->
-      tokens
-
-
 let toTokens (s : state) (e : ast) : tokenInfo list =
   e
   |> toTokens' s
   |> validateTokens
   |> reflow ~x:0
   |> Tuple2.second
-  |> stripFinalNewline
   |> infoize ~pos:0
 
 
