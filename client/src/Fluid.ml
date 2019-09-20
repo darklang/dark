@@ -706,8 +706,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
         in
         let withNewline =
           if last_in_nested_is_newline tailTokens
-          then [tailTokens; TNewline (Some (id, id, Some (List.length tail)))]
-          else [tailTokens]
+          then [tailTokens]
+          else [tailTokens; TNewline (Some (id, id, Some (List.length tail)))]
         in
         [nested head; TNewline (Some (id, id, Some 0))] @ withNewline )
   | EThreadTarget _ ->
