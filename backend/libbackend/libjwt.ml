@@ -87,6 +87,18 @@ let verify_and_extract ~(key : Rsa.pub) ~(token : string) :
       None
 
 
+let handle_error (fn : unit -> dval) =
+  try DResult (ResOk (fn ())) with Invalid_argument msg ->
+    let msg =
+      if msg = "No RSA keys"
+      then "Invalid private key: not an RSA key"
+      else if msg = "No public keys"
+      then "Invalid public key"
+      else msg
+    in
+    DResult (ResError (Dval.dstr_of_string_exn msg))
+
+
 let fns =
   [ { pns = ["JWT::signAndEncode"]
     ; ins = []
@@ -110,7 +122,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["JWT::signAndEncodeWithHeaders"]
     ; ins = []
     ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
@@ -135,6 +147,59 @@ let fns =
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
               sign_and_encode ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["JWT::signAndEncode_v1"]
+    ; ins = []
+    ; p = [par "pemPrivKey" TStr; par "payload" TAny]
+    ; r = TStr
+    ; d =
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr key; payload] ->
+              handle_error (fun () ->
+                  let (`RSA key) =
+                    key
+                    |> Unicode_string.to_string
+                    |> Cstruct.of_string
+                    |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+                  in
+                  let payload = Dval.to_pretty_machine_yojson_v1 payload in
+                  sign_and_encode ~key ~extra_headers:[] ~payload
+                  |> Dval.dstr_of_string_exn )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["JWT::signAndEncodeWithHeaders_v1"]
+    ; ins = []
+    ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+    ; r = TResult
+    ; d =
+        "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr key; DObj headers; payload] ->
+              handle_error (fun () ->
+                  let (`RSA key) =
+                    key
+                    |> Unicode_string.to_string
+                    |> Cstruct.of_string
+                    |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
+                  in
+                  let json_hdrs =
+                    DObj headers
+                    |> Dval.to_pretty_machine_yojson_v1
+                    |> Yojson.Safe.Util.to_assoc
+                  in
+                  let payload = Dval.to_pretty_machine_yojson_v1 payload in
+                  sign_and_encode ~key ~extra_headers:json_hdrs ~payload
+                  |> Dval.dstr_of_string_exn )
           | args ->
               fail args)
     ; ps = false
