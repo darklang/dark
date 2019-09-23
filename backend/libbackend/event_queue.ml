@@ -99,11 +99,10 @@ space = $2 AND name = $3 AND modifier = $4"
         ; String modifier ]
     |> List.hd_exn
   in
-  let params =
-    params
-    @ [ ("dark_queue_size", dark_queue_size)
-      ; ("canvas_queue_size", canvas_queue_size)
-      ; ("worker_queue_size", worker_queue_size) ]
+  let jsonparams =
+    [ ("dark_queue_size", `Int (int_of_string dark_queue_size))
+    ; ("canvas_queue_size", `Int (int_of_string canvas_queue_size))
+    ; ("worker_queue_size", `Int (int_of_string worker_queue_size)) ]
   in
   let params =
     match host with
@@ -112,7 +111,7 @@ space = $2 AND name = $3 AND modifier = $4"
     | Some host ->
         ("queue_canvas_name", host) :: params
   in
-  Log.infO "queue size" ~params
+  Log.infO "queue size" ~params ~jsonparams
 
 
 let enqueue
