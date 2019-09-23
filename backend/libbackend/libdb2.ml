@@ -529,4 +529,22 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DB::getAllKeys"]
+    ; ins = []
+    ; p = [par "table" TDB]
+    ; r = TList
+    ; d =
+        "Fetch all the keys of entries in `table`. Returns an list with strings"
+    ; f =
+        InProcess
+          (function
+          | state, [DDB dbname] ->
+              let db = find_db state.dbs dbname in
+              User_db.get_all_keys ~state db
+              |> List.map ~f:(fun k -> Dval.dstr_of_string_exn k)
+              |> DList
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false } ]
