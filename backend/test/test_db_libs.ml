@@ -527,6 +527,26 @@ let t_db_getAll_v3_works () =
   check_dval "equal_after_roundtrip" (DBool true) (exec_handler ~ops ast)
 
 
+let t_db_getAllKeys_works () =
+  clear_test_data () ;
+  let ops =
+    [ Op.CreateDB (dbid, pos, "MyDB")
+    ; Op.AddDBCol (dbid, colnameid, coltypeid2)
+    ; Op.SetDBColName (dbid, colnameid, "x")
+    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+  in
+  let ast =
+    "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
+    (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
+      (let results (DB::getAllKeys MyDB)
+      results)))"
+  in
+  check_dval
+    "equal_after_roundtrip"
+    (DList [Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second"])
+    (exec_handler ~ops ast)
+
+
 let suite =
   [ ("DB::getAll_v1 works", `Quick, t_db_getAll_v1_works)
   ; ("DB::getAll_v2 works", `Quick, t_db_getAll_v2_works)
@@ -575,4 +595,7 @@ let suite =
     , t_db_queryOneWithKey_v2_returns_nothing_if_none )
   ; ( "DB::queryOneWithKey_v2 returns Nothing if more than one found"
     , `Quick
-    , t_db_queryOneWithKey_v2_returns_nothing_multiple ) ]
+    , t_db_queryOneWithKey_v2_returns_nothing_multiple )
+  ; ( "t_db_getAllKeys_works returns List of keys"
+    , `Quick
+    , t_db_getAllKeys_works ) ]
