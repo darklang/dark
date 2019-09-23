@@ -10,7 +10,7 @@ module TL = Toplevel
 let toFlagged (msgId : id) (expr : expr) : expr =
   match expr with
   | F (_, FeatureFlag (_, _, _, _)) ->
-      impossible ("cant convert flagged to flagged", expr)
+      recover ("cant convert flagged to flagged", expr) expr
   | _ ->
       F (gid (), FeatureFlag (Blank msgId, B.new_ (), expr, B.new_ ()))
 
@@ -20,7 +20,7 @@ let fromFlagged (pick : pick) (expr : expr) : expr =
   | F (_, FeatureFlag (_, _, a, b)) ->
     (match pick with PickA -> a | PickB -> b)
   | _ ->
-      impossible ("cant convert flagged to flagged", expr)
+      recover ("cant convert flagged to flagged", expr) expr
 
 
 let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =

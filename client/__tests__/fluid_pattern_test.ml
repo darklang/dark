@@ -80,7 +80,7 @@ let () =
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          impossible ("can't match: " ^ eToString s newAST)
+          Debug.crash ("can't match: " ^ eToString s newAST)
     in
     if debug
     then (

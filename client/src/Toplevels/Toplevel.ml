@@ -180,9 +180,9 @@ let toOp (tl : toplevel) : op list =
   | TLTipe t ->
       [SetType t]
   | TLGroup _ ->
-      impossible "Groups are front end only"
+      recover "Groups are front end only" []
   | TLDB _ ->
-      impossible "This isn't how datastore ops work"
+      recover "This isn't how datastore ops work" []
 
 
 let customEventSpaceNames (handlers : handler TD.t) : string list =
@@ -486,9 +486,9 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLTipe t ->
         [SetType t]
     | TLDB _ ->
-        impossible ("no vars in DBs", tl)
+        recover ("no vars in DBs", tl) []
     | TLGroup _ ->
-        impossible "groups are front end only "
+        recover "groups are front end only " []
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -586,8 +586,8 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLFunc f ->
         RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
     | TLTipe _ ->
-        impossible ("no ast in Tipes", tl)
+        recover ("no ast in Tipes", tl) NoChange
     | TLDB _ ->
-        impossible ("no ast in DBs", tl)
+        recover ("no ast in DBs", tl) NoChange
     | TLGroup _ ->
-        impossible ("no ast in Groups", tl) )
+        recover ("no ast in Groups", tl) NoChange )

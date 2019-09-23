@@ -201,7 +201,7 @@ let rec replace_
         in
         B.replace sId repl_ expr
     | _ ->
-        recoverable ("cannot occur", replacement) expr
+        recover ("cannot occur", replacement) expr
   else
     let renameVariable currentName newName target =
       let toPointer name = PExpr (F (gid (), Variable name)) in
@@ -650,20 +650,21 @@ let addLambdaBlank (id : id) (expr : expr) : expr =
 
 
 let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
+  let newKey = B.new_ () in
+  let newExpr = B.new_ () in
+  let recoverResult = (B.toID newKey, B.toID newExpr, expr) in
   match findExn id expr with
   | PKey _ ->
     ( match findParentOfWithin id expr with
     | F (olid, ObjectLiteral pairs) as old ->
-        let newKey = B.new_ () in
-        let newExpr = B.new_ () in
         let newPairs = pairs @ [(newKey, newExpr)] in
         let new_ = F (olid, ObjectLiteral newPairs) in
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newKey, B.toID newExpr, replacement)
     | _ ->
-        impossible ("key parent must be object", id, expr) )
+        recover ("key parent must be object", id, expr) recoverResult )
   | _ ->
-      impossible ("must add to key", id, expr)
+      recover ("must add to key", id, expr) recoverResult
 
 
 (* Extend the object literal automatically, only if it's the last key in *)
@@ -716,12 +717,13 @@ let maybeExtendListLiteralAt (pd : pointerData) (expr : expr) : expr =
 
 
 let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
+  let newPat = B.new_ () in
+  let newExpr = B.new_ () in
+  let recoverResult = (B.toID newPat, B.toID newExpr, expr) in
   match findExn id expr with
   | PPattern _ ->
     ( match findParentOfWithin id expr with
     | F (olid, Match (cond, pairs)) as old ->
-        let newPat = B.new_ () in
-        let newExpr = B.new_ () in
         let pos =
           List.findIndex ~f:(fun (p2, _) -> B.toID p2 = id) pairs
           |> Option.withDefault ~default:0
@@ -733,9 +735,9 @@ let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newPat, B.toID newExpr, replacement)
     | _ ->
-        impossible ("pattern parent must be match", id, expr) )
+        recover ("pattern parent must be match", id, expr) recoverResult )
   | _ ->
-      impossible ("must add to pattern", id, expr)
+      recover ("must add to pattern", id, expr) recoverResult
 
 
 let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =

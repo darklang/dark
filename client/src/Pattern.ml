@@ -27,7 +27,7 @@ let rec replace
     | PPattern replacement_ ->
         replacement_
     | _ ->
-        recoverable ("cannot occur", replacement) p
+        recover ("cannot occur", replacement) p
   else
     match p with
     | F (id, PConstructor (cons, args)) ->

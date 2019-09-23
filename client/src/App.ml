@@ -462,11 +462,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | IntegrationTestExpectation fn ->
               fn
           | IntegrationTestFinished _ ->
-              impossible
+              recover
                 "Attempted to end integration test but one ran + was already finished"
+                (fun _ -> IntegrationTest.fail "Already finished" )
           | NoIntegrationTest ->
-              impossible
+              recover
                 "Attempted to end integration test but none was running"
+                (fun _ -> IntegrationTest.fail "Not running" )
         in
         let result = expectationFn m in
         ( {m with integrationTestState = IntegrationTestFinished result}
@@ -1879,7 +1881,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~reload:false
            err)
   | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
-      impossible "Can never happen"
+      recover "Fluid functions should not happen here" NoChange
   | FluidCommandsFilter query ->
       TweakModel
         (fun m ->
