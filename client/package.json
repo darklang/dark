@@ -27,7 +27,7 @@
     "rollbar": "^2.13.0",
     "sha2": "^1.0.2",
     "tablecloth-bucklescript": "0.0.6",
-    "html2canvas": "1.0.0-rc.3"
+    "html2canvas": "1.0.0-rc.4"
   },
   "scripts": {
     "clean": "bsb -clean-world",
