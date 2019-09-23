@@ -98,8 +98,7 @@ let recover (msg : 'a) (val_ : 'b) : 'b =
     ^ "Value: "
     ^ Js.String.make val_
   in
-  (* TODO: surface the error to the user and in rollbar and continue *)
-  ignore (Debug.crash error) ;
+  Native.Rollbar.send error None Js.Json.null ;
   val_
 
 
