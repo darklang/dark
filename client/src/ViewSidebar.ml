@@ -804,7 +804,7 @@ let viewSidebar_ (m : model) : msg Html.html =
             EnablePanning true ) ]
       ( [toggleSidebar m]
       @ [ Html.div
-            [Html.classList [("groups-closed", isClosed); ("groups", true)]]
+            [Html.classList [("groups", true); ("groups-closed", isClosed)]]
             ( List.map ~f:(showCategories m) cats
             @ [showDeployStats m; showAdminDebugger] )
         ; status ] )

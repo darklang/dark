@@ -118,6 +118,12 @@ let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   Tea.Http.send (fun x -> InitialLoadRPCCallback (focus, NoChange, x)) request
 
 
+let logout (m : model) : msg Tea.Cmd.t =
+  let url = "/logout" in
+  let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
+  Tea.Http.send (fun _ -> LogoutRPCCallback) request
+
+
 let saveTest (m : model) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/save_test"]

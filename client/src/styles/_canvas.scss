@@ -245,3 +245,50 @@ body #app * {
     height: 100%;
   }
 }
+
+.logged-out {
+  margin: auto;
+  width: 500px;
+  text-align: center;
+}
+
+.my-account {
+  position: fixed;
+  top: 5px;
+  right: 10px;
+  z-index: 80;
+  text-align: right;
+
+  .avatar {
+    padding: 0;
+    width: 48px;
+    height: 48px;
+    border: 3px solid $purple;
+  }
+
+  .account-actions {
+    height: 0;
+    transition: height 0.4s;
+
+    box-sizing: border-box;
+    background: $black3;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  &:hover > .account-actions {
+    height: 50px;
+  }
+
+  a.action-link {
+    padding: 5px 8px;
+
+    &:hover {
+      color: $purple;
+    }
+  }
+}
