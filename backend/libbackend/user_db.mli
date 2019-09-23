@@ -20,6 +20,8 @@ val get_many_with_keys :
 
 val get_all : state:exec_state -> DbT.db -> (string * dval) list
 
+val get_all_keys : state:exec_state -> DbT.db -> string list
+
 val query : state:exec_state -> DbT.db -> dval -> (string * dval) list
 
 val query_by_one :
