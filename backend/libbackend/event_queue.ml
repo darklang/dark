@@ -171,8 +171,10 @@ let dequeue transaction : t option =
       ; queue_delay_ms ] ->
       log_queue_size Dequeue ~host canvas_id space name modifier ;
       let queue_delay =
-        try [("queue_delay_ms", `Float (queue_delay_ms |> float_of_string))]
-        with e -> []
+        queue_delay_ms
+        |> float_of_string_opt
+        |> Option.map ~f:(fun flt -> [("queue_delay_ms", `Float flt)])
+        |> Option.value ~default:[]
       in
       Log.infO
         "queue_delay"
