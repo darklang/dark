@@ -516,6 +516,12 @@ and dbStatsStore j : dbStatsStore = dict dbStats j
 
 and dbStatsRPCResult j = dbStatsStore j
 
+and account j : account =
+  { name = field "name" string j
+  ; email = field "email" string j
+  ; username = field "username" string j }
+
+
 and initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
@@ -538,7 +544,8 @@ and initialLoadRPCResult j : initialLoadRPCResult =
       |> StrDict.fromList
   ; permission = field "permission" (optional permission) j
   ; groups = List.filterMap ~f:TL.asGroup tls
-  ; deletedGroups = List.filterMap ~f:TL.asGroup tls }
+  ; deletedGroups = List.filterMap ~f:TL.asGroup tls
+  ; account = field "account" account j }
 
 
 and executeFunctionRPCResult j : executeFunctionRPCResult =

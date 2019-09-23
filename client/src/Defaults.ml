@@ -17,6 +17,8 @@ let pageHeight : int = 400
 
 let pageWidth : int = 500
 
+let unsetCSRF : string = "UNSET_CSRF"
+
 let defaultEditor : serializableEditor =
   { timersEnabled = true
   ; cursorState = Deselected
@@ -65,6 +67,8 @@ let defaultHandlerProp : handlerProp =
 
 
 let defaultToast : toast = {toastMessage = None; toastPos = None}
+
+let defaultAccount : account = {name = ""; email = ""; username = ""}
 
 let defaultModel : model =
   { error = {message = None; showDetails = false}
@@ -117,7 +121,7 @@ let defaultModel : model =
   ; userContentHost = "builtwithdark.com"
   ; origin = ""
   ; environment = "none"
-  ; csrfToken = "UNSET_CSRF"
+  ; csrfToken = unsetCSRF
   ; routingTableOpenDetails = StrSet.empty
   ; usedDBs = StrDict.empty
   ; usedFns = StrDict.empty
@@ -137,4 +141,5 @@ let defaultModel : model =
   ; lastReload = None
   ; permission = None
   ; showTopbar = true
-  ; toast = defaultToast }
+  ; toast = defaultToast
+  ; account = defaultAccount }

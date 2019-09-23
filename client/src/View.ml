@@ -382,6 +382,20 @@ let viewToast (t : toast) : msg Html.html =
     [Html.text msg]
 
 
+let accountView (m : model) : msg Html.html =
+  let logout =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
+            LogoutOfDark )
+      ; Html.class' "action-link" ]
+      [Html.text "Logout"]
+  in
+  Html.div
+    [Html.class' "my-account"]
+    [ m |> Avatar.myAvatar |> Avatar.avatarDiv
+    ; Html.div [Html.class' "account-actions"] [logout] ]
+
+
 let view (m : model) : msg Html.html =
   let activeVariantsClass =
     match VariantTesting.activeCSSClasses m with
@@ -419,7 +433,7 @@ let view (m : model) : msg Html.html =
   in
   let content =
     ViewTopbar.html m
-    @ [sidebar; body; activeAvatars; viewToast m.toast; entry]
+    @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
     @ fluidStatus
     @ footer
   in

@@ -313,7 +313,8 @@ type initial_load_rpc_result =
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
   ; op_ctrs : (string * int) list
-  ; permission : Authorization.permission option }
+  ; permission : Authorization.permission option
+  ; account : Account.user_info }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -323,7 +324,8 @@ let to_initial_load_rpc_result
     (fofs : SE.four_oh_four list)
     (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
-    (assets : SA.static_deploy list) : string =
+    (assets : SA.static_deploy list)
+    (account : Account.user_info) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels =
       IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
@@ -336,7 +338,8 @@ let to_initial_load_rpc_result
   ; traces
   ; assets
   ; op_ctrs
-  ; permission }
+  ; permission
+  ; account }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

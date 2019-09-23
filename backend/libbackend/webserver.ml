@@ -10,6 +10,7 @@ module CResponse = Clu.Response
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
 module Client = Clu.Client
+module A = Account
 module C = Canvas
 module Exception = Libexecution.Exception
 module Util = Libexecution.Util
@@ -805,8 +806,16 @@ let initial_load
     let t5, assets =
       time "5-static-assets" (fun _ -> SA.all_deploys_in_canvas !c.id)
     in
-    let t6, result =
-      time "6-to-frontend" (fun _ ->
+    let t6, account =
+      time "6-account" (fun _ ->
+          match A.get_user username with
+          | Some u ->
+              u
+          | None ->
+              {username; email = ""; name = ""; admin = false} )
+    in
+    let t7, result =
+      time "7-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -814,11 +823,12 @@ let initial_load
             f404s
             traces
             unlocked
-            assets )
+            assets
+            account )
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -1282,6 +1292,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
   let req_uri = CRequest.uri req in
   let path = Uri.path req_uri in
   let login_uri = Uri.of_string "/login" in
+  let verb = req |> CRequest.meth in
   match%lwt Auth.Session.of_request req with
   | Ok (Some session) when path <> "/login" ->
       let username = Auth.Session.username_for session in
@@ -1289,7 +1300,7 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
       Log.add_log_annotations
         [("username", `String username)]
         (fun _ ->
-          if path = "/logout"
+          if path = "/logout" && verb = `POST
           then (
             Auth.Session.clear Auth.Session.backend session ;%lwt
             let headers =

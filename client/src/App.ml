@@ -1435,7 +1435,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace] ) )
       in
       Many
-        [ TweakModel (fun m -> {m with opCtrs = r.opCtrs})
+        [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -1904,6 +1904,14 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
   | HideTopbar ->
       TweakModel (fun m -> {m with showTopbar = false})
+  | LogoutOfDark ->
+      Many
+        [ MakeCmd (RPC.logout m)
+        ; TweakModel (fun m -> {m with timersEnabled = false}) ]
+  | LogoutRPCCallback ->
+      (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
+      Native.Ext.redirect "/login" ;
+      NoChange
   | GoToArchitecturalView ->
       Many
         [ TweakModel

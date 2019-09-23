@@ -88,10 +88,61 @@ $prodColor: black;
       padding: 15px 5px;
       color: $grey2;
       width: 100%;
+
       &.deleted.empty {
         // Dont show trash can if it's empty
         display: none;
       }
+
+      &:hover {
+        .hover {
+          display: flex;
+          flex-direction: column;
+
+          position: absolute;
+          left: $sidebarClosedWidth;
+
+          width: 300px;
+          max-height: 400px;
+          padding: 10px;
+          margin-top: 10px;
+
+          overflow-y: scroll;
+
+          background-color: darken($canvas-background, 10%);
+          box-shadow: $sidebard-preview-shadow;
+
+          .header-icon {
+            display: none;
+          }
+
+          .GET a.external {
+            font-size: 12px;
+          }
+        }
+      }
+
+      .hover {
+        display: none;
+      }
+
+      &.settings {
+        margin-top: 0;
+      }
+
+      &.settings .collapsed-icon {
+        margin-left: 5px;
+
+        .header-icon {
+          margin-top: 0;
+          margin-left: 0;
+        }
+      }
+
+      &.settings.is-admin > .collapsed-icon > .environment {
+        display: flex;
+      }
+
       .collapsed-icon {
         display: flex;
         align-items: center;
@@ -554,7 +605,6 @@ $prodColor: black;
   }
   .title {
     align-self: flex-start;
-    border-bottom: 1px solid;
     .title {
       border-bottom: none;
     }

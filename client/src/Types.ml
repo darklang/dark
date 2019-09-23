@@ -618,6 +618,11 @@ and performAnalysisResult = (analysisError, analysisEnvelope) Tc.Result.t
 
 and delete404RPCParams = fourOhFour
 
+and account =
+  { name : string
+  ; email : string
+  ; username : string }
+
 (* results *)
 and addOpRPCResult =
   { handlers : handler list
@@ -663,7 +668,8 @@ and initialLoadRPCResult =
   ; permission : permission option
   ; opCtrs : int StrDict.t
   ; groups : group list
-  ; deletedGroups : group list }
+  ; deletedGroups : group list
+  ; account : account }
 
 and saveTestRPCResult = string
 
@@ -960,6 +966,7 @@ and msg =
       triggerHandlerRPCParams
       * (triggerHandlerRPCResult, httpError) Tea.Result.t
       [@printer opaque "TriggerHandlerRPCCallback"]
+  | LogoutRPCCallback [@printer opaque "LogoutRPCCallback"]
   | Delete404RPC of fourOhFour
   | NewPresencePush of avatar list
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
@@ -1036,6 +1043,7 @@ and msg =
   | DragGroupMember of tlid * tlid * mouseEvent
   | CreateGroup
   | HideTopbar
+  | LogoutOfDark
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1394,7 +1402,8 @@ and model =
   ; permission : permission option
   ; showTopbar : bool
   ; toast : toast
-  ; username : string }
+  ; username : string
+  ; account : account }
 
 (* Values that we serialize *)
 and serializableEditor =
