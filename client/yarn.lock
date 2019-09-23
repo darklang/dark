@@ -3092,10 +3092,10 @@ html-encoding-sniffer@^1.0.2:
   dependencies:
     whatwg-encoding "^1.0.1"
 
-html2canvas@1.0.0-rc.3:
-  version "1.0.0-rc.3"
-  resolved "https://registry.yarnpkg.com/html2canvas/-/html2canvas-1.0.0-rc.3.tgz#1de88b073f6bcaa6954ca1edfb46da13b258b038"
-  integrity sha512-nWRk34IO3QopcDYpiPAbRW6VoI10H7uxEhcSFjox0JB6wZOMd6Mak+NqHPLljSFFEOvBjPafyRgcHnuWcFpWvg==
+html2canvas@1.0.0-rc.4:
+  version "1.0.0-rc.4"
+  resolved "https://registry.yarnpkg.com/html2canvas/-/html2canvas-1.0.0-rc.4.tgz#caa4a094d97d321035a8025e4757bdd5ac76da86"
+  integrity sha512-5sJ+oM3FfNFpGVbMQkJFDl1WH5Sa293l2koMEZWbaehJ3dWHty4mSrmZtfWlWDoLckfGojZS9aZ7Zk3uFouyPw==
   dependencies:
     css-line-break "1.1.1"
 
