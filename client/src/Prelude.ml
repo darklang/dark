@@ -80,34 +80,16 @@ let idOf (s : cursorState) : id option =
 (* Crashing *)
 (* -------------------------------------- *)
 
-(* `Impossible` crashes with the value provided. *)
-(* Is it very obvious why? *)
-(*   impossible () *)
-(* Want a string message? *)
-(*   impossible "The widgets can't arrive in this order" *)
-(* Show a value: *)
-(*   impossible myVar *)
-(* Combine them: *)
-(*   impossible ("The widges can't arrive in this order:", myVar) *)
-let impossible (a : 'a) : 'b =
-  Debug.crash ("something impossible occurred: " ^ Js.String.make a)
-
-
 let deOption (msg : string) (x : 'a option) : 'a =
   match x with
   | Some y ->
       y
   | None ->
-      impossible ("got None but expected something: " ^ msg)
+      Debug.crash ("deOption, got None but expected something: " ^ msg)
 
 
-let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
-  if fn a then a else impossible ("assertion failure", a)
-
-
-(* Like impossible but has a different semantic meaning. If you have a *)
-(* value you _could_ continue with, consider this. *)
-let recoverable (msg : 'a) (val_ : 'b) : 'b =
+(* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
+let recover (msg : 'a) (val_ : 'b) : 'b =
   let error =
     "An unexpected but recoverable error happened. "
     ^ "For now we crash. "
@@ -120,6 +102,12 @@ let recoverable (msg : 'a) (val_ : 'b) : 'b =
   ignore (Debug.crash error) ;
   val_
 
+
+let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
+  if fn a then a else recover "assertion failure" a
+
+
+let asserT (fn : 'a -> bool) (a : 'a) : unit = ignore (assert_ fn a)
 
 (* Like impossible but with the message TODO *)
 let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)

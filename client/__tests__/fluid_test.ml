@@ -407,7 +407,7 @@ let () =
       | EIf (_, _, expr, _) ->
           expr
       | expr ->
-          impossible ("the wrapper is broken: " ^ eToString s expr)
+          Debug.crash ("the wrapper is broken: " ^ eToString s expr)
     in
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in

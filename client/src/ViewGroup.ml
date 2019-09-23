@@ -70,7 +70,7 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         db.dbTLID
     | _ ->
-        impossible "No other topleve should be in a group"
+        recover "No other toplevel should be in a group" (TLID "fake-id")
   in
   let event =
     ViewUtils.eventNoPropagation

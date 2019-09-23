@@ -143,21 +143,21 @@ let replaceParamName
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            impossible search
+            recover search None
       in
       let rContent =
         match replacement with
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            impossible replacement
+            recover replacement None
       in
       let transformUse rep old =
         match old with
         | PExpr (F (_, _)) ->
             PExpr (F (gid (), Variable rep))
         | _ ->
-            impossible old
+            recover old old
       in
       match (sContent, rContent) with
       | Some o, Some r ->

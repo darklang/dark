@@ -383,18 +383,18 @@ let parsePattern (str : string) : pattern option =
       else None
 
 
-let getAstFromTopLevel tl =
+let getAstFromTopLevel tl : expr =
   match tl with
   | TLHandler h ->
       h.ast
   | TLFunc f ->
       f.ufAST
   | TLGroup _ ->
-      impossible ("No ASTs in Groups", tl)
+      recover ("No ASTs in Groups", tl) (B.new_ ())
   | TLDB _ ->
-      impossible ("No ASTs in DBs", tl)
+      recover ("No ASTs in DBs", tl) (B.new_ ())
   | TLTipe _ ->
-      impossible ("No ASTs in Types", tl)
+      recover ("No ASTs in Types", tl) (B.new_ ())
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -478,7 +478,7 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
                    |> Option.isSome )
         | _ ->
             None )
-        |> deOption "validate: impossible! pattern without parent match"
+        |> deOption "validate: recover! pattern without parent match"
         |> Tuple2.second
       in
       ( match parsePattern value with
@@ -553,7 +553,7 @@ let submitACItem
             | TLGroup g ->
                 AddGroup g
             | TLDB _ ->
-                impossible ("no vars in DBs", tl)
+                recover ("no vars in DBs", tl) NoChange
         in
         let saveH h next = save (TLHandler h) next in
         let saveAst ast next =
@@ -563,11 +563,11 @@ let submitACItem
           | TLFunc f ->
               save (TLFunc {f with ufAST = ast}) next
           | TLDB _ ->
-              impossible ("no ASTs in DBs", tl)
+              recover ("no ASTs in DBs", tl) NoChange
           | TLTipe _ ->
-              impossible ("no ASTs in Tipes", tl)
+              recover ("no ASTs in Tipes", tl) NoChange
           | TLGroup _ ->
-              impossible ("no ASTs in Groups", tl)
+              recover ("no ASTs in Groups", tl) NoChange
         in
         let replace new_ =
           tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -717,7 +717,7 @@ let submitACItem
                          ( F (id_, FieldAccess (lhs, B.newF fieldname))
                          , B.new_ () ))
                 | _ ->
-                    impossible ("should be a field", parent)
+                    recover ("should be a field", parent) parent
               in
               let new_ = PExpr wrapped in
               let replacement = TL.replace (PExpr parent) new_ tl in
@@ -848,7 +848,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
-        impossible "Shouldnt allow omniactions here"
+        recover "Shouldnt allow omniactions here" NoChange
     | Some item ->
         submitACItem m cursor item move
     | _ ->

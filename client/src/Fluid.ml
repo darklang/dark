@@ -806,12 +806,8 @@ let infoize ~(pos : int) tokens : tokenInfo list =
 
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
-  List.iter
-    ~f:(fun t ->
-      if String.length (Token.toText t) == 0
-      then impossible "zero length token"
-      else () )
-    tokens ;
+  List.iter tokens ~f:(fun t ->
+      asserT (fun t -> String.length (Token.toText t) > 0) t ) ;
   tokens
 
 
@@ -3585,7 +3581,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     then true
     else if s = "false"
     then false
-    else impossible "string bool token should always be convertable to bool"
+    else recover "string bool token should always be convertable to bool" false
   in
   let findTokenValue tokens tID typeName =
     List.find tokens ~f:(fun (tID', _, typeName') ->
