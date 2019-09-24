@@ -185,7 +185,7 @@ let fns =
   ; { pns = ["JWT::signAndEncode_v1"]
     ; ins = []
     ; p = [par "pemPrivKey" TStr; par "payload" TAny]
-    ; r = TStr
+    ; r = TResult
     ; d =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
     ; f =
