@@ -77,6 +77,7 @@ let log_queue_size
       "SELECT count(*) FROM events WHERE status != 'done'"
       ~params:[]
     |> List.hd_exn
+    |> int_of_string
   in
   let canvas_queue_size =
     Db.fetch_one
@@ -85,6 +86,7 @@ let log_queue_size
       "SELECT count(*) FROM events WHERE status != 'done' AND canvas_id = $1"
       ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
     |> List.hd_exn
+    |> int_of_string
   in
   let worker_queue_size =
     Db.fetch_one
@@ -98,11 +100,12 @@ space = $2 AND name = $3 AND modifier = $4"
         ; String name
         ; String modifier ]
     |> List.hd_exn
+    |> int_of_string
   in
   let jsonparams =
-    [ ("dark_queue_size", `Int (int_of_string dark_queue_size))
-    ; ("canvas_queue_size", `Int (int_of_string canvas_queue_size))
-    ; ("worker_queue_size", `Int (int_of_string worker_queue_size)) ]
+    [ ("dark_queue_size", `Int dark_queue_size)
+    ; ("canvas_queue_size", `Int canvas_queue_size)
+    ; ("worker_queue_size", `Int worker_queue_size) ]
   in
   let params =
     match host with
