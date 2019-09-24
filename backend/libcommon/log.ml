@@ -280,7 +280,7 @@ let pP
         |> Option.map ~f:(function
                | _, `Float start ->
                    [ ( "timer"
-                     , `Float (start -. (Unix.gettimeofday () *. 1000.0)) ) ]
+                     , `Float ((Unix.gettimeofday () *. 1000.0) -. start) ) ]
                | _ ->
                    [] )
         |> Option.value ~default:[]
