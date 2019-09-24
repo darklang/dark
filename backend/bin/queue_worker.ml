@@ -39,7 +39,7 @@ let health_check execution_id =
                 Libbackend.Rollbar.report_lwt
                   e
                   bt
-                  CronChecker
+                  EventQueue
                   (Libexecution.Types.string_of_id execution_id) ) ;
             fail e )
 
