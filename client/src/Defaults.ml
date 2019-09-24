@@ -132,6 +132,7 @@ let defaultModel : model =
   ; tlUsedIn = TLIDDict.empty
   ; fluidState = defaultFluidState
   ; dbStats = StrDict.empty
+  ; workerStats = StrDict.empty
   ; avatarsList = []
   ; browserId = ""
   ; sidebarOpen = true

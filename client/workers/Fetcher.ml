@@ -99,6 +99,22 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
         url
         context
         (Encoders.dbStatsRPCParams dbsParams)
+  | WorkerStatsFetch workerParams ->
+      let url =
+        context.prefix
+        ^ context.origin
+        ^ "/api/"
+        ^ context.canvasName
+        ^ "/get_worker_stats"
+      in
+      fetch_
+        ~decoder:Decoders.workerStatsRPCResult
+        ~on_success:(fun r -> WorkerStatsFetchSuccess (workerParams, r))
+        ~on_missing:(fun _ -> WorkerStatsFetchMissing workerParams)
+        ~on_failure:(fun r -> WorkerStatsFetchFailure (workerParams, url, r))
+        url
+        context
+        (Encoders.workerStatsRPCParams workerParams)
 
 
 let () =
