@@ -1097,7 +1097,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACEventSpace "CRON" ->
       Some "This handler will periodically trigger"
   | ACEventSpace "WORKER" ->
-      Some "This handler will run emited events in the background"
+      Some "This handler will run emitted events in the background"
   | ACEventSpace "REPL" ->
       Some "This handler allows you run code in it"
   | ACEventSpace _ ->
