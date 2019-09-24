@@ -990,7 +990,38 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
     let t4, result =
       time "4-to-frontend" (fun _ -> Analysis.to_db_stats_rpc_result stats)
     in
-    respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+    respond
+      ~execution_id
+      ~resp_headers:(server_timing [t1; t2; t3; t4])
+      `OK
+      result
+  with e -> raise e
+
+
+let worker_stats ~(execution_id : Types.id) (host : string) (body : string) :
+    (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, params =
+      time "1-read-api-tlid" (fun _ -> Api.to_worker_stats_rpc_params body)
+    in
+    let t2, c =
+      time "2-load-saved-ops" (fun _ ->
+          C.load_all host []
+          |> Result.map_error ~f:(String.concat ~sep:", ")
+          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
+    in
+    let t3, stats =
+      time "3-analyze-worker-stats" (fun _ ->
+          Analysis.worker_stats !c params.tlid )
+    in
+    let t4, result =
+      time "4-to-frontend" (fun _ -> Analysis.to_worker_stats_rpc_result stats)
+    in
+    respond
+      ~execution_id
+      ~resp_headers:(server_timing [t1; t2; t3; t4])
+      `OK
+      result
   with e -> raise e
 
 
@@ -1509,6 +1540,9 @@ let admin_api_handler
   | `POST, ["api"; canvas; "get_db_stats"] ->
       when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (db_stats ~execution_id canvas body) )
+  | `POST, ["api"; canvas; "get_worker_stats"] ->
+      when_can_view ~canvas (fun _ ->
+          wrap_editor_api_headers (worker_stats ~execution_id canvas body) )
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
       when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body)

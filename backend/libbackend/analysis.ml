@@ -45,6 +45,23 @@ let db_stats (c : canvas) (tlids : tlid list) : db_stat_map =
     tlids
 
 
+type worker_stat = {count : int} [@@deriving show, yojson]
+
+let worker_stats (c : canvas) (tlid : tlid) : worker_stat =
+  let count =
+    Db.fetch_one
+      ~name:"count_workers"
+      ~subject:(show_tlid tlid)
+      "SELECT COUNT(1) as num from events E
+        INNER JOIN toplevel_oplists TL on TL.canvas_id = E.canvas_id and TL.module = E.space and TL.name = E.name
+        WHERE TL.tlid = $1 and TL.canvas_id = $2 and E.status IN('new', 'error')"
+      ~params:[Db.ID tlid; Db.Uuid c.id]
+    |> List.hd_exn
+    |> int_of_string
+  in
+  {count}
+
+
 let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
   let events = SE.list_events ~limit:(`Since since) ~canvas_id:c.id () in
   let handlers =
@@ -242,6 +259,10 @@ let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
 
 let to_db_stats_rpc_result (stats : db_stat_map) : string =
   stats |> db_stat_map_to_yojson |> Yojson.Safe.to_string ~std:true
+
+
+let to_worker_stats_rpc_result (stats : worker_stat) : string =
+  stats |> worker_stat_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
 type new_trace_push = traceid_tlids [@@deriving to_yojson]

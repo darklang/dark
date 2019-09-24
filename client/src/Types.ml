@@ -469,6 +469,7 @@ and functionResult =
 and fetchRequest =
   | TraceFetch of getTraceDataRPCParams
   | DbStatsFetch of dbStatsRPCParams
+  | WorkerStatsFetch of workerStatsRPCParams
 
 (* traces/db_stats fetching *)
 and fetchResult =
@@ -478,6 +479,9 @@ and fetchResult =
   | DbStatsFetchSuccess of dbStatsRPCParams * dbStatsRPCResult
   | DbStatsFetchFailure of dbStatsRPCParams * string * string
   | DbStatsFetchMissing of dbStatsRPCParams
+  | WorkerStatsFetchSuccess of workerStatsRPCParams * workerStatsRPCResult
+  | WorkerStatsFetchFailure of workerStatsRPCParams * string * string
+  | WorkerStatsFetchMissing of workerStatsRPCParams
 
 and fetchContext =
   { canvasName : string
@@ -518,6 +522,8 @@ and dbStats =
   ; example : (dval * string) option }
 
 and dbStatsStore = dbStats StrDict.t
+
+and workerStats = {count : int}
 
 (* ------------------- *)
 (* ops *)
@@ -588,6 +594,8 @@ and getTraceDataRPCParams =
 
 and dbStatsRPCParams = {dbStatsTlids : tlid list}
 
+and workerStatsRPCParams = {workerStatsTlid : tlid}
+
 and performHandlerAnalysisParams =
   { handler : handler
   ; traceID : traceID
@@ -651,6 +659,8 @@ and getUnlockedDBsRPCResult = unlockedDBs
 and getTraceDataRPCResult = {trace : trace}
 
 and dbStatsRPCResult = dbStatsStore
+
+and workerStatsRPCResult = workerStats
 
 and initialLoadRPCResult =
   { handlers : handler list
@@ -879,6 +889,8 @@ and modification =
   | EnterWithOffset of entryCursor * int
   | RPC of (op list * focus)
   | GetUnlockedDBsRPC
+  | GetWorkerStatsRPC of tlid
+  | UpdateWorkerStats of tlid * workerStats
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -1391,6 +1403,7 @@ and model =
   ; tlUsedIn : TLIDSet.t TLIDDict.t
   ; fluidState : fluidState
   ; dbStats : dbStatsStore
+  ; workerStats : workerStats TLIDDict.t
   ; avatarsList : avatar list
   ; browserId : string
   ; sidebarOpen : bool
