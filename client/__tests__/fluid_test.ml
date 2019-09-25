@@ -163,9 +163,11 @@ let () =
           , ELet
               ( gid ()
               , gid ()
-              , ""
-              , b ()
-              , ELet (gid (), gid (), "", b (), EBlank (gid ())) ) ) ] )
+              , "x"
+              , EInteger (gid (), "5")
+              , ELet
+                  (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
+              ) ) ] )
   in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
@@ -1705,15 +1707,14 @@ let () =
       t
         "enter on the end of first let inserts new let"
         matchWithTwoLets
-        (enter 32)
-        ( "match ___\n  *** -> let *** = ___\n         let *** = ___\n         let *** = ___\n         ___"
-        , 46 ) ;
+        (enter 28)
+        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___"
+        , 42 ) ;
       t
         "enter on the end of second let goes to blank"
         matchWithTwoLets
-        (enter 55)
-        ( "match ___\n  *** -> let *** = ___\n         let *** = ___\n         ___"
-        , 65 ) ;
+        (enter 47)
+        ("match ___\n  *** -> let x = 5\n         let y = 6\n         ___", 57) ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
