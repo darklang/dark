@@ -2112,11 +2112,11 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
-        | None, ELet _ ->
-            ELet (gid (), gid (), "", newB (), e)
-        | None, e ->
+        | None, EBlank _ ->
             cursor := `NextToken ;
             e
+        | None, e ->
+            ELet (gid (), gid (), "", newB (), e)
         | Some index, ERecord (id, fields) ->
             ERecord
               (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))

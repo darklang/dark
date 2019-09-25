@@ -169,6 +169,9 @@ let () =
                   (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
               ) ) ] )
   in
+  let nonEmptyLetWithBlankEnd =
+    ELet (gid (), gid (), "", EInteger (gid (), "6"), b ())
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
   in
@@ -1685,10 +1688,15 @@ let () =
         (insert '5' 6)
         ("let *** = ___\n5", 6) ;
       t
-        "enter at the end of a line goes to next line"
+        "enter on the end of let goes to blank"
+        nonEmptyLetWithBlankEnd
+        (enter 11)
+        ("let *** = 6\n___", 12) ;
+      t
+        "enter at the end of a line inserts let if no blank is next"
         nonEmptyLet
         (enter 11)
-        ("let *** = 6\n5", 12) ;
+        ("let *** = 6\nlet *** = ___\n5", 16) ;
       t
         "enter at the start of a let creates let above"
         twoLets
@@ -1982,22 +1990,22 @@ let () =
         (enter 4)
         ("if 5\nthen\n  6\nelse\n  7", 5) ;
       t
-        "enter at end of then line does not insert let"
+        "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
-        ("if 5\nthen\n  6\nelse\n  7", 12) ;
+        ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
       t
         "enter at end of then expr line does nothing"
         plainIf
         (enter 13)
         ("if 5\nthen\n  6\nelse\n  7", 14) ;
       t
-        "enter at end of else line does not insert let"
+        "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
          * it's at the front of the line below. *)
         plainIf
         (enter 18)
-        ("if 5\nthen\n  6\nelse\n  7", 21) ;
+        ("if 5\nthen\n  6\nelse\n  let *** = ___\n  7", 25) ;
       t
         "enter at end of else expr line does nothing"
         plainIf
