@@ -449,6 +449,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         Sync.attempt ~key:"unlocked" m (RPC.getUnlockedDBs m)
     | UpdateDBStatsRPC tlid ->
         Analysis.updateDBStats m tlid
+    | GetWorkerStatsRPC tlid ->
+        Analysis.getWorkerStats m tlid
     | NoChange ->
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
@@ -695,6 +697,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             statsStore
         in
         let m = {m with dbStats = newStore} in
+        (m, Cmd.none)
+    | UpdateWorkerStats (tlid, workerStats) ->
+        let newWorkerStats =
+          TLIDDict.insert ~tlid ~value:workerStats m.workerStats
+        in
+        let m = {m with workerStats = newWorkerStats} in
         (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
@@ -1590,6 +1598,33 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
         ; UpdateDBStats result ]
+  | ReceiveFetch (WorkerStatsFetchFailure (params, _, "Bad credentials")) ->
+      HandleAPIError
+        (ApiError.make
+           ~context:"RPC"
+           ~importance:ImportantError
+           ~reload:true
+           ~requestParams:(Encoders.workerStatsRPCParams params)
+           (* not a great error ... but this is an api error without a
+              * corresponding actual http error *)
+           Tea.Http.Aborted)
+  | ReceiveFetch (WorkerStatsFetchFailure (params, url, error)) ->
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel
+               ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
+        ; DisplayAndReportError
+            ("Error fetching db stats", Some url, Some error) ]
+  | ReceiveFetch (WorkerStatsFetchMissing params) ->
+      TweakModel
+        (Sync.markResponseInModel
+           ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
+  | ReceiveFetch (WorkerStatsFetchSuccess (params, result)) ->
+      Many
+        [ TweakModel
+            (Sync.markResponseInModel
+               ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
+        ; UpdateWorkerStats (params.workerStatsTlid, result) ]
   | AddOpRPCCallback (_, params, Error err) ->
       HandleAPIError
         (ApiError.make
@@ -1641,6 +1676,8 @@ let update_ (msg : msg) (m : model) : modification =
       ( match Toplevel.selected m with
       | Some tl when Toplevel.isDB tl ->
           Many [UpdateDBStatsRPC (TL.id tl); GetUnlockedDBsRPC]
+      | Some tl when Toplevel.isWorkerHandler tl ->
+          Many [GetWorkerStatsRPC (TL.id tl); GetUnlockedDBsRPC]
       | _ ->
           GetUnlockedDBsRPC )
     | RefreshAvatars ->

@@ -387,6 +387,10 @@ and dbStatsRPCParams (params : Types.dbStatsRPCParams) : Js.Json.t =
   object_ [("tlids", list tlid params.dbStatsTlids)]
 
 
+and workerStatsRPCParams (params : Types.workerStatsRPCParams) : Js.Json.t =
+  object_ [("tlid", tlid params.workerStatsTlid)]
+
+
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     : Js.Json.t =
   object_

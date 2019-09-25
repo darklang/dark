@@ -309,6 +309,16 @@ let updateDBStats m (TLID tlid) =
            (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]}) ))
 
 
+let getWorkerStats m (TLID tlid) =
+  Sync.attempt
+    ~key:("get-worker-stats-" ^ tlid)
+    m
+    (Tea_cmd.call (fun _ ->
+         Fetcher.request
+           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})
+     ))
+
+
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
     traces =
   StrDict.merge oldTraces newTraces ~f:(fun _tlid oldList newList ->
