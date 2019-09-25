@@ -451,25 +451,37 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
       |> getAST
       |> Option.map ~f:(fun ast -> AST.replace p replacement ast)
       |> Option.map ~f:(setAST tl)
-      |> deOption "replacing an expr in a non-ast tl"
+      |> recoverOpt "replacing an expr in a non-ast tl" ~default:tl
   | PEventName bo | PEventModifier bo | PEventSpace bo ->
-      let h = tl |> asHandler |> deOption "TL.replace ha ()" in
-      let newSpec = SpecHeaders.replace id bo h.spec in
-      TLHandler {h with spec = newSpec}
+    ( match asHandler tl with
+    | Some h ->
+        let newSpec = SpecHeaders.replace id bo h.spec in
+        TLHandler {h with spec = newSpec}
+    | _ ->
+        recover "Changing handler metadata on non-handler" tl )
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
   | PFnName _ | PParamName _ | PParamTipe _ ->
-      let fn = tl |> asUserFunction |> deOption "TL.replace fn ()" in
-      let newFn = Functions.replaceMetadataField p replacement fn in
-      TLFunc newFn
+    ( match asUserFunction tl with
+    | Some fn ->
+        let newFn = Functions.replaceMetadataField p replacement fn in
+        TLFunc newFn
+    | _ ->
+        recover "Changing fn metadata on non-fn" tl )
   | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
-      let tipe = tl |> asUserTipe |> deOption "TL.replace tipe ()" in
-      let newTL = UserTypes.replace p replacement tipe in
-      TLTipe newTL
+    ( match asUserTipe tl with
+    | Some tipe ->
+        let newTL = UserTypes.replace p replacement tipe in
+        TLTipe newTL
+    | _ ->
+        recover "Changing tipe metadata on non-tipe" tl )
   | PGroupName _ ->
-      let group = tl |> asGroup |> deOption "TL.replace group ()" in
-      let newTL = Groups.replace p replacement group in
-      TLGroup newTL
+    ( match asGroup tl with
+    | Some group ->
+        let newTL = Groups.replace p replacement group in
+        TLGroup newTL
+    | _ ->
+        recover "Changing group metadata on non-fn" tl )
 
 
 let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -529,10 +541,6 @@ let structural (m : model) : toplevel TD.t =
 
 let get (m : model) (tlid : tlid) : toplevel option = TD.get ~tlid (all m)
 
-let getExn (m : model) (id : tlid) : toplevel =
-  get m id |> deOption "TL.getExn"
-
-
 let find (tl : toplevel) (id : id) : pointerData option =
   allData tl
   |> List.filter ~f:(fun d -> id = P.toID d)
@@ -541,8 +549,13 @@ let find (tl : toplevel) (id : id) : pointerData option =
   |> List.head
 
 
-let findExn (tl : toplevel) (id : id) : pointerData =
-  find tl id |> deOption "findExn"
+let getPD (m : model) (tlid : tlid) (id : id) : pointerData option =
+  get m tlid |> Option.andThen ~f:(fun tl -> find tl id)
+
+
+let getTLAndPD (m : model) (tlid : tlid) (id : id) :
+    (toplevel * pointerData option) option =
+  get m tlid |> Option.map ~f:(fun tl -> (tl, find tl id))
 
 
 let allDBNames (dbs : db TD.t) : string list =

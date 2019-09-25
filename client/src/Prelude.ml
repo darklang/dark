@@ -80,14 +80,6 @@ let idOf (s : cursorState) : id option =
 (* Crashing *)
 (* -------------------------------------- *)
 
-let deOption (msg : string) (x : 'a option) : 'a =
-  match x with
-  | Some y ->
-      y
-  | None ->
-      Debug.crash ("deOption, got None but expected something: " ^ msg)
-
-
 (* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
 let recover (msg : 'a) (val_ : 'b) : 'b =
   let error =
@@ -100,6 +92,14 @@ let recover (msg : 'a) (val_ : 'b) : 'b =
   in
   Native.Rollbar.send error None Js.Json.null ;
   val_
+
+
+let recoverOpt (msg : string) ~(default : 'a) (x : 'a option) : 'a =
+  match x with
+  | Some y ->
+      y
+  | None ->
+      recover ("Got None but expected something: " ^ msg) default
 
 
 let assert_ (fn : 'a -> bool) (a : 'a) : 'a =

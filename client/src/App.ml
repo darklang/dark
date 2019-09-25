@@ -133,20 +133,25 @@ let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) ->
-      let tl = TL.getExn m tlid in
-      let predPd = Option.andThen ~f:(TL.find tl) pred in
-      let next = TL.getNextBlank tl predPd in
-      ( match next with
-      | Some pd ->
-          Enter (Filling (tlid, P.toID pd))
-      | None ->
-          Select (tlid, pred) )
+    ( match TL.get m tlid with
+    | None ->
+        NoChange
+    | Some tl ->
+        let predPd = Option.andThen ~f:(TL.find tl) pred in
+        let next = TL.getNextBlank tl predPd in
+        ( match next with
+        | Some pd ->
+            Enter (Filling (tlid, P.toID pd))
+        | None ->
+            Select (tlid, pred) ) )
   | FocusExact (tlid, id) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      if P.isBlank pd || P.toContent pd = Some ""
-      then Enter (Filling (tlid, id))
-      else Select (tlid, Some id)
+    ( match TL.getPD m tlid id with
+    | Some pd ->
+        if P.isBlank pd || P.toContent pd = Some ""
+        then Enter (Filling (tlid, id))
+        else Select (tlid, Some id)
+    | _ ->
+        NoChange )
   | FocusSame ->
     ( match unwrapCursorState m.cursorState with
     | Selecting (tlid, mId) ->
@@ -198,20 +203,20 @@ let processFocus (m : model) (focus : focus) : modification =
       let nextCursor, acTarget =
         match cs with
         | Selecting (tlid, mId) ->
-          ( match (TL.get m tlid, mId) with
-          | Some tl, Some id ->
-              if TL.isValidID tl id && tlOnPage tl
-              then (setCS, target (tlid, TL.findExn tl id))
+          ( match (TL.get m tlid, Option.andThen mId ~f:(TL.getPD m tlid)) with
+          | Some tl, Some pd ->
+              if tlOnPage tl
+              then (setCS, target (tlid, pd))
               else (Deselect, noTarget)
           | Some _, None ->
               (setCS, noTarget)
           | _ ->
               (Deselect, noTarget) )
         | Entering (Filling (tlid, id)) ->
-          ( match TL.get m tlid with
-          | Some tl ->
+          ( match TL.getTLAndPD m tlid id with
+          | Some (tl, Some pd) ->
               if TL.isValidID tl id && tlOnPage tl
-              then (setCS, target (tlid, TL.findExn tl id))
+              then (setCS, target (tlid, pd))
               else (Deselect, noTarget)
           | _ ->
               (Deselect, noTarget) )
@@ -331,13 +336,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
        * the current TL so we don't lose local changes made since the API call *)
       match tlidOf oldM.cursorState with
       | Some tlid ->
-          let tl = TL.getExn oldM tlid in
+          let tl = TL.get oldM tlid in
           ( match tl with
-          | TLDB db ->
+          | Some (TLDB db) ->
               DB.upsert newM db
-          | TLHandler h ->
+          | Some (TLHandler h) ->
               Handlers.upsert newM h
-          | TLGroup _ | TLTipe _ | TLFunc _ ->
+          | Some (TLGroup _) | Some (TLTipe _) | Some (TLFunc _) | None ->
               newM )
       | None ->
           newM
@@ -508,28 +513,28 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | None ->
                 FluidEntering tlid
             | Some id ->
-                let tl = TL.getExn m tlid in
-                let pd = TL.findExn tl id in
-                if P.astOwned (P.typeOf pd)
-                then FluidEntering tlid
-                else Selecting (tlid, p)
+              ( match TL.getPD m tlid id with
+              | Some pd ->
+                  if P.astOwned (P.typeOf pd)
+                  then FluidEntering tlid
+                  else Selecting (tlid, p)
+              | None ->
+                  Deselected )
           else Selecting (tlid, p)
         in
         let m, hashcmd =
-          if tlidOf m.cursorState <> Some tlid
-          then
-            let tl = TL.getExn m tlid in
-            let page = TL.asPage tl false in
-            let m = Page.setPage m m.currentPage page in
-            (m, Url.updateUrl page)
-          else (m, Cmd.none)
+          match TL.get m tlid with
+          | Some tl when tlidOf m.cursorState <> Some tlid ->
+              let page = TL.asPage tl false in
+              let m = Page.setPage m m.currentPage page in
+              (m, Url.updateUrl page)
+          | _ ->
+              (m, Cmd.none)
         in
         let m = {m with cursorState} in
         let m, acCmd =
-          match p with
-          | Some id ->
-              let tl = TL.getExn m tlid in
-              let pd = TL.findExn tl id in
+          match Option.andThen p ~f:(TL.getPD m tlid) with
+          | Some pd ->
               processAutocompleteMods m [ACSetTarget (Some (tlid, pd))]
           | None ->
               (* Ensure that when we click out of an entry box that the AC is
@@ -577,14 +582,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               (Entering entry, None)
           | Filling (tlid, id) ->
-              let tl = TL.getExn m tlid in
-              let pd = TL.findExn tl id in
-              let cs =
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
-                then FluidEntering tlid
-                else Entering entry
-              in
-              (cs, Some (tlid, pd))
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                let cs =
+                  if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                  then FluidEntering tlid
+                  else Entering entry
+                in
+                (cs, Some (tlid, pd))
+            | None ->
+                (m.cursorState, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -596,14 +603,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Creating _ ->
               (Entering entry, None)
           | Filling (tlid, id) ->
-              let tl = TL.getExn m tlid in
-              let pd = TL.findExn tl id in
-              let cs =
-                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
-                then FluidEntering tlid
-                else Entering entry
-              in
-              (cs, Some (tlid, pd))
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                let cs =
+                  if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                  then FluidEntering tlid
+                  else Entering entry
+                in
+                (cs, Some (tlid, pd))
+            | None ->
+                (m.cursorState, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
         let m = {m with cursorState} in
@@ -777,12 +786,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Some tlid ->
               if updateCurrent
               then m
-              else
-                let tl = TL.getExn m tlid in
-                ( match tl with
-                | TLFunc f ->
+              else (
+                match TL.get m tlid with
+                | Some (TLFunc f) ->
                     Functions.upsert m f
-                | TLTipe _ | TLDB _ | TLHandler _ | TLGroup _ ->
+                | Some (TLTipe _)
+                | Some (TLDB _)
+                | Some (TLHandler _)
+                | Some (TLGroup _)
+                | None ->
                     m )
           | None ->
               m
@@ -811,18 +823,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               if updateCurrent
               then m2
               else
-                let tl = TL.getExn m tlid in
-                ( match tl with
-                | TLTipe t ->
-                    UserTypes.upsert m2 t
-                | TLGroup _ ->
-                    m2
-                | TLFunc _ ->
-                    m2
-                | TLDB _ ->
-                    m2
-                | TLHandler _ ->
-                    m2 )
+                TL.get m tlid
+                |> Option.andThen ~f:TL.asUserTipe
+                |> Option.map ~f:(UserTypes.upsert m2)
+                |> Option.withDefault ~default:m2
           | None ->
               m2
         in
@@ -943,12 +947,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newCanvasProps = {m.canvasProps with offset = pos} in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
-        ( { m with
-            canvasProps =
-              { m.canvasProps with
-                offset = Viewport.centerCanvasOn (TL.getExn m tlid)
-              ; panAnimation = true } }
-        , Cmd.none )
+      ( match TL.get m tlid with
+      | Some tl ->
+          ( { m with
+              canvasProps =
+                { m.canvasProps with
+                  offset = Viewport.centerCanvasOn tl; panAnimation = true } }
+          , Cmd.none )
+      | None ->
+          (m, Cmd.none) )
     | TriggerHandlerRPC tlid ->
       ( match Analysis.getCurrentTrace m tlid with
       | Some (traceID, Some traceData) ->
@@ -967,9 +974,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | RefreshUsages tlids ->
         (Introspect.refreshUsages m tlids, Cmd.none)
     | FluidCommandsShow (tlid, token) ->
-        let cp = FluidCommands.show (TL.getExn m tlid) token in
-        ( {m with fluidState = {m.fluidState with cp}}
-        , Tea_html_cmds.focus FluidCommands.filterInputID )
+      ( match TL.get m tlid with
+      | Some tl ->
+          let cp = FluidCommands.show tl token in
+          ( {m with fluidState = {m.fluidState with cp}}
+          , Tea_html_cmds.focus FluidCommands.filterInputID )
+      | None ->
+          (m, Cmd.none) )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
         ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
@@ -1101,11 +1112,11 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelMouseDown (targetTLID, event) ->
       if event.button = Defaults.leftButton
       then
-        let tl = TL.getExn m targetTLID in
+        let tl = TL.get m targetTLID in
         match tl with
-        | TLFunc _ | TLTipe _ ->
+        | Some (TLFunc _) | Some (TLTipe _) | None ->
             NoChange
-        | TLHandler _ | TLDB _ | TLGroup _ ->
+        | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
   | ToplevelMouseUp (_, event) ->
@@ -1113,36 +1124,40 @@ let update_ (msg : msg) (m : model) : modification =
       then
         match m.cursorState with
         | Dragging (draggingTLID, _, hasMoved, origCursorState) ->
-            if hasMoved
-            then
-              let tl = TL.getExn m draggingTLID in
-              (* We've been updating tl.pos as mouse moves, *)
-              (* now want to report last pos to server *)
-              (* the SetCursorState here isn't always necessary *)
-              (* because in the happy case we'll also receive *)
-              (* a ToplevelClick event, but it seems that sometimes *)
-              (* we don't, perhaps due to overlapping click handlers *)
-              (* There doesn't seem to be any harm in stopping dragging *)
-              (* here though *)
-              if not (TL.isGroup tl)
+          ( match TL.get m draggingTLID with
+          | Some tl ->
+              if hasMoved
               then
-                (* Check if toplevel landed on top of a group *)
-                (* https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
-                let gTlid =
-                  Groups.landedInGroup draggingTLID m.groups |> List.head
-                in
-                match gTlid with
-                | Some tlid ->
-                    Many
-                      [ SetCursorState origCursorState
-                      ; AddToGroup (tlid, draggingTLID) ]
-                | None ->
-                    Many
-                      [ SetCursorState origCursorState
-                      ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
-                      ]
+                (* We've been updating tl.pos as mouse moves, *)
+                (* now want to report last pos to server *)
+                (* the SetCursorState here isn't always necessary *)
+                (* because in the happy case we'll also receive *)
+                (* a ToplevelClick event, but it seems that sometimes *)
+                (* we don't, perhaps due to overlapping click handlers *)
+                (* There doesn't seem to be any harm in stopping dragging *)
+                (* here though *)
+                if not (TL.isGroup tl)
+                then
+                  (* Check if toplevel landed on top of a group *)
+                  (* https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
+                  let gTlid =
+                    Groups.landedInGroup draggingTLID m.groups |> List.head
+                  in
+                  match gTlid with
+                  | Some tlid ->
+                      Many
+                        [ SetCursorState origCursorState
+                        ; AddToGroup (tlid, draggingTLID) ]
+                  | None ->
+                      Many
+                        [ SetCursorState origCursorState
+                        ; RPC
+                            ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                        ]
+                else SetCursorState origCursorState
               else SetCursorState origCursorState
-            else SetCursorState origCursorState
+          | None ->
+              SetCursorState origCursorState )
         | _ ->
             NoChange
       else NoChange
@@ -1221,7 +1236,7 @@ let update_ (msg : msg) (m : model) : modification =
     | _ ->
         SetCursor (tlid, traceID) )
   | StartMigration tlid ->
-      let mdb = tlid |> TL.getExn m |> TL.asDB in
+      let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
       | Some db ->
           DB.startMigration tlid db.cols
@@ -1230,7 +1245,7 @@ let update_ (msg : msg) (m : model) : modification =
   | AbandonMigration tlid ->
       RPC ([AbandonDBMigration tlid], FocusNothing)
   | DeleteColInDB (tlid, nameId) ->
-      let mdb = tlid |> TL.getExn m |> TL.asDB in
+      let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
       | Some db ->
           if DB.isMigrationCol db nameId
@@ -1253,13 +1268,13 @@ let update_ (msg : msg) (m : model) : modification =
   | ExtractFunction ->
     ( match m.cursorState with
     | Selecting (tlid, mId) ->
-        let tl = TL.getExn m tlid in
-        ( match mId with
-        | None ->
-            NoChange
-        | Some id ->
-            let pd = TL.findExn tl id in
-            Refactor.extractFunction m tl pd )
+      ( match (TL.get m tlid, mId) with
+      | Some tl, Some id ->
+          let pd = TL.find tl id in
+          Option.map pd ~f:(Refactor.extractFunction m tl)
+          |> Option.withDefault ~default:NoChange
+      | _ ->
+          NoChange )
     | _ ->
         NoChange )
   | DeleteUserFunctionParameter (uftlid, upf) ->
@@ -1285,8 +1300,10 @@ let update_ (msg : msg) (m : model) : modification =
     | None ->
         NoChange )
   | ToplevelDelete tlid ->
-      let tl = TL.getExn m tlid in
-      Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)]
+      let tl = TL.get m tlid in
+      Option.map tl ~f:(fun tl ->
+          Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)] )
+      |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
         [ RPC ([DeleteTLForever tlid], FocusSame)
@@ -1319,8 +1336,9 @@ let update_ (msg : msg) (m : model) : modification =
       Many (RPC ([DeleteType tlid], FocusSame) :: page)
   | DeleteGroup tlid ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.vv225wwesyqm *)
-      let tl = TL.getExn m tlid in
-      Many [RemoveGroup tl]
+      TL.get m tlid
+      |> Option.map ~f:(fun tl -> Many [RemoveGroup tl])
+      |> Option.withDefault ~default:NoChange
   | DragGroupMember (gTLID, tlid, event) ->
       (* Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.s138ne3frlh0 *)
       let group = TD.get ~tlid:gTLID m.groups in
@@ -1890,9 +1908,11 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidCommandsClick cmd ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      Refactor.takeOffRail m tl pd
+    ( match TL.getTLAndPD m tlid id with
+    | Some (tl, Some pd) ->
+        Refactor.takeOffRail m tl pd
+    | _ ->
+        NoChange )
   | SetHandlerExeIdle tlid ->
       TweakModel
         (fun m ->

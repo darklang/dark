@@ -71,10 +71,6 @@ let findByName (m : model) (s : string) : userFunction option =
   List.find ~f:(sameName s) (TLIDDict.values m.userFunctions)
 
 
-let findByNameExn (m : model) (s : string) : userFunction =
-  findByName m s |> deOption "Functions.findByNameExn"
-
-
 let paramData (ufp : userFunctionParameter) : pointerData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 

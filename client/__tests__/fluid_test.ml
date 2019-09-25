@@ -97,6 +97,8 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
+let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
+
 type testResult = (string * (int option * int)) * bool
 
 type shiftState =

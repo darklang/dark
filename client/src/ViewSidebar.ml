@@ -215,24 +215,22 @@ let f404Category (m : model) : category =
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
   let fns = ufs |> List.filter ~f:(fun fn -> B.isF fn.ufMetadata.ufmName) in
   let entries =
-    List.map fns ~f:(fun fn ->
-        let name =
-          fn.ufMetadata.ufmName |> Blank.toMaybe |> deOption "userFunction"
-        in
-        let minusButton =
-          if Refactor.usedFn m name
-          then None
-          else Some (DeleteUserFunction fn.ufTLID)
-        in
-        Entry
-          { name
-          ; identifier = Tlid fn.ufTLID
-          ; uses = Some (Refactor.fnUseCount m name)
-          ; minusButton
-          ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
-          ; destination = Some (FocusedFn fn.ufTLID)
-          ; plusButton = None
-          ; verb = None } )
+    List.filterMap fns ~f:(fun fn ->
+        Option.map (Blank.toMaybe fn.ufMetadata.ufmName) ~f:(fun name ->
+            let minusButton =
+              if Refactor.usedFn m name
+              then None
+              else Some (DeleteUserFunction fn.ufTLID)
+            in
+            Entry
+              { name
+              ; identifier = Tlid fn.ufTLID
+              ; uses = Some (Refactor.fnUseCount m name)
+              ; minusButton
+              ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
+              ; destination = Some (FocusedFn fn.ufTLID)
+              ; plusButton = None
+              ; verb = None } ) )
   in
   { count = List.length fns
   ; name = "Functions"
@@ -245,22 +243,22 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
 let userTipeCategory (m : model) (tipes : userTipe list) : category =
   let tipes = tipes |> List.filter ~f:(fun t -> B.isF t.utName) in
   let entries =
-    List.map tipes ~f:(fun tipe ->
-        let name = tipe.utName |> Blank.toMaybe |> deOption "userTipe name" in
-        let minusButton =
-          if Refactor.usedTipe m name
-          then None
-          else Some (DeleteUserType tipe.utTLID)
-        in
-        Entry
-          { name
-          ; identifier = Tlid tipe.utTLID
-          ; uses = Some (Refactor.tipeUseCount m name)
-          ; minusButton
-          ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
-          ; destination = Some (FocusedType tipe.utTLID)
-          ; plusButton = None
-          ; verb = None } )
+    List.filterMap tipes ~f:(fun tipe ->
+        Option.map (Blank.toMaybe tipe.utName) ~f:(fun name ->
+            let minusButton =
+              if Refactor.usedTipe m name
+              then None
+              else Some (DeleteUserType tipe.utTLID)
+            in
+            Entry
+              { name
+              ; identifier = Tlid tipe.utTLID
+              ; uses = Some (Refactor.tipeUseCount m name)
+              ; minusButton
+              ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
+              ; destination = Some (FocusedType tipe.utTLID)
+              ; plusButton = None
+              ; verb = None } ) )
   in
   { count = List.length tipes
   ; name = "Types"
@@ -273,21 +271,21 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
 let groupCategory (groups : group list) : category =
   let groups = groups |> List.filter ~f:(fun (g : group) -> B.isF g.gName) in
   let entries =
-    List.map groups ~f:(fun (group : group) ->
-        let name = group.gName |> Blank.toMaybe |> deOption "group name" in
-        let minusButton =
-          let hasMembers = List.length group.members > 0 in
-          if hasMembers then None else Some (DeleteGroup group.gTLID)
-        in
-        Entry
-          { name
-          ; identifier = Tlid group.gTLID
-          ; uses = None
-          ; minusButton
-          ; killAction = Some (DeleteGroupForever group.gTLID)
-          ; destination = Some (FocusedGroup (group.gTLID, true))
-          ; plusButton = None
-          ; verb = None } )
+    List.filterMap groups ~f:(fun (group : group) ->
+        Option.map (Blank.toMaybe group.gName) ~f:(fun name ->
+            let minusButton =
+              let hasMembers = List.length group.members > 0 in
+              if hasMembers then None else Some (DeleteGroup group.gTLID)
+            in
+            Entry
+              { name
+              ; identifier = Tlid group.gTLID
+              ; uses = None
+              ; minusButton
+              ; killAction = Some (DeleteGroupForever group.gTLID)
+              ; destination = Some (FocusedGroup (group.gTLID, true))
+              ; plusButton = None
+              ; verb = None } ) )
   in
   { count = List.length groups
   ; name = "Groups"
