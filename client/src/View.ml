@@ -183,11 +183,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         acFnDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-        (* For now, don't display the worker queue size; we want to figure out where in
- * the UI this should go *)
-        (* 
     | Some _tlid, None when _tlid = tlid ->
         if TL.isWorkerHandler tl
+           && VariantTesting.variantIsActive m QueueLengthUIVariant
         then
           TLIDDict.get ~tlid m.workerStats
           |> Option.andThen ~f:(fun ws ->
@@ -201,7 +199,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                      ]
                  else None )
         else None
-          *)
     | _ ->
         None
   in
