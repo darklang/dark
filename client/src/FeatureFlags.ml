@@ -40,20 +40,25 @@ let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
 let start (m : model) : modification =
   match unwrapCursorState m.cursorState with
   | Selecting (tlid, Some id) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      wrap m tl pd
+      let tl = TL.get m tlid in
+      let pd = Option.andThen ~f:(fun tl -> TL.find tl id) tl in
+      ( match (tl, pd) with
+      | Some tl, Some pd ->
+          wrap m tl pd
+      | _ ->
+          recover "invalid tl and id for starting feature flag" NoChange )
   | _ ->
       NoChange
 
 
 let end_ (m : model) (id : id) (pick : pick) : modification =
-  match tlidOf (unwrapCursorState m.cursorState) with
+  match
+    tlidOf (unwrapCursorState m.cursorState) |> Option.andThen ~f:(TL.get m)
+  with
   | None ->
       NoChange
-  | Some tlid ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
+  | Some tl ->
+      let pd = TL.find tl id |> AST.recoverPD "FF.end" in
       let newPd = P.exprmap (fromFlagged pick) pd in
       let newTL = TL.replace pd newPd tl in
       let focus = FocusExact (TL.id tl, P.toID newPd) in
@@ -63,7 +68,7 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
       | TLFunc f ->
           RPC ([SetFunction f], focus)
       | _ ->
-          NoChange )
+          recover "ending FF on invalid handler" NoChange )
 
 
 let toggle (id : id) (isExpanded : bool) : modification =

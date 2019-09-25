@@ -16,6 +16,8 @@ let fail ?(f : 'a -> string = Js.String.make) (v : 'a) : testResult =
 
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
+let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
+
 let onlyTL (m : model) : toplevel =
   let tls = TL.all m in
   let len = TD.count tls in
@@ -215,12 +217,11 @@ let ellen_hello_world_demo (m : model) : testResult =
 let editing_does_not_deselect (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (tlid, id)) ->
-      let pd = TL.getExn m tlid |> fun tl -> TL.find tl id in
-      ( match pd with
-      | Some (PExpr (F (_, Value "\"hello zane\""))) ->
-          pass
-      | other ->
-          fail other )
+    ( match TL.getPD m tlid id with
+    | Some (PExpr (F (_, Value "\"hello zane\""))) ->
+        pass
+    | other ->
+        fail other )
   | other ->
       fail ~f:show_cursorState other
 
@@ -706,12 +707,14 @@ let return_to_architecture_on_deselect (m : model) : testResult =
 
 
 let fn_page_returns_to_lastpos (m : model) : testResult =
-  let tlid = TLID "123" in
-  let tl = TL.getExn m tlid in
-  let centerPos = Viewport.centerCanvasOn tl in
-  if m.canvasProps.offset = centerPos
-  then pass
-  else fail ~f:show_pos m.canvasProps.offset
+  match TL.get m (TLID "123") with
+  | Some tl ->
+      let centerPos = Viewport.centerCanvasOn tl in
+      if m.canvasProps.offset = centerPos
+      then pass
+      else fail ~f:show_pos m.canvasProps.offset
+  | None ->
+      fail "no tl found"
 
 
 let fn_page_to_handler_pos (_m : model) : testResult = pass

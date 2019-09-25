@@ -42,8 +42,8 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
   | Entering (Filling (_, id)) ->
     ( match Toplevel.find tl id with
-    | Some (PVarBind (F (_, var))) as pd ->
-      ( match Toplevel.getParentOf tl (deOption "impossible" pd) with
+    | Some (PVarBind (F (_, var)) as pd) ->
+      ( match Toplevel.getParentOf tl pd with
       | Some (PExpr e) ->
         ( match e with
         | F (_, Let (_, _, body)) ->

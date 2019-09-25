@@ -58,6 +58,14 @@ let traverse (fn : expr -> expr) (expr : expr) : expr =
 (* PointerData *)
 (* -------------------------------- *)
 
+let recoverBlank (msg : string) (e : expr option) : expr =
+  recoverOpt ("invalidPD: " ^ msg) e ~default:(B.new_ ())
+
+
+let recoverPD (msg : string) (pd : pointerData option) : pointerData =
+  recoverOpt ("invalidPD: " ^ msg) pd ~default:(PExpr (B.new_ ()))
+
+
 let rec allData (expr : expr) : pointerData list =
   let e2ld e = PExpr e in
   let rl exprs = exprs |> List.map ~f:allData |> List.concat in
@@ -113,10 +121,6 @@ let find (id : id) (expr : expr) : pointerData option =
   |> assert_ (fun r -> List.length r <= 1)
   (* guard against dups *)
   |> List.head
-
-
-let findExn (id : id) (expr : expr) : pointerData =
-  expr |> find id |> deOption "findExn"
 
 
 let rec uses (var : varName) (expr : expr) : expr list =
@@ -244,7 +248,7 @@ let rec replace_
           traverse r expr
       | Some i ->
           let currentName =
-            List.getAt ~index:i vars |> deOption "we somehow lost it?"
+            List.getAt ~index:i vars |> Option.andThen ~f:Blank.toMaybe
           in
           let newVars =
             List.updateAt
@@ -253,11 +257,7 @@ let rec replace_
               vars
           in
           let newBody =
-            match
-              pairCurrentAndNew
-                (Blank.toMaybe currentName)
-                (Blank.toMaybe newBinding)
-            with
+            match pairCurrentAndNew currentName (Blank.toMaybe newBinding) with
             | Some (c, n) ->
                 renameVariable c n body
             | _ ->
@@ -464,7 +464,8 @@ let rec findParentOfWithin_ (eid : id) (haystack : expr) : expr option =
 
 
 let findParentOfWithin (id : id) (haystack : expr) : expr =
-  deOption "findParentOfWithin" <| findParentOfWithin_ id haystack
+  findParentOfWithin_ id haystack
+  |> recoverOpt "findParentOfWithin" ~default:(B.new_ ())
 
 
 (* ------------------------- *)
@@ -644,7 +645,12 @@ let addLambdaBlank (id : id) (expr : expr) : expr =
   match findParentOfWithin_ id expr with
   | Some (F (lid, Lambda (vars, body))) as old ->
       let r = F (lid, Lambda (vars @ [B.new_ ()], body)) in
-      replace (old |> deOption "impossible" |> fun x -> PExpr x) (PExpr r) expr
+      replace
+        ( old
+        |> recoverOpt "addLambdaBlank" ~default:(B.new_ ())
+        |> fun x -> PExpr x )
+        (PExpr r)
+        expr
   | _ ->
       expr
 
@@ -653,8 +659,8 @@ let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
   let newKey = B.new_ () in
   let newExpr = B.new_ () in
   let recoverResult = (B.toID newKey, B.toID newExpr, expr) in
-  match findExn id expr with
-  | PKey _ ->
+  match find id expr with
+  | Some (PKey _) ->
     ( match findParentOfWithin id expr with
     | F (olid, ObjectLiteral pairs) as old ->
         let newPairs = pairs @ [(newKey, newExpr)] in
@@ -720,8 +726,8 @@ let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
   let newPat = B.new_ () in
   let newExpr = B.new_ () in
   let recoverResult = (B.toID newPat, B.toID newExpr, expr) in
-  match findExn id expr with
-  | PPattern _ ->
+  match find id expr with
+  | Some (PPattern _) ->
     ( match findParentOfWithin id expr with
     | F (olid, Match (cond, pairs)) as old ->
         let pos =

@@ -187,35 +187,41 @@ let move
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.orElse (TL.rootOf tl)
-  |> Option.andThen ~f:(TL.firstChild tl)
-  |> Option.orElse pd
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
+  match TL.get m tlid with
+  | None ->
+      NoChange
+  | Some tl ->
+      let pd = Option.andThen cur ~f:(TL.find tl) in
+      pd
+      |> Option.orElse (TL.rootOf tl)
+      |> Option.andThen ~f:(TL.firstChild tl)
+      |> Option.orElse pd
+      |> Option.map ~f:P.toID
+      |> fun id -> Select (tlid, id)
 
 
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
   let tlid = TL.id tl in
   let isLocked = DB.isLocked m tlid in
   let isMigrationCol = DB.isMigrationCol db id in
-  let pd = TL.findExn tl id in
+  let pd = TL.find tl id in
   let enterField =
     Many
       [ Enter (Filling (tlid, id))
       ; AutocompleteMod
-          (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
+          (ACSetQuery
+             ( pd
+             |> Option.andThen ~f:P.toContent
+             |> Option.withDefault ~default:"" )) ]
   in
   match pd with
-  | PDBName _ ->
+  | Some (PDBName _) ->
       if isLocked then NoChange else enterField
-  | PDBColName _ ->
+  | Some (PDBColName _) ->
       if isLocked && not isMigrationCol then NoChange else enterField
-  | PDBColType _ ->
+  | Some (PDBColType _) ->
       if isLocked && not isMigrationCol then NoChange else enterField
-  | PExpr _ ->
+  | Some (PExpr _) ->
       enterField
   (* TODO validate ex.id is in either rollback or rollforward function if there's a migration in progress *)
   | _ ->
@@ -224,12 +230,11 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
 
 let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
     modification =
-  let tl = TL.getExn m tlid in
-  match tl with
-  | TLDB db ->
+  match TL.get m tlid with
+  | Some (TLDB db as tl) ->
       enterDB m db tl id
-  | _ ->
-      let pd = TL.findExn tl id in
+  | Some tl ->
+      let pd = TL.find tl id |> AST.recoverPD "enterWithOffset" in
       if TL.getChildrenOf tl pd <> []
       then NoChange
       else
@@ -245,6 +250,8 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
           ; AutocompleteMod
               (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
           ]
+  | _ ->
+      recover "Entering invalid tl" NoChange
 
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
@@ -263,13 +270,18 @@ let moveAndEnter
     (fn : htmlSizing list -> id -> id option)
     (default : id option) : modification =
   let newMId = findTargetId tlid mId fn default in
-  enter m tlid (deOption "mId" newMId)
+  Option.map newMId ~f:(enter m tlid)
+  |> recoverOpt "Cant move and enter" ~default:NoChange
 
 
 let body (m : model) (tlid : tlid) : id option =
-  let tl = TL.getExn m tlid in
-  (* TODO: function *)
-  match tl with TLHandler h -> Some (B.toID h.ast) | _ -> None
+  match TL.get m tlid with
+  | Some (TLHandler h) ->
+      Some (B.toID h.ast)
+  | Some (TLFunc f) ->
+      Some (B.toID f.ufAST)
+  | _ ->
+      None
 
 
 let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
@@ -282,7 +294,10 @@ let moveUp ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 let moveDown ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
     modification =
   let default =
-    TL.getExn m tlid |> TL.allData |> List.head |> Option.map ~f:P.toID
+    TL.get m tlid
+    |> Option.map ~f:TL.allData
+    |> Option.andThen ~f:List.head
+    |> Option.map ~f:P.toID
   in
   let moveFn = match andEnter with false -> move | true -> moveAndEnter in
   moveFn m tlid mId (moveUpDown Down) default
@@ -306,12 +321,15 @@ let moveLeft ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 (* Move AST-wide *)
 (* ------------------------------- *)
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  pd
-  |> Option.andThen ~f:(TL.getParentOf tl)
-  |> Option.map ~f:P.toID
-  |> fun id -> Select (tlid, id)
+  match TL.get m tlid with
+  | None ->
+      recover "Nothing to select" NoChange
+  | Some tl ->
+      let pd = Option.andThen cur ~f:(TL.find tl) in
+      pd
+      |> Option.andThen ~f:(TL.getParentOf tl)
+      |> Option.map ~f:P.toID
+      |> fun id -> Select (tlid, id)
 
 
 (* ------------------------------- *)
@@ -354,60 +372,72 @@ let maybeEnterFluid
 
 let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  let nextBlankPd = pd |> TL.getNextBlank tl in
-  let nextId = nextBlankPd |> Option.map ~f:P.toID in
-  maybeEnterFluid
-    ~nonFluidCursorMod:(Select (tlid, nextId))
-    m
-    tlid
-    pd
-    nextBlankPd
+  match TL.get m tlid with
+  | None ->
+      recover "selecting no TL" NoChange
+  | Some tl ->
+      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let nextBlankPd = TL.getNextBlank tl pd in
+      let nextId = Option.map nextBlankPd ~f:P.toID in
+      maybeEnterFluid
+        ~nonFluidCursorMod:(Select (tlid, nextId))
+        m
+        tlid
+        pd
+        nextBlankPd
 
 
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  let nextBlankPd = TL.getNextBlank tl pd in
-  maybeEnterFluid
-    ~nonFluidCursorMod:
-      ( nextBlankPd
-      |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-      |> Option.withDefault ~default:NoChange )
-    m
-    tlid
-    pd
-    nextBlankPd
+  match TL.get m tlid with
+  | None ->
+      recover "selecting no TL" NoChange
+  | Some tl ->
+      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let nextBlankPd = TL.getNextBlank tl pd in
+      maybeEnterFluid
+        ~nonFluidCursorMod:
+          ( nextBlankPd
+          |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+          |> Option.withDefault ~default:NoChange )
+        m
+        tlid
+        pd
+        nextBlankPd
 
 
 let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  let nextBlankPd = pd |> TL.getPrevBlank tl in
-  let nextId = nextBlankPd |> Option.map ~f:P.toID in
-  maybeEnterFluid
-    ~nonFluidCursorMod:(Select (tlid, nextId))
-    m
-    tlid
-    pd
-    nextBlankPd
+  match TL.get m tlid with
+  | None ->
+      recover "selecting no TL" NoChange
+  | Some tl ->
+      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let nextBlankPd = pd |> TL.getPrevBlank tl in
+      let nextId = nextBlankPd |> Option.map ~f:P.toID in
+      maybeEnterFluid
+        ~nonFluidCursorMod:(Select (tlid, nextId))
+        m
+        tlid
+        pd
+        nextBlankPd
 
 
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
-  let tl = TL.getExn m tlid in
-  let pd = Option.map ~f:(TL.findExn tl) cur in
-  let nextBlankPd = TL.getPrevBlank tl pd in
-  maybeEnterFluid
-    ~nonFluidCursorMod:
-      ( nextBlankPd
-      |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
-      |> Option.withDefault ~default:NoChange )
-    m
-    tlid
-    pd
-    nextBlankPd
+  match TL.get m tlid with
+  | None ->
+      recover "selecting no TL" NoChange
+  | Some tl ->
+      let pd = Option.andThen ~f:(TL.find tl) cur in
+      let nextBlankPd = TL.getPrevBlank tl pd in
+      maybeEnterFluid
+        ~nonFluidCursorMod:
+          ( nextBlankPd
+          |> Option.map ~f:(fun pd_ -> Enter (Filling (tlid, P.toID pd_)))
+          |> Option.withDefault ~default:NoChange )
+        m
+        tlid
+        pd
+        nextBlankPd
 
 
 (* ------------------------------- *)
@@ -420,34 +450,36 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
   | Some id ->
       let newID = gid () in
       let focus = FocusExact (tlid, newID) in
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      ( match P.typeOf pd with
-      | DBColType ->
-          NoChange
-      | DBColName ->
-          NoChange
-      | VarBind ->
-          let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
-          ( match newTL with
-          | TLHandler h ->
-              RPC ([SetHandler (tlid, h.pos, h)], focus)
-          | TLFunc f ->
-              RPC ([SetFunction f], focus)
-          | TLTipe _ | TLDB _ | TLGroup _ ->
-              recover ("pointer type mismatch", newTL, pd) NoChange )
-      | DBName | FnName | TypeName | GroupName ->
-          Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
+      ( match TL.getTLAndPD m tlid id with
+      | Some (tl, Some pd) ->
+        ( match P.typeOf pd with
+        | DBColType ->
+            NoChange
+        | DBColName ->
+            NoChange
+        | VarBind ->
+            let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
+            ( match newTL with
+            | TLHandler h ->
+                RPC ([SetHandler (tlid, h.pos, h)], focus)
+            | TLFunc f ->
+                RPC ([SetFunction f], focus)
+            | TLTipe _ | TLDB _ | TLGroup _ ->
+                recover ("pointer type mismatch", newTL, pd) NoChange )
+        | DBName | FnName | TypeName | GroupName ->
+            Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
+        | _ ->
+            let newTL = TL.delete tl pd newID in
+            ( match newTL with
+            | TLHandler h ->
+                RPC ([SetHandler (tlid, h.pos, h)], focus)
+            | TLFunc f ->
+                RPC ([SetFunction f], focus)
+            | TLTipe t ->
+                RPC ([SetType t], focus)
+            | TLGroup _ ->
+                NoChange
+            | TLDB _ ->
+                recover ("pointer type mismatch", newTL, pd) NoChange ) )
       | _ ->
-          let newTL = TL.delete tl pd newID in
-          ( match newTL with
-          | TLHandler h ->
-              RPC ([SetHandler (tlid, h.pos, h)], focus)
-          | TLFunc f ->
-              RPC ([SetFunction f], focus)
-          | TLTipe t ->
-              RPC ([SetType t], focus)
-          | TLGroup _ ->
-              NoChange
-          | TLDB _ ->
-              recover ("pointer type mismatch", newTL, pd) NoChange ) )
+          recover "deleting from non-existant pd" NoChange )

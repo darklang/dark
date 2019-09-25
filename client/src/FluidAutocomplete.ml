@@ -318,6 +318,16 @@ let toQueryString (ti : tokenInfo) : string =
   if FluidToken.isBlank ti.token then "" else FluidToken.toText ti.token
 
 
+(* ---------------------------- *)
+(* Autocomplete state *)
+(* ---------------------------- *)
+let reset (m : model) : autocomplete =
+  let functions = allFunctions m in
+  {Defaults.defaultModel.fluidState.ac with functions}
+
+
+let init m = reset m
+
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
@@ -507,23 +517,19 @@ let refilter
 
 let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
     autocomplete =
-  let tl = TL.getExn m tlid in
-  let queryString = toQueryString ti in
-  let dval = dvalForToken m tl ti in
-  let query = (tl, ti, dval, queryString) in
-  generate m a query |> refilter m query
+  match TL.get m tlid with
+  | None ->
+      reset m
+  | Some tl ->
+      let queryString = toQueryString ti in
+      let dval = dvalForToken m tl ti in
+      let query = (tl, ti, dval, queryString) in
+      generate m a query |> refilter m query
 
 
 (* ---------------------------- *)
 (* Autocomplete state *)
 (* ---------------------------- *)
-let reset (m : model) : autocomplete =
-  let functions = allFunctions m in
-  {Defaults.defaultModel.fluidState.ac with functions}
-
-
-let init m = reset m
-
 let updateFunctions m : model =
   { m with
     fluidState =

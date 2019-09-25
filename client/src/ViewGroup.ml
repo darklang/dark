@@ -110,8 +110,11 @@ let viewGroupMembers
     let memberList =
       members
       |> List.map ~f:(fun tlid ->
-             let tl = TL.getExn m tlid in
-             if preview then previewMembers gTLID tl else viewMember vs tl )
+             match TL.get m tlid with
+             | Some tl ->
+                 if preview then previewMembers gTLID tl else viewMember vs tl
+             | None ->
+                 Html.noNode )
     in
     Html.div
       [Html.classList [("member-list", true); ("preview", preview)]]

@@ -490,7 +490,7 @@ let removeFunctionParameter
     (m : model) (uf : userFunction) (ufp : userFunctionParameter) : op list =
   let indexInList =
     List.findIndex ~f:(fun p -> p = ufp) uf.ufMetadata.ufmParameters
-    |> deOption "tried to remove parameter that does not exist in function"
+    |> recoverOpt "removing invalid fnparam" ~default:(-1)
   in
   let fn e =
     match e with

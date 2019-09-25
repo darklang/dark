@@ -3205,11 +3205,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Letter _, L (TRightPartial (_, _), ti), _
       when onEdge ->
         let ast, s = acEnter ti ast s K.Tab in
-        let ti =
-          getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
-          |> deOption "rightPartialLetter/number"
-        in
-        doInsert ~pos:s.newPos keyChar ti ast s
+        getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
+        |> Option.withDefault ~default:(ast, s)
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
