@@ -86,7 +86,6 @@ let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
   | _ ->
       None
 
-
 let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
     (string * string, string) Result.t =
   match String.split ~on:'.' token with
@@ -148,7 +147,7 @@ let fns =
                 |> X509.Encoding.Pem.Private_key.of_pem_cstruct1
               in
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
-              sign_and_encode ~key ~extra_headers:[] ~payload
+              Jwt.encode_rs256 ~key ~extra_headers:[] ~payload
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
@@ -176,7 +175,7 @@ let fns =
                 |> Yojson.Safe.Util.to_assoc
               in
               let payload = Dval.to_pretty_machine_yojson_v1 payload in
-              sign_and_encode ~key ~extra_headers:json_hdrs ~payload
+              Jwt.encode_rs256 ~key ~extra_headers:json_hdrs ~payload
               |> Dval.dstr_of_string_exn
           | args ->
               fail args)
@@ -255,9 +254,7 @@ let fns =
                 DOption OptNothing
             | `RSA key ->
               ( match
-                  verify_and_extract_v0
-                    ~key
-                    ~token:(Unicode_string.to_string token)
+                  Jwt.decode_rs256 ~key ~token:(Unicode_string.to_string token)
                 with
               | Some (headers, payload) ->
                   [ ("header", Dval.of_unknown_json_v1 headers)
@@ -315,21 +312,34 @@ let fns =
               fail args)
     ; ps = false
     ; dep = false }
-  ; { pns = ["Jwt::encodeForKostas"]
+  ; { pns = ["JWT::encodeES256"]
     ; ins = []
-    ; p = [par "b64_secret" TStr; par "kid" TStr; par "iss" TStr]
+    ; p = [par "privKey" TStr; par "headers" TObj; par "payload" TObj]
     ; r = TStr
     ; d =
-        "Takes a base64-encoded secret - likely a DER certificate - and a kid
-        and iss, and returns a JWT"
+        "Returns an encoded RFC751J9 JSON Web Token, signed using the ES256 algorithm. 'typ' and 'alg' header values will be added automatically. Additional headers can be added via 'headers' but only 'kid' is accepted currently. 'privKey' should be the unencrypted base64-encoded DER (binary) private key."
     ; f =
         InProcess
           (function
-          | _, [DStr b64_secret; DStr kid; DStr iss] ->
-              let b64_secret = Unicode_string.to_string b64_secret in
-              let kid = Unicode_string.to_string kid in
-              let iss = Unicode_string.to_string iss in
-              Dval.dstr_of_string_exn (Jwt.encode ~b64_secret ~kid ~iss)
+          | _, [DStr pkey; DObj headers; DObj payload] ->
+              let pkey = Unicode_string.to_string pkey in
+              let headers =
+                DObj headers
+                |> Dval.to_pretty_machine_yojson_v1
+                |> Yojson.Safe.Util.to_assoc
+              in
+              let payload =
+                DObj payload
+                |> Dval.to_pretty_machine_yojson_v1
+                |> Yojson.Safe.Util.to_assoc
+              in
+              ( match
+                  Jwt.encode_es256 ~pkey ~extra_headers:headers ~payload
+                with
+              | Ok s ->
+                  Dval.dstr_of_string_exn s
+              | Error e ->
+                  DError e )
           | args ->
               fail args)
     ; ps = false
