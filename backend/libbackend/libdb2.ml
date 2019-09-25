@@ -530,7 +530,7 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = false }
-  ; { pns = ["DB::getAllKeys"]
+  ; { pns = ["DB::keys_v1"]
     ; ins = []
     ; p = [par "table" TDB]
     ; r = TList
