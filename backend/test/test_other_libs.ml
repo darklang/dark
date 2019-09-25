@@ -254,7 +254,7 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
 -----END PUBLIC KEY-----"
     |> Core.String.substr_replace_all ~pattern:"\n" ~with_:"\\n"
   in
-  let ast =
+  let ast_v0 (privkey : string) (pubkey : string) : string =
     Printf.sprintf
       "(let privatekey '%s'
                  (let publickey '%s'
@@ -265,8 +265,22 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                            privatekey
                            extraHeaders
                            payload))))))"
-      privatekey
-      publickey
+      privkey
+      pubkey
+  in
+  let ast_v1 (privkey : string) (pubkey : string) : string =
+    Printf.sprintf
+      "(let privatekey '%s'
+                 (let publickey '%s'
+                   (let payload (obj (abc 'def'))
+                     (let extraHeaders (obj (ghi 'jkl'))
+                       (`JWT::verifyAndExtract_v1 publickey
+                         (`JWT::signAndEncodeWithHeaders_v1
+                           privatekey
+                           extraHeaders
+                           payload))))))"
+      privkey
+      pubkey
   in
   check_dval
     "JWT::verifyAndExtract works on output of JWT::signAndEncodeWithheaders"
@@ -280,7 +294,32 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
                ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
     |> fun x -> DOption (OptJust (DObj x)) )
-    (exec_ast ast)
+    (exec_ast (ast_v0 privatekey publickey)) ;
+  check_dval
+    "JWT::verifyAndExtract_v1 works on output of JWT::signAndEncodeWithheaders"
+    ( [ ( "payload"
+        , DObj (DvalMap.from_list [("abc", Dval.dstr_of_string_exn "def")]) )
+      ; ( "header"
+        , DObj
+            (DvalMap.from_list
+               [ ("type", Dval.dstr_of_string_exn "JWT")
+               ; ("alg", Dval.dstr_of_string_exn "RS256")
+               ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
+    |> DvalMap.from_list
+    |> DObj )
+    (exec_ast (ast_v1 privatekey publickey)) ;
+  check_dval
+    "JWT::signAndEncodeWithheaders_v1 gives error for private key"
+    (DErrorRail
+       (DResult
+          (ResError
+             (Dval.dstr_of_string_exn "Invalid private key: not an RSA key"))))
+    (exec_ast (ast_v1 "invalid private key" publickey)) ;
+  check_dval
+    "JWT::verifyAndExtract_v1 gives error for pubkey"
+    (DErrorRail
+       (DResult (ResError (Dval.dstr_of_string_exn "Invalid public key"))))
+    (exec_ast (ast_v1 privatekey "invalid public key"))
 
 
 let t_date_functions_work () =
