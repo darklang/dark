@@ -1069,7 +1069,6 @@ and variantTest =
   | LibtwitterVariant
   | GroupVariant
   | GridLayout
-  | QueueLengthUIVariant
 
 (* ----------------------------- *)
 (* FeatureFlags *)

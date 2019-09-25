@@ -185,7 +185,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         |> Option.orElse selectedFnDocString
     | Some _tlid, None when _tlid = tlid ->
         if TL.isWorkerHandler tl
-           && VariantTesting.variantIsActive m QueueLengthUIVariant
         then
           TLIDDict.get ~tlid m.workerStats
           |> Option.andThen ~f:(fun ws ->
