@@ -41,8 +41,6 @@ let toVariantTest (s : string * bool) : variantTest option =
         Some GroupVariant
     | "grid" ->
         Some GridLayout
-    | "queuelength" ->
-        Some QueueLengthUIVariant
     | _ ->
         None )
 
@@ -62,8 +60,6 @@ let toCSSClass (vt : variantTest) : string =
         "grouping"
     | GridLayout ->
         "grid-layout"
-    | QueueLengthUIVariant ->
-        "queuelength"
     (* _ -> "default" *)
     (* Please never do this, let the compiler tell you if
      * you missed a variant *)
