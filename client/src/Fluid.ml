@@ -2112,8 +2112,10 @@ let addEntryBelow
   let newAST =
     updateExpr id ast ~f:(fun e ->
         match (index, e) with
-        | None, _ ->
-            (* We've already decided to wrap, so wrap unconditionally. *)
+        | None, EBlank _ ->
+            cursor := `NextToken ;
+            e
+        | None, e ->
             ELet (gid (), gid (), "", newB (), e)
         | Some index, ERecord (id, fields) ->
             ERecord
