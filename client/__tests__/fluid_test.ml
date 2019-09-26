@@ -154,6 +154,24 @@ let () =
               (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
           , expr ) ] )
   in
+  let matchWithTwoLets =
+    let mID = gid () in
+    EMatch
+      ( mID
+      , b ()
+      , [ ( FPBlank (mID, gid ())
+          , ELet
+              ( gid ()
+              , gid ()
+              , "x"
+              , EInteger (gid (), "5")
+              , ELet
+                  (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
+              ) ) ] )
+  in
+  let nonEmptyLetWithBlankEnd =
+    ELet (gid (), gid (), "", EInteger (gid (), "6"), b ())
+  in
   let nonEmptyLet =
     ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
   in
@@ -1670,7 +1688,12 @@ let () =
         (insert '5' 6)
         ("let *** = ___\n5", 6) ;
       t
-        "enter at the end of a line goes to next let"
+        "enter on the end of let goes to blank"
+        nonEmptyLetWithBlankEnd
+        (enter 11)
+        ("let *** = 6\n___", 12) ;
+      t
+        "enter at the end of a line inserts let if no blank is next"
         nonEmptyLet
         (enter 11)
         ("let *** = 6\nlet *** = ___\n5", 16) ;
@@ -1684,6 +1707,22 @@ let () =
         nonEmptyLet
         (enter 0)
         ("let *** = ___\nlet *** = 6\n5", 14) ;
+      t
+        "enter at the end of a let with a let below inserts new let"
+        twoLets
+        (enter 9)
+        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 14) ;
+      t
+        "enter on the end of first let inserts new let"
+        matchWithTwoLets
+        (enter 28)
+        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___"
+        , 42 ) ;
+      t
+        "enter on the end of second let goes to blank"
+        matchWithTwoLets
+        (enter 47)
+        ("match ___\n  *** -> let x = 5\n         let y = 6\n         ___", 57) ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
@@ -1951,9 +1990,7 @@ let () =
         (enter 4)
         ("if 5\nthen\n  6\nelse\n  7", 5) ;
       t
-        "enter at end of then line does inserts let"
-        (* TODO: This should probably do nothing, but right now it acts like
-         * it's at the front of the line below. *)
+        "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
         ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
@@ -1963,7 +2000,7 @@ let () =
         (enter 13)
         ("if 5\nthen\n  6\nelse\n  7", 14) ;
       t
-        "enter at end of else line inserts let"
+        "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
          * it's at the front of the line below. *)
         plainIf
