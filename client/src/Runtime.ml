@@ -360,7 +360,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
           |> decodeString decoder
           |> Result.toOption
           |> Option.map ~f:(fun e ->
-                 "Error: \n  "
+                 "An error occurred: \n  "
                  ^ e.short
                  ^ maybe "message" e.long
                  ^ maybe "actual value" e.actual
