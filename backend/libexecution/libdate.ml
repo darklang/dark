@@ -140,6 +140,25 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
+  ; { pns = ["Date::fromSeconds"]
+    ; ins = []
+    ; p = [par "seconds" TInt]
+    ; r = TDate
+    ; d =
+        "Converts an integer representing seconds since the Unix epoch into a Date"
+    ; f =
+        InProcess
+          (function
+          | _, [DInt s] ->
+              s
+              |> Dint.to_int63
+              |> Time.Span.of_int63_seconds
+              |> Time.of_span_since_epoch
+              |> DDate
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
   ; { pns = ["Date::toHumanReadable"]
     ; ins = []
     ; p = [par "date" TDate]

@@ -375,6 +375,15 @@ let t_date_functions_work () =
     (DResult (ResOk (Dval.dint 45)))
     (exec_ast
        "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (Date::second d)))") ;
+  check_dval
+    "Date::toSeconds roundtrips"
+    (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:45Z")))
+    (exec_ast
+       "(Result::map (Date::parse_v1 '2019-07-28T22:42:45Z') (\\d -> (toString (Date::fromSeconds (Date::toSeconds d)))))") ;
+  check_dval
+    "Date::fromSeconds roundtrips"
+    (Dval.dint 1095379198)
+    (exec_ast "(Date::toSeconds (Date::fromSeconds 1095379198))") ;
   ()
 
 

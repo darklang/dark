@@ -4,6 +4,10 @@ val of_int : int -> t
 
 val to_int : t -> int option
 
+val to_int63 : t -> Core_kernel.Int63.t
+
+val of_int63 : Core_kernel.Int63.t -> t
+
 val to_int_exn : t -> int
 
 val of_float : float -> t
