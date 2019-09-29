@@ -6,6 +6,10 @@ let of_int = Int63.of_int
 
 let to_int = Int63.to_int
 
+let to_int63 t = t
+
+let of_int63 t = t
+
 let to_int_exn = Int63.to_int_exn
 
 let of_string_exn = Int63.of_string
