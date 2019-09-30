@@ -19,8 +19,6 @@ type err_ctx =
   | Push of string
   | Other of string
 
-val string_of_ctx : err_ctx -> string
-
 (* Reports an exn with a backtrace to Rollbar asynchronously *)
 val report_lwt :
      ?pp:(exn -> string)

@@ -322,8 +322,6 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
-RUN sudo apt install -y net-tools # for netstat
-
 
 ############################
 # Finish
