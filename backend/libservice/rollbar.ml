@@ -20,20 +20,6 @@ type err_ctx =
   | Push of string
   | Other of string
 
-let string_of_ctx (ctx : err_ctx) =
-  match ctx with
-  | EventQueue ->
-      "queue_worker"
-  | CronChecker ->
-      "cron_checker"
-  | Remote _ ->
-      "remote"
-  | Push _ ->
-      "push"
-  | Other _ ->
-      "other"
-
-
 (* "https://ui.honeycomb.io/dark/datasets/kubernetes-bwd-ocaml?query={\"filters\":[{\"column\":\"rollbar\",\"op\":\"exists\"},{\"column\":\"execution_id\",\"op\":\"=\",\"value\":\"44602511168214071\"}],\"limit\":100,\"time_range\":604800}"
  *)
 (* The escaping on this is a bit overkill - it'll do a layer of url-escaping
