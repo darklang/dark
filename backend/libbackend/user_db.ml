@@ -325,8 +325,7 @@ let get_all_keys ~state (db : db) : string list =
       AND account_id = $2
       AND canvas_id = $3
       AND user_version = $4
-      AND dark_version = $5
-      ORDER BY created_at"
+      AND dark_version = $5"
     ~params:
       [ ID db.tlid
       ; Uuid state.account_id
