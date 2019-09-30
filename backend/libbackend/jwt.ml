@@ -90,11 +90,48 @@ let decode_rs256 ~(key : Rsa.pub) ~(token : string) : (string * string) option
       None
 
 
-(* TODO *)
+let decode_rs256_v1 ~(key : Rsa.pub) ~(token : string) :
+    (string * string, string) Result.t =
+  match String.split ~on:'.' token with
+  | [header; payload; signature] ->
+    (* do the minimum of parsing and decoding before verifying signature.
+        c.f. "cryptographic doom principle". *)
+    ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
+    | None ->
+        Error "Unable to base64-decode signature"
+    | Some signature ->
+        if header ^ "." ^ payload
+           |> Cstruct.of_string
+           |> (fun x -> `Message x)
+           |> Rsa.PKCS1.verify
+                ~hashp:(( = ) `SHA256)
+                ~key
+                ~signature:(Cstruct.of_string signature)
+        then
+          match
+            ( B64.decode_opt ~alphabet:B64.uri_safe_alphabet header
+            , B64.decode_opt ~alphabet:B64.uri_safe_alphabet payload )
+          with
+          | Some header, Some payload ->
+              Ok (header, payload)
+          | Some header, None ->
+              Error "Unable to base64-decode header"
+          | _ ->
+              Error "Unable to base64-decode payload"
+        else Error "Unable to verify signature" )
+  | _ ->
+      Error "Invalid token format"
+
+
+(* Returns a base64 encoded JWT built from the incoming payload and signed with
+ * the ES256 algorithm using the provided key. *)
 let encode_es256
     ~(pkey : string)
     ~(extra_headers : (string * Yojson.Safe.t) list)
     ~(payload : (string * Yojson.Safe.t) list) : (string, string) Result.t =
+  (* the jwt cmd line program only allows setting the --kid header,
+   * so we only extract that right now, even though there are theoretically
+   * other valid headers in a JWT *)
   let headers_to_args (headers : (string * Yojson.Safe.t) list) : string list =
     match Map.of_alist (module String) extra_headers with
     | `Duplicate_key _ ->
@@ -121,40 +158,38 @@ let encode_es256
             [] )
   in
   let pkey64 = String.substr_replace_all ~pattern:"\n" ~with_:"" pkey in
+  (* !!!! FIXME !!!! this does no escaping and allows malicious actors full RCE *)
   let args =
     ["encode"]
     @ headers_to_args extra_headers
     @ payload_to_args payload
     @ ["-A"; "ES256"; "--secret-b64"; pkey64]
   in
-  let command = "/home/dark/bin/jwt " ^ String.concat args ~sep:" " in
+  let command =
+    "timeout 1 /home/dark/bin/jwt " ^ String.concat args ~sep:" "
+  in
   Log.infO command ;
   let inchan = Unix.open_process_in command in
-  let lines = ref [] in
-  let ctr = ref 0 in
+  let buf = Buffer.create 256 in
   ( try
       while true do
-        ctr := !ctr + 1 ;
-        (* This is silly, but ... for lack of a timeout ... *)
-        if !ctr > 5000 then Exception.internal "Failed to encode a jwt" else () ;
-        let line = In_channel.input_line inchan in
-        match line with
-        | Some line ->
-            lines := line :: !lines ;
-            (* This is ... gross? I'm not sure how _else_ to get EOF, though ...
-               * and
-               * TODO: it also does _zero_ about failed exit statuses, which is
-               * kinda important
-               * *)
-            raise End_of_file
-        | None ->
-            ()
+        Buffer.add_channel buf inchan 64
       done
-    with End_of_file ->
-      ( try
-          Unix.close_process_in inchan |> ignore
-          (* Workaround for "no child processes" *)
-        with Unix.Unix_error (_, b, c) ->
-          Log.erroR "Unix error in jwt encode" ~params:[("b", b); ("c", c)] )
-  ) ;
-  Ok (String.concat !lines ~sep:"\n")
+    with End_of_file -> () ) ;
+  let trim buf = buf |> Buffer.contents |> String.rstrip in
+  try
+    let status = Unix.close_process_in inchan in
+    match status with
+    | Unix.WEXITED 0 ->
+        Ok (trim buf)
+    | Unix.WEXITED n ->
+        Error (Printf.sprintf "failed to encode JWT (exit=%d)" n)
+    | Unix.WSTOPPED n | Unix.WSIGNALED n ->
+        Error (Printf.sprintf "failed to encode JWT (signal=%d)" n)
+  with Unix.Unix_error (Unix.ECHILD, b, c) ->
+    (* the child is already gone, which is probably fine, given we have something in buffer *)
+    ( match Buffer.length buf with
+    | 0 ->
+        Error "failed to encode JWT (unknown)"
+    | _ ->
+        Ok (trim buf) )
