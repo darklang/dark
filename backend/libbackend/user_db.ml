@@ -316,6 +316,30 @@ let get_all ~state (db : db) : (string * dval) list =
              Exception.internal "bad format received in get_all" )
 
 
+let get_all_keys ~state (db : db) : string list =
+  Db.fetch
+    ~name:"get_all_keys"
+    "SELECT key
+      FROM user_data
+      WHERE table_tlid = $1
+      AND account_id = $2
+      AND canvas_id = $3
+      AND user_version = $4
+      AND dark_version = $5"
+    ~params:
+      [ ID db.tlid
+      ; Uuid state.account_id
+      ; Uuid state.canvas_id
+      ; Int db.version
+      ; Int current_dark_version ]
+  |> List.map ~f:(fun return_val ->
+         match return_val with
+         | [key] ->
+             key
+         | _ ->
+             Exception.internal "bad format received in get_all_keys" )
+
+
 let count ~state (db : db) : int =
   Db.fetch
     ~name:"count"
