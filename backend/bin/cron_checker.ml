@@ -6,7 +6,6 @@ open Libbackend.Worker_util
 let shutdown = ref false
 
 let cron_checker execution_id =
-  Libbackend.Init.init ~run_side_effects:false ;
   let rec cron_checker () =
     let%lwt () = Lwt_unix.sleep 1.0 in
     let result = Libbackend.Cron.check_all_canvases execution_id in
