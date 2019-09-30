@@ -6,35 +6,30 @@ open Libbackend.Worker_util
 let shutdown = ref false
 
 let cron_checker execution_id =
-  Thread.create (fun _ ->
-      let rec cron_checker () =
-        let%lwt () = Lwt_unix.sleep 1.0 in
-        let result = Libbackend.Cron.check_all_canvases execution_id in
-        match result with
-        | Ok _ ->
-            if not !shutdown
-            then (cron_checker [@tailcall]) ()
-            else Lwt.return ()
-        | Error (bt, e) ->
-            Libcommon.Log.erroR
-              "cron_checker"
-              ~data:"Uncaught error"
-              ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
-            Lwt.async (fun () ->
-                Libbackend.Rollbar.report_lwt
-                  e
-                  bt
-                  CronChecker
-                  (Libexecution.Types.string_of_id execution_id) ) ;
-            if not !shutdown
-            then (cron_checker [@tailcall]) ()
-            else Lwt.return ()
-      in
-      Lwt_main.run
-        (Log.add_log_annotations
-           [ ( "execution_id"
-             , `String (Libexecution.Types.string_of_id execution_id) ) ]
-           (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker)) )
+  let rec cron_checker () =
+    let%lwt () = Lwt_unix.sleep 1.0 in
+    let result = Libbackend.Cron.check_all_canvases execution_id in
+    match result with
+    | Ok _ ->
+        if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
+    | Error (bt, e) ->
+        Libcommon.Log.erroR
+          "cron_checker"
+          ~data:"Uncaught error"
+          ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
+        Lwt.async (fun () ->
+            Libbackend.Rollbar.report_lwt
+              e
+              bt
+              CronChecker
+              (Libexecution.Types.string_of_id execution_id) ) ;
+        if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
+  in
+  Lwt_main.run
+    (Log.add_log_annotations
+       [ ( "execution_id"
+         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+       (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker))
 
 
 let () =
