@@ -539,7 +539,7 @@ let t_db_getAllKeys_works () =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
     (let two (DB::set_v1 (obj (x 'bar')) 'second' MyDB)
       (let results (DB::keys_v1 MyDB)
-      results)))"
+      (List::sort results))))"
   in
   check_dval
     "equal_after_roundtrip"
