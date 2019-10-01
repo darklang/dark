@@ -1773,6 +1773,9 @@ let () =
           ; listFn [aListNum "5"] ]
       in
       let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
+      let aNestedThread =
+        threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
+      in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
       t
         "move to the front of thread on line 1"
@@ -1809,9 +1812,6 @@ let () =
         aThread
         render
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
-      let aNestedThread =
-        threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
-      in
       t
         "nested threads will indent"
         aNestedThread
