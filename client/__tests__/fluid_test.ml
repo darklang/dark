@@ -170,6 +170,10 @@ let () =
                   (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
               ) ) ] )
   in
+  let nestedMatch =
+    let mID = gid () in
+    EMatch (mID, b (), [(FPBlank (mID, gid ()), emptyMatch)])
+  in
   let nonEmptyLetWithBlankEnd =
     ELet (gid (), gid (), "", EInteger (gid (), "6"), b ())
   in
@@ -1568,6 +1572,12 @@ let () =
         emptyMatchWithTwoPatterns
         (enter 35)
         ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___\n", 38) ;
+      t
+        "enter at the end of the last row in nested match creates a new row"
+        nestedMatch
+        (enter 50)
+        ( "match ___\n  *** -> match ___\n           *** -> ___\n           *** -> ___\n"
+        , 62 ) ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
