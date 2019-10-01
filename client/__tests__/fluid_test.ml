@@ -1729,13 +1729,14 @@ let () =
         "enter on the end of first let inserts new let"
         matchWithTwoLets
         (enter 28)
-        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___"
+        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___\n"
         , 42 ) ;
       t
         "enter on the end of second let goes to blank"
         matchWithTwoLets
         (enter 47)
-        ("match ___\n  *** -> let x = 5\n         let y = 6\n         ___", 57) ;
+        ( "match ___\n  *** -> let x = 5\n         let y = 6\n         ___\n"
+        , 57 ) ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
