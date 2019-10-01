@@ -12,4 +12,4 @@ sudo chown dark "$DARK_CONFIG_RUNDIR"
 ./scripts/support/create-app-directories
 
 echo "Starting queue worker"
-sudo --preserve-env backend/_build/default/bin/queue_worker.exe
+sudo --preserve-env ./bin/queue_worker.exe
