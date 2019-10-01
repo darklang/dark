@@ -323,6 +323,37 @@ jobs:
       - store_test_results:
           path: artifacts/rundir/test_results
 
+  test-cron_checker:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - attach_workspace: { at: "." }
+      - copy-into-container
+      - run-background-container
+      # Now that the workspaces have combined, we need to regenerate etags.json
+      - wait-for-server
+      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: | 
+        docker run timeout 30s scripts/support/gcp-run-cronchecker
+        [[ $? = 124 ]] # if `timeout` times out, exit status will be 124
+
+  test-failure:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - attach_workspace: { at: "." }
+      - copy-into-container
+      - run-background-container
+      # Now that the workspaces have combined, we need to regenerate etags.json
+      - wait-for-server
+      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
+      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: | 
+        docker run timeout 30s false
+        [[ $? = 124 ]] # if `timeout` times out, exit status will be 124
 
 
   integration-tests:
@@ -424,6 +455,16 @@ workflows:
 
       # expensive tests
       - integration-tests:
+          requires:
+            - build-backend
+            - build-client
+
+      - test-cron_checker:
+          requires:
+            - build-backend
+            - build-client
+
+      - test-failure:
           requires:
             - build-backend
             - build-client
