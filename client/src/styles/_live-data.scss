@@ -21,13 +21,9 @@
 
   .worker-stats {
     position: relative;
-    display: none;
-
-    &.show {
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-end;
-    }
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
 
     .label,
     .count {
@@ -49,10 +45,12 @@
       text-align: center;
       line-height: 16px;
 
-      animation-duration: 1s;
-      animation-name: blinkBackground;
-      animation-iteration-count: infinite;
-      animation-direction: alternate;
+      &.active {
+        animation-duration: 1s;
+        animation-name: blinkBackground;
+        animation-iteration-count: infinite;
+        animation-direction: alternate;
+      }
     }
   }
 

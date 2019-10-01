@@ -103,13 +103,22 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
     | Some _ | None ->
         false
   in
-  let showWorkerStats = tlSelected && vs.workerStats <> 0 in
+  let showWorkerStats = tlSelected && Option.isSome vs.workerStats in
   let workQStats =
-    let count = vs.workerStats in
-    Html.div
-      [Html.classList [("worker-stats", true); ("show", showWorkerStats)]]
-      [ Html.span [Html.class' "label"] [Html.text "Pending events"]
-      ; Html.span [Html.class' "count"] [Html.text (string_of_int count)] ]
+    if showWorkerStats
+    then
+      let count =
+        vs.workerStats
+        |> Option.map ~f:(fun ws -> ws.count)
+        |> Option.withDefault ~default:0
+      in
+      Html.div
+        [Html.class' "worker-stats"]
+        [ Html.span [Html.class' "label"] [Html.text "Pending events"]
+        ; Html.span
+            [Html.classList [("count", true); ("active", count > 0)]]
+            [Html.text (string_of_int count)] ]
+    else Vdom.noNode
   in
   let maxHeight =
     if Some vs.tlid = tlidOf vs.cursorState
