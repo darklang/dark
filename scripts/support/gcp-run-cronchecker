@@ -12,4 +12,4 @@ sudo chown dark "$DARK_CONFIG_RUNDIR"
 ./scripts/support/create-app-directories
 
 echo "Starting cron checker"
-sudo --preserve-env ./bin/cron_checker.exe
+sudo --preserve-env backend/_build/default/bin/cron_checker.exe
