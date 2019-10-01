@@ -750,8 +750,11 @@ let submitACItem
               then DisplayError ("There is already a Function named " ^ value)
               else
                 let newPD = PFnName (B.newF value) in
-                let newAST = AST.replace pd newPD old.ufAST in
-                let new_ = {old with ufAST = newAST} in
+                let new_ =
+                  { old with
+                    ufMetadata = {old.ufMetadata with ufmName = B.newF value}
+                  }
+                in
                 let changedNames = Refactor.renameFunction m old new_ in
                 wrapNew (SetFunction new_ :: changedNames) newPD
           | PConstructorName _, ACConstructorName value, _ ->
