@@ -34,13 +34,9 @@ let cron_checker execution_id =
 
 let () =
   let execution_id = Libexecution.Util.create_id () in
-  let health_check_thread =
-    Thread.create
-      health_check
-      (Libservice.Rollbar.CronChecker, execution_id, shutdown)
-  in
-  let cron_checker_thread = Thread.create cron_checker execution_id in
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
-  Thread.join cron_checker_thread ;
-  Thread.join health_check_thread
+  let health_check_thread = Thread.create (health_check shutdown) () in
+  let cron_checker_thread = Thread.create cron_checker execution_id in
+  Thread.join health_check_thread ;
+  Thread.join cron_checker_thread
