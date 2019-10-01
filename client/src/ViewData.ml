@@ -96,6 +96,21 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
 let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   let astID = B.toID ast in
   let requestEls = viewInputs vs astID in
+  let tlSelected =
+    match tlidOf vs.cursorState with
+    | Some tlid when tlid = vs.tlid ->
+        true
+    | Some _ | None ->
+        false
+  in
+  let showWorkerStats = tlSelected && vs.workerStats <> 0 in
+  let workQStats =
+    let count = vs.workerStats in
+    Html.div
+      [Html.classList [("worker-stats", true); ("show", showWorkerStats)]]
+      [ Html.span [Html.class' "label"] [Html.text "Pending events"]
+      ; Html.span [Html.class' "count"] [Html.text (string_of_int count)] ]
+  in
   let maxHeight =
     if Some vs.tlid = tlidOf vs.cursorState
     then "max-content"
@@ -117,6 +132,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   [ Html.div
       [ Html.classList
           [ ("view-data", true)
+          ; ("show-worker-stats", showWorkerStats)
           ; ("live-view-selection-active", selectedValue <> None) ]
       ; Html.style "max-height" maxHeight ]
-      [Html.ul [Html.class' "request-cursor"] requestEls] ]
+      [workQStats; Html.ul [Html.class' "request-cursor"] requestEls] ]
