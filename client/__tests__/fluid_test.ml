@@ -1936,6 +1936,12 @@ let () =
         aThread
         (enter 40)
         ("[]\n|>List::append [5]\n|>List::append [5]\n|>___\n", 43) ;
+      t
+        "enter at the end of the last nested expr creates a new entry"
+        aNestedThread
+        (enter 55)
+        ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
+        , 73 ) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
