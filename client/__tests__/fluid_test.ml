@@ -1758,6 +1758,7 @@ let () =
       let threadOn expr fns = EThread (gid (), expr :: fns) in
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
+      let aList6 = EList (gid (), [six]) in
       let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
       let listFn args =
         EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
@@ -1774,7 +1775,7 @@ let () =
       in
       let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
       let aNestedThread =
-        threadOn emptyList [listFn [threadOn aList5 [listFn [aList5]]]]
+        threadOn emptyList [listFn [threadOn aList5 [listFn [aList6]]]]
       in
       (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
       t
@@ -1816,7 +1817,7 @@ let () =
         "nested threads will indent"
         aNestedThread
         render
-        ("[]\n|>List::append [5]\n               |>List::append [5]\n", 0) ;
+        ("[]\n|>List::append [5]\n               |>List::append [6]\n", 0) ;
       t
         "backspacing a thread's first pipe works"
         aLongThread
