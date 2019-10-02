@@ -331,9 +331,6 @@ jobs:
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers --skip-stroller
       - run:
           name: check-cronchecker
@@ -350,9 +347,6 @@ jobs:
       - attach_workspace: { at: "." }
       - copy-into-container
       - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
       - run: scripts/run-in-docker scripts/gcp-build-containers --skip-stroller
       - run:
           name: check-failure
