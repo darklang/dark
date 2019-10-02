@@ -251,7 +251,7 @@ jobs:
             - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
             - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
             - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
-      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail . && docker run -t dark-gcp-postgres-honeytail python test_logs.py
+      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   check-nginx-conf:
     executor: my-executor
