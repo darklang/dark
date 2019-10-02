@@ -28,33 +28,6 @@ spec:
             limits:
               memory: "800Mi"
               cpu: "200m"
-          lifecycle:
-            preStop:
-              httpGet:
-                # ???? https://github.com/kubernetes/kubernetes/issues/56770
-                path: pkill
-                port: 80
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8081
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8081
-            # Giving 2 minutes grace here, there's an outstanding k8s issue
-            # preventing you from specifying "start checking liveness after an
-            # ok from readiness", which is what you'd expect.
-            # https://github.com/kubernetes/kubernetes/issues/27114
-            initialDelaySeconds: 120
-            periodSeconds: 10 # every 10 seconds
-            timeoutSeconds: 10 # time out after 10 seconds
-            failureThreshold: 9 # kill container after 9 successive time outs
-          ports:
-            - name: qw-ctr-port
-              containerPort: 8081
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
