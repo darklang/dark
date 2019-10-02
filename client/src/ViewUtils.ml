@@ -35,7 +35,8 @@ type viewState =
   ; hoveringRefs : id list
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
-  ; permission : permission option }
+  ; permission : permission option
+  ; workerStats : workerStats option }
 
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
@@ -141,7 +142,8 @@ let createVS (m : model) (tl : toplevel) : viewState =
           m.avatarsList
       | _ ->
           [] )
-  ; permission = m.permission }
+  ; permission = m.permission
+  ; workerStats = TLIDDict.get ~tlid m.workerStats }
 
 
 let fontAwesome (name : string) : msg Html.html =

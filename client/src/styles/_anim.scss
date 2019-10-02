@@ -69,3 +69,12 @@ i.fa-spinner {
     opacity: 0;
   }
 }
+
+@keyframes blinkBackground {
+  from {
+    background-color: $grey2;
+  }
+  to {
+    background-color: lighten($grey2, 10%);
+  }
+}

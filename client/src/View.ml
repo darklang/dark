@@ -183,21 +183,6 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         acFnDocString
         |> Option.orElse selectedParamDocString
         |> Option.orElse selectedFnDocString
-    | Some _tlid, None when _tlid = tlid ->
-        if TL.isWorkerHandler tl
-        then
-          TLIDDict.get ~tlid m.workerStats
-          |> Option.andThen ~f:(fun ws ->
-                 if ws.count <> 0
-                 then
-                   Some
-                     [ Html.div
-                         [Html.class' "documentation-box"]
-                         [ Html.text
-                             ("Pending requests: " ^ string_of_int ws.count) ]
-                     ]
-                 else None )
-        else None
     | _ ->
         None
   in
