@@ -6,9 +6,52 @@
   cursor: pointer;
   overflow: hidden;
 
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+
   .toplevel.selected &,
   .node.hovering & {
     overflow: visible;
+  }
+
+  &.show-worker-stats {
+    left: -90px;
+  }
+
+  .worker-stats {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+
+    .label,
+    .count {
+      display: inline-block;
+
+      line-height: 16px;
+      font-size: 8px;
+      color: $white1;
+    }
+
+    .count {
+      width: 16px;
+      height: 16px;
+      border-radius: 8px;
+
+      margin-left: 4px;
+
+      background-color: $grey2;
+      text-align: center;
+      line-height: 16px;
+
+      &.active {
+        animation-duration: 1s;
+        animation-name: blinkBackground;
+        animation-iteration-count: infinite;
+        animation-direction: alternate;
+      }
+    }
   }
 
   ul.request-cursor {
