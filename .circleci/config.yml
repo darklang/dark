@@ -339,7 +339,7 @@ jobs:
           name: check-cronchecker
           shell: bash
           command: |
-            docker run dark-gcp-cron timeout 40s scripts/support/gcp-run-cronchecker
+            docker run -e DARK_CONFIG_RUNDIR=. dark-gcp-cron timeout 40s scripts/support/gcp-run-cronchecker
             [[ $? = 124 ]] # if `timeout` times out, exit status will be 124
 
   test-failure:
@@ -358,7 +358,7 @@ jobs:
           name: check-failure
           shell: bash
           command: |
-            docker run dark-cpw-cron timeout 40s false
+            docker run -e DARK_CONFIG_RUNDIR=. dark-gcp-cron timeout 40s false
             [[ $? = 124 ]] # if `timeout` times out, exit status will be 124
 
 
