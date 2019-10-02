@@ -324,6 +324,18 @@ ENV TERM=xterm-256color
 
 RUN sudo apt install -y net-tools # for netstat
 
+# This gets us - for now - nginx 1.14, not the 1.15.3 we use in prod. But I
+# haven't been able to find 1.15 in nginx' own reoo either, just 1.14 and 1.16.
+RUN sudo apt update && sudo apt install -y nginx-core && sudo useradd nginx
+
+# We could mount these files into the container, but then we'd also want to make
+# scripts/support/compile restart runserver if either of the nginx files
+# changed, and I'd rather not add to the complexity of that file right now.
+# nginx changes should be infrequent, making users restart scripts/builder is
+# fine
+RUN sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx.conf
+RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
+RUN sudo chown -R dark:dark /var/log/nginx
 
 ############################
 # Finish
