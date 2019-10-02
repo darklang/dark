@@ -1258,8 +1258,9 @@ let handle_login_page ~execution_id req body =
     in
     if Config.env_display_name = "production" || qp_prod_login
     then
-      (* This tells nginx to proxy-pass to the corpsite's /user-login - see
-       * scripts/support/nginx.conf. Note that it _only_ proxys /user-login
+      (* This tells nginx to proxy-pass to the corpsite's /login via nginx'
+       * /user-login location - see
+       * scripts/support/nginx.conf. Note that it _only_ proxys /login
        * exactly *)
       let resp_headers =
         Header.of_list
