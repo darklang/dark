@@ -334,7 +334,7 @@ jobs:
       # Now that the workspaces have combined, we need to regenerate etags.json
       - wait-for-server
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: scripts/run-in-docker scripts/gcp-build-containers --skip-stroller
       - run:
           name: check-cronchecker
           shell: bash
@@ -353,7 +353,7 @@ jobs:
       # Now that the workspaces have combined, we need to regenerate etags.json
       - wait-for-server
       - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - run: scripts/run-in-docker scripts/gcp-build-containers --skip-stroller
       - run:
           name: check-failure
           shell: bash
@@ -468,14 +468,10 @@ workflows:
       - test-cron_checker:
           requires:
             - build-backend
-            - build-client
-            - build-stroller
 
       - test-failure:
           requires:
             - build-backend
-            - build-client
-            - build-stroller
 
       # pre-deploy, in parallel with integration-tests
       - push-to-gcp:
