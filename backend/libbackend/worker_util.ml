@@ -17,6 +17,9 @@ let health_check (shutdown : bool ref) () : unit =
           ()
       | _ ->
           shutdown := true ) ;
+      (* This sleep doesn't block; the other thread (qw or cron) will get to
+       * run, as confirmed by logs. It just ensures that we don't hammer
+       * Dbconnection.status for no good reason *)
       Unix.sleep 30 ;
       Thread.yield ()
     done
