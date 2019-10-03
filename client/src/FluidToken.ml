@@ -568,6 +568,8 @@ let toDebugInfo (t : token) : string =
   | TStringMLMiddle (_, _, offset, _)
   | TStringMLEnd (_, _, offset, _) ->
       string_of_int offset
+  | TNewline (Some (owner, _, Some index)) ->
+      "owner " ^ deID owner ^ " index " ^ string_of_int index
   | _ ->
       ""
 

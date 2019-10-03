@@ -14,7 +14,6 @@ open Types
 open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
-module Regex = Util.Regex
 module TL = Toplevel
 
 (* Tea *)
@@ -478,7 +477,7 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
-  let nested ?(placeholderFor : (string * int) option = None) b =
+  let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
     let tokens =
       match (b, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
@@ -500,6 +499,15 @@ let rec toTokens' (s : state) (e : ast) : token list =
     in
     TIndentToHere tokens
   in
+  let rec endsInNewline (e : Types.fluidToken) : bool =
+    match e with
+    | TNewline _ ->
+        true
+    | TIndentToHere tokens ->
+      (match List.last tokens with Some t -> endsInNewline t | _ -> false)
+    | _ ->
+        false
+  in
   match e with
   | EInteger (id, i) ->
       [TInteger (id, i)]
@@ -516,12 +524,17 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EBlank id ->
       [TBlank id]
   | ELet (id, varId, lhs, rhs, next) ->
+      let newline =
+        if endsInNewline (nested rhs)
+        then []
+        else [TNewline (Some (eid next, id, None))]
+      in
       [ TLetKeyword (id, varId)
       ; TLetLHS (id, varId, lhs)
       ; TLetAssignment (id, varId)
-      ; nested rhs
-      ; TNewline (Some (eid next, id, None))
-      ; nested next ]
+      ; nested rhs ]
+      @ newline
+      @ [nested next]
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -548,22 +561,27 @@ let rec toTokens' (s : state) (e : ast) : token list =
             in
             starting @ middle @ ending ) )
   | EIf (id, cond, if', else') ->
-      [ TIfKeyword id
-      ; nested cond
-      ; TNewline None
-      ; TIfThenKeyword id
-        (* The newline ID is pretty hacky here. It's used to make it possible
+      let condNewline =
+        if endsInNewline (nested cond) then [] else [TNewline None]
+      in
+      let thenNewline =
+        if endsInNewline (nested if') then [] else [TNewline None]
+      in
+      [TIfKeyword id; nested cond]
+      @ condNewline
+      @ [ TIfThenKeyword id
+          (* The newline ID is pretty hacky here. It's used to make it possible
          * to press Enter on the expression inside. It might be better to
          * instead have a special newline where an id is relevant, and another
          * newline which is boring. *)
-      ; TNewline (Some (eid if', id, None))
-      ; TIndent 2
-      ; nested if'
-      ; TNewline None
-      ; TIfElseKeyword id
-      ; TNewline (Some (eid else', id, None))
-      ; TIndent 2
-      ; nested else' ]
+        ; TNewline (Some (eid if', id, None))
+        ; TIndent 2
+        ; nested if' ]
+      @ thenNewline
+      @ [ TIfElseKeyword id
+        ; TNewline (Some (eid else', id, None))
+        ; TIndent 2
+        ; nested else' ]
   | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
       (* Specifialized for being in a thread *)
       [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
@@ -677,9 +695,8 @@ let rec toTokens' (s : state) (e : ast) : token list =
         [nested single]
     | head :: tail ->
         let length = List.length exprs in
-        [ nested head
-        ; TNewline (Some (id, id, Some 0))
-        ; TIndentToHere
+        let tailTokens =
+          TIndentToHere
             ( tail
             |> List.indexedMap ~f:(fun i e ->
                    let thread =
@@ -688,23 +705,42 @@ let rec toTokens' (s : state) (e : ast) : token list =
                    if i == 0
                    then thread
                    else TNewline (Some (id, id, Some i)) :: thread )
-            |> List.concat ) ] )
+            |> List.concat )
+        in
+        let tailNewline =
+          if endsInNewline tailTokens
+          then []
+          else [TNewline (Some (id, id, Some (List.length tail)))]
+        in
+        [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
+        @ tailNewline )
   | EThreadTarget _ ->
       fail "should never be making tokens for EThreadTarget"
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
-      [ [TMatchKeyword id; nested mexpr]
-      ; List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-            (* It was probably a mistake to put the newline at the start, as it
-             * makes the Enter-on-newline behaviour not work on the last row,
-             * which is often the most important. Will need to fix later. *)
-            [TNewline (Some (id, id, Some i)); TIndent 2]
-            @ patternToToken pattern
-            @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
-        |> List.concat ]
-      |> List.concat
+      let finalNewline =
+        if List.last pairs
+           |> Option.map ~f:Tuple2.second
+           |> Option.map ~f:(fun e -> nested e)
+           |> Option.map ~f:endsInNewline
+           |> Option.withDefault ~default:false
+        then []
+        else [TNewline (Some (id, id, Some (List.length pairs)))]
+      in
+      [TMatchKeyword id; nested mexpr]
+      @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
+              let patternNewline =
+                if i == 0 && endsInNewline (nested mexpr)
+                then []
+                else [TNewline (Some (id, id, Some i)); TIndent 2]
+              in
+              patternNewline
+              @ patternToToken pattern
+              @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
+        |> List.concat )
+      @ finalNewline
   | EOldExpr expr ->
       [TPartial (Blank.toID expr, "TODO: oldExpr")]
   | EPartial (id, str, _) ->
@@ -718,22 +754,28 @@ let rec toTokens' (s : state) (e : ast) : token list =
 (* TODO: we need some sort of reflow thing that handles line length. *)
 let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
   let startingX = x in
-  List.foldl startingTokens ~init:(x, []) ~f:(fun t (x, old) ->
-      let text = Token.toText t in
-      let len = String.length text in
-      match t with
-      | TIndented tokens ->
-          let newX, newTokens = reflow ~x:(x + 2) tokens in
-          (newX, old @ [TIndent (startingX + 2)] @ newTokens)
-      | TIndentToHere tokens ->
-          let newX, newTokens = reflow ~x tokens in
-          (newX, old @ newTokens)
-      | TNewline _ ->
-          if startingX = 0
-          then (startingX, old @ [t])
-          else (startingX, old @ [t; TIndent startingX])
-      | _ ->
-          (x + len, old @ [t]) )
+  List.indexedMap startingTokens ~f:(fun i e -> (i, e))
+  |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) ->
+         let text = Token.toText t in
+         let len = String.length text in
+         match t with
+         | TIndented tokens ->
+             let newX, newTokens = reflow ~x:(x + 2) tokens in
+             (newX, old @ [TIndent (startingX + 2)] @ newTokens)
+         | TIndentToHere tokens ->
+             let newX, newTokens = reflow ~x tokens in
+             (newX, old @ newTokens)
+         | TNewline _ ->
+             (* if this TNewline is at the very end of a set of tokens (for
+            * example - the TNewline at the end of an EMatch) - then we don't
+            * want to add a TIndent, because that will indent the following,
+            * non-EMatch, expr. *)
+             let isLast = i == List.length startingTokens - 1 in
+             if startingX = 0 || isLast
+             then (startingX, old @ [t])
+             else (startingX, old @ [t; TIndent startingX])
+         | _ ->
+             (x + len, old @ [t]) )
 
 
 let infoize ~(pos : int) tokens : tokenInfo list =
@@ -787,6 +829,10 @@ let eToString (s : state) (e : ast) : string =
   |> toTokens s
   |> List.map ~f:(fun ti -> Token.toTestText ti.token)
   |> String.join ~sep:""
+
+
+let tokensToString (tis : tokenInfo list) : string =
+  tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
 
 
 let eToStructure (s : state) (e : fluidExpr) : string =
@@ -3285,6 +3331,36 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _ ->
         (* Unknown *)
         (ast, report ("Unknown action: " ^ K.toName key) s)
+  in
+  let newAST, newState =
+    (* This is a hack to make Enter create a new entry in matches and threads
+     * at the end of an AST. Matches/Threads generate newlines at the end of
+     * the canvas: we don't want those newlines to appear in editor, however,
+     * we also can't get rid of them because it's a significant challenge to
+     * know what to do in those cases without that information. So instead, we
+     * allow them to be created and deal with the consequences.
+     *
+     * They don't appear in the browser, so we can ignore that.
+     *
+     * The major consequence is that there is an extra space at the end of the
+     * AST (the one after the newline). Users can put their cursor all the way
+     * to the end of the AST, and then they press left and the cursor doesn't
+     * move (since the browser doesn't display the final newline, the cursor
+     * goes to the same spot).
+     *
+     * We handle this by checking if we're in that situation and moving the
+     * cursor back to the right place if so.
+     *
+     * TODO: there may be ways of getting the cursor to the end without going
+     * through this code, if so we need to move it.  *)
+    let tokens = toTokens newState newAST in
+    let text = tokensToString tokens in
+    let last = List.last tokens in
+    match last with
+    | Some {token = TNewline _} when String.length text = newState.newPos ->
+        (newAST, {newState with newPos = newState.newPos - 1})
+    | _ ->
+        (newAST, newState)
   in
   (* If we were on a partial and have moved off it, we may want to commit that
    * partial. This is done here because the logic is different that clicking.
