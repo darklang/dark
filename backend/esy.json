@@ -4,6 +4,7 @@
   "description": "Dark backend",
   "license": "Proprietary",
   "esy": {
+    "_comment": "only get esy to build the deps, not the codebase",
     "build": [],
     "buildsInSource": "_build"
   },
