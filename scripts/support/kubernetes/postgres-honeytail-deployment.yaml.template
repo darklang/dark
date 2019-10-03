@@ -25,8 +25,8 @@ spec:
               memory: "128Mi"
               cpu: "1000m"
             limits:
-              memory: "256Mi"
-              cpu: "6000m"
+              memory: "384Mi"
+              cpu: "2000m"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
