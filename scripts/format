@@ -89,6 +89,10 @@ all_prettier_files() {
     -o -path "./client/node_modules" -prune \
     -o -path "backend/static" -prune \
     -o -path "./backend/static" -prune \
+    -o -path "backend/node_modules" -prune \
+    -o -path "./backend/node_modules" -prune \
+    -o -path "backend/_esy" -prune \
+    -o -path "./backend/_esy" -prune \
     -o -path "client/lib" -prune \
     -o -path "./client/lib" -prune 
 }
@@ -101,7 +105,13 @@ all_ocaml_files() {
     -o -path "backend/_build" -prune \
     -o -path "./backend/_build" -prune \
     -o -path "client/node_modules" -prune \
-    -o -path "./client/node_modules" -prune 
+    -o -path "./client/node_modules" -prune \
+    -o -path "backend/node_modules" -prune \
+    -o -path "./backend/node_modules" -prune \
+    -o -path "backend/_esy" -prune \
+    -o -path "./backend/_esy" -prune \
+    -o -path "backend/esy.lock" -prune \
+    -o -path "./backend/esy.lock" -prune 
 }
 
 check_ocamlformat() {

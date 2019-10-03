@@ -1,0 +1,46 @@
+opam-version: "2.0"
+maintainer: "Markus Mottl <markus.mottl@gmail.com>"
+authors: [
+  "Alain Frisch <alain.frisch@lexifi.com>"
+  "Markus Mottl <markus.mottl@gmail.com>"
+  "Petter Urkedal <paurkedal@gmail.com>"
+]
+license: "LGPL-2.1+ with OCaml linking exception"
+homepage: "https://mmottl.github.io/postgresql-ocaml"
+doc: "https://mmottl.github.io/postgresql-ocaml/api"
+dev-repo: "git+https://github.com/mmottl/postgresql-ocaml.git"
+bug-reports: "https://github.com/mmottl/postgresql-ocaml/issues"
+
+build: [
+  ["jbuilder" "subst" "-p" name] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+
+depends: [
+  "ocaml" {>= "4.04"}
+  "base-bytes"
+  "base" {build & < "v0.13"}
+  "stdio" {build & < "v0.13"}
+  "configurator" {build & < "v0.13"}
+  "jbuilder" {build & >= "1.0+beta10"}
+]
+depexts: [
+  ["libpq-dev"] {os-family = "debian"}
+  ["database/postgresql96-client"] {os = "freebsd"}
+  ["database/postgresql96-client"] {os = "openbsd"}
+  ["postgresql-devel"] {os-distribution = "centos"}
+  ["postgresql-devel"] {os-distribution = "rhel"}
+  ["postgresql-devel"] {os-distribution = "fedora"}
+  ["postgresql-dev"] {os-distribution = "alpine"}
+  ["postgresql"] {os-family = "suse"}
+  ["postgresql"] {os = "macos" & os-distribution = "homebrew"}
+  ["postgresql96"] {os = "macos" & os-distribution = "macports"}
+]
+synopsis: "Bindings to the PostgreSQL library"
+description:
+  "Postgresql offers library functions for accessing PostgreSQL databases."
+url {
+  src:
+    "https://github.com/mmottl/postgresql-ocaml/releases/download/4.4.0/postgresql-4.4.0.tbz"
+  checksum: "md5=712a96fe304e2bee2a0faeb54ede6653"
+}

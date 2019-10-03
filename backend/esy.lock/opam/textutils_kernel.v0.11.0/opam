@@ -1,0 +1,23 @@
+opam-version: "2.0"
+maintainer: "opensource@janestreet.com"
+authors: ["Jane Street Group, LLC <opensource@janestreet.com>"]
+homepage: "https://github.com/janestreet/textutils_kernel"
+bug-reports: "https://github.com/janestreet/textutils_kernel/issues"
+dev-repo: "git+https://github.com/janestreet/textutils_kernel.git"
+license: "Apache-2.0"
+build: [
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "ocaml" {>= "4.04.1"}
+  "core_kernel" {>= "v0.11" & < "v0.12"}
+  "ppx_jane" {>= "v0.11" & < "v0.12"}
+  "jbuilder" {build & >= "1.0+beta18.1"}
+  "ocaml-migrate-parsetree" {>= "1.0"}
+]
+synopsis: "Text output utilities"
+url {
+  src:
+    "https://ocaml.janestreet.com/ocaml-core/v0.11/files/textutils_kernel-v0.11.0.tar.gz"
+  checksum: "md5=eb06214c518996ec2a15d5c9975d6456"
+}

@@ -1,0 +1,156 @@
+--- ./caml_z_x86_64_mingw64.S
++++ ./caml_z_x86_64_mingw64.S
+@@ -21,9 +21,9 @@
+ 
+         
+         /* makes the stack non-executable. */
++#if defined __ELF__ && defined __linux__
+         .section .note.GNU-stack,"",@progbits
+-
+-        
++#endif
+         /* helper functions */
+         /* **************** */
+ 
+--- ./configure
++++ ./configure
+@@ -22,7 +22,24 @@
+ gmp='auto'
+ perf='no'
+ 
+-ar='ar'
++#ar='ar'
++ar_help=$(ocamlc -config | awk -F '[\t \r]+' '/^system/ {print $2}')
++case "$ar_help" in
++    *mingw64*)
++        if which x86_64-w64-mingw32-ar >/dev/null 2>&1 ; then
++            ar=x86_64-w64-mingw32-ar
++        fi
++        ;;
++    *mingw*)
++        if which i686-w64-mingw32-ar >/dev/null 2>&1 ; then
++            ar=i686-w64-mingw32-ar
++        fi
++        ;;
++    *)
++        ar='ar'
++        ;;
++esac
++
+ ocaml='ocaml'
+ ocamlc='ocamlc'
+ ocamlopt='ocamlopt'
+@@ -204,13 +221,32 @@
+   searchbinreq "$CC"
+   cc="$CC"
+   ccopt="$CFLAGS"
+-elif ! searchbin 'gcc'; then
++else
++    cc=x86_64-w64-mingw32-gcc
++    case "$system_help" in
++        *mingw64*)
++            if which x86_64-w64-mingw32-gcc >/dev/null 2>&1 ; then
++                cc=x86_64-w64-mingw32-gcc
++                ccopt="-O3 -Wall -Wextra $CFLAGS"
++            fi
++            ;;
++        *mingw*)
++            if which i686-w64-mingw32-gcc >/dev/null 2>&1 ; then
++                cc=i686-w64-mingw32-gcc
++                ccopt="-O3 -Wall -Wextra $CFLAGS"
++            fi
++            ;;
++    esac
++    if [ -z "$cc" ]; then
++        if ! searchbin 'gcc'; then
+   cc='gcc'
+   ccopt="-O3 -Wall -Wextra $CFLAGS"
+-else
++        else
+   searchbinreq 'cc'
+   cc='cc'
+   ccopt="-O3 -Wall -Wextra $CFLAGS"
++        fi
++    fi
+ fi
+ 
+ # optional native-code generation
+@@ -234,7 +270,7 @@
+ 
+ # directories
+ 
+-if test "$ocamllibdir" = "auto"; then ocamllibdir=`ocamlc -where`; fi
++if test "$ocamllibdir" = "auto"; then ocamllibdir=`ocamlc -where | tr -d '\r'`; fi
+ 
+ # fails on Cygwin:
+ # if test ! -f "$ocamllibdir/caml/mlvalues.h"
+@@ -261,7 +297,7 @@
+ if test $? -eq 1 -a $ocamlfind != "no"; then 
+     instmeth='findlib'
+     if test "$installdir" = "auto"
+-    then installdir=`ocamlfind printconf destdir`; fi
++    then installdir=`ocamlfind printconf destdir | tr -d '\r'`; fi
+ else
+     searchbin install
+     if test $? -eq 1; then instmeth='install'
+@@ -298,7 +334,7 @@
+     i486-*linux-gnu|i686-*linux-gnu|i486-kfreebsd-gnu)
+         ccdef="-DZ_ELF -DZ_DOT_LABEL_PREFIX $ccdef"
+         arch='i686';;
+-    i686-*cygwin)
++    i686-*cygwin|x86_64-*cygwin)
+         if test "x$wordsize" = "x64"; then
+             ccdef="-DZ_COFF $ccdef"
+             arch='x86_64_mingw64'
+@@ -386,6 +422,20 @@
+         ;;
+ esac
+ 
++exec_suffix=''
++so_suffix='.so'
++systype=`uname -s`
++case "$systype" in
++    CYGWIN*)
++        exec_suffix='.exe'
++        so_suffix='.dll'
++        ;;
++    MINGW*)
++        exec_suffix='.exe'
++        so_suffix='.dll'
++        ;;
++esac
++
+ # dump Makefile
+ 
+ cat > Makefile <<EOF
+@@ -398,6 +448,8 @@
+ OCAMLMKLIB=$ocamlmklib
+ OCAMLDOC=$ocamldoc
+ OCAMLFLAGS=$mlflags
++EXEC_SUFFIX=$exec_suffix
++DLL_SUFFIX=$so_suffix
+ OCAMLOPTFLAGS=$mloptflags
+ OCAMLINC=$mlinc
+ CFLAGS=$ccinc $ccdef $ccopt
+--- ./project.mak
++++ ./project.mak
+@@ -10,7 +10,7 @@
+ # ENS (École normale supérieure, Paris, France),
+ # INRIA Rocquencourt (Institut national de recherche en informatique, France).
+ 
+-ifeq "$(shell $(OCAMLC) -config |grep ccomp_type)" "ccomp_type: msvc"
++ifeq "$(shell $(OCAMLC) -config | tr -d '\015' | grep ccomp_type)" "ccomp_type: msvc"
+ OBJSUFFIX    := obj
+ LIBSUFFIX    := lib
+ DLLSUFFIX    := dll
+@@ -18,7 +18,9 @@
+ else
+ OBJSUFFIX    := o
+ LIBSUFFIX    := a
+-ifeq "$(shell $(OCAMLC) -config |grep system)" "system: mingw"
++WSYSTEM=$(shell $(OCAMLC) -config | tr -d '\015' | awk '/^system/ {print $$2}')
++
++ifeq ($(WSYSTEM),$(filter $(WSYSTEM),mingw mingw64))
+ DLLSUFFIX    := dll
+ EXE          := .exe
+ else
