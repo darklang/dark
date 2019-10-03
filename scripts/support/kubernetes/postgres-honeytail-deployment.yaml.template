@@ -22,10 +22,10 @@ spec:
           #  https://medium.com/google-cloud/quality-of-service-class-qos-in-kubernetes-bb76a89eb2c6
           resources:
             requests:
-              memory: "128M"
-              cpu: "2000m"
+              memory: "128Mi"
+              cpu: "1000m"
             limits:
-              memory: "256M"
+              memory: "256Mi"
               cpu: "6000m"
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
