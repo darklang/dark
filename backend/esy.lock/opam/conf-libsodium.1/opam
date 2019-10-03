@@ -1,0 +1,33 @@
+opam-version: "2.0"
+maintainer: "Grégoire Henry <gregoire.henry@ocamlpro.com>"
+authors: [
+  "Adam Langley"
+  "Alex Biryukov"
+  "Bo-Yin Yang"
+  "Christian Winnerlein"
+  "Colin Percival"
+  "Daniel Dinu"
+  "Daniel J. Bernstein"
+  "Dmitry Khovratovich"
+  "Jean-Philippe Aumasson"
+  "Niels Duif"
+  "Peter Schwabe"
+  "Samuel Neves"
+  "Tanja Lange"
+  "Zooko Wilcox-O'Hearn"
+]
+homepage: "https://download.libsodium.org/doc/"
+license: "ISC"
+build: [["pkg-config" "libsodium"]]
+depends: ["conf-pkg-config" {build}]
+depexts: [
+  ["libsodium-dev"] {os-family = "debian"}
+  ["security/libsodium"] {os = "freebsd"}
+  ["libsodium"] {os-distribution = "homebrew" & os = "macos"}
+  ["libsodium-dev"] {os-distribution = "alpine"}
+]
+synopsis: "Virtual package relying on a libsodium system installation"
+description:
+  "This package can only install if the libsodium is installed on the system."
+bug-reports: "https://github.com/ocaml/opam-repository/issues"
+flags: conf

@@ -1,0 +1,51 @@
+opam-version: "2.0"
+maintainer: "Hezekiah M. Carty <hez@0ok.org>"
+authors: [ "Hezekiah M. Carty <hez@0ok.org>" ]
+license: "MIT"
+homepage: "https://github.com/hcarty/ezgzip"
+dev-repo: "git+https://github.com/hcarty/ezgzip.git"
+bug-reports: "https://github.com/hcarty/ezgzip/issues"
+build: [
+  ["jbuilder" "build" "-p" name "-j" jobs]
+  ["jbuilder" "runtest" "-p" name] {with-test}
+  ["jbuilder" "build" "@doc" "-p" name] {with-doc}
+]
+depends: [
+  "ocaml" {>= "4.03.0"}
+  "alcotest" {with-test & >= "0.8.1"}
+  "astring"
+  "benchmark" {with-test & >= "1.4"}
+  "jbuilder" {build & >= "1.0+beta13"}
+  "ocplib-endian"
+  "odoc" {with-doc & >= "1.1.1"}
+  "qcheck" {with-test & >= "0.7"}
+  "rresult"
+  "camlzip"
+]
+synopsis: "# ezgzip - Simple gzip (de)compression library"
+description: """
+ezgzip is a simple interface focused on `string -> string` zlib and gzip
+(de)compression.
+
+Documentation is available
+[here](https://hcarty.github.io/ezgzip/ezgzip/index.html).
+
+An example illustrating how to gzip compress and then decompress a string:
+```ocaml
+open Rresult
+
+let () =
+  let original = "Hello world" in
+  let compressed = Ezgzip.compress original in
+  let decompressed = R.get_ok (Ezgzip.decompress compressed) in
+  assert (original = decompressed)
+```
+
+This library currently uses the zlib bindings provided by
+[camlzip](https://github.com/xavierleroy/camlzip).  The gzip header/footer code
+is based on the
+[upstream specification](http://www.gzip.org/zlib/rfc-gzip.html#specification)."""
+url {
+  src: "https://github.com/hcarty/ezgzip/archive/v0.2.1.tar.gz"
+  checksum: "md5=6a0f8aa64541a32691f9884f0ef8737f"
+}
