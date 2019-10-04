@@ -10,6 +10,7 @@ build: [
 depends: [
   "ocaml" {>= "4.02.0"}
   "dune" {>= "1.2.1"}
+  "dune-configurator"
   "base-unix"
   "conf-openssl"
 ]

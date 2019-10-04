@@ -3,7 +3,7 @@ maintainer: "Etienne Millon <etienne@cryptosense.com>"
 authors: ["Xavier Leroy"]
 homepage: "https://github.com/xavierleroy/camlzip"
 bug-reports: "https://github.com/xavierleroy/camlzip/issues"
-license: "LGPL-2.1+ with OCaml linking exception"
+license: "LGPL-2.1-or-later with OCaml-LGPL-linking-exception"
 build: [
   [make "all"]
   [make "allopt"]

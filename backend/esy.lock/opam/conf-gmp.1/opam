@@ -2,7 +2,7 @@ opam-version: "2.0"
 maintainer: "nbraud"
 homepage: "http://gmplib.org/"
 bug-reports: "https://github.com/ocaml/opam-repository/issues"
-license: "GPL"
+license: "GPL-1.0-or-later"
 build: [
   ["sh" "-exc" "cc -c $CFLAGS -I/usr/local/include test.c"] {os != "macos"}
   [

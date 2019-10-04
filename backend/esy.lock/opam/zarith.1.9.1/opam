@@ -1,6 +1,4 @@
 opam-version: "2.0"
-name: "zarith"
-version: "1.7"
 maintainer: "Xavier Leroy <xavier.leroy@inria.fr>"
 authors: [
   "Antoine Miné"
@@ -27,10 +25,9 @@ build: [
 install: [
   [make "install"]
 ]
-remove:  ["ocamlfind" "remove" "zarith"]
 depends: [
   "ocaml"
-  "ocamlfind"
+  "ocamlfind" {build}
   "conf-gmp"
   "conf-perl" {build}
 ]
@@ -41,8 +38,10 @@ The Zarith library implements arithmetic and logical operations over
 arbitrary-precision integers. It uses GMP to efficiently implement
 arithmetic over big integers. Small integers are represented as Caml
 unboxed integers, for speed and space economy."""
-flags: light-uninstall
 url {
-  src: "https://github.com/ocaml/Zarith/archive/release-1.7.tar.gz"
-  checksum: "md5=80944e2755ebb848451a77dc2ad0651b"
+  src: "https://github.com/ocaml/Zarith/archive/release-1.9.1.tar.gz"
+  checksum: [
+    "md5=af41b7534a4c91a8f774f04e307c1c66"
+    "sha512=e77620c66a59d35811acfc45c7ef3f0d50d3042194654b1f5b652a2ed5fb9d5f88e9173222e5ced286c61854434da05a4d96668089faa66ff2917afa677fc32f"
+  ]
 }

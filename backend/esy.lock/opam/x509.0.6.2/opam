@@ -5,7 +5,7 @@ dev-repo: "git+https://github.com/mirleft/ocaml-x509.git"
 bug-reports:  "https://github.com/mirleft/ocaml-x509/issues"
 doc:          "https://mirleft.github.io/ocaml-x509/doc"
 maintainer:   [ "Hannes Mehnert <hannes@mehnert.org>" "David Kaloper <david@numm.org>" ]
-license:      "BSD2"
+license:      "BSD-2-Clause"
 
 build: [
   ["ocaml" "pkg/pkg.ml" "build" "--pinned" "%{pinned}%"]
