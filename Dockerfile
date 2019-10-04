@@ -290,7 +290,6 @@ ENV TERM=xterm-256color
 ######################
 
 RUN sudo apt install -y net-tools # for netstat
-ENV ESY__PROJECT=/home/dark/app/backend
 
 ############################
 # Finish
