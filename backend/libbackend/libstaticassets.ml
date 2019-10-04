@@ -126,7 +126,12 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let response =
-                Httpclient.call ~raw_bytes:true url Httpclient.GET [] ""
+                Legacy.HttpclientV1.call
+                  ~raw_bytes:true
+                  url
+                  Httpclient.GET
+                  []
+                  ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
@@ -184,7 +189,12 @@ UTF-8 safe"))
                   (Unicode_string.to_string file)
               in
               let response =
-                Httpclient.call ~raw_bytes:true url Httpclient.GET [] ""
+                Legacy.HttpclientV1.call
+                  ~raw_bytes:true
+                  url
+                  Httpclient.GET
+                  []
+                  ""
               in
               DResult (ResOk (DBytes (response |> RawBytes.of_string)))
           | args ->
