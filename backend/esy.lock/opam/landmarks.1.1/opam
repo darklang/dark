@@ -1,0 +1,29 @@
+opam-version: "2.0"
+maintainer: "Marc Lasson <marc.lasson@lexifi.com>"
+authors: "Marc Lasson <marc.lasson@lexifi.com>"
+homepage: "http://lexifi.github.io/landmarks/"
+bug-reports: "https://github.com/LexiFi/landmarks/issues"
+license: "MIT"
+dev-repo: "git+https://github.com/LexiFi/landmarks.git"
+build: [
+  [make]
+  [make "tests"] {with-test}
+]
+install: [make "install"]
+remove: ["ocamlfind" "remove" "landmarks"]
+depends: [
+  "ocaml" {>= "4.03.0" & < "4.08.0"}
+  "ocamlfind" {build}
+]
+depopts: ["gen_js_api" "js_of_ocaml"]
+synopsis: "A simple profiling library"
+description: """
+Landmarks is a simple profiling library for OCaml. It provides primitives to
+measure time spent in portion of instrumented code. The instrumentation of the
+code may either done by hand, automatically or semi-automatically using a PPX
+extension."""
+flags: light-uninstall
+url {
+  src: "https://github.com/LexiFi/landmarks/archive/v1.1.zip"
+  checksum: "md5=58304a56716a943d5b6e91de5778f516"
+}
