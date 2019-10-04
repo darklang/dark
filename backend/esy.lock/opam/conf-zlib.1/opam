@@ -1,0 +1,21 @@
+opam-version: "2.0"
+maintainer: "tim@gfxmonk.net"
+homepage: "http://www.zlib.net/"
+bug-reports: "https://github.com/ocaml/opam-repository/issues"
+authors: ["Jean-loup Gailly" "Mark Adler"]
+license: "zlib"
+build: ["pkg-config" "zlib"] {os != "macos"}
+depends: ["conf-pkg-config" {build}]
+depexts: [
+  ["zlib-dev"] {os-distribution = "alpine"}
+  ["zlib1g-dev"] {os-family = "debian"}
+  ["zlib-devel"] {os-distribution = "centos"}
+  ["zlib-devel"] {os-distribution = "fedora"}
+  ["zlib"] {os-distribution = "nixos"}
+  ["lzlib"] {os-distribution = "homebrew" & os = "macos"}
+  ["zlib"] {os-distribution = "arch"}
+]
+synopsis: "Virtual package relying on zlib"
+description:
+  "This package can only install if the zlib library is installed on the system."
+flags: conf

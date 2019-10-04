@@ -1,0 +1,25 @@
+opam-version: "2.0"
+name: "session-cohttp-lwt"
+maintainer: "Spiros Eliopoulos <spiros@inhabitedtype.com>"
+authors: "Spiros Eliopoulos <spiros@inhabitedtype.com>"
+license: "BSD-3-Clause"
+homepage: "https://github.com/inhabitedtype/ocaml-session"
+bug-reports: "https://github.com/inhabitedtype/ocaml-session/issues"
+doc: "https://inhabitedtype.github.io/ocaml-session/"
+depends: [
+  "ocaml"
+  "dune" {>= "1.0"}
+  "session-cohttp"
+  "cohttp-lwt"
+  "lwt"
+]
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "-p" name "-j" jobs]
+]
+dev-repo: "git+https://github.com/inhabitedtype/ocaml-session.git"
+synopsis: "A session manager for your everyday needs - Cohttp-specific support for Lwt"
+url {
+  src: "https://github.com/inhabitedtype/ocaml-session/archive/0.4.1.tar.gz"
+  checksum: "md5=1398d94c2e5e207b96a591a1834495ee"
+}
