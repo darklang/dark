@@ -391,7 +391,7 @@ let fns : shortfn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v3"]
     ; ins = []
     ; p = params
@@ -403,7 +403,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v3"]
     ; ins = []
     ; p = params_no_body
@@ -415,7 +415,7 @@ let fns : shortfn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v3"]
     ; ins =
         []
@@ -430,7 +430,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v3"]
     ; ins = []
     ; p = params_no_body
@@ -442,7 +442,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v3"]
     ; ins = []
     ; p = params_no_body
@@ -454,7 +454,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v3"]
     ; ins = []
     ; p = params
@@ -465,6 +465,72 @@ let fns : shortfn list =
         Legacy.LibhttpclientV1.call
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["HttpClient::post_v4"]
+    ; ins = []
+    ; p = params
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::put_v4"]
+    ; ins = []
+    ; p = params
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::get_v4"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::delete_v4"]
+    ; ins =
+        []
+        (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
+         * the spec says it may have a body *)
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::options_v4"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::head_v4"]
+    ; ins = []
+    ; p = params_no_body
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["HttpClient::patch_v4"]
+    ; ins = []
+    ; p = params
+    ; r = TResult
+    ; d =
+        "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
+    ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
     ; ps = false
     ; dep = false }
   ; { pns = ["HttpClient::basicAuth"]

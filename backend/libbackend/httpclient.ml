@@ -223,21 +223,10 @@ let http_call
     (verb : verb)
     (headers : (string * string) list)
     (body : string) : string * (string * string) list * int =
-  let resp_body, code, resp_headers, error =
+  let resp_body, code, resp_headers, _ =
     http_call_with_code ~raw_bytes url query_params verb headers body
   in
-  if code < 200 || code > 299
-  then
-    let info =
-      [ ("url", url)
-      ; ("code", string_of_int code)
-      ; ("error", error)
-      ; ("response", resp_body) ]
-    in
-    Exception.code
-      ~info
-      ("Bad HTTP response (" ^ string_of_int code ^ ") in call to " ^ url)
-  else (resp_body, resp_headers, code)
+  (resp_body, resp_headers, code)
 
 
 let call
