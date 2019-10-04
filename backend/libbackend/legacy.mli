@@ -13,6 +13,28 @@ module HttpclientV0 : sig
     string -> Httpclient.verb -> (string * string) list -> string -> string
 end
 
+(* These functions contain a bug that despite saying they return
+ * the status code, they actually still throw an exception on a non-200
+ * response *)
+module HttpclientV1 : sig
+  val http_call :
+       ?raw_bytes:bool
+    -> string
+    -> (string * string list) list
+    -> Httpclient.verb
+    -> (string * string) list
+    -> string
+    -> string * (string * string) list * int
+
+  val call :
+       ?raw_bytes:bool
+    -> string
+    -> Httpclient.verb
+    -> (string * string) list
+    -> string
+    -> string
+end
+
 (* This module implements the 'old' style of httpclient
  * functions: namely those that either directly
  * throw an exception on a non-2xx error code, or
@@ -34,4 +56,11 @@ module LibhttpclientV0 : sig
   val wrapped_call : Httpclient.verb -> (dval -> string) -> funcimpl
 
   val wrapped_call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
+end
+
+(*These functions call the bugged HttpclientV1 impls *)
+module LibhttpclientV1 : sig
+  val call : Httpclient.verb -> (dval -> string) -> funcimpl
+
+  val call_no_body : Httpclient.verb -> (dval -> string) -> funcimpl
 end
