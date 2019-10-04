@@ -2,7 +2,7 @@ opam-version: "2.0"
 maintainer: "tim@gfxmonk.net"
 homepage: "https://www.perl.org/"
 bug-reports: "https://github.com/ocaml/opam-repository/issues"
-license: "GPL-1+"
+license: "GPL-1.0-or-later"
 authors: "Larry Wall"
 build: [["perl" "--version"]]
 depexts: [
