@@ -74,7 +74,7 @@ let log_queue_size
   let dark_queue_size =
     Db.fetch_one
       ~name:"dark queue size"
-      "SELECT count(*) FROM events WHERE status != 'done'"
+      "SELECT count(*) FROM events WHERE status IN ('new','locked','error')"
       ~params:[]
     |> List.hd_exn
     |> int_of_string
@@ -83,7 +83,8 @@ let log_queue_size
     Db.fetch_one
       ~name:"canvas queue size"
       ~subject:canvas_id
-      "SELECT count(*) FROM events WHERE status != 'done' AND canvas_id = $1"
+      "SELECT count(*) FROM events
+      WHERE status IN ('new','locked','error') AND canvas_id = $1"
       ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
     |> List.hd_exn
     |> int_of_string
@@ -92,8 +93,9 @@ let log_queue_size
     Db.fetch_one
       ~name:"canvas queue size"
       ~subject:canvas_id
-      "SELECT count(*) FROM events WHERE status != 'done' AND canvas_id = $1 AND
-space = $2 AND name = $3 AND modifier = $4"
+      "SELECT count(*) FROM events
+      WHERE status IN ('new','locked','error') AND canvas_id = $1
+      AND space = $2 AND name = $3 AND modifier = $4"
       ~params:
         [ Uuid (Uuidm.of_string canvas_id |> Option.value_exn)
         ; String space
