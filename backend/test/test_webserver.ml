@@ -94,7 +94,7 @@ let t_bad_ssl_cert _ =
   check_error_contains
     "should get bad_ssl"
     (exec_ast "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
-    "Bad HTTP request: Peer certificate cannot be authenticated with given CA certificates"
+    "Internal HTTP-stack exception: Peer certificate cannot be authenticated with given CA certificates"
 
 
 let t_sanitize_uri_path_with_repeated_slashes () =
