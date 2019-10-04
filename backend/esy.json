@@ -56,6 +56,7 @@
     "@opam/dune": "1.11.0"
   },
   "resolutions": {
+    "@opam/conf-libev": "esy-packages/libev:package.json#0b5eb6685b688649045aceac55dc559f6f21b829",
     "@opam/jwt": "github:ismith/ocaml-jwt:jwt.opam#1a4b601",
     "@opam/gcloud": "github:darklang/ocaml-gcloud:gcloud.opam#3d575fd",
     "@opam/nocrypto": "gasche/ocaml-nocrypto:opam#c62c315",
