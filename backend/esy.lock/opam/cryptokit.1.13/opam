@@ -1,0 +1,28 @@
+opam-version: "2.0"
+maintainer: "Xavier Leroy <xavier.leroy@inria.fr>"
+authors: ["Xavier Leroy"]
+bug-reports: "https://github.com/xavierleroy/cryptokit/issues"
+homepage: "https://github.com/xavierleroy/cryptokit"
+dev-repo: "git+https://github.com/xavierleroy/cryptokit.git"
+depends: [
+  "ocaml" {>= "4.02.0"}
+  "ocamlfind" {build}
+  "ocamlbuild" {build}
+  "conf-zlib"
+  "conf-gmp-powm-sec"
+  "zarith" {>= "1.4"}
+]
+build: make
+install: [make "install"]
+remove: [["ocamlfind" "remove" "cryptokit"]]
+synopsis: "A library of cryptographic primitives."
+description: """
+Cryptokit includes block ciphers (AES, DES, 3DES), stream ciphers
+(ARCfour), public-key crypto (RSA, DH), hashes (SHA-1, SHA-256,
+SHA-3), MACs, compression, random number generation -- all presented
+with a compositional, extensible interface."""
+flags: light-uninstall
+url {
+  src: "https://github.com/xavierleroy/cryptokit/archive/release113.tar.gz"
+  checksum: "md5=4d726550381af513ccf56dfc94849c89"
+}

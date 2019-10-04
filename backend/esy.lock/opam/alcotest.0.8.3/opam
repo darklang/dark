@@ -1,0 +1,38 @@
+opam-version: "2.0"
+maintainer: "thomas@gazagnaire.org"
+authors:     "Thomas Gazagnaire"
+homepage:    "https://github.com/mirage/alcotest/"
+dev-repo: "git+https://github.com/mirage/alcotest.git"
+bug-reports: "https://github.com/mirage/alcotest/issues/"
+license:     "ISC"
+doc:         "https://mirage.github.io/alcotest/"
+
+build: [
+  ["jbuilder" "subst" "-p" name] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+  ["jbuilder" "runtest" "-p" name "-j" jobs] {with-test}
+]
+depends: [
+  "ocaml" {>= "4.02.3"}
+  "jbuilder" {build & >= "1.0+beta10"}
+  "fmt" {>= "0.8.0"}
+  "astring"
+  "result"
+  "cmdliner"
+]
+synopsis: "Alcotest is a lightweight and colourful test framework."
+description: """
+Alcotest exposes simple interface to perform unit tests. It exposes
+a simple TESTABLE module type, a check function to assert test
+predicates and a run function to perform a list of unit -> unit
+test callbacks.
+
+Alcotest provides a quiet and colorful output where only faulty runs
+are fully displayed at the end of the run (with the full logs ready to
+inspect), with a simple (yet expressive) query language to select the
+tests to run."""
+url {
+  src:
+    "https://github.com/mirage/alcotest/releases/download/0.8.3/alcotest-0.8.3.tbz"
+  checksum: "md5=597e6bb271bd42062f95aa67afdb9185"
+}
