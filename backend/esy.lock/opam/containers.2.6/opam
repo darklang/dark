@@ -1,0 +1,37 @@
+opam-version: "2.0"
+synopsis:
+  "A modular, clean and powerful extension of the OCaml standard library"
+maintainer: "simon.cruanes.2007@m4x.org"
+authors: "Simon Cruanes"
+tags: ["stdlib" "containers" "iterators" "list" "heap" "queue"]
+homepage: "https://github.com/c-cube/ocaml-containers/"
+doc: "https://c-cube.github.io/ocaml-containers"
+bug-reports: "https://github.com/c-cube/ocaml-containers/issues/"
+depends: [
+  "dune"
+  "result"
+  "uchar"
+  "qtest" {with-test}
+  "qcheck" {with-test}
+  "ounit" {with-test}
+  "iter" {with-test}
+  "gen" {with-test}
+  "uutf" {with-test}
+  "mdx" {with-test}
+  "odoc" {with-doc}
+  "ocaml" {>= "4.02.0"}
+]
+depopts: ["base-unix" "base-threads"]
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+  ["dune" "build" "@doc" "-p" name] {with-doc}
+  ["dune" "runtest" "-p" name "-j" jobs] {with-test}
+]
+dev-repo: "git+https://github.com/c-cube/ocaml-containers.git"
+url {
+  src: "https://github.com/c-cube/ocaml-containers/archive/2.6.tar.gz"
+  checksum: [
+    "md5=cbc9b49bb6b4211f95bae5368d30649b"
+    "sha512=bee7248b6382e006a979b85bee1643f7083101ec65771b71f4949d0a9e66150e3ab65c615828600fa0c1f23a0281b8d8e926c104606d04681649558bc49b21f9"
+  ]
+}

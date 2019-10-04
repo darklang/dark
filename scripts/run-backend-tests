@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+cd backend && "_build/default/test/test.exe" "${@}"
+
+
