@@ -91,11 +91,6 @@ def npm_install():
   build = "cd client && unbuffer ../scripts/support/retrying-yarn-install" + flags
   return run_frontend(start, build)
 
-def esy_install():
-  start = time.time()
-  build = "cd backend && unbuffer esy install && esy build"
-  return run_backend(start, build)
-
 def client_test():
   start = time.time()
   result = run_test(start, "cd client && unbuffer yarn test")
@@ -128,6 +123,7 @@ def backend_build():
         + " scripts/dune-wrapper.sh build" \
         + " --profile " + compilation_profile \
         + " --display short" \
+        + " --root backend" \
         + " -j 8 " \
         + exes
   if profile:
@@ -146,11 +142,12 @@ def backend_test():
   env = "DARK_CONFIG_ENV_DISPLAY_NAME=test"
   dbenv = host + " " + dbname + " " + user + " " + password
   return run_test(start,
-          "unbuffer scripts/dune-wrapper.sh build test/test.exe"
+          "unbuffer scripts/dune-wrapper.sh build --root backend test/test.exe"
           + " && dropdb --if-exists testdb"
           + " && createdb testdb"
+          + " && cd " + rundir
           + " && " + dbenv
-          + " unbuffer scripts/run-backend-tests"
+          + " unbuffer ../backend/_build/default/test/test.exe"
           + " --show-errors "
           + ci
           + " 2>&1")
@@ -215,7 +212,6 @@ def reload_browser():
 
 class Should:
   def __init__(self):
-    self.esy_install = False
     self.backend_build = False
     self.backend_test = False
     self.stroller_build = False
@@ -234,10 +230,6 @@ class Should:
 def execute(should):
   success = True
   # Fast path: get the important stuff built first
-  if should.esy_install:
-    if not esy_install(): success = False
-    should.backend_build |= success
-
   if should.backend_build:
     if not backend_build(): success = False
     should.generate_etags |= success
@@ -307,9 +299,7 @@ def execute(should):
 
 def mark(should, f):
   # Ocaml
-  if "backend/esy.json" in f:
-    should.esy_install = True
-  elif ("backend/test/" in f) \
+  if ("backend/test/" in f) \
           and ((".mli" in f) \
                   or (".ml" in f)):
     should.backend_test = True
@@ -383,10 +373,6 @@ def ignore(filename):
             , "backend/profile.json"
             , "backend/serialization/"
             , "backend/static/"
-            , "backend/_esy/"
-            , "backend/esy.lock"
-            , "backend/node_modules"
-            , "/home/dark/.esy"
             , "client/node_modules"
             , "client/lib"
             , "build.ninja"
