@@ -209,7 +209,9 @@ let http_call_with_code
         ; ("curl_code", string_of_int code)
         ; ("response", Buffer.contents responsebuf) ]
       in
-      Exception.code ~info ("Bad HTTP request: " ^ Curl.strerror curl_code)
+      Exception.code
+        ~info
+        ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
   in
   (body, code, !result_headers, error)
 
