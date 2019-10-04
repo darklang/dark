@@ -9,4 +9,3 @@ dir=$(ocamlfind query ppx_deriving)
 "$dir"/ppx_deriving \
   "$dir"/show/ppx_deriving_show.cma \
   "$@"
-
