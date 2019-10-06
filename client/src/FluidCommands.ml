@@ -165,7 +165,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       ; ViewEntry.defaultPasteHandler
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
-            FluidCommandsClick item ) ]
+            FluidMsg (FluidCommandsClick item) ) ]
       [Html.text name]
   in
   let filterInput =
@@ -173,7 +173,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       [ Attrs.id filterInputID
       ; Vdom.attribute "" "spellcheck" "false"
       ; Attrs.autocomplete false
-      ; Events.onInput (fun query -> FluidCommandsFilter query) ]
+      ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query)) ]
       []
   in
   let cmdsView =
