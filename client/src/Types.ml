@@ -817,6 +817,11 @@ and clipboardPasteEvent = jsEvent
 
 and clipboardCutEvent = jsEvent
 
+and clipboardContents =
+  [ `Text of string
+  | `Json of (Js.Json.t[@opaque])
+  | `None ]
+
 (* ------------------- *)
 (* Modifications *)
 (* ------------------- *)
