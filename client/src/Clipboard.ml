@@ -6,11 +6,6 @@ open Prelude
 module P = Pointer
 module TL = Toplevel
 
-type copyData =
-  [ `Text of string
-  | `Json of Js.Json.t
-  | `None ]
-
 let getCurrentPointer (m : model) : (toplevel * pointerData) option =
   let myIdOf (m : model) : id option =
     match unwrapCursorState m.cursorState with
@@ -33,7 +28,7 @@ let getCurrentPointer (m : model) : (toplevel * pointerData) option =
       None
 
 
-let copy (m : model) : copyData =
+let copy (m : model) : clipboardContents =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
     ( match getCurrentPointer m with
@@ -51,7 +46,7 @@ let copy (m : model) : copyData =
       `None
 
 
-let cut (m : model) : copyData * modification =
+let cut (m : model) : clipboardContents * modification =
   match m.cursorState with
   | Selecting _ | FluidEntering _ ->
     ( match getCurrentPointer m with
@@ -64,7 +59,7 @@ let cut (m : model) : copyData * modification =
       (`None, NoChange)
 
 
-let paste (m : model) (data : copyData) : modification =
+let paste (m : model) (data : clipboardContents) : modification =
   match getCurrentPointer m with
   | Some (tl, currentPd) ->
     ( match data with
