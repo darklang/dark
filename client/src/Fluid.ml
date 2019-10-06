@@ -4030,8 +4030,17 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
     fluidExpr option =
   match data with
   | `Json json ->
-      let data = Decoders.pointerData json |> TL.clonePointerData in
-      (match data with PExpr expr -> Some (fromExpr state expr) | _ -> None)
+    ( try
+        let data = Decoders.pointerData json |> TL.clonePointerData in
+        match data with
+        | PExpr expr ->
+            Some (fromExpr state expr)
+        | _ ->
+            Js.log "not a pexpr" ;
+            None
+      with _ ->
+        Js.log2 "could not decode" json ;
+        None )
   | `Text text ->
       (* TODO: This is an OK first solution, but it doesn't allow us paste
          * into things like variable or key names. *)
