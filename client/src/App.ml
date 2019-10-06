@@ -1006,8 +1006,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
     | UndoGroupDelete (tlid, g) ->
-        let newMod = Groups.upsert m g in
-        ( {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups}
+        let newModel = Groups.upsert m g in
+        ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
     (* applied from left to right *)
     | Many mods ->
