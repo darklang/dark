@@ -14,12 +14,18 @@ let clipboardEvent () =
   [%bs.obj
     { clipboardData =
         (object (_self)
-           method getData (_contentType : string) =
-             [%bs.raw "this.hiddenContent"]
+           method getData (contentType : string) =
+             let _ = contentType in
+             [%bs.raw
+               "this.hiddenContent ? this.hiddenContent[contentType] : null"]
 
-           method setData (_contentType : string) (data : string) =
+           method setData (contentType : string) (data : string) =
              let _ = data in
-             let _ = [%bs.raw "this.hiddenContent = data"] in
+             let _ = contentType in
+             let _ =
+               [%bs.raw
+                 "(this.hiddenContent = (this.hiddenContent || {})) && (this.hiddenContent[contentType] = data)"]
+             in
              ()
         end [@bs])
     ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
@@ -27,6 +33,12 @@ let clipboardEvent () =
 
 let () =
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
+    let clipboardData state e =
+      Clipboard.getData e
+      |> Fluid.clipboardContentsToExpr ~state
+      |> Option.map ~f:(fun expr -> eToString state expr)
+      |> Option.withDefault ~default:"Nothing in clipboard"
+    in
     let h = Fluid_utils.h ast in
     let m =
       { Defaults.defaultModel with
@@ -41,11 +53,12 @@ let () =
       ; oldPos = pos
       ; newPos = pos }
     in
+    let m = {m with fluidState = s} in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "ast before" (eToStructure s ast) ;
-      Js.log2 "clipboard before" e##clipboardData##getData ) ;
+      Js.log2 "clipboard before" (clipboardData s e) ) ;
     let mod_ = App.update_ msg m in
     let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
     let newState = newM.fluidState in
@@ -55,18 +68,12 @@ let () =
       |> fromExpr newState
     in
     let finalPos = newState.newPos in
-    let finalClipboardData =
-      Clipboard.getData e
-      |> Fluid.clipboardContentsToExpr ~state:newState
-      |> Option.map ~f:(fun expr -> eToString newState expr)
-      |> Option.withDefault ~default:"Nothing in clipboard"
-    in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState newAST) ;
-      Js.log2 "clipboard after" finalClipboardData ) ;
-    (eToString newState newAST, finalClipboardData, finalPos)
+      Js.log2 "clipboard after" (clipboardData newState e) ) ;
+    (eToString newState newAST, clipboardData newState e, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
