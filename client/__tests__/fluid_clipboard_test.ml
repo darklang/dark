@@ -10,47 +10,98 @@ module Regex = Util.Regex
 
 type testResult = (* ast, clipboard, newPos *) string * string * int
 
+let clipboardEvent (data : Js.Json.t) =
+  [%bs.obj
+    { clipboardData =
+        (object (_self)
+           method getData (_contentType : string) = Json.stringify data
+
+           method setData (_contentType : string) (_data : string) = ()
+        end [@bs])
+    ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
+
+
 let () =
-  let m = Defaults.defaultModel in
-  let process ~debug ?(clipboard = None) (st, ed) ast msg : testResult =
+  let process ?(clipboard = newB ()) ~debug (start, pos) ast msg : testResult =
+    let testClipboardContents =
+      clipboard
+      |> toExpr ~inThread:false
+      |> (fun x -> PExpr x)
+      |> Encoders.pointerData
+      |> fun x -> `Json x
+    in
+    let m =
+      {Defaults.defaultModel with tests = [FluidVariant]; testClipboardContents}
+    in
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; selectionStart = Some st; clipboard }
+        ac = AC.reset m; selectionStart = Some start }
     in
-    let pos = ed in
     let s = {s with oldPos = pos; newPos = pos} in
-    let clipboardStr s =
-      s.clipboard
-      |> Option.map ~f:(eToString s)
-      |> Option.withDefault ~default:""
+    let clipboardStr m =
+      let s = m.fluidState in
+      match m.testClipboardContents with
+      | `Json json ->
+        ( match Decoders.pointerData json with
+        | PExpr expr ->
+            expr |> fromExpr s |> eToString s
+        | _ ->
+            "Unsupported pointerData type in clipboard" )
+      | `Text text ->
+          "Unsupported pointerData type in clipboard: " ^ text
+      | `None ->
+          "No data in clipboard"
     in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "ast before" (eToStructure s ast) ;
-      Js.log2 "clipboard before" (clipboardStr s) ) ;
+      Js.log2 "clipboard before" (clipboardStr m) ) ;
     let h = Fluid_utils.h ast in
-    let m = {m with handlers = Handlers.fromList [h]} in
-    let newAST, newState = updateMsg m h.hTLID ast msg s in
+    let m =
+      { m with
+        handlers = Handlers.fromList [h]; cursorState = FluidEntering h.hTLID
+      }
+    in
+    let mod_ = App.update_ msg m in
+    let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+    let newState = newM.fluidState in
+    let newAST =
+      TL.selectedAST newM
+      |> Option.withDefault ~default:(Blank.new_ ())
+      |> fromExpr newState
+    in
     let finalPos = newState.newPos in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState newAST) ;
-      Js.log2 "clipboard after" (clipboardStr newState) ) ;
-    (eToString newState newAST, clipboardStr newState, finalPos)
+      Js.log2 "clipboard after" (clipboardStr newM) ) ;
+    (eToString newState newAST, clipboardStr newM, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    process ~debug range expr FluidCopy
+    let e = clipboardEvent Js.Json.null in
+    process ~debug range expr (ClipboardCopyEvent e)
   in
   let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    process ~debug range expr FluidCut
+    let e = clipboardEvent Js.Json.null in
+    process ~debug range expr (ClipboardCutEvent e)
   in
-  let paste ?(debug = false) ~clipboard (range : int * int) (expr : fluidExpr)
-      : testResult =
-    process ~debug ~clipboard:(Some clipboard) range expr FluidPaste
+  let paste
+      ?(debug = false)
+      ~(clipboard : fluidExpr)
+      (range : int * int)
+      (expr : fluidExpr) : testResult =
+    let data =
+      clipboard
+      |> Fluid.toExpr ~inThread:false
+      |> (fun x -> PExpr x)
+      |> Encoders.pointerData
+    in
+    let e = clipboardEvent data in
+    process ~debug ~clipboard range expr (ClipboardPasteEvent e)
   in
   let t
       (name : string)

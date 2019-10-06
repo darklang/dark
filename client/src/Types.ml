@@ -802,20 +802,13 @@ and stringEntryWidth =
 (* ------------------- *)
 (* Clipboard *)
 (* ------------------- *)
-and clipboardSetData =
-  (< setData : string -> string -> unit [@bs.meth] > Js.t[@opaque])
-
-and clipboardGetData =
-  (< getData : string -> string [@bs.meth] > Js.t[@opaque])
-
-and clipboardCopyEvent =
-  (< preventDefault : unit -> unit [@bs.meth]
-   ; clipboardData : clipboardSetData >
+and clipboardData =
+  (< setData : string -> string -> unit [@bs.meth]
+   ; getData : string -> string [@bs.meth] >
    Js.t[@opaque])
 
-and clipboardPasteEvent =
-  (< preventDefault : unit -> unit [@bs.meth]
-   ; clipboardData : clipboardGetData >
+and clipboardEvent =
+  (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
    Js.t[@opaque])
 
 and clipboardContents =
@@ -935,7 +928,7 @@ and modification =
   | UndoGroupDelete of tlid * group
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
-  | SetClipboardContents of clipboardContents * clipboardCopyEvent
+  | SetClipboardContents of clipboardContents * clipboardEvent
 
 (* ------------------- *)
 (* Msgs *)
@@ -1045,9 +1038,9 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
-  | ClipboardCopyEvent of clipboardCopyEvent
-  | ClipboardCutEvent of clipboardCopyEvent
-  | ClipboardPasteEvent of clipboardPasteEvent
+  | ClipboardCopyEvent of clipboardEvent
+  | ClipboardCutEvent of clipboardEvent
+  | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
