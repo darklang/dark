@@ -4223,7 +4223,7 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       (ast, state)
 
 
-let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
+let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
@@ -4298,7 +4298,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   (newAST, newState)
 
 
-let update (m : Types.model) (msg : Types.msg) : Types.modification =
+let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
@@ -4312,7 +4312,15 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       maybeOpenCmd m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
-  | _ ->
+  | FluidKeyPress _
+  | FluidCopy
+  | FluidPaste _
+  | FluidCut
+  | FluidCommandsFilter _
+  | FluidCommandsClick _
+  | FluidMouseClick _
+  | FluidAutocompleteClick _
+  | UpdateFluidSelection _ ->
       let tlid =
         match msg with
         | FluidMouseClick tlid ->
@@ -4407,7 +4415,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                FluidAutocompleteClick item ) ]
+                FluidMsg (FluidAutocompleteClick item) ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
@@ -4610,17 +4618,19 @@ let toHtml
                     in
                     ( match ev with
                     | {detail = 2; altKey = true} ->
-                        UpdateFluidSelection
-                          (tlid, getExpressionRangeAtCaret state ast)
+                        FluidMsg
+                          (UpdateFluidSelection
+                             (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
-                        UpdateFluidSelection
-                          (tlid, getTokenRangeAtCaret state ast)
+                        FluidMsg
+                          (UpdateFluidSelection
+                             (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
-                        UpdateFluidSelection (tlid, None) )
+                        FluidMsg (UpdateFluidSelection (tlid, None)) )
                 | None ->
                     (* We expect that this doesn't happen *)
-                    UpdateFluidSelection (tlid, None) )
+                    FluidMsg (UpdateFluidSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"
@@ -4628,8 +4638,8 @@ let toHtml
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then UpdateFluidSelection (tlid, Some range)
-                    else UpdateFluidSelection (tlid, None)
+                    then FluidMsg (UpdateFluidSelection (tlid, Some range))
+                    else FluidMsg (UpdateFluidSelection (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)

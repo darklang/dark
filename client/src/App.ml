@@ -1053,7 +1053,7 @@ let update_ (msg : msg) (m : model) : modification =
         Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
-  | FluidAutocompleteClick item ->
+  | FluidMsg (FluidAutocompleteClick item) ->
     ( match unwrapCursorState m.cursorState with
     | FluidEntering _ ->
         if VariantTesting.isFluid m.tests
@@ -1894,7 +1894,7 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
       Introspect.setHoveringReferences tlid ids
-  | FluidKeyPress _ ->
+  | FluidMsg (FluidKeyPress _ as msg) ->
       Fluid.update m msg
   | TriggerSendPresenceCallback (Ok _) ->
       NoChange
@@ -1905,14 +1905,17 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
+  | FluidMsg FluidCopy
+  | FluidMsg FluidCut
+  | FluidMsg (FluidPaste _)
+  | FluidMsg (FluidMouseClick _) ->
       recover "Fluid functions should not happen here" NoChange
-  | FluidCommandsFilter query ->
+  | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
           {m with fluidState = {m.fluidState with cp}} )
-  | FluidCommandsClick cmd ->
+  | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
     ( match TL.getTLAndPD m tlid id with
@@ -1929,7 +1932,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection (targetExnID, selection) ->
+  | FluidMsg (UpdateFluidSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
         ; TweakModel
@@ -2014,7 +2017,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     then
       match m.cursorState with
       | FluidEntering _ ->
-          [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+          [ FluidKeyboard.downs ~key:"fluid" (fun x ->
+                FluidMsg (FluidKeyPress x) ) ]
       | _ ->
           []
     else []
