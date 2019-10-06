@@ -802,20 +802,21 @@ and stringEntryWidth =
 (* ------------------- *)
 (* Clipboard *)
 (* ------------------- *)
-and clipboardData =
-  (< setData : string -> string -> unit [@bs.meth]
-   ; getData : string -> string [@bs.meth] >
+and clipboardSetData =
+  (< setData : string -> string -> unit [@bs.meth] > Js.t[@opaque])
+
+and clipboardGetData =
+  (< getData : string -> string [@bs.meth] > Js.t[@opaque])
+
+and clipboardCopyEvent =
+  (< preventDefault : unit -> unit [@bs.meth]
+   ; clipboardData : clipboardSetData >
    Js.t[@opaque])
 
-and jsEvent =
-  (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
+and clipboardPasteEvent =
+  (< preventDefault : unit -> unit [@bs.meth]
+   ; clipboardData : clipboardGetData >
    Js.t[@opaque])
-
-and clipboardCopyEvent = jsEvent
-
-and clipboardPasteEvent = jsEvent
-
-and clipboardCutEvent = jsEvent
 
 and clipboardContents =
   [ `Text of string
@@ -1033,7 +1034,7 @@ and msg =
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
   | ClipboardCopyEvent of clipboardCopyEvent
-  | ClipboardCutEvent of clipboardCutEvent
+  | ClipboardCutEvent of clipboardCopyEvent
   | ClipboardPasteEvent of clipboardPasteEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
