@@ -4022,24 +4022,31 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
   reconstruct ~topmostID (startPos, endPos)
 
 
+let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
+  `Json (Encoders.pointerData (PExpr (toExpr ast)))
+
+
+let clipboardContentsToExpr ~state (data : clipboardContents) :
+    fluidExpr option =
+  match data with
+  | `Json json ->
+      let data = Decoders.pointerData json |> TL.clonePointerData in
+      (match data with PExpr expr -> Some (fromExpr state expr) | _ -> None)
+  | `Text text ->
+      (* TODO: This is an OK first solution, but it doesn't allow us paste
+         * into things like variable or key names. *)
+      Some (EString (gid (), text))
+  | `None ->
+      None
+
+
 let pasteSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
-  let clipboardExpr =
-    match data with
-    | `Json json ->
-        let data = Decoders.pointerData json |> TL.clonePointerData in
-        (match data with PExpr expr -> Some (fromExpr state expr) | _ -> None)
-    | `Text text ->
-        (* TODO: This is an OK first solution, but it doesn't allow us paste
-         * into things like variable or key names. *)
-        Some (EString (gid (), text))
-    | `None ->
-        None
-  in
+  let clipboardExpr = clipboardContentsToExpr ~state data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
@@ -4249,8 +4256,7 @@ let copyFromModel (m : model) : clipboardContents =
   | Some (state, ast) ->
       fluidGetOptionalSelectionRange state
       |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
-      |> Option.map ~f:(fun expr ->
-             `Json (Encoders.pointerData (PExpr (toExpr expr))) )
+      |> Option.map ~f:exprToClipboardContents
       |> Option.withDefault ~default:`None
   | None ->
       `None

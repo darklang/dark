@@ -1421,9 +1421,7 @@ and model =
   ; showTopbar : bool
   ; toast : toast
   ; username : string
-  ; account : account
-  ; (* Used for tests *)
-    testClipboardContents : clipboardContents }
+  ; account : account }
 
 (* Values that we serialize *)
 and serializableEditor =
