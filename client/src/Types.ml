@@ -935,6 +935,7 @@ and modification =
   | UndoGroupDelete of tlid * group
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
+  | SetClipboardContents of clipboardContents * clipboardCopyEvent
 
 (* ------------------- *)
 (* Msgs *)
@@ -1327,8 +1328,8 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selectionStart : int option (* The selection ends at newPos *)
-  ; clipboard : fluidExpr option }
+  ; selectionStart : int option
+  (* The selection ends at newPos *) }
 
 (* Avatars *)
 and avatar =
@@ -1427,7 +1428,9 @@ and model =
   ; showTopbar : bool
   ; toast : toast
   ; username : string
-  ; account : account }
+  ; account : account
+  ; (* Used for tests *)
+    testClipboardContents : clipboardContents }
 
 (* Values that we serialize *)
 and serializableEditor =

@@ -1009,6 +1009,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newModel = Groups.upsert m g in
         ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
+    | SetClipboardContents (data, e) ->
+        ( match data with
+        | `Text text ->
+            e##clipboardData##setData "text/plain" text ;
+            e##preventDefault ()
+        | `Json json ->
+            let data = Json.stringify json in
+            e##clipboardData##setData "application/json" data ;
+            e##preventDefault ()
+        | `None ->
+            () ) ;
+        (* Record it for tests *)
+        ({m with testClipboardContents = data}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1812,59 +1825,36 @@ let update_ (msg : msg) (m : model) : modification =
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      if VariantTesting.isFluid m.tests
-      then Many [toast; Fluid.update m FluidCopy]
-      else (
-        match Clipboard.copy m with
-        | `Text text ->
-            e##clipboardData##setData "text/plain" text ;
-            e##preventDefault () ;
-            toast
-        | `Json json ->
-            let data = Json.stringify json in
-            e##clipboardData##setData "application/json" data ;
-            e##preventDefault () ;
-            toast
-        | `None ->
-            () ;
-            NoChange )
+      let clipboardData =
+        if VariantTesting.isFluid m.tests
+        then Fluid.copyFromModel m
+        else Clipboard.copy m
+      in
+      Many [toast; SetClipboardContents (clipboardData, e)]
   | ClipboardPasteEvent e ->
+      let pasteFn =
+        if VariantTesting.isFluid m.tests
+        then fun data -> Fluid.update m (FluidPaste data)
+        else Clipboard.paste m
+      in
       let json = e##clipboardData##getData "application/json" in
-      if VariantTesting.isFluid m.tests
-      then Fluid.update m FluidPaste
-      else if json <> ""
-      then Clipboard.paste m (`Json (Json.parseOrRaise json))
+      if json <> ""
+      then pasteFn (`Json (Json.parseOrRaise json))
       else
         let text = e##clipboardData##getData "text/plain" in
-        if text <> "" then Clipboard.paste m (`Text text) else NoChange
+        if text <> "" then pasteFn (`Text text) else NoChange
   | ClipboardCutEvent e ->
-      let copyData, mod_ = Clipboard.cut m in
-      let mod_ =
-        if VariantTesting.isFluid m.tests
-        then Fluid.update m FluidCut
-        else mod_
-      in
       let toast =
         TweakModel
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      ( match copyData with
-      | `Text text ->
-          e##clipboardData##setData "text/plain" text ;
-          e##preventDefault () ;
-          Many [mod_; toast]
-      | `Json json ->
-          let data = Json.stringify json in
-          e##clipboardData##setData "application/json" data ;
-          (* this is probably gonna be useful for debugging, but customers
-           * shouldn't get used to it *)
-          e##clipboardData##setData "text/plain" data ;
-          e##preventDefault () ;
-          Many [mod_; toast]
-      | `None ->
-          () ;
-          mod_ )
+      let copyData, mod_ =
+        if VariantTesting.isFluid m.tests
+        then (Fluid.copyFromModel m, Fluid.update m FluidCut)
+        else Clipboard.cut m
+      in
+      Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
