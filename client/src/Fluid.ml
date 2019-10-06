@@ -4033,7 +4033,11 @@ let pasteSelection ~state ~ast data : ast * fluidState =
     | `Json json ->
         let data = Decoders.pointerData json |> TL.clonePointerData in
         (match data with PExpr expr -> Some (fromExpr state expr) | _ -> None)
-    | _ ->
+    | `Text text ->
+        (* TODO: This is an OK first solution, but it doesn't allow us paste
+         * into things like variable or key names. *)
+        Some (EString (gid (), text))
+    | `None ->
         None
   in
   match (clipboardExpr, expr, token) with
