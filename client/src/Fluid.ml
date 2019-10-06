@@ -3406,7 +3406,6 @@ and deleteSelection ~state ~ast : ast * fluidState =
   let rangeStart, rangeEnd =
     fluidGetSelectionRange state |> orderRangeFromSmallToBig
   in
-  let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
@@ -3424,7 +3423,7 @@ and deleteSelection ~state ~ast : ast * fluidState =
                  newState.newPos < rangeStart
          then (false, ast, state)
          else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, {state with clipboard})
+  |> fun (_, ast, state) -> (ast, state)
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
@@ -4023,15 +4022,19 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteSelection ~state ~ast () : ast * fluidState =
+let pasteSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr =
-    state.clipboard
-    |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
+    match data with
+    | `Json json ->
+        let data = Decoders.pointerData json |> TL.clonePointerData in
+        (match data with PExpr expr -> Some (fromExpr state expr) | _ -> None)
+    | _ ->
+        None
   in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
@@ -4223,6 +4226,32 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       (ast, state)
 
 
+let copy (state : fluidState) (ast : fluidExpr) : fluidExpr option =
+  fluidGetOptionalSelectionRange state
+  |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+
+
+let fluidDataFromModel m : (fluidState * fluidExpr) option =
+  match Toplevel.selectedAST m with
+  | Some expr ->
+      let s = m.fluidState in
+      Some (s, fromExpr s expr)
+  | None ->
+      None
+
+
+let copyFromModel (m : model) : clipboardContents =
+  match fluidDataFromModel m with
+  | Some (state, ast) ->
+      fluidGetOptionalSelectionRange state
+      |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+      |> Option.map ~f:(fun expr ->
+             `Json (Encoders.pointerData (PExpr (toExpr expr))) )
+      |> Option.withDefault ~default:`None
+  | None ->
+      `None
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -4237,27 +4266,11 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
-    | FluidCopy ->
-        ( ast
-        , { s with
-            clipboard =
-              fluidGetOptionalSelectionRange s
-              |> Option.andThen ~f:(reconstructExprFromRange ~state:s ~ast) }
-        )
     | FluidCut ->
-        fluidGetOptionalSelectionRange s
-        |> Option.map ~f:(fun sel ->
-               let ast, state =
-                 ( ast
-                 , { s with
-                     clipboard = (reconstructExprFromRange ~state:s ~ast) sel
-                   } )
-               in
-               deleteSelection ~state ~ast )
-        |> Option.withDefault ~default:(ast, s)
-    | FluidPaste ->
+        deleteSelection ~state:s ~ast
+    | FluidPaste data ->
         let ast, state = deleteSelection ~state:s ~ast in
-        let ast, state = pasteSelection ~state ~ast () in
+        let ast, state = pasteSelection ~state ~ast data in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
@@ -4800,13 +4813,6 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"" ) ]
-    ; Html.div
-        []
-        [ Html.text "clipboard: "
-        ; Html.text
-            ( s.clipboard
-            |> Option.map ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =

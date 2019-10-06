@@ -46,8 +46,7 @@ let defaultFluidState : fluidState =
       ; invalidCompletions = []
       ; allCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
-  ; selectionStart = None
-  ; clipboard = None }
+  ; selectionStart = None }
 
 
 let defaultCanvasProps : canvasProps =
@@ -143,4 +142,5 @@ let defaultModel : model =
   ; permission = None
   ; showTopbar = true
   ; toast = defaultToast
-  ; account = defaultAccount }
+  ; account = defaultAccount
+  ; testClipboardContents = `None }
