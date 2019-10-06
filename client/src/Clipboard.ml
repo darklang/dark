@@ -83,3 +83,25 @@ let paste (m : model) (data : clipboardContents) : modification =
         NoChange )
   | None ->
       NoChange
+
+
+let setData (data : clipboardContents) (e : clipboardEvent) =
+  match data with
+  | `Text text ->
+      e##clipboardData##setData "text/plain" text ;
+      e##preventDefault ()
+  | `Json json ->
+      let data = Json.stringify json in
+      e##clipboardData##setData "application/json" data ;
+      e##preventDefault ()
+  | `None ->
+      ()
+
+
+let getData (e : clipboardEvent) =
+  let json = e##clipboardData##getData "application/json" in
+  if json <> ""
+  then `Json (Json.parseOrRaise json)
+  else
+    let text = e##clipboardData##getData "text/plain" in
+    if text <> "" then `Text text else `None

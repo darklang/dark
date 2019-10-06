@@ -1010,18 +1010,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
     | SetClipboardContents (data, e) ->
-        ( match data with
-        | `Text text ->
-            e##clipboardData##setData "text/plain" text ;
-            e##preventDefault ()
-        | `Json json ->
-            let data = Json.stringify json in
-            e##clipboardData##setData "application/json" data ;
-            e##preventDefault ()
-        | `None ->
-            () ) ;
-        (* Record it for tests *)
-        ({m with testClipboardContents = data}, Cmd.none)
+        Clipboard.setData data e ;
+        (m, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1832,17 +1822,10 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many [toast; SetClipboardContents (clipboardData, e)]
   | ClipboardPasteEvent e ->
-      let pasteFn =
-        if VariantTesting.isFluid m.tests
-        then fun data -> Fluid.update m (FluidPaste data)
-        else Clipboard.paste m
-      in
-      let json = e##clipboardData##getData "application/json" in
-      if json <> ""
-      then pasteFn (`Json (Json.parseOrRaise json))
-      else
-        let text = e##clipboardData##getData "text/plain" in
-        if text <> "" then pasteFn (`Text text) else NoChange
+      let data = Clipboard.getData e in
+      if VariantTesting.isFluid m.tests
+      then Fluid.update m (FluidPaste data)
+      else Clipboard.paste m data
   | ClipboardCutEvent e ->
       let toast =
         TweakModel

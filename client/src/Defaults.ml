@@ -142,5 +142,4 @@ let defaultModel : model =
   ; permission = None
   ; showTopbar = true
   ; toast = defaultToast
-  ; account = defaultAccount
-  ; testClipboardContents = `None }
+  ; account = defaultAccount }
