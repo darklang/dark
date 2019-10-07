@@ -315,7 +315,7 @@ let fns =
   ; { pns = ["JWT::encodeES256"]
     ; ins = []
     ; p = [par "privKey" TStr; par "headers" TObj; par "payload" TObj]
-    ; r = TStr
+    ; r = TResult
     ; d =
         "Returns an encoded RFC751J9 JSON Web Token, signed using the ES256 algorithm. 'typ' and 'alg' header values will be added automatically. Additional headers can be added via 'headers' but only 'kid' is accepted currently. 'privKey' should be the unencrypted base64-encoded DER (binary) private key."
     ; f =
@@ -337,9 +337,9 @@ let fns =
                   Jwt.encode_es256 ~pkey ~extra_headers:headers ~payload
                 with
               | Ok s ->
-                  Dval.dstr_of_string_exn s
+                  s |> Dval.dstr_of_string_exn |> ResOk |> DResult
               | Error e ->
-                  DError e )
+                  e |> Dval.dstr_of_string_exn |> ResError |> DResult )
           | args ->
               fail args)
     ; ps = false
