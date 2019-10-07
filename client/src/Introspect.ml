@@ -91,7 +91,8 @@ let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
                    Some (IDSet.add ~value:id set) )
            : IDSet.t TLIDDict.t ) )
   |> TD.toList
-  |> List.map ~f:(fun (tlid, ids) -> (TL.getExn m tlid, IDSet.toList ids))
+  |> List.filterMap ~f:(fun (tlid, ids) ->
+         TL.get m tlid |> Option.map ~f:(fun tl -> (tl, IDSet.toList ids)) )
 
 
 let allUsedIn (tlid : tlid) (m : model) : toplevel list =
@@ -173,9 +174,10 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   in
   let newTlUsedIn, newTlRefersTo =
     tlids
-    |> List.map ~f:(fun tlid ->
-           let tl = TL.getExn m tlid in
-           getUsageFor tl datastores handlers functions )
+    |> List.filterMap ~f:(fun tlid ->
+           let tl = TL.get m tlid in
+           Option.map tl ~f:(fun tl ->
+               getUsageFor tl datastores handlers functions ) )
     |> List.concat
     |> List.foldl
          ~init:(tlUsedInDict, tlRefersToDict)

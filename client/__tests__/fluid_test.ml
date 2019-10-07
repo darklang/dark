@@ -97,6 +97,8 @@ let complexExpr =
     , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
 
 
+let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
+
 type testResult = (string * (int option * int)) * bool
 
 type shiftState =
@@ -407,7 +409,7 @@ let () =
       | EIf (_, _, expr, _) ->
           expr
       | expr ->
-          impossible ("the wrapper is broken: " ^ eToString s expr)
+          Debug.crash ("the wrapper is broken: " ^ eToString s expr)
     in
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in

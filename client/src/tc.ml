@@ -28,6 +28,7 @@ module Option = struct
     match v with Some v -> f v | None -> ()
 
 
+  (* TODO: remove *)
   let valueExn (value : 'a option) : 'a =
     match value with Some v -> v | None -> raise Not_found
 
@@ -38,6 +39,14 @@ module Option = struct
 
   let orElseLazy (v : unit -> 'a option) (v2 : 'a option) : 'a option =
     match v2 with Some v2 -> Some v2 | None -> v ()
+
+
+  let pair (a : 'a option) (b : 'b option) : ('a * 'b) option =
+    match (a, b) with Some a, Some b -> Some (a, b) | _ -> None
+
+
+  let map2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c) : 'c option =
+    match (a, b) with Some a, Some b -> Some (f a b) | _ -> None
 end
 
 module Result = struct

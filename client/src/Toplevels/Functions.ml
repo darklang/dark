@@ -71,10 +71,6 @@ let findByName (m : model) (s : string) : userFunction option =
   List.find ~f:(sameName s) (TLIDDict.values m.userFunctions)
 
 
-let findByNameExn (m : model) (s : string) : userFunction =
-  findByName m s |> deOption "Functions.findByNameExn"
-
-
 let paramData (ufp : userFunctionParameter) : pointerData list =
   [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
@@ -143,21 +139,21 @@ let replaceParamName
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            impossible search
+            recover search None
       in
       let rContent =
         match replacement with
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            impossible replacement
+            recover replacement None
       in
       let transformUse rep old =
         match old with
         | PExpr (F (_, _)) ->
             PExpr (F (gid (), Variable rep))
         | _ ->
-            impossible old
+            recover old old
       in
       match (sContent, rContent) with
       | Some o, Some r ->

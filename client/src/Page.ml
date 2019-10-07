@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
@@ -121,21 +122,24 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
-      let tl = TL.getExn m tlid in
+      let tl = TL.get m tlid in
+      let offset =
+        Option.map ~f:(TL.pos >> Viewport.toCenteredOn) tl
+        |> recoverOpt "tl not found" ~default:m.canvasProps.offset
+      in
       { m with
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
-      ; canvasProps =
-          { m.canvasProps with
-            offset = Viewport.toCenteredOn (TL.pos tl); lastOffset = None } }
+      ; canvasProps = {m.canvasProps with offset; lastOffset = None} }
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
   *)
-      let tl = TL.getExn m tlid in
-      calculatePanOffset m tl newPage
+      TL.get m tlid
+      |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
+      |> recoverOpt "switching to missing tl" ~default:m
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
   | FocusedHandler (otlid, _), FocusedGroup (tlid, _)
@@ -152,8 +156,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       if otlid = tlid
       then m
       else
-        let tl = TL.getExn m tlid in
-        calculatePanOffset m tl newPage
+        TL.get m tlid
+        |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
+        |> recoverOpt "switching to missing tl" ~default:m
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
