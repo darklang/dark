@@ -29,9 +29,10 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
   | Entering (Creating _) ->
       not intOrString
   | Entering (Filling (tlid, id)) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString
+      TL.getPD m tlid id
+      |> Option.map ~f:(fun pd ->
+             (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString )
+      |> Option.withDefault ~default:false
   | _ ->
       false
 
@@ -44,7 +45,7 @@ let undo_redo (m : model) (redo : bool) : modification =
         then RPC ([RedoTL tlid], FocusSame)
         else RPC ([UndoTL tlid], FocusSame)
       in
-      ( match TL.getExn m tlid |> TL.asDB with
+      ( match TL.get m tlid |> Option.andThen ~f:TL.asDB with
       | Some _ ->
           (* We could do it on the server but it's really hard
                  atm. To do it on the server, efficiently, we'd create
@@ -73,263 +74,245 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->
-        let tl = TL.getExn m tlid in
-        ( match event.keyCode with
-        | Key.Delete ->
-            Selection.delete m tlid mId
-        | Key.Backspace ->
-            Selection.delete m tlid mId
-        | Key.Escape ->
-          ( match mId with
-          (* if we're selecting an expression,
+      ( match (event.keyCode, TL.get m tlid) with
+      | Key.Delete, _ ->
+          Selection.delete m tlid mId
+      | Key.Backspace, _ ->
+          Selection.delete m tlid mId
+      | Key.Escape, _ ->
+        ( match mId with
+        (* if we're selecting an expression,
                    go 'up' to selecting the toplevel only *)
-          | Some _ ->
-              Select (tlid, None)
-          (* if we're selecting a toplevel only, deselect. *)
-          | None ->
-              Deselect )
-        | Key.Enter ->
-            if event.shiftKey
-            then
-              match tl with
-              | TLGroup _ ->
-                  NoChange
-              | TLTipe t ->
-                ( match mId with
-                | Some id ->
-                  ( match TL.findExn tl id with
-                  | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
-                      let replacement = UserTypes.extend t in
-                      RPC ([SetType replacement], FocusNext (tlid, Some id))
-                  | _ ->
-                      NoChange )
-                | None ->
-                    NoChange )
-              | TLDB _ ->
-                  let blankid = gid () in
-                  RPC
-                    ( [AddDBCol (tlid, blankid, gid ())]
-                    , FocusExact (tlid, blankid) )
-              | TLHandler h ->
-                ( match mId with
-                | Some id ->
-                  ( match TL.findExn tl id with
-                  | PExpr _ ->
-                      let blank = B.new_ () in
-                      let replacement = AST.addThreadBlank id blank h.ast in
-                      if h.ast = replacement
-                      then NoChange
-                      else
-                        RPC
-                          ( [ SetHandler
-                                (tlid, h.pos, {h with ast = replacement}) ]
-                          , FocusExact (tlid, B.toID blank) )
-                  | PVarBind _ ->
-                    ( match AST.findParentOfWithin_ id h.ast with
-                    | Some (F (_, Lambda (_, _))) ->
-                        let replacement = AST.addLambdaBlank id h.ast in
-                        RPC
-                          ( [ SetHandler
-                                (tlid, h.pos, {h with ast = replacement}) ]
-                          , FocusNext (tlid, Some id) )
-                    | _ ->
-                        NoChange )
-                  | PKey _ ->
-                      let nextid, _, replacement =
-                        AST.addObjectLiteralBlanks id h.ast
-                      in
-                      RPC
-                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                        , FocusExact (tlid, nextid) )
-                  | PPattern _ ->
-                      let nextid, _, replacement =
-                        AST.addPatternBlanks id h.ast
-                      in
-                      RPC
-                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
-                        , FocusExact (tlid, nextid) )
-                  | _ ->
-                      NoChange )
-                | None ->
-                    NoChange )
-              | TLFunc f ->
-                ( match mId with
-                | Some id ->
-                  ( match TL.findExn tl id with
-                  | PExpr _ ->
-                      let blank = B.new_ () in
-                      let replacement = AST.addThreadBlank id blank f.ufAST in
-                      if f.ufAST = replacement
-                      then NoChange
-                      else
-                        RPC
-                          ( [SetFunction {f with ufAST = replacement}]
-                          , FocusExact (tlid, B.toID blank) )
-                  | PVarBind _ ->
-                    ( match AST.findParentOfWithin_ id f.ufAST with
-                    | Some (F (_, Lambda (_, _))) ->
-                        let replacement = AST.addLambdaBlank id f.ufAST in
-                        RPC
-                          ( [SetFunction {f with ufAST = replacement}]
-                          , FocusNext (tlid, Some id) )
-                    | _ ->
-                        NoChange )
-                  | PKey _ ->
-                      let nextid, _, replacement =
-                        AST.addObjectLiteralBlanks id f.ufAST
-                      in
-                      RPC
-                        ( [SetFunction {f with ufAST = replacement}]
-                        , FocusExact (tlid, nextid) )
-                  | PParamTipe _ | PParamName _ | PFnName _ ->
-                      Refactor.addFunctionParameter m f id
-                  | _ ->
-                      NoChange )
-                | None ->
-                    NoChange )
-            else (
-              match mId with
-              | Some id ->
-                  Selection.enter m tlid id
-              | None ->
-                  Selection.selectDownLevel m tlid mId )
-        | Key.Up ->
-            (* NB: see `stopKeys` in ui.html *)
-            if event.shiftKey
-            then Selection.selectUpLevel m tlid mId
-            else Selection.moveUp m tlid mId
-        | Key.Down ->
-            (* NB: see `stopKeys` in ui.html *)
-            if event.shiftKey
-            then Selection.selectDownLevel m tlid mId
-            else Selection.moveDown m tlid mId
-        | Key.Right ->
-            if event.altKey
-            then Selection.moveCursorBackInTime m tlid
-            else Selection.moveRight m tlid mId
-        | Key.Left ->
-            if event.altKey
-            then Selection.moveCursorForwardInTime m tlid
-            else Selection.moveLeft m tlid mId
-        | Key.Tab ->
-            (* NB: see `stopKeys` in ui.html *)
-            if event.shiftKey
-            then Selection.selectPrevBlank m tlid mId
-            else Selection.selectNextBlank m tlid mId
-        (* Disabled to make room for Windows keyboards *)
-        (* | Key.O -> *)
-        (*   if event.ctrlKey *)
-        (*   then Selection.selectUpLevel m tlid mId *)
-        (*   else NoChange *)
-        (* |  Key.I -> *)
-        (*   if event.ctrlKey *)
-        (*   then Selection.selectDownLevel m tlid mId *)
-        (*   else NoChange *)
-        | Key.C ->
-            if event.ctrlKey && event.altKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.wrap WIfCond m tl pd
-            else NoChange
-        | Key.F ->
-            if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.extractFunction m tl pd
-            else if event.altKey
-            then FeatureFlags.start m
-            else NoChange
-        | Key.B ->
-            if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.wrap WLetBody m tl pd
-            else NoChange
-        | Key.L ->
-            if event.ctrlKey && event.shiftKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.extractVariable m tl pd
-            else if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.wrap WLetRHS m tl pd
-            else NoChange
-        | Key.I ->
-            if event.ctrlKey && event.altKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.wrap WIfElse m tl pd
-            else if event.ctrlKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  Refactor.wrap WIfThen m tl pd
-            else NoChange
-        | Key.E ->
-            if event.altKey
-            then
-              match mId with
-              | None ->
-                  NoChange
-              | Some id ->
-                  let pd = TL.findExn tl id in
-                  if event.shiftKey
-                  then Refactor.takeOffRail m tl pd
-                  else Refactor.putOnRail m tl pd
-            else NoChange
-        | Key.O ->
-            if event.altKey then CenterCanvasOn tlid else NoChange
-        | Key.K ->
-          ( match m.currentPage with
-          | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-              if osCmdKeyHeld
-              then Many [Deselect; Entry.openOmnibox m]
-              else NoChange
+        | Some _ ->
+            Select (tlid, None)
+        (* if we're selecting a toplevel only, deselect. *)
+        | None ->
+            Deselect )
+      | Key.Enter, Some (TLGroup _) when event.shiftKey ->
+          NoChange
+      | Key.Enter, Some (TLTipe t as tl) when event.shiftKey ->
+        ( match mId with
+        | Some id ->
+          ( match TL.find tl id with
+          | Some (PTypeName _)
+          | Some (PTypeFieldName _)
+          | Some (PTypeFieldTipe _) ->
+              let replacement = UserTypes.extend t in
+              RPC ([SetType replacement], FocusNext (tlid, Some id))
           | _ ->
               NoChange )
-        | Key.Unknown _ ->
-          ( (* colon *)
-          match mId with
-          | None ->
-              NoChange
-          | Some id ->
-              if event.key = Some ":"
-              then
-                Many
-                  [ SelectCommand (tlid, id)
-                  ; AutocompleteMod (ACSetVisible true)
-                  ; AutocompleteMod (ACSetQuery ":") ]
-              else NoChange )
+        | None ->
+            NoChange )
+      | Key.Enter, Some (TLDB _) when event.shiftKey ->
+          let blankid = gid () in
+          RPC ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
+      | Key.Enter, Some (TLHandler h as tl) when event.shiftKey ->
+        ( match mId with
+        | Some id ->
+          ( match TL.find tl id with
+          | Some (PExpr _) ->
+              let blank = B.new_ () in
+              let replacement = AST.addThreadBlank id blank h.ast in
+              if h.ast = replacement
+              then NoChange
+              else
+                RPC
+                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
+                  , FocusExact (tlid, B.toID blank) )
+          | Some (PVarBind _) ->
+            ( match AST.findParentOfWithin_ id h.ast with
+            | Some (F (_, Lambda (_, _))) ->
+                let replacement = AST.addLambdaBlank id h.ast in
+                RPC
+                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
+                  , FocusNext (tlid, Some id) )
+            | _ ->
+                NoChange )
+          | Some (PKey _) ->
+              let nextid, _, replacement =
+                AST.addObjectLiteralBlanks id h.ast
+              in
+              RPC
+                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
+                , FocusExact (tlid, nextid) )
+          | Some (PPattern _) ->
+              let nextid, _, replacement = AST.addPatternBlanks id h.ast in
+              RPC
+                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
+                , FocusExact (tlid, nextid) )
+          | _ ->
+              NoChange )
         | _ ->
             NoChange )
+      | Key.Enter, Some (TLFunc f as tl) when event.shiftKey ->
+        ( match mId with
+        | Some id ->
+          ( match TL.find tl id with
+          | Some (PExpr _) ->
+              let blank = B.new_ () in
+              let replacement = AST.addThreadBlank id blank f.ufAST in
+              if f.ufAST = replacement
+              then NoChange
+              else
+                RPC
+                  ( [SetFunction {f with ufAST = replacement}]
+                  , FocusExact (tlid, B.toID blank) )
+          | Some (PVarBind _) ->
+            ( match AST.findParentOfWithin_ id f.ufAST with
+            | Some (F (_, Lambda (_, _))) ->
+                let replacement = AST.addLambdaBlank id f.ufAST in
+                RPC
+                  ( [SetFunction {f with ufAST = replacement}]
+                  , FocusNext (tlid, Some id) )
+            | _ ->
+                NoChange )
+          | Some (PKey _) ->
+              let nextid, _, replacement =
+                AST.addObjectLiteralBlanks id f.ufAST
+              in
+              RPC
+                ( [SetFunction {f with ufAST = replacement}]
+                , FocusExact (tlid, nextid) )
+          | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
+              Refactor.addFunctionParameter m f id
+          | _ ->
+              NoChange )
+        | _ ->
+            NoChange )
+      | Key.Enter, Some _ when event.shiftKey ->
+          NoChange
+      | Key.Enter, Some _ when not event.shiftKey ->
+        ( match mId with
+        | Some id ->
+            Selection.enter m tlid id
+        | None ->
+            Selection.selectDownLevel m tlid mId )
+      | Key.Up, _ ->
+          (* NB: see `stopKeys` in ui.html *)
+          if event.shiftKey
+          then Selection.selectUpLevel m tlid mId
+          else Selection.moveUp m tlid mId
+      | Key.Down, _ ->
+          (* NB: see `stopKeys` in ui.html *)
+          if event.shiftKey
+          then Selection.selectDownLevel m tlid mId
+          else Selection.moveDown m tlid mId
+      | Key.Right, _ ->
+          if event.altKey
+          then Selection.moveCursorBackInTime m tlid
+          else Selection.moveRight m tlid mId
+      | Key.Left, _ ->
+          if event.altKey
+          then Selection.moveCursorForwardInTime m tlid
+          else Selection.moveLeft m tlid mId
+      | Key.Tab, _ ->
+          (* NB: see `stopKeys` in ui.html *)
+          if event.shiftKey
+          then Selection.selectPrevBlank m tlid mId
+          else Selection.selectNextBlank m tlid mId
+      (* Disabled to make room for Windows keyboards *)
+      (* | Key.O -> *)
+      (*   if event.ctrlKey *)
+      (*   then Selection.selectUpLevel m tlid mId *)
+      (*   else NoChange *)
+      (* |  Key.I -> *)
+      (*   if event.ctrlKey *)
+      (*   then Selection.selectDownLevel m tlid mId *)
+      (*   else NoChange *)
+      | Key.C, Some tl ->
+          if event.ctrlKey && event.altKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.wrap WIfCond m tl)
+            |> Option.withDefault ~default:NoChange
+          else NoChange
+      | Key.F, Some tl ->
+          if event.ctrlKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.extractFunction m tl)
+            |> Option.withDefault ~default:NoChange
+          else if event.altKey
+          then FeatureFlags.start m
+          else NoChange
+      | Key.B, Some tl ->
+          if event.ctrlKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.wrap WLetBody m tl)
+            |> Option.withDefault ~default:NoChange
+          else NoChange
+      | Key.L, Some tl ->
+          if event.ctrlKey && event.shiftKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.extractVariable m tl)
+            |> Option.withDefault ~default:NoChange
+          else if event.ctrlKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.wrap WLetRHS m tl)
+            |> Option.withDefault ~default:NoChange
+          else NoChange
+      | Key.I, Some tl ->
+          if event.ctrlKey && event.altKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.wrap WIfElse m tl)
+            |> Option.withDefault ~default:NoChange
+          else if event.ctrlKey
+          then
+            mId
+            |> Option.andThen ~f:(TL.find tl)
+            |> Option.map ~f:(Refactor.wrap WIfThen m tl)
+            |> Option.withDefault ~default:NoChange
+          else NoChange
+      | Key.E, Some tl ->
+          if event.altKey
+          then
+            if event.shiftKey
+            then
+              mId
+              |> Option.andThen ~f:(TL.find tl)
+              |> Option.map ~f:(Refactor.takeOffRail m tl)
+              |> Option.withDefault ~default:NoChange
+            else
+              mId
+              |> Option.andThen ~f:(TL.find tl)
+              |> Option.map ~f:(Refactor.putOnRail m tl)
+              |> Option.withDefault ~default:NoChange
+          else NoChange
+      | Key.O, Some _ ->
+          if event.altKey then CenterCanvasOn tlid else NoChange
+      | Key.K, Some _ ->
+        ( match m.currentPage with
+        | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+            if osCmdKeyHeld
+            then Many [Deselect; Entry.openOmnibox m]
+            else NoChange
+        | _ ->
+            NoChange )
+      | Key.Unknown _, Some _ ->
+        ( (* colon *)
+        match mId with
+        | None ->
+            NoChange
+        | Some id ->
+            if event.key = Some ":"
+            then
+              Many
+                [ SelectCommand (tlid, id)
+                ; AutocompleteMod (ACSetVisible true)
+                ; AutocompleteMod (ACSetQuery ":") ]
+            else NoChange )
+      | _ ->
+          NoChange )
     | Entering cursor ->
         if event.ctrlKey
         then
@@ -353,18 +336,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         then
           match cursor with
           | Filling (tlid, _) ->
-              let tl = TL.getExn m tlid in
+              let tl = TL.get m tlid in
               ( match tl with
-              | TLTipe _ ->
-                  NoChange
-              | TLDB _ ->
-                  NoChange
-              | TLGroup _ ->
-                  NoChange
-              | TLHandler _ ->
+              | Some (TLHandler _) ->
                   Entry.submit m cursor Entry.StartThread
-              | TLFunc _ ->
-                  Entry.submit m cursor Entry.StartThread )
+              | Some (TLFunc _) ->
+                  Entry.submit m cursor Entry.StartThread
+              | _ ->
+                  NoChange )
           | Creating _ ->
               Entry.submit m cursor Entry.StartThread
         else if event.altKey
@@ -375,11 +354,13 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 NoChange
             | Filling (tlid, id) ->
-                let tl = TL.getExn m tlid in
-                let pd = TL.findExn tl id in
-                if event.shiftKey
-                then Refactor.takeOffRail m tl pd
-                else Refactor.putOnRail m tl pd )
+              ( match TL.getTLAndPD m tlid id with
+              | Some (tl, Some pd) ->
+                  if event.shiftKey
+                  then Refactor.takeOffRail m tl pd
+                  else Refactor.putOnRail m tl pd
+              | _ ->
+                  NoChange ) )
           | _ ->
               NoChange
         else (
@@ -441,9 +422,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | Creating _ ->
                 Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
-                let tl = TL.getExn m tlid in
+                let tl = TL.get m tlid in
                 ( match tl with
-                | TLHandler h ->
+                | Some (TLHandler h) ->
                     let replacement = AST.closeBlanks h.ast in
                     if replacement = h.ast
                     then Many [Select (tlid, Some p); AutocompleteMod ACReset]

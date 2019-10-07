@@ -806,12 +806,8 @@ let infoize ~(pos : int) tokens : tokenInfo list =
 
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
-  List.iter
-    ~f:(fun t ->
-      if String.length (Token.toText t) == 0
-      then impossible "zero length token"
-      else () )
-    tokens ;
+  List.iter tokens ~f:(fun t ->
+      asserT (fun t -> String.length (Token.toText t) > 0) t ) ;
   tokens
 
 
@@ -3209,11 +3205,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Letter _, L (TRightPartial (_, _), ti), _
       when onEdge ->
         let ast, s = acEnter ti ast s K.Tab in
-        let ti =
-          getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
-          |> deOption "rightPartialLetter/number"
-        in
-        doInsert ~pos:s.newPos keyChar ti ast s
+        getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
+        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
+        |> Option.withDefault ~default:(ast, s)
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
@@ -3585,7 +3579,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     then true
     else if s = "false"
     then false
-    else impossible "string bool token should always be convertable to bool"
+    else recover "string bool token should always be convertable to bool" false
   in
   let findTokenValue tokens tID typeName =
     List.find tokens ~f:(fun (tID', _, typeName') ->

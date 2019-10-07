@@ -22,10 +22,8 @@ let putFunctionOnRail =
 let executeCommand
     (m : model) (tlid : tlid) (id : id) (highlighted : autocompleteItem option)
     : modification =
-  match highlighted with
-  | Some (ACCommand command) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
+  match (highlighted, TL.getTLAndPD m tlid id) with
+  | Some (ACCommand command), Some (tl, Some pd) ->
       command.action m tl pd
   | _ ->
       NoChange

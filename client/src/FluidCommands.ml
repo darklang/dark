@@ -1,5 +1,6 @@
 open Tc
 open Types
+open Prelude
 module TL = Toplevel
 
 module Html = struct
@@ -55,9 +56,11 @@ let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
 let executeCommand
     (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
     modification =
-  let tl = TL.getExn m tlid in
-  let pd = Toplevel.findExn tl (FluidToken.tid token) in
-  cmd.action m tl pd
+  match TL.getTLAndPD m tlid (FluidToken.tid token) with
+  | Some (tl, Some pd) ->
+      cmd.action m tl pd
+  | _ ->
+      recover "No pd for the command" NoChange
 
 
 let runCommand (m : model) (cmd : command) : modification =
@@ -125,8 +128,9 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
   let allCmds =
     match cp.location with
     | Some (tlid, token) ->
-        let tl = TL.getExn m tlid in
-        commandsFor tl (FluidToken.tid token)
+        Option.map (TL.get m tlid) ~f:(fun tl ->
+            commandsFor tl (FluidToken.tid token) )
+        |> recoverOpt "no tl for location" ~default:[]
     | _ ->
         Commands.commands
   in

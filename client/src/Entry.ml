@@ -383,18 +383,18 @@ let parsePattern (str : string) : pattern option =
       else None
 
 
-let getAstFromTopLevel tl =
+let getAstFromTopLevel tl : expr =
   match tl with
   | TLHandler h ->
       h.ast
   | TLFunc f ->
       f.ufAST
   | TLGroup _ ->
-      impossible ("No ASTs in Groups", tl)
+      recover ("No ASTs in Groups", tl) (B.new_ ())
   | TLDB _ ->
-      impossible ("No ASTs in DBs", tl)
+      recover ("No ASTs in DBs", tl) (B.new_ ())
   | TLTipe _ ->
-      impossible ("No ASTs in Types", tl)
+      recover ("No ASTs in Types", tl) (B.new_ ())
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -478,8 +478,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
                    |> Option.isSome )
         | _ ->
             None )
-        |> deOption "validate: impossible! pattern without parent match"
-        |> Tuple2.second
+        |> Option.map ~f:Tuple2.second
+        |> AST.recoverBlank "validate: recover! pattern without parent match"
       in
       ( match parsePattern value with
       | Some newPattern ->
@@ -516,321 +516,287 @@ let submitACItem
   | Creating _ ->
       NoChange
   | Filling (tlid, id) ->
-      let tl = TL.getExn m tlid in
-      let pd = TL.findExn tl id in
-      let result = validate tl pd stringValue in
-      if result <> None
-      then DisplayError (deOption "checked above" result)
-      else
-        let db = TL.asDB tl in
-        let wrap ops next =
-          let wasEditing = P.isBlank pd |> not in
-          let focus =
-            if wasEditing && move = StayHere
-            then
-              match next with
-              | None ->
-                  FocusSame
-              | Some nextID ->
-                  FocusExact (tlid, nextID)
-            else FocusNext (tlid, next)
+    ( match TL.getTLAndPD m tlid id with
+    | Some (tl, Some pd) ->
+      ( match validate tl pd stringValue with
+      | Some result ->
+          DisplayError result
+      | None ->
+          let wrap ops next =
+            let wasEditing = P.isBlank pd |> not in
+            let focus =
+              if wasEditing && move = StayHere
+              then
+                match next with
+                | None ->
+                    FocusSame
+                | Some nextID ->
+                    FocusExact (tlid, nextID)
+              else FocusNext (tlid, next)
+            in
+            RPC (ops, focus)
           in
-          RPC (ops, focus)
-        in
-        let wrapID ops = wrap ops (Some id) in
-        let wrapNew ops new_ = wrap ops (Some (P.toID new_)) in
-        let save newtl next =
-          if newtl = tl
-          then NoChange
-          else
-            match newtl with
+          let wrapID ops = wrap ops (Some id) in
+          let wrapNew ops new_ = wrap ops (Some (P.toID new_)) in
+          let save newtl next =
+            if newtl = tl
+            then NoChange
+            else
+              match newtl with
+              | TLHandler h ->
+                  wrapNew [SetHandler (tlid, h.pos, h)] next
+              | TLFunc f ->
+                  wrapNew [SetFunction f] next
+              | TLTipe t ->
+                  wrapNew [SetType t] next
+              | TLGroup g ->
+                  AddGroup g
+              | TLDB _ ->
+                  recover ("no vars in DBs", tl) NoChange
+          in
+          let saveH h next = save (TLHandler h) next in
+          let saveAst ast next =
+            match tl with
             | TLHandler h ->
-                wrapNew [SetHandler (tlid, h.pos, h)] next
+                saveH {h with ast} next
             | TLFunc f ->
-                wrapNew [SetFunction f] next
-            | TLTipe t ->
-                wrapNew [SetType t] next
-            | TLGroup g ->
-                AddGroup g
+                save (TLFunc {f with ufAST = ast}) next
             | TLDB _ ->
-                impossible ("no vars in DBs", tl)
-        in
-        let saveH h next = save (TLHandler h) next in
-        let saveAst ast next =
-          match tl with
-          | TLHandler h ->
-              saveH {h with ast} next
-          | TLFunc f ->
-              save (TLFunc {f with ufAST = ast}) next
-          | TLDB _ ->
-              impossible ("no ASTs in DBs", tl)
-          | TLTipe _ ->
-              impossible ("no ASTs in Tipes", tl)
-          | TLGroup _ ->
-              impossible ("no ASTs in Groups", tl)
-        in
-        let replace new_ =
-          tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
-        in
-        ( match (pd, item) with
-        | PDBName (F (id, oldName)), ACDBName value ->
-            if AC.assertValid AC.dbNameValidator value <> value
-            then
-              DisplayError
-                ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
-            else if oldName = value (* leave as is *)
-            then Select (tlid, Some id)
-            else if List.member ~value (TL.allDBNames m.dbs)
-            then DisplayError ("There is already a DB named " ^ value)
-            else
-              let varrefs = Refactor.renameDBReferences m oldName value in
-              RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
-        | PDBColType ct, ACDBColType value ->
-            let db1 = deOption "db" db in
-            if B.asF ct = Some value
-            then Select (tlid, Some id)
-            else if DB.isMigrationCol db1 id
-            then
-              wrapID
-                [ SetDBColTypeInDBMigration (tlid, id, value)
-                ; AddDBColToDBMigration (tlid, gid (), gid ()) ]
-            else if B.isBlank ct
-            then
-              wrapID
-                [ SetDBColType (tlid, id, value)
-                ; AddDBCol (tlid, gid (), gid ()) ]
-            else wrapID [ChangeDBColType (tlid, id, value)]
-        | PDBColName cn, ACDBColName value ->
-            let db1 = deOption "db" db in
-            if B.asF cn = Some value
-            then Select (tlid, Some id)
-            else if DB.isMigrationCol db1 id
-            then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
-            else if DB.hasCol db1 value
-            then
-              DisplayError
-                ("Can't have two DB fields with the same name: " ^ value)
-            else if B.isBlank cn
-            then wrapID [SetDBColName (tlid, id, value)]
-            else wrapID [ChangeDBColName (tlid, id, value)]
-        | PVarBind _, ACVarBind varName ->
-            replace (PVarBind (B.newF varName))
-        | PEventName _, ACCronName value
-        | PEventName _, ACReplName value
-        | PEventName _, ACWorkerName value ->
-            replace (PEventName (B.newF value))
-        | PEventName _, ACHTTPRoute value ->
-            (* Check if the ACHTTPRoute value is a 404 path *)
-            let f404s =
-              m.f404s |> List.find ~f:(fun f404 -> f404.path = value)
-            in
-            ( match f404s with
-            | Some f404 ->
-                let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
-                let new_ = B.newF value in
-                let specInfo : handlerSpec =
-                  { space = h.spec.space
-                  ; name = B.newF f404.path
-                  ; modifier = B.newF f404.modifier }
-                in
-                (* We do not delete the 404 on the server because the list of 404s is  *)
-                (* generated by filtering through the unused HTTP handlers *)
-                Many
-                  [ saveH {h with spec = specInfo} (PEventName new_)
-                  ; Delete404 f404 ]
-            | None ->
-                replace (PEventName (B.newF value)) )
-        (* allow arbitrary HTTP modifiers *)
-        | PEventModifier _, ACHTTPModifier value
-        | PEventModifier _, ACCronTiming value
-        | PEventModifier _, ACEventModifier value ->
-            replace (PEventModifier (B.newF value))
-        (* allow arbitrary eventspaces *)
-        | PEventSpace _, ACEventSpace value ->
-            let h = TL.asHandler tl |> deOption "maybeH - eventspace" in
-            let new_ = B.newF value in
-            let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
-            let replacement2 =
-              if SpecHeaders.visibleModifier replacement
-              then replacement
+                recover ("no ASTs in DBs", tl) NoChange
+            | TLTipe _ ->
+                recover ("no ASTs in Tipes", tl) NoChange
+            | TLGroup _ ->
+                recover ("no ASTs in Groups", tl) NoChange
+          in
+          let replace new_ =
+            tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
+          in
+          ( match (pd, item, tl) with
+          | PDBName (F (id, oldName)), ACDBName value, TLDB _ ->
+              if AC.assertValid AC.dbNameValidator value <> value
+              then
+                DisplayError
+                  ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
+              else if oldName = value (* leave as is *)
+              then Select (tlid, Some id)
+              else if List.member ~value (TL.allDBNames m.dbs)
+              then DisplayError ("There is already a DB named " ^ value)
               else
-                SpecHeaders.replaceEventModifier
-                  (B.toID h.spec.modifier)
-                  (B.newF "_")
-                  replacement
-            in
-            let replacement3 =
-              (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
-              match (replacement2.space, h.spec.name) with
-              | F (_, newSpace), F (_, name)
-                when newSpace <> "REPL"
-                     && String.startsWith ~prefix:"repl_" (String.toLower name)
-                ->
-                  SpecHeaders.replaceEventName
-                    (B.toID h.spec.name)
-                    (B.new_ ())
+                let varrefs = Refactor.renameDBReferences m oldName value in
+                RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
+          | PDBColType ct, ACDBColType value, TLDB db ->
+              if B.asF ct = Some value
+              then Select (tlid, Some id)
+              else if DB.isMigrationCol db id
+              then
+                wrapID
+                  [ SetDBColTypeInDBMigration (tlid, id, value)
+                  ; AddDBColToDBMigration (tlid, gid (), gid ()) ]
+              else if B.isBlank ct
+              then
+                wrapID
+                  [ SetDBColType (tlid, id, value)
+                  ; AddDBCol (tlid, gid (), gid ()) ]
+              else wrapID [ChangeDBColType (tlid, id, value)]
+          | PDBColName cn, ACDBColName value, TLDB db ->
+              if B.asF cn = Some value
+              then Select (tlid, Some id)
+              else if DB.isMigrationCol db id
+              then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
+              else if DB.hasCol db value
+              then
+                DisplayError
+                  ("Can't have two DB fields with the same name: " ^ value)
+              else if B.isBlank cn
+              then wrapID [SetDBColName (tlid, id, value)]
+              else wrapID [ChangeDBColName (tlid, id, value)]
+          | PVarBind _, ACVarBind varName, _ ->
+              replace (PVarBind (B.newF varName))
+          | PEventName _, ACCronName value, _
+          | PEventName _, ACReplName value, _
+          | PEventName _, ACWorkerName value, _ ->
+              replace (PEventName (B.newF value))
+          | PEventName _, ACHTTPRoute value, TLHandler h ->
+              (* Check if the ACHTTPRoute value is a 404 path *)
+              let f404s =
+                m.f404s |> List.find ~f:(fun f404 -> f404.path = value)
+              in
+              ( match f404s with
+              | Some f404 ->
+                  let new_ = B.newF value in
+                  let specInfo : handlerSpec =
+                    { space = h.spec.space
+                    ; name = B.newF f404.path
+                    ; modifier = B.newF f404.modifier }
+                  in
+                  (* We do not delete the 404 on the server because the list of 404s is  *)
+                  (* generated by filtering through the unused HTTP handlers *)
+                  Many
+                    [ saveH {h with spec = specInfo} (PEventName new_)
+                    ; Delete404 f404 ]
+              | None ->
+                  replace (PEventName (B.newF value)) )
+          (* allow arbitrary HTTP modifiers *)
+          | PEventModifier _, ACHTTPModifier value, _
+          | PEventModifier _, ACCronTiming value, _
+          | PEventModifier _, ACEventModifier value, _ ->
+              replace (PEventModifier (B.newF value))
+          (* allow arbitrary eventspaces *)
+          | PEventSpace _, ACEventSpace value, TLHandler h ->
+              let new_ = B.newF value in
+              let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
+              let replacement2 =
+                if SpecHeaders.visibleModifier replacement
+                then replacement
+                else
+                  SpecHeaders.replaceEventModifier
+                    (B.toID h.spec.modifier)
+                    (B.newF "_")
+                    replacement
+              in
+              let replacement3 =
+                (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
+                match (replacement2.space, h.spec.name) with
+                | F (_, newSpace), F (_, name)
+                  when newSpace <> "REPL"
+                       && String.startsWith
+                            ~prefix:"repl_"
+                            (String.toLower name) ->
+                    SpecHeaders.replaceEventName
+                      (B.toID h.spec.name)
+                      (B.new_ ())
+                      replacement2
+                | F (_, newSpace), F (_, name)
+                  when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
+                  ->
+                    SpecHeaders.replaceEventName
+                      (B.toID h.spec.name)
+                      (B.newF
+                         ( String.dropLeft ~count:1 name
+                         |> String.split ~on:":"
+                         |> String.join ~sep:"" ))
+                      replacement2
+                | F (_, "HTTP"), F (_, name)
+                  when not (String.startsWith ~prefix:"/" name) ->
+                    SpecHeaders.replaceEventName
+                      (B.toID h.spec.name)
+                      (B.newF ("/" ^ name))
+                      replacement2
+                | _, _ ->
                     replacement2
-              | F (_, newSpace), F (_, name)
-                when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
-                ->
-                  SpecHeaders.replaceEventName
-                    (B.toID h.spec.name)
-                    (B.newF
-                       ( String.dropLeft ~count:1 name
-                       |> String.split ~on:":"
-                       |> String.join ~sep:"" ))
-                    replacement2
-              | F (_, "HTTP"), F (_, name)
-                when not (String.startsWith ~prefix:"/" name) ->
-                  SpecHeaders.replaceEventName
-                    (B.toID h.spec.name)
-                    (B.newF ("/" ^ name))
-                    replacement2
-              | _, _ ->
-                  replacement2
-            in
-            saveH {h with spec = replacement3} (PEventSpace new_)
-        | PField _, ACField fieldname ->
-            let fieldname =
-              if String.startsWith ~prefix:"." fieldname
-              then String.dropLeft ~count:1 fieldname
-              else fieldname
-            in
-            let fieldname =
-              if String.endsWith ~suffix:"." fieldname
-              then String.dropRight ~count:1 fieldname
-              else fieldname
-            in
-            let ast = getAstFromTopLevel tl in
-            let parent = AST.findParentOfWithin id ast in
-            (* Nested field? *)
-            if String.endsWith ~suffix:"." m.complete.value
-            then
-              (* wrap the field access with another field access *)
-              (* get the parent ID from the old AST, cause it has the blank.
+              in
+              saveH {h with spec = replacement3} (PEventSpace new_)
+          | PField _, ACField fieldname, _ ->
+              let fieldname =
+                if String.startsWith ~prefix:"." fieldname
+                then String.dropLeft ~count:1 fieldname
+                else fieldname
+              in
+              let fieldname =
+                if String.endsWith ~suffix:"." fieldname
+                then String.dropRight ~count:1 fieldname
+                else fieldname
+              in
+              let ast = getAstFromTopLevel tl in
+              let parent = AST.findParentOfWithin id ast in
+              (* Nested field? *)
+              if String.endsWith ~suffix:"." m.complete.value
+              then
+                (* wrap the field access with another field access *)
+                (* get the parent ID from the old AST, cause it has the blank.
                  Then get the parent structure from the new ID *)
-              let wrapped =
-                match parent with
-                | F (id_, FieldAccess (lhs, _)) ->
-                    B.newF
-                      (FieldAccess
-                         ( F (id_, FieldAccess (lhs, B.newF fieldname))
-                         , B.new_ () ))
-                | _ ->
-                    impossible ("should be a field", parent)
-              in
-              let new_ = PExpr wrapped in
-              let replacement = TL.replace (PExpr parent) new_ tl in
-              save replacement new_
-            else if move = StartThread
-            then
-              (* Starting a new thread from the field *)
-              let replacement =
-                AST.replace pd (PField (B.newF fieldname)) ast
-              in
-              let newAst = AST.wrapInThread (B.toID parent) replacement in
-              saveAst newAst (PExpr parent)
-            else (* Changing a field *)
-              replace (PField (B.newF fieldname))
-        | PKey _, ACKey value ->
-            let new_ = PKey (B.newF value) in
-            getAstFromTopLevel tl
-            |> AST.replace pd new_
-            |> AST.maybeExtendObjectLiteralAt new_
-            |> fun ast_ -> saveAst ast_ new_
-        | PExpr e, ACExpr _
-        | PExpr e, ACFunction _
-        | PExpr e, ACLiteral _
-        | PExpr e, ACKeyword _
-        | PExpr e, ACConstructorName _
-        | PExpr e, ACVariable _ ->
-          ( match tl with
-          | TLHandler h ->
-              let newast, newexpr = replaceExpr m h.ast e move item in
-              saveAst newast (PExpr newexpr)
-          | TLFunc f ->
-              let newast, newexpr = replaceExpr m f.ufAST e move item in
-              saveAst newast (PExpr newexpr)
-          | TLGroup _ ->
-              NoChange
-          | TLTipe _ ->
-              NoChange
-          | TLDB db ->
-            ( match db.activeMigration with
-            | None ->
-                NoChange
-            | Some am ->
-                if List.member ~value:pd (AST.allData am.rollback)
-                then
-                  let newast, newexpr =
-                    replaceExpr m am.rollback e move item
-                  in
-                  wrapNew [SetExpr (tlid, id, newast)] (PExpr newexpr)
-                else if List.member ~value:pd (AST.allData am.rollforward)
-                then
-                  let newast, newexpr =
-                    replaceExpr m am.rollforward e move item
-                  in
-                  wrapNew [SetExpr (tlid, id, newast)] (PExpr newexpr)
-                else NoChange ) )
-        | PFFMsg _, ACFFMsg value ->
-            replace (PFFMsg (B.newF value))
-        | PFnName _, ACFnName value ->
-            if List.member ~value (Functions.allNames m.userFunctions)
-            then DisplayError ("There is already a Function named " ^ value)
-            else
-              let newPD = PFnName (B.newF value) in
-              let newTL = TL.replace pd newPD tl in
-              let changedNames =
-                let old = TL.asUserFunction tl |> deOption "old userFn" in
-                let new_ = TL.asUserFunction newTL |> deOption "new userFn" in
-                Refactor.renameFunction m old new_
-              in
-              wrapNew
-                ( SetFunction
-                    (TL.asUserFunction newTL |> deOption "must be function")
-                :: changedNames )
-                newPD
-        | PConstructorName _, ACConstructorName value ->
-            replace (PConstructorName (B.newF value))
-        | PParamName _, ACParamName value ->
-            replace (PParamName (B.newF value))
-        | PParamTipe _, ACParamTipe tipe ->
-            replace (PParamTipe (B.newF tipe))
-        | PPattern _, ACConstructorName value ->
-          ( match parsePattern value with
-          | None ->
-              DisplayError "not a pattern"
-          | Some p ->
-              let new_ = PPattern p in
+                let wrapped =
+                  match parent with
+                  | F (id_, FieldAccess (lhs, _)) ->
+                      B.newF
+                        (FieldAccess
+                           ( F (id_, FieldAccess (lhs, B.newF fieldname))
+                           , B.new_ () ))
+                  | _ ->
+                      recover ("should be a field", parent) parent
+                in
+                let new_ = PExpr wrapped in
+                let replacement = TL.replace (PExpr parent) new_ tl in
+                save replacement new_
+              else if move = StartThread
+              then
+                (* Starting a new thread from the field *)
+                let replacement =
+                  AST.replace pd (PField (B.newF fieldname)) ast
+                in
+                let newAst = AST.wrapInThread (B.toID parent) replacement in
+                saveAst newAst (PExpr parent)
+              else (* Changing a field *)
+                replace (PField (B.newF fieldname))
+          | PKey _, ACKey value, _ ->
+              let new_ = PKey (B.newF value) in
               getAstFromTopLevel tl
               |> AST.replace pd new_
-              |> AST.maybeExtendPatternAt new_
-              |. saveAst new_ )
-        | PTypeName _, ACTypeName value ->
-            if List.member ~value (UserTypes.allNames m.userTipes)
-            then DisplayError ("There is already a Type named " ^ value)
-            else
-              let newPD = PTypeName (B.newF value) in
-              let newTL = TL.replace pd newPD tl in
-              let old = TL.asUserTipe tl |> deOption "old userTipe" in
-              let new_ = TL.asUserTipe newTL |> deOption "new userTipe" in
-              let changedNames = Refactor.renameUserTipe m old new_ in
-              wrapNew (SetType new_ :: changedNames) newPD
-        | PTypeFieldName _, ACTypeFieldName value ->
-            replace (PTypeFieldName (B.newF value))
-        | PTypeFieldTipe _, ACTypeFieldTipe tipe ->
-            replace (PTypeFieldTipe (B.newF tipe))
-        | PGroupName _, ACGroupName name ->
-            replace (PGroupName (B.newF name))
-        | pd, item ->
-            DisplayAndReportError
-              ( "Invalid autocomplete option"
-              , None
-              , Some
-                  ( Types.show_pointerData pd
-                  ^ ", "
-                  ^ Types.show_autocompleteItem item ) ) )
+              |> AST.maybeExtendObjectLiteralAt new_
+              |> fun ast_ -> saveAst ast_ new_
+          | PExpr e, ACExpr _, _
+          | PExpr e, ACFunction _, _
+          | PExpr e, ACLiteral _, _
+          | PExpr e, ACKeyword _, _
+          | PExpr e, ACConstructorName _, _
+          | PExpr e, ACVariable _, _ ->
+              let ast = getAstFromTopLevel tl in
+              let newast, newexpr = replaceExpr m ast e move item in
+              saveAst newast (PExpr newexpr)
+          | PFFMsg _, ACFFMsg value, _ ->
+              replace (PFFMsg (B.newF value))
+          | PFnName _, ACFnName value, TLFunc old ->
+              if List.member ~value (Functions.allNames m.userFunctions)
+              then DisplayError ("There is already a Function named " ^ value)
+              else
+                let newPD = PFnName (B.newF value) in
+                let new_ =
+                  { old with
+                    ufMetadata = {old.ufMetadata with ufmName = B.newF value}
+                  }
+                in
+                let changedNames = Refactor.renameFunction m old new_ in
+                wrapNew (SetFunction new_ :: changedNames) newPD
+          | PConstructorName _, ACConstructorName value, _ ->
+              replace (PConstructorName (B.newF value))
+          | PParamName _, ACParamName value, _ ->
+              replace (PParamName (B.newF value))
+          | PParamTipe _, ACParamTipe tipe, _ ->
+              replace (PParamTipe (B.newF tipe))
+          | PPattern _, ACConstructorName value, _ ->
+            ( match parsePattern value with
+            | None ->
+                DisplayError "not a pattern"
+            | Some p ->
+                let new_ = PPattern p in
+                getAstFromTopLevel tl
+                |> AST.replace pd new_
+                |> AST.maybeExtendPatternAt new_
+                |. saveAst new_ )
+          | PTypeName _, ACTypeName value, TLTipe old ->
+              if List.member ~value (UserTypes.allNames m.userTipes)
+              then DisplayError ("There is already a Type named " ^ value)
+              else
+                let newPD = PTypeName (B.newF value) in
+                let new_ = UserTypes.replace pd newPD old in
+                let changedNames = Refactor.renameUserTipe m old new_ in
+                wrapNew (SetType new_ :: changedNames) newPD
+          | PTypeFieldName _, ACTypeFieldName value, _ ->
+              replace (PTypeFieldName (B.newF value))
+          | PTypeFieldTipe _, ACTypeFieldTipe tipe, _ ->
+              replace (PTypeFieldTipe (B.newF tipe))
+          | PGroupName _, ACGroupName name, _ ->
+              replace (PGroupName (B.newF name))
+          | pd, item, _ ->
+              DisplayAndReportError
+                ( "Invalid autocomplete option"
+                , None
+                , Some
+                    ( Types.show_pointerData pd
+                    ^ ", "
+                    ^ Types.show_autocompleteItem item ) ) ) )
+    | _ ->
+        recover "Missing tl/pd" NoChange )
 
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
@@ -848,7 +814,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
-        impossible "Shouldnt allow omniactions here"
+        recover "Shouldnt allow omniactions here" NoChange
     | Some item ->
         submitACItem m cursor item move
     | _ ->
