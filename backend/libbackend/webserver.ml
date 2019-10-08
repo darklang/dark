@@ -240,7 +240,16 @@ let infer_cors_header
     (origin : string option) (setting : Canvas.cors_setting option) :
     string option =
   match (origin, setting) with
-  (* if there's no explicit canvas setting, * is the default. *)
+  (* if there's no explicit canvas setting, allow common localhosts *)
+  | Some origin, None
+    when let default_origins =
+           [ "http://localhost:3000"
+           ; "http://localhost:5000"
+           ; "http://localhost:8000" ]
+         in
+         List.mem ~equal:( = ) default_origins origin ->
+      Some origin
+  (* if there's no explicit canvas setting and no default match, fall back to "*" *)
   | _, None ->
       Some "*"
   (* If there's a "*" in the setting, always use it.
