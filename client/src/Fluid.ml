@@ -4347,8 +4347,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m shiftKey
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
-  | FluidKeyPress {key; metaKey; ctrlKey} when key = K.Letter 'k' ->
-      KeyPress.openOmnibox m (metaKey || ctrlKey)
+  | FluidKeyPress {key; metaKey; ctrlKey}
+    when (metaKey || ctrlKey) && key = K.Letter 'k' ->
+      KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidKeyPress _
