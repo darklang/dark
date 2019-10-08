@@ -11,6 +11,8 @@ CLOUDSQL_INSTANCE_NAME="dark-west"
 
 DEPLOY_LOCK_BUCKET="gs://darklang-deploy-lock"
 
+SKIP_ROLLBAR="0"
+
 PREFIX=""
 
 # Doing this instead of ${CIRCLE_BUILD_URL-manual-deploy} because
@@ -32,6 +34,7 @@ Options:
   --cluster=...                 The name of the cluster to deploy to (default $DARK_CLUSTER).
   --configmap-file=...          The path of the env-file the cluster config map will be created from/updated to (default $DARK_CLUSTER_CONFIGMAP_FILE)
   --cloudsql-instance-name=...  The instance name of the CloudSQL DB backing this cluster (default $CLOUDSQL_INSTANCE_NAME)
+  --skip-rollbar=1              Skip sending a rollbar deploy message; for use when in a non-prod cluster, so as not to ping in #alerts
   --help                        Display this menu.
 EOF
 )"
@@ -74,6 +77,9 @@ do
       ;;
     --cloudsql-instance-name=*)
       CLOUDSQL_INSTANCE_NAME="${i/--cloudsql-instance-name=/''}"
+      ;;
+    --skip-rollbar=*)
+      SKIP_ROLLBAR="${i/--skip-rollbar=/''}"
       ;;
     --help)
       echo "$HELP"
@@ -243,13 +249,17 @@ kubectl apply -f scripts/support/kubernetes/postgres-honeytail-deployment.yaml
 #########################
 # Tell everyone else what's going on
 #########################
-curl -s https://api.rollbar.com/api/1/deploy/ \
-  -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
-  -F "environment=${ENVIRONMENT}" \
-  -F "revision=${GCR}/${SERVER_IMAGE_ID}" \
-  -F "comment=${CIRCLE_BUILD_URL}" \
-  -F "local_username=${LOCAL_USERNAME}" > /dev/null
-echo "Rollbar notified."
+if [[ "${SKIP_ROLLBAR}" = 1 ]]; then
+  echo "Skipping rollbar notification."
+else
+  curl -s https://api.rollbar.com/api/1/deploy/ \
+    -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
+    -F "environment=${ENVIRONMENT}" \
+    -F "revision=${GCR}/${SERVER_IMAGE_ID}" \
+    -F "comment=${CIRCLE_BUILD_URL}" \
+    -F "local_username=${LOCAL_USERNAME}" > /dev/null
+  echo "Rollbar notified."
+fi
 
 ####################
 # Unlock post-deploy
