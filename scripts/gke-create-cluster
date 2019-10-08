@@ -168,6 +168,27 @@ function print_step () {
   tput setab 6 && echo "=>" "$@" && tput sgr0
 }
 
+# validate DARK_CLUSTER_VERSION
+if ( ! grep "${DARK_CLUSTER_VERSION}" \
+      <(gcloud container get-server-config --region "${DARK_CLUSTER_REGION}" 2>/dev/null\
+        | sed -n '/validMasterVersions:/,/validNodeVersions:/p' \
+        | head -n-1 \
+        | tail -n +2 \
+        | sed 's/^- //'));
+then
+  echo "${DARK_CLUSTER_VERSION} is not currently supported in ${DARK_CLUSTER_REGION}."
+  echo "The prod cluster is currently running $(kubectl get nodes \
+    | grep -v VERSION \
+    | awk '{print $5}' \
+    | sed 's/^v//' \
+    | head -n 1), and currently-supported versions for new clusters are:"
+  gcloud container get-server-config --region "${DARK_CLUSTER_REGION}" 2>/dev/null \
+    | sed -n '/validMasterVersions:/,/validNodeVersions:/p' \
+    | head -n-1 \
+    | tail -n +2
+  exit 1;
+fi
+
 if [ ! -v WITH_NEW_DATABASE ]; then
   echo "--with-new-database is required"
   echo "$HELP"
