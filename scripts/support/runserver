@@ -10,9 +10,10 @@ CRON_EXE="$BINPATH/cron_checker.exe"
 
 # Stop the server (note that this makes the old exes into zombies.
 # Doesn't matter though, as this only runs in dev).
-(ps aux | pgrep server.exe | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep server.exe | xargs sudo kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep queue_worker.exe | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep cron_checker.exe | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep nginx | xargs sudo kill -9 > /dev/null 2>&1) || true
 
 ./scripts/support/wait-for-background-services dnsmasq postgresql
 
@@ -24,12 +25,28 @@ do
   fi
 done
 
+# symlink so nginx logs are visible on the host
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-access.log" ]]; then
+  sudo rm /var/log/nginx/access.log
+  touch /home/dark/app/rundir/logs/nginx-access.log
+  ln -s /home/dark/app/rundir/logs/nginx-access.log /var/log/nginx/access.log
+fi
+
+# symlink so nginx logs are visible on the host
+if [[ ! -f "/home/dark/app/rundir/logs/nginx-error.log" ]]; then
+  sudo rm /var/log/nginx/error.log
+  touch /home/dark/app/rundir/logs/nginx-error.log
+  ln -s /home/dark/app/rundir/logs/nginx-error.log /var/log/nginx/error.log
+fi
+
 if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
-  "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
+  sudo --preserve-env "${SERVER_EXE}" | tee "$LOGS/server.log" 2>&1 &
   "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
+
+  sudo nginx &
 else
   echo "Missing binaries"
   exit 1
