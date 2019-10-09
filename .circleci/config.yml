@@ -18,6 +18,7 @@ commands:
             docker cp . vols:/home/dark/app
             # set the ownership of all this
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+            docker run -i --volumes-from vols alpine sh -c "mkdir -p /home/dark/.esy"
 
   ##########################
   # Check the worktree
