@@ -219,6 +219,7 @@ jobs:
           command: |
             docker cp vols:/home/dark/app/backend/_build backend/
             docker cp vols:/home/dark/app/backend/_esy backend/
+            docker cp vols:/home/dark/.esy dotesy
             docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
       - save_cache:
@@ -228,7 +229,8 @@ jobs:
             - backend/_esy
             - backend/node_modules
             - backend/static
-          key: v9-backend-{{ checksum "rundir/today-timestamp" }}
+            - dotesy
+          key: v10-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
