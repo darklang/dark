@@ -1246,11 +1246,33 @@ let login_template = File.readfile ~root:Templates "login.html"
  * arrive at their destination.
  *)
 let handle_login_page ~execution_id req body =
-  if CRequest.meth req = `GET
+  if CRequest.meth req = `GET || CRequest.meth req = `HEAD
   then
-    (* In the future we should move this into the "outer" frontend app, but for
-     * now this is fine. *)
-    respond ~execution_id `OK login_template
+    (* To make local proxy to the ops-corpsite login page for testing purposes
+     * *)
+    let qp_prod_login =
+      let uri = req |> CRequest.uri in
+      match Uri.get_query_param uri "prodlogin" with
+      | None ->
+          false
+      | Some _ ->
+          true
+    in
+    if Config.env_display_name = "production" || qp_prod_login
+    then
+      (* This tells nginx to proxy-pass to the corpsite's /login via nginx'
+       * /user-login location - see
+       * scripts/support/nginx.conf. Note that it _only_ proxys /login
+       * exactly *)
+      let resp_headers =
+        Header.of_list
+          (* This tells nginx to serve up the uri in question. Doing if
+         * conditionals in nginx.conf is discouraged, which is why we're not
+         * doing it there *)
+          [("X-Accel-Redirect", "/user-login")]
+      in
+      respond ~resp_headers ~execution_id `OK ""
+    else respond ~execution_id `OK login_template
   else
     (* Responds to a form submitted from login.html *)
     let params = Uri.query_of_encoded body in
