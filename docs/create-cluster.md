@@ -32,6 +32,14 @@ You may also want to edit
 faster, and you likely won't have prod-level traffic.)
 
 
+Use
+=====
+If all has gone well, you now have a cluster ... on a different load balancer.
+Get the IP address (`kubectl get ingress`), and then use curl with `--resolve`
+to make certs DTRT: `curl --resolve darklang.com:443:ip https://darklang.com/`
+(hostname, obviously, may be other things depending what you are testing).
+
+
 Teardown
 ========
 When done, go to
