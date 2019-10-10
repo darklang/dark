@@ -48,7 +48,7 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
       let now = Time.now () in
       ( match parse_interval h with
       | None ->
-        (* We used to rollbar here, but that breaks other crons! Just log for
+          (* We used to rollbar here, but that breaks other crons! Just log for
          * now, later we'll validate on save or something *)
           Log.erroR
             "Can't parse interval: "
