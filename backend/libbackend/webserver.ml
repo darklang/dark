@@ -147,7 +147,7 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   | ["hellobirb"; "com"]
   | ["www"; "hellobirb"; "com"]
-  | ["www"; "talkpay"; "club" ] ->
+  | ["www"; "talkpay"; "club"] ->
       true
   | _ ->
       false
