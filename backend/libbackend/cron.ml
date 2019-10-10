@@ -68,7 +68,7 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
           (* How long was it between when we expected to run and when we
            * enqueued it to the events queue? (There may be further delay if the
            * events queue is backed up ... ) *)
-          Log.infO
+          Log.debuG
             "cron_delay"
             ~params:
               [ ( "interval"
@@ -92,10 +92,6 @@ let record_execution (canvas_id : Uuidm.t) (h : handler) : unit =
 
 
 let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
-  Log.infO
-    "cron_checker"
-    ~data:"Cron check starting"
-    ~params:[("execution_id", Types.string_of_id execution_id)] ;
   let current_endpoints =
     if String.Caseless.equal
          Libservice.Config.postgres_settings.dbname
@@ -110,6 +106,10 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
       Serialize.current_hosts ()
       |> List.filter ~f:(fun f -> not (Serialize.is_test f))
   in
+  let stat_canvases = List.length current_endpoints in
+  let stat_canvas_errors = ref 0 in
+  let stat_crons = ref 0 in
+  let stat_events = ref 0 in
   try
     current_endpoints
     |> List.filter_map ~f:(fun endp ->
@@ -120,6 +120,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              | Ok c ->
                  Some (endp, c)
              | Error errs ->
+                 incr stat_canvas_errors ;
                  Log.erroR
                    "cron_checker"
                    ~data:"Canvas verification error"
@@ -130,6 +131,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                  None
            with e ->
              let bt = Exception.get_backtrace () in
+             incr stat_canvas_errors ;
              Log.erroR
                "cron_checker"
                ~data:"Deserialization error"
@@ -148,13 +150,15 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              |> List.filter ~f:Handler.is_complete
              |> List.filter ~f:Handler.is_cron
            in
-           Log.infO
+           let cron_count = List.length crons in
+           stat_crons := !stat_crons + cron_count ;
+           Log.debuG
              "cron_checker"
              ~data:"checking canvas"
              ~params:
                [ ("execution_id", Types.string_of_id execution_id)
                ; ("host", endp) ]
-             ~jsonparams:[("number_of_crons", `Int (List.length crons))] ;
+             ~jsonparams:[("number_of_crons", `Int cron_count)] ;
            List.iter
              ~f:(fun cr ->
                if should_execute !c.id cr
@@ -173,7 +177,8 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                        modifier
                        DNull ;
                      record_execution !c.id cr ;
-                     Log.infO
+                     incr stat_events ;
+                     Log.debuG
                        "cron_checker"
                        ~data:"enqueued event"
                        ~params:
@@ -183,6 +188,17 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          ; ("event_name", name)
                          ; ("cron_freq", modifier) ] ) )
              crons )
+    |> (fun x ->
+         Log.infO
+           "cron_checker"
+           ~data:"checked"
+           ~params:[("execution_id", Types.string_of_id execution_id)]
+           ~jsonparams:
+             [ ("canvas.checked", `Int stat_canvases)
+             ; ("canvas.errors", `Int !stat_canvas_errors)
+             ; ("cron.checked", `Int !stat_crons)
+             ; ("cron.queued", `Int !stat_events) ] ;
+         x )
     |> Ok
   with e ->
     let bt = Exception.get_backtrace () in
