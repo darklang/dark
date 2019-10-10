@@ -48,10 +48,15 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
       let now = Time.now () in
       ( match parse_interval h with
       | None ->
-          Exception.internal
-            ( "Can't parse interval: "
-            ^ ( Handler.modifier_for h
-              |> Option.value ~default:"<empty modifier>" ) )
+        (* We used to rollbar here, but that breaks other crons! Just log for
+         * now, later we'll validate on save or something *)
+          Log.erroR
+            "Can't parse interval: "
+            ~params:
+              [ ( "modifier"
+                , Handler.modifier_for h
+                  |> Option.value ~default:"<empty modifier>" ) ] ;
+          false
       | Some interval ->
           (* Example:
        * last_ran_at = 16:00
