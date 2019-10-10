@@ -71,6 +71,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   then undo_redo m event.shiftKey
   else if osCmdKeyHeld && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
+  else if osCmdKeyHeld && event.keyCode = Key.S
+  then ShowSaveToast
   else
     match m.cursorState with
     | Selecting (tlid, mId) ->
