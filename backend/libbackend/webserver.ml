@@ -147,6 +147,7 @@ let should_use_https uri =
   | [_; "builtwithdark"; "com"]
   | ["hellobirb"; "com"]
   | ["www"; "hellobirb"; "com"]
+  | ["talkpay"; "club"]
   | ["www"; "talkpay"; "club"] ->
       true
   | _ ->
@@ -1671,7 +1672,7 @@ let route_host req =
       Some (Canvas ("dabblefox-" ^ a))
   | ["www"; "hellobirb"; "com"] | ["hellobirb"; "com"] ->
       Some (Canvas "pixelkeet")
-  | ["www"; "talkpay"; "club"] ->
+  | ["www"; "talkpay"; "club"] | ["talkpay"; "club"] ->
       Some (Canvas "andymoe-talkpay")
   (* admin interface + outer site, conditionally *)
   | ["darklang"; "com"] | ["darklang"; "localhost"] | ["dark_dev"; "com"] ->
