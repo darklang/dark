@@ -60,6 +60,7 @@ else
   MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
+  MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
 
   if [[ -e "$HOME/.config/gcloud" ]]; then
     MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
@@ -68,7 +69,6 @@ else
   touch "$HOME/.dark_bash_history"
   MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
 fi
-MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo"
 
 # --------------
 # fswatch

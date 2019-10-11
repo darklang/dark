@@ -175,19 +175,19 @@ jobs:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp dark_rust_cargo:/usr/local/cargo cargo
+            docker cp vols:/usr/local/cargo cargo
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           paths:
             - stroller/target
             - cargo
-          key: v10-stroller-{{ checksum "stroller/Cargo.lock" }}
+          key: v11-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           paths:
             - stroller/target
             - cargo
-          key: v10-stroller-{{ checksum "rundir/today-timestamp" }}
+          key: v11-stroller-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
