@@ -431,10 +431,20 @@ let view (m : model) : msg Html.html =
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
+  let viewDocs =
+    [ Html.a
+        [ Html.class' "doc-container"
+        ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
+        ; Html.target "_blank"
+        ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ -> IgnoreMsg)
+        ]
+        [fontAwesome "book"; Html.text "Docs"] ]
+  in
   let content =
     ViewTopbar.html m
     @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
     @ fluidStatus
     @ footer
+    @ viewDocs
   in
   Html.div attributes content
