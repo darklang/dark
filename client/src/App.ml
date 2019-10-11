@@ -897,7 +897,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* This shows the user that they dont need to hit cmd + s to save. *)
         ( { m with
             toast =
-              {toastMessage = Some "Dark automatically saves!"; toastPos = None}
+              {toastMessage = Some "Dark saves automatically!"; toastPos = None}
           }
         , Cmd.none )
     | SetCursor (tlid, cur) ->

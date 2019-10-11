@@ -39,7 +39,8 @@ function stopKeys(event) {
     if (document.activeElement.tagName.toLowerCase() !== "textarea")
       event.preventDefault();
   }
-  if (event.metaKey && event.keyCode === 83) {
+  // Cmd/Ctrl + S (keyCode: 83)
+  if ((event.ctrlKey || event.metaKey) && event.keyCode === 83) {
     event.preventDefault();
   }
 
