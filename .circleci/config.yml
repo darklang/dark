@@ -17,7 +17,20 @@ commands:
             docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
             # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+      - set-ownership:
+          path: "/home/dark/app"
+
+  set-ownership:
+    parameters:
+      path:
+        type: string
+    steps:
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Set the ownership of copied files
+          command: |
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark << parameters.path >>"
+
 
   ##########################
   # Check the worktree
@@ -90,6 +103,11 @@ commands:
           > /root/docker-env
 
       - run:
+          name: Prepare dev-container volume (vols)
+          command: |
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+
+      - run:
           name: Install outer container utilities
           # coreutils for gnu date
           command: |
@@ -159,12 +177,15 @@ jobs:
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - run:
+          # Everything else (including stroller/target) is copied in via
+          # copy-into-container, but it doesn't include this because it's not
+          # in /home/dark/app.
           name: Set up volume for cargo
           command: |
-            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-            docker cp cargo dark_rust_cargo:/usr/local/cargo
-            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-            rm -Rf cargo
+            docker cp cargo vols:/usr/local/cargo
+            rm -Rf cargo # don't copy it a second time
+      - set-ownership:
+          path: "/usr/local/cargo"
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run-background-container
