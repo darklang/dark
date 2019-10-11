@@ -304,6 +304,9 @@ RUN sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx
 RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
 RUN sudo chown -R dark:dark /var/log/nginx
 
+RUN sudo apt install -y bash-completion \
+    && sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+
 ############################
 # Finish
 ############################
