@@ -176,13 +176,15 @@ jobs:
             - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
+      - run: pwd
+      - run: ls -la 
+      - run: find cargo
       - run:
           # Everything else (including stroller/target) is copied in via
           # copy-into-container, but it doesn't include this because it's not
           # in /home/dark/app.
           name: Set up volume for cargo
           command: |
-            mkdir -p cargo
             docker cp cargo vols:/usr/local/cargo
             rm -Rf cargo # don't copy it a second time
       - set-ownership:
