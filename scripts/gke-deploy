@@ -195,7 +195,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
-CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
+CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)';"
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
@@ -247,7 +247,7 @@ curl -s https://api.rollbar.com/api/1/deploy/ \
   -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
   -F "environment=${ENVIRONMENT}" \
   -F "revision=${GCR}/${SERVER_IMAGE_ID}" \
-  -F "comment=${CIRCLE_BUILD_URL}" \
+  -F "comment='${CIRCLE_BUILD_URL} ; $(git rev-parse --short HEAD)'" \
   -F "local_username=${LOCAL_USERNAME}" > /dev/null
 echo "Rollbar notified."
 
