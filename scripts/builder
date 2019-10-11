@@ -54,8 +54,8 @@ else
 
   # Avoid docker syncing everything to the host, slowing compiles down by 5x
   MOUNTS+=" --mount type=volume,src=dark_backend_build,dst=/home/dark/app/backend/_build"
-  MOUNTS+=" --mount type=volume,src=dark_backend_esy,dst=/home/dark/app/backend/_esy"
   MOUNTS+=" --mount type=volume,src=dark_backend_node_modules,dst=/home/dark/app/backend/node_modules"
+  MOUNTS+=" --mount type=volume,src=dark_backend_esy,dst=/home/dark/app/backend/_esy"
   MOUNTS+=" --mount type=volume,src=dark_backend_dotesy,dst=/home/dark/.esy"
   MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
