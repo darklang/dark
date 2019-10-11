@@ -928,6 +928,7 @@ and modification =
   | AddToGroup of tlid * tlid
   | UndoGroupDelete of tlid * group
   | MoveMemberToNewGroup of tlid * tlid * model
+  | ShowSaveToast
 
 (* ------------------- *)
 (* Msgs *)

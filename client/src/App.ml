@@ -893,6 +893,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
         let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
         (newMod, newCmd)
+    | ShowSaveToast ->
+        (* This shows the user that they dont need to hit cmd + s to save. *)
+        ( { m with
+            toast =
+              {toastMessage = Some "Dark saves automatically!"; toastPos = None}
+          }
+        , Cmd.none )
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
