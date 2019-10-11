@@ -14,9 +14,7 @@ commands:
       - run:
           name: Copy app directory into dev container
           command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
-            # set the ownership of all this
       - set-ownership:
           path: "/home/dark/app"
 
@@ -105,7 +103,9 @@ commands:
       - run:
           name: Prepare dev-container volume (vols)
           command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
+            # We list all the directories because volume creation has to be
+            # done on creation afaict.
+            docker create -v /home/dark/app -v /home/dark/.esy -v /usr/local/cargo --name vols alpine:3.4 /bin/true
 
       - run:
           name: Install outer container utilities
