@@ -39,7 +39,7 @@ let parse_interval (h : handler) : Time.Span.t option =
       None
 
 
-let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
+let should_execute (canvas_id : Uuidm.t) (h : handler) execution_id : bool =
   let open Option in
   match last_ran_at canvas_id h with
   | None ->
@@ -48,10 +48,29 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) : bool =
       let now = Time.now () in
       ( match parse_interval h with
       | None ->
-          Exception.internal
-            ( "Can't parse interval: "
-            ^ ( Handler.modifier_for h
-              |> Option.value ~default:"<empty modifier>" ) )
+          let bt = Caml.Printexc.get_raw_backtrace () in
+          (* We used to rollbar here, but that breaks other crons! Just log for
+         * now, later we'll validate on save or something *)
+          Log.erroR
+            "Can't parse interval: "
+            ~params:
+              [ ( "modifier"
+                , Handler.modifier_for h
+                  |> Option.value ~default:"<empty modifier>" ) ] ;
+          let e =
+            Exception.make_exception
+              DarkInternal
+              ( "Can't parsse interval: "
+              ^ ( Handler.modifier_for h
+                |> Option.value ~default:"<empty modifier>" ) )
+          in
+          ignore
+            (Rollbar.report
+               e
+               bt
+               Libservice.Rollbar.CronChecker
+               (execution_id |> Types.string_of_id)) ;
+          false
       | Some interval ->
           (* Example:
        * last_ran_at = 16:00
@@ -157,7 +176,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~jsonparams:[("number_of_crons", `Int (List.length crons))] ;
            List.iter
              ~f:(fun cr ->
-               if should_execute !c.id cr
+               if should_execute !c.id cr execution_id
                then
                  let space = Handler.module_for_exn cr in
                  let name = Handler.event_name_for_exn cr in
