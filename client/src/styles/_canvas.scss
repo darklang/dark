@@ -104,6 +104,8 @@ html {
 body {
   @extend .default;
   height: 100%;
+  // Adding this in hopes of fixing the chrome scroll back bug
+  overscroll-behavior-x: none;
 }
 
 #app {
