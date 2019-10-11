@@ -169,11 +169,11 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v10-stroller-{{ checksum "rundir/today-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus1-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus2-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus3-timestamp" }}
+            - v11-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v11-stroller-{{ checksum "rundir/today-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus1-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus2-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo" }
       - run:
