@@ -202,4 +202,13 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
     |> Ok
   with e ->
     let bt = Exception.get_backtrace () in
+    Log.infO
+      "cron_checker"
+      ~data:"errored"
+      ~params:[("execution_id", Types.string_of_id execution_id)]
+      ~jsonparams:
+        [ ("canvas.checked", `Int stat_canvases)
+        ; ("canvas.errors", `Int !stat_canvas_errors)
+        ; ("cron.checked", `Int !stat_crons)
+        ; ("cron.queued", `Int !stat_events) ] ;
     Error (bt, e)
