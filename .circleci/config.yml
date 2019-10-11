@@ -228,8 +228,18 @@ jobs:
             - v10-backend-{{ checksum "rundir/minus2-timestamp" }}
             - v10-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
+      - clean-caches: { path: "dotesy" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
+      - run:
+          # Everything else is copied in via copy-into-container, but it
+          # doesn't include this because it's not in /home/dark/app.
+          name: Set up volume for dotesy
+          command: |
+            docker cp dotesy vols:/home/dark/.esy
+            rm -Rf dotesy # don't copy it a second time
+      - set-ownership:
+          path: "/home/dark/.esy"
       - copy-into-container
       - run: scripts/builder --compile-backend --test
     # - run-background-container
@@ -243,6 +253,7 @@ jobs:
             docker cp vols:/home/dark/app/backend/_esy backend/
             docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
+            docker cp vols:/home/dark/.esy dotesy
       - save_cache:
           name: "Save daily backend cache"
           paths:
@@ -250,7 +261,8 @@ jobs:
             - backend/_esy
             - backend/node_modules
             - backend/static
-          key: v9-backend-{{ checksum "rundir/today-timestamp" }}
+            - dotesy
+          key: v10-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
