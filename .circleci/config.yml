@@ -182,6 +182,7 @@ jobs:
           # in /home/dark/app.
           name: Set up volume for cargo
           command: |
+            mkdir -p cargo
             docker cp cargo vols:/usr/local/cargo
             rm -Rf cargo # don't copy it a second time
       - set-ownership:
@@ -236,6 +237,7 @@ jobs:
           # doesn't include this because it's not in /home/dark/app.
           name: Set up volume for dotesy
           command: |
+            mkdir -p dotesy
             docker cp dotesy vols:/home/dark/.esy
             rm -Rf dotesy # don't copy it a second time
       - set-ownership:
