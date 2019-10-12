@@ -236,7 +236,7 @@ jobs:
           name: Set up volume for dotesy
           command: |
             mkdir -p dotesy
-            docker cp dotesy vols:/home/dark/.esy
+            docker cp dotesy/. vols:/home/dark/.esy
             rm -Rf dotesy # don't copy it a second time
       - set-ownership:
           path: "/home/dark/.esy"
