@@ -137,7 +137,6 @@ echo "Run the build"
 $FSWATCH | docker run \
              --rm \
              -i \
-             $MOUNTS \
              --privileged \
              --dns 127.0.0.1 \
              --dns 8.8.8.8 \
@@ -158,5 +157,6 @@ $FSWATCH | docker run \
              -p 8000:8000 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
+             $MOUNTS \
              dark \
              scripts/support/build-server "${@}"
