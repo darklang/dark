@@ -313,6 +313,9 @@ RUN sudo chown -R dark:dark /var/log/nginx
 RUN sudo apt install -y bash-completion \
     && sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
 
+# Esy packages need makeinfo
+RUN sudo apt update && sudo apt install -y texinfo
+
 ############################
 # Finish
 ############################
