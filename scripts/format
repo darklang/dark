@@ -93,6 +93,7 @@ all_prettier_files() {
     -o -path "./backend/node_modules" -prune \
     -o -path "backend/_esy" -prune \
     -o -path "./backend/_esy" -prune \
+    -o -path "/home/dark/.esy" -prune \
     -o -path "client/lib" -prune \
     -o -path "./client/lib" -prune 
 }
@@ -110,6 +111,7 @@ all_ocaml_files() {
     -o -path "./backend/node_modules" -prune \
     -o -path "backend/_esy" -prune \
     -o -path "./backend/_esy" -prune \
+    -o -path "/home/dark/.esy" -prune \
     -o -path "backend/esy.lock" -prune \
     -o -path "./backend/esy.lock" -prune 
 }
