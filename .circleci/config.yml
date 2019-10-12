@@ -241,6 +241,7 @@ jobs:
       - set-ownership:
           path: "/home/dark/.esy"
       - copy-into-container
+      - run: docker run -i --volumes-from vols alpine sh -c "find /home/dark/.esy; du --si --max-depth=2 /home/dark/.esy"
       - run: scripts/builder --compile-backend --test
       - run-background-container
       - wait-for-container
