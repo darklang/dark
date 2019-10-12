@@ -32,13 +32,12 @@ commands:
 
   ##########################
   # Check the worktree
-  # PAUL -> remove "rm -rf dotesy"
   ##########################
   assert-clean-worktree:
     steps:
       - run:
           name: Assert the worktree is clean
-          command: "bash -c 'rm -rf dotesy; [[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
+          command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
 
   ##########################
   # Artifacts
