@@ -273,6 +273,12 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
+# At this point, we've installed rust binaries in
+# /usr/local/cargo/bin and added them to the PATH. CARGO_HOME is the
+# place where cargo installs a lot of caches and so we want to put
+# those in a volume, so we make CARGO_HOME a different directory
+ENV CARGO_HOME=/usr/local/cargo-home
+
 
 ########################
 # DNS for integration tests
