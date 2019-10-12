@@ -105,7 +105,7 @@ commands:
           command: |
             # We list all the directories because volume creation has to be
             # done on creation afaict.
-            docker create -v /home/dark/app -v /home/dark/.esy -v /usr/local/cargo --name vols alpine:3.4 /bin/true
+            docker create -v /home/dark/app -v /home/dark/.esy -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
 
       - run:
           name: Install outer container utilities
@@ -175,20 +175,20 @@ jobs:
             - v11-stroller-{{ checksum "rundir/minus2-timestamp" }}
             - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
-      - clean-caches: { path: "cargo" }
+      - clean-caches: { path: "cargo-home" }
       - run: pwd
       - run: ls -la 
-      - run: find cargo
+      - run: find cargo-home
       - run:
           # Everything else (including stroller/target) is copied in via
           # copy-into-container, but it doesn't include this because it's not
           # in /home/dark/app.
           name: Set up volume for cargo
           command: |
-            docker cp cargo vols:/usr/local/cargo
-            rm -Rf cargo # don't copy it a second time
+            docker cp cargo-home vols:/usr/local/cargo-home
+            rm -Rf cargo-home # don't copy it a second time
       - set-ownership:
-          path: "/usr/local/cargo"
+          path: "/usr/local/cargo-home"
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run-background-container
@@ -199,18 +199,18 @@ jobs:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp vols:/usr/local/cargo cargo
+            docker cp vols:/usr/local/cargo-home cargo-home
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           paths:
             - stroller/target
-            - cargo
+            - cargo-home
           key: v11-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           paths:
             - stroller/target
-            - cargo
+            - cargo-home
           key: v11-stroller-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
