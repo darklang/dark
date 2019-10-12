@@ -175,9 +175,6 @@ jobs:
             - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
       - clean-caches: { path: "cargo-home" }
-      - run: pwd
-      - run: ls -la 
-      - run: find cargo-home
       - run:
           # Everything else (including stroller/target) is copied in via
           # copy-into-container, but it doesn't include this because it's not
