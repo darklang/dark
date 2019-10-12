@@ -228,7 +228,6 @@ jobs:
             - v11-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       - clean-caches: { path: "dotesy" }
-      - run: "find dotesy; du -h -d 2 dotesy"
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - run:
@@ -242,7 +241,6 @@ jobs:
       - set-ownership:
           path: "/home/dark/.esy"
       - copy-into-container
-      - run: docker run -i --volumes-from vols alpine sh -c "find /home/dark/.esy; du -h -d 2 /home/dark/.esy"
       - run: scripts/builder --compile-backend --test
       - run-background-container
       - wait-for-container
@@ -259,7 +257,6 @@ jobs:
             docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
             docker cp vols:/home/dark/.esy dotesy
-      - run: find dotesy; du --si --max-depth=2 dotesy"
       - save_cache:
           name: "Save daily backend cache"
           paths:
