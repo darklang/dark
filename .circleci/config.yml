@@ -245,9 +245,8 @@ jobs:
           path: "/home/dark/.esy"
       - copy-into-container
       - run: scripts/builder --compile-backend --test
-    # - run-background-container
-    # - wait-for-container
-    # - run: scripts/gcp-build-containers --skip-stroller
+      - run-background-container
+      - wait-for-container
       - assert-clean-worktree
       - run:
           name: Reduce size of esy cache
