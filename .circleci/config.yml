@@ -225,10 +225,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v10-backend-{{ checksum "rundir/today-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v11-backend-{{ checksum "rundir/today-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       - clean-caches: { path: "dotesy" }
       # appsupport is needed for a unit test
@@ -250,6 +250,10 @@ jobs:
     # - run: scripts/gcp-build-containers --skip-stroller
       - assert-clean-worktree
       - run:
+          name: Reduce size of esy cache
+          command: |
+            ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
+      - run:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/backend/_build backend/
@@ -265,7 +269,7 @@ jobs:
             - backend/node_modules
             - backend/static
             - dotesy
-          key: v10-backend-{{ checksum "rundir/today-timestamp" }}
+          key: v11-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
