@@ -7,7 +7,7 @@
 - [ ] Intended followups are trelloed.
   - [ ] No followups
 - [ ] Reversion plan exists
-  - [ ] Unnecessary
+  - [ ] Standard git revert is fine
 - [ ] Tests are included (required for regressions)
   - [ ] The type system will catch it
 - [ ] Specs (docs/trello) are linked in code 
