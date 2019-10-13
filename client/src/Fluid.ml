@@ -4352,7 +4352,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsClick _
   | FluidMouseClick _
   | FluidAutocompleteClick _
-  | UpdateFluidSelection _ ->
+  | FluidUpdateSelection _ ->
       let tlid =
         match msg with
         | FluidMouseClick tlid ->
@@ -4651,18 +4651,18 @@ let toHtml
                     ( match ev with
                     | {detail = 2; altKey = true} ->
                         FluidMsg
-                          (UpdateFluidSelection
+                          (FluidUpdateSelection
                              (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
                         FluidMsg
-                          (UpdateFluidSelection
+                          (FluidUpdateSelection
                              (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
-                        FluidMsg (UpdateFluidSelection (tlid, None)) )
+                        FluidMsg (FluidUpdateSelection (tlid, None)) )
                 | None ->
                     (* We expect that this doesn't happen *)
-                    FluidMsg (UpdateFluidSelection (tlid, None)) )
+                    FluidMsg (FluidUpdateSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"
@@ -4670,8 +4670,8 @@ let toHtml
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then FluidMsg (UpdateFluidSelection (tlid, Some range))
-                    else FluidMsg (UpdateFluidSelection (tlid, None))
+                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
+                    else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
