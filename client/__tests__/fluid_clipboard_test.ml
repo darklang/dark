@@ -18,7 +18,7 @@ let clipboardEvent () =
              let _ = contentType in
              (* avoid warning *)
              [%bs.raw
-               "this.hiddenContent ? this.hiddenContent[contentType] : null"]
+               "this.hiddenContent ? (this.hiddenContent[contentType] ? this.hiddenContent[contentType] : \"\") : \"\""]
 
            method setData (contentType : string) (data : string) =
              let _ = data in
