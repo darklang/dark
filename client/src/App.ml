@@ -171,65 +171,32 @@ let processFocus (m : model) (focus : focus) : modification =
     | _ ->
         NoChange )
   | FocusPageAndCursor (page, cs) ->
-      let setCS = SetCursorState cs in
-      let noTarget = ACSetTarget None in
-      let target tuple = ACSetTarget (Some tuple) in
-      let tlOnPage tl =
-        match tl with
-        | TLHandler _ ->
-            true
-        | TLDB _ ->
-            true
-        | TLGroup _ ->
-            true
-        | TLFunc _ ->
-            false
-        | TLTipe _ ->
-            false
+      let useCS = Page.tlidOf page = tlidOf cs in
+      let tlid, mID =
+        (* If they don't match, the URL wins *)
+        if useCS then (tlidOf cs, idOf cs) else (Page.tlidOf page, None)
       in
-      let setQuery =
-        let mTl = cs |> tlidOf |> Option.andThen ~f:(TL.get m) in
-        match (mTl, idOf cs) with
-        | Some tl, Some id when TL.isValidID tl id ->
-            let pd = TL.find tl id in
+      let mTl = Option.andThen tlid ~f:(TL.get m) in
+      let pd = Option.map2 mTl mID ~f:(fun tl id -> TL.find tl id) in
+      ( match (mTl, pd) with
+      | Some tl, Some (Some pd) when TL.isValidID tl (P.toID pd) ->
+          let query =
             AutocompleteMod
-              (ACSetQuery
-                 ( pd
-                 |> Option.andThen ~f:P.toContent
-                 |> Option.withDefault ~default:"" ))
-        | _ ->
-            NoChange
-      in
-      let nextCursor, acTarget =
-        match cs with
-        | Selecting (tlid, mId) ->
-          ( match (TL.get m tlid, Option.andThen mId ~f:(TL.getPD m tlid)) with
-          | Some tl, Some pd ->
-              if tlOnPage tl
-              then (setCS, target (tlid, pd))
-              else (Deselect, noTarget)
-          | Some _, None ->
-              (setCS, noTarget)
-          | _ ->
-              (Deselect, noTarget) )
-        | Entering (Filling (tlid, id)) ->
-          ( match TL.getTLAndPD m tlid id with
-          | Some (tl, Some pd) ->
-              if TL.isValidID tl id && tlOnPage tl
-              then (setCS, target (tlid, pd))
-              else (Deselect, noTarget)
-          | _ ->
-              (Deselect, noTarget) )
-        | Dragging (tlid, _, _, _) ->
-          ( match TL.get m tlid with
-          | Some tl ->
-              if tlOnPage tl then (setCS, noTarget) else (Deselect, noTarget)
-          | _ ->
-              (Deselect, noTarget) )
-        | _ ->
-            (Deselect, noTarget)
-      in
-      Many [SetPage page; nextCursor; AutocompleteMod acTarget; setQuery]
+              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
+          in
+          Many
+            [ SetPage page
+            ; SetCursorState cs
+            ; AutocompleteMod (ACSetTarget (Some (TL.id tl, pd)))
+            ; query ]
+      | Some _, Some None | Some _, None ->
+          Many
+            [ SetPage page
+            ; SetCursorState cs
+            ; AutocompleteMod (ACSetTarget None)
+            ; AutocompleteMod (ACSetQuery "") ]
+      | _, _ ->
+          NoChange )
   | FocusNothing ->
       Deselect
   (* used instead of focussame when we've already done the focus *)
