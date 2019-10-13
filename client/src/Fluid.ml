@@ -198,8 +198,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
       | `Float (whole, fraction) ->
           EFloat (id, whole, fraction)
       | `Unknown ->
-          Js.log2 "Getting old Value that we coudln't parse" expr ;
-          EOldExpr expr )
+          recover "Getting old Value that we coudln't parse" (EOldExpr expr) )
     | Constructor (name, exprs) ->
         EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
