@@ -4923,3 +4923,26 @@ let renderCallback (m : model) =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
+
+
+(* Some things aren't in non-fluid, and if you switch from one to the other you'll be in trouble. Just allow them to be removed. *)
+
+let stripConstructs (ast : expr) : expr =
+  let rec f e =
+    match e with
+    | F (_, FluidPartial (_, oldExpr)) ->
+        f oldExpr
+    | F (_, FluidRightPartial (_, oldExpr)) ->
+        f oldExpr
+    | _ ->
+        AST.traverse f e
+  in
+  f ast
+
+
+let stripFunctionConstructs (ufs : userFunction list) : userFunction list =
+  List.map ufs ~f:(fun uf -> {uf with ufAST = stripConstructs uf.ufAST})
+
+
+let stripHandlerConstructs (hs : handler list) : handler list =
+  List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})
