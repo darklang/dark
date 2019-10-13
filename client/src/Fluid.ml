@@ -4036,6 +4036,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
         | PExpr expr ->
             Some (fromExpr state expr)
         | _ ->
+            (* We could support more but don't yet *)
             Js.log "not a pexpr" ;
             None
       with _ ->
