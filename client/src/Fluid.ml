@@ -4023,7 +4023,11 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
 
 
 let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
-  `Json (Encoders.pointerData (PExpr (toExpr ast)))
+  match ast with
+  | EString (_, str) ->
+      `Text str
+  | _ ->
+      `Json (Encoders.pointerData (PExpr (toExpr ast)))
 
 
 let clipboardContentsToExpr ~state (data : clipboardContents) :
