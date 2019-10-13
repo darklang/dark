@@ -1817,10 +1817,10 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let clipboardData =
         if VariantTesting.isFluid m.tests
-        then Fluid.copyFromModel m
+        then Fluid.getCopySelection m
         else Clipboard.copy m
       in
-      Many [toast; SetClipboardContents (clipboardData, e)]
+      Many [SetClipboardContents (clipboardData, e); toast]
   | ClipboardPasteEvent e ->
       let data = Clipboard.getData e in
       if VariantTesting.isFluid m.tests
@@ -1834,7 +1834,7 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let copyData, mod_ =
         if VariantTesting.isFluid m.tests
-        then (Fluid.copyFromModel m, Fluid.update m FluidCut)
+        then (Fluid.getCopySelection m, Fluid.update m FluidCut)
         else Clipboard.cut m
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
