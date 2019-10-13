@@ -1,10 +1,10 @@
 - [ ] Trello link included
-- [ ] Discussed goals, problem and solution.
+- [ ] Discussed goals, problem and solution
 - [ ] Information from this description is also in comments
   - [ ] No useful information
 - [ ] Before/after screenshots are included
   - [ ] Screenshots aren't useful
-- [ ] Intended followups are trelloed.
+- [ ] Intended followups are trelloed
   - [ ] No followups
 - [ ] Reversion plan exists
   - [ ] Standard git revert is fine
@@ -22,9 +22,9 @@ Reviewer checklist:
   - [ ] Existing stdlib and language semantics are unchanged.
   - [ ] Existing granduser HTTP responses are unchanged.
   - [ ] All existing canvases should continue to work.
-  - [ ] New features are documented in the User Manual or Trello filed.
+  - [ ] New features are documented in the User Manual (or Trellos are filed).
 - Engineering:
-  - [ ] Tests are included or unnecessary (required for regressions).
+  - [ ] Tests are included (required for regressions) or unnecessary.
   - [ ] Functions and variables are well-named and self-documenting.
   - [ ] Comments have been added for all explanations in PR review comment.
   - [ ] Serialization format changes look good and have been double-checked and tested against local prodclone.
