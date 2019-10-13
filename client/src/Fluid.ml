@@ -4049,7 +4049,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
-let pasteSelection ~state ~ast data : ast * fluidState =
+let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
@@ -4260,7 +4260,7 @@ let fluidDataFromModel m : (fluidState * fluidExpr) option =
       None
 
 
-let copyFromModel (m : model) : clipboardContents =
+let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
       fluidGetOptionalSelectionRange state
@@ -4289,7 +4289,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
         let ast, state = deleteSelection ~state:s ~ast in
-        let ast, state = pasteSelection ~state ~ast data in
+        let ast, state = pasteOverSelection ~state ~ast data in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
