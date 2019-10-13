@@ -34,6 +34,8 @@ module Token = FluidToken
 (* Utils *)
 (* -------------------- *)
 
+let newB () = EBlank (gid ())
+
 let removeCharAt str offset : string =
   if offset < 0
   then str
@@ -79,10 +81,6 @@ let coerceStringTo63BitInt (s : string) : string =
 
 (* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
 let is63BitInt (s : string) : bool = Result.isOk (truncateStringTo63BitInt s)
-
-exception FExc of string
-
-let fail str = raise (FExc str)
 
 (* -------------------- *)
 (* Expressions *)
@@ -179,7 +177,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
       | head :: tail ->
           EThread (id, f head :: List.map ~f:(fromExpr s ~inThread:true) tail)
       | _ ->
-          fail "empty thread" )
+          recover "empty thread" (newB ()) )
     | Lambda (varnames, exprs) ->
         ELambda
           ( id
@@ -302,14 +300,14 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EFnCall (id, name, args, ster) ->
     ( match args with
     | EThreadTarget _ :: _ when not inThread ->
-        fail "fn has a thread target but no thread"
+        recover "fn has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ :: args when inThread ->
         F
           ( id
           , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
           )
     | _nonThreadTarget :: _ when inThread ->
-        fail "fn has a thread but no thread target"
+        recover "fn has a thread but no thread target" (Blank.new_ ())
     | args ->
         F
           ( id
@@ -318,11 +316,11 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EBinOp (id, name, arg1, arg2, ster) ->
     ( match arg1 with
     | EThreadTarget _ when not inThread ->
-        fail "op has a thread target but no thread"
+        recover "op has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ when inThread ->
         F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
     | _nonThreadTarget when inThread ->
-        fail "op has a thread but no thread target"
+        recover "op has a thread but no thread target" (Blank.new_ ())
     | _ ->
         F
           ( id
@@ -366,7 +364,7 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
       F (id, Match (toExpr mexpr, pairs))
   | EThreadTarget _ ->
-      fail "Cant convert threadtargets back to exprs"
+      recover "Cant convert threadtargets back to exprs" (Blank.new_ ())
   | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
       F
         ( id
@@ -434,8 +432,6 @@ let pmid pattern : id =
   | FPOldPattern (mid, _) ->
       mid
 
-
-let newB () = EBlank (gid ())
 
 (* -------------------- *)
 (* Tokens *)
@@ -714,7 +710,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
         @ tailNewline )
   | EThreadTarget _ ->
-      fail "should never be making tokens for EThreadTarget"
+      recover "should never be making tokens for EThreadTarget" []
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
@@ -1034,7 +1030,7 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
       | None, None ->
           posFor ~row ~col:0 tokens
       | _, _ ->
-          fail "adjustedPosFor" )
+          recover "unexpected adjustedPosFor" 0 )
 
 
 (* ------------- *)
@@ -1380,7 +1376,7 @@ let moveBackTo (target : id) (ast : ast) (s : state) : state =
         FluidToken.tid ti.token = target )
   with
   | None ->
-      fail "cannot find token to moveBackTo"
+      recover "cannot find token to moveBackTo" s
   | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
@@ -1555,7 +1551,7 @@ let replaceVarInPattern
           in
           EMatch (mID, cond, newCases)
       | _ ->
-          fail "not a let" )
+          recover "not a match in replaceVarInPattern" e )
 
 
 let removePatternRow (mID : id) (id : id) (ast : ast) : ast =
@@ -1569,7 +1565,7 @@ let removePatternRow (mID : id) (id : id) (ast : ast) : ast =
           in
           EMatch (mID, cond, newPatterns)
       | _ ->
-          fail "not a match " )
+          recover "not a match in removePatternRow" e )
 
 
 let replacePatternWithPartial
@@ -1616,7 +1612,7 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
       | _ ->
-          fail "not a field" )
+          recover "not a field in replaceFieldName" e )
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
@@ -1629,7 +1625,7 @@ let removeField (id : id) (ast : ast) : ast =
       | EFieldAccess (_, faExpr, _, _) ->
           faExpr
       | _ ->
-          fail "not a fieldAccess" )
+          recover "not a fieldAccess in removeField" e )
 
 
 (* ---------------- *)
@@ -1649,7 +1645,7 @@ let replaceLamdaVar
           in
           ELambda (id, vars, renameVariableUses oldVarName newVarName expr)
       | _ ->
-          fail "not a lamda" )
+          recover "not a lamda in replaceLamdaVar" e )
 
 
 let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
@@ -1678,7 +1674,7 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : ast
           let value = (gid (), name) in
           ELambda (id, List.insertAt ~index ~value vars, expr)
       | _ ->
-          fail "not a list" )
+          recover "not a list in insertLambdaVar" expr )
 
 
 (* ---------------- *)
@@ -1691,7 +1687,7 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
       | ELet (id, lhsID, oldLHS, rhs, next) ->
           ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
       | _ ->
-          fail "not a let" )
+          recover "not a let in replaceLetLHS" e )
 
 
 (* ---------------- *)
@@ -1707,7 +1703,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           in
           ERecord (id, fields)
       | _ ->
-          fail "not a record" )
+          recover "not a record in replaceRecordField" e )
 
 
 let removeRecordField (id : id) (index : int) (ast : ast) : ast =
@@ -1716,7 +1712,7 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, List.removeAt ~index fields)
       | _ ->
-          fail "not a record field" )
+          recover "not a record field in removeRecordField" e )
 
 
 (* Add a row to the record *)
@@ -1726,7 +1722,7 @@ let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
       | _ ->
-          fail "Not a record" )
+          recover "Not a record in addRecordRowAt" expr )
 
 
 let addRecordRowToBack (id : id) (ast : ast) : ast =
@@ -1735,7 +1731,7 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, fields @ [(gid (), "", newB ())])
       | _ ->
-          fail "Not a record" )
+          recover "Not a record in addRecordRowToTheBack" expr )
 
 
 (* ---------------- *)
@@ -1748,8 +1744,11 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       match e with
       | EPartial (id, _, oldVal) ->
           if str = ""
-          then fail "replacing with empty partial, use delete partial instead" ;
-          EPartial (id, str, oldVal)
+          then
+            recover
+              "replacing with empty partial, use delete partial instead"
+              e
+          else EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1774,7 +1773,7 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
             (newState := fun ast -> moveBackTo (eid b) ast s) ;
             b
         | _ ->
-            fail "not a partial" )
+            recover "not a partial in deletePartial" e )
   in
   (ast, !newState ast)
 
@@ -1886,12 +1885,14 @@ let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       let str = String.trim str in
-      if str = "" then fail "replacing with empty right partial" ;
-      match e with
-      | ERightPartial (id, _, oldVal) ->
-          ERightPartial (id, str, oldVal)
-      | oldVal ->
-          ERightPartial (gid (), str, oldVal) )
+      if str = ""
+      then recover "replacing with empty right partial" e
+      else
+        match e with
+        | ERightPartial (id, _, oldVal) ->
+            ERightPartial (id, str, oldVal)
+        | oldVal ->
+            ERightPartial (gid (), str, oldVal) )
 
 
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
@@ -1906,7 +1907,7 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
             id := eid lhs ;
             lhs
         | _ ->
-            fail "not a binop" )
+            recover "not a binop in deleteBinOp" e )
   in
   (ast, !id)
 
@@ -1994,7 +1995,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TBinOp (id, name) ->
       replaceWithPartial (f name) id ast
   | _ ->
-      fail "not supported by replaceToken"
+      recover "not supported by replaceToken" ast
 
 
 (* ---------------- *)
@@ -2006,7 +2007,7 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
       | EFloat (id, _, fraction) ->
           EFloat (id, str, fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float im replaceFloatWhole" expr )
 
 
 let replacePatternFloatWhole
@@ -2016,7 +2017,7 @@ let replacePatternFloatWhole
       | FPFloat (matchID, patID, _, fraction) ->
           FPFloat (matchID, patID, str, fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in replacePatternFloatWhole" expr )
 
 
 let replacePatternFloatFraction
@@ -2026,7 +2027,7 @@ let replacePatternFloatFraction
       | FPFloat (matchID, patID, whole, _) ->
           FPFloat (matchID, patID, whole, str)
       | _ ->
-          fail "not a float" )
+          recover "not a float in replacePatternFloatFraction" expr )
 
 
 let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
@@ -2036,7 +2037,7 @@ let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
           let i = coerceStringTo63BitInt (whole ^ fraction) in
           FPInteger (matchID, gid (), i)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in removePatternPointFromFloat" expr )
 
 
 let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
@@ -2045,7 +2046,7 @@ let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
       | EFloat (id, whole, _) ->
           EFloat (id, whole, str)
       | _ ->
-          fail "not a float" )
+          recover "not a floatin replaceFloatFraction" expr )
 
 
 let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
@@ -2055,7 +2056,7 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in insertAtFrontOfFloatFraction" expr )
 
 
 let insertAtFrontOfPatternFloatFraction
@@ -2065,7 +2066,7 @@ let insertAtFrontOfPatternFloatFraction
       | FPFloat (matchID, patID, whole, fraction) ->
           FPFloat (matchID, patID, whole, letter ^ fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in insertAtFrontOfPatternFloatFraction" expr )
 
 
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
@@ -2075,7 +2076,7 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
           let whole, fraction = String.splitAt ~index:offset i in
           EFloat (gid (), whole, fraction)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in convertIntToFloat" expr )
 
 
 let convertPatternIntToFloat
@@ -2086,7 +2087,7 @@ let convertPatternIntToFloat
           let whole, fraction = String.splitAt ~index:offset i in
           FPFloat (matchID, gid (), whole, fraction)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in convertPatternIntToFloat" expr )
 
 
 let removePointFromFloat (id : id) (ast : ast) : ast =
@@ -2096,7 +2097,7 @@ let removePointFromFloat (id : id) (ast : ast) : ast =
           let i = coerceStringTo63BitInt (whole ^ fraction) in
           EInteger (gid (), i)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in removePointFromFloat" expr )
 
 
 (* ---------------- *)
@@ -2122,7 +2123,7 @@ let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
       | EList (id, exprs) ->
           EList (id, List.insertAt ~index ~value:newExpr exprs)
       | _ ->
-          fail "not a list" )
+          recover "not a list in insertInList" expr )
 
 
 (* Add a blank after the expr indicated by id, which we presume is in a list *)
@@ -2259,7 +2260,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         | [lhs; rhs] ->
             (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
         | _ ->
-            fail "BinOp doesn't have 2 args"
+            recover "BinOp doesn't have 2 args" (newB (), 0)
       else (EFnCall (gid (), fn.fnName, args, r), String.length partialName + 1)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
@@ -2285,16 +2286,18 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let starting = if argCount = 0 then 0 else 1 in
       (EConstructor (gid (), gid (), name, args), starting + String.length name)
   | FACPattern _ ->
-      fail
+      recover
         ( "TODO: patterns are not supported here: "
         ^ Types.show_fluidAutocompleteItem entry )
+        (newB (), 0)
   | FACField fieldname ->
       ( EFieldAccess (gid (), newB (), gid (), fieldname)
       , String.length fieldname )
   | FACLiteral _ ->
-      fail
+      recover
         ( "invalid literal in autocomplete: "
         ^ Types.show_fluidAutocompleteItem entry )
+        (newB (), 0)
 
 
 let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
@@ -2341,8 +2344,9 @@ let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
     | FPANull (mID, patID) ->
         (FPNull (mID, patID), 4) )
   | _ ->
-      fail
+      recover
         "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+        (FPBlank (gid (), gid ()), 0)
 
 
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
@@ -2645,7 +2649,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         | Some leftTI, _, _ ->
             doLeft ~pos:ti.startPos leftTI s
         | _ ->
-            fail "TThreadPipe should never occur on first line of AST"
+            recover "TThreadPipe should never occur on first line of AST" s
       in
       (removeThreadPipe id ast i, s)
 
@@ -2793,7 +2797,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
           | Some leftTI, _, _ ->
               doLeft ~pos:ti.startPos leftTI s
           | _ ->
-              fail "TThreadPipe should never occur on first line of AST"
+              recover "TThreadPipe should never occur on first line of AST" s
         else s
       in
       (newAST, s)
