@@ -140,7 +140,7 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
       echo date > "${LOCKFILE_NAME}"
       gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
       # Make sure we remove the lockfile if this script exits early for some reason
-      trap cleanup_deploy_lock INT QUIT TERM
+      trap cleanup_deploy_lock INT QUIT TERM ERR
 
       deploy_lock_claimed="true"
     elif [[ "${LOCKFILE_ID}" == "manual-deploy" ]]; then
