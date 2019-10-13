@@ -390,6 +390,7 @@ def ignore(filename):
             , "client/node_modules"
             , "client/lib"
             , "build.ninja"
+            , "stroller/target"
             , ".bs.js"
             , ".bsdeps"
             , ".bsbuild"
