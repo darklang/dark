@@ -143,9 +143,9 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
       trap cleanup_deploy_lock INT QUIT TERM
 
       deploy_lock_claimed="true"
+    elif [[ "${LOCKFILE_ID}" == "manual-deploy" ]]; then
+      true
     # if the biggest # is greater than ours, then exit instead of deploying
-    # NB: "manual-deploy" is greater than any numeric string, so it will always
-    # wait, not exit early
     elif [[ "${max_deploy_lock}" -gt "${LOCKFILE_ID}"  ]]; then
       echo "Currently-running deploy ${max_deploy_lock} > ${LOCKFILE_ID}, so not deploying."
       exit 1
