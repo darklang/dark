@@ -195,7 +195,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
-CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)';"
+CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)'"
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
