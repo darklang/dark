@@ -10,47 +10,93 @@ module Regex = Util.Regex
 
 type testResult = (* ast, clipboard, newPos *) string * string * int
 
+let clipboardEvent () =
+  [%bs.obj
+    { clipboardData =
+        (object (_self)
+           method getData (contentType : string) =
+             let _ = contentType in
+             (* avoid warning *)
+             [%bs.raw
+               "this.hiddenContent ? (this.hiddenContent[contentType] ? this.hiddenContent[contentType] : \"\") : \"\""]
+
+           method setData (contentType : string) (data : string) =
+             let _ = data in
+             (* avoid warning *)
+             let _ = contentType in
+             (* avoid warning *)
+             let _ =
+               [%bs.raw
+                 "(this.hiddenContent = (this.hiddenContent || {})) && (this.hiddenContent[contentType] = data)"]
+             in
+             ()
+        end [@bs])
+    ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
+
+
 let () =
-  let m = Defaults.defaultModel in
-  let process ~debug ?(clipboard = None) (st, ed) ast msg : testResult =
+  let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
+    let clipboardData state e =
+      Clipboard.getData e
+      |> Fluid.clipboardContentsToExpr ~state
+      |> Option.map ~f:(fun expr -> eToString state expr)
+      |> Option.withDefault ~default:"Nothing in clipboard"
+    in
+    let h = Fluid_utils.h ast in
+    let m =
+      { Defaults.defaultModel with
+        tests = [FluidVariant]
+      ; handlers = Handlers.fromList [h]
+      ; cursorState = FluidEntering h.hTLID }
+    in
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; selectionStart = Some st; clipboard }
+        ac = AC.reset m
+      ; selectionStart = Some start
+      ; oldPos = pos
+      ; newPos = pos }
     in
-    let pos = ed in
-    let s = {s with oldPos = pos; newPos = pos} in
-    let clipboardStr s =
-      s.clipboard
-      |> Option.map ~f:(eToString s)
-      |> Option.withDefault ~default:""
-    in
+    let m = {m with fluidState = s} in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
       Js.log2 "ast before" (eToStructure s ast) ;
-      Js.log2 "clipboard before" (clipboardStr s) ) ;
-    let h = Fluid_utils.h ast in
-    let m = {m with handlers = Handlers.fromList [h]} in
-    let newAST, newState = updateMsg m h.hTLID ast msg s in
+      Js.log2 "clipboard before" (clipboardData s e) ) ;
+    let mod_ = App.update_ msg m in
+    let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+    let newState = newM.fluidState in
+    let newAST =
+      TL.selectedAST newM
+      |> Option.withDefault ~default:(Blank.new_ ())
+      |> fromExpr newState
+    in
     let finalPos = newState.newPos in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState newAST) ;
-      Js.log2 "clipboard after" (clipboardStr newState) ) ;
-    (eToString newState newAST, clipboardStr newState, finalPos)
+      Js.log2 "clipboard after" (clipboardData newState e) ) ;
+    (eToString newState newAST, clipboardData newState e, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    process ~debug range expr FluidCopy
+    let e = clipboardEvent () in
+    process ~debug e range expr (ClipboardCopyEvent e)
   in
   let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
-    process ~debug range expr FluidCut
+    let e = clipboardEvent () in
+    process ~debug e range expr (ClipboardCutEvent e)
   in
-  let paste ?(debug = false) ~clipboard (range : int * int) (expr : fluidExpr)
-      : testResult =
-    process ~debug ~clipboard:(Some clipboard) range expr FluidPaste
+  let paste
+      ?(debug = false)
+      ~(clipboard : fluidExpr)
+      (range : int * int)
+      (expr : fluidExpr) : testResult =
+    let e = clipboardEvent () in
+    let data = Fluid.exprToClipboardContents clipboard in
+    Clipboard.setData data e ;
+    process ~debug e range expr (ClipboardPasteEvent e)
   in
   let t
       (name : string)
