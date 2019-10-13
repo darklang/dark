@@ -3406,7 +3406,6 @@ and deleteSelection ~state ~ast : ast * fluidState =
   let rangeStart, rangeEnd =
     fluidGetSelectionRange state |> orderRangeFromSmallToBig
   in
-  let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
@@ -3424,7 +3423,7 @@ and deleteSelection ~state ~ast : ast * fluidState =
                  newState.newPos < rangeStart
          then (false, ast, state)
          else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, {state with clipboard})
+  |> fun (_, ast, state) -> (ast, state)
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
@@ -4023,16 +4022,45 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteSelection ~state ~ast () : ast * fluidState =
+let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
+  match ast with
+  | EString (_, str) ->
+      `Text str
+  | _ ->
+      `Json (Encoders.pointerData (PExpr (toExpr ast)))
+
+
+let clipboardContentsToExpr ~state (data : clipboardContents) :
+    fluidExpr option =
+  match data with
+  | `Json json ->
+    ( try
+        let data = Decoders.pointerData json |> TL.clonePointerData in
+        match data with
+        | PExpr expr ->
+            Some (fromExpr state expr)
+        | _ ->
+            (* We could support more but don't yet *)
+            Js.log "not a pexpr" ;
+            None
+      with _ ->
+        Js.log2 "could not decode" json ;
+        None )
+  | `Text text ->
+      (* TODO: This is an OK first solution, but it doesn't allow us paste
+         * into things like variable or key names. *)
+      Some (EString (gid (), text))
+  | `None ->
+      None
+
+
+let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
-  let clipboardExpr =
-    state.clipboard
-    |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
-  in
+  let clipboardExpr = clipboardContentsToExpr ~state data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
@@ -4223,7 +4251,32 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       (ast, state)
 
 
-let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
+let copy (state : fluidState) (ast : fluidExpr) : fluidExpr option =
+  fluidGetOptionalSelectionRange state
+  |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+
+
+let fluidDataFromModel m : (fluidState * fluidExpr) option =
+  match Toplevel.selectedAST m with
+  | Some expr ->
+      let s = m.fluidState in
+      Some (s, fromExpr s expr)
+  | None ->
+      None
+
+
+let getCopySelection (m : model) : clipboardContents =
+  match fluidDataFromModel m with
+  | Some (state, ast) ->
+      fluidGetOptionalSelectionRange state
+      |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+      |> Option.map ~f:exprToClipboardContents
+      |> Option.withDefault ~default:`None
+  | None ->
+      `None
+
+
+let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
@@ -4237,27 +4290,11 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
-    | FluidCopy ->
-        ( ast
-        , { s with
-            clipboard =
-              fluidGetOptionalSelectionRange s
-              |> Option.andThen ~f:(reconstructExprFromRange ~state:s ~ast) }
-        )
     | FluidCut ->
-        fluidGetOptionalSelectionRange s
-        |> Option.map ~f:(fun sel ->
-               let ast, state =
-                 ( ast
-                 , { s with
-                     clipboard = (reconstructExprFromRange ~state:s ~ast) sel
-                   } )
-               in
-               deleteSelection ~state ~ast )
-        |> Option.withDefault ~default:(ast, s)
-    | FluidPaste ->
+        deleteSelection ~state:s ~ast
+    | FluidPaste data ->
         let ast, state = deleteSelection ~state:s ~ast in
-        let ast, state = pasteSelection ~state ~ast () in
+        let ast, state = pasteOverSelection ~state ~ast data in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
@@ -4298,7 +4335,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   (newAST, newState)
 
 
-let update (m : Types.model) (msg : Types.msg) : Types.modification =
+let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
@@ -4312,7 +4349,15 @@ let update (m : Types.model) (msg : Types.msg) : Types.modification =
       maybeOpenCmd m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
-  | _ ->
+  | FluidKeyPress _
+  | FluidCopy
+  | FluidPaste _
+  | FluidCut
+  | FluidCommandsFilter _
+  | FluidCommandsClick _
+  | FluidMouseClick _
+  | FluidAutocompleteClick _
+  | FluidUpdateSelection _ ->
       let tlid =
         match msg with
         | FluidMouseClick tlid ->
@@ -4407,7 +4452,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                FluidAutocompleteClick item ) ]
+                FluidMsg (FluidAutocompleteClick item) ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
@@ -4610,17 +4655,19 @@ let toHtml
                     in
                     ( match ev with
                     | {detail = 2; altKey = true} ->
-                        UpdateFluidSelection
-                          (tlid, getExpressionRangeAtCaret state ast)
+                        FluidMsg
+                          (FluidUpdateSelection
+                             (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
-                        UpdateFluidSelection
-                          (tlid, getTokenRangeAtCaret state ast)
+                        FluidMsg
+                          (FluidUpdateSelection
+                             (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
-                        UpdateFluidSelection (tlid, None) )
+                        FluidMsg (FluidUpdateSelection (tlid, None)) )
                 | None ->
                     (* We expect that this doesn't happen *)
-                    UpdateFluidSelection (tlid, None) )
+                    FluidMsg (FluidUpdateSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"
@@ -4628,8 +4675,8 @@ let toHtml
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then UpdateFluidSelection (tlid, Some range)
-                    else UpdateFluidSelection (tlid, None)
+                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
+                    else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
@@ -4790,13 +4837,6 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"" ) ]
-    ; Html.div
-        []
-        [ Html.text "clipboard: "
-        ; Html.text
-            ( s.clipboard
-            |> Option.map ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
