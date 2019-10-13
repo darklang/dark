@@ -111,8 +111,8 @@ cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
   if [[ "${DEPLOY_LOCK_BUCKET}" != "" && "${LOCKFILE_ID}" != "" ]];
   then
-    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/deploy-lock-${LOCKFILE_ID}"
-    gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-${LOCKFILE_ID}"
+    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
+    gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
   fi
 
   exit 1
@@ -125,6 +125,7 @@ else
   LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
 fi
 echo "Lock file: ${LOCKFILE_ID}"
+LOCKFILE_NAME="deploy-lock-${LOCKFILE_ID}"
 
 while [[ "${deploy_lock_claimed}" != "true" ]]; do
   # If there's a manual lock, loop
@@ -136,8 +137,8 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
 
     # if there are no deploy locks, create ours and continue
     if [[ "${max_deploy_lock}" == "" ]]; then
-      echo date > "deploy-lock-${LOCKFILE_ID}"
-      gsutil cp "deploy-lock-${LOCKFILE_ID}" "${DEPLOY_LOCK_BUCKET}"
+      echo date > "${LOCKFILE_NAME}"
+      gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
       # Make sure we remove the lockfile if this script exits early for some reason
       trap cleanup_deploy_lock INT QUIT TERM
 
@@ -253,4 +254,4 @@ echo "Rollbar notified."
 ####################
 # Unlock post-deploy
 ####################
-gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-${LOCKFILE_ID}"
+gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
