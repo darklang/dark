@@ -582,15 +582,16 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TNewline (Some (eid else', id, None))
         ; TIndent 2
         ; nested else' ]
-  | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
-      (* Specifialized for being in a thread *)
-      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      [ nested ~placeholderFor:(Some (op, 0)) lexpr
-      ; TSep
-      ; TBinOp (id, op)
-      ; TSep
-      ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep]
+      in
+      start
+      @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newOp op in
       [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
