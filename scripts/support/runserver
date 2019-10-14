@@ -42,7 +42,8 @@ fi
 if [[ -f "${SERVER_EXE}" && -f "${QW_EXE}" && -f "${CRON_EXE}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
   echo "Running server"
-  sudo --preserve-env "${SERVER_EXE}" | tee "$LOGS/server.log" 2>&1 &
+  # shellcheck disable=SC2024
+  sudo --preserve-env "${SERVER_EXE}" > "$LOGS/server.log" 2>&1 &
   "${QW_EXE}" --no-health-check > "$LOGS/queue_worker.log" 2>&1 &
   "${CRON_EXE}" --no-health-check > "$LOGS/cron.log" 2>&1 &
 
