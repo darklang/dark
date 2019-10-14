@@ -341,9 +341,9 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str, oldVal) ->
-      F (id, FluidPartial (str, toExpr oldVal))
+      F (id, FluidPartial (str, toExpr ~inThread oldVal))
   | ERightPartial (id, str, oldVal) ->
-      F (id, FluidRightPartial (str, toExpr oldVal))
+      F (id, FluidRightPartial (str, toExpr ~inThread oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:r exprs))
   | ERecord (id, pairs) ->
