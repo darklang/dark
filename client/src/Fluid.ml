@@ -592,6 +592,27 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       start
       @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+  | EFnCall (id, fnName, args, ster) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+      in
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
+      in
+      [TFnName (id, partialName, displayName, fnName, ster)]
+      @ versionToken
+      @ ( args
+        |> List.indexedMap ~f:(fun i e ->
+               [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
+        |> List.concat )
+  | EConstructor (id, _, name, exprs) ->
+      [TConstructorName (id, name)]
+      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName oldName in
       [ nested ~placeholderFor:(Some (oldName, 0)) lexpr
@@ -623,24 +644,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.dropRight ~count:2
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, args, ster) ->
-      let args, offset =
-        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
-      in
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
-        |> List.concat )
   | EList (id, exprs) ->
       let ts =
         exprs
@@ -697,9 +700,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
         @ tailNewline )
   | EThreadTarget _ ->
       recover "should never be making tokens for EThreadTarget" []
-  | EConstructor (id, _, name, exprs) ->
-      [TConstructorName (id, name)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
       let finalNewline =
         if List.last pairs
