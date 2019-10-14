@@ -135,6 +135,21 @@ let dequeue_and_process execution_id :
                                     ~canvas_id
                                     trace_id
                                     (h.tlid :: touched_tlids) ;
+                                  let result_tipe (r : RTT.dval) =
+                                    match r with
+                                    | DResult (ResOk _) ->
+                                        "ResOk"
+                                    | DResult (ResError _) ->
+                                        "ResError"
+                                    | DOption (OptJust _) ->
+                                        "OptJust"
+                                    | DOption OptNothing ->
+                                        "OptNothing"
+                                    | _ ->
+                                        r
+                                        |> Dval.tipe_of
+                                        |> Dval.tipe_to_string
+                                  in
                                   Log.infO
                                     "queue_worker"
                                     ~data:"Successful execution"
@@ -144,7 +159,7 @@ let dequeue_and_process execution_id :
                                       ; ("event_id", string_of_int event.id)
                                       ; ( "handler_id"
                                         , Types.string_of_id h.tlid )
-                                      ; ("result", Dval.show result) ] ;
+                                      ; ("result_type", result_tipe result) ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
                             with e ->
