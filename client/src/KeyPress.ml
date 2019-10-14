@@ -67,9 +67,8 @@ let openOmnibox (m : model) : modification =
   match m.currentPage with
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       Many [Deselect; Entry.openOmnibox m]
-  | _ ->
-      NoChange
-
+  | FocusedFn _ | FocusedType _ ->
+    Entry.openOmnibox m
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   let osCmdKeyHeld =
