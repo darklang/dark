@@ -89,6 +89,8 @@ let recover (msg : 'a) (val_ : 'b) : 'b =
     ^ "Value: "
     ^ Js.String.make val_
   in
+  Js.log error ;
+  Js.Console.trace () ;
   Native.Rollbar.send error None Js.Json.null ;
   val_
 
