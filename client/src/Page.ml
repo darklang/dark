@@ -130,7 +130,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       { m with
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
-      ; canvasProps = {m.canvasProps with offset; lastOffset = None; minimap = None} }
+      ; canvasProps =
+          {m.canvasProps with offset; lastOffset = None; minimap = None} }
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
@@ -172,7 +173,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       in
       { m with
         currentPage = newPage
-      ; canvasProps = {m.canvasProps with offset; lastOffset = None; minimap = None} }
+      ; canvasProps =
+          {m.canvasProps with offset; lastOffset = None; minimap = None} }
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect

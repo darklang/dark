@@ -68,7 +68,8 @@ let openOmnibox (m : model) : modification =
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
       Many [Deselect; Entry.openOmnibox m]
   | FocusedFn _ | FocusedType _ ->
-    Entry.openOmnibox m
+      Entry.openOmnibox m
+
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   let osCmdKeyHeld =
