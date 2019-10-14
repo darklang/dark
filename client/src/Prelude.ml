@@ -86,7 +86,7 @@ let recover (msg : 'a) (val_ : 'b) : 'b =
     "An unexpected but recoverable error happened. "
     ^ "Message: "
     ^ Js.String.make msg
-    ^ "Value: "
+    ^ ", Value: "
     ^ Js.String.make val_
   in
   Js.log error ;
