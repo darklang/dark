@@ -619,16 +619,24 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       [TFnName (id, partialName, displayName, fnName, ster)]
       @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
         |> List.concat )
+  | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+      in
+      let ghost = ghostPartial id newName oldName in
+      [TPartial (id, newName)]
+      @ ghost
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (oldName, offset + i)) e] )
+        |> List.flatten )
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
-  | EPartial (id, newName, EFnCall (_, oldName, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
-      (* If this is a constructor it will be ignored *)
+      (* Will be ignored *)
       let ghost = ghostPartial id newName oldName in
       [TPartial (id, newName)]
       @ ghost
