@@ -636,7 +636,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
-      (* Will be ignored *)
       let ghost = ghostPartial id newName oldName in
       [TPartial (id, newName)]
       @ ghost
