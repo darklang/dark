@@ -592,11 +592,13 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       start
       @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
-  | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newOp op in
-      [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
+  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
+      let ghost = ghostPartial id newName oldName in
+      [ nested ~placeholderFor:(Some (oldName, 0)) lexpr
+      ; TSep
+      ; TPartial (id, newName) ]
       @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
   | EPartial (id, newName, EFnCall (_, oldName, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       (* If this is a constructor it will be ignored *)
@@ -621,23 +623,10 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.dropRight ~count:2
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
-      (* Specifialized for being in a thread *)
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
-        |> List.concat )
   | EFnCall (id, fnName, args, ster) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+      in
       let displayName = ViewUtils.fnDisplayName fnName in
       let versionDisplayName = ViewUtils.versionDisplayName fnName in
       let partialName = ViewUtils.partialName fnName in
@@ -650,7 +639,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
       @ versionToken
       @ ( args
         |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
+               [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
         |> List.concat )
   | EList (id, exprs) ->
       let ts =
