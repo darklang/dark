@@ -1929,6 +1929,12 @@ let () =
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       tp
+        "backspacing a thread's first fn works"
+        aLongThread
+        (bs 17)
+        ( "[]\n|>List::appen@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n"
+        , 16 ) ;
+      tp
         "backspacing a thread's first binop works"
         aBinopThread
         (bs 8)
