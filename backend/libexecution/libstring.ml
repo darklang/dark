@@ -653,4 +653,18 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false } ]
+    ; dep = false }
+    ; { pns = ["String::toBytes"]
+    ; ins = []
+    ; p = [par "str" TStr]
+    ; r = TBytes
+    ; d = "Converts the given unicode string to bytes."
+    ; f =
+        InProcess
+          (function
+          | _, [DStr str] ->
+              DBytes (Bytes.of_string (Unicode_string.to_string str))
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }]
