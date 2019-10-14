@@ -592,6 +592,19 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       start
       @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
+      let ghost = ghostPartial id newName oldName in
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (oldName, 0)) lexpr; TSep]
+      in
+      start
+      @ [TPartial (id, newName)]
+      @ ghost
+      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
   | EFnCall (id, fnName, args, ster) ->
       let args, offset =
         match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
@@ -613,13 +626,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
   | EConstructor (id, _, name, exprs) ->
       [TConstructorName (id, name)]
       @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
-  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName oldName in
-      [ nested ~placeholderFor:(Some (oldName, 0)) lexpr
-      ; TSep
-      ; TPartial (id, newName) ]
-      @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
   | EPartial (id, newName, EFnCall (_, oldName, exprs, _))
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       (* If this is a constructor it will be ignored *)
