@@ -177,33 +177,41 @@ let newHandler m space name modifier pos =
   let pageChanges =
     match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
-      [ SetPage (FocusedHandler (tlid, true)) ]
-    | _ -> []
+        [SetPage (FocusedHandler (tlid, true))]
+    | _ ->
+        []
   in
-  let rpc = RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid)) in
-  Many ( rpc :: (pageChanges @ fluidMods) )
+  let rpc =
+    RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
+  in
+  Many (rpc :: (pageChanges @ fluidMods))
+
 
 let newDB (name : string) (pos : pos) (m : model) : modification =
   let next = gid () in
   let tlid =
-    if List.member ~value:GridLayout m.tests
-    then gtlidDT ()
-    else gtlid ()
+    if List.member ~value:GridLayout m.tests then gtlidDT () else gtlid ()
   in
   let pageChanges =
     match m.currentPage with
-      | FocusedFn _ | FocusedType _ ->
-        [ SetPage (FocusedDB (tlid, true)) ]
-      | _ -> []
+    | FocusedFn _ | FocusedType _ ->
+        [SetPage (FocusedDB (tlid, true))]
+    | _ ->
+        []
   in
-  let rpcCalls = [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-  ; AddDBCol (tlid, next, Prelude.gid ()) ] in
+  let rpcCalls =
+    [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
+    ; AddDBCol (tlid, next, Prelude.gid ()) ]
+  in
   (* This is not _strictly_ correct, as there's no guarantee that the new DB
    * doesn't share a name with an old DB in a weird state that still has
    * data in the user_data table. But it's 99.999% correct, which of course
    * is the best type of correct *)
-   (* AppendUnlockedDBs (StrSet.fromList [deTLID tlid]) *)
-  Many ( RPC ( rpcCalls, FocusExact (tlid, next) ) :: pageChanges)
+  Many
+    ( AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
+    :: RPC (rpcCalls, FocusExact (tlid, next))
+    :: pageChanges )
+
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
