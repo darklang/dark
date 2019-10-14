@@ -472,6 +472,11 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
+  let ghostPartial id newName oldName =
+    let oldName = ViewUtils.partialName oldName in
+    let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
+    if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+  in
   let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
     let tokens =
       match (b, placeholderFor) with
@@ -587,27 +592,18 @@ let rec toTokens' (s : state) (e : ast) : token list =
       ; TSep
       ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
   | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
-      let ghostSuffix = String.dropLeft ~count:(String.length newOp) op in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
-      in
+      let ghost = ghostPartial id newOp op in
       [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
       @ ghost
       @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
-  | EPartial (id, newName, EFnCall (_, name, exprs, _))
-  | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
+  | EPartial (id, newName, EFnCall (_, oldName, exprs, _))
+  | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       (* If this is a constructor it will be ignored *)
-      let partialName = ViewUtils.partialName name in
-      let ghostSuffix =
-        String.dropLeft ~count:(String.length newName) partialName
-      in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
-      in
+      let ghost = ghostPartial id newName oldName in
       [TPartial (id, newName)]
       @ ghost
       @ ( List.indexedMap
-            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (name, i)) e])
+            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (oldName, i)) e])
             exprs
         |> List.flatten )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
