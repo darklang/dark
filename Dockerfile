@@ -146,7 +146,7 @@ USER root
 #
 # And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
 # And then 11.14
-RUN apt update && apt install nodejs=11.15.0-1nodesource1
+RUN apt update && apt install -y nodejs=11.15.0-1nodesource1
 
 RUN npm install -g yarn@1.12.3
 
@@ -314,7 +314,7 @@ RUN sudo apt install -y bash-completion \
     && sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
 
 # Esy packages need makeinfo
-RUN sudo apt update && sudo apt install -y texinfo
+RUN sudo apt update && DEBIAN_FRONTEND=noninteractive sudo -E apt install -y texinfo
 
 ############################
 # Finish
