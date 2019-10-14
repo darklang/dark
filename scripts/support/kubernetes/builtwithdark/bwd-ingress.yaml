@@ -7,6 +7,7 @@ metadata:
     # NOTE: max certs per ingress = 15, that includes both managed certs and the
     # tls secrets mentioned below in spec.tls.
     networking.gke.io/managed-certificates: www.kiksht.com-cert
+    kubernetes.io/ingress.global-static-ip-name: bwd-tls-ip
 spec:
   backend:
     serviceName: bwd-nodeport
