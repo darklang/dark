@@ -316,11 +316,11 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EBinOp (id, name, arg1, arg2, ster) ->
     ( match arg1 with
     | EThreadTarget _ when not inThread ->
-        recover "op has a thread target but no thread" (Blank.new_ ())
+        recover "binop has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ when inThread ->
         F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
     | _nonThreadTarget when inThread ->
-        recover "op has a thread but no thread target" (Blank.new_ ())
+        recover "binop has a thread but no thread target" (Blank.new_ ())
     | _ ->
         F
           ( id
