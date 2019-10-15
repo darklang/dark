@@ -316,11 +316,11 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EBinOp (id, name, arg1, arg2, ster) ->
     ( match arg1 with
     | EThreadTarget _ when not inThread ->
-        recover "op has a thread target but no thread" (Blank.new_ ())
+        recover "binop has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ when inThread ->
         F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
     | _nonThreadTarget when inThread ->
-        recover "op has a thread but no thread target" (Blank.new_ ())
+        recover "binop has a thread but no thread target" (Blank.new_ ())
     | _ ->
         F
           ( id
@@ -341,9 +341,9 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str, oldVal) ->
-      F (id, FluidPartial (str, toExpr oldVal))
+      F (id, FluidPartial (str, toExpr ~inThread oldVal))
   | ERightPartial (id, str, oldVal) ->
-      F (id, FluidRightPartial (str, toExpr oldVal))
+      F (id, FluidRightPartial (str, toExpr ~inThread oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:r exprs))
   | ERecord (id, pairs) ->
@@ -472,6 +472,11 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
+  let ghostPartial id newName oldName =
+    let oldName = ViewUtils.partialName oldName in
+    let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
+    if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+  in
   let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
     let tokens =
       match (b, placeholderFor) with
@@ -577,37 +582,65 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TNewline (Some (eid else', id, None))
         ; TIndent 2
         ; nested else' ]
-  | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
-      (* Specifialized for being in a thread *)
-      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      [ nested ~placeholderFor:(Some (op, 0)) lexpr
-      ; TSep
-      ; TBinOp (id, op)
-      ; TSep
-      ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
-  | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
-      let ghostSuffix = String.dropLeft ~count:(String.length newOp) op in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep]
       in
-      [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
+      start
+      @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
+      let ghost = ghostPartial id newName oldName in
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (oldName, 0)) lexpr; TSep]
+      in
+      start
+      @ [TPartial (id, newName)]
       @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
-  | EPartial (id, newName, EFnCall (_, name, exprs, _))
-  | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
-      (* If this is a constructor it will be ignored *)
-      let partialName = ViewUtils.partialName name in
-      let ghostSuffix =
-        String.dropLeft ~count:(String.length newName) partialName
+      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
+  | EFnCall (id, fnName, args, ster) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
       in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
+      [TFnName (id, partialName, displayName, fnName, ster)]
+      @ versionToken
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
+        |> List.concat )
+  | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+      in
+      let ghost = ghostPartial id newName oldName in
+      [TPartial (id, newName)]
+      @ ghost
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (oldName, offset + i)) e] )
+        |> List.flatten )
+  | EConstructor (id, _, name, exprs) ->
+      [TConstructorName (id, name)]
+      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+  | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
+      let ghost = ghostPartial id newName oldName in
       [TPartial (id, newName)]
       @ ghost
       @ ( List.indexedMap
-            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (name, i)) e])
+            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (oldName, i)) e])
             exprs
         |> List.flatten )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
@@ -624,37 +657,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.dropRight ~count:2
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
-      (* Specifialized for being in a thread *)
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
-        |> List.concat )
-  | EFnCall (id, fnName, args, ster) ->
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
-        |> List.concat )
   | EList (id, exprs) ->
       let ts =
         exprs
@@ -711,9 +713,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
         @ tailNewline )
   | EThreadTarget _ ->
       recover "should never be making tokens for EThreadTarget" []
-  | EConstructor (id, _, name, exprs) ->
-      [TConstructorName (id, name)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
   | EMatch (id, mexpr, pairs) ->
       let finalNewline =
         if List.last pairs
