@@ -34,6 +34,8 @@ module Token = FluidToken
 (* Utils *)
 (* -------------------- *)
 
+let newB () = EBlank (gid ())
+
 let removeCharAt str offset : string =
   if offset < 0
   then str
@@ -79,10 +81,6 @@ let coerceStringTo63BitInt (s : string) : string =
 
 (* Only supports positive numbers for now, but we should change this once fluid supports negative numbers *)
 let is63BitInt (s : string) : bool = Result.isOk (truncateStringTo63BitInt s)
-
-exception FExc of string
-
-let fail str = raise (FExc str)
 
 (* -------------------- *)
 (* Expressions *)
@@ -179,7 +177,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
       | head :: tail ->
           EThread (id, f head :: List.map ~f:(fromExpr s ~inThread:true) tail)
       | _ ->
-          fail "empty thread" )
+          recover "empty thread" (newB ()) )
     | Lambda (varnames, exprs) ->
         ELambda
           ( id
@@ -198,8 +196,7 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
       | `Float (whole, fraction) ->
           EFloat (id, whole, fraction)
       | `Unknown ->
-          Js.log2 "Getting old Value that we coudln't parse" expr ;
-          EOldExpr expr )
+          recover "Getting old Value that we coudln't parse" (EOldExpr expr) )
     | Constructor (name, exprs) ->
         EConstructor (id, Blank.toID name, varToName name, List.map ~f exprs)
     | Match (mexpr, pairs) ->
@@ -303,14 +300,14 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EFnCall (id, name, args, ster) ->
     ( match args with
     | EThreadTarget _ :: _ when not inThread ->
-        fail "fn has a thread target but no thread"
+        recover "fn has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ :: args when inThread ->
         F
           ( id
           , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
           )
     | _nonThreadTarget :: _ when inThread ->
-        fail "fn has a thread but no thread target"
+        recover "fn has a thread but no thread target" (Blank.new_ ())
     | args ->
         F
           ( id
@@ -319,11 +316,11 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EBinOp (id, name, arg1, arg2, ster) ->
     ( match arg1 with
     | EThreadTarget _ when not inThread ->
-        fail "op has a thread target but no thread"
+        recover "binop has a thread target but no thread" (Blank.new_ ())
     | EThreadTarget _ when inThread ->
         F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
     | _nonThreadTarget when inThread ->
-        fail "op has a thread but no thread target"
+        recover "binop has a thread but no thread target" (Blank.new_ ())
     | _ ->
         F
           ( id
@@ -344,9 +341,9 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str, oldVal) ->
-      F (id, FluidPartial (str, toExpr oldVal))
+      F (id, FluidPartial (str, toExpr ~inThread oldVal))
   | ERightPartial (id, str, oldVal) ->
-      F (id, FluidRightPartial (str, toExpr oldVal))
+      F (id, FluidRightPartial (str, toExpr ~inThread oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:r exprs))
   | ERecord (id, pairs) ->
@@ -367,7 +364,7 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
       F (id, Match (toExpr mexpr, pairs))
   | EThreadTarget _ ->
-      fail "Cant convert threadtargets back to exprs"
+      recover "Cant convert threadtargets back to exprs" (Blank.new_ ())
   | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
       F
         ( id
@@ -436,8 +433,6 @@ let pmid pattern : id =
       mid
 
 
-let newB () = EBlank (gid ())
-
 (* -------------------- *)
 (* Tokens *)
 (* -------------------- *)
@@ -477,6 +472,11 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
 
 
 let rec toTokens' (s : state) (e : ast) : token list =
+  let ghostPartial id newName oldName =
+    let oldName = ViewUtils.partialName oldName in
+    let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
+    if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+  in
   let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
     let tokens =
       match (b, placeholderFor) with
@@ -582,37 +582,65 @@ let rec toTokens' (s : state) (e : ast) : token list =
         ; TNewline (Some (eid else', id, None))
         ; TIndent 2
         ; nested else' ]
-  | EBinOp (id, op, EThreadTarget _, rexpr, _ster) ->
-      (* Specifialized for being in a thread *)
-      [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      [ nested ~placeholderFor:(Some (op, 0)) lexpr
-      ; TSep
-      ; TBinOp (id, op)
-      ; TSep
-      ; nested ~placeholderFor:(Some (op, 1)) rexpr ]
-  | EPartial (id, newOp, EBinOp (_, op, lexpr, rexpr, _ster)) ->
-      let ghostSuffix = String.dropLeft ~count:(String.length newOp) op in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep]
       in
-      [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep; TPartial (id, newOp)]
+      start
+      @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+  | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
+      let ghost = ghostPartial id newName oldName in
+      let start =
+        match lexpr with
+        | EThreadTarget _ ->
+            []
+        | _ ->
+            [nested ~placeholderFor:(Some (oldName, 0)) lexpr; TSep]
+      in
+      start
+      @ [TPartial (id, newName)]
       @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
-  | EPartial (id, newName, EFnCall (_, name, exprs, _))
-  | EPartial (id, newName, EConstructor (_, _, name, exprs)) ->
-      (* If this is a constructor it will be ignored *)
-      let partialName = ViewUtils.partialName name in
-      let ghostSuffix =
-        String.dropLeft ~count:(String.length newName) partialName
+      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
+  | EFnCall (id, fnName, args, ster) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
       in
-      let ghost =
-        if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
+      let displayName = ViewUtils.fnDisplayName fnName in
+      let versionDisplayName = ViewUtils.versionDisplayName fnName in
+      let partialName = ViewUtils.partialName fnName in
+      let versionToken =
+        if versionDisplayName = ""
+        then []
+        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
+      [TFnName (id, partialName, displayName, fnName, ster)]
+      @ versionToken
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
+        |> List.concat )
+  | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
+      let args, offset =
+        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+      in
+      let ghost = ghostPartial id newName oldName in
+      [TPartial (id, newName)]
+      @ ghost
+      @ ( List.indexedMap args ~f:(fun i e ->
+              [TSep; nested ~placeholderFor:(Some (oldName, offset + i)) e] )
+        |> List.flatten )
+  | EConstructor (id, _, name, exprs) ->
+      [TConstructorName (id, name)]
+      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+  | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
+      let ghost = ghostPartial id newName oldName in
       [TPartial (id, newName)]
       @ ghost
       @ ( List.indexedMap
-            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (name, i)) e])
+            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (oldName, i)) e])
             exprs
         |> List.flatten )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
@@ -629,37 +657,6 @@ let rec toTokens' (s : state) (e : ast) : token list =
         |> List.dropRight ~count:2
       in
       [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
-  | EFnCall (id, fnName, EThreadTarget _ :: args, ster) ->
-      (* Specifialized for being in a thread *)
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i + 1)) e] )
-        |> List.concat )
-  | EFnCall (id, fnName, args, ster) ->
-      let displayName = ViewUtils.fnDisplayName fnName in
-      let versionDisplayName = ViewUtils.versionDisplayName fnName in
-      let partialName = ViewUtils.partialName fnName in
-      let versionToken =
-        if versionDisplayName = ""
-        then []
-        else [TFnVersion (id, partialName, versionDisplayName, fnName)]
-      in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( args
-        |> List.indexedMap ~f:(fun i e ->
-               [TSep; nested ~placeholderFor:(Some (fnName, i)) e] )
-        |> List.concat )
   | EList (id, exprs) ->
       let ts =
         exprs
@@ -715,10 +712,7 @@ let rec toTokens' (s : state) (e : ast) : token list =
         [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
         @ tailNewline )
   | EThreadTarget _ ->
-      fail "should never be making tokens for EThreadTarget"
-  | EConstructor (id, _, name, exprs) ->
-      [TConstructorName (id, name)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+      recover "should never be making tokens for EThreadTarget" []
   | EMatch (id, mexpr, pairs) ->
       let finalNewline =
         if List.last pairs
@@ -1035,7 +1029,7 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
       | None, None ->
           posFor ~row ~col:0 tokens
       | _, _ ->
-          fail "adjustedPosFor" )
+          recover "unexpected adjustedPosFor" 0 )
 
 
 (* ------------- *)
@@ -1381,7 +1375,7 @@ let moveBackTo (target : id) (ast : ast) (s : state) : state =
         FluidToken.tid ti.token = target )
   with
   | None ->
-      fail "cannot find token to moveBackTo"
+      recover "cannot find token to moveBackTo" s
   | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
@@ -1556,7 +1550,7 @@ let replaceVarInPattern
           in
           EMatch (mID, cond, newCases)
       | _ ->
-          fail "not a let" )
+          recover "not a match in replaceVarInPattern" e )
 
 
 let removePatternRow (mID : id) (id : id) (ast : ast) : ast =
@@ -1570,7 +1564,7 @@ let removePatternRow (mID : id) (id : id) (ast : ast) : ast =
           in
           EMatch (mID, cond, newPatterns)
       | _ ->
-          fail "not a match " )
+          recover "not a match in removePatternRow" e )
 
 
 let replacePatternWithPartial
@@ -1617,7 +1611,7 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
       | _ ->
-          fail "not a field" )
+          recover "not a field in replaceFieldName" e )
 
 
 let exprToFieldAccess (id : id) (ast : ast) : ast =
@@ -1630,7 +1624,7 @@ let removeField (id : id) (ast : ast) : ast =
       | EFieldAccess (_, faExpr, _, _) ->
           faExpr
       | _ ->
-          fail "not a fieldAccess" )
+          recover "not a fieldAccess in removeField" e )
 
 
 (* ---------------- *)
@@ -1650,7 +1644,7 @@ let replaceLamdaVar
           in
           ELambda (id, vars, renameVariableUses oldVarName newVarName expr)
       | _ ->
-          fail "not a lamda" )
+          recover "not a lamda in replaceLamdaVar" e )
 
 
 let removeLambdaSepToken (id : id) (ast : ast) (index : int) : fluidExpr =
@@ -1679,7 +1673,7 @@ let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : ast) : ast
           let value = (gid (), name) in
           ELambda (id, List.insertAt ~index ~value vars, expr)
       | _ ->
-          fail "not a list" )
+          recover "not a list in insertLambdaVar" expr )
 
 
 (* ---------------- *)
@@ -1692,7 +1686,7 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
       | ELet (id, lhsID, oldLHS, rhs, next) ->
           ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
       | _ ->
-          fail "not a let" )
+          recover "not a let in replaceLetLHS" e )
 
 
 (* ---------------- *)
@@ -1708,7 +1702,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : ast) : ast =
           in
           ERecord (id, fields)
       | _ ->
-          fail "not a record" )
+          recover "not a record in replaceRecordField" e )
 
 
 let removeRecordField (id : id) (index : int) (ast : ast) : ast =
@@ -1717,7 +1711,7 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, List.removeAt ~index fields)
       | _ ->
-          fail "not a record field" )
+          recover "not a record field in removeRecordField" e )
 
 
 (* Add a row to the record *)
@@ -1727,7 +1721,7 @@ let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
       | _ ->
-          fail "Not a record" )
+          recover "Not a record in addRecordRowAt" expr )
 
 
 let addRecordRowToBack (id : id) (ast : ast) : ast =
@@ -1736,7 +1730,7 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
       | ERecord (id, fields) ->
           ERecord (id, fields @ [(gid (), "", newB ())])
       | _ ->
-          fail "Not a record" )
+          recover "Not a record in addRecordRowToTheBack" expr )
 
 
 (* ---------------- *)
@@ -1749,8 +1743,11 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       match e with
       | EPartial (id, _, oldVal) ->
           if str = ""
-          then fail "replacing with empty partial, use delete partial instead" ;
-          EPartial (id, str, oldVal)
+          then
+            recover
+              "replacing with empty partial, use delete partial instead"
+              e
+          else EPartial (id, str, oldVal)
       | oldVal ->
           if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
@@ -1775,7 +1772,7 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
             (newState := fun ast -> moveBackTo (eid b) ast s) ;
             b
         | _ ->
-            fail "not a partial" )
+            recover "not a partial in deletePartial" e )
   in
   (ast, !newState ast)
 
@@ -1887,12 +1884,14 @@ let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
 let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       let str = String.trim str in
-      if str = "" then fail "replacing with empty right partial" ;
-      match e with
-      | ERightPartial (id, _, oldVal) ->
-          ERightPartial (id, str, oldVal)
-      | oldVal ->
-          ERightPartial (gid (), str, oldVal) )
+      if str = ""
+      then recover "replacing with empty right partial" e
+      else
+        match e with
+        | ERightPartial (id, _, oldVal) ->
+            ERightPartial (id, str, oldVal)
+        | oldVal ->
+            ERightPartial (gid (), str, oldVal) )
 
 
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
@@ -1907,7 +1906,7 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
             id := eid lhs ;
             lhs
         | _ ->
-            fail "not a binop" )
+            recover "not a binop in deleteBinOp" e )
   in
   (ast, !id)
 
@@ -1995,7 +1994,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TBinOp (id, name) ->
       replaceWithPartial (f name) id ast
   | _ ->
-      fail "not supported by replaceToken"
+      recover "not supported by replaceToken" ast
 
 
 (* ---------------- *)
@@ -2007,7 +2006,7 @@ let replaceFloatWhole (str : string) (id : id) (ast : ast) : fluidExpr =
       | EFloat (id, _, fraction) ->
           EFloat (id, str, fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float im replaceFloatWhole" expr )
 
 
 let replacePatternFloatWhole
@@ -2017,7 +2016,7 @@ let replacePatternFloatWhole
       | FPFloat (matchID, patID, _, fraction) ->
           FPFloat (matchID, patID, str, fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in replacePatternFloatWhole" expr )
 
 
 let replacePatternFloatFraction
@@ -2027,7 +2026,7 @@ let replacePatternFloatFraction
       | FPFloat (matchID, patID, whole, _) ->
           FPFloat (matchID, patID, whole, str)
       | _ ->
-          fail "not a float" )
+          recover "not a float in replacePatternFloatFraction" expr )
 
 
 let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
@@ -2037,7 +2036,7 @@ let removePatternPointFromFloat (matchID : id) (patID : id) (ast : ast) : ast =
           let i = coerceStringTo63BitInt (whole ^ fraction) in
           FPInteger (matchID, gid (), i)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in removePatternPointFromFloat" expr )
 
 
 let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
@@ -2046,7 +2045,7 @@ let replaceFloatFraction (str : string) (id : id) (ast : ast) : fluidExpr =
       | EFloat (id, whole, _) ->
           EFloat (id, whole, str)
       | _ ->
-          fail "not a float" )
+          recover "not a floatin replaceFloatFraction" expr )
 
 
 let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
@@ -2056,7 +2055,7 @@ let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : ast) :
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in insertAtFrontOfFloatFraction" expr )
 
 
 let insertAtFrontOfPatternFloatFraction
@@ -2066,7 +2065,7 @@ let insertAtFrontOfPatternFloatFraction
       | FPFloat (matchID, patID, whole, fraction) ->
           FPFloat (matchID, patID, whole, letter ^ fraction)
       | _ ->
-          fail "not a float" )
+          recover "not a float in insertAtFrontOfPatternFloatFraction" expr )
 
 
 let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
@@ -2076,7 +2075,7 @@ let convertIntToFloat (offset : int) (id : id) (ast : ast) : ast =
           let whole, fraction = String.splitAt ~index:offset i in
           EFloat (gid (), whole, fraction)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in convertIntToFloat" expr )
 
 
 let convertPatternIntToFloat
@@ -2087,7 +2086,7 @@ let convertPatternIntToFloat
           let whole, fraction = String.splitAt ~index:offset i in
           FPFloat (matchID, gid (), whole, fraction)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in convertPatternIntToFloat" expr )
 
 
 let removePointFromFloat (id : id) (ast : ast) : ast =
@@ -2097,7 +2096,7 @@ let removePointFromFloat (id : id) (ast : ast) : ast =
           let i = coerceStringTo63BitInt (whole ^ fraction) in
           EInteger (gid (), i)
       | _ ->
-          fail "Not an int" )
+          recover "Not an int in removePointFromFloat" expr )
 
 
 (* ---------------- *)
@@ -2123,7 +2122,7 @@ let insertInList ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast) :
       | EList (id, exprs) ->
           EList (id, List.insertAt ~index ~value:newExpr exprs)
       | _ ->
-          fail "not a list" )
+          recover "not a list in insertInList" expr )
 
 
 (* Add a blank after the expr indicated by id, which we presume is in a list *)
@@ -2260,7 +2259,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         | [lhs; rhs] ->
             (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
         | _ ->
-            fail "BinOp doesn't have 2 args"
+            recover "BinOp doesn't have 2 args" (newB (), 0)
       else (EFnCall (gid (), fn.fnName, args, r), String.length partialName + 1)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
@@ -2286,16 +2285,18 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
       let starting = if argCount = 0 then 0 else 1 in
       (EConstructor (gid (), gid (), name, args), starting + String.length name)
   | FACPattern _ ->
-      fail
+      recover
         ( "TODO: patterns are not supported here: "
         ^ Types.show_fluidAutocompleteItem entry )
+        (newB (), 0)
   | FACField fieldname ->
       ( EFieldAccess (gid (), newB (), gid (), fieldname)
       , String.length fieldname )
   | FACLiteral _ ->
-      fail
+      recover
         ( "invalid literal in autocomplete: "
         ^ Types.show_fluidAutocompleteItem entry )
+        (newB (), 0)
 
 
 let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
@@ -2342,8 +2343,9 @@ let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
     | FPANull (mID, patID) ->
         (FPNull (mID, patID), 4) )
   | _ ->
-      fail
+      recover
         "got fluidAutocompleteItem of non `FACPattern` variant - this should never occur"
+        (FPBlank (gid (), gid ()), 0)
 
 
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
@@ -2646,7 +2648,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         | Some leftTI, _, _ ->
             doLeft ~pos:ti.startPos leftTI s
         | _ ->
-            fail "TThreadPipe should never occur on first line of AST"
+            recover "TThreadPipe should never occur on first line of AST" s
       in
       (removeThreadPipe id ast i, s)
 
@@ -2794,7 +2796,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
           | Some leftTI, _, _ ->
               doLeft ~pos:ti.startPos leftTI s
           | _ ->
-              fail "TThreadPipe should never occur on first line of AST"
+              recover "TThreadPipe should never occur on first line of AST" s
         else s
       in
       (newAST, s)
@@ -3406,7 +3408,6 @@ and deleteSelection ~state ~ast : ast * fluidState =
   let rangeStart, rangeEnd =
     fluidGetSelectionRange state |> orderRangeFromSmallToBig
   in
-  let clipboard = state.clipboard (* preserve clipboard *) in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
@@ -3424,7 +3425,7 @@ and deleteSelection ~state ~ast : ast * fluidState =
                  newState.newPos < rangeStart
          then (false, ast, state)
          else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, {state with clipboard})
+  |> fun (_, ast, state) -> (ast, state)
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
@@ -4023,16 +4024,45 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
   reconstruct ~topmostID (startPos, endPos)
 
 
-let pasteSelection ~state ~ast () : ast * fluidState =
+let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
+  match ast with
+  | EString (_, str) ->
+      `Text str
+  | _ ->
+      `Json (Encoders.pointerData (PExpr (toExpr ast)))
+
+
+let clipboardContentsToExpr ~state (data : clipboardContents) :
+    fluidExpr option =
+  match data with
+  | `Json json ->
+    ( try
+        let data = Decoders.pointerData json |> TL.clonePointerData in
+        match data with
+        | PExpr expr ->
+            Some (fromExpr state expr)
+        | _ ->
+            (* We could support more but don't yet *)
+            Js.log "not a pexpr" ;
+            None
+      with _ ->
+        Js.log2 "could not decode" json ;
+        None )
+  | `Text text ->
+      (* TODO: This is an OK first solution, but it doesn't allow us paste
+         * into things like variable or key names. *)
+      Some (EString (gid (), text))
+  | `None ->
+      None
+
+
+let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
-  let clipboardExpr =
-    state.clipboard
-    |> Option.map ~f:(fun e -> toExpr e |> AST.clone |> fromExpr state)
-  in
+  let clipboardExpr = clipboardContentsToExpr ~state data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
@@ -4223,7 +4253,32 @@ let pasteSelection ~state ~ast () : ast * fluidState =
       (ast, state)
 
 
-let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
+let copy (state : fluidState) (ast : fluidExpr) : fluidExpr option =
+  fluidGetOptionalSelectionRange state
+  |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+
+
+let fluidDataFromModel m : (fluidState * fluidExpr) option =
+  match Toplevel.selectedAST m with
+  | Some expr ->
+      let s = m.fluidState in
+      Some (s, fromExpr s expr)
+  | None ->
+      None
+
+
+let getCopySelection (m : model) : clipboardContents =
+  match fluidDataFromModel m with
+  | Some (state, ast) ->
+      fluidGetOptionalSelectionRange state
+      |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
+      |> Option.map ~f:exprToClipboardContents
+      |> Option.withDefault ~default:`None
+  | None ->
+      `None
+
+
+let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
@@ -4237,27 +4292,11 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
           updateMouseClick newPos ast s
       | None ->
           (ast, {s with error = Some "found no pos"}) )
-    | FluidCopy ->
-        ( ast
-        , { s with
-            clipboard =
-              fluidGetOptionalSelectionRange s
-              |> Option.andThen ~f:(reconstructExprFromRange ~state:s ~ast) }
-        )
     | FluidCut ->
-        fluidGetOptionalSelectionRange s
-        |> Option.map ~f:(fun sel ->
-               let ast, state =
-                 ( ast
-                 , { s with
-                     clipboard = (reconstructExprFromRange ~state:s ~ast) sel
-                   } )
-               in
-               deleteSelection ~state ~ast )
-        |> Option.withDefault ~default:(ast, s)
-    | FluidPaste ->
+        deleteSelection ~state:s ~ast
+    | FluidPaste data ->
         let ast, state = deleteSelection ~state:s ~ast in
-        let ast, state = pasteSelection ~state ~ast () in
+        let ast, state = pasteOverSelection ~state ~ast data in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
@@ -4298,21 +4337,29 @@ let updateMsg m tlid (ast : ast) (msg : Types.msg) (s : fluidState) :
   (newAST, newState)
 
 
-let update (m : Types.model) (msg : Types.msg) : Types.modification =
+let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
   | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
     when (metaKey || ctrlKey) && key = K.Letter 'z' ->
       KeyPress.undo_redo m shiftKey
-  | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
-    when (metaKey || ctrlKey) && key = K.Letter 'z' ->
-      KeyPress.undo_redo m shiftKey
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
+  | FluidKeyPress {key; metaKey; ctrlKey}
+    when (metaKey || ctrlKey) && key = K.Letter 'k' ->
+      KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
-  | _ ->
+  | FluidKeyPress _
+  | FluidCopy
+  | FluidPaste _
+  | FluidCut
+  | FluidCommandsFilter _
+  | FluidCommandsClick _
+  | FluidMouseClick _
+  | FluidAutocompleteClick _
+  | FluidUpdateSelection _ ->
       let tlid =
         match msg with
         | FluidMouseClick tlid ->
@@ -4407,7 +4454,7 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                FluidAutocompleteClick item ) ]
+                FluidMsg (FluidAutocompleteClick item) ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
@@ -4610,17 +4657,19 @@ let toHtml
                     in
                     ( match ev with
                     | {detail = 2; altKey = true} ->
-                        UpdateFluidSelection
-                          (tlid, getExpressionRangeAtCaret state ast)
+                        FluidMsg
+                          (FluidUpdateSelection
+                             (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
-                        UpdateFluidSelection
-                          (tlid, getTokenRangeAtCaret state ast)
+                        FluidMsg
+                          (FluidUpdateSelection
+                             (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
-                        UpdateFluidSelection (tlid, None) )
+                        FluidMsg (FluidUpdateSelection (tlid, None)) )
                 | None ->
                     (* We expect that this doesn't happen *)
-                    UpdateFluidSelection (tlid, None) )
+                    FluidMsg (FluidUpdateSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"
@@ -4628,8 +4677,8 @@ let toHtml
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then UpdateFluidSelection (tlid, Some range)
-                    else UpdateFluidSelection (tlid, None)
+                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
+                    else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
@@ -4790,13 +4839,6 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"" ) ]
-    ; Html.div
-        []
-        [ Html.text "clipboard: "
-        ; Html.text
-            ( s.clipboard
-            |> Option.map ~f:(eToString s)
             |> Option.withDefault ~default:"" ) ] ]
   in
   let tokenDiv =
@@ -4880,3 +4922,27 @@ let renderCallback (m : model) =
             Entry.setFluidCaret m.fluidState.newPos )
   | _ ->
       ()
+
+
+(* Some things aren't in non-fluid, and if you switch from one to the other you'll be in trouble. Just allow them to be removed. *)
+
+let stripConstructs (ast : expr) : expr =
+  let rec f e =
+    match e with
+    | F (_, FluidPartial (_, oldExpr)) ->
+        f oldExpr
+    | F (_, FluidRightPartial (_, oldExpr)) ->
+        f oldExpr
+    | _ ->
+        AST.traverse f e
+  in
+  f ast
+
+
+let stripFluidConstructsFromFunctions (ufs : userFunction list) :
+    userFunction list =
+  List.map ufs ~f:(fun uf -> {uf with ufAST = stripConstructs uf.ufAST})
+
+
+let stripFluidConstructsFromHandlers (hs : handler list) : handler list =
+  List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})

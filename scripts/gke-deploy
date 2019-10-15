@@ -115,25 +115,25 @@ fi
 
 cleanup_deploy_lock() {
   trap '' EXIT # some shells will call EXIT after the INT handler
-  if [[ "${DEPLOY_LOCK_BUCKET}" != "" && "${THIS_DEPLOY_LOCKFILE}" != "" ]];
+  if [[ "${DEPLOY_LOCK_BUCKET}" != "" && "${LOCKFILE_ID}" != "" ]];
   then
-    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/deploy-lock-${THIS_DEPLOY_LOCKFILE}"
-    gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-${THIS_DEPLOY_LOCKFILE}"
+    echo "Removing deploy lock: ${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
+    gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"
   fi
 
   exit 1
 }
 
 deploy_lock_claimed=""
+if [[ "$CI" == "" ]]; then
+  LOCKFILE_ID="manual-deploy"
+else
+  LOCKFILE_ID="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
+fi
+echo "Lock file: ${LOCKFILE_ID}"
+LOCKFILE_NAME="deploy-lock-${LOCKFILE_ID}"
 
 while [[ "${deploy_lock_claimed}" != "true" ]]; do
-  if [[ "$CI" == "" ]]; then
-    THIS_DEPLOY_LOCKFILE="manual-deploy"
-  else
-    THIS_DEPLOY_LOCKFILE="$(echo ${CIRCLE_BUILD_URL} | grep -Eo '[0-9]+$')"
-  fi
-  echo "Lock file: ${THIS_DEPLOY_LOCKFILE}"
-
   # If there's a manual lock, loop
   if (gsutil ls ${DEPLOY_LOCK_BUCKET}/deploy-lock-manual-deploy); then
     true # loop
@@ -143,17 +143,17 @@ while [[ "${deploy_lock_claimed}" != "true" ]]; do
 
     # if there are no deploy locks, create ours and continue
     if [[ "${max_deploy_lock}" == "" ]]; then
-      echo date > "deploy-lock-${THIS_DEPLOY_LOCKFILE}"
-      gsutil cp "deploy-lock-${THIS_DEPLOY_LOCKFILE}" "${DEPLOY_LOCK_BUCKET}"
+      echo date > "${LOCKFILE_NAME}"
+      gsutil cp "${LOCKFILE_NAME}" "${DEPLOY_LOCK_BUCKET}"
       # Make sure we remove the lockfile if this script exits early for some reason
-      trap cleanup_deploy_lock INT QUIT TERM
+      trap cleanup_deploy_lock INT QUIT TERM ERR
 
       deploy_lock_claimed="true"
+    elif [[ "${LOCKFILE_ID}" == "manual-deploy" ]]; then
+      true
     # if the biggest # is greater than ours, then exit instead of deploying
-    # NB: "manual-deploy" is greater than any numeric string, so it will always
-    # wait, not exit early
-    elif [[ "${max_deploy_lock}" -gt "${THIS_DEPLOY_LOCKFILE}"  ]]; then
-      echo "Currently-running deploy ${max_deploy_lock} > ${THIS_DEPLOY_LOCKFILE}, so not deploying."
+    elif [[ "${max_deploy_lock}" -gt "${LOCKFILE_ID}"  ]]; then
+      echo "Currently-running deploy ${max_deploy_lock} > ${LOCKFILE_ID}, so not deploying."
       exit 1
     # if the biggest # is smaller than ours, loop (we will deploy after)
     else
@@ -201,7 +201,7 @@ gcloud container clusters get-credentials "--zone=${DARK_REGION}" \
 (kubectl create configmap nginx --from-file=scripts/support/nginx.conf -o yaml --dry-run | kubectl replace -f -) \
   ||  kubectl create configmap nginx --from-file=scripts/support/nginx.conf
 
-CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date)'"
+CHANGE_CAUSE="'circle=${CIRCLE_BUILD_URL} ; orig-time: $(date); git-commit: $(git rev-parse --short HEAD)'"
 
 sed -e "s!{IMAGE}!${SERVER_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
@@ -256,7 +256,7 @@ else
     -F "access_token=${ROLLBAR_ACCESS_TOKEN}" \
     -F "environment=${ENVIRONMENT}" \
     -F "revision=${GCR}/${SERVER_IMAGE_ID}" \
-    -F "comment=${CIRCLE_BUILD_URL}" \
+    -F "comment='${CIRCLE_BUILD_URL} ; $(git rev-parse --short HEAD)'" \
     -F "local_username=${LOCAL_USERNAME}" > /dev/null
   echo "Rollbar notified."
 fi
@@ -264,4 +264,4 @@ fi
 ####################
 # Unlock post-deploy
 ####################
-gsutil rm "${DEPLOY_LOCK_BUCKET}/deploy-lock-${THIS_DEPLOY_LOCKFILE}"
+gsutil rm "${DEPLOY_LOCK_BUCKET}/${LOCKFILE_NAME}"

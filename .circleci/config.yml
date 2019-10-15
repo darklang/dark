@@ -14,10 +14,21 @@ commands:
       - run:
           name: Copy app directory into dev container
           command: |
-            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
-            # set the ownership of all this
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark /home/dark/app"
+      - set-ownership:
+          path: "/home/dark/app"
+
+  set-ownership:
+    parameters:
+      path:
+        type: string
+    steps:
+      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+      - run:
+          name: Set the ownership of copied files
+          command: |
+            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark << parameters.path >>"
+
 
   ##########################
   # Check the worktree
@@ -89,6 +100,13 @@ commands:
           > /root/docker-env
 
       - run:
+          name: Prepare dev-container volume (vols)
+          command: |
+            # We list all the directories because volume creation has to be
+            # done on creation afaict.
+            docker create -v /home/dark/app -v /home/dark/.esy -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
+
+      - run:
           name: Install outer container utilities
           # coreutils for gnu date
           command: |
@@ -150,20 +168,23 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v10-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v10-stroller-{{ checksum "rundir/today-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus1-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus2-timestamp" }}
-            - v10-stroller-{{ checksum "rundir/minus3-timestamp" }}
+            - v11-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - v11-stroller-{{ checksum "rundir/today-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus1-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus2-timestamp" }}
+            - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "stroller/target" }
-      - clean-caches: { path: "cargo" }
+      - clean-caches: { path: "cargo-home" }
       - run:
+          # Everything else (including stroller/target) is copied in via
+          # copy-into-container, but it doesn't include this because it's not
+          # in /home/dark/app.
           name: Set up volume for cargo
           command: |
-            docker create -v /usr/local/cargo --name dark_rust_cargo alpine:3.4 /bin/true
-            docker cp cargo dark_rust_cargo:/usr/local/cargo
-            docker run -i --volumes-from dark_rust_cargo alpine sh -c "adduser -D -u 1000 dark; chown -R dark /usr/local/cargo"
-            rm -Rf cargo
+            docker cp cargo-home vols:/usr/local/cargo-home
+            rm -Rf cargo-home # don't copy it a second time
+      - set-ownership:
+          path: "/usr/local/cargo-home"
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run-background-container
@@ -174,19 +195,19 @@ jobs:
           name: Copy out generated files and caches
           command: |
             docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp dark_rust_cargo:/usr/local/cargo cargo
+            docker cp vols:/usr/local/cargo-home cargo-home
       - save_cache:
           name: "Save cargolock-specific stroller cache"
           paths:
             - stroller/target
-            - cargo
-          key: v10-stroller-{{ checksum "stroller/Cargo.lock" }}
+            - cargo-home
+          key: v11-stroller-{{ checksum "stroller/Cargo.lock" }}
       - save_cache:
           name: "Save daily stroller cache"
           paths:
             - stroller/target
-            - cargo
-          key: v10-stroller-{{ checksum "rundir/today-timestamp" }}
+            - cargo-home
+          key: v11-stroller-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -201,19 +222,33 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v10-backend-{{ checksum "rundir/today-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v10-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v11-backend-{{ checksum "rundir/today-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v11-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
+      - clean-caches: { path: "dotesy" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
+      - run:
+          # Everything else is copied in via copy-into-container, but it
+          # doesn't include this because it's not in /home/dark/app.
+          name: Set up volume for dotesy
+          command: |
+            mkdir -p dotesy
+            docker cp dotesy/. vols:/home/dark/.esy
+            rm -Rf dotesy # don't copy it a second time
+      - set-ownership:
+          path: "/home/dark/.esy"
       - copy-into-container
       - run: scripts/builder --compile-backend --test
-    # - run-background-container
-    # - wait-for-container
-    # - run: scripts/gcp-build-containers --skip-stroller
+      - run-background-container
+      - wait-for-container
       - assert-clean-worktree
+      - run:
+          name: Reduce size of esy cache
+          command: |
+            ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
       - run:
           name: Copy out generated files and caches
           command: |
@@ -221,6 +256,7 @@ jobs:
             docker cp vols:/home/dark/app/backend/_esy backend/
             docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
+            docker cp vols:/home/dark/.esy dotesy
       - save_cache:
           name: "Save daily backend cache"
           paths:
@@ -228,7 +264,8 @@ jobs:
             - backend/_esy
             - backend/node_modules
             - backend/static
-          key: v9-backend-{{ checksum "rundir/today-timestamp" }}
+            - dotesy
+          key: v11-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:

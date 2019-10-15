@@ -174,10 +174,13 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     if vs.dbLocked && db.activeMigration = None
     then
       Html.div
-        [ ViewUtils.eventNoPropagation
-            ~key:("sm-" ^ showTLID db.dbTLID)
-            "click"
-            (fun _ -> StartMigration db.dbTLID) ]
+        (* DB migrations dont work yet, and they just confuse users who open
+         * them. *)
+        (* [ ViewUtils.eventNoPropagation *)
+        (*     ~key:("sm-" ^ showTLID db.dbTLID) *)
+        (*     "click" *)
+        (*     (fun _ -> StartMigration db.dbTLID) ] *)
+          []
         [fontAwesome "lock"]
     else fontAwesome "unlock"
   in

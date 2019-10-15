@@ -146,7 +146,7 @@ USER root
 #
 # And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
 # And then 11.14
-RUN apt update && apt install nodejs=11.15.0-1nodesource1
+RUN apt update && apt install -y nodejs=11.15.0-1nodesource1
 
 RUN npm install -g yarn@1.12.3
 
@@ -273,6 +273,12 @@ RUN dpkgArch="$(dpkg --print-architecture)"; \
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
+# At this point, we've installed rust binaries in
+# /usr/local/cargo/bin and added them to the PATH. CARGO_HOME is the
+# place where cargo installs a lot of caches and so we want to put
+# those in a volume, so we make CARGO_HOME a different directory
+ENV CARGO_HOME=/usr/local/cargo-home
+
 
 ########################
 # DNS for integration tests
@@ -290,6 +296,25 @@ ENV TERM=xterm-256color
 ######################
 
 RUN sudo apt install -y net-tools # for netstat
+
+# This gets us - for now - nginx 1.14, not the 1.15.3 we use in prod. But I
+# haven't been able to find 1.15 in nginx' own reoo either, just 1.14 and 1.16.
+RUN sudo apt update && sudo apt install -y nginx-core && sudo useradd nginx
+
+# We could mount these files into the container, but then we'd also want to make
+# scripts/support/compile restart runserver if either of the nginx files
+# changed, and I'd rather not add to the complexity of that file right now.
+# nginx changes should be infrequent, making users restart scripts/builder is
+# fine
+RUN sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx.conf
+RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
+RUN sudo chown -R dark:dark /var/log/nginx
+
+RUN sudo apt install -y bash-completion \
+    && sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+
+# Esy packages need makeinfo
+RUN sudo apt update && DEBIAN_FRONTEND=noninteractive sudo -E apt install -y texinfo
 
 ############################
 # Finish

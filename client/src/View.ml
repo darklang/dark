@@ -414,12 +414,11 @@ let view (m : model) : msg Html.html =
         (Decoders.wrapDecoder
            (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
   in
-  let errorBar = if m.isAdmin then [ViewScaffold.viewError m.error] else [] in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m
-    ; viewMinimap m.canvasProps.minimap ]
-    @ errorBar
+    ; viewMinimap m.canvasProps.minimap
+    ; ViewScaffold.viewError m.error ]
   in
   let sidebar = ViewSidebar.viewSidebar m in
   let body = viewCanvas m in
@@ -431,10 +430,20 @@ let view (m : model) : msg Html.html =
     then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
+  let viewDocs =
+    [ Html.a
+        [ Html.class' "doc-container"
+        ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
+        ; Html.target "_blank"
+        ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ -> IgnoreMsg)
+        ]
+        [fontAwesome "book"; Html.text "Docs"] ]
+  in
   let content =
     ViewTopbar.html m
     @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
     @ fluidStatus
     @ footer
+    @ viewDocs
   in
   Html.div attributes content

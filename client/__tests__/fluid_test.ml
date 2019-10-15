@@ -1785,6 +1785,16 @@ let () =
           ; listFn [aListNum "4"]
           ; listFn [aListNum "5"] ]
       in
+      let aBinopThread =
+        threadOn
+          (newB ())
+          [ EBinOp
+              ( gid ()
+              , "++"
+              , EThreadTarget (gid ())
+              , EString (gid (), "asd")
+              , NoRail ) ]
+      in
       let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
       let aNestedThread =
         threadOn emptyList [listFn [threadOn aList5 [listFn [aList6]]]]
@@ -1918,6 +1928,17 @@ let () =
         (del 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
+      tp
+        "backspacing a thread's first fn works"
+        aLongThread
+        (bs 17)
+        ( "[]\n|>List::appen@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n"
+        , 16 ) ;
+      tp
+        "backspacing a thread's first binop works"
+        aBinopThread
+        (bs 8)
+        ("___\n|>+@ \"asd\"\n", 7) ;
       t
         "adding infix functions adds the right number of blanks"
         emptyThread

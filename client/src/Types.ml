@@ -807,15 +807,14 @@ and clipboardData =
    ; getData : string -> string [@bs.meth] >
    Js.t[@opaque])
 
-and jsEvent =
+and clipboardEvent =
   (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
    Js.t[@opaque])
 
-and clipboardCopyEvent = jsEvent
-
-and clipboardPasteEvent = jsEvent
-
-and clipboardCutEvent = jsEvent
+and clipboardContents =
+  [ `Text of string
+  | `Json of (Js.Json.t[@opaque])
+  | `None ]
 
 (* ------------------- *)
 (* Modifications *)
@@ -928,13 +927,32 @@ and modification =
   | AddToGroup of tlid * tlid
   | UndoGroupDelete of tlid * group
   | MoveMemberToNewGroup of tlid * tlid * model
+  | ShowSaveToast
+  | SetClipboardContents of clipboardContents * clipboardEvent
 
 (* ------------------- *)
 (* Msgs *)
 (* ------------------- *)
+and fluidMsg =
+  | FluidAutocompleteClick of fluidAutocompleteItem
+  | FluidCopy
+  | FluidKeyPress of FluidKeyboard.keyEvent
+  | FluidMouseClick of tlid
+  | FluidCut
+  | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
+      [@printer opaque "FluidPaste"]
+  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
+   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
+   * This bi-directionality is not ideal and could use some rethinking.
+   *)
+  | FluidUpdateSelection of tlid * (int * int) option
+  | FluidCommandsFilter of string
+  | FluidCommandsClick of command
+
 and msg =
   | GlobalClick of mouseEvent
   | IgnoreMsg
+  | FluidMsg of fluidMsg
   | ToplevelMouseDown of tlid * mouseEvent
   (* we have the actual node when ToplevelMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
@@ -946,13 +964,7 @@ and msg =
   | EntryInputMsg of string
   | EntrySubmitMsg
   | GlobalKeyPress of Keyboard.keyEvent
-  | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidMouseClick of tlid
   | AutocompleteClick of int
-  | FluidAutocompleteClick of fluidAutocompleteItem
-  | FluidCopy
-  | FluidCut
-  | FluidPaste
   | AddOpRPCCallback of
       focus * addOpRPCParams * (addOpStrollerMsg, httpError) Tea.Result.t
       [@printer opaque "AddOpRPCCallback"]
@@ -1026,9 +1038,9 @@ and msg =
   | DeleteColInDB of tlid * id
   | MarkRoutingTableOpen of bool * string
   | CreateDBTable
-  | ClipboardCopyEvent of clipboardCopyEvent
-  | ClipboardCutEvent of clipboardCutEvent
-  | ClipboardPasteEvent of clipboardPasteEvent
+  | ClipboardCopyEvent of clipboardEvent
+  | ClipboardCutEvent of clipboardEvent
+  | ClipboardPasteEvent of clipboardEvent
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
@@ -1037,17 +1049,10 @@ and msg =
   | SetHoveringReferences of tlid * id list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
       [@printer opaque "TriggerSendPresenceCallback"]
-  | FluidCommandsFilter of string
-  | FluidCommandsClick of command
   | TakeOffErrorRail of tlid * id
   | SetHandlerExeIdle of tlid
   | CopyCurl of tlid * vPos
   | SetHandlerActionsMenu of tlid * bool
-  (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
-   * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
-   * This bi-directionality is not ideal and could use some rethinking.
-   *)
-  | UpdateFluidSelection of tlid * (int * int) option
   | ResetToast
   | UpdateMinimap of string option
   | GoToArchitecturalView
@@ -1316,8 +1321,8 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selectionStart : int option (* The selection ends at newPos *)
-  ; clipboard : fluidExpr option }
+  ; selectionStart : int option
+  (* The selection ends at newPos *) }
 
 (* Avatars *)
 and avatar =
