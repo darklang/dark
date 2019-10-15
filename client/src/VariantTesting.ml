@@ -23,26 +23,39 @@ let libtwitterAvailable (vts : variantTest list) : bool =
   List.member ~value:LibtwitterVariant vts
 
 
-let toVariantTest (s : string * bool) : variantTest option =
-  match s with
-  | _, false ->
-      None
-  | test, _ ->
-    ( match String.toLower test with
-    | "stub" ->
+let toVariantTest (s : string * bool) (autoFluidEnabled : bool) :
+    variantTest option =
+  (* We now force dark employees/admins(minus ellen) to use fluid automatically. *)
+  match (s, autoFluidEnabled) with
+  | (test, true), af ->
+    ( match (String.toLower test, af) with
+    | "stub", _ ->
         Some StubVariant
-    | "fluidv2" ->
+    (* If fluid is true for admins, dont use fluid *)
+    | "fluidv2", true ->
+        None
+    (* If fluid is true for everyone other than admins, use fluid *)
+    | "fluidv2", _ ->
         Some FluidVariant
-    | "fluid" ->
+    | "fluid", _ ->
         Some FluidWithoutStatusVariant
-    | "libtwitter" ->
+    | "libtwitter", _ ->
         Some LibtwitterVariant
-    | "groups" ->
+    | "groups", _ ->
         Some GroupVariant
-    | "grid" ->
+    | "grid", _ ->
         Some GridLayout
     | _ ->
         None )
+  | (test, false), true ->
+    ( match String.toLower test with
+    (* If fluid is false for admins, show fluid *)
+    | "fluidv2" ->
+        Some FluidVariant
+    | _ ->
+        None )
+  | (_, false), _ ->
+      None
 
 
 let toCSSClass (vt : variantTest) : string =
@@ -77,9 +90,17 @@ let uniqueTests (xs : variantTest list) : variantTest list =
 
 let expandTest (vt : variantTest) : variantTest list = match vt with x -> [x]
 
-let enabledVariantTests : variantTest list =
+(* If user is an admin and NOT ellen then true *)
+(* https://trello.com/c/uCDrNYop/1872-force-fluid-on-for-everyone-at-dark-except-ellen-but-allow-to-turn-off *)
+let enableAutoFluid (isAdmin : bool) (username : string) : bool =
+  if isAdmin && username != "ellen" then true else false
+
+
+let enabledVariantTests (isAdmin : bool) (username : string) : variantTest list
+    =
+  let autoFluidEnabled = enableAutoFluid isAdmin username in
   Url.queryParams
-  |> List.filterMap ~f:toVariantTest
+  |> List.filterMap ~f:(fun info -> toVariantTest info autoFluidEnabled)
   |> List.map ~f:expandTest
   |> List.flatten
   |> uniqueTests
