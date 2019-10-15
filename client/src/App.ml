@@ -633,6 +633,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let oldM = m in
+        let handlers =
+          if VariantTesting.isFluid m.tests
+          then handlers
+          else Fluid.stripFluidConstructsFromHandlers handlers
+        in
         let m =
           { m with
             handlers = Handlers.fromList handlers
@@ -767,6 +772,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
+        let userFuncs =
+          if VariantTesting.isFluid m.tests
+          then userFuncs
+          else Fluid.stripFluidConstructsFromFunctions userFuncs
+        in
         let m =
           { m with
             userFunctions =
