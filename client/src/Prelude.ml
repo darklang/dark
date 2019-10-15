@@ -84,12 +84,13 @@ let idOf (s : cursorState) : id option =
 let recover (msg : 'a) (val_ : 'b) : 'b =
   let error =
     "An unexpected but recoverable error happened. "
-    ^ "For now we crash. "
     ^ "Message: "
     ^ Js.String.make msg
-    ^ "Value: "
+    ^ ", Value: "
     ^ Js.String.make val_
   in
+  Js.log error ;
+  Js.Console.trace () ;
   Native.Rollbar.send error None Js.Json.null ;
   val_
 

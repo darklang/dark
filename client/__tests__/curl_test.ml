@@ -62,13 +62,11 @@ let () =
       in
       test "returns command for /test GET" (fun () ->
           expect (curlFromSpec m defaultTLID)
-          |> toEqual
-               (Some "curl -X GET http://test-curl.builtwithdark.com/test") ) ;
+          |> toEqual (Some "curl http://test-curl.builtwithdark.com/test") ) ;
       test "returns command in https if env=prod" (fun () ->
           let m1 = {m with environment = "production"} in
           expect (curlFromSpec m1 defaultTLID)
-          |> toEqual
-               (Some "curl -X GET https://test-curl.builtwithdark.com/test") ) ;
+          |> toEqual (Some "curl https://test-curl.builtwithdark.com/test") ) ;
       test "returns None if tlid not found" (fun () ->
           expect (curlFromSpec m (TLID "1")) |> toEqual None ) ;
       test "returns None for non-HTTP handlers" (fun () ->

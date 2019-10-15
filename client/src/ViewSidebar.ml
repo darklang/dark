@@ -324,11 +324,11 @@ let standardCategories m hs dbs ufns tipes groups =
     then [groupCategory groups]
     else []
   in
-  (* For the demo video in the launch, we need to hide tipes to
-   * make it fit on ellen's screen. We should be able to remove
-   * this in October 2019 *)
+  (* We want to hide user defined types for users who arent already using them 
+    since there is currently no way to use them other than as a function param.
+    we should show user defined types once the user can use them more *)
   let tipes =
-    if m.username = "ellen" then [] else [userTipeCategory m tipes]
+    if List.length tipes == 0 then [] else [userTipeCategory m tipes]
   in
   let catergories =
     [ httpCategory hs

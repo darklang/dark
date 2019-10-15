@@ -633,6 +633,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (Toplevel.remove m tl, Cmd.none)
     | SetToplevels (handlers, dbs, groups, updateCurrent) ->
         let oldM = m in
+        let handlers =
+          if VariantTesting.isFluid m.tests
+          then handlers
+          else Fluid.stripFluidConstructsFromHandlers handlers
+        in
         let m =
           { m with
             handlers = Handlers.fromList handlers
@@ -767,6 +772,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
+        let userFuncs =
+          if VariantTesting.isFluid m.tests
+          then userFuncs
+          else Fluid.stripFluidConstructsFromFunctions userFuncs
+        in
         let m =
           { m with
             userFunctions =
@@ -893,6 +903,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | MoveMemberToNewGroup (gTLID, tlid, newMod) ->
         let newMod, newCmd = Groups.addToGroup newMod gTLID tlid in
         (newMod, newCmd)
+    | ShowSaveToast ->
+        (* This shows the user that they dont need to hit cmd + s to save. *)
+        ( { m with
+            toast =
+              {toastMessage = Some "Dark saves automatically!"; toastPos = None}
+          }
+        , Cmd.none )
     | SetCursor (tlid, cur) ->
         let m = Analysis.setCursor m tlid cur in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -999,9 +1016,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
     | UndoGroupDelete (tlid, g) ->
-        let newMod = Groups.upsert m g in
-        ( {newMod with deletedGroups = TD.remove ~tlid m.deletedGroups}
+        let newModel = Groups.upsert m g in
+        ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
+    | SetClipboardContents (data, e) ->
+        Clipboard.setData data e ;
+        (m, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1046,7 +1066,7 @@ let update_ (msg : msg) (m : model) : modification =
         Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
-  | FluidAutocompleteClick item ->
+  | FluidMsg (FluidAutocompleteClick item) ->
     ( match unwrapCursorState m.cursorState with
     | FluidEntering _ ->
         if VariantTesting.isFluid m.tests
@@ -1777,7 +1797,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = findCenter m
       and genName = DB.generateDBName () in
-      DB.createDB genName center m
+      Entry.newDB genName center m
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center
@@ -1805,59 +1825,29 @@ let update_ (msg : msg) (m : model) : modification =
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      if VariantTesting.isFluid m.tests
-      then Many [toast; Fluid.update m FluidCopy]
-      else (
-        match Clipboard.copy m with
-        | `Text text ->
-            e##clipboardData##setData "text/plain" text ;
-            e##preventDefault () ;
-            toast
-        | `Json json ->
-            let data = Json.stringify json in
-            e##clipboardData##setData "application/json" data ;
-            e##preventDefault () ;
-            toast
-        | `None ->
-            () ;
-            NoChange )
-  | ClipboardPasteEvent e ->
-      let json = e##clipboardData##getData "application/json" in
-      if VariantTesting.isFluid m.tests
-      then Fluid.update m FluidPaste
-      else if json <> ""
-      then Clipboard.paste m (`Json (Json.parseOrRaise json))
-      else
-        let text = e##clipboardData##getData "text/plain" in
-        if text <> "" then Clipboard.paste m (`Text text) else NoChange
-  | ClipboardCutEvent e ->
-      let copyData, mod_ = Clipboard.cut m in
-      let mod_ =
+      let clipboardData =
         if VariantTesting.isFluid m.tests
-        then Fluid.update m FluidCut
-        else mod_
+        then Fluid.getCopySelection m
+        else Clipboard.copy m
       in
+      Many [SetClipboardContents (clipboardData, e); toast]
+  | ClipboardPasteEvent e ->
+      let data = Clipboard.getData e in
+      if VariantTesting.isFluid m.tests
+      then Fluid.update m (FluidPaste data)
+      else Clipboard.paste m data
+  | ClipboardCutEvent e ->
       let toast =
         TweakModel
           (fun m ->
             {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
       in
-      ( match copyData with
-      | `Text text ->
-          e##clipboardData##setData "text/plain" text ;
-          e##preventDefault () ;
-          Many [mod_; toast]
-      | `Json json ->
-          let data = Json.stringify json in
-          e##clipboardData##setData "application/json" data ;
-          (* this is probably gonna be useful for debugging, but customers
-           * shouldn't get used to it *)
-          e##clipboardData##setData "text/plain" data ;
-          e##preventDefault () ;
-          Many [mod_; toast]
-      | `None ->
-          () ;
-          mod_ )
+      let copyData, mod_ =
+        if VariantTesting.isFluid m.tests
+        then (Fluid.getCopySelection m, Fluid.update m FluidCut)
+        else Clipboard.cut m
+      in
+      Many [SetClipboardContents (copyData, e); mod_; toast]
   | ClipboardCopyLivevalue (lv, pos) ->
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
@@ -1887,7 +1877,7 @@ let update_ (msg : msg) (m : model) : modification =
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
       Introspect.setHoveringReferences tlid ids
-  | FluidKeyPress _ ->
+  | FluidMsg (FluidKeyPress _ as msg) ->
       Fluid.update m msg
   | TriggerSendPresenceCallback (Ok _) ->
       NoChange
@@ -1898,14 +1888,17 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidCopy | FluidCut | FluidPaste | FluidMouseClick _ ->
+  | FluidMsg FluidCopy
+  | FluidMsg FluidCut
+  | FluidMsg (FluidPaste _)
+  | FluidMsg (FluidMouseClick _) ->
       recover "Fluid functions should not happen here" NoChange
-  | FluidCommandsFilter query ->
+  | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
           {m with fluidState = {m.fluidState with cp}} )
-  | FluidCommandsClick cmd ->
+  | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
     ( match TL.getTLAndPD m tlid id with
@@ -1922,7 +1915,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | UpdateFluidSelection (targetExnID, selection) ->
+  | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
         ; TweakModel
@@ -2007,7 +2000,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     then
       match m.cursorState with
       | FluidEntering _ ->
-          [FluidKeyboard.downs ~key:"fluid" (fun x -> FluidKeyPress x)]
+          [ FluidKeyboard.downs ~key:"fluid" (fun x ->
+                FluidMsg (FluidKeyPress x) ) ]
       | _ ->
           []
     else []
