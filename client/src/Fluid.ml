@@ -4940,9 +4940,10 @@ let stripConstructs (ast : expr) : expr =
   f ast
 
 
-let stripFunctionConstructs (ufs : userFunction list) : userFunction list =
+let stripFluidConstructsFromFunctions (ufs : userFunction list) :
+    userFunction list =
   List.map ufs ~f:(fun uf -> {uf with ufAST = stripConstructs uf.ufAST})
 
 
-let stripHandlerConstructs (hs : handler list) : handler list =
+let stripFluidConstructsFromHandlers (hs : handler list) : handler list =
   List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})
