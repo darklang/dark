@@ -4344,11 +4344,11 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
     when (metaKey || ctrlKey) && key = K.Letter 'z' ->
       KeyPress.undo_redo m shiftKey
-  | FluidKeyPress {key; metaKey; ctrlKey; shiftKey}
-    when (metaKey || ctrlKey) && key = K.Letter 'z' ->
-      KeyPress.undo_redo m shiftKey
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
+  | FluidKeyPress {key; metaKey; ctrlKey}
+    when (metaKey || ctrlKey) && key = K.Letter 'k' ->
+      KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidKeyPress _

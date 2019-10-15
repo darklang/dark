@@ -63,6 +63,14 @@ let undo_redo (m : model) (redo : bool) : modification =
       NoChange
 
 
+let openOmnibox (m : model) : modification =
+  match m.currentPage with
+  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+      Many [Deselect; Entry.openOmnibox m]
+  | FocusedFn _ | FocusedType _ ->
+      Entry.openOmnibox m
+
+
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   let osCmdKeyHeld =
     if Entry.getBrowserPlatform () = Mac then event.metaKey else event.ctrlKey
@@ -293,13 +301,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Key.O, Some _ ->
           if event.altKey then CenterCanvasOn tlid else NoChange
       | Key.K, Some _ ->
-        ( match m.currentPage with
-        | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-            if osCmdKeyHeld
-            then Many [Deselect; Entry.openOmnibox m]
-            else NoChange
-        | _ ->
-            NoChange )
+          if osCmdKeyHeld then openOmnibox m else NoChange
       | Key.Unknown _, Some _ ->
         ( (* colon *)
         match mId with

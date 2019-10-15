@@ -1797,7 +1797,7 @@ let update_ (msg : msg) (m : model) : modification =
   | CreateDBTable ->
       let center = findCenter m
       and genName = DB.generateDBName () in
-      DB.createDB genName center m
+      Entry.newDB genName center m
   | CreateGroup ->
       let center = findCenter m in
       Groups.createEmptyGroup None center
