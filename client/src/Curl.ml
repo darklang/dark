@@ -42,7 +42,15 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
              let route =
                proto ^ "://" ^ m.canvasName ^ "." ^ m.userContentHost ^ path
              in
-             Some ("curl -X " ^ meth ^ " " ^ route)
+             ( match meth with
+             | "GET" ->
+                 Some ("curl " ^ route)
+             | _ ->
+                 Some
+                   ( "curl -X "
+                   ^ meth
+                   ^ " -H 'Content-Type: application/json' "
+                   ^ route ) )
          | _ ->
              None )
 
