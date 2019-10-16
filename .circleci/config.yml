@@ -296,16 +296,6 @@ jobs:
             - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
-  check-nginx-conf:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - copy-into-container
-      - run-background-container
-      - wait-for-container
-      - run: scripts/run-in-docker sudo nginx -t
-
   build-client:
     executor: my-executor
     steps:
@@ -455,7 +445,6 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - check-nginx-conf
       - build-backend
       - build-client
       - build-stroller
@@ -477,7 +466,6 @@ workflows:
             - build-client
             - build-stroller
             - build-postgres-honeytail
-            - check-nginx-conf
 
       # actual deploy
       - deploy:
