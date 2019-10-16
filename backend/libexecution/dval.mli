@@ -175,6 +175,8 @@ val unwrap_from_errorrail : Types.RuntimeT.dval -> Types.RuntimeT.dval
 
 val to_list : Types.RuntimeT.dval list -> Types.RuntimeT.dval
 
+val to_opt_just : Types.RuntimeT.dval -> Types.RuntimeT.dval
+
 val is_fake_marker_dval : Types.RuntimeT.dval -> bool
 
 (* ------------------------- *)

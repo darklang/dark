@@ -273,6 +273,22 @@ let to_list (l : dval list) : dval =
   match found with Some v -> v | None -> DList l
 
 
+let to_res_ok (dv : dval) : dval =
+    if is_fake_marker_dval dv
+    then dv
+    else DResult (ResOk dv)
+
+let to_res_err (dv: dval) : dval =
+    if is_fake_marker_dval dv
+    then dv
+    else DResult (ResError dv)
+
+let to_opt_just (dv: dval) : dval =
+    if is_fake_marker_dval dv
+    then dv
+    else DOption (OptJust dv)
+
+
 (* ------------------------- *)
 (* Obj Functions *)
 (* ------------------------- *)
