@@ -28,3 +28,5 @@ tunnel.yaml
 /stroller/target
 /backend/_esy
 /backend/node_modules
+
+deploy-lock-manual-deploy
