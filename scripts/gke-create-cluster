@@ -168,6 +168,27 @@ function print_step () {
   tput setab 6 && echo "=>" "$@" && tput sgr0
 }
 
+# validate DARK_CLUSTER_VERSION
+if ( ! grep "${DARK_CLUSTER_VERSION}" \
+      <(gcloud container get-server-config --region "${DARK_CLUSTER_REGION}" 2>/dev/null\
+        | sed -n '/validMasterVersions:/,/validNodeVersions:/p' \
+        | head -n-1 \
+        | tail -n +2 \
+        | sed 's/^- //'));
+then
+  echo "${DARK_CLUSTER_VERSION} is not currently supported in ${DARK_CLUSTER_REGION}."
+  echo "The prod cluster is currently running $(kubectl get nodes \
+    | grep -v VERSION \
+    | awk '{print $5}' \
+    | sed 's/^v//' \
+    | head -n 1), and currently-supported versions for new clusters are:"
+  gcloud container get-server-config --region "${DARK_CLUSTER_REGION}" 2>/dev/null \
+    | sed -n '/validMasterVersions:/,/validNodeVersions:/p' \
+    | head -n-1 \
+    | tail -n +2
+  exit 1;
+fi
+
 if [ ! -v WITH_NEW_DATABASE ]; then
   echo "--with-new-database is required"
   echo "$HELP"
@@ -193,6 +214,37 @@ else
   echo "$HELP"
   exit 1
 fi
+# This is usually the "original" (prod) cluster, though plausibly you could be
+# trying to clone a one non-prod cluster
+ORIG_CLUSTER=$(< current-cluster)
+# This function is primarily for www.hellobirb.com-tls, and the coming kiksht
+# cert, and any other we set up before we automate cert management
+function copy_tls_secret_between_clusters {
+  name=$1
+  # set orig cluster
+  gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${ORIG_CLUSTER}" --region=${DARK_CLUSTER_REGION}
+  print_step "Fetching TLS key & cert for $name"
+  TLS_KEY="$(kubectl get secrets "$name" -o json | jq -r '.data["tls.key"]')"
+  TLS_CRT="$(kubectl get secrets "$name" -o json | jq -r '.data["tls.crt"]')"
+
+  # set new cluster
+  gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}" --region=${DARK_CLUSTER_REGION}
+  print_step "Putting TLS key & cert for $name into new cluster"
+  kubectl create -f - <<EOF
+  {
+    "apiVersion": "v1",
+    "kind": "Secret",
+    "type": "kubernetes.io/tls",
+    "data": {
+      "tls.crt": "$TLS_CRT",
+      "tls.key": "$TLS_KEY"
+    },
+    "metadata": {
+          "name": "$name"
+    }
+  }
+EOF
+}
 
 if [ ! -v DARK_CLUSTER_BWD_TLS_KEY ] || [ ! -v DARK_CLUSTER_BWD_TLS_CRT ] \
      || [ ! -v DARK_CLUSTER_DL_TLS_KEY ] || [ ! -v DARK_CLUSTER_DL_TLS_CRT ] \
@@ -369,6 +421,17 @@ kubectl create -f - <<EOF
   }
 }
 EOF
+
+# Copy over the non-bwd, non-darklang tls secrets
+print_step "Copy over additional tls secrets"
+# Make sure we're in the "old" cluster
+gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${ORIG_CLUSTER}" --region=${DARK_CLUSTER_REGION}
+for i in $(kubectl get secrets | grep tls | grep -v -e bwd -e darklang | awk '{print $1}'); do
+  print_step "secret name: $i"
+  copy_tls_secret_between_clusters "$i"
+done
+# Make sure we're in the "new" cluster
+gcloud container clusters get-credentials "projects/${DARK_CLUSTER_PROJECT}/zones/${DARK_CLUSTER_REGION}/clusters/${DARK_CLUSTER}" --region=${DARK_CLUSTER_REGION}
 
 kubectl create clusterrolebinding circleci-admin-binding \
 --clusterrole=cluster-admin \
