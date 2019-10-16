@@ -301,14 +301,10 @@ jobs:
     steps:
       - checkout
       - initialize
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
-            docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
-            docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
-      - run: scripts/support/test-nginx.sh
+      - copy-into-container
+      - run-background-container
+      - wait-for-container
+      - run: scripts/run-in-docker sudo nginx -t
 
   build-client:
     executor: my-executor

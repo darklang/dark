@@ -297,9 +297,10 @@ ENV TERM=xterm-256color
 
 RUN sudo apt install -y net-tools # for netstat
 
-# This gets us - for now - nginx 1.14, not the 1.15.3 we use in prod. But I
-# haven't been able to find 1.15 in nginx' own reoo either, just 1.14 and 1.16.
-RUN sudo apt update && sudo apt install -y nginx-core && sudo useradd nginx
+RUN wget https://nginx.org/keys/nginx_signing.key && sudo apt-key add nginx_signing.key \
+    && echo deb https://nginx.org/packages/ubuntu/ bionic nginx \
+        | sudo tee -a /etc/apt/sources.list.d/nginx.list
+RUN sudo apt update && sudo apt install -y nginx=1.16.1-1~bionic
 
 # We could mount these files into the container, but then we'd also want to make
 # scripts/support/compile restart runserver if either of the nginx files
