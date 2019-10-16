@@ -27,8 +27,8 @@ let toVariantTest (s : string * bool) (autoFluidEnabled : bool) :
     variantTest option =
   (* We now force dark employees/admins(minus ellen) to use fluid automatically. *)
   match (s, autoFluidEnabled) with
-  | (test, true), af ->
-    ( match (String.toLower test, af) with
+  | (param, true), af ->
+    ( match (String.toLower param, af) with
     | "stub", _ ->
         Some StubVariant
     (* If fluid is true for admins, dont use fluid *)
@@ -47,8 +47,8 @@ let toVariantTest (s : string * bool) (autoFluidEnabled : bool) :
         Some GridLayout
     | _ ->
         None )
-  | (test, false), true ->
-    ( match String.toLower test with
+  | (param, false), true ->
+    ( match String.toLower param with
     (* If fluid is false for admins, show fluid *)
     | "fluidv2" ->
         Some FluidVariant
