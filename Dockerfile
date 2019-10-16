@@ -307,7 +307,7 @@ RUN sudo apt update && sudo apt install -y nginx=1.16.1-1~bionic
 # changed, and I'd rather not add to the complexity of that file right now.
 # nginx changes should be infrequent, making users restart scripts/builder is
 # fine
-RUN sudo mkdir -p /etc/nginx/conf.d && sudo rm /etc/nginx/conf.d/default.conf \
+RUN sudo rm /etc/nginx/conf.d/default.conf \
   && sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx.conf
 RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
 RUN sudo chown -R dark:dark /var/log/nginx
