@@ -145,7 +145,7 @@ spec:
             failureThreshold: 3 # kill container after 3 successive time outs
 
         - name: http-proxy
-          image: nginx:1.15.3
+          image: nginx:1.16.1
           resources:
             requests:
               memory: "50Mi"

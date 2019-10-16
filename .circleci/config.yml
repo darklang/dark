@@ -296,20 +296,6 @@ jobs:
             - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
-  check-nginx-conf:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            docker create -v /etc/nginx -v /etc/nginx/conf.d --name nginxvols nginx:1.15.3 /bin/true
-            docker cp scripts/support/base-nginx.conf nginxvols:/etc/nginx/nginx.conf
-            docker cp scripts/support/nginx.conf nginxvols:/etc/nginx/conf.d/nginx.conf
-      - run: scripts/support/test-nginx.sh
-
   build-client:
     executor: my-executor
     steps:
@@ -459,7 +445,6 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - check-nginx-conf
       - build-backend
       - build-client
       - build-stroller
@@ -481,7 +466,6 @@ workflows:
             - build-client
             - build-stroller
             - build-postgres-honeytail
-            - check-nginx-conf
 
       # actual deploy
       - deploy:
