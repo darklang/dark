@@ -192,4 +192,4 @@ let analyse_ast
   let _, traced_values, _ =
     Ast.execute_saving_intermediates state ~input_vars ast
   in
-  {live_values = traced_values}
+  traced_values

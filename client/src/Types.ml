@@ -464,9 +464,11 @@ and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
 
-and analysisResults = dvalDict loadable
+(* How we store the analysis. Because we can update individual values in
+  * the analysis, each value in here is loadable. *)
+and analysisStore = lvDict loadable
 
-and analyses = analysisResults StrDict.t
+and analyses = analysisStore (* indexed by traceID *) StrDict.t
 
 and functionResult =
   { fnName : string
@@ -507,7 +509,7 @@ and traceData =
 
 and trace = traceID * traceData option
 
-and traces = trace list StrDict.t
+and traces = trace list (* indexed by tlid *) StrDict.t
 
 and fourOhFour =
   { space : string
@@ -625,7 +627,7 @@ and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
   | AnalyzeFunction of performFunctionAnalysisParams
 
-and analysisEnvelope = traceID * analysisResults
+and analysisEnvelope = traceID * dvalDict
 
 and analysisError =
   | AnalysisExecutionError of performAnalysisParams * string
@@ -888,7 +890,7 @@ and modification =
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
-  | UpdateAnalysis of traceID * analysisResults
+  | UpdateAnalysis of traceID * dvalDict
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of unlockedDBs
   | AppendUnlockedDBs of unlockedDBs

@@ -310,13 +310,14 @@ let () =
         StrDict.singleton (* The default traceID for TLID 7 *)
           ~key:"94167980-f909-527e-a4af-bc3155f586d3"
           ~value:
-            { liveValues =
-                StrDict.singleton
+            (LoadableSuccess
+               (StrDict.singleton
                   ~key:"12"
                   ~value:
-                    (DObj
-                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))
-            }
+                    (LoadableSuccess
+                       (DObj
+                          (StrDict.fromList
+                             [("body", DNull); ("formBody", DNull)])))))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt

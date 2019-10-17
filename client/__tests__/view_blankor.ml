@@ -48,9 +48,8 @@ let () =
             ; showEntry = false
             ; showLivevalue = false
             ; dbLocked = false
-            ; currentResults = {liveValues = StrDict.empty}
+            ; analysisStore = LoadableSuccess StrDict.empty
             ; traces = []
-            ; analyses = StrDict.empty
             ; fns = []
             ; dbStats = StrDict.empty
             ; ufns = []

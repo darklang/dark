@@ -4523,7 +4523,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             then
               let asExpr = toExpr newAST in
               let requestAnalysis =
-                match Analysis.cursor m tlid with
+                match Analysis.getSelectedTraceID m tlid with
                 | Some traceID ->
                     let m = TL.withAST m tlid asExpr in
                     MakeCmd (Analysis.requestAnalysis m tlid traceID)
@@ -4600,20 +4600,18 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
+let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
   let returnTipe name =
     let fn = Functions.findByNameInList name state.ac.functions in
     Runtime.tipe2str fn.fnReturnTipe
   in
   let sentToRail id =
-    let dv =
-      StrDict.get ~key:(deID id) currentResults.liveValues
-      |> Option.withDefault ~default:DNull
-    in
+    let dv = Analysis.getLiveValue' analysisStore id in
     match dv with
-    | DErrorRail (DResult (ResError _)) | DErrorRail (DOption OptNothing) ->
+    | Some (DErrorRail (DResult (ResError _)))
+    | Some (DErrorRail (DOption OptNothing)) ->
         "ErrorRail"
-    | DIncomplete | DError _ ->
+    | Some DIncomplete | Some (DError _) ->
         "EvalFail"
     | _ ->
         ""
@@ -4637,7 +4635,7 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
 let viewPlayIcon
     ~(vs : ViewUtils.viewState)
     ~tlid
-    ~currentResults
+    ~analysisStore
     ~executingFunctions
     ~state
     (ast : ast)
@@ -4662,10 +4660,7 @@ let viewPlayIcon
       (* buttons *)
       let allExprs = previous @ exprs in
       let isComplete id =
-        id
-        |> ViewBlankOr.getLiveValue currentResults.liveValues
-        |> fun v ->
-        match v with
+        match Analysis.getLiveValue' analysisStore id with
         | None | Some (DError _) | Some DIncomplete ->
             false
         | Some _ ->
@@ -4738,7 +4733,7 @@ let viewPlayIcon
 let toHtml
     ~(vs : ViewUtils.viewState)
     ~tlid
-    ~currentResults
+    ~analysisStore
     ~executingFunctions
     ~state
     (ast : ast) : Types.msg Html.html list =
@@ -4816,7 +4811,7 @@ let toHtml
               |> viewPlayIcon
                    ~vs
                    ~tlid
-                   ~currentResults
+                   ~analysisStore
                    ~executingFunctions
                    ~state
                    ast ] ]
@@ -4829,7 +4824,7 @@ type lvType =
   | LSpinner of int
   | LVNone
 
-let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
+let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
   let liveValues, show, offset =
     let lv =
       (* Flatten conditions to eval live values *)
@@ -4838,7 +4833,7 @@ let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
              let id = Token.analysisID ti.token in
              if FluidToken.validID id
              then
-               StrDict.get ~key:(deID id) currentResults.liveValues
+               Analysis.getLiveValue' analysisStore id
                |> Option.map ~f:(fun exprValue ->
                       match AC.highlighted state.ac with
                       | Some (FACVariable (_, Some acValue)) ->
@@ -4871,9 +4866,7 @@ let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     =
-  let ({currentResults; executingFunctions; tlid} : ViewUtils.viewState) =
-    vs
-  in
+  let ({analysisStore; executingFunctions; tlid} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
@@ -4890,7 +4883,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     let indicators =
       tokenInfos
       |> List.map ~f:(fun ti ->
-             viewErrorIndicator ~tlid ~currentResults ~state ti )
+             viewErrorIndicator ~tlid ~analysisStore ~state ti )
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -4899,7 +4892,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   in
   let liveValue =
     if tlidOf vs.cursorState = Some tlid
-    then viewLiveValue ~tlid ~ast ~currentResults ~state
+    then viewLiveValue ~tlid ~ast ~analysisStore ~state
     else Vdom.noNode
   in
   [ liveValue
@@ -4909,7 +4902,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown" ]
-      (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
+      (ast |> toHtml ~vs ~tlid ~analysisStore ~executingFunctions ~state)
   ; errorRail ]
 
 

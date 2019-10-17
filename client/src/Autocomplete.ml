@@ -289,11 +289,13 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
 
 
 let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
+  let traceID = Analysis.getSelectedTraceID m tlid in
   TL.get m tlid
   |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(AST.getValueParent pd)
   |> Option.map ~f:P.toID
-  |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
+  |> Option.andThen2 traceID ~f:(fun traceID id ->
+         Analysis.getLiveValue m id traceID )
   (* don't filter on incomplete values *)
   |> Option.andThen ~f:(fun dv_ -> if dv_ = DIncomplete then None else Some dv_)
 
@@ -742,8 +744,9 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     a.target
     |> Option.andThen ~f:(fun (tlid, pd) ->
            TL.get m tlid |> Option.map ~f:(fun tl -> (tl, Pointer.toID pd)) )
-    |> Option.map ~f:(fun (tl, id) ->
-           Analysis.getCurrentAvailableVarnames m tl id )
+    |> Option.andThen ~f:(fun (tl, id) ->
+           Analysis.getSelectedTraceID m (TL.id tl)
+           |> Option.map ~f:(Analysis.getAvailableVarnames m tl id) )
     |> Option.withDefault ~default:[]
   in
   let dval = Option.andThen ~f:(dvalForTarget m) a.target in

@@ -217,11 +217,11 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           else Selection.moveDown m tlid mId
       | Key.Right, _ ->
           if event.altKey
-          then Selection.moveCursorBackInTime m tlid
+          then Selection.moveToOlderTrace m tlid
           else Selection.moveRight m tlid mId
       | Key.Left, _ ->
           if event.altKey
-          then Selection.moveCursorForwardInTime m tlid
+          then Selection.moveToNewerTrace m tlid
           else Selection.moveLeft m tlid mId
       | Key.Tab, _ ->
           (* NB: see `stopKeys` in ui.html *)

@@ -658,9 +658,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs }
         in
         processAutocompleteMods m [ACRegenerate]
-    | UpdateAnalysis (id, analysis) ->
-        let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
-        processAutocompleteMods m2 [ACRegenerate]
+    | UpdateAnalysis (traceID, dvals) ->
+        let dvals = StrDict.map ~f:(fun dv -> LoadableSuccess dv) dvals in
+        let m =
+          { m with
+            analyses =
+              Analysis.record m.analyses traceID (LoadableSuccess dvals) }
+        in
+        processAutocompleteMods m [ACRegenerate]
     | UpdateDBStats statsStore ->
         let newStore =
           StrDict.merge
@@ -894,28 +899,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ExecutingFunctionRPC (tlid, id, name) ->
       ( match TL.get m tlid with
       | Some tl ->
-        ( match Analysis.getCurrentTrace m tlid with
-        | Some (traceID, _) ->
-          ( match Analysis.getArguments m tl traceID id with
-          | Some args ->
-              let params =
-                { efpTLID = tlid
-                ; efpCallerID = id
-                ; efpTraceID = traceID
-                ; efpFnName = name
-                ; efpArgs = args }
-              in
-              (m, RPC.executeFunction m params)
+          let traceID = Analysis.getSelectedTraceID m tlid in
+          ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
+          | Some (traceID, _) ->
+            ( match Analysis.getArguments m tl id traceID with
+            | Some args ->
+                let params =
+                  { efpTLID = tlid
+                  ; efpCallerID = id
+                  ; efpTraceID = traceID
+                  ; efpFnName = name
+                  ; efpArgs = args }
+                in
+                (m, RPC.executeFunction m params)
+            | None ->
+                (m, Cmd.none)
+                |> updateMod
+                     (DisplayError "Traces are not loaded for this handler")
+                |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
           | None ->
               (m, Cmd.none)
               |> updateMod
                    (DisplayError "Traces are not loaded for this handler")
               |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
-        | None ->
-            (m, Cmd.none)
-            |> updateMod
-                 (DisplayError "Traces are not loaded for this handler")
-            |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
           (* Attempted to execute a function in a toplevel that we just deleted! *)
           (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)])
@@ -940,18 +946,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | None ->
           (m, Cmd.none) )
     | TriggerHandlerRPC tlid ->
-      ( match Analysis.getCurrentTrace m tlid with
-      | Some (traceID, Some traceData) ->
-          let handlerProps =
-            RT.setHandlerExeState tlid Executing m.handlerProps
-          in
-          ( {m with handlerProps}
-          , RPC.triggerHandler
-              m
-              {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
-          )
-      | _ ->
-          (m, Cmd.none) )
+        let traceID = Analysis.getSelectedTraceID m tlid in
+        ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
+        | Some (traceID, Some traceData) ->
+            let handlerProps =
+              RT.setHandlerExeState tlid Executing m.handlerProps
+            in
+            ( {m with handlerProps}
+            , RPC.triggerHandler
+                m
+                {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
+            )
+        | _ ->
+            (m, Cmd.none) )
     | InitIntrospect tls ->
         (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
     | RefreshUsages tlids ->
