@@ -397,7 +397,7 @@ and dval =
   | DNull
   | DCharacter of string
   | DStr of string
-  | DList of dval list
+  | DList of dval array
   | DObj of dval StrDict.t
   | DIncomplete
   | DError of string

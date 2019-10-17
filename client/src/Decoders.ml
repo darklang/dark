@@ -641,7 +641,7 @@ and dval j : dval =
     ; ("DNull", dv0 DNull)
     ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
     ; ("DStr", dv1 (fun x -> DStr x) string)
-    ; ("DList", dv1 (fun x -> DList x) (list dd))
+    ; ("DList", dv1 (fun x -> DList x) (array dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
     ; ("DIncomplete", dv0 DIncomplete)
     ; ("DError", dv1 (fun x -> DError x) string)
