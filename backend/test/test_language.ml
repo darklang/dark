@@ -125,6 +125,22 @@ let t_derror_propagation () =
     "Mapping error results in error"
     (DError "Expected 2 arguments, got 1")
     (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))") ;
+  check_dval
+    "Incomplete in Just results in Incomplete"
+    DIncomplete
+    (exec_ast "(Just _)") ;
+  check_dval
+    "Incomplete in Ok results in Incomplete"
+    DIncomplete
+    (exec_ast "(Ok _)") ;
+  check_dval
+    "Incomplete in Error results in Incomplete"
+    DIncomplete
+    (exec_ast "(Error _)") ;
+  check_dval
+    "ErrorRail in Error results in ErrorRail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(Error (`List::last_v1 []))") ;
   ()
 
 
