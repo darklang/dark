@@ -37,14 +37,12 @@ let atom : htmlConfig = wc "atom"
 let nested : htmlConfig = wc "nested"
 
 let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
-  let cursorLiveValue =
-    match id with
-    | Some (ID id) ->
-        StrDict.get ~key:id vs.currentResults.liveValues
-    | _ ->
-        None
+  let liveValue =
+    id
+    |> Option.map ~f:(Analysis.getLiveValue' vs.analysisStore)
+    |> Option.withDefault ~default:None
   in
-  match cursorLiveValue with
+  match liveValue with
   | Some dv ->
       Runtime.toRepr dv
   | _ ->
@@ -263,10 +261,6 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
 
 let withROP (rail : sendToRail) : htmlConfig list =
   if rail = Rail then [WithROP] else []
-
-
-let getLiveValue (lvs : lvDict) (ID id : id) : dval option =
-  StrDict.get ~key:id lvs
 
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :

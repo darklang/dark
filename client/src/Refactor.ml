@@ -122,12 +122,14 @@ let extractVarInAst
     AST.freeVariables e |> List.map ~f:Tuple2.second |> StrSet.fromList
   in
   let ancestors = AST.ancestors (B.toID e) ast in
+  let traceID = Analysis.getSelectedTraceID m (TL.id tl) in
   let lastPlaceWithSameVarsAndValues =
     e :: ancestors
     |> List.takeWhile ~f:(fun elem ->
            let id = B.toID elem in
            let availableVars =
-             Analysis.getCurrentAvailableVarnames m tl id
+             Option.map traceID ~f:(Analysis.getAvailableVarnames m tl id)
+             |> Option.withDefault ~default:[]
              |> List.map ~f:(fun (varname, _) -> varname)
              |> StrSet.fromList
            in
@@ -204,10 +206,10 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         in
         let astOp = TL.replaceOp p replacement tl in
         let params =
-          List.map
-            ~f:(fun (id, name_) ->
+          List.map freeVars ~f:(fun (id, name_) ->
               let tipe =
-                Analysis.getCurrentTipeOf m tlid id
+                Analysis.getSelectedTraceID m tlid
+                |> Option.andThen ~f:(Analysis.getTipeOf m id)
                 |> Option.withDefault ~default:TAny
                 |> convertTipe
               in
@@ -216,7 +218,6 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
               ; ufpBlock_args = []
               ; ufpOptional = false
               ; ufpDescription = "" } )
-            freeVars
         in
         let metadata =
           { ufmName = F (gid (), name)

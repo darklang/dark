@@ -267,12 +267,8 @@ and viewNExpr
       in
       (* buttons *)
       let allExprs = previous @ exprs in
-      let lvOf = ViewBlankOr.getLiveValue vs.currentResults.liveValues in
       let isComplete v =
-        v
-        |> lvOf
-        |> fun v_ ->
-        match v_ with
+        match Analysis.getLiveValue' vs.analysisStore v with
         | None ->
             false
         | Some (DError _) ->
@@ -342,7 +338,7 @@ and viewNExpr
         else
           let returnTipe = Runtime.tipe2str fn.fnReturnTipe in
           let eval =
-            match lvOf id with
+            match Analysis.getLiveValue' vs.analysisStore id with
             | Some v ->
                 v |> Runtime.typeOf |> Runtime.tipe2str
             | None ->
@@ -485,9 +481,7 @@ and viewNExpr
               [Html.class' "actions"]
               [(if isExpanded then hideModal else expandModal)] ]
       in
-      let condValue =
-        ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
-      in
+      let condValue = Analysis.getLiveValue' vs.analysisStore (B.toID cond) in
       let condResult =
         condValue
         |> Option.map ~f:Runtime.isTrue

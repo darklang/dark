@@ -33,16 +33,16 @@ let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
   getTraces m tlid |> List.find ~f:(fun (id, _) -> id = traceID)
 
 
-let getAnalysisResults (m : model) (traceID : traceID) : analysisResults option
-    =
+let getStoredAnalysis (m : model) (traceID : traceID) : analysisStore =
   (* only handlers have analysis results, but lots of stuff expect this *)
   (* data to exist. It may be better to not do that, but this is fine *)
   (* for now. *)
   StrDict.get ~key:traceID m.analyses
+  |> Option.withDefault ~default:LoadableNotInitialized
 
 
-let record (old : analyses) (id : traceID) (result : analysisResults) :
-    analyses =
+let record (old : analyses) (id : traceID) (result : analysisStore) : analyses
+    =
   StrDict.insert ~key:id ~value:result old
 
 
@@ -87,8 +87,32 @@ let replaceFunctionResult
   {m with traces}
 
 
+let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
+  match analysisStore with
+  | LoadableSuccess dvals ->
+    ( match StrDict.get dvals ~key:id with
+    | Some (LoadableSuccess dv) ->
+        Some dv
+    | _ ->
+        None )
+  | _ ->
+      None
+
+
+let getLiveValue (m : model) (id : id) (traceID : traceID) : dval option =
+  getLiveValue' (getStoredAnalysis m traceID) id
+
+
+let getTipeOf' (analysisStore : analysisStore) (id : id) : tipe option =
+  getLiveValue' analysisStore id |> Option.map ~f:RT.typeOf
+
+
+let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
+  getLiveValue m id traceID |> Option.map ~f:RT.typeOf
+
+
 let getArguments
-    (m : model) (tl : toplevel) (traceID : traceID) (callerID : id) :
+    (m : model) (tl : toplevel) (callerID : id) (traceID : traceID) :
     dval list option =
   let caller = TL.find tl callerID in
   let threadPrevious =
@@ -106,17 +130,46 @@ let getArguments
         []
   in
   let argIDs = List.map ~f:B.toID args in
-  let analyses = StrDict.get ~key:traceID m.analyses in
-  let dvals =
-    match analyses with
-    | Some analyses_ ->
-        List.filterMap
-          ~f:(fun id -> StrDict.get ~key:(deID id) analyses_)
-          argIDs
-    | None ->
-        []
-  in
+  let dvals = List.filterMap argIDs ~f:(fun id -> getLiveValue m id traceID) in
   if List.length dvals = List.length argIDs then Some dvals else None
+
+
+let getAvailableVarnames
+    (m : model) (tl : toplevel) (ID id : id) (traceID : traceID) :
+    (varName * dval option) list =
+  (* TODO: Calling out is so slow that calculating on the fly is faster. But
+   * we can also cache this so that's it's not in the display hot-path. *)
+  let tlid = TL.id tl in
+  let traceDict =
+    getTrace m tlid traceID
+    |> Option.andThen ~f:(fun (_tid, td) -> td)
+    |> Option.andThen ~f:(fun t -> Some t.input)
+    |> Option.withDefault ~default:StrDict.empty
+  in
+  let varsFor ast =
+    ast
+    |> AST.variablesIn
+    |> StrDict.get ~key:id
+    |> Option.withDefault ~default:StrDict.empty
+    |> StrDict.toList
+    |> List.map ~f:(fun (varname, id) -> (varname, getLiveValue m id traceID))
+  in
+  let glob =
+    TL.allGloballyScopedVarnames m.dbs
+    |> List.map ~f:(fun v -> (v, Some (DDB v)))
+  in
+  let inputVariables =
+    RT.inputVariables tl
+    |> List.map ~f:(fun varname ->
+           (varname, traceDict |> StrDict.get ~key:varname) )
+  in
+  match tl with
+  | TLHandler h ->
+      varsFor h.ast @ glob @ inputVariables
+  | TLFunc fn ->
+      varsFor fn.ufAST @ glob @ inputVariables
+  | TLDB _ | TLTipe _ | TLGroup _ ->
+      []
 
 
 (* ---------------------- *)
@@ -135,11 +188,6 @@ let cursor' (tlCursors : tlCursors) (traces : trace list) (tlid : tlid) :
       List.head traces |> Option.map ~f:Tuple2.first
 
 
-let cursor (m : model) (tlid : tlid) : traceID option =
-  let traces = getTraces m tlid in
-  cursor' m.tlCursors traces tlid
-
-
 let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
   let newCursors =
     StrDict.insert ~key:(deTLID tlid) ~value:traceID m.tlCursors
@@ -147,73 +195,9 @@ let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
   {m with tlCursors = newCursors}
 
 
-(* ---------------------- *)
-(* Analyses on current *)
-(* ---------------------- *)
-let getCurrentTrace (m : model) (tlid : tlid) : trace option =
-  getTraces m tlid
-  |> List.find ~f:(fun (traceID, _) -> cursor m tlid = Some traceID)
-
-
-let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
-  cursor m tlid
-  |> Option.andThen ~f:(getAnalysisResults m)
-  |> Option.withDefault ~default:LoadableNotInitialized
-
-
-let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
-  getCurrentAnalysisResults m tlid |> fun x -> x.liveValues
-
-
-let getCurrentLiveValue (m : model) (tlid : tlid) (ID id : id) : dval option =
-  tlid |> getCurrentLiveValuesDict m |> StrDict.get ~key:id
-
-
-let getCurrentTipeOf (m : model) (tlid : tlid) (id : id) : tipe option =
-  match getCurrentLiveValue m tlid id with
-  | None ->
-      None
-  | Some dv ->
-      Some (RT.typeOf dv)
-
-
-let getCurrentAvailableVarnames (m : model) (tl : toplevel) (ID id : id) :
-    (varName * dval option) list =
-  (* TODO: Calling out is so slow that calculating on the fly is faster. But we
-   * can also cache this so that's it's not in the display hot-path. *)
-  let tlid = TL.id tl in
-  let liveValues = getCurrentLiveValuesDict m tlid in
-  let traceDict =
-    getCurrentTrace m tlid
-    |> Option.andThen ~f:(fun (_tid, td) -> td)
-    |> Option.andThen ~f:(fun t -> Some t.input)
-    |> Option.withDefault ~default:StrDict.empty
-  in
-  let varsFor ast =
-    ast
-    |> AST.variablesIn
-    |> StrDict.get ~key:id
-    |> Option.withDefault ~default:StrDict.empty
-    |> StrDict.toList
-    |> List.map ~f:(fun (varname, id) ->
-           (varname, StrDict.get ~key:(showID id) liveValues) )
-  in
-  let glob =
-    TL.allGloballyScopedVarnames m.dbs
-    |> List.map ~f:(fun v -> (v, Some (DDB v)))
-  in
-  let inputVariables =
-    RT.inputVariables tl
-    |> List.map ~f:(fun varname ->
-           (varname, traceDict |> StrDict.get ~key:varname) )
-  in
-  match tl with
-  | TLHandler h ->
-      varsFor h.ast @ glob @ inputVariables
-  | TLFunc fn ->
-      varsFor fn.ufAST @ glob @ inputVariables
-  | TLDB _ | TLTipe _ | TLGroup _ ->
-      []
+let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
+  let traces = getTraces m tlid in
+  cursor' m.tlCursors traces tlid
 
 
 (* ---------------------- *)
@@ -398,14 +382,17 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
 let analyzeFocused (m : model) : model * msg Cmd.t =
   match tlidOf m.cursorState with
   | Some tlid ->
-    ( match getCurrentTrace m tlid with
-    | Some (traceID, None) ->
-        (* Fetch the trace data, if missing *)
-        requestTrace m tlid traceID
-    | Some (traceID, Some _) ->
-        (* Run the analysis, if missing *)
-        (m, requestAnalysis m tlid traceID)
-    | None ->
-        (m, Cmd.none) )
+      let trace =
+        getSelectedTraceID m tlid |> Option.andThen ~f:(getTrace m tlid)
+      in
+      ( match trace with
+      | Some (traceID, None) ->
+          (* Fetch the trace data, if missing *)
+          requestTrace m tlid traceID
+      | Some (traceID, Some _) ->
+          (* Run the analysis, if missing *)
+          (m, requestAnalysis m tlid traceID)
+      | None ->
+          (m, Cmd.none) )
   | None ->
       (m, Cmd.none)

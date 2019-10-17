@@ -1,4 +1,5 @@
 open Types
+open Tc
 
 (* Dark *)
 module TL = Toplevel
@@ -74,9 +75,13 @@ let commands : command list =
   ; { commandName = "create-type"
     ; action =
         (fun m tl pd ->
+          let tlid = TL.id tl in
           let id = Pointer.toID pd in
-          let lv = Analysis.getCurrentLiveValue m (TL.id tl) id in
-          let tipe = Refactor.generateUserType lv in
+          let tipe =
+            Analysis.getSelectedTraceID m tlid
+            |> Option.andThen ~f:(Analysis.getLiveValue m id)
+            |> Refactor.generateUserType
+          in
           match tipe with
           | Ok tipe ->
               let nameId = Blank.toID tipe.utName in

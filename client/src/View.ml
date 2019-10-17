@@ -227,7 +227,13 @@ let tlCacheKey (m : model) tl =
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in
-    Some (tl, Analysis.cursor m tlid, hovered, tracesLoaded, avatarsList, props)
+    Some
+      ( tl
+      , Analysis.getSelectedTraceID m tlid
+      , hovered
+      , tracesLoaded
+      , avatarsList
+      , props )
 
 
 let tlCacheKeyDB (m : model) tl =

@@ -66,7 +66,11 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
     |> Option.andThen ~f:(fun v -> Some [v])
     |> Option.withDefault ~default:[]
   in
-  match Analysis.getCurrentTrace m tlid with
+  let trace =
+    Analysis.getSelectedTraceID m tlid
+    |> Option.andThen ~f:(Analysis.getTrace m tlid)
+  in
+  match trace with
   | Some (_, Some td) ->
       StrDict.get ~key:"request" td.input
       |> Option.andThen ~f:(fun obj ->

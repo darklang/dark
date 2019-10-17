@@ -405,10 +405,8 @@ let dvalDict (j : Js.Json.t) : dvalDict = dict dval j
 
 let lvDict (j : Js.Json.t) : lvDict = dict (loadable dval) j
 
-let analysisResults (j : Js.Json.t) : analysisResults = loadable dvalDict j
-
-let analysisEnvelope (j : Js.Json.t) : traceID * analysisResults =
-  (tuple2 string analysisResults) j
+let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
+  (tuple2 string dvalDict) j
 
 
 let handlerSpec j : handlerSpec =

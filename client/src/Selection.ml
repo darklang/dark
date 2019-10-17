@@ -8,12 +8,12 @@ module P = Pointer
 module TL = Toplevel
 
 (* ------------------------------- *)
-(* Cursors *)
+(* Traces *)
 (* ------------------------------- *)
-let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
+let moveToOlderTrace (m : model) (tlid : tlid) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
   let traceID =
-    match Analysis.cursor m tlid with
+    match Analysis.getSelectedTraceID m tlid with
     | None ->
         List.head traceIDs
     | Some current ->
@@ -24,10 +24,10 @@ let moveCursorBackInTime (m : model) (tlid : tlid) : modification =
   |> Option.withDefault ~default:NoChange
 
 
-let moveCursorForwardInTime (m : model) (tlid : tlid) : modification =
+let moveToNewerTrace (m : model) (tlid : tlid) : modification =
   let traceIDs = Analysis.getTraces m tlid |> List.map ~f:Tuple2.first in
   let traceID =
-    match Analysis.cursor m tlid with
+    match Analysis.getSelectedTraceID m tlid with
     | None ->
         List.head traceIDs
     | Some current ->
