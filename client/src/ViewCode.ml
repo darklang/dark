@@ -115,6 +115,36 @@ let handlerIsExeComplete (vs : viewState) : bool =
       false
 
 
+(* If a handler's execution has failed, we want to display an X instead of a
+ * check. We define failure here as DIncomplete, DError, and DErrorRail *)
+let handlerIsExeFail (vs : viewState) : bool =
+  if not (handlerIsExeComplete vs)
+  then false
+  else
+    let outermostId =
+      let ast =
+        match vs.tl with TLHandler handler -> Some handler.ast | _ -> None
+      in
+      ast
+      |> Option.map ~f:(fun handler ->
+             (* I thought we had a string_of_id, but maybe that's only backend *)
+             match handler with Blank (ID id) -> id | F (ID id, _) -> id )
+    in
+    let outermostResult =
+      outermostId
+      |> Option.and_then ~f:(fun outermostId ->
+             StrDict.get ~key:outermostId vs.currentResults.liveValues )
+    in
+    outermostResult
+    |> Option.map ~f:(fun outermostResult ->
+           match outermostResult with
+           | DIncomplete | DError _ | DErrorRail _ ->
+               true
+           | _ ->
+               false )
+    |> Option.withDefault ~default:false
+
+
 type ('a, 'b, 'c, 'd) x =
   { class_ : 'a
   ; event : 'b
@@ -536,7 +566,8 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
             [ ("handler-trigger", true)
             ; ("is-executing", handlerIsExecuting vs)
             ; ("inactive", not hasData)
-            ; ("complete", handlerIsExeComplete vs) ]
+            ; ("complete", handlerIsExeComplete vs)
+            ; ("failed", handlerIsExeFail vs) ]
         in
         let attrs =
           if hasData
