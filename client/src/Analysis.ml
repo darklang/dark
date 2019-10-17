@@ -14,8 +14,6 @@ module TD = TLIDDict
 
 (* "current" in this indicates that it uses the cursor to pick the right inputValue *)
 
-let defaultResults : analysisResults = {liveValues = StrDict.empty}
-
 (* ---------------------- *)
 (* Analyses *)
 (* ---------------------- *)
@@ -113,7 +111,7 @@ let getArguments
     match analyses with
     | Some analyses_ ->
         List.filterMap
-          ~f:(fun id -> StrDict.get ~key:(deID id) analyses_.liveValues)
+          ~f:(fun id -> StrDict.get ~key:(deID id) analyses_)
           argIDs
     | None ->
         []
@@ -160,7 +158,7 @@ let getCurrentTrace (m : model) (tlid : tlid) : trace option =
 let getCurrentAnalysisResults (m : model) (tlid : tlid) : analysisResults =
   cursor m tlid
   |> Option.andThen ~f:(getAnalysisResults m)
-  |> Option.withDefault ~default:defaultResults
+  |> Option.withDefault ~default:LoadableNotInitialized
 
 
 let getCurrentLiveValuesDict (m : model) (tlid : tlid) : lvDict =
