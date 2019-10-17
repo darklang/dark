@@ -835,6 +835,11 @@ let center_toplevel (_m : model) : testResult =
   pass
 
 
+let max_callstack_bug (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -975,5 +980,7 @@ let trigger (test_name : string) : integrationTestState =
         varnames_are_incomplete
     | "center_toplevel" ->
         center_toplevel
+    | "max_callstack_bug" ->
+        max_callstack_bug
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
