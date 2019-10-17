@@ -1132,3 +1132,16 @@ test("center_toplevel", async t => {
     .expect(available(".tl-1445447347"))
     .ok();
 });
+
+test("max_callstack_bug", async t => {
+  await createRepl(t);
+  await t
+    .typeText("#entry-box", "List::range")
+    .pressKey("enter")
+    .typeText("#entry-box", "0")
+    .pressKey("enter")
+    // I don't know what the threshold is exactly, but 1500 didn't tickle the
+    // bug
+    .typeText("#entry-box", "2000")
+    .pressKey("enter");
+});
