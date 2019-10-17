@@ -9,7 +9,7 @@ if [[ -z "$NAME" ]] ; then
   exit 1
 fi
 
-if [[ -n $CI ]]; then
+if [[ -n ${CI:-} ]]; then
   TARGET=release
 else
   TARGET=debug
@@ -19,7 +19,7 @@ BIN="$NAME/target/$TARGET/dark-$NAME"
 
 # Stop existing process (note that this makes the old process a zombie.
 # Doesn't matter though, as this only runs in dev).
-(ps aux | pgrep dark-$NAME | xargs kill -9 > /dev/null 2>&1) || true
+pkill -9 -f dark-$NAME || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=100;i++));
@@ -31,7 +31,7 @@ done
 
 if [[ -f "${BIN}" ]]; then
   LOGS="${DARK_CONFIG_RUNDIR}/logs"
-  echo "Running $NAME"
+  echo "Running ${BIN}"
   "${BIN}" > "$LOGS/$NAME.log" 2>&1 &
 else
   echo "Missing binary"
