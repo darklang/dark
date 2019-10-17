@@ -450,13 +450,21 @@ and timerAction =
   | RefreshAvatars
   | CheckUrlHashPosition
 
-and lvDict = dval StrDict.t
+and 'result loadable =
+  | LoadableSuccess of 'result
+  | LoadableNotInitialized
+  | LoadableLoading of 'result option
+  | LoadableError of string
+
+and lvDict = dval loadable StrDict.t
+
+and dvalDict = dval StrDict.t
 
 and avDict = id StrDict.t StrDict.t
 
-and inputValueDict = dval StrDict.t
+and inputValueDict = dvalDict
 
-and analysisResults = {liveValues : lvDict}
+and analysisResults = dvalDict loadable
 
 and analyses = analysisResults StrDict.t
 
