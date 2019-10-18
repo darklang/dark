@@ -11,6 +11,15 @@ external dark_targetjs_digest384 :
 external dark_targetjs_digest384_uint8Array :
   js_uint8Array -> js_string
   = "dark_targetjs_digest384_bytes"
+
+external dark_arrayBuffer_to_b64 :
+  js_uint8Array -> js_string
+  = "dark_arrayBuffer_to_b64"
+
+external dark_arrayBuffer_from_b64 :
+  js_string -> js_arrayBuffer
+  = "dark_arrayBuffer_from_b64"
+
 let _bytes_to_uint8Array (input : Bytes.t) : js_uint8Array =
   let len = Bytes.length input in
   let buf = new%js Typed_array.uint8Array len in
@@ -18,11 +27,32 @@ let _bytes_to_uint8Array (input : Bytes.t) : js_uint8Array =
     (Typed_array.set buf i (int_of_char (Bytes.get input i)))
   done;
   buf
+
+let _bytes_from_uint8Array (input : js_arrayBuffer) : Bytes.t =
+  let len = input##.byteLength in
+  let bytes = Bytes.create len in
+  let reader = (new%js Typed_array.uint8Array_fromBuffer input) in
+  for i = 0 to len-1 do
+    let char = (Typed_array.unsafe_get reader i) in
+    Bytes.unsafe_set bytes i (char_of_int char)
+  done;
+  bytes
+
+
 let digest384 (input : string) : string =
   input |> Js.string |> dark_targetjs_digest384 |> Js.to_string
 
 let digest384_bytes (input : Bytes.t) : string =
   input |> _bytes_to_uint8Array |> dark_targetjs_digest384_uint8Array |> Js.to_string
+
+let base64_bytes (input : Bytes.t) : string =
+  input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64 |> Js.to_string
+
+let bytes_from_base64 (b64 : string) : Bytes.t = 
+  b64
+  |> Js.string
+  |> dark_arrayBuffer_from_b64
+  |> _bytes_from_uint8Array
 
 external dark_targetjs_digest256 :
   js_string -> js_string

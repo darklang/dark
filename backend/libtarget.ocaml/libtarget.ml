@@ -23,6 +23,13 @@ let digest384 (input : string) : string =
 let digest384_bytes (input : Bytes.t) : string =
   sha_bytes ~f:Nocrypto.Hash.SHA384.digest input
 
+let base64_bytes (bytes : Bytes.t) : string =
+  bytes |> Bytes.to_string |> B64.encode
+
+let bytes_from_base64 (b64 : string) : Bytes.t = 
+  b64 |> B64.decode |> Bytes.of_string
+
+
 let regexp_replace ~(pattern : string) ~(replacement : string) (str : string) :
     string =
   Re2.replace_exn (Re2.create_exn pattern) str ~f:(fun _ -> replacement)
