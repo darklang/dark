@@ -14,10 +14,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn
-                (B64.encode
-                   ~alphabet:B64.uri_safe_alphabet
-                   ~pad:false
-                   (Bytes.to_string bytes))
+                (Libtarget.base64_bytes bytes)
           | args ->
               fail args)
     ; ps = true
