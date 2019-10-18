@@ -23,9 +23,11 @@ cronchecker.yaml
 queueworker.yaml
 tunnel.yaml
 
+# Rust projects build into target/
+/*/target
+
 # Files that get created on CI. We check that status is clean so need to list these.
 /client/node_modules
-/stroller/target
 /backend/_esy
 /backend/node_modules
 
