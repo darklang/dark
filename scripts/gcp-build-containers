@@ -123,6 +123,19 @@ if [[ "${SKIP_STROLLER}" == "" ]]; then
   docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-stroller:latest" "$SDIR"
 fi
 
+#################################
+## queue scheduler
+#################################
+SDIR=$(mktemp -d --suffix _gcp-scheduler-builddir)
+
+cp scripts/support/gcp-queue-scheduler-Dockerfile "$SDIR/Dockerfile"
+
+mkdir -p "$SDIR/bin"
+cp -f queue-scheduler/target/release/dark-queue-scheduler "$SDIR/bin/"
+cp -f scripts/support/check-linked-libs "$SDIR/"
+
+docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-queue-scheduler:latest" "$SDIR"
+
 
 #################################
 ## tunnel
