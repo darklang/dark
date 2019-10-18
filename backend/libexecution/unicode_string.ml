@@ -76,6 +76,14 @@ let of_utf8_encoded_string (s : string) : t option =
       None
 
 
+let to_raw_bytes s = 
+  let len = String.length s in
+  let bytes = Bytes.create len in
+  for i = 0 to len-1 do
+    Bytes.unsafe_set bytes i (String.unsafe_get s i)
+  done;
+  bytes
+
 let of_string = of_utf8_encoded_string
 
 let of_utf8_encoded_string_exn ?message s =
