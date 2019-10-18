@@ -422,6 +422,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
   | DObj o ->
       objToString (StrDict.toList o)
   | DBytes s ->
+      let _ = (Debug.loG "DBytes toRepr " s) in 
       "<"
       ^ (dv |> typeOf |> tipe2str)
       ^ ": length="

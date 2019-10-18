@@ -34,6 +34,9 @@ let _bytes_from_uint8Array (input : js_arrayBuffer) : Bytes.t =
   let reader = (new%js Typed_array.uint8Array_fromBuffer input) in
   for i = 0 to len-1 do
     let char = (Typed_array.unsafe_get reader i) in
+    (Firebug.console##log input);
+    (Firebug.console##log char);
+    (Firebug.console##log i);
     Bytes.unsafe_set bytes i (char_of_int char)
   done;
   bytes
@@ -61,11 +64,9 @@ external dark_targetjs_digest256 :
 let digest256 (input : string) : string =
   input |> Js.string |> dark_targetjs_digest256 |> Js.to_string
 
-
 let regexp_replace ~(pattern : string) ~(replacement : string) (str : string) :
     string =
   Regexp.global_replace (Regexp.regexp pattern) str replacement
-
 
 let string_split ~(sep : string) (s : string) : string list =
   (* Although this uses a different regex engine than the server side, we only

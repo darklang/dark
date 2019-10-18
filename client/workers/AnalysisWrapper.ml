@@ -28,6 +28,7 @@ let () =
         (* TODO: couldn't make Tc work *)
         match event##data with
         | AnalyzeHandler hParams ->
+          (Debug.loG "gotHandler to analyze" hParams);
             let encoded =
               Js.Json.stringify (Encoders.performHandlerAnalysisParams hParams)
             in
@@ -83,6 +84,8 @@ let () =
         Tc.Result.andThen
           ~f:(fun res ->
             try
+              (Debug.loG "onmessage self (fun event -> decoded Json.parseOrRaise" (Json.parseOrRaise res));
+              (Debug.loG "onmessage self (fun event -> decoded (Decoders.analysisEnvelope (Json.parseOrRaise res))" (Decoders.analysisEnvelope (Json.parseOrRaise res)));
               Belt.Result.Ok
                 (Decoders.analysisEnvelope (Json.parseOrRaise res))
             with Js.Exn.Error err ->
