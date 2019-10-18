@@ -8,6 +8,86 @@ module RT = Runtime
 
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 
+(* external jsGetFluidSelectionRange :
+  unit -> int array Js.Nullable.t
+  = "getFluidSelectionRange"
+  [@@bs.val] [@@bs.scope "window"] *)
+
+
+(* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
+type jsArrayBuffer = {
+  byteLength: int;
+} [@@bs.deriving abstract]
+
+type jsUint8Array [@@bs.deriving abstract]
+external createUint8Array : jsArrayBuffer -> jsUint8Array = "Uint8Array" [@@bs.new]
+external getUint8ArrayIdx : jsUint8Array -> int -> int = "" [@@bs.get_index]
+external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = "" [@@bs.set_index]
+
+let dark_arrayBuffer_from_b64 = [%raw {|
+  function (base64) {
+    console.log("DECODING: "+base64);
+    // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use decode here
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    // Use a lookup table to find the index.
+    var lookup = new Uint8Array(256);
+    for (var i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+
+
+    var bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
+
+    if (base64[base64.length - 1] === "=") {
+      bufferLength--;
+      if (base64[base64.length - 2] === "=") {
+        bufferLength--;
+      }
+    }
+
+    var arraybuffer = new ArrayBuffer(bufferLength),
+    bytes = new Uint8Array(arraybuffer);
+
+    for (i = 0; i < len; i+=4) {
+      encoded1 = lookup[base64.charCodeAt(i)];
+      encoded2 = lookup[base64.charCodeAt(i+1)];
+      encoded3 = lookup[base64.charCodeAt(i+2)];
+      encoded4 = lookup[base64.charCodeAt(i+3)];
+
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+
+    console.log(arraybuffer);
+    console.log(arraybuffer.byteLength);
+    return arraybuffer;
+  }
+|}
+]
+
+(* XXX(JULIAN): This doesn't work -- "window" is undefined ??? *)
+(* external dark_arrayBuffer_from_b64 :
+  string -> jsArrayBuffer
+  = "dark_arrayBuffer_from_b64"
+  [@@bs.val] [@@bs.scope "window"] *)
+
+let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
+  let len = byteLengthGet input in
+  let bytes = Bytes.create len in
+  let reader = (createUint8Array input) in
+  for i = 0 to len-1 do
+    let char = (getUint8ArrayIdx reader i) in
+    Bytes.unsafe_set bytes i (char_of_int char)
+  done;
+  bytes
+
+let bytes_from_base64 (b64 : string) : Bytes.t = 
+  b64
+  |> dark_arrayBuffer_from_b64
+  |> _bytes_from_uint8Array
+
 (* identifiers are strings to the bucklescript client -- it knows nothing
  * about them being parseable as ints. if it doesn't look like a string
  * to bs-json we'll just json stringify it and use that *)
@@ -657,7 +737,7 @@ and dval j : dval =
     ; ( "DBytes"
       , dv1
           (fun x ->
-            let x = x |> Webapi.Base64.btoa |> Bytes.of_string in
+            let x = x |> bytes_from_base64 in
             DBytes x )
           string ) ]
     j
