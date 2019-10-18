@@ -1,4 +1,5 @@
-use config::{Config, ConfigError, Environment};
+pub use config::ConfigError;
+use config::{Config, Environment};
 
 #[derive(Debug)]
 pub struct Database {
