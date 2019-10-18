@@ -45,7 +45,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   | DStr s ->
       ev "DStr" [string s]
   | DList l ->
-      ev "DList" [list dval l]
+      ev "DList" [array dval l]
   | DObj o ->
       o
       |> StrDict.map ~f:dval

@@ -406,13 +406,15 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap (toRepr dv_)
   (* TODO: newlines and indentation *)
   | DList l ->
-    ( match l with
+    ( match l |> Array.to_list with
     | [] ->
         "[]"
     | DObj _ :: _ ->
         "["
         ^ inl
-        ^ String.join ~sep:(inl ^ ", ") (List.map ~f:(toRepr_ indent) l)
+        ^ String.join
+            ~sep:(inl ^ ", ")
+            (List.map ~f:(toRepr_ indent) (l |> Array.to_list))
         ^ nl
         ^ "]"
     | l ->
