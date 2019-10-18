@@ -214,6 +214,59 @@ jobs:
             # Just enough for deploy
             - stroller/target/release/dark-stroller
 
+  build-queue-scheduler:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - restore_cache:
+          keys:
+            - v11-scheduler-{{ checksum "queue-scheduler/Cargo.lock" }}
+            - v11-scheduler-{{ checksum "rundir/today-timestamp" }}
+            - v11-scheduler-{{ checksum "rundir/minus1-timestamp" }}
+            - v11-scheduler-{{ checksum "rundir/minus2-timestamp" }}
+            - v11-scheduler-{{ checksum "rundir/minus3-timestamp" }}
+      - clean-caches: { path: "queue-scheduler/target" }
+      - clean-caches: { path: "cargo-home" }
+      - run:
+          # Everything else (including queue-scheduler/target) is copied in via
+          # copy-into-container, but it doesn't include this because it's not
+          # in /home/dark/app.
+          name: Set up volume for cargo
+          command: |
+            docker cp cargo-home vols:/usr/local/cargo-home
+            rm -Rf cargo-home # don't copy it a second time
+      - set-ownership:
+          path: "/usr/local/cargo-home"
+      - copy-into-container
+      - run: scripts/builder --compile-scheduler --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/gcp-build-containers --skip-ocaml
+      - assert-clean-worktree
+      - run:
+          name: Copy out generated files and caches
+          command: |
+            docker cp vols:/home/dark/app/queue-scheduler/target queue-scheduler/
+            docker cp vols:/usr/local/cargo-home cargo-home
+      - save_cache:
+          name: "Save cargolock-specific queue-scheduler cache"
+          paths:
+            - queue-scheduler/target
+            - cargo-home
+          key: v11-scheduler-{{ checksum "queue-scheduler/Cargo.lock" }}
+      - save_cache:
+          name: "Save daily queue-scheduler cache"
+          paths:
+            - queue-scheduler/target
+            - cargo-home
+          key: v11-scheduler-{{ checksum "rundir/today-timestamp" }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for deploy
+            - queue-scheduler/target/release/dark-queue-scheduler
+
 
   build-backend:
     executor: my-executor
@@ -413,6 +466,7 @@ jobs:
           docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
           docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
           docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+          docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
           docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
           docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
@@ -436,6 +490,7 @@ jobs:
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
             --stroller-image-id=`cat gcr-image-ids/stroller` \
+            --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
 
@@ -448,6 +503,7 @@ workflows:
       - build-backend
       - build-client
       - build-stroller
+      - build-queue-scheduler
       - build-postgres-honeytail
 
       # expensive tests
@@ -465,6 +521,7 @@ workflows:
             - build-backend
             - build-client
             - build-stroller
+            - build-queue-scheduler
             - build-postgres-honeytail
 
       # actual deploy
