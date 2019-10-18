@@ -31,7 +31,7 @@ let forceFluid (isAdmin : bool) (username : string) (vts : variantTest list) :
   if shouldForceFluid
   then
     (* Checking to see if fluid is set to false *)
-    (* Checking the url string is not the best way to do this but I dont want to change the exsiting logic for a tempory thing *)
+    (* Checking the url string is not the best way to do this but I dont want to change the existing logic for a temporary thing *)
     let urlString = (Tea_navigation.getLocation ()).search in
     let containsFluid =
       String.contains urlString ~substring:"fluidv2=0"
