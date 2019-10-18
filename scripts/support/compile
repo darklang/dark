@@ -155,12 +155,12 @@ def backend_test():
           + ci
           + " 2>&1")
 
-def stroller_build():
+def rust_build(name):
   global profile
 
   if os.environ.get("CI"):
     start = time.time()
-    result = run_backend(start, "cd stroller && cargo fmt -- --check")
+    result = run_backend(start, f"cd {name} && cargo fmt -- --check")
     if not result:
       return result
 
@@ -169,20 +169,20 @@ def stroller_build():
     build_flags = ""
 
   start = time.time()
-  build = "cd stroller && unbuffer cargo build" + build_flags
+  build = f"cd {name} && unbuffer cargo build"
   if profile:
     return run_backend(start, landmarks + build)
   else:
     return run_backend(start, build)
 
-def reload_stroller():
+def rust_reload(name):
   start = time.time()
-  return run_backend(start, "scripts/support/runstroller")
+  return run_backend(start, f"scripts/support/run-rust {name}")
 
-def stroller_test():
+def rust_test(name):
   start = time.time()
   result = run_test(start,
-      "cd stroller && unbuffer cargo test")
+      f"cd {name} && unbuffer cargo test")
   if not result:
       return result
 
@@ -192,8 +192,8 @@ def stroller_test():
   else:
       clippy_flags = ""
   return run_test(start,
-      "cd stroller"
-      + " && unbuffer cargo clippy --all-targets --bin=dark-stroller --tests -- " + clippy_flags)
+      f"cd {name}"
+      + f" && unbuffer cargo clippy --all-targets --bin=dark-{name} --tests -- " + clippy_flags)
 
 def reload_server():
   start = time.time()
@@ -220,6 +220,8 @@ class Should:
     self.backend_test = False
     self.stroller_build = False
     self.stroller_test = False
+    self.scheduler_build = False
+    self.scheduler_test = False
     self.npm_install = False
     self.client_build = False
     self.appsupport_build = False
@@ -228,6 +230,7 @@ class Should:
     self.reload_browser = False
     self.reload_server = False
     self.reload_stroller = False
+    self.reload_scheduler = False
     self.generate_etags = False
     self.shellcheck = []
 
@@ -286,17 +289,25 @@ def execute(should):
   if should.backend_test:
     if not backend_test(): success = False
 
-  # At the end do stroller, which isn't as important atm
+  # Rust projects
   if should.stroller_build:
-    if not stroller_build(): success = False
+    if not rust_build('stroller'): success = False
     should.stroller_test |= success
     should.reload_stroller |= success
-
   if should.reload_stroller:
-    if not reload_stroller(): success = False
-
+    if not rust_reload('stroller'): success = False
   if should.stroller_test:
-    if not stroller_test(): success = False
+    if not rust_test('stroller'): success = False
+
+  if should.scheduler_build:
+    if not rust_build('queue-scheduler'): success = False
+    should.scheduler_test |= success
+    should.reload_scheduler |= success
+  if should.reload_scheduler:
+    if not rust_reload('queue-scheduler'): success = False
+  if should.scheduler_test:
+    if not rust_test('queue-scheduler'): success = False
+
 
   if should.shellcheck != []:
     if not all([shellcheck(f) for f in should.shellcheck]):
@@ -330,14 +341,22 @@ def mark(should, f):
     should.generate_etags = True
 
   # Rust
+  # Touch this to rerun all rust programs
+  elif "scripts/support/run-rust" in f:
+    should.reload_stroller = True
+    should.reload_scheduler = True
+
   elif ("stroller/" in f) \
           and (("Cargo.toml" in f) \
                   or ("Cargo.lock" in f) \
                   or (".rs" in f)):
     should.stroller_build = True
-  # Touch this to rerun stroller
-  elif "scripts/support/runstroller" in f:
-    should.reload_stroller = True
+
+  elif ("queue-scheduler/" in f) \
+          and (("Cargo.toml" in f) \
+                  or ("Cargo.lock" in f) \
+                  or (".rs" in f)):
+    should.scheduler_build = True
 
   # JS
   elif "client/package.json" in f:
@@ -391,6 +410,7 @@ def ignore(filename):
             , "client/lib"
             , "build.ninja"
             , "stroller/target"
+            , "queue-scheduler/target"
             , ".bs.js"
             , ".bsdeps"
             , ".bsbuild"
@@ -406,6 +426,9 @@ def ignore(filename):
     return True
   # emacs thing
   if "/.#" in filename:
+    return True
+  # vim thing
+  if filename[-1] == "~":
     return True
   return False
 

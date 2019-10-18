@@ -1,6 +1,6 @@
 .git
 client/node_modules
-stroller/target
+*/target
 server/_build
 rundir
 sqldump*.gz

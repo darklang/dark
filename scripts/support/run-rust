@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+NAME="$1"
+
+if [[ -z "$NAME" ]] ; then
+  echo "Usage: $0 <name>"
+  exit 1
+fi
+
+if [[ -n ${CI:-} ]]; then
+  TARGET=release
+else
+  TARGET=debug
+fi
+
+BIN="$NAME/target/$TARGET/dark-$NAME"
+
+# Stop existing process (note that this makes the old process a zombie.
+# Doesn't matter though, as this only runs in dev).
+pkill -9 -f dark-$NAME || true
+
+# if it hasn't been compiled yet, wait for it
+for ((i=1;i<=100;i++));
+do
+  if [[ ! -f "${BIN}" ]]; then
+    sleep 0.1
+  fi
+done
+
+if [[ -f "${BIN}" ]]; then
+  LOGS="${DARK_CONFIG_RUNDIR}/logs"
+  echo "Running ${BIN}"
+  "${BIN}" > "$LOGS/$NAME.log" 2>&1 &
+else
+  echo "Missing binary"
+  exit 1
+fi

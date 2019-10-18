@@ -60,6 +60,7 @@ else
   MOUNTS+=" --mount type=volume,src=dark_client_node_modules,dst=/home/dark/app/client/node_modules"
   MOUNTS+=" --mount type=volume,src=dark_client_lib,dst=/home/dark/app/client/lib"
   MOUNTS+=" --mount type=volume,src=dark_stroller_target,dst=/home/dark/app/stroller/target"
+  MOUNTS+=" --mount type=volume,src=dark_queue_scheduler_target,dst=/home/dark/app/queue-scheduler/target"
   MOUNTS+=" --mount type=volume,src=dark_rust_cargo,dst=/usr/local/cargo-home"
 
   if [[ -e "$HOME/.config/gcloud" ]]; then

@@ -1,0 +1,12 @@
+[package]
+name = "dark-queue-scheduler"
+version = "0.1.0"
+authors = ["Dark Inc <ops@darklang.com>"]
+edition = "2018"
+
+[dependencies]
+chrono = "0.4"
+config = "0.9"
+postgres = "0.15"
+slog = "2.5.2"
+slog-json = "2.3.0"
