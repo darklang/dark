@@ -1,6 +1,8 @@
 (* Returns base64 encoding of the sha384 of the string *)
 val digest384 : string -> string
 
+(* Returns base64 encoding of the sha384 of the bytes *)
+val digest384_bytes : Bytes.t -> string
 (* Returns base64 encoding of the sha256 of the string *)
 val digest256 : string -> string
 
