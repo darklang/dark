@@ -24,17 +24,20 @@ let libtwitterAvailable (vts : variantTest list) : bool =
 
 
 (* This is temporary to force Darklings(minus ellen) to use fluid. *)
-(* To turn off fluid, add the ?fluidv2=1 *)
+(* To turn off fluid, add the ?fluidv2=0 or ?fluidv2=false *)
 let forceFluid (isAdmin : bool) (username : string) (vts : variantTest list) :
     variantTest list =
   let shouldForceFluid = isAdmin && username != "ellen" in
   if shouldForceFluid
   then
-    if isFluid vts
-    then
-      List.filter vts ~f:(fun vt ->
-          match vt with FluidVariant -> false | _ -> true )
-    else vts @ [FluidVariant]
+    (* Checking to see if fluid is set to false *)
+    (* Checking the url string is not the best way to do this but I dont want to change the exsiting logic for a tempory thing *)
+    let urlString = (Tea_navigation.getLocation ()).search in
+    let containsFluid =
+      String.contains urlString ~substring:"fluidv2=0"
+      || String.contains urlString ~substring:"fluidv2=false"
+    in
+    if isFluid vts || containsFluid then vts else vts @ [FluidVariant]
   else vts
 
 
