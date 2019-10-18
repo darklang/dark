@@ -23,39 +23,41 @@ let libtwitterAvailable (vts : variantTest list) : bool =
   List.member ~value:LibtwitterVariant vts
 
 
-let toVariantTest (s : string * bool) (autoFluidEnabled : bool) :
-    variantTest option =
-  (* We now force dark employees/admins(minus ellen) to use fluid automatically. *)
-  match (s, autoFluidEnabled) with
-  | (param, true), af ->
-    ( match (String.toLower param, af) with
-    | "stub", _ ->
+(* This is temporary to force Darklings(minus ellen) to use fluid. *)
+(* To turn off fluid, add the ?fluidv2=1 *)
+let forceFluid (isAdmin : bool) (username : string) (vts : variantTest list) :
+    variantTest list =
+  let shouldForceFluid = isAdmin && username != "ellen" in
+  if shouldForceFluid
+  then
+    if isFluid vts
+    then
+      List.filter vts ~f:(fun vt ->
+          match vt with FluidVariant -> false | _ -> true )
+    else vts @ [FluidVariant]
+  else vts
+
+
+let toVariantTest (s : string * bool) : variantTest option =
+  match s with
+  | _, false ->
+      None
+  | test, _ ->
+    ( match String.toLower test with
+    | "stub" ->
         Some StubVariant
-    (* If fluid is true for admins, dont use fluid *)
-    | "fluidv2", true ->
-        None
-    (* If fluid is true for everyone other than admins, use fluid *)
-    | "fluidv2", _ ->
+    | "fluidv2" ->
         Some FluidVariant
-    | "fluid", _ ->
+    | "fluid" ->
         Some FluidWithoutStatusVariant
-    | "libtwitter", _ ->
+    | "libtwitter" ->
         Some LibtwitterVariant
-    | "groups", _ ->
+    | "groups" ->
         Some GroupVariant
-    | "grid", _ ->
+    | "grid" ->
         Some GridLayout
     | _ ->
         None )
-  | (param, false), true ->
-    ( match String.toLower param with
-    (* If fluid is false for admins, show fluid *)
-    | "fluidv2" ->
-        Some FluidVariant
-    | _ ->
-        None )
-  | (_, false), _ ->
-      None
 
 
 let toCSSClass (vt : variantTest) : string =
@@ -90,17 +92,9 @@ let uniqueTests (xs : variantTest list) : variantTest list =
 
 let expandTest (vt : variantTest) : variantTest list = match vt with x -> [x]
 
-(* If user is an admin and NOT ellen then true *)
-(* https://trello.com/c/uCDrNYop/1872-force-fluid-on-for-everyone-at-dark-except-ellen-but-allow-to-turn-off *)
-let enableAutoFluid (isAdmin : bool) (username : string) : bool =
-  if isAdmin && username != "ellen" then true else false
-
-
-let enabledVariantTests (isAdmin : bool) (username : string) : variantTest list
-    =
-  let autoFluidEnabled = enableAutoFluid isAdmin username in
+let enabledVariantTests : variantTest list =
   Url.queryParams
-  |> List.filterMap ~f:(fun info -> toVariantTest info autoFluidEnabled)
+  |> List.filterMap ~f:toVariantTest
   |> List.map ~f:expandTest
   |> List.flatten
   |> uniqueTests

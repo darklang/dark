@@ -140,8 +140,7 @@ let queryParams : (string * bool) list =
       |> String.split ~on:"&"
       |> List.filterMap ~f:splitOnEquals
   | _ ->
-      (* Adding so fluid is automatically turned on for admins, see VariantTesting.toVariantTest *)
-      [("fluidv2", false)]
+      []
 
 
 let queryParamSet (name : string) : bool =
