@@ -1,12 +1,16 @@
 use std::sync::Mutex;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time;
 
 use slog::Drain; // allow treating Mutex as a Drain
 use slog::{info, o}; // macros
 
 fn main() {
-    let t_start = Instant::now();
+    let t_start = time::Instant::now();
+
+    let mut cfg = config::Config::default();
+    cfg.merge(config::Environment::with_prefix("DARK_CONFIG"))
+        .unwrap();
 
     let log = slog::Logger::root(
         Mutex::new(
@@ -29,8 +33,22 @@ fn main() {
         o!(),
     );
 
+    // FIXME(dean) - parse into a config struct or something better
+    let database_url = format!(
+        "postgres://{}:{}@{}/{}",
+        cfg.get_str("DB_USER").unwrap(),
+        cfg.get_str("DB_PASSWORD").unwrap(),
+        cfg.get_str("DB_HOST").unwrap(),
+        cfg.get_str("DB_DBNAME").unwrap(),
+    );
+    let conn = postgres::Connection::connect(database_url, postgres::TlsMode::None).unwrap();
+
     loop {
-        thread::sleep(Duration::from_secs(1));
-        info!(log, "tick")
+        thread::sleep(time::Duration::from_secs(1));
+        let rows = conn
+            .query("SELECT COUNT(*) FROM events WHERE status = 'new'", &[])
+            .unwrap();
+        let count: i64 = rows.get(0).get(0);
+        info!(log, "tick" ; "new_events.count" => count);
     }
 }
