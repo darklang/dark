@@ -1269,10 +1269,19 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
-      bytes |> RawBytes.to_string
+      bytes |> Util.hash_bytes
 
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
  * size of the data stored by only storing a hash *)
+(* XXX(JULIAN): 
+    This causes collision when args are (b"a", b"bc") vs (b"ab", b"c").
+    To fix, we probably need to hash each arg separately and then hash the result.
+    I suspect we can use XOR to combine the individual hashes, as long as the hash function we use
+    returns uniformly distributed bytes across the keyspace.
+
+    Note that changing the hash function has serious DB consequences, so we would need to
+    version the hash function and traces (this is a good idea anyway).
+ *)
 let hash (arglist : dval list) : string =
   arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash

@@ -73,6 +73,8 @@ let maybe_chop_suffix ~suffix str =
 
 let hash (str : string) = Libtarget.digest384 str
 
+let hash_bytes (bytes : Bytes.t) = Libtarget.digest384_bytes bytes
+
 (* ------------------- *)
 (* html *)
 (* ------------------- *)
