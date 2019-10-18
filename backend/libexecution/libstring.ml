@@ -663,7 +663,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr str] ->
-              DBytes (Bytes.of_string (Unicode_string.to_string str))
+              let theBytes = (Unicode_string.to_raw_bytes str) in
+              DBytes theBytes
           | args ->
               fail args)
     ; ps = true
