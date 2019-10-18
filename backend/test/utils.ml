@@ -281,9 +281,10 @@ let add_test_fn_result
 
 let load_test_fn_results (desc : function_desc) (args : dval list) :
     (dval * Time.t) option =
-  List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
+  (Log.inspecT "load_test_fn_results" None) ;
+  (List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
       (desc, args) = (desc', args') )
-  |> Option.map ~f:Tuple2.get2
+  |> Option.map ~f:Tuple2.get2)
 
 
 let test_execution_data

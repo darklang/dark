@@ -85,6 +85,10 @@ type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
 
 let load_from_trace results (tlid, fnname, caller_id) args :
     (dval * Time.t) option =
+  let show_results =
+    List.map ~f:(fun (rfnname, rcaller_id, hash, dval) ->
+    (rfnname, (string_of_id rcaller_id), hash, dval)) in
+  let _ = (Log.inspecT "load_from_trace" args); (Log.inspecT "load_from_trace results" (show_results results)); (Log.inspecT "load_from_trace argsHash" (Dval.hash args)) in
   results
   |> List.filter_map ~f:(fun (rfnname, rcaller_id, hash, dval) ->
          if fnname = rfnname && caller_id = rcaller_id && hash = Dval.hash args

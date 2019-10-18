@@ -904,6 +904,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ; efpFnName = name
                 ; efpArgs = args }
               in
+              (Debug.loG "Hello" None);
               (m, RPC.executeFunction m params)
           | None ->
               (m, Cmd.none)
@@ -1471,6 +1472,7 @@ let update_ (msg : msg) (m : model) : modification =
           ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
           tlids
       in
+      (Debug.loG "Ok eval" params);
       Many
         [ UpdateTraceFunctionResult
             ( params.efpTLID
@@ -1641,6 +1643,7 @@ let update_ (msg : msg) (m : model) : modification =
   | SaveTestRPCCallback (Error err) ->
       DisplayError ("Error: " ^ Tea_http.string_of_error err)
   | ExecuteFunctionRPCCallback (params, Error err) ->
+      (Debug.loG "Bad eval" None);
       HandleAPIError
         (ApiError.make
            ~context:"ExecuteFunction"

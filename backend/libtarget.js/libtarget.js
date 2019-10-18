@@ -1,5 +1,6 @@
 //Provides: dark_arrayBuffer_from_b64
 function dark_arrayBuffer_from_b64(base64) {
+  console.log("DECODING: "+base64);
   // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use decode here
   var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -33,11 +34,15 @@ function dark_arrayBuffer_from_b64(base64) {
     bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
   }
 
+  console.log(arraybuffer);
+  console.log(arraybuffer.byteLength);
   return arraybuffer;
 }
 
 //Provides: dark_arrayBuffer_to_b64
 function dark_arrayBuffer_to_b64(arraybuffer) {
+  console.log("ENCODING: ");
+  console.log(arraybuffer);
   // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
   var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
