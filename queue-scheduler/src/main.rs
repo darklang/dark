@@ -6,6 +6,55 @@ use slog::Drain; // allow treating Mutex as a Drain
 use slog::{info, o}; // macros
 
 mod config;
+mod scheduler;
+mod stats;
+
+#[derive(Debug)]
+enum FatalError {
+    PostgresError(postgres::Error),
+}
+
+impl From<postgres::Error> for FatalError {
+    fn from(e: postgres::Error) -> Self {
+        FatalError::PostgresError(e)
+    }
+}
+
+struct Looper {
+    conn: postgres::Connection,
+    log: slog::Logger,
+    stats: stats::EventStats,
+}
+
+impl Looper {
+    fn new(conn: postgres::Connection, log: slog::Logger) -> Looper {
+        Looper {
+            conn: conn,
+            log: log,
+            stats: stats::EventStats::new(),
+        }
+    }
+
+    fn every(&mut self, d: time::Duration) -> Result<(), FatalError> {
+        loop {
+            thread::sleep(d);
+            self.tick()?;
+        }
+    }
+
+    fn tick(&mut self) -> Result<(), FatalError> {
+        let newly_scheduled = 0; // TODO
+        self.stats.fetch(&self.conn)?;
+
+        info!(self.log, "tick" ;
+        "events.newly_scheduled" => newly_scheduled,
+        "events.new_count" => self.stats.new,
+        "events.scheduled_count" => self.stats.scheduled,
+        );
+
+        Ok(())
+    }
+}
 
 fn main() {
     let t_start = time::Instant::now();
@@ -34,12 +83,8 @@ fn main() {
     let cfg = config::load().unwrap();
     let conn = postgres::Connection::connect(cfg.database.url, postgres::TlsMode::None).unwrap();
 
-    loop {
-        thread::sleep(time::Duration::from_secs(1));
-        let rows = conn
-            .query("SELECT COUNT(*) FROM events WHERE status = 'new'", &[])
-            .unwrap();
-        let count: i64 = rows.get(0).get(0);
-        info!(log, "tick" ; "new_events.count" => count);
-    }
+    let mut looper = Looper::new(conn, log);
+
+    // FIXME: rollbar before crash
+    looper.every(time::Duration::from_secs(1)).unwrap();
 }
