@@ -79,8 +79,8 @@ else
     --assertion-timeout 50 \
     --app-init-delay 0 \
     --pageload-timeout 200 \
-    --screenshots-on-fails \
-    --screenshots "rundir/screenshots/" \
+    --screenshots takeOnFails=true \
+    --screenshots path=rundir/screenshots/ \
     --concurrency "$CONCURRENCY" \
     --reporter=spec \
     $debugcmd \
