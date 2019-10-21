@@ -36,6 +36,25 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Option::map_v1"]
+    ; ins = []
+    ; p = [par "option" TOption; func ["val"]]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+                Dval.to_opt_just (fn [dv])
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Option::andThen"]
     ; ins = []
