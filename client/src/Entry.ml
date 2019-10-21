@@ -676,17 +676,19 @@ let submitACItem
           | PEventModifier _, ACEventModifier value, _ ->
               replace (PEventModifier (B.newF value))
           (* allow arbitrary eventspaces *)
-          | PEventSpace _, ACEventSpace value, TLHandler h ->
+          | PEventSpace space, ACEventSpace value, TLHandler h ->
               let new_ = B.newF value in
               let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
               let replacement2 =
-                if SpecHeaders.visibleModifier replacement
-                then replacement
-                else
-                  SpecHeaders.replaceEventModifier
-                    (B.toID h.spec.modifier)
-                    (B.newF "_")
+                (* Trello ticket for this: https://trello.com/c/xTitDxAs*)
+                match (replacement.space, space) with
+                | F (_, newSpace), F (_, oldSpace) when newSpace == oldSpace ->
                     replacement
+                | _, _ ->
+                    SpecHeaders.replaceEventModifier
+                      (B.toID h.spec.modifier)
+                      (B.new_ ())
+                      replacement
               in
               let replacement3 =
                 (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
