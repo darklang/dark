@@ -866,8 +866,6 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACDBColName value)
             | VarBind ->
                 Some (ACVarBind value)
-            | EventModifier ->
-                Some (ACEventModifier value)
             | Field ->
                 Some (ACField value)
             | Key ->
