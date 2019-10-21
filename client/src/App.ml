@@ -71,7 +71,11 @@ let init (flagString : string) (location : Web.Location.location) =
       ; username } =
     Flags.fromString flagString
   in
-  let variants = VariantTesting.enabledVariantTests in
+  let variants =
+    VariantTesting.enabledVariantTests
+    (* Forcing fluid for darklings *)
+    |> VariantTesting.forceFluid isAdmin username
+  in
   let m = editorState |> Editor.fromString |> Editor.editor2model in
   let page =
     Url.parseLocation location
