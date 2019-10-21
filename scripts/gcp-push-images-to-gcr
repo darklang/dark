@@ -25,6 +25,7 @@ IMAGE_ID=$(docker images "${PREFIX}dark-gcp" -q | head -n 1)
 QW_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-qw" -q | head -n 1)
 CRON_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-cron" -q | head -n 1)
 STROLLER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-stroller" -q | head -n 1)
+SCHEDULER_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-queue-scheduler" -q | head -n 1)
 TUNNEL_IMAGE_ID="$(docker images "${PREFIX}tunnel" -q | head -n 1)"
 POSTGRES_HONEYTAIL_IMAGE_ID=$(docker images "${PREFIX}dark-gcp-postgres-honeytail" -q | head -n 1)
 
@@ -33,6 +34,7 @@ IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp:$IMAGE_ID"
 QW_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:$QW_IMAGE_ID"
 CRON_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:$CRON_IMAGE_ID"
 STROLLER_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:$STROLLER_IMAGE_ID"
+SCHEDULER_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-queue-scheduler:$SCHEDULER_IMAGE_ID"
 TUNNEL_IMAGE="gcr.io/$PROJECT/${PREFIX}tunnel:$TUNNEL_IMAGE_ID"
 POSTGRES_HONEYTAIL_IMAGE="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:$POSTGRES_HONEYTAIL_IMAGE_ID"
 
@@ -41,6 +43,7 @@ IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp:latest"
 QW_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-qw:latest"
 CRON_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-cron:latest"
 STROLLER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-stroller:latest"
+SCHEDULER_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-queue-scheduler:latest"
 TUNNEL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}tunnel:latest"
 POSTGRES_HONEYTAIL_IMAGE_LATEST="gcr.io/$PROJECT/${PREFIX}dark-gcp-postgres-honeytail:latest"
 
@@ -55,6 +58,7 @@ docker tag "${PREFIX}dark-gcp:latest" "$IMAGE"
 docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE"
 docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE"
 docker tag "${PREFIX}dark-gcp-stroller:latest" "$STROLLER_IMAGE"
+docker tag "${PREFIX}dark-gcp-queue-scheduler:latest" "$SCHEDULER_IMAGE"
 docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE"
 docker tag "${PREFIX}dark-gcp-postgres-honeytail:latest" "$POSTGRES_HONEYTAIL_IMAGE"
 
@@ -63,6 +67,7 @@ docker tag "${PREFIX}dark-gcp:latest" "$IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-qw:latest" "$QW_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-cron:latest" "$CRON_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-stroller:latest" "$STROLLER_IMAGE_LATEST"
+docker tag "${PREFIX}dark-gcp-queue-scheduler:latest" "$SCHEDULER_IMAGE_LATEST"
 docker tag "${PREFIX}tunnel:latest" "$TUNNEL_IMAGE_LATEST"
 docker tag "${PREFIX}dark-gcp-postgres-honeytail:latest" "$POSTGRES_HONEYTAIL_IMAGE_LATEST"
 
@@ -78,6 +83,8 @@ docker push "$CRON_IMAGE"
 docker push "$CRON_IMAGE_LATEST"
 docker push "$STROLLER_IMAGE"
 docker push "$STROLLER_IMAGE_LATEST"
+docker push "$SCHEDULER_IMAGE"
+docker push "$SCHEDULER_IMAGE_LATEST"
 docker push "$TUNNEL_IMAGE"
 docker push "$TUNNEL_IMAGE_LATEST"
 docker push "$POSTGRES_HONEYTAIL_IMAGE"
