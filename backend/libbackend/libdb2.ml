@@ -65,6 +65,28 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::get_v2"]
+    ; ins = []
+    ; p = [par "key" TStr; par "table" TDB]
+    ; r = TOption
+    ; d = "Finds a value in `table` by `key"
+    ; f =
+        InProcess
+          (function
+          | state, [DStr key; DDB dbname] ->
+            ( try
+                let key = Unicode_string.to_string key in
+                let db = find_db state.dbs dbname in
+                Dval.to_opt_just (User_db.get ~state db key)
+              with
+            | Exception.DarkException e when e.tipe = Exception.DarkStorage ->
+                DOption OptNothing
+            | e ->
+                raise e )
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["DB::getMany_v1"]
     ; ins = []
@@ -323,6 +345,29 @@ let fns : shortfn list =
               ( match results with
               | [(_, v)] ->
                   DOption (OptJust v)
+              | _ ->
+                  DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["DB::queryOne_v2"]
+    ; ins = []
+    ; p = [par "spec" TObj; par "table" TDB]
+    ; r = TOption
+    ; d =
+        "Fetch exactly one value from `table` which have the same fields and values that `spec` has. If there is exactly one value, it returns Just value and if there is none or more than 1 found, it returns Nothing"
+    ; f =
+        InProcess
+          (function
+          | state, [(DObj _ as obj); DDB dbname] ->
+              let results =
+                let db = find_db state.dbs dbname in
+                User_db.query ~state db obj
+              in
+              ( match results with
+              | [(_, v)] ->
+                  Dval.to_opt_just v
               | _ ->
                   DOption OptNothing )
           | args ->
