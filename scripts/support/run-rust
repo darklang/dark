@@ -16,6 +16,7 @@ else
 fi
 
 BIN="$NAME/target/$TARGET/dark-$NAME"
+echo $BIN
 
 # Stop existing process (note that this makes the old process a zombie.
 # Doesn't matter though, as this only runs in dev).
