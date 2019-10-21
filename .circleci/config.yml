@@ -189,7 +189,7 @@ jobs:
       - run: scripts/builder --compile-stroller --test
       - run-background-container
       - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
@@ -242,7 +242,7 @@ jobs:
       - run: scripts/builder --compile-scheduler --test
       - run-background-container
       - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - run:
           name: Copy out generated files and caches
