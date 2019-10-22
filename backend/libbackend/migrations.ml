@@ -31,30 +31,35 @@ let is_already_run name : bool =
 
 
 let run_system_migration (name : string) (sql : string) : unit =
-  (* use printf since passing params seems not to work *)
-  let fullsql =
+  let done_sql =
+    (* use printf since passing params seems not to work *)
     Printf.sprintf
-      "DO
-         $do$
-           BEGIN
-             IF ((SELECT COUNT(*)
-                  FROM system_migrations
-                  WHERE name = %s) = 0)
-             THEN
-               %s;
-               INSERT INTO system_migrations
-               (name, execution_date, sql)
-               VALUES
-               (%s, CURRENT_TIMESTAMP, %s);
-             END IF;
-           END
-         $do$"
-      (Db.escape (String name))
-      sql
+      "INSERT INTO system_migrations (name, execution_date, sql)
+       VALUES (%s, CURRENT_TIMESTAMP, %s)
+       ON CONFLICT DO NOTHING"
       (Db.escape (String name))
       (Db.escape (String sql))
   in
-  Db.run ~params:[] fullsql ~name:"run_system_migration"
+  match String.split_lines sql with
+  (* allow special "pragma" to skip wrapping in a transaction *)
+  (* be VERY careful with this! *)
+  | "--#[no_tx]" :: _ ->
+      Db.run ~params:[] sql ~name:"run_system_migration" ;
+      Db.run ~params:[] done_sql ~name:"run_system_migration"
+  | _ ->
+      Db.run
+        ~params:[]
+        ~name:"run_system_migration"
+        (Printf.sprintf
+           "DO
+           $do$
+             BEGIN
+               %s;
+               %s;
+             END
+           $do$"
+           sql
+           done_sql)
 
 
 let names () = File.lsdir ~root:Migrations "" |> List.sort ~compare
