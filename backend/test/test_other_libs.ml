@@ -38,6 +38,10 @@ let t_option_stdlibs_work () =
     (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
     (DOption OptNothing) ;
   check_dval
+    "map just incomplete"
+    (exec_ast "(Option::map_v1 _ (\\x -> (x)))")
+    DIncomplete ;
+  check_dval
     "withDefault just"
     (exec_ast "(Option::withDefault (Just 6) 5)")
     (Dval.dint 6) ;
@@ -113,6 +117,10 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::fromOption (Nothing) 'test')")
     (DResult (ResError test_string)) ;
   check_dval
+    "fromOption_v1 propogates errors"
+    (exec_ast "(Result::fromOption_v1 (Just _) 'test')")
+    DIncomplete ;
+  check_dval
     "toOption ok"
     (exec_ast "(Result::toOption (Ok 6))")
     (DOption (OptJust (Dval.dint 6))) ;
@@ -120,6 +128,10 @@ let t_result_stdlibs_work () =
     "toOption error"
     (exec_ast "(Result::toOption (Error 'test'))")
     (DOption OptNothing) ;
+  check_dval
+    "toOption_v1 propogates errors"
+    (exec_ast "(Result::toOption_v1 (Ok _))")
+    DIncomplete ;
   check_dval
     "andThen ok,error"
     (exec_ast "(Result::andThen (Ok 5) (\\x -> (Error 'test')))")
@@ -136,6 +148,10 @@ let t_result_stdlibs_work () =
     "andThen error,error"
     (exec_ast "(Result::andThen (Error 'test') (\\x -> (Error 'test')))")
     (DResult (ResError test_string)) ;
+  check_condition
+    "andThen_v1 propogates errors"
+    (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (_)))")
+    ~f:(fun x -> match x with DError _ -> true | _ -> false ) ;
   AT.check
     AT.bool
     "andThen wrong type"
