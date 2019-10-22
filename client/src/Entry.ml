@@ -461,6 +461,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PEventModifier _ ->
       if TL.isHTTPHandler tl
       then v AC.httpVerbValidator "verb"
+      else if TL.isCronHandler tl
+      then AC.cronIntervalValidator value
       else v AC.eventModifierValidator "event modifier"
   | PEventSpace _ ->
       v AC.eventSpaceValidator "event space"
@@ -886,6 +888,9 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeFieldName value)
             | GroupName ->
                 Some (ACGroupName value)
+            | EventModifier ->
+                (* Does not accept freeform inputs, but goes to validation call for more specific error message displayed to user *)
+                Some (ACEventModifier value)
             | _ ->
                 None )
           | None ->
