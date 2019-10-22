@@ -4,7 +4,9 @@ set -euo pipefail
 
 PREFIX=""
 SKIP_STROLLER=""
+SKIP_QUEUE_SCHEDULER=""
 SKIP_OCAML=""
+
 for i in "$@"
 do
   case "${i}" in
@@ -13,6 +15,9 @@ do
       ;;
     --skip-stroller)
       SKIP_STROLLER=1
+      ;;
+    --skip-queue-scheduler)
+      SKIP_QUEUE_SCHEDULER=1
       ;;
     --skip-ocaml)
       SKIP_OCAML=1
@@ -121,6 +126,21 @@ if [[ "${SKIP_STROLLER}" == "" ]]; then
   cp -f scripts/support/check-linked-libs "$SDIR/"
 
   docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-stroller:latest" "$SDIR"
+fi
+
+#################################
+## queue scheduler
+#################################
+if [[ "${SKIP_QUEUE_SCHEDULER}" == "" ]]; then
+  SDIR=$(mktemp -d --suffix _gcp-scheduler-builddir)
+
+  cp scripts/support/gcp-queue-scheduler-Dockerfile "$SDIR/Dockerfile"
+
+  mkdir -p "$SDIR/bin"
+  cp -f queue-scheduler/target/release/dark-queue-scheduler "$SDIR/bin/"
+  cp -f scripts/support/check-linked-libs "$SDIR/"
+
+  docker build --build-arg GIT_COMMIT="$(git rev-parse --short HEAD)" -t "${PREFIX}dark-gcp-queue-scheduler:latest" "$SDIR"
 fi
 
 

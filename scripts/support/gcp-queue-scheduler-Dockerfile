@@ -1,0 +1,46 @@
+FROM ubuntu:18.04
+
+RUN apt-get update && \
+    apt-get install \
+      -y \
+      --no-install-recommends \
+      curl \
+      apt-transport-https \
+      ca-certificates \
+      netbase
+
+RUN apt-get update \
+    && apt-get install \
+      --no-install-recommends \
+      -y \
+      libcurl4-gnutls-dev \
+      locales \
+      sudo \
+      libssl-dev \
+      libssl-ocaml-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Locales
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+
+# Dark user
+RUN adduser --disabled-password --gecos '' dark
+RUN echo "dark:dark" | chpasswd && adduser dark sudo
+RUN chown -R dark:dark /home/dark
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Set up app
+USER dark
+WORKDIR /home/dark
+
+
+COPY . /home/dark
+
+ARG GIT_COMMIT
+ENV GIT_COMMIT ${GIT_COMMIT}
+
+RUN ./check-linked-libs bin/dark-queue-scheduler
+
+CMD "bin/dark-queue-scheduler"

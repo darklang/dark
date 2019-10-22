@@ -63,6 +63,9 @@ do
     --stroller-image-id=*)
       STROLLER_IMAGE_ID="${i/--stroller-image-id=/''}"
       ;;
+    --queue-scheduler-image-id=*)
+      QUEUE_SCHEDULER_IMAGE_ID="${i/--queue-scheduler-image-id=/''}"
+      ;;
     --tunnel-image-id=*)
       TUNNEL_IMAGE_ID="${i/--tunnel-image-id=/''}"
       ;;
@@ -180,6 +183,9 @@ fi
 if [[ ! -v STROLLER_IMAGE_ID ]]; then
   STROLLER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-stroller -q | head -n 1)"
 fi
+if [[ ! -v QUEUE_SCHEDULER_IMAGE_ID ]]; then
+  QUEUE_SCHEDULER_IMAGE_ID="$(docker images $GCR/${PREFIX}dark-gcp-queue-scheduler -q | head -n 1)"
+fi
 if [[ ! -v TUNNEL_IMAGE_ID ]]; then
   TUNNEL_IMAGE_ID="$(docker images $GCR/${PREFIX}tunnel -q | head -n 1)"
 fi
@@ -215,6 +221,11 @@ sed -e "s!{QW_IMAGE}!${QW_IMAGE_ID}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
   scripts/support/kubernetes/queueworker/qw-deployment.yaml.template > scripts/support/kubernetes/queueworker/qw-deployment.yaml
 
+sed -e "s!{SCHEDULER_IMAGE}!${QUEUE_SCHEDULER_IMAGE_ID}!" \
+  -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
+  -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
+  scripts/support/kubernetes/queueworker/scheduler-deployment.yaml.template > scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
+
 sed -e "s!{CRON_IMAGE}!${CRON_IMAGE_ID}!" \
   -e "s!{CHANGE_CAUSE}!${CHANGE_CAUSE}!" \
   -e "s!{CLOUDSQL_INSTANCE_NAME}!${CLOUDSQL_INSTANCE_NAME}!" \
@@ -241,6 +252,7 @@ kubectl apply -f scripts/support/kubernetes/builtwithdark/darklang-ingress.yaml
 kubectl apply -f scripts/support/kubernetes/builtwithdark/honeycomb.yaml
 kubectl apply -f scripts/support/kubernetes/queueworker/qw-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/queueworker/qw-network-policy.yaml
+kubectl apply -f scripts/support/kubernetes/queueworker/scheduler-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
