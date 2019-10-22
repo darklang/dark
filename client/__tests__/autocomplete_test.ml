@@ -209,6 +209,18 @@ let () =
               |> toEqual
                    (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
       ) ;
+      describe "validate CRON intervals" (fun () ->
+          let space = Some "CRON" in
+          let tl = TLHandler (aHandler ~space ()) in
+          let pd = PEventModifier (Types.F (ID "0", "5mins")) in
+          test "Every 1hr is valid" (fun () ->
+              let value = "Every 1hr" in
+              expect (Entry.validate tl pd value) |> toEqual None ) ;
+          test "Every 5mins is not valid" (fun () ->
+              let value = "Every 5mins" in
+              expect (Entry.validate tl pd value)
+              |> toEqual (Some "Every 5mins is an invalid CRON interval") ) ;
+          () ) ;
       describe "validate functions" (fun () ->
           let fnAsTL =
             aFunction
