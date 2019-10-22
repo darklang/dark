@@ -413,6 +413,10 @@ let httpVerbValidator = "[A-Z]+"
 
 let eventSpaceValidator = "(CRON|HTTP|REPL|WORKER)"
 
+let cronValidatorPattern =
+  "(Daily|Weekly|Fortnightly|Every 1hr|Every 12hrs|Every 1min)"
+
+
 let fieldNameValidator = ".+"
 
 let keynameValidator = ".+"
@@ -426,6 +430,13 @@ let paramNameValidator = "[a-z][a-zA-Z0-9_]*"
 let typeNameValidator = dbNameValidator
 
 let paramTypeValidator = "[A-Za-z0-9_]*"
+
+(* Adding a more clear error message for invalid cron intervals *)
+let cronIntervalValidator (name : string) : string option =
+  if Regex.exactly ~re:cronValidatorPattern name
+  then None
+  else Some (name ^ " is an invalid CRON interval")
+
 
 let assertValid pattern value : string =
   if Regex.exactly ~re:pattern value
