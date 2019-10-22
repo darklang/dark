@@ -461,6 +461,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
   | PEventModifier _ ->
       if TL.isHTTPHandler tl
       then v AC.httpVerbValidator "verb"
+      else if TL.isCronHandler tl
+      then AC.cronIntervalValidator value
       else v AC.eventModifierValidator "event modifier"
   | PEventSpace _ ->
       v AC.eventSpaceValidator "event space"
@@ -676,17 +678,19 @@ let submitACItem
           | PEventModifier _, ACEventModifier value, _ ->
               replace (PEventModifier (B.newF value))
           (* allow arbitrary eventspaces *)
-          | PEventSpace _, ACEventSpace value, TLHandler h ->
+          | PEventSpace space, ACEventSpace value, TLHandler h ->
               let new_ = B.newF value in
               let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
               let replacement2 =
-                if SpecHeaders.visibleModifier replacement
-                then replacement
-                else
-                  SpecHeaders.replaceEventModifier
-                    (B.toID h.spec.modifier)
-                    (B.newF "_")
+                (* Trello ticket for this: https://trello.com/c/xTitDxAs*)
+                match (replacement.space, space) with
+                | F (_, newSpace), F (_, oldSpace) when newSpace == oldSpace ->
                     replacement
+                | _, _ ->
+                    SpecHeaders.replaceEventModifier
+                      (B.toID h.spec.modifier)
+                      (B.new_ ())
+                      replacement
               in
               let replacement3 =
                 (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
@@ -866,8 +870,6 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACDBColName value)
             | VarBind ->
                 Some (ACVarBind value)
-            | EventModifier ->
-                Some (ACEventModifier value)
             | Field ->
                 Some (ACField value)
             | Key ->
@@ -886,6 +888,9 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
                 Some (ACTypeFieldName value)
             | GroupName ->
                 Some (ACGroupName value)
+            | EventModifier ->
+                (* Does not accept freeform inputs, but goes to validation call for more specific error message displayed to user *)
+                Some (ACEventModifier value)
             | _ ->
                 None )
           | None ->
