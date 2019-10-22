@@ -309,14 +309,12 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   opacity: 0.8;
 
   &:hover {
-    opacity: 1.0;
+    opacity: 1;
     cursor: pointer;
   }
 
   &:hover:after {
     @extend .tooltip;
-
-    content: "Handle errors that arise from this function yourself";
 
     position: absolute;
     left: 25px;
@@ -325,17 +323,32 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
   &.Option {
     background-image: url("/icons/option_just.svg");
+    &:hover:after {
+      content: "Just x -> x";
+    }
 
     &.ErrorRail {
       background-image: url("/icons/option_nothing.svg");
+
+      &:hover:after {
+        content: "Nothing -> ErrorRail <Nothing>";
+      }
     }
   }
 
   &.Result {
     background-image: url("/icons/result_ok.svg");
 
+    &:hover:after {
+      content: "Ok x -> x";
+    }
+
     &.ErrorRail {
       background-image: url("/icons/result_error.svg");
+
+      &:hover:after {
+        content: "Error msg -> ErrorRail<Error msg>";
+      }
     }
   }
 
