@@ -53,21 +53,31 @@ let viewError (err : darkError) : msg Html.html =
   let viewException (exc : exception_) =
     match exc.result with
     | None ->
-        [Html.text exc.short]
+        [Html.p [] [Html.text exc.short]]
     | Some result ->
-        [Html.text result]
+        [Html.p [] [Html.text result]]
   in
-  Html.div
-    [Html.classList [("error-panel", true); ("show", err.showDetails)]]
-    ( match err.message with
+  let viewErrorMsg =
+    match err.message with
     | None ->
         []
     | Some msg ->
       ( match Json_decode_extended.decodeString Decoders.exception_ msg with
       | Error _ ->
-          [Html.text msg]
+          [Html.p [] [Html.text msg]]
       | Ok exc ->
-          viewException exc ) )
+          viewException exc )
+  in
+  let viewDismissBtn =
+    [ Html.p
+        [ Html.class' "dismissBtn"
+        ; ViewUtils.eventNoPropagation "click" ~key:"dismiss-error" (fun _ ->
+              DismissErrorBar ) ]
+        [Html.text "Dismiss"] ]
+  in
+  Html.div
+    [Html.classList [("error-panel", true); ("show", err.showDetails)]]
+    (viewErrorMsg @ viewDismissBtn)
 
 
 let readOnlyMessage (m : model) : msg Html.html =

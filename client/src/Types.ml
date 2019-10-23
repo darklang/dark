@@ -1061,6 +1061,7 @@ and msg =
   | CreateGroup
   | HideTopbar
   | LogoutOfDark
+  | DismissErrorBar
 
 (* ----------------------------- *)
 (* AB tests *)
