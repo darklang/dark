@@ -8,8 +8,7 @@ SERVER_EXE="$BINPATH/server.exe"
 QW_EXE="$BINPATH/queue_worker.exe"
 CRON_EXE="$BINPATH/cron_checker.exe"
 
-# Stop the server (note that this makes the old exes into zombies.
-# Doesn't matter though, as this only runs in dev).
+# Stop the server processes
 (ps aux | pgrep server.exe | xargs sudo kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep queue_worker.exe | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep cron_checker.exe | xargs kill -9 > /dev/null 2>&1) || true

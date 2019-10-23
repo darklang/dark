@@ -71,14 +71,6 @@ let log_queue_size
    * postgres logs in honeycomb if we wanted to get a sense of how long this
    * takes *)
   (* TODO: what statuses? *)
-  let dark_queue_size =
-    Db.fetch_one
-      ~name:"dark queue size"
-      "SELECT count(*) FROM events WHERE status IN ('new','locked','error')"
-      ~params:[]
-    |> List.hd_exn
-    |> int_of_string
-  in
   let canvas_queue_size =
     Db.fetch_one
       ~name:"canvas queue size"
@@ -105,8 +97,7 @@ let log_queue_size
     |> int_of_string
   in
   let jsonparams =
-    [ ("dark_queue_size", `Int dark_queue_size)
-    ; ("canvas_queue_size", `Int canvas_queue_size)
+    [ ("canvas_queue_size", `Int canvas_queue_size)
     ; ("worker_queue_size", `Int worker_queue_size) ]
   in
   let params =
@@ -150,8 +141,7 @@ let dequeue transaction : t option =
          (extract(epoch from (CURRENT_TIMESTAMP - enqueued_at)) * 1000) as queue_delay_ms
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
-       WHERE delay_until < CURRENT_TIMESTAMP
-       AND status = 'new'
+       WHERE status = 'scheduled'
        ORDER BY id DESC, retries ASC
        FOR UPDATE OF e SKIP LOCKED
        LIMIT 1"
