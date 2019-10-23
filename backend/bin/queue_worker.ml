@@ -41,6 +41,7 @@ let queue_worker execution_id =
 
 
 let () =
+  Random.self_init () ;
   let execution_id = Libexecution.Util.create_id () in
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
