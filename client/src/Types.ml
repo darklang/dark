@@ -953,10 +953,10 @@ and msg =
   | GlobalClick of mouseEvent
   | IgnoreMsg
   | FluidMsg of fluidMsg
-  | ToplevelMouseDown of tlid * mouseEvent
-  (* we have the actual node when ToplevelMouseUp is created, *)
+  | TLDragRegionMouseDown of tlid * mouseEvent
+  (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
-  | ToplevelMouseUp of tlid * mouseEvent
+  | TLDragRegionMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
   | ToplevelDelete of tlid
   | ToplevelDeleteForever of tlid

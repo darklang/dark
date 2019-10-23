@@ -1094,7 +1094,7 @@ let update_ (msg : msg) (m : model) : modification =
               , origCursorState ) ]
     | _ ->
         NoChange )
-  | ToplevelMouseDown (targetTLID, event) ->
+  | TLDragRegionMouseDown (targetTLID, event) ->
       if event.button = Defaults.leftButton
       then
         let tl = TL.get m targetTLID in
@@ -1104,7 +1104,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
-  | ToplevelMouseUp (_, event) ->
+  | TLDragRegionMouseUp (_, event) ->
       if event.button = Defaults.leftButton
       then
         match m.cursorState with

@@ -33,31 +33,33 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
   let body, data =
+    let dragEvents =
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlmd-" ^ showTLID tlid)
+          "mousedown"
+          (fun x -> TLDragRegionMouseDown (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlmu-" ^ showTLID tlid)
+          "mouseup"
+          (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+    in
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h, ViewData.viewData vs h.ast)
+        (ViewCode.viewHandler vs h dragEvents, ViewData.viewData vs h.ast)
     | TLDB db ->
-        (ViewDB.viewDB vs db, [])
+        (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->
-        ([ViewGroup.viewGroup m vs g], [])
+        ([ViewGroup.viewGroup m vs g dragEvents], [])
   in
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
   let events =
     [ ViewUtils.eventNoPropagation
-        ~key:("tlmd-" ^ showTLID tlid)
-        "mousedown"
-        (fun x -> ToplevelMouseDown (tlid, x))
-    ; ViewUtils.eventNoPropagation
-        ~key:("tlmu-" ^ showTLID tlid)
-        "mouseup"
-        (fun x -> ToplevelMouseUp (tlid, x))
-    ; ViewUtils.eventNoPropagation
         ~key:("tlc-" ^ showTLID tlid)
         "click"
         (fun x -> ToplevelClick (tlid, x)) ]
