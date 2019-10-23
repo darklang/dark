@@ -9,7 +9,7 @@ mod config;
 mod scheduler;
 mod stats;
 
-const TICK_INTERVAL: time::Duration = time::Duration::from_secs(5);
+const TICK_INTERVAL: time::Duration = time::Duration::from_secs(1);
 
 #[derive(Debug)]
 enum FatalError {

@@ -193,6 +193,14 @@ let dequeue transaction : t option =
         ^ "]" )
 
 
+let schedule_all unit : unit =
+  Db.run
+    ~name:"schedule_all"
+    ~params:[]
+    "UPDATE events SET status = 'scheduled'
+    WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
+
+
 let begin_transaction () =
   let id = Util.create_id () in
   ignore (Db.run ~name:"start_transaction" ~params:[] "BEGIN") ;
