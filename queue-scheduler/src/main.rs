@@ -31,8 +31,8 @@ struct Looper {
 impl Looper {
     fn new(conn: postgres::Connection, log: slog::Logger) -> Looper {
         Looper {
-            conn: conn,
-            log: log,
+            conn,
+            log,
             stats: stats::EventStats::new(),
         }
     }
