@@ -37,7 +37,7 @@
     "@opam/ocurl": "0.8.2",
     "@opam/postgresql": "4.4.0",
     "@opam/ppx_deriving": "4.3",
-    "@opam/ppx_deriving_yojson": "3.4",
+    "@opam/ppx_deriving_yojson": "3.5",
     "@opam/re2": "v0.11.0",
     "@opam/session": "0.4.1",
     "@opam/session-cohttp": "0.4.1",

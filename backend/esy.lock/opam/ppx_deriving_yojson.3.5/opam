@@ -3,7 +3,6 @@ maintainer: "whitequark <whitequark@whitequark.org>"
 authors: [ "whitequark <whitequark@whitequark.org>" ]
 license: "MIT"
 homepage: "https://github.com/whitequark/ppx_deriving_yojson"
-doc: "http://whitequark.github.io/ppx_deriving_yojson"
 bug-reports: "https://github.com/whitequark/ppx_deriving_yojson/issues"
 dev-repo: "git://github.com/whitequark/ppx_deriving_yojson.git"
 tags: [ "syntax" "json" ]
@@ -13,8 +12,8 @@ build: [
   ["dune" "runtest" "-p" name] {with-test}
 ]
 depends: [
-  "ocaml" {>= "4.04.0" & < "4.08.0"}
-  "yojson" {>= "1.6.0"}
+  "ocaml" {>= "4.04.0" & < "4.09.0"}
+  "yojson" {>= "1.6.0" & < "2.0.0"}
   "result"
   "ppx_deriving" {>= "4.0" & < "5.0"}
   "ppx_tools"    {build}
@@ -31,6 +30,6 @@ description: """
 ppx_deriving_yojson is a ppx_deriving plugin that provides
 a JSON codec generator."""
 url {
-  src: "https://github.com/ocaml-ppx/ppx_deriving_yojson/archive/v3.4.tar.gz"
-  checksum: "sha512=823aefb07506a0b0fe7a4b8b75ea85c88b83b53c46d1ee015993e9efc09c5d09276b83c71cf18ea20ceef5a08329d23664f8eb328dbdf06061eb5ca86aaeb33a"
+  src: "https://github.com/ocaml-ppx/ppx_deriving_yojson/archive/v3.5.tar.gz"
+  checksum: "sha256=c9e64042ae9572077ba0dd3dd531b9bc6ce8d576e9df6b7eaa58efb012605f0f"
 }
