@@ -2299,37 +2299,6 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         (newB (), 0)
 
 
-let acUpdateExpr (id : id) (ast : ast) (entry : Types.fluidAutocompleteItem) :
-    fluidExpr * int =
-  let newExpr, offset = acToExpr entry in
-  let oldExpr = findExpr id ast in
-  let parent = findParent id ast in
-  match (oldExpr, parent, newExpr) with
-  (* A partial - fetch the old nested exprs and put them in place *)
-  | ( Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
-    , _
-    , EBinOp (id, name, _, _, str) ) ->
-      (EBinOp (id, name, lhs, rhs, str), String.length name)
-  (* A right partial - insert the oldExpr into the first slot *)
-  | Some (ERightPartial (_, _, oldExpr)), _, EThread (id, _head :: tail) ->
-      (EThread (id, oldExpr :: tail), 2)
-  | Some (ERightPartial (_, _, oldExpr)), _, EBinOp (id, name, _, rhs, str) ->
-      (EBinOp (id, name, oldExpr, rhs, str), String.length name)
-  | Some (EPartial _), Some (EThread _), EBinOp (id, name, _, rhs, str) ->
-      ( EBinOp (id, name, EThreadTarget (gid ()), rhs, str)
-      , String.length name + 1 )
-  | Some (EPartial _), Some (EThread _), EFnCall (id, name, _ :: args, str) ->
-      ( EFnCall (id, name, EThreadTarget (gid ()) :: args, str)
-      , String.length name + 1 )
-  (* Field names *)
-  | ( Some (EFieldAccess (id, labelid, expr, _))
-    , _
-    , EFieldAccess (_, _, _, newname) ) ->
-      (EFieldAccess (id, labelid, expr, newname), offset)
-  | _ ->
-      (newExpr, offset)
-
-
 let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
   match entry with
   | FACPattern p ->
@@ -2435,27 +2404,71 @@ let updateFromACItem
     (s : state)
     (key : K.key) : ast * state =
   let id = Token.tid ti.token in
+  let newExpr, offset = acToExpr entry in
+  let oldExpr = findExpr id ast in
+  let parent = findParent id ast in
   let newAST, offset =
-    match ti.token with
+    match (ti.token, oldExpr, parent, newExpr) with
     (* since patterns have no partial but commit as variables
-        * automatically, allow intermediate variables to
-        * be autocompletable to other expressions *)
-    | TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _) ->
+     * automatically, allow intermediate variables to
+     * be autocompletable to other expressions *)
+    | (TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _)), _, _, _ ->
         let newPat, acOffset = acToPattern entry in
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, acOffset)
-    | (TPartial _ | TRightPartial _) when entry = FACKeyword KThread ->
-        let newExpr, _ = acUpdateExpr id ast entry in
+    | ( TRightPartial _
+      , Some (ERightPartial (_, _, oldExpr))
+      , _
+      , EThread (tID, _head :: tail) )
+      when entry = FACKeyword KThread ->
+        let newExpr = EThread (tID, oldExpr :: tail) in
         let newAST = replaceExpr id ast ~newExpr in
         let tokens = toTokens s newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
         (newAST, nextBlank - ti.startPos)
-    | TPartial _ | TRightPartial _ ->
-        let newExpr, offset = acUpdateExpr id ast entry in
+    | TPartial _, _, _, _ when entry = FACKeyword KThread ->
+        let newAST = replaceExpr id ast ~newExpr in
+        let tokens = toTokens s newAST in
+        let nextBlank = getNextBlankPos s.newPos tokens in
+        (newAST, nextBlank - ti.startPos)
+    | TPartial _, _, Some (EThread _), EBinOp (bID, name, _, rhs, str) ->
+        let newExpr = EBinOp (bID, name, EThreadTarget (gid ()), rhs, str) in
+        let offset = String.length name + 1 in
+        let newAST = replaceExpr ~newExpr id ast in
+        (newAST, offset)
+    | TPartial _, Some _, Some (EThread _), EFnCall (fnID, name, _ :: args, str)
+      ->
+        let newExpr =
+          EFnCall (fnID, name, EThreadTarget (gid ()) :: args, str)
+        in
+        let offset = String.length name + 1 in
         let newAST = replacePartialWithArguments ~newExpr id s ast in
         (newAST, offset)
-    | _ ->
-        let newExpr, offset = acUpdateExpr id ast entry in
+    | ( TPartial _
+      , Some (EPartial (_, _, EBinOp (_, _, lhs, rhs, _)))
+      , _
+      , EBinOp (bID, name, _, _, str) ) ->
+        let newExpr = EBinOp (bID, name, lhs, rhs, str) in
+        let newAST = replaceExpr ~newExpr id ast in
+        (newAST, String.length name)
+    | TPartial _, _, _, _ ->
+        let newAST = replacePartialWithArguments ~newExpr id s ast in
+        (newAST, offset)
+    | ( TRightPartial _
+      , Some (ERightPartial (_, _, oldExpr))
+      , _
+      , EBinOp (bID, name, _, rhs, str) ) ->
+        let newExpr = EBinOp (bID, name, oldExpr, rhs, str) in
+        let newAST = replaceExpr ~newExpr id ast in
+        (newAST, String.length name)
+    | ( TFieldName _
+      , Some (EFieldAccess (faID, labelid, expr, _))
+      , _
+      , EFieldAccess (_, _, _, newname) ) ->
+        let newExpr = EFieldAccess (faID, labelid, expr, newname) in
+        let newAST = replaceExpr ~newExpr id ast in
+        (newAST, offset)
+    | _, _, _, _ ->
         let newAST = replaceExpr ~newExpr id ast in
         (newAST, offset)
   in
