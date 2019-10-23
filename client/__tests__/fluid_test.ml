@@ -1945,6 +1945,12 @@ let () =
         (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________\n", 8) ;
       t
+        "creating a thread from an fn via a partial works"
+        (EPartial (gid (), "|>", aFnCall))
+        (enter 2)
+        (* This really should end in 18, but too much work for now *)
+        ("Int::add 5 _________\n|>___\n", 11) ;
+      t
         "enter at the end of a thread expr creates a new entry"
         aThread
         (enter 21)

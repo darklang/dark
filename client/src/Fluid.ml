@@ -2426,7 +2426,12 @@ let updateFromACItem
         let tokens = toTokens s newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
         (newAST, nextBlank - ti.startPos)
-    | TPartial _, _, _, _ when entry = FACKeyword KThread ->
+    | ( TPartial _
+      , Some (EPartial (_, _, oldExpr))
+      , _
+      , EThread (tID, _head :: tail) )
+      when entry = FACKeyword KThread ->
+        let newExpr = EThread (tID, oldExpr :: tail) in
         let newAST = replaceExpr id ast ~newExpr in
         let tokens = toTokens s newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
