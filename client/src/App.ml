@@ -1941,6 +1941,9 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               {m with canvasProps = {m.canvasProps with minimap = None}} )
         ; MakeCmd (Url.navigateTo Architecture) ]
+  | DismissErrorBar ->
+      TweakModel
+        (fun m -> {m with error = {message = None; showDetails = false}})
 
 
 let rec filter_read_only (m : model) (modification : modification) =
