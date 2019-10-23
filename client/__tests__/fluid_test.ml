@@ -2465,7 +2465,6 @@ let () =
       (*   ("match request.body", 18) ; *)
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (bs (EVariable (5, "request"))). *)
-      (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
       () ) ;
   describe "Movement" (fun () ->
       let tokens = toTokens m.fluidState complexExpr in
