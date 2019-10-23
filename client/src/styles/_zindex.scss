@@ -86,6 +86,12 @@
   z-index: 200;
 }
 
+.error-indicator {
+  &:hover:after {
+    z-index: 40;
+  }
+}
+
 #debug {
   min-height: 20px;
   z-index: 100;
