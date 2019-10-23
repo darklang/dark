@@ -8,7 +8,6 @@ module TL = Toplevel
 
 let dequeue_and_process execution_id :
     (RTT.dval option, Exception.captured) Result.t =
-  Log.infO "queue_worker" ~data:"Worker starting" ;
   Event_queue.with_transaction (fun transaction ->
       let event =
         try Ok (Event_queue.dequeue transaction) with e ->

@@ -9,6 +9,8 @@ mod config;
 mod scheduler;
 mod stats;
 
+const TICK_INTERVAL: time::Duration = time::Duration::from_secs(5);
+
 #[derive(Debug)]
 enum FatalError {
     PostgresError(postgres::Error),
@@ -43,10 +45,13 @@ impl Looper {
     }
 
     fn tick(&mut self) -> Result<(), FatalError> {
-        let newly_scheduled = 0; // TODO
+        let t_start = time::Instant::now();
+
+        let newly_scheduled = scheduler::schedule_events(&self.conn)?;
         self.stats.fetch(&self.conn)?;
 
         info!(self.log, "tick" ;
+        "duration" => t_start.elapsed().as_secs_f64() * 1000.0,
         "events.newly_scheduled" => newly_scheduled,
         "events.new_count" => self.stats.new,
         "events.scheduled_count" => self.stats.scheduled,
@@ -86,5 +91,5 @@ fn main() {
     let mut looper = Looper::new(conn, log);
 
     // FIXME: rollbar before crash
-    looper.every(time::Duration::from_secs(1)).unwrap();
+    looper.every(TICK_INTERVAL).unwrap();
 }
