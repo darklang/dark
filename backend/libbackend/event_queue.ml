@@ -193,6 +193,9 @@ let dequeue transaction : t option =
         ^ "]" )
 
 
+(* TESTS ONLY *)
+(* schedule_all bypasses actual scheduling logic and is meant only for allowing
+ * testing without running the queue-scheduler process *)
 let schedule_all unit : unit =
   Db.run
     ~name:"schedule_all"
