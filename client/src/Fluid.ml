@@ -4478,7 +4478,7 @@ let viewCopyButton tlid value : msg Html.html =
     ; Html.title "Copy this expression's value to the clipboard"
     ; ViewUtils.eventNoPropagation
         "click"
-        ~key:("copylivevalue-" ^ showTLID tlid)
+        ~key:("copylivevalue-" ^ value ^ showTLID tlid)
         (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
     [ViewUtils.fontAwesome "copy"]
 
