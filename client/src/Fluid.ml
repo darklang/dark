@@ -1802,7 +1802,6 @@ let replacePartialWithArguments
     | (name, _, rhs, _) :: rest ->
         ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
   in
-  let exprIsBlank e = match e with EBlank _ -> true | _ -> false in
   updateExpr id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
@@ -1819,8 +1818,7 @@ let replacePartialWithArguments
                 recover "impossible" []
           in
           ( match newExpr with
-          | EFnCall (id, newName, newExprs, ster)
-            when List.all ~f:exprIsBlank newExprs ->
+          | EFnCall (id, newName, newExprs, ster) ->
               let count = max (List.length exprs) (List.length newExprs) in
               let newParams = getFunctionParams newName count newExprs in
               let oldParams = getFunctionParams name count exprs in
