@@ -4765,10 +4765,7 @@ let toHtml
         let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
-              ( ["fluid-entry"] @ classes @ idclasses @ highlight
-              |> String.join ~sep:" " )
-            (* TODO(korede): figure out how to disable default selection while allowing click event *)
-          ; ViewUtils.nothingMouseEvent "mousemove"
+              (["fluid-entry"] @ classes @ idclasses @ highlight |> String.join ~sep:" ")
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
@@ -4793,6 +4790,17 @@ let toHtml
                 | None ->
                     (* We expect that this doesn't happen *)
                     FluidMsg (FluidUpdateSelection (tlid, None)) )
+          ; ViewUtils.eventNoPropagation
+          ~key:("fluid-selection-mouseup" ^ idStr)
+          "mouseup"
+          (fun _ ->
+            match Entry.getFluidSelectionRange () with
+            | Some range -> 
+                FluidMsg (FluidUpdateSelection (tlid, Some range))
+            | None ->
+                (* This will happen if it gets a selection and there is no
+                 focused node (weird browser problem?) *)
+                IgnoreMsg ) 
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"

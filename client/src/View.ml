@@ -58,10 +58,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
-  let events =
-    [ ViewUtils.eventNoPropagation
+  (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
+  let events = [
+    ViewUtils.eventNoPropagation
         ~key:("tlc-" ^ showTLID tlid)
-        "click"
+        "mouseup"
         (fun x -> ToplevelClick (tlid, x)) ]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
