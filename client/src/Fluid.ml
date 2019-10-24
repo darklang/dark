@@ -1806,46 +1806,56 @@ let replacePartialWithArguments
   updateExpr id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
-      | EPartial (_, _, EFnCall (_, name, exprs, _))
-      | EPartial (_, _, EConstructor (_, _, name, exprs)) ->
-        ( match newExpr with
-        | EFnCall (id, newName, newExprs, ster)
-          when List.all ~f:exprIsBlank newExprs ->
-            let count = max (List.length exprs) (List.length newExprs) in
-            let newParams = getFunctionParams newName count newExprs in
-            let oldParams = getFunctionParams name count exprs in
-            let alignedParams, unAlignedParams =
-              let isAligned p1 p2 =
-                match (p1, p2) with
-                | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
-                    name = name' && tipe = tipe'
-                | _, _ ->
-                    false
+      | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
+      | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
+      | EPartial (_, _, (EConstructor (_, _, name, _) as inner)) ->
+          let exprs =
+            match inner with
+            | EFnCall (_, _, exprs, _) | EConstructor (_, _, _, exprs) ->
+                exprs
+            | EBinOp (_, _, lhs, rhs, _) ->
+                [lhs; rhs]
+            | _ ->
+                recover "impossible" []
+          in
+          ( match newExpr with
+          | EFnCall (id, newName, newExprs, ster)
+            when List.all ~f:exprIsBlank newExprs ->
+              let count = max (List.length exprs) (List.length newExprs) in
+              let newParams = getFunctionParams newName count newExprs in
+              let oldParams = getFunctionParams name count exprs in
+              let alignedParams, unAlignedParams =
+                let isAligned p1 p2 =
+                  match (p1, p2) with
+                  | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
+                      name = name' && tipe = tipe'
+                  | _, _ ->
+                      false
+                in
+                List.partition oldParams ~f:(fun p ->
+                    List.any newParams ~f:(isAligned p) )
+                |> Tuple2.mapAll ~f:Option.values
               in
-              List.partition oldParams ~f:(fun p ->
-                  List.any newParams ~f:(isAligned p) )
-              |> Tuple2.mapAll ~f:Option.values
-            in
-            let newParams =
-              List.foldl
-                alignedParams
-                ~init:newExprs
-                ~f:(fun (_, _, expr, index) exprs ->
-                  List.updateAt ~index ~f:(fun _ -> expr) exprs )
-            in
-            let newExpr = EFnCall (id, newName, newParams, ster) in
-            wrapWithLets ~expr:newExpr unAlignedParams
-        | EConstructor _ ->
-            let oldParams =
-              exprs
-              |> List.indexedMap ~f:(fun i p ->
-                     (* create ugly automatic variable name *)
-                     let name = "var_" ^ string_of_int (Util.random ()) in
-                     (name, Runtime.tipe2str TAny, p, i) )
-            in
-            wrapWithLets ~expr:newExpr oldParams
-        | _ ->
-            newExpr )
+              let newParams =
+                List.foldl
+                  alignedParams
+                  ~init:newExprs
+                  ~f:(fun (_, _, expr, index) exprs ->
+                    List.updateAt ~index ~f:(fun _ -> expr) exprs )
+              in
+              let newExpr = EFnCall (id, newName, newParams, ster) in
+              wrapWithLets ~expr:newExpr unAlignedParams
+          | EConstructor _ ->
+              let oldParams =
+                exprs
+                |> List.indexedMap ~f:(fun i p ->
+                       (* create ugly automatic variable name *)
+                       let name = "var_" ^ string_of_int (Util.random ()) in
+                       (name, Runtime.tipe2str TAny, p, i) )
+              in
+              wrapWithLets ~expr:newExpr oldParams
+          | _ ->
+              newExpr )
       | _ ->
           newExpr )
 
@@ -2299,6 +2309,54 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         (newB (), 0)
 
 
+let rec findRightPartialBinopParent
+    (op : string) (oldExpr : fluidExpr) (ast : ast) : fluidExpr option =
+  Js.log "finding RightPArtial" ;
+  let child = oldExpr in
+  let parent = findParent (eid oldExpr) ast in
+  match (op, parent) with
+  | "|>", Some parent ->
+      Js.log "found parent for |>" ;
+      ( match parent with
+      | EInteger _
+      | EBlank _
+      | EString _
+      | EVariable _
+      | EBool _
+      | ENull _
+      | EThreadTarget _
+      | EFloat _ ->
+          Js.log "cant" ;
+          recover "these cant be parents" None
+      (* If the parent is some sort of "resetting", then we probably meant the child *)
+      | ELet _
+      | EIf _
+      | EFieldAccess _
+      | EMatch _
+      | ERecord _
+      | EThread _
+      | EOldExpr _
+      (* Not sure what to do here, probably nothing fancy *)
+      | EFeatureFlag _ ->
+          Js.log "child" ;
+          Some child
+      (* These are the expressions we're trying to skip. *)
+      | EBinOp _ | ELambda _ | EFnCall _ | EList _ | EConstructor _ ->
+          Js.log "recurse into parent" ;
+          findRightPartialBinopParent op parent ast
+      (* These are wrappers of the current expr. *)
+      | EPartial _ | ERightPartial _ ->
+          Js.log "kip partials" ;
+          findRightPartialBinopParent op parent ast )
+  | _, None ->
+      (* If we get to the root *)
+      Js.log "no parent" ;
+      None
+  | _, _ ->
+      Js.log "something lese, use oldExpr" ;
+      Some oldExpr
+
+
 let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
   match entry with
   | FACPattern p ->
@@ -2416,18 +2474,8 @@ let updateFromACItem
         let newPat, acOffset = acToPattern entry in
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, acOffset)
-    | ( TRightPartial _
-      , Some (ERightPartial (_, _, oldExpr))
-      , _
-      , EThread (tID, _head :: tail) )
-      when entry = FACKeyword KThread ->
-        let newExpr = EThread (tID, oldExpr :: tail) in
-        let newAST = replaceExpr id ast ~newExpr in
-        let tokens = toTokens s newAST in
-        let nextBlank = getNextBlankPos s.newPos tokens in
-        (newAST, nextBlank - ti.startPos)
-    | ( TPartial _
-      , Some (EPartial (_, _, oldExpr))
+    | ( (TPartial _ | TRightPartial _)
+      , Some (ERightPartial (_, _, oldExpr) | EPartial (_, _, oldExpr))
       , _
       , EThread (tID, _head :: tail) )
       when entry = FACKeyword KThread ->

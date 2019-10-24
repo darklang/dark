@@ -1287,6 +1287,12 @@ let () =
         (press K.Equals 7)
         ("12345 <= 12345", 8) ;
       t
+        "changing binop to fn should work"
+        (EPartial
+           (gid (), "Int::add", EBinOp (gid (), "+", anInt, anInt, NoRail)))
+        (presses [K.Enter] 14)
+        ("Int::add 12345 12345", 15) ;
+      t
         "changing binop should work"
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
