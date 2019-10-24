@@ -14,14 +14,22 @@
 
 .error-panel {
   width: 100%;
-  padding: 20px;
   background-color: $red;
   color: $white1;
   position: fixed;
   left: 0;
   bottom: -70px;
-  height: 20px;
+  height: 60px;
   animation-duration: 0.5s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  p {
+    padding: 0px 20px;
+  }
+  .dismisBtn {
+    cursor: pointer;
+  }
   &.show {
     bottom: 0;
     animation-name: showErrorPanel;

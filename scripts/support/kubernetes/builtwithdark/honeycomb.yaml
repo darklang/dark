@@ -69,6 +69,10 @@ data:
         containerName: stroller
         dataset: kubernetes-stroller
         parser: json
+      - labelSelector: "app=scheduler-worker"
+        containerName: scheduler-ctr
+        dataset: kubernetes-scheduler
+        parser: json
       - labelSelector: "app=bwd-app"
         containerName: bwd-ctr
         dataset: kubernetes-bwd-ocaml
