@@ -66,12 +66,40 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "date" TDate]
     ; r = TStr
-    ; d = "Print a date in the ISO format"
+    ; d = "Stringify `date` to the ISO 8601 format YYYY-MM-DD'T'hh:mm:ss'Z'"
     ; f =
         InProcess
           (function
           | _, [DDate d] ->
               Dval.dstr_of_string_exn (Util.isostring_of_date d)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::toStringISO8601BasicDateTime"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TStr
+    ; d = "Stringify `date` to the ISO 8601 basic format YYYYMMDD'T'hhmmss'Z'"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              Dval.dstr_of_string_exn (Util.isostring_of_date_basic_datetime d)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = false }
+  ; { pns = ["Date::toStringISO8601BasicDate"]
+    ; ins = []
+    ; p = [par "date" TDate]
+    ; r = TStr
+    ; d = "Stringify `date` to the ISO 8601 basic format YYYYMMDD"
+    ; f =
+        InProcess
+          (function
+          | _, [DDate d] ->
+              Dval.dstr_of_string_exn (Util.isostring_of_date_basic_date d)
           | args ->
               fail args)
     ; ps = true
