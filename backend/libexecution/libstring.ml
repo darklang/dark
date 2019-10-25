@@ -658,14 +658,14 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "str" TStr]
     ; r = TBytes
-    ; d = "Converts the given unicode string to bytes."
+    ; d = "Converts the given unicode string to a utf8-encoded byte sequence."
     ; f =
         InProcess
           (function
           | _, [DStr str] ->
               let _ = (Libcommon.Log.inspecT "strToEncode to_raw_bytes" str) in
               (* let theBytes2 = (Bytes.of_string str) in *)
-              let theBytes = (Unicode_string.to_raw_bytes str) in
+              let theBytes = (Unicode_string.to_utf8_bytes str) in
               let _ = (Libcommon.Log.inspecT "strToEncode to_raw_bytes bytes" theBytes) in
               let _ = (Libcommon.Log.inspecT "strToEncode to_raw_bytes len" (Bytes.length theBytes)) in
               (* let _ = (Libcommon.Log.inspecT "strToEncode to_raw_bytes len2" (Bytes.length theBytes2)) in *)
