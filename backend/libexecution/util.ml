@@ -1,6 +1,26 @@
 open Core_kernel
 open Libcommon
 
+module Digit_string_helpers = struct
+  (* Copied from `Core_kernel_private.Digit_string_helpers` *)
+  let _unsafe_char_of_digit n = Char.unsafe_of_int (Char.to_int '0' + n);;
+  let write_1_digit_int bytes ~pos int =
+    Bytes.unsafe_set bytes pos (_unsafe_char_of_digit int)
+  ;;
+
+  let _return_tens_and_write_ones bytes ~pos int =
+    let tens = int / 10 in
+    let ones = int - (tens * 10) in
+    write_1_digit_int bytes ~pos ones;
+    tens
+  ;;
+
+  let write_2_digit_int bytes ~pos int =
+      let tens = _return_tens_and_write_ones bytes ~pos:(pos + 1) int in
+      write_1_digit_int bytes ~pos tens
+  ;;
+end
+
 (* ------------------- *)
 (* random *)
 (* ------------------- *)
@@ -15,6 +35,19 @@ let uuid_of_string (id : string) : Uuidm.t =
 let isostring_of_date (d : Time.t) : string =
   let date, sec = Time.to_date_ofday ~zone:Time.Zone.utc d in
   Date.to_string date ^ "T" ^ Time.Ofday.to_sec_string sec ^ "Z"
+
+let isostring_of_date_basic_date (d : Time.t) : string =
+  let date, _ = Time.to_date_ofday ~zone:Time.Zone.utc d in
+  Date.to_string_iso8601_basic date
+
+let isostring_of_date_basic_datetime (d : Time.t) : string =
+  let date, sec = Time.to_date_ofday ~zone:Time.Zone.utc d in
+  let parts = Time.Ofday.to_parts sec in
+  let buf = Bytes.create (2+2+2) in
+  Digit_string_helpers.write_2_digit_int buf ~pos:0 parts.hr;
+  Digit_string_helpers.write_2_digit_int buf ~pos:2 parts.min;
+  Digit_string_helpers.write_2_digit_int buf ~pos:4 parts.sec;
+  Date.to_string_iso8601_basic date ^ "T" ^ (Bytes.to_string buf) ^ "Z"
 
 
 let date_of_isostring (str : string) : Time.t = Time.of_string str
