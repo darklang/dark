@@ -216,6 +216,7 @@ let t_event_queue_roundtrip () =
     DNull (* I don't believe crons take inputs? *)
     ~account_id:!c.owner
     ~canvas_id:!c.id ;
+  Event_queue.schedule_all () ;
   let result = Queue_worker.run execution_id in
   ( match result with
   | Ok (Some result_dval) ->

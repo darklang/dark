@@ -36,3 +36,5 @@ val dequeue : transaction -> t option
 val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
 
 val finish : transaction -> t -> unit
+
+val schedule_all : unit -> unit
