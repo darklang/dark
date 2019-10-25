@@ -1,15 +1,23 @@
-//Provides: dark_arrayBuffer_from_b64
-function dark_arrayBuffer_from_b64(base64) {
+//Provides: dark_arrayBuffer_from_padded_b64url
+// dark_arrayBuffer_from_padded_b64url creates an ArrayBuffer filled with the bytes
+// encoded by the given base64 string.
+// XXX(JULIAN): If the string contains
+// characters that are outside of the alphabet,
+// it will silently interpret them as 0, because bitwise ops coerce
+// undefined to 0, and undefined is the result of out-of-range array accesses in JS.
+function dark_arrayBuffer_from_padded_b64url(base64) {
   console.log("DECODING: "+base64);
-  // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use decode here
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
+  // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
+  // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
+  // since it's shared and could be cached (just moving it up doesn't seem to work with jsoo...)
+  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   // Use a lookup table to find the index.
   var lookup = new Uint8Array(256);
   for (var i = 0; i < chars.length; i++) {
     lookup[chars.charCodeAt(i)] = i;
   }
-
 
   var bufferLength = base64.length * 0.75, len = base64.length, i, p = 0, encoded1, encoded2, encoded3, encoded4;
 
@@ -20,6 +28,8 @@ function dark_arrayBuffer_from_b64(base64) {
     }
   }
 
+  // If bufferLength includes a fractional component,
+  // it will silently truncate when used as the #bytes for this ArrayBuffer
   var arraybuffer = new ArrayBuffer(bufferLength),
   bytes = new Uint8Array(arraybuffer);
 
@@ -39,12 +49,15 @@ function dark_arrayBuffer_from_b64(base64) {
   return arraybuffer;
 }
 
-//Provides: dark_arrayBuffer_to_b64
-function dark_arrayBuffer_to_b64(arraybuffer) {
+//Provides: dark_arrayBuffer_to_padded_b64url
+function dark_arrayBuffer_to_padded_b64url(arraybuffer) {
   console.log("ENCODING: ");
   console.log(arraybuffer);
-  // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
-  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
+  // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
+  // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
+  // since it's shared and could be cached (just moving it up doesn't seem to work with jsoo...)
+  var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
   // Use a lookup table to find the index.
   var lookup = new Uint8Array(256);
@@ -82,6 +95,8 @@ function dark_targetjs_digest384(s) {
 function dark_targetjs_digest384_bytes(uint8Array) {
   var b64 = analysiswrapper.sha2.SHA384(uint8Array).toString("base64");
   // the built-in Buffer.toString uses a different alphabet than the server.
+  // The alphabet used here is ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+  // and we want               ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
   return b64.replace(/\//g, "_").replace(/\+/g, "-");
 }
 
@@ -89,6 +104,8 @@ function dark_targetjs_digest384_bytes(uint8Array) {
 function dark_targetjs_digest256(s) {
   var b64 = analysiswrapper.sha2.SHA256(s).toString("base64");
   // the built-in Buffer.toString uses a different alphabet than the server.
+  // The alphabet used here is ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/
+  // and we want               ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_
   return b64.replace(/\//g, "_").replace(/\+/g, "-");
 }
 

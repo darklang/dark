@@ -24,11 +24,14 @@ external createUint8Array : jsArrayBuffer -> jsUint8Array = "Uint8Array" [@@bs.n
 external getUint8ArrayIdx : jsUint8Array -> int -> int = "" [@@bs.get_index]
 external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = "" [@@bs.set_index]
 
-let dark_arrayBuffer_from_b64 = [%raw {|
+let dark_arrayBuffer_from_b64url = [%raw {|
   function (base64) {
     console.log("DECODING: "+base64);
-    // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use decode here
-    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
+    // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
+    // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
+    // since it's shared and could be cached.
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
     // Use a lookup table to find the index.
     var lookup = new Uint8Array(256);
@@ -68,9 +71,9 @@ let dark_arrayBuffer_from_b64 = [%raw {|
 ]
 
 (* XXX(JULIAN): This doesn't work -- "window" is undefined ??? *)
-(* external dark_arrayBuffer_from_b64 :
+(* external dark_arrayBuffer_from_b64url :
   string -> jsArrayBuffer
-  = "dark_arrayBuffer_from_b64"
+  = "dark_arrayBuffer_from_b64url"
   [@@bs.val] [@@bs.scope "window"] *)
 
 let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
@@ -83,9 +86,9 @@ let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
   done;
   bytes
 
-let bytes_from_base64 (b64 : string) : Bytes.t = 
+let bytes_from_base64url (b64 : string) : Bytes.t = 
   b64
-  |> dark_arrayBuffer_from_b64
+  |> dark_arrayBuffer_from_b64url
   |> _bytes_from_uint8Array
 
 (* identifiers are strings to the bucklescript client -- it knows nothing
@@ -737,7 +740,7 @@ and dval j : dval =
     ; ( "DBytes"
       , dv1
           (fun x ->
-            let x = x |> bytes_from_base64 in
+            let x = x |> bytes_from_base64url in
             DBytes x )
           string ) ]
     j

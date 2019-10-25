@@ -303,12 +303,12 @@ module RuntimeT = struct
   module RawBytes = struct
     include Bytes
 
-    let to_yojson bytes = `String (bytes |> Libtarget.base64_bytes)
+    let to_yojson bytes = `String (bytes |> Libtarget.base64url_bytes)
 
     let of_yojson json =
       match json with
       | `String s ->
-          Ok (s |> Libtarget.bytes_from_base64)
+          Ok (s |> Libtarget.bytes_from_base64url)
       | _ ->
           Error "Expected a string"
   end
