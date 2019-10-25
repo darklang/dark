@@ -16,11 +16,11 @@ external dark_arrayBuffer_to_padded_b64url :
   js_uint8Array -> js_string
   = "dark_arrayBuffer_to_padded_b64url"
 
-(* dark_arrayBuffer_from_b64url silently accepts non-base64 strings,
+(* dark_arrayBuffer_from_padded_b64url silently accepts non-base64 strings,
 interpreting out-of-alphabet chars as 0 *)
-external dark_arrayBuffer_from_b64url :
+external dark_arrayBuffer_from_padded_b64url :
   js_string -> js_arrayBuffer
-  = "dark_arrayBuffer_from_b64url"
+  = "dark_arrayBuffer_from_padded_b64url"
 
 let _bytes_to_uint8Array (input : Bytes.t) : js_uint8Array =
   let len = Bytes.length input in
@@ -58,7 +58,7 @@ let base64url_bytes (input : Bytes.t) : string =
 let bytes_from_base64url (b64 : string) : Bytes.t = 
   b64
   |> Js.string
-  |> dark_arrayBuffer_from_b64url
+  |> dark_arrayBuffer_from_padded_b64url
   |> _bytes_from_uint8Array
 
 external dark_targetjs_digest256 :
