@@ -8,13 +8,13 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "bytes" TBytes]
     ; r = TStr
-    ; d = "Base64 encodes `bytes`. Uses URL-safe encoding."
+    ; d = "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
     ; f =
         InProcess
           (function
           | _, [DBytes bytes] ->
               Dval.dstr_of_string_exn
-                (Libtarget.base64_bytes bytes)
+                (Libtarget.base64url_bytes bytes)
           | args ->
               fail args)
     ; ps = true

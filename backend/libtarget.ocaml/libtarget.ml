@@ -25,15 +25,16 @@ let digest384_bytes (input : Bytes.t) : string =
   let _ = (Caml.print_string "LIBTARGET digest384") in
   sha_bytes ~f:Nocrypto.Hash.SHA384.digest input
 
-let base64_bytes (bytes : Bytes.t) : string =
+let base64url_bytes (bytes : Bytes.t) : string =
   let _ = (Caml.print_string "base64_bytes") in
   let _ = (Caml.print_int (Bytes.length bytes)) in
-  bytes |> Bytes.to_string |> B64.encode
+  bytes |> Bytes.to_string |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
 
-let bytes_from_base64 (b64 : string) : Bytes.t = 
+(* Raises Not_found when passed a string with an out-of-alphabet character *)
+let bytes_from_base64url (b64 : string) : Bytes.t = 
   let _ = (Caml.print_string "bytes_from_base64") in
   let _ = (Caml.print_string b64) in
-  b64 |> B64.decode |> Bytes.of_string
+  b64 |> B64.decode ~alphabet:B64.uri_safe_alphabet |> Bytes.of_string
 
 
 let regexp_replace ~(pattern : string) ~(replacement : string) (str : string) :
