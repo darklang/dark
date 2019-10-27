@@ -1293,6 +1293,12 @@ let () =
         (presses [K.Enter] 14)
         ("Int::add 12345 12345", 15) ;
       t
+        "changing fn to binops should work"
+        (EPartial
+           (gid (), "+", EFnCall (gid (), "Int::add", [anInt; anInt], NoRail)))
+        (presses [K.Enter] 1)
+        ("12345 + 12345", 0) ;
+      t
         "changing binop should work"
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
