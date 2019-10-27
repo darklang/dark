@@ -1802,50 +1802,71 @@ let replacePartialWithArguments
     | (name, _, rhs, _) :: rest ->
         ELet (gid (), gid (), name, rhs, wrapWithLets ~expr rest)
   in
+  let getExprs expr =
+    match expr with
+    | EFnCall (_, _, exprs, _) | EConstructor (_, _, _, exprs) ->
+        exprs
+    | EBinOp (_, _, lhs, rhs, _) ->
+        [lhs; rhs]
+    | _ ->
+        recover "impossible" []
+  in
+  let isAligned p1 p2 =
+    match (p1, p2) with
+    | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
+        name = name' && tipe = tipe'
+    | _, _ ->
+        false
+  in
   updateExpr id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
       | EPartial (_, _, (EBinOp (_, name, _, _, _) as inner))
       | EPartial (_, _, (EConstructor (_, _, name, _) as inner)) ->
-          let exprs =
-            match inner with
-            | EFnCall (_, _, exprs, _) | EConstructor (_, _, _, exprs) ->
-                exprs
-            | EBinOp (_, _, lhs, rhs, _) ->
-                [lhs; rhs]
-            | _ ->
-                recover "impossible" []
+          let existingExprs = getExprs inner in
+          let fetchParams newName placeholderExprs =
+            let count =
+              max (List.length existingExprs) (List.length placeholderExprs)
+            in
+            let newParams = getFunctionParams newName count placeholderExprs in
+            let oldParams = getFunctionParams name count existingExprs in
+            let alignedParams, unalignedParams =
+              List.partition oldParams ~f:(fun p ->
+                  List.any newParams ~f:(isAligned p) )
+              |> Tuple2.mapAll ~f:Option.values
+            in
+            let newParams =
+              List.foldl
+                alignedParams
+                ~init:placeholderExprs
+                ~f:(fun (_, _, expr, index) exprs ->
+                  List.updateAt ~index ~f:(fun _ -> expr) exprs )
+            in
+            (newParams, unalignedParams)
           in
           ( match newExpr with
+          | EBinOp (id, newName, lhs, rhs, ster) ->
+              let newParams, unalignedParams =
+                fetchParams newName [lhs; rhs]
+              in
+              let newExpr =
+                match newParams with
+                | [newLHS; newRHS] ->
+                    EBinOp (id, newName, newLHS, newRHS, ster)
+                | _ ->
+                    recover
+                      "wrong number of arguments"
+                      (EBinOp (id, newName, newB (), newB (), ster))
+              in
+              wrapWithLets ~expr:newExpr unalignedParams
           | EFnCall (id, newName, newExprs, ster) ->
-              let count = max (List.length exprs) (List.length newExprs) in
-              let newParams = getFunctionParams newName count newExprs in
-              let oldParams = getFunctionParams name count exprs in
-              let alignedParams, unAlignedParams =
-                let isAligned p1 p2 =
-                  match (p1, p2) with
-                  | Some (name, tipe, _, _), Some (name', tipe', _, _) ->
-                      name = name' && tipe = tipe'
-                  | _, _ ->
-                      false
-                in
-                List.partition oldParams ~f:(fun p ->
-                    List.any newParams ~f:(isAligned p) )
-                |> Tuple2.mapAll ~f:Option.values
-              in
-              let newParams =
-                List.foldl
-                  alignedParams
-                  ~init:newExprs
-                  ~f:(fun (_, _, expr, index) exprs ->
-                    List.updateAt ~index ~f:(fun _ -> expr) exprs )
-              in
+              let newParams, unalignedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
-              wrapWithLets ~expr:newExpr unAlignedParams
+              wrapWithLets ~expr:newExpr unalignedParams
           | EConstructor _ ->
               let oldParams =
-                exprs
+                existingExprs
                 |> List.indexedMap ~f:(fun i p ->
                        (* create ugly automatic variable name *)
                        let name = "var_" ^ string_of_int (Util.random ()) in
