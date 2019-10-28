@@ -2431,7 +2431,7 @@ let () =
         "thread moves to right place on placeholder"
         aFnCall
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 ___\n           |>___\n", 28) ;
+        ("Int::add 5 _________\n|>___\n", 23) ;
       t
         "thread moves to right place in if then"
         emptyIf
