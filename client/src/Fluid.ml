@@ -4791,16 +4791,16 @@ let toHtml
                     (* We expect that this doesn't happen *)
                     FluidMsg (FluidUpdateSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
-          ~key:("fluid-selection-mouseup" ^ idStr)
-          "mouseup"
-          (fun _ ->
-            match Entry.getFluidSelectionRange () with
-            | Some range -> 
-                FluidMsg (FluidUpdateSelection (tlid, Some range))
-            | None ->
-                (* This will happen if it gets a selection and there is no
+              ~key:("fluid-selection-mouseup" ^ idStr)
+              "mouseup"
+              (fun _ ->
+                match Entry.getFluidSelectionRange () with
+                | Some range ->
+                    FluidMsg (FluidUpdateSelection (tlid, Some range))
+                | None ->
+                    (* This will happen if it gets a selection and there is no
                  focused node (weird browser problem?) *)
-                IgnoreMsg ) 
+                    IgnoreMsg )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-click" ^ idStr)
               "click"
