@@ -45,6 +45,49 @@ let t_string_uppercase_v1_works_on_non_ascii_strings () =
     (Dval.dstr_of_string_exn "ŻÓŁW")
 
 
+let t_string_trim_noop () =
+  check_dval
+    "stringTrimNoop"
+    (exec_ast "(String::trim 'foo')")
+    (Dval.dstr_of_string_exn "foo")
+
+
+let t_string_trim_left_trivial () =
+  check_dval
+    "stringTrimLeftTrivial"
+    (exec_ast "(String::trim '  foo')")
+    (Dval.dstr_of_string_exn "foo")
+
+
+let t_string_trim_right_trivial () =
+  check_dval
+    "stringTrimRightTrivial"
+    (exec_ast "(String::trim 'foo  ')")
+    (Dval.dstr_of_string_exn "foo")
+
+
+let t_string_trim_both_trivial () =
+  check_dval
+    "stringTrimBothTrivial"
+    (exec_ast "(String::trim '  foo  ')")
+    (Dval.dstr_of_string_exn "foo")
+
+
+let t_string_trim_both_not_inner_trivial () =
+  check_dval
+    "stringTrimBothNotInnerTrivial"
+    (exec_ast "(String::trim '  foo bar  ')")
+    (Dval.dstr_of_string_exn "foo bar")
+
+
+let t_string_trim_both_not_inner_unicode () =
+  check_dval
+    "stringTrimBothUnicode"
+    (* Leading em-space, inner thin space, trailing space *)
+    (exec_ast "(String::trim ' \xe2\x80\x83foo\xe2\x80\x83bar ')")
+    (Dval.dstr_of_string_exn "foo\xe2\x80\x83bar")
+
+
 let t_html_escaping () =
   check_dval
     "html escaping works"
@@ -87,5 +130,17 @@ let suite =
   ; ( "String split works on strings with emoji + ascii"
     , `Quick
     , t_string_split_works_for_emoji )
+  ; ("String trim noops", `Quick, t_string_trim_noop)
+  ; ("String trims leading spaces", `Quick, t_string_trim_left_trivial)
+  ; ("String trims trailing spaces", `Quick, t_string_trim_right_trivial)
+  ; ( "String trims both leading + trailing spaces"
+    , `Quick
+    , t_string_trim_both_trivial )
+  ; ( "String trims both leading + trailing spaces, leaving inner untouched"
+    , `Quick
+    , t_string_trim_both_not_inner_trivial )
+  ; ( "String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces"
+    , `Quick
+    , t_string_trim_both_not_inner_unicode )
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
   ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip) ]

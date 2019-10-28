@@ -619,4 +619,19 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["String::trim"]
+    ; ins = []
+    ; p = [par "str" TStr]
+    ; r = TStr
+    ; d =
+        "Trim both leading and trailing whitespace. Whitespace is all Unicode characters with the Whitespace property"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr to_trim] ->
+              DStr (Unicode_string.trim to_trim)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
