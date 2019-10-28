@@ -34,14 +34,17 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let vs = ViewUtils.createVS m tl in
   let body, data =
     let dragEvents =
-      [ ViewUtils.eventNoPropagation
-          ~key:("tlmd-" ^ showTLID tlid)
-          "mousedown"
-          (fun x -> TLDragRegionMouseDown (tlid, x))
-      ; ViewUtils.eventNoPropagation
-          ~key:("tlmu-" ^ showTLID tlid)
-          "mouseup"
-          (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+      if VariantTesting.isFluid m.tests
+      then
+        [ ViewUtils.eventNoPropagation
+            ~key:("tlmd-" ^ showTLID tlid)
+            "mousedown"
+            (fun x -> TLDragRegionMouseDown (tlid, x))
+        ; ViewUtils.eventNoPropagation
+            ~key:("tlmu-" ^ showTLID tlid)
+            "mouseup"
+            (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+      else []
     in
     match tl with
     | TLHandler h ->
@@ -59,11 +62,26 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
   (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
-  let events = [
-    ViewUtils.eventNoPropagation
-        ~key:("tlc-" ^ showTLID tlid)
-        "mouseup"
-        (fun x -> ToplevelClick (tlid, x)) ]
+  let events =
+    if VariantTesting.isFluid m.tests
+    then
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlc-" ^ showTLID tlid)
+          "mouseup"
+          (fun x -> ToplevelClick (tlid, x)) ]
+    else
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlmd-" ^ showTLID tlid)
+          "mousedown"
+          (fun x -> TLDragRegionMouseDown (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlmu-" ^ showTLID tlid)
+          "mouseup"
+          (fun x -> TLDragRegionMouseUp (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlc-" ^ showTLID tlid)
+          "click"
+          (fun x -> ToplevelClick (tlid, x)) ]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in
