@@ -1993,6 +1993,11 @@ let () =
         (enter 55)
         ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
         , 73 ) ;
+      t
+        "inserting a thread into another thread gives a single thread"
+        (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
+        (enter 23)
+        ("5\n|>List::append [5]\n|>___\n", 23) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)

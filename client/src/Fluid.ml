@@ -1255,6 +1255,18 @@ let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
+  (* If we're putting a thread into another thread, fix it up *)
+  let id, newExpr =
+    match (findParent id ast, newExpr) with
+    | Some (EThread (parentID, oldExprs)), EThread (newID, newExprs) ->
+        let before, elemAndAfter =
+          List.splitWhen ~f:(fun nested -> eid nested = id) oldExprs
+        in
+        let after = List.tail elemAndAfter |> Option.withDefault ~default:[] in
+        (parentID, EThread (newID, before @ newExprs @ after))
+    | _ ->
+        (id, newExpr)
+  in
   updateExpr id ast ~f:(fun _ -> newExpr)
 
 
