@@ -68,7 +68,15 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       [ ViewUtils.eventNoPropagation
           ~key:("tlc-" ^ showTLID tlid)
           "mouseup"
-          (fun x -> ToplevelClick (tlid, x)) ]
+          (fun x ->
+            match Entry.getFluidSelectionRange () with
+            | None ->
+                ToplevelClick (tlid, x)
+            | Some (selBegin, selEnd) when selBegin = selEnd ->
+                ToplevelClick (tlid, x)
+            | Some range ->
+                (* Persist fluid selection when clicking in handler *)
+                FluidMsg (FluidUpdateSelection (tlid, Some range)) ) ]
     else
       [ ViewUtils.eventNoPropagation
           ~key:("tlmd-" ^ showTLID tlid)
