@@ -58,9 +58,9 @@ let () =
                    || msg
                       = "(\"SyntaxError: Invalid regular expression: /maximum call stack/: Maximum call stack size exceeded\")"
                 then
-                  "(\"Stack overflow while de/serializing overly large function results in handler "
+                  "Value is too big to send to the editor ("
                   ^ handler_spec_string
-                  ^ " - should only affect editor, not live code.\")"
+                  ^ ")"
                 else msg
               in
               Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
