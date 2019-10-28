@@ -152,6 +152,30 @@ let uppercase = cmap_utf_8 Uucp.Case.Map.to_upper
 
 let lowercase = cmap_utf_8 Uucp.Case.Map.to_lower
 
+let trim_left s =
+  let b = Buffer.create (String.length s * 2) in
+  let seen_non_ws = ref false in
+  let rec add_map _ _ u =
+    let u = match u with `Malformed _ -> Uutf.u_rep | `Uchar u -> u in
+    let is_ws = Uucp.White.is_white_space u in
+    match (!seen_non_ws, is_ws) with
+    | false, false ->
+        seen_non_ws := true ;
+        Uutf.Buffer.add_utf_8 b u
+    | false, true ->
+        ()
+    | true, true | true, false ->
+        Uutf.Buffer.add_utf_8 b u
+  in
+  Uutf.String.fold_utf_8 add_map () s ;
+  Buffer.contents b
+
+
+(* This implementation is terrible but I don't have time to do the index matches *)
+let trim_right t = t |> rev |> trim_left |> rev
+
+let trim t = t |> trim_left |> trim_right
+
 (* Structual equality is okay because the byte-structure of normalized strings is stable *)
 let equal a b = a = b
 
