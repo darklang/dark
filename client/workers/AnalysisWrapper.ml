@@ -45,7 +45,7 @@ let () =
                * contains a list and of_yojson maybe isn't tail-recursive -
                * though to_yojson is now:
                * https://github.com/ocaml-community/yojson/issues/47), but it's
-               * not imossible that other code could also cause an overflow. *)
+               * not impossible that other code could also cause an overflow. *)
               let handler_spec_string =
                 let spec = hParams.handler.spec in
                 List.map
