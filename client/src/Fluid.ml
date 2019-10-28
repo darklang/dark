@@ -2340,52 +2340,12 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         (newB (), 0)
 
 
-let rec findRightPartialBinopParent
-    (op : string) (oldExpr : fluidExpr) (ast : ast) : fluidExpr option =
-  Js.log "finding RightPArtial" ;
-  let child = oldExpr in
-  let parent = findParent (eid oldExpr) ast in
-  match (op, parent) with
-  | "|>", Some parent ->
-      Js.log "found parent for |>" ;
-      ( match parent with
-      | EInteger _
-      | EBlank _
-      | EString _
-      | EVariable _
-      | EBool _
-      | ENull _
-      | EThreadTarget _
-      | EFloat _ ->
-          Js.log "cant" ;
-          recover "these cant be parents" None
-      (* If the parent is some sort of "resetting", then we probably meant the child *)
-      | ELet _
-      | EIf _
-      | EFieldAccess _
-      | EMatch _
-      | ERecord _
-      | EThread _
-      | EOldExpr _
-      (* Not sure what to do here, probably nothing fancy *)
-      | EFeatureFlag _ ->
-          Js.log "child" ;
-          Some child
-      (* These are the expressions we're trying to skip. *)
-      | EBinOp _ | ELambda _ | EFnCall _ | EList _ | EConstructor _ ->
-          Js.log "recurse into parent" ;
-          findRightPartialBinopParent op parent ast
-      (* These are wrappers of the current expr. *)
-      | EPartial _ | ERightPartial _ ->
-          Js.log "kip partials" ;
-          findRightPartialBinopParent op parent ast )
-  | _, None ->
-      (* If we get to the root *)
-      Js.log "no parent" ;
-      None
-  | _, _ ->
-      Js.log "something lese, use oldExpr" ;
-      Some oldExpr
+let rec extractSubexprFromPartial (expr : fluidExpr) : fluidExpr =
+  match expr with
+  | EPartial (_, _, subExpr) | ERightPartial (_, _, subExpr) ->
+      extractSubexprFromPartial subExpr
+  | _ ->
+      expr
 
 
 let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
@@ -2486,6 +2446,44 @@ let acMoveBasedOnKey
   newState
 
 
+let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
+    fluidExpr option =
+  let child = oldExpr in
+  let parent = findParent (eid oldExpr) ast in
+  match parent with
+  | Some parent ->
+    ( match parent with
+    | EInteger _
+    | EBlank _
+    | EString _
+    | EVariable _
+    | EBool _
+    | ENull _
+    | EThreadTarget _
+    | EFloat _ ->
+        recover "these cant be parents" None
+    (* If the parent is some sort of "resetting", then we probably meant the child *)
+    | ELet _
+    | EIf _
+    | EMatch _
+    | ERecord _
+    | EThread _
+    | EOldExpr _
+    | ELambda _
+    (* Not sure what to do here, probably nothing fancy *)
+    | EFeatureFlag _ ->
+        Some child
+    (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
+    | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
+        findAppropriatePipingParent parent ast
+    (* These are wrappers of the current expr. *)
+    | EPartial _ | ERightPartial _ ->
+        findAppropriatePipingParent parent ast )
+  | None ->
+      (* If we get to the root *)
+      None
+
+
 let updateFromACItem
     (entry : fluidAutocompleteItem)
     (ti : tokenInfo)
@@ -2506,12 +2504,32 @@ let updateFromACItem
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, acOffset)
     | ( (TPartial _ | TRightPartial _)
-      , Some (ERightPartial (_, _, oldExpr) | EPartial (_, _, oldExpr))
+      , Some
+          ( (ERightPartial (_, _, subExpr) | EPartial (_, _, subExpr)) as
+          oldExpr )
       , _
-      , EThread (tID, _head :: tail) )
+      , _ )
       when entry = FACKeyword KThread ->
-        let newExpr = EThread (tID, oldExpr :: tail) in
-        let newAST = replaceExpr id ast ~newExpr in
+        (* The pipe operator behaves on a line-by-line basis, so we don't want
+         * to tie this to the smallest expression (which is within the partial)
+         * but rather go back and figure out the line.  *)
+        let newAST =
+          let exprToReplace =
+            findAppropriatePipingParent oldExpr ast
+            |> Option.map ~f:extractSubexprFromPartial
+          in
+          match exprToReplace with
+          | None ->
+              let newExpr = EThread (gid (), [subExpr; newB ()]) in
+              replaceExpr (eid oldExpr) ast ~newExpr
+          | Some expr when expr = subExpr ->
+              let newExpr = EThread (gid (), [subExpr; newB ()]) in
+              replaceExpr (eid oldExpr) ast ~newExpr
+          | Some expr ->
+              let expr = replaceExpr (eid oldExpr) expr ~newExpr:subExpr in
+              let newExpr = EThread (gid (), [expr; newB ()]) in
+              replaceExpr (eid expr) ast ~newExpr
+        in
         let tokens = toTokens s newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
         (newAST, nextBlank - ti.startPos)
