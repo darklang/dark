@@ -772,23 +772,18 @@ let viewSidebar_ (m : model) : msg Html.html =
     if isClosed then closedDeployStats2html else deployStats2html
   in
   let status =
-    match m.error.message with
+    match m.error with
     | Some _ when m.isAdmin ->
         Html.div
-          [ Html.classList
-              [("error-status error", true); ("opened", m.error.showDetails)]
-          ]
+          [Html.classList [("error-status error", true); ("opened", true)]]
           [ Html.a
               [ Html.class' "link"
               ; Html.href "#"
               ; ViewUtils.eventNoPropagation
-                  ~key:(string_of_bool m.error.showDetails)
+                  ~key:(string_of_bool true)
                   "mouseup"
-                  (fun _ -> ShowErrorDetails (not m.error.showDetails) ) ]
-              [ Html.text
-                  ( if m.error.showDetails
-                  then "Hide details"
-                  else "See details" ) ] ]
+                  (fun _ -> DismissErrorBar ) ]
+              [Html.text "Hide details"] ]
     | _ ->
         Html.noNode
   in
