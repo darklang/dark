@@ -257,6 +257,7 @@ kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-deployment.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/isolate-tunnel.yaml
 kubectl apply -f scripts/support/kubernetes/tunnel/tunnel-service.yaml
 kubectl apply -f scripts/support/kubernetes/postgres-honeytail-deployment.yaml
+kubectl apply -f scripts/support/kubernetes/reloader.yaml
 
 #########################
 # Tell everyone else what's going on
