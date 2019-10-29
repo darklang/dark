@@ -4806,11 +4806,16 @@ let toHtml
               "click"
               (fun ev ->
                 match Entry.getFluidSelectionRange () with
-                | Some range ->
+                | Some (st, ed) ->
+                    Debug.loG "Click" (st, ed);
                     if ev.shiftKey
-                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
+                    then (let newRange = (match state.selectionStart with
+                          | Some oldStart -> Debug.loG "ShiftAdjust" (oldStart, ed); Some (oldStart, ed)
+                          | None -> Some (st, ed)) in
+                    FluidMsg (FluidUpdateSelection (tlid, newRange)))
                     else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
+                    Debug.loG "ClickNone" ();
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
                     IgnoreMsg ) ]
