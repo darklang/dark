@@ -144,6 +144,8 @@ metadata:
     version: v1.1
   name: honeycomb-agent-v1.1
   namespace: default
+  annotations:
+    reloader.stakater.com/auto: "true"
 spec:
   updateStrategy:
     type: RollingUpdate
@@ -155,6 +157,8 @@ spec:
         k8s-app: honeycomb-agent
         kubernetes.io/cluster-service: 'true'
         version: v1.1
+      annotations:
+        reloader.stakater.com/auto: "true"
     spec:
       tolerations:
         - operator: Exists
