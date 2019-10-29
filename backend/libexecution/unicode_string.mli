@@ -88,6 +88,12 @@ val rev : t -> t
 val length : t -> int
 (** Returns the number of user-perceived Characters in `t` **)
 
+val trim : t -> t
+(** Removes whitespace from the front and end of a string.
+ * 'Whitespace' is defined according to the terms of the Unicode Derived Core Property White_Space
+ * https://en.wikipedia.org/wiki/Unicode_character_property#Whitespace
+ * *)
+
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
