@@ -156,7 +156,6 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-fn-name,
   .fluid-fn-version {
     color: $white2;
-
     .execution-button {
       position: absolute;
       font-size: 55%;
@@ -197,6 +196,10 @@ https://github.com/chriskempson/tomorrow-theme */
         }
       }
     }
+  }
+
+  .related-change {
+    color: $hover-foreground;
   }
 
   .fluid-partial,
