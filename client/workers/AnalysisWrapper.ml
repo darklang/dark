@@ -34,10 +34,38 @@ let () =
             let success, msg = darkAnalysis##performHandlerAnalysis encoded in
             if success = "success"
             then Belt.Result.Ok msg
-            else (
+            else
+              (* This is not nearly as close to the original Stack Overflow
+               * error as I'd like.  I can write
+               * Analysis_types.function_result_of_yojson, and
+               * confirm with logs that the error occurs in the dval_of_yojson
+               * part of `j |> index 3 |> dval_of_yojson`; but wrapping
+               * dval_of_yojson in a try/with does not catch the error. We have
+               * seen the two messages below on a large DList (because it
+               * contains a list and of_yojson maybe isn't tail-recursive -
+               * though to_yojson is now:
+               * https://github.com/ocaml-community/yojson/issues/47), but it's
+               * not impossible that other code could also cause an overflow. *)
+              let handler_spec_string =
+                let spec = hParams.handler.spec in
+                List.map
+                  (function Types.F (_, s) -> s | _ -> "-")
+                  [spec.space; spec.name; spec.modifier]
+                |> fun ss -> "(" ^ String.concat ", " ss ^ ")"
+              in
+              let msg =
+                if msg = "(\"Stack overflow\")"
+                   || msg
+                      = "(\"SyntaxError: Invalid regular expression: /maximum call stack/: Maximum call stack size exceeded\")"
+                then
+                  "Value is too big to send to the editor ("
+                  ^ handler_spec_string
+                  ^ ")"
+                else msg
+              in
               Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
               Belt.Result.Error
-                (Types.AnalysisExecutionError (event##data, msg)) )
+                (Types.AnalysisExecutionError (event##data, msg))
         | AnalyzeFunction fParams ->
             let encoded =
               Js.Json.stringify
