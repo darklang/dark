@@ -122,20 +122,14 @@ let handlerIsExeFail (vs : viewState) : bool =
   then false
   else
     let outermostId =
-      let ast =
-        match vs.tl with TLHandler handler -> Some handler.ast | _ -> None
-      in
-      ast
-      |> Option.map ~f:(fun handler ->
-             (* I thought we had a string_of_id, but maybe that's only backend *)
-             match handler with Blank (ID id) -> id | F (ID id, _) -> id )
+      match vs.tl with
+      | TLHandler handler ->
+          Some (Blank.toID handler.ast)
+      | _ ->
+          None
     in
-    let outermostResult =
-      outermostId
-      |> Option.and_then ~f:(fun outermostId ->
-             StrDict.get ~key:outermostId vs.currentResults.liveValues )
-    in
-    outermostResult
+    outermostId
+    |> Option.andThen ~f:(Analysis.getLiveValue' vs.analysisStore)
     |> Option.map ~f:(fun outermostResult ->
            match outermostResult with
            | DIncomplete | DError _ | DErrorRail _ ->
