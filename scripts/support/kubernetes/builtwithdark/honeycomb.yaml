@@ -97,6 +97,7 @@ data:
       - labelSelector: "app=cron-checker"
         containerName: cron-ctr
         dataset: kubernetes-bwd-ocaml
+        parser: json
       - labelSelector: "app=qw-worker"
         containerName: qw-ctr
         dataset: kubernetes-bwd-ocaml
