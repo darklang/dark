@@ -349,6 +349,15 @@ jobs:
             - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
+  validate-honeycomb-config:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - run: apk add --update python py-pip && pip install yq
+      - run: pip install yq
+      - run: scripts/support/test-honeycomb-config.sh
+
   build-client:
     executor: my-executor
     steps:
@@ -505,6 +514,7 @@ workflows:
       - build-stroller
       - build-queue-scheduler
       - build-postgres-honeytail
+      - validate-honeycomb-config
 
       # expensive tests
       - integration-tests:
@@ -530,5 +540,6 @@ workflows:
             branches:
               only: master
           requires:
+            - validate-honeycomb-config
             - integration-tests
             - push-to-gcp
