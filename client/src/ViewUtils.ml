@@ -23,7 +23,7 @@ type viewState =
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
-  ; tlCursors : tlCursors
+  ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
@@ -113,7 +113,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
-  ; tlCursors = m.tlCursors
+  ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
   ; handlerProp = hp
