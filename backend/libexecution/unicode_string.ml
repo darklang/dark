@@ -153,7 +153,7 @@ let uppercase = cmap_utf_8 Uucp.Case.Map.to_upper
 let lowercase = cmap_utf_8 Uucp.Case.Map.to_lower
 
 let trim_left s =
-  let b = Buffer.create (String.length s * 2) in
+  let b = Buffer.create (String.length s) in
   let seen_non_ws = ref false in
   let trimmer_func _ _ u =
     let u = match u with `Malformed _ -> Uutf.u_rep | `Uchar u -> u in
