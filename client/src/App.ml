@@ -1885,6 +1885,7 @@ let update_ (msg : msg) (m : model) : modification =
               match selection with
               (* if range width is 0, just change pos *)
               | Some (selBegin, selEnd) when selBegin = selEnd ->
+                Debug.loG "ShouldHappen" (selBegin, selEnd);
                   { m with
                     fluidState =
                       { m.fluidState with
@@ -1893,7 +1894,8 @@ let update_ (msg : msg) (m : model) : modification =
                       ; selectionStart = None } }
               | Some (selBegin, selEnd) ->
                   (* re-apply selection *)
-                  Entry.setFluidSelectionRange (selBegin, selEnd) ;
+                  (* Entry.setFluidSelectionRange (selBegin, selEnd) ; *)
+                  Debug.loG "ShouldHappen2" (selBegin, selEnd);
                   { m with
                     fluidState =
                       { m.fluidState with
@@ -1903,11 +1905,13 @@ let update_ (msg : msg) (m : model) : modification =
               | None ->
                 ( match Entry.getFluidSelectionRange () with
                 | Some (selBegin, selEnd) ->
+                    Debug.loG "Shouldn'tHappen" (selBegin, selEnd);
                     { m with
                       fluidState =
                         { m.fluidState with
                           newPos = selEnd; selectionStart = Some selBegin } }
                 | None ->
+                    Debug.loG "Shouldn'tHappen2 None" ();
                     { m with
                       fluidState = {m.fluidState with selectionStart = None} }
                 ) ) ]
