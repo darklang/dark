@@ -155,7 +155,7 @@ let lowercase = cmap_utf_8 Uucp.Case.Map.to_lower
 let trim_left s =
   let b = Buffer.create (String.length s * 2) in
   let seen_non_ws = ref false in
-  let rec add_map _ _ u =
+  let trimmer_func _ _ u =
     let u = match u with `Malformed _ -> Uutf.u_rep | `Uchar u -> u in
     let is_ws = Uucp.White.is_white_space u in
     match (!seen_non_ws, is_ws) with
@@ -167,7 +167,7 @@ let trim_left s =
     | true, true | true, false ->
         Uutf.Buffer.add_utf_8 b u
   in
-  Uutf.String.fold_utf_8 add_map () s ;
+  Uutf.String.fold_utf_8 trimmer_func () s ;
   Buffer.contents b
 
 
