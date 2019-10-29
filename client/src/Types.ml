@@ -912,7 +912,7 @@ and modification =
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
-  | SetCursor of tlid * traceID
+  | SetTLTraceID of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
@@ -1125,7 +1125,7 @@ and handlerProp =
   ; execution : exeState
   ; showActions : bool }
 
-and tlCursors = traceID StrDict.t
+and tlTraceIDs = traceID TLIDDict.t
 
 (* Testing *)
 and testResult = (string, unit) Result.t
@@ -1377,12 +1377,7 @@ and model =
   ; syncState : syncState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
-  ; tlCursors :
-      tlCursors
-      (* This is TLID id to cursor index (the cursor being *)
-      (* the input to the toplevel currently used, not to *)
-      (* be confused with cursorState, which is the code *)
-      (* that is currently selected.) *)
+  ; tlTraceIDs : tlTraceIDs (* This is TLID id to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps
   ; canvasName : string
@@ -1435,7 +1430,7 @@ and serializableEditor =
   { timersEnabled : bool
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
-  ; tlCursors : tlCursors
+  ; tlTraceIDs : tlTraceIDs
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos

@@ -543,7 +543,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       if vs.permission = Some ReadWrite
       then
         let hasData =
-          Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+          Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
                  |> Option.andThen ~f:(fun (_, data) -> data) )
@@ -582,7 +582,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
 let externalLink (vs : viewState) (name : string) =
   let urlPath =
     let currentTraceData =
-      Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+      Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
       |> Option.andThen ~f:(fun trace_id ->
              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
              |> Option.andThen ~f:(fun (_, data) -> data) )

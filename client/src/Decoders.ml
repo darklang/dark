@@ -351,7 +351,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; routingTableOpenDetails =
       withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
-  ; tlCursors = withDefault StrDict.empty (field "tlCursors" (dict traceID)) j
+  ; tlTraceIDs =
+      withDefault TLIDDict.empty (field "tlTraceIDs" (dict traceID)) j
   ; featureFlags =
       withDefault StrDict.empty (field "featureFlags" (dict bool)) j
   ; handlerProps =

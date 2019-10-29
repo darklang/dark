@@ -881,8 +881,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               {toastMessage = Some "Dark saves automatically!"; toastPos = None}
           }
         , Cmd.none )
-    | SetCursor (tlid, cur) ->
-        let m = Analysis.setCursor m tlid cur in
+    | SetTLTraceID (tlid, traceID) ->
+        let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
     | Drag (tlid, offset, hasMoved, state) ->
@@ -1225,9 +1225,9 @@ let update_ (msg : msg) (m : model) : modification =
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
-        Many [Select (tlid, None); SetCursor (tlid, traceID)]
+        Many [Select (tlid, None); SetTLTraceID (tlid, traceID)]
     | _ ->
-        SetCursor (tlid, traceID) )
+        SetTLTraceID (tlid, traceID) )
   | StartMigration tlid ->
       let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
@@ -1739,7 +1739,7 @@ let update_ (msg : msg) (m : model) : modification =
         match List.head traces with
         | Some (first, _) ->
             let traceDict = StrDict.fromList [(deTLID tlid, traces)] in
-            [UpdateTraces traceDict; SetCursor (tlid, first)]
+            [UpdateTraces traceDict; SetTLTraceID (tlid, first)]
         | None ->
             []
       in

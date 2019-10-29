@@ -20,7 +20,7 @@ let moveToOlderTrace (m : model) (tlid : tlid) : modification =
         Util.listNext ~value:current traceIDs
   in
   traceID
-  |> Option.map ~f:(fun t -> SetCursor (tlid, t))
+  |> Option.map ~f:(fun t -> SetTLTraceID (tlid, t))
   |> Option.withDefault ~default:NoChange
 
 
@@ -34,7 +34,7 @@ let moveToNewerTrace (m : model) (tlid : tlid) : modification =
         Util.listPrevious ~value:current traceIDs
   in
   traceID
-  |> Option.map ~f:(fun t -> SetCursor (tlid, t))
+  |> Option.map ~f:(fun t -> SetTLTraceID (tlid, t))
   |> Option.withDefault ~default:NoChange
 
 

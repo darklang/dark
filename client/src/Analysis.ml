@@ -12,8 +12,6 @@ module RT = Runtime
 module TL = Toplevel
 module TD = TLIDDict
 
-(* "current" in this indicates that it uses the cursor to pick the right inputValue *)
-
 (* ---------------------- *)
 (* Analyses *)
 (* ---------------------- *)
@@ -173,14 +171,14 @@ let getAvailableVarnames
 
 
 (* ---------------------- *)
-(* Cursors *)
+(* Which trace is selected *)
 (* ---------------------- *)
 
-let cursor' (tlCursors : tlCursors) (traces : trace list) (tlid : tlid) :
-    traceID option =
+let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
+    : traceID option =
   (* We briefly do analysis on a toplevel which does not have an *)
   (* analysis available, so be careful here. *)
-  match StrDict.get ~key:(deTLID tlid) tlCursors with
+  match TLIDDict.get ~tlid tlTraceIDs with
   | Some c ->
       Some c
   | None ->
@@ -188,16 +186,14 @@ let cursor' (tlCursors : tlCursors) (traces : trace list) (tlid : tlid) :
       List.head traces |> Option.map ~f:Tuple2.first
 
 
-let setCursor (m : model) (tlid : tlid) (traceID : traceID) : model =
-  let newCursors =
-    StrDict.insert ~key:(deTLID tlid) ~value:traceID m.tlCursors
-  in
-  {m with tlCursors = newCursors}
+let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =
+  let newCursors = TLIDDict.insert ~tlid ~value:traceID m.tlTraceIDs in
+  {m with tlTraceIDs = newCursors}
 
 
 let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
   let traces = getTraces m tlid in
-  cursor' m.tlCursors traces tlid
+  selectedTrace m.tlTraceIDs traces tlid
 
 
 (* ---------------------- *)
