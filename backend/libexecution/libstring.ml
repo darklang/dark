@@ -625,7 +625,7 @@ let fns : Lib.shortfn list =
     ; p = [par "str" TStr]
     ; r = TStr
     ; d =
-        "Trim both leading and trailing whitespace. Whitespace is all Unicode characters with the Whitespace property"
+        "Trims leading and trailing whitespace from `str`. 'whitespace' here means all Unicode characters with the `White_Space` property, which includes \" \", \"\\t\" and \"\\n\"."
     ; f =
         InProcess
           (function
