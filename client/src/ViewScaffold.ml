@@ -49,24 +49,19 @@ let viewIntegrationTestButton (testState : integrationTestState) :
   Html.div [Html.id "buttons"] integrationTestButton
 
 
-let viewError (err : darkError) : msg Html.html =
-  let viewException (exc : exception_) =
-    match exc.result with
-    | None ->
-        [Html.p [] [Html.text exc.short]]
-    | Some result ->
-        [Html.p [] [Html.text result]]
-  in
+let viewError (message : string option) : msg Html.html =
   let viewErrorMsg =
-    match err.message with
+    match message with
     | None ->
-        []
+        [Vdom.noNode]
     | Some msg ->
       ( match Json_decode_extended.decodeString Decoders.exception_ msg with
       | Error _ ->
           [Html.p [] [Html.text msg]]
+      | Ok {result = Some msg} ->
+          [Html.p [] [Html.text msg]]
       | Ok exc ->
-          viewException exc )
+          [Html.p [] [Html.text exc.short]] )
   in
   let viewDismissBtn =
     [ Html.p
@@ -76,7 +71,7 @@ let viewError (err : darkError) : msg Html.html =
         [Html.text "Dismiss"] ]
   in
   Html.div
-    [Html.classList [("error-panel", true); ("show", err.showDetails)]]
+    [Html.classList [("error-panel", true); ("show", message <> None)]]
     (viewErrorMsg @ viewDismissBtn)
 
 
