@@ -88,6 +88,20 @@ let t_string_trim_both_not_inner_unicode () =
     (Dval.dstr_of_string_exn "foo\xe2\x80\x83bar")
 
 
+let t_string_trim_all () =
+  check_dval
+    "stringTrimAll"
+    (exec_ast "(String::trim '      ')")
+    (Dval.dstr_of_string_exn "")
+
+
+let t_string_trim_preserves_emoji () =
+  check_dval
+    "stringTrimPreservesEmoji"
+    (exec_ast "(String::trim ' \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 ')")
+    (Dval.dstr_of_string_exn "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84")
+
+
 let t_html_escaping () =
   check_dval
     "html escaping works"
@@ -131,6 +145,7 @@ let suite =
     , `Quick
     , t_string_split_works_for_emoji )
   ; ("String trim noops", `Quick, t_string_trim_noop)
+  ; ("String trim empties a whitespace only string", `Quick, t_string_trim_all)
   ; ("String trims leading spaces", `Quick, t_string_trim_left_trivial)
   ; ("String trims trailing spaces", `Quick, t_string_trim_right_trivial)
   ; ( "String trims both leading + trailing spaces"
@@ -142,5 +157,8 @@ let suite =
   ; ( "String trims both leading + trailing spaces, leaving inner untouched w/ unicode spaces"
     , `Quick
     , t_string_trim_both_not_inner_unicode )
+  ; ( "String trims both leading + trailing spaces, preserving emoji"
+    , `Quick
+    , t_string_trim_preserves_emoji )
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
   ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip) ]
