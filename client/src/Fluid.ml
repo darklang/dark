@@ -4802,20 +4802,18 @@ let toHtml
                  focused node (weird browser problem?) *)
                     IgnoreMsg )
           ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-click" ^ idStr)
+              ~key:("fluid-selection-click" ^ (state.selectionStart |> Option.withDefault ~default:1 |> string_of_int))
               "click"
               (fun ev ->
                 match Entry.getFluidSelectionRange () with
                 | Some (st, ed) ->
-                    Debug.loG "Click" (st, ed);
                     if ev.shiftKey
                     then (let newRange = (match state.selectionStart with
-                          | Some oldStart -> Debug.loG "ShiftAdjust" (oldStart, ed); Some (oldStart, ed)
+                          | Some oldStart ->Some (oldStart, ed)
                           | None -> Some (st, ed)) in
                     FluidMsg (FluidUpdateSelection (tlid, newRange)))
                     else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
-                    Debug.loG "ClickNone" ();
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
                     IgnoreMsg ) ]
