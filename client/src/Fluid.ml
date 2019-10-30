@@ -4802,16 +4802,16 @@ let toHtml
                  focused node (weird browser problem?) *)
                     IgnoreMsg )
           ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-click" ^ (state.selectionStart |> Option.withDefault ~default:1 |> string_of_int))
+              ~key:("fluid-selection-click-" ^ (match state.selectionStart with Some x -> string_of_int x | None -> "nosel"))
               "click"
               (fun ev ->
                 match Entry.getFluidSelectionRange () with
                 | Some (st, ed) ->
                     if ev.shiftKey
                     then (let newRange = (match state.selectionStart with
-                          | Some oldStart ->Some (oldStart, ed)
-                          | None -> Some (st, ed)) in
-                    FluidMsg (FluidUpdateSelection (tlid, newRange)))
+                          | Some oldStart -> (oldStart, ed)
+                          | None -> (st, ed)) in
+                    FluidMsg (FluidUpdateSelection (tlid, Some newRange)))
                     else FluidMsg (FluidUpdateSelection (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
