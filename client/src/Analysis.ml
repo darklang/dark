@@ -85,6 +85,28 @@ let replaceFunctionResult
   {m with traces}
 
 
+let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
+    dval loadable =
+  match analysisStore with
+  | LoadableSuccess dvals ->
+      StrDict.get dvals ~key:id
+      |> Option.withDefault ~default:LoadableNotInitialized
+  | LoadableNotInitialized ->
+      LoadableNotInitialized
+  | LoadableLoading oldDvals ->
+      oldDvals
+      |> Option.andThen ~f:(StrDict.get ~key:id)
+      |> Option.map ~f:(fun lDval ->
+             match lDval with
+             | LoadableSuccess dval ->
+                 LoadableLoading (Some dval)
+             | _ ->
+                 LoadableLoading None )
+      |> Option.withDefault ~default:(LoadableLoading None)
+  | LoadableError error ->
+      LoadableError error
+
+
 let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
