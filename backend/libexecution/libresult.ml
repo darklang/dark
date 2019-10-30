@@ -127,6 +127,11 @@ let fns : Lib.shortfn list =
             ( match o with
             | OptJust dv ->
                 Dval.to_res_ok dv
+                (* match (Dval.to_opt_just dv) with
+                  | DOption (OptJust v) -> Dval.to_res_ok v
+                  | DError s -> DError s
+                  | _ -> Dval.to_res_err (DStr error)
+                *)
             | OptNothing ->
                 Dval.to_res_err (DStr error) )
           | args ->
