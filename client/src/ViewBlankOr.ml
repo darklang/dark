@@ -38,9 +38,7 @@ let nested : htmlConfig = wc "nested"
 
 let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
   let liveValue =
-    id
-    |> Option.map ~f:(Analysis.getLiveValue' vs.analysisStore)
-    |> Option.withDefault ~default:None
+    Option.andThen id ~f:(Analysis.getLiveValue' vs.analysisStore)
   in
   match liveValue with
   | Some dv ->
