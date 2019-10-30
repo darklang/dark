@@ -147,6 +147,79 @@ type ('a, 'b, 'c, 'd) x =
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
+let fnExecutionButton
+    (vs : viewState)
+    (fn : function_)
+    (name : string)
+    (id : id)
+    (paramExprs : expr list) =
+  let isComplete id =
+    match Analysis.getLiveValue' vs.analysisStore id with
+    | None ->
+        false
+    | Some (DError _) ->
+        false
+    | Some DIncomplete ->
+        false
+    | Some _ ->
+        true
+  in
+  let paramsComplete = List.all ~f:(isComplete << B.toID) paramExprs in
+  let resultHasValue = isComplete id in
+  let buttonUnavailable = not paramsComplete in
+  let showButton =
+    (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
+  in
+  let buttonNeeded = not resultHasValue in
+  let exeIcon = "play" in
+  let events =
+    [ ViewUtils.eventNoPropagation
+        ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
+        "click"
+        (fun _ -> ExecuteFunctionButton (vs.tlid, id, name))
+    ; ViewUtils.nothingMouseEvent "mouseup"
+    ; ViewUtils.nothingMouseEvent "mousedown"
+    ; ViewUtils.nothingMouseEvent "dblclick" ]
+  in
+  let {class_; event; title; icon} =
+    if name = "Password::check" || name = "Password::hash"
+    then
+      { class_ = "execution-button-unsafe"
+      ; event = []
+      ; title = "Cannot run interactively for security reasons."
+      ; icon = "times" }
+    else if buttonUnavailable
+    then
+      { class_ = "execution-button-unavailable"
+      ; event = []
+      ; title = "Cannot run: some parameters are incomplete"
+      ; icon = exeIcon }
+    else if buttonNeeded
+    then
+      { class_ = "execution-button-needed"
+      ; event = events
+      ; title = "Click to execute function"
+      ; icon = exeIcon }
+    else
+      { class_ = "execution-button-repeat"
+      ; event = events
+      ; title = "Click to execute function again"
+      ; icon = "redo" }
+  in
+  let executingClass =
+    let showExecuting = functionIsExecuting vs id in
+    if showExecuting then " is-executing" else ""
+  in
+  if not showButton
+  then []
+  else
+    [ Html.div
+        ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
+          ; Html.title title ]
+        @ event )
+        [fontAwesome icon] ]
+
+
 let rec viewExpr
     (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
     msg Html.html =
@@ -241,91 +314,29 @@ and viewNExpr
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
-      let previous =
-        match vs.tl with
-        | TLHandler h ->
-            h.ast |> AST.threadPrevious id |> Option.toList
-        | TLFunc f ->
-            f.ufAST |> AST.threadPrevious id |> Option.toList
-        | TLTipe _ ->
-            []
-        | TLGroup _ ->
-            []
-        | TLDB db ->
-          ( match db.activeMigration with
-          | None ->
-              []
-          | Some am ->
-              [am.rollforward; am.rollback]
-              |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
-      in
       (* buttons *)
-      let allExprs = previous @ exprs in
-      let isComplete v =
-        match Analysis.getLiveValue' vs.analysisStore v with
-        | None ->
-            false
-        | Some (DError _) ->
-            false
-        | Some DIncomplete ->
-            false
-        | Some _ ->
-            true
+      let paramExprs =
+        let previous =
+          match vs.tl with
+          | TLHandler h ->
+              h.ast |> AST.threadPrevious id |> Option.toList
+          | TLFunc f ->
+              f.ufAST |> AST.threadPrevious id |> Option.toList
+          | TLTipe _ ->
+              []
+          | TLGroup _ ->
+              []
+          | TLDB db ->
+            ( match db.activeMigration with
+            | None ->
+                []
+            | Some am ->
+                [am.rollforward; am.rollback]
+                |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
+        in
+        previous @ exprs
       in
-      let paramsComplete = List.all ~f:(isComplete << B.toID) allExprs in
-      let resultHasValue = isComplete id in
-      let buttonUnavailable = not paramsComplete in
-      let showButton =
-        (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
-      in
-      let buttonNeeded = not resultHasValue in
-      let showExecuting = functionIsExecuting vs id in
-      let exeIcon = "play" in
-      let events =
-        [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
-            "click"
-            (fun _ -> ExecuteFunctionButton (vs.tlid, id, name))
-        ; ViewUtils.nothingMouseEvent "mouseup"
-        ; ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "dblclick" ]
-      in
-      let {class_; event; title; icon} =
-        if name = "Password::check" || name = "Password::hash"
-        then
-          { class_ = "execution-button-unsafe"
-          ; event = []
-          ; title = "Cannot run interactively for security reasons."
-          ; icon = "times" }
-        else if buttonUnavailable
-        then
-          { class_ = "execution-button-unavailable"
-          ; event = []
-          ; title = "Cannot run: some parameters are incomplete"
-          ; icon = exeIcon }
-        else if buttonNeeded
-        then
-          { class_ = "execution-button-needed"
-          ; event = events
-          ; title = "Click to execute function"
-          ; icon = exeIcon }
-        else
-          { class_ = "execution-button-repeat"
-          ; event = events
-          ; title = "Click to execute function again"
-          ; icon = "redo" }
-      in
-      let executingClass = if showExecuting then " is-executing" else "" in
-      let button =
-        if not showButton
-        then []
-        else
-          [ Html.div
-              ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-                ; Html.title title ]
-              @ event )
-              [fontAwesome icon] ]
-      in
+      let button = fnExecutionButton vs fn name id paramExprs in
       let errorIcon =
         if sendToRail = NoRail
         then []
