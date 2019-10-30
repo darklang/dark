@@ -456,7 +456,7 @@ and 'result loadable =
   | LoadableLoading of 'result option
   | LoadableError of string
 
-and lvDict = dval loadable StrDict.t
+and lvDict = dval StrDict.t
 
 and dvalDict = dval StrDict.t
 

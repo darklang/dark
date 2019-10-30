@@ -314,10 +314,8 @@ let () =
                (StrDict.singleton
                   ~key:"12"
                   ~value:
-                    (LoadableSuccess
-                       (DObj
-                          (StrDict.fromList
-                             [("body", DNull); ("formBody", DNull)])))))
+                    (DObj
+                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
