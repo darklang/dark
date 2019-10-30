@@ -659,7 +659,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateAnalysis (traceID, dvals) ->
-        let dvals = StrDict.map ~f:(fun dv -> LoadableSuccess dv) dvals in
         let m =
           { m with
             analyses =

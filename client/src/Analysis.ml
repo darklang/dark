@@ -90,18 +90,14 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
   match analysisStore with
   | LoadableSuccess dvals ->
       StrDict.get dvals ~key:id
+      |> Option.map ~f:(fun dv -> LoadableSuccess dv)
       |> Option.withDefault ~default:LoadableNotInitialized
   | LoadableNotInitialized ->
       LoadableNotInitialized
   | LoadableLoading oldDvals ->
       oldDvals
       |> Option.andThen ~f:(StrDict.get ~key:id)
-      |> Option.map ~f:(fun lDval ->
-             match lDval with
-             | LoadableSuccess dval ->
-                 LoadableLoading (Some dval)
-             | _ ->
-                 LoadableLoading None )
+      |> Option.map ~f:(fun dv -> LoadableSuccess dv)
       |> Option.withDefault ~default:(LoadableLoading None)
   | LoadableError error ->
       LoadableError error
@@ -110,11 +106,7 @@ let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
 let getLiveValue' (analysisStore : analysisStore) (ID id : id) : dval option =
   match analysisStore with
   | LoadableSuccess dvals ->
-    ( match StrDict.get dvals ~key:id with
-    | Some (LoadableSuccess dv) ->
-        Some dv
-    | _ ->
-        None )
+      StrDict.get dvals ~key:id
   | _ ->
       None
 

@@ -404,7 +404,7 @@ and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
 
 let dvalDict (j : Js.Json.t) : dvalDict = dict dval j
 
-let lvDict (j : Js.Json.t) : lvDict = dict (loadable dval) j
+let lvDict (j : Js.Json.t) : lvDict = dict dval j
 
 let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
   (tuple2 string dvalDict) j
