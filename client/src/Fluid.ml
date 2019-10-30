@@ -4819,41 +4819,29 @@ let toHtml
   |> List.flatten
 
 
-type lvType =
-  | LValue of string * int
-  | LSpinner of int
-  | LVNone
-
 let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
-  let liveValues, show, offset =
-    let lv =
-      (* Flatten conditions to eval live values *)
-      getToken state ast
-      |> Option.map ~f:(fun ti ->
-             let id = Token.analysisID ti.token in
-             if FluidToken.validID id
-             then
-               Analysis.getLiveValue' analysisStore id
-               |> Option.map ~f:(fun exprValue ->
-                      match AC.highlighted state.ac with
-                      | Some (FACVariable (_, Some acValue)) ->
-                          LValue (Runtime.toRepr acValue, ti.startRow)
-                      | Some _ ->
-                          LVNone
-                      | None ->
-                          LValue (Runtime.toRepr exprValue, ti.startRow) )
-               |> Option.withDefault ~default:(LSpinner ti.startRow)
-             else LVNone )
-      |> Option.withDefault ~default:LVNone
-    in
-    (* Render live values *)
-    match lv with
-    | LValue (s, row) ->
-        ([Html.text s; viewCopyButton tlid s], true, row)
-    | LSpinner row ->
-        ([ViewUtils.fontAwesome "spinner"], true, row)
-    | LVNone ->
-        ([Vdom.noNode], false, 0)
+  let liveValue, show, offset =
+    let none = ([Vdom.noNode], false, 0) in
+    getToken state ast
+    |> Option.map ~f:(fun ti ->
+           let row = ti.startRow in
+           let id = Token.analysisID ti.token in
+           if FluidToken.validID id
+           then
+             let loadable = Analysis.getLiveValueLoadable analysisStore id in
+             match (AC.highlighted state.ac, loadable) with
+             | Some (FACVariable (_, Some dval)), _
+             | None, LoadableSuccess dval ->
+                 let text = Runtime.toRepr dval in
+                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
+             | Some _, _ ->
+                 none
+             | None, LoadableNotInitialized | None, LoadableLoading _ ->
+                 ([ViewUtils.fontAwesome "spinner"], true, row)
+             | None, LoadableError err ->
+                 ([Html.text ("Error loading live value: " ^ err)], true, row)
+           else none )
+    |> Option.withDefault ~default:none
   in
   let offset = float_of_int offset +. 1.5 in
   Html.div
@@ -4861,7 +4849,7 @@ let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
     ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
     ; Attrs.autofocus false
     ; Vdom.attribute "" "spellcheck" "false" ]
-    liveValues
+    liveValue
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
