@@ -9,26 +9,35 @@ use crate::config;
 
 #[derive(Debug)]
 pub enum FatalError {
-    PostgresError(postgres::Error),
+    GenericPostgresError(postgres::Error),
+    PostgresConnectError(postgres::Error),
 }
 
 impl Error for FatalError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FatalError::PostgresError(e) => Some(e),
+            FatalError::GenericPostgresError(e) => Some(e),
+            FatalError::PostgresConnectError(e) => Some(e),
         }
     }
 }
 
 impl fmt::Display for FatalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "FATAL: {:?}", self)
+        match self {
+            FatalError::GenericPostgresError(e) => {
+                write!(f, "FatalError::GenericPostgresError: {}", e)
+            }
+            FatalError::PostgresConnectError(e) => {
+                write!(f, "FatalError::PostgresConnectError: {}", e)
+            }
+        }
     }
 }
 
 impl From<postgres::Error> for FatalError {
     fn from(e: postgres::Error) -> Self {
-        FatalError::PostgresError(e)
+        FatalError::GenericPostgresError(e)
     }
 }
 
