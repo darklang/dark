@@ -1,14 +1,14 @@
-use std::thread;
-use std::time;
-
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::thread;
+use std::time;
 
 use slog::Drain; // allow treating Mutex as a Drain
 use slog::{info, o}; // macros
 
 mod config;
 mod errors;
+mod pg;
 mod scheduler;
 mod stats;
 
@@ -86,8 +86,7 @@ fn main() {
     }
 
     // Make a database connection and then kick off the looper
-    match postgres::Connection::connect(cfg.database.url, postgres::TlsMode::None)
-        .or_else(|e| Err(errors::FatalError::PostgresError(e)))
+    match pg::connect(log.clone(), &cfg.database.url)
         .and_then(|conn| Looper::new(conn, log.clone()).every(TICK_INTERVAL))
     {
         Ok(_) => {}
