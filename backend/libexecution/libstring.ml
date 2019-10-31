@@ -547,6 +547,25 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["String::random_v2"]
+    ; ins = []
+    ; p = [par "length" TInt]
+    ; r = TResult
+    ; d = "Generate a string of length `length` from random characters."
+    ; f =
+        InProcess
+          (function
+          | _, [DInt l] ->
+              if l < Dint.zero
+              then error_result "l should be a positive integer"
+              else
+                Dval.to_res_ok
+                  (Dval.dstr_of_string_exn
+                     (Util.random_string (Dint.to_int_exn l)))
+          | args ->
+              fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["String::htmlEscape"]
     ; ins = []

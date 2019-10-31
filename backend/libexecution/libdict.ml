@@ -68,6 +68,24 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Dict::get_v2"]
+    ; ins = []
+    ; p = [par "dict" TObj; par "key" TStr]
+    ; r = TOption
+    ; d = "Looks up `key` in object `dict` and returns an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DStr s] ->
+            ( match DvalMap.get o ~key:(Unicode_string.to_string s) with
+            | Some d ->
+                Dval.to_opt_just d
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Dict::foreach"]
     ; ins = []

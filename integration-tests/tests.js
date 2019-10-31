@@ -873,9 +873,12 @@ test("rename_pattern_variable", async t => {
 test("taking_off_rail_works", async t => {
   await createRepl(t);
   await t
-    .typeText("#entry-box", "List::head_v1")
+    .typeText("#entry-box", "List::head_v2")
+    .pressKey("enter")
+    .typeText("#entry-box", "[")
     .pressKey("enter")
     .pressKey("esc")
+    .pressKey("shift+up")
     .pressKey("shift+up")
     .pressKey("alt+shift+e");
 });
