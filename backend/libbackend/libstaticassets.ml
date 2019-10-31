@@ -108,6 +108,37 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
+    ; dep = true }
+  ; { pns = ["StaticAssets::fetch_v1"]
+    ; ins = []
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
+    ; r = TResult
+    ; d =
+        "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
+    ; f =
+        InProcess
+          (function
+          | state, [DStr deploy_hash; DStr file] ->
+              let url =
+                url_for
+                  state.canvas_id
+                  (Unicode_string.to_string deploy_hash)
+                  `Short
+                  (Unicode_string.to_string file)
+              in
+              let response =
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                |> Dval.dstr_of_string
+              in
+              ( match response with
+              | Some dv ->
+                  Dval.to_res_ok dv
+              | None ->
+                  Dval.to_res_err
+                    (Dval.dstr_of_string_exn "Response was not UTF-8 safe") )
+          | args ->
+              Libexecution.Lib.fail args)
+    ; ps = false
     ; dep = false }
   ; { pns = ["StaticAssets::fetchBytes"]
     ; ins = []
@@ -168,6 +199,38 @@ UTF-8 safe"))
                        (Dval.dstr_of_string_exn "Response was not
 UTF-8 safe"))
               )
+          | args ->
+              Libexecution.Lib.fail args)
+    ; ps = false
+    ; dep = true }
+  ; { pns = ["StaticAssets::fetchLatest_v1"]
+    ; ins = []
+    ; p = [par "file" TStr]
+    ; r = TResult
+    ; d =
+        "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
+    ; f =
+        InProcess
+          (function
+          | state, [DStr file] ->
+              let url =
+                url_for
+                  state.canvas_id
+                  (latest_deploy_hash state.canvas_id)
+                  `Short
+                  (Unicode_string.to_string file)
+              in
+              let response =
+                Legacy.HttpclientV0.call url Httpclient.GET [] ""
+                |> Dval.dstr_of_string
+              in
+              ( match response with
+              | Some dv ->
+                  Dval.to_res_ok dv
+              | None ->
+                  Dval.to_res_err
+                    (Dval.dstr_of_string_exn "Response was not
+UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false

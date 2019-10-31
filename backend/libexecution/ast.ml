@@ -501,11 +501,11 @@ object but is a "
       | Filled (_, "Nothing"), [] ->
           DOption OptNothing
       | Filled (_, "Just"), [arg] ->
-          DOption (OptJust (exe st arg))
+          Dval.to_opt_just (exe st arg)
       | Filled (_, "Ok"), [arg] ->
-          DResult (ResOk (exe st arg))
+          Dval.to_res_ok (exe st arg)
       | Filled (_, "Error"), [arg] ->
-          DResult (ResError (exe st arg))
+          Dval.to_res_err (exe st arg)
       | _ ->
           DError "Invalid construction option" )
   in
