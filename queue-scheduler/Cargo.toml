@@ -1,14 +1,23 @@
 [package]
-name = "dark-queue-scheduler"
+name = "queue-scheduler"
 version = "0.1.0"
 authors = ["Dark Inc <ops@darklang.com>"]
 edition = "2018"
+
+[lib]
+name = "scheduler"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dark-queue-scheduler"
+path = "src/main.rs"
 
 [dependencies]
 backoff = "0.1.5"
 backtrace = "0.3"
 chrono = "0.4"
 config = "0.9"
+failure = "0.1.6"
 postgres = "0.15"
 rand = "0.7.2"
 rollbar = "0.6.0"

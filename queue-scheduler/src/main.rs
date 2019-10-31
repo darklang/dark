@@ -1,55 +1,19 @@
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::thread;
-use std::time;
+use std::time::{Duration, Instant};
 
+use slog::o;
 use slog::Drain; // allow treating Mutex as a Drain
-use slog::{info, o}; // macros
 
-mod config;
-mod errors;
-mod pg;
-mod scheduler;
-mod stats;
+use scheduler::config;
+use scheduler::errors;
+use scheduler::pg;
+use scheduler::Looper;
 
-const TICK_INTERVAL: time::Duration = time::Duration::from_secs(1);
-
-struct Looper {
-    conn: postgres::Connection,
-    log: Arc<slog::Logger>,
-}
-
-impl Looper {
-    fn new(conn: postgres::Connection, log: Arc<slog::Logger>) -> Looper {
-        Looper { conn, log }
-    }
-
-    fn every(&mut self, d: time::Duration) -> Result<(), errors::FatalError> {
-        loop {
-            thread::sleep(d);
-            self.tick()?;
-        }
-    }
-
-    fn tick(&mut self) -> Result<(), errors::FatalError> {
-        let t_start = time::Instant::now();
-
-        let newly_scheduled = scheduler::schedule_events(&self.conn)?;
-        let stats = stats::fetch(&self.conn)?;
-
-        info!(*self.log, "tick" ;
-        "duration" => t_start.elapsed().as_secs_f64() * 1000.0,
-        "events.newly_scheduled" => newly_scheduled,
-        "events.new_count" => stats.new,
-        "events.scheduled_count" => stats.scheduled,
-        );
-
-        Ok(())
-    }
-}
+const TICK_INTERVAL: Duration = Duration::from_secs(1);
 
 fn main() {
-    let t_start = time::Instant::now();
+    let t_start = Instant::now();
 
     // it would be nice to rollbar here if the config is invalid, but we've got a bit of a chicken
     // & egg problem, given we need a bunch of rollbar config to initialize the rollbar client.
