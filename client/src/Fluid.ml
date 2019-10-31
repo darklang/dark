@@ -4716,7 +4716,9 @@ let viewPlayIcon
           , "redo" )
       in
       let executingClass =
-        if List.member ~value:id executingFunctions then "is-executing" else ""
+        if List.member ~value:id executingFunctions
+        then " is-executing"
+        else ""
       in
       if not showButton
       then Vdom.noNode
