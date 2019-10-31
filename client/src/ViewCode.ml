@@ -147,7 +147,15 @@ type ('a, 'b, 'c, 'd) x =
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
-let fnExecutionButton
+type fnExecutionStatus =
+  | Unsafe
+  | Pure
+  | IncompleteArgs
+  | Ready
+  | Executing
+  | Replayable
+
+let fnExecutionStatus
     (vs : viewState)
     (fn : function_)
     (name : string)
@@ -166,12 +174,28 @@ let fnExecutionButton
   in
   let paramsComplete = List.all ~f:(isComplete << B.toID) paramExprs in
   let resultHasValue = isComplete id in
-  let buttonUnavailable = not paramsComplete in
   let showButton =
     (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
   in
-  let buttonNeeded = not resultHasValue in
-  let exeIcon = "play" in
+  if not showButton
+  then Pure
+  else if name = "Password::check" || name = "Password::hash"
+  then Unsafe
+  else if not paramsComplete
+  then IncompleteArgs
+  else if List.member ~value:id vs.executingFunctions
+  then Executing
+  else if resultHasValue
+  then Replayable
+  else Ready
+
+
+let fnExecutionButton
+    (vs : viewState)
+    (fn : function_)
+    (name : string)
+    (id : id)
+    (paramExprs : expr list) =
   let events =
     [ ViewUtils.eventNoPropagation
         ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
@@ -181,42 +205,45 @@ let fnExecutionButton
     ; ViewUtils.nothingMouseEvent "mousedown"
     ; ViewUtils.nothingMouseEvent "dblclick" ]
   in
-  let {class_; event; title; icon} =
-    if name = "Password::check" || name = "Password::hash"
-    then
-      { class_ = "execution-button-unsafe"
-      ; event = []
-      ; title = "Cannot run interactively for security reasons."
-      ; icon = "times" }
-    else if buttonUnavailable
-    then
-      { class_ = "execution-button-unavailable"
-      ; event = []
-      ; title = "Cannot run: some parameters are incomplete"
-      ; icon = exeIcon }
-    else if buttonNeeded
-    then
-      { class_ = "execution-button-needed"
-      ; event = events
-      ; title = "Click to execute function"
-      ; icon = exeIcon }
-    else
-      { class_ = "execution-button-repeat"
-      ; event = events
-      ; title = "Click to execute function again"
-      ; icon = "redo" }
-  in
-  let executingClass =
-    let showExecuting = functionIsExecuting vs id in
-    if showExecuting then " is-executing" else ""
-  in
-  if not showButton
+  let exeIcon = "play" in
+  let status = fnExecutionStatus vs fn name id paramExprs in
+  if status = Pure
   then []
   else
+    let {class_; event; title; icon} =
+      match status with
+      | Unsafe ->
+          { class_ = "execution-button-unsafe"
+          ; event = []
+          ; title = "Cannot run interactively for security reasons."
+          ; icon = "times" }
+      | IncompleteArgs ->
+          { class_ = "execution-button-unavailable"
+          ; event = []
+          ; title = "Cannot run: some parameters are incomplete"
+          ; icon = exeIcon }
+      | Ready ->
+          { class_ = "execution-button-needed"
+          ; event = events
+          ; title = "Click to execute function"
+          ; icon = exeIcon }
+      | Executing ->
+          { class_ = "execution-button-needed is-executing"
+          ; event = []
+          ; title = "Function is executing"
+          ; icon = exeIcon }
+      | Replayable ->
+          { class_ = "execution-button-repeat"
+          ; event = events
+          ; title = "Click to execute function again"
+          ; icon = "redo" }
+      | Pure ->
+          recover
+            "pure function shouldn't show here"
+            {class_ = ""; event = []; title = ""; icon = ""}
+    in
     [ Html.div
-        ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-          ; Html.title title ]
-        @ event )
+        ([Html.class' ("execution-button " ^ class_); Html.title title] @ event)
         [fontAwesome icon] ]
 
 
