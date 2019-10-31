@@ -123,7 +123,7 @@ let t_result_stdlibs_work () =
   check_dval
     "fromOption_v1 propogates error"
     (exec_ast "(Result::fromOption_v1 (Just (Error 'test')) 'test')")
-    (DResult (ResOk (DResult (ResError test_string))) ) ;
+    (DResult (ResOk (DResult (ResError test_string)))) ;
   check_dval
     "toOption ok"
     (exec_ast "(Result::toOption (Ok 6))")
@@ -133,9 +133,13 @@ let t_result_stdlibs_work () =
     (exec_ast "(Result::toOption (Error 'test'))")
     (DOption OptNothing) ;
   check_dval
-    "toOption_v1 propogates errors"
+    "toOption_v1 propogates incomplete"
     (exec_ast "(Result::toOption_v1 (Ok _))")
     DIncomplete ;
+  check_dval
+    "toOption_v1 propogates errors"
+    (exec_ast "(Result::toOption_v1 (Error 'test'))")
+    (DOption OptNothing) ;
   check_dval
     "andThen ok,error"
     (exec_ast "(Result::andThen (Ok 5) (\\x -> (Error 'test')))")
