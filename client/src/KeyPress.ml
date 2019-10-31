@@ -77,8 +77,12 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
   in
   if osCmdKeyHeld && event.keyCode = Key.Z
   then undo_redo m event.shiftKey
-  else if osCmdKeyHeld && event.keyCode = Key.Z
-  then undo_redo m event.shiftKey
+  (* Note: CTRL+Y is Windows redo
+    but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
+    See https://support.google.com/chrome/answer/157179?hl=en
+   *)
+  else if Entry.getBrowserPlatform () <> Mac && event.ctrlKey && event.keyCode = Key.Y 
+  then undo_redo m true
   else if osCmdKeyHeld && event.keyCode = Key.S
   then ShowSaveToast
   else
