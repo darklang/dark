@@ -4407,7 +4407,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       | Some newPos ->
           updateMouseClick newPos ast s
       | None ->
-          (ast, {s with error = Some "found no pos"}) )
+          (ast, Defaults.defaultFluidState) )
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
