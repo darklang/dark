@@ -4633,16 +4633,10 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
 
 
 let viewPlayIcon
-    ~(vs : ViewUtils.viewState)
-    ~tlid
-    ~analysisStore
-    ~executingFunctions
-    ~state
-    (ast : ast)
-    (ti : tokenInfo) : Types.msg Html.html =
+    ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : tokenInfo) :
+    Types.msg Html.html =
   match ti.token with
-  | TFnVersion (id, _, displayName, fnName)
-  | TFnName (id, _, displayName, fnName, _) ->
+  | TFnVersion (id, _, _, fnName) | TFnName (id, _, _, fnName, _) ->
       let fn = Functions.findByNameInList fnName state.ac.functions in
       let previous =
         toExpr ast
@@ -4657,88 +4651,21 @@ let viewPlayIcon
         | _ ->
             []
       in
-      (* buttons *)
       let allExprs = previous @ exprs in
-      let isComplete id =
-        match Analysis.getLiveValue' analysisStore id with
-        | None | Some (DError _) | Some DIncomplete ->
-            false
-        | Some _ ->
-            true
-      in
-      let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
-      let buttonUnavailable = not paramsComplete in
-      (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton =
-        vs.permission = Some ReadWrite
-        &&
-        match ti.token with
-        | TFnVersion _ ->
-            not fn.fnPreviewExecutionSafe
-        | TFnName _ | _ ->
-            (* displayName and fnName will be equal if there is no version *)
-            displayName == fnName && not fn.fnPreviewExecutionSafe
-      in
-      let buttonNeeded = not (isComplete id) in
-      let exeIcon = "play" in
-      let events =
-        [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ fnName)
-            "click"
-            (fun _ -> ExecuteFunctionButton (tlid, id, fnName))
-        ; ViewUtils.nothingMouseEvent "mouseup"
-        ; ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "dblclick" ]
-      in
-      let class_, event, title, icon =
-        if fnName = "Password::check" || fnName = "Password::hash"
-        then
-          ( "execution-button-unsafe"
-          , []
-          , "Cannot run interactively for security reasons."
-          , "times" )
-        else if buttonUnavailable
-        then
-          ( "execution-button-unavailable"
-          , []
-          , "Cannot run: some parameters are incomplete"
-          , exeIcon )
-        else if buttonNeeded
-        then
-          ( "execution-button-needed"
-          , events
-          , "Click to execute function"
-          , exeIcon )
-        else
-          ( "execution-button-repeat"
-          , events
-          , "Click to execute function again"
-          , "redo" )
-      in
-      let executingClass =
-        if List.member ~value:id executingFunctions
-        then " is-executing"
-        else ""
-      in
-      if not showButton
-      then Vdom.noNode
-      else
-        Html.div
-          ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-            ; Html.title title ]
-          @ event )
-          [ViewUtils.fontAwesome icon]
+      let argIDs = List.map ~f:eid allExprs in
+      ( match ti.token with
+      | TFnVersion (id, _, _, _) ->
+          ViewFnExecution.fnExecutionButton vs fn id argIDs
+      | TFnName (id, _, displayName, fnName, _) when displayName = fnName ->
+          ViewFnExecution.fnExecutionButton vs fn id argIDs
+      | _ ->
+          Vdom.noNode )
   | _ ->
       Vdom.noNode
 
 
-let toHtml
-    ~(vs : ViewUtils.viewState)
-    ~tlid
-    ~analysisStore
-    ~executingFunctions
-    ~state
-    (ast : ast) : Types.msg Html.html list =
+let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
+    Types.msg Html.html list =
   let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -4806,19 +4733,73 @@ let toHtml
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
-      then
-        [ element
-            [ dropdown ()
-            ; ti
-              |> viewPlayIcon
-                   ~vs
-                   ~tlid
-                   ~analysisStore
-                   ~executingFunctions
-                   ~state
-                   ast ] ]
+      then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
       else [] )
   |> List.flatten
+
+
+let incompleteMessage token : string =
+  match token with
+  | TFnName _ | TFnVersion _ | TBinOp _ ->
+      ": fill in all arguments to execute"
+  | TLetLHS _ ->
+      ": fill in the right-hand-side of the let assignment"
+  | TInteger _
+  | TFieldName _
+  | TVariable _
+  | TConstructorName _
+  | TBlank _
+  | TPlaceholder _
+  | TPartial _
+  | TRightPartial _
+  | TPartialGhost _
+  | TRecordField _
+  | TString _
+  | TStringMLStart _
+  | TStringMLMiddle _
+  | TStringMLEnd _
+  | TTrue _
+  | TFalse _
+  | TNullToken _
+  | TLambdaVar _
+  | TFloatWhole _
+  | TFloatPoint _
+  | TFloatFraction _
+  | TPatternInteger _
+  | TPatternVariable _
+  | TPatternConstructorName _
+  | TPatternBlank _
+  | TPatternString _
+  | TPatternTrue _
+  | TPatternFalse _
+  | TPatternNullToken _
+  | TPatternFloatWhole _
+  | TPatternFloatPoint _
+  | TPatternFloatFraction _
+  | TListOpen _
+  | TListClose _
+  | TListSep _
+  | TSep
+  | TLetKeyword _
+  | TRecordOpen _
+  | TRecordClose _
+  | TRecordSep _
+  | TLetAssignment _
+  | TIfKeyword _
+  | TIfThenKeyword _
+  | TIfElseKeyword _
+  | TFieldOp _
+  | TNewline _
+  | TIndented _
+  | TIndentToHere _
+  | TIndent _
+  | TLambdaSymbol _
+  | TLambdaSep _
+  | TMatchKeyword _
+  | TMatchSep _
+  | TThreadPipe _
+  | TLambdaArrow _ ->
+      ""
 
 
 let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
@@ -4832,8 +4813,14 @@ let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
            then
              let loadable = Analysis.getLiveValueLoadable analysisStore id in
              match (AC.highlighted state.ac, loadable) with
+             | None, LoadableSuccess DIncomplete ->
+                 let text = "Incomplete code" ^ incompleteMessage ti.token in
+                 ([Html.text text], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
+                 (* let status = *)
+                 (*   ViewFnExecution.fnExecutionStatus vs fn id args *)
+                 (* in *)
                  let text = Runtime.toRepr dval in
                  ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              | Some _, _ ->
@@ -4856,7 +4843,7 @@ let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     =
-  let ({analysisStore; executingFunctions; tlid} : ViewUtils.viewState) = vs in
+  let ({analysisStore; tlid} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
@@ -4892,7 +4879,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown" ]
-      (ast |> toHtml ~vs ~tlid ~analysisStore ~executingFunctions ~state)
+      (toHtml ast ~vs ~tlid ~state)
   ; errorRail ]
 
 

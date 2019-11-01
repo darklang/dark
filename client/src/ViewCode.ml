@@ -147,106 +147,6 @@ type ('a, 'b, 'c, 'd) x =
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
-type fnExecutionStatus =
-  | Unsafe
-  | Pure
-  | IncompleteArgs
-  | Ready
-  | Executing
-  | Replayable
-
-let fnExecutionStatus
-    (vs : viewState)
-    (fn : function_)
-    (name : string)
-    (id : id)
-    (paramExprs : expr list) =
-  let isComplete id =
-    match Analysis.getLiveValue' vs.analysisStore id with
-    | None ->
-        false
-    | Some (DError _) ->
-        false
-    | Some DIncomplete ->
-        false
-    | Some _ ->
-        true
-  in
-  let paramsComplete = List.all ~f:(isComplete << B.toID) paramExprs in
-  let resultHasValue = isComplete id in
-  let showButton =
-    (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
-  in
-  if not showButton
-  then Pure
-  else if name = "Password::check" || name = "Password::hash"
-  then Unsafe
-  else if not paramsComplete
-  then IncompleteArgs
-  else if List.member ~value:id vs.executingFunctions
-  then Executing
-  else if resultHasValue
-  then Replayable
-  else Ready
-
-
-let fnExecutionButton
-    (vs : viewState)
-    (fn : function_)
-    (name : string)
-    (id : id)
-    (paramExprs : expr list) =
-  let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
-        "click"
-        (fun _ -> ExecuteFunctionButton (vs.tlid, id, name))
-    ; ViewUtils.nothingMouseEvent "mouseup"
-    ; ViewUtils.nothingMouseEvent "mousedown"
-    ; ViewUtils.nothingMouseEvent "dblclick" ]
-  in
-  let exeIcon = "play" in
-  let status = fnExecutionStatus vs fn name id paramExprs in
-  if status = Pure
-  then []
-  else
-    let {class_; event; title; icon} =
-      match status with
-      | Unsafe ->
-          { class_ = "execution-button-unsafe"
-          ; event = []
-          ; title = "Cannot run interactively for security reasons."
-          ; icon = "times" }
-      | IncompleteArgs ->
-          { class_ = "execution-button-unavailable"
-          ; event = []
-          ; title = "Cannot run: some parameters are incomplete"
-          ; icon = exeIcon }
-      | Ready ->
-          { class_ = "execution-button-needed"
-          ; event = events
-          ; title = "Click to execute function"
-          ; icon = exeIcon }
-      | Executing ->
-          { class_ = "execution-button-needed is-executing"
-          ; event = []
-          ; title = "Function is executing"
-          ; icon = exeIcon }
-      | Replayable ->
-          { class_ = "execution-button-repeat"
-          ; event = events
-          ; title = "Click to execute function again"
-          ; icon = "redo" }
-      | Pure ->
-          recover
-            "pure function shouldn't show here"
-            {class_ = ""; event = []; title = ""; icon = ""}
-    in
-    [ Html.div
-        ([Html.class' ("execution-button " ^ class_); Html.title title] @ event)
-        [fontAwesome icon] ]
-
-
 let rec viewExpr
     (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
     msg Html.html =
@@ -342,7 +242,7 @@ and viewNExpr
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
       (* buttons *)
-      let paramExprs =
+      let argExprs =
         let previous =
           match vs.tl with
           | TLHandler h ->
@@ -363,7 +263,8 @@ and viewNExpr
         in
         previous @ exprs
       in
-      let button = fnExecutionButton vs fn name id paramExprs in
+      let argIDs = List.map ~f:B.toID argExprs in
+      let button = ViewFnExecution.fnExecutionButton vs fn id argIDs in
       let errorIcon =
         if sendToRail = NoRail
         then []
@@ -390,7 +291,7 @@ and viewNExpr
           []
           nameBo
       in
-      let fnDiv parens = n [wc "op"; wc name] (fnname parens :: button) in
+      let fnDiv parens = n [wc "op"; wc name] [fnname parens; button] in
       let configs = withROP sendToRail @ all in
       ( match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [p1; p2] ->
