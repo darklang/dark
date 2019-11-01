@@ -4638,12 +4638,18 @@ let toHtml
       in
       let element nested =
         let content = Token.toText ti.token in
+        let highlight =
+          if List.member ~value:(Token.tid ti.token) vs.hoveringRefs
+          then ["related-change"]
+          else []
+        in
         let classes = Token.toCssClasses ti.token in
         let idStr = deID (Token.tid ti.token) in
         let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
-              (["fluid-entry"] @ classes @ idclasses |> String.join ~sep:" ")
+              ( ["fluid-entry"] @ classes @ idclasses @ highlight
+              |> String.join ~sep:" " )
             (* TODO(korede): figure out how to disable default selection while allowing click event *)
           ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
