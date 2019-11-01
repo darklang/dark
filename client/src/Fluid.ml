@@ -2510,9 +2510,10 @@ let updateFromACItem
       , _
       , _ )
       when entry = FACKeyword KThread ->
-        (* The pipe operator behaves on a line-by-line basis, so we don't want
-         * to tie this to the smallest expression (which is within the partial)
-         * but rather go back and figure out the line.  *)
+        (* The pipe operator is intended to be roughly "line-based", which
+         * means tht instead of tying this to the smallest expression (which is
+         * within the partial) we go back and figure out the "line", which is
+         * to say the largest expression that doesn't break a line. *)
         let newAST =
           let exprToReplace =
             findAppropriatePipingParent oldExpr ast
