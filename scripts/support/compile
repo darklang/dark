@@ -135,25 +135,22 @@ def backend_build():
   else:
     return run_backend(start, build)
 
+def test_db_env():
+  return "DARK_CONFIG_DB_HOST=localhost" \
+    " DARK_CONFIG_DB_DBNAME=testdb" \
+    " DARK_CONFIG_DB_USER=dark" \
+    " DARK_CONFIG_DB_PASSWORD=eapnsdc"
+
 def backend_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUNDIR")
-  host = "DARK_CONFIG_DB_HOST=localhost"
-  dbname = "DARK_CONFIG_DB_DBNAME=testdb"
-  user = "DARK_CONFIG_DB_USER=dark"
-  password = "DARK_CONFIG_DB_PASSWORD=eapnsdc"
-  env = "DARK_CONFIG_ENV_DISPLAY_NAME=test"
-  dbenv = host + " " + dbname + " " + user + " " + password
   return run_test(start,
-          "unbuffer scripts/dune-wrapper.sh build test/test.exe"
-          + " && dropdb --if-exists testdb"
-          + " && createdb testdb"
-          + " && " + dbenv
-          + " unbuffer scripts/run-backend-tests"
-          + " --show-errors "
-          + ci
-          + " 2>&1")
+          f"unbuffer scripts/dune-wrapper.sh build test/test.exe" \
+          f" && dropdb --if-exists testdb" \
+          f" && createdb testdb" \
+          f" && {test_db_env()} unbuffer scripts/run-backend-tests --show-errors {ci}" \
+          f" 2>&1")
 
 def rust_build(name):
   global profile
@@ -182,7 +179,7 @@ def rust_reload(name):
 def rust_test(name):
   start = time.time()
   result = run_test(start,
-      f"cd {name} && unbuffer cargo test")
+      f"cd {name} && {test_db_env()} RUST_BACKTRACE=1 unbuffer cargo test")
   if not result:
       return result
 
