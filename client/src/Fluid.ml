@@ -1843,23 +1843,23 @@ let replacePartialWithArguments
             in
             let newParams = getFunctionParams newName count placeholderExprs in
             let oldParams = getFunctionParams name count existingExprs in
-            let alignedParams, unalignedParams =
+            let matchedParams, mismatchedParams =
               List.partition oldParams ~f:(fun p ->
                   List.any newParams ~f:(isAligned p) )
               |> Tuple2.mapAll ~f:Option.values
             in
             let newParams =
               List.foldl
-                alignedParams
+                matchedParams
                 ~init:placeholderExprs
                 ~f:(fun (_, _, expr, index) exprs ->
                   List.updateAt ~index ~f:(fun _ -> expr) exprs )
             in
-            (newParams, unalignedParams)
+            (newParams, mismatchedParams)
           in
           ( match newExpr with
           | EBinOp (id, newName, lhs, rhs, ster) ->
-              let newParams, unalignedParams =
+              let newParams, mismatchedParams =
                 fetchParams newName [lhs; rhs]
               in
               let newExpr =
@@ -1871,11 +1871,11 @@ let replacePartialWithArguments
                       "wrong number of arguments"
                       (EBinOp (id, newName, newB (), newB (), ster))
               in
-              wrapWithLets ~expr:newExpr unalignedParams
+              wrapWithLets ~expr:newExpr mismatchedParams
           | EFnCall (id, newName, newExprs, ster) ->
-              let newParams, unalignedParams = fetchParams newName newExprs in
+              let newParams, mismatchedParams = fetchParams newName newExprs in
               let newExpr = EFnCall (id, newName, newParams, ster) in
-              wrapWithLets ~expr:newExpr unalignedParams
+              wrapWithLets ~expr:newExpr mismatchedParams
           | EConstructor _ ->
               let oldParams =
                 existingExprs
