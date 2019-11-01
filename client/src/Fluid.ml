@@ -4632,26 +4632,39 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
       Vdom.noNode
 
 
+let fnForToken state token : function_ option =
+  match token with
+  | TFnVersion (_, _, _, fnName) | TFnName (_, _, _, fnName, _) ->
+      Some (Functions.findByNameInList fnName state.ac.functions)
+  | _ ->
+      None
+
+
+let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
+    fluidExpr list =
+  let id = Token.tid token in
+  let previous =
+    toExpr ast
+    |> AST.threadPrevious id
+    |> Option.toList
+    |> List.map ~f:(fromExpr state)
+  in
+  let exprs =
+    match findExpr id ast with
+    | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
+        exprs
+    | _ ->
+        []
+  in
+  previous @ exprs
+
+
 let viewPlayIcon
     ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : tokenInfo) :
     Types.msg Html.html =
-  match ti.token with
-  | TFnVersion (id, _, _, fnName) | TFnName (id, _, _, fnName, _) ->
-      let fn = Functions.findByNameInList fnName state.ac.functions in
-      let previous =
-        toExpr ast
-        |> AST.threadPrevious id
-        |> Option.toList
-        |> List.map ~f:(fromExpr state)
-      in
-      let exprs =
-        match findExpr id ast with
-        | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
-            exprs
-        | _ ->
-            []
-      in
-      let allExprs = previous @ exprs in
+  match fnForToken state ti.token with
+  | Some fn ->
+      let allExprs = fnArgExprs ti.token ast state in
       let argIDs = List.map ~f:eid allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
@@ -4660,7 +4673,7 @@ let viewPlayIcon
           ViewFnExecution.fnExecutionButton vs fn id argIDs
       | _ ->
           Vdom.noNode )
-  | _ ->
+  | None ->
       Vdom.noNode
 
 
@@ -4802,25 +4815,32 @@ let incompleteMessage token : string =
       ""
 
 
-let viewLiveValue ~tlid ~ast ~analysisStore ~state : Types.msg Html.html =
+let viewLiveValue ~tlid ~ast ~vs ~state : Types.msg Html.html =
   let liveValue, show, offset =
     let none = ([Vdom.noNode], false, 0) in
     getToken state ast
     |> Option.map ~f:(fun ti ->
+           let fn = fnForToken state ti.token in
+           let id = Token.tid ti.token in
+           let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
+           let status =
+             Option.map fn ~f:(fun fn ->
+                 ViewFnExecution.fnExecutionStatus vs fn id args )
+             |> Option.withDefault ~default:ViewFnExecution.Pure
+           in
            let row = ti.startRow in
            let id = Token.analysisID ti.token in
            if FluidToken.validID id
            then
-             let loadable = Analysis.getLiveValueLoadable analysisStore id in
+             let loadable =
+               Analysis.getLiveValueLoadable vs.analysisStore id
+             in
              match (AC.highlighted state.ac, loadable) with
              | None, LoadableSuccess DIncomplete ->
-                 let text = "Incomplete code" ^ incompleteMessage ti.token in
+                 let text = ViewFnExecution.executionTitle status in
                  ([Html.text text], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
-                 (* let status = *)
-                 (*   ViewFnExecution.fnExecutionStatus vs fn id args *)
-                 (* in *)
                  let text = Runtime.toRepr dval in
                  ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              | Some _, _ ->
@@ -4869,7 +4889,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   in
   let liveValue =
     if tlidOf vs.cursorState = Some tlid
-    then viewLiveValue ~tlid ~ast ~analysisStore ~state
+    then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
   [ liveValue
