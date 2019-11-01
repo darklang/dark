@@ -1,5 +1,22 @@
 open Tc
 
+type browserPlatform =
+  | Mac
+  | Linux
+  | Windows
+  | UnknownPlatform
+
+external jsGetBrowserPlatform :
+  unit -> browserPlatform Js.Nullable.t
+  = "getBrowserPlatform"
+  [@@bs.val] [@@bs.scope "window"]
+
+let getBrowserPlatform () : browserPlatform =
+  jsGetBrowserPlatform ()
+  |> Js.Nullable.toOption
+  |> Option.withDefault ~default:UnknownPlatform
+
+
 (* Character representation that's partially keyboard and partially ascii
  * characters. All keyboard keys are represented, but may be split into
  * multiple characters (eg 5 and percent are the same button, but it's
@@ -85,13 +102,18 @@ type key =
   | Unknown of string
   | GoToStartOfLine
   | GoToEndOfLine
+  | Undo
+  | Redo
 
 and side =
   | LeftHand
   | RightHand
 [@@deriving show]
 
-let fromKeyboardCode (shift : bool) (ctrl : bool) (code : int) : key =
+let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
+    key =
+  let isMac = getBrowserPlatform () = Mac in
+  let osCmdKeyHeld = if isMac then meta else ctrl in
   match code with
   | 8 ->
       Backspace
@@ -202,9 +224,16 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (code : int) : key =
   | 88 ->
       Letter (if shift then 'X' else 'x')
   | 89 ->
-      Letter (if shift then 'Y' else 'y')
+      (* CTRL+Y is Windows redo
+      but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
+      See https://support.google.com/chrome/answer/157179?hl=en *)
+      if (not isMac) && ctrl && not shift
+      then Redo
+      else Letter (if shift then 'Y' else 'y')
   | 90 ->
-      Letter (if shift then 'Z' else 'z')
+      if osCmdKeyHeld
+      then if shift then Redo else Undo
+      else Letter (if shift then 'Z' else 'z')
   | 91 ->
       Windows
   | 92 ->
@@ -405,7 +434,9 @@ let toChar key : char option =
   | Ctrl _
   | Unknown _
   | GoToStartOfLine
-  | GoToEndOfLine ->
+  | GoToEndOfLine
+  | Undo
+  | Redo ->
       None
 
 
@@ -563,6 +594,10 @@ let toName (key : key) : string =
       "GoToStartOfLine"
   | GoToEndOfLine ->
       "GoToEndOfLine"
+  | Undo ->
+      "Undo"
+  | Redo ->
+      "Redo"
 
 
 let fromChar (char : char) : key =
@@ -613,9 +648,9 @@ let fromChar (char : char) : key =
       QuestionMark
   | '@' ->
       At
-  | '0'..'9' ->
+  | '0' .. '9' ->
       Number char
-  | 'A'..'Z' | 'a'..'z' ->
+  | 'A' .. 'Z' | 'a' .. 'z' ->
       Letter char
   | _ ->
       Unknown (String.fromChar char)
@@ -633,7 +668,8 @@ let keyEvent j =
   let open Json.Decode in
   let ctrl = field "ctrlKey" bool j in
   let shift = field "shiftKey" bool j in
-  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl
+  let meta = field "metaKey" bool j in
+  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
