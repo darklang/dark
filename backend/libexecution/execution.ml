@@ -190,6 +190,6 @@ let analyse_ast
     ; store_fn_arguments = store_no_arguments }
   in
   let _, traced_values, _ =
-    (Ast.execute_saving_intermediates state ~input_vars ast)
+    Ast.execute_saving_intermediates state ~input_vars ast
   in
   {live_values = traced_values}

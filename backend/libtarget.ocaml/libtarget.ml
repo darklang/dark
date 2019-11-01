@@ -5,6 +5,7 @@ let sha (input : string) ~f : string =
   |> Cstruct.to_string
   |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
 
+
 let sha_bytes (input : Bytes.t) ~f : string =
   input
   |> Cstruct.of_bytes
@@ -18,22 +19,21 @@ let digest256 (input : string) : string =
 
 
 let digest384 (input : string) : string =
-  let _ = (Caml.print_string "LIBTARGET digest384") in
   sha ~f:Nocrypto.Hash.SHA384.digest input
 
+
 let digest384_bytes (input : Bytes.t) : string =
-  let _ = (Caml.print_string "LIBTARGET digest384") in
   sha_bytes ~f:Nocrypto.Hash.SHA384.digest input
 
+
 let base64url_bytes (bytes : Bytes.t) : string =
-  let _ = (Caml.print_string "base64_bytes") in
-  let _ = (Caml.print_int (Bytes.length bytes)) in
-  bytes |> Bytes.to_string |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
+  bytes
+  |> Bytes.to_string
+  |> B64.encode ~pad:true ~alphabet:B64.uri_safe_alphabet
+
 
 (* Raises Not_found when passed a string with an out-of-alphabet character *)
-let bytes_from_base64url (b64 : string) : Bytes.t = 
-  let _ = (Caml.print_string "bytes_from_base64") in
-  let _ = (Caml.print_string b64) in
+let bytes_from_base64url (b64 : string) : Bytes.t =
   b64 |> B64.decode ~alphabet:B64.uri_safe_alphabet |> Bytes.of_string
 
 
