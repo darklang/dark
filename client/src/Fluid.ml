@@ -5038,7 +5038,7 @@ let selectedASTAsText (m : model) : string option =
   TL.selectedAST m |> Option.map ~f:(fromExpr s) |> Option.map ~f:(eToString s)
 
 
-let renderCallback (m : model) =
+let renderCallback (m : model) : unit =
   match m.cursorState with
   | FluidEntering _ ->
       if FluidCommands.isOpened m.fluidState.cp
