@@ -11,11 +11,11 @@ let fontAwesome = ViewUtils.fontAwesome
 
 type fnExecutionStatus =
   | Unsafe
-  | Pure
   | IncompleteArgs
   | Ready
   | Executing
   | Replayable
+  | NoPermission
 
 let fnExecutionStatus
     (vs : viewState) (fn : function_) (id : id) (args : id list) =
@@ -32,12 +32,9 @@ let fnExecutionStatus
   in
   let paramsComplete = List.all ~f:isComplete args in
   let resultHasValue = isComplete id in
-  let showButton =
-    (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
-  in
   let name = fn.fnName in
-  if not showButton
-  then Pure
+  if vs.permission <> Some ReadWrite
+  then NoPermission
   else if name = "Password::check" || name = "Password::hash"
   then Unsafe
   else if not paramsComplete
@@ -61,8 +58,8 @@ let executionClass status =
       "execution-button-needed is-executing"
   | Replayable ->
       "execution-button-repeat"
-  | Pure ->
-      "execution-button-pure"
+  | NoPermission ->
+      "execution-button-unavailable"
 
 
 let executionTitle status =
@@ -77,8 +74,8 @@ let executionTitle status =
       "Function is executing"
   | Replayable ->
       "Click to execute function again"
-  | Pure ->
-      recover "pure function shouldn't show here" ""
+  | NoPermission ->
+      "You do not have permission to execute this function"
 
 
 let executionError status =
@@ -93,52 +90,39 @@ let executionError status =
       "Function is executing"
   | Replayable ->
       "Click to execute function again"
-  | Pure ->
-      recover "pure is not an error state" ""
+  | NoPermission ->
+      "You do not have permission to execute this function"
 
 
 let executionIcon status =
   match status with
-  | Unsafe ->
+  | Unsafe | NoPermission ->
       "times"
   | IncompleteArgs | Ready | Executing ->
       "play"
   | Replayable ->
       "redo"
-  | Pure ->
-      recover "pure function shouldn't show here" "pure"
 
 
 let executionEvents status tlid id name =
-  let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
-        "click"
-        (fun _ -> ExecuteFunctionButton (tlid, id, name))
-    ; ViewUtils.nothingMouseEvent "mouseup"
-    ; ViewUtils.nothingMouseEvent "mousedown"
-    ; ViewUtils.nothingMouseEvent "dblclick" ]
-  in
   match status with
-  | Unsafe ->
+  | Unsafe | Executing | IncompleteArgs | NoPermission ->
       []
-  | IncompleteArgs ->
-      []
-  | Ready ->
-      events
-  | Executing ->
-      []
-  | Replayable ->
-      events
-  | Pure ->
-      recover "pure function shouldn't show here" []
+  | Ready | Replayable ->
+      [ ViewUtils.eventNoPropagation
+          ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ name)
+          "click"
+          (fun _ -> ExecuteFunctionButton (tlid, id, name))
+      ; ViewUtils.nothingMouseEvent "mouseup"
+      ; ViewUtils.nothingMouseEvent "mousedown"
+      ; ViewUtils.nothingMouseEvent "dblclick" ]
 
 
 let fnExecutionButton
     (vs : viewState) (fn : function_) (id : id) (args : id list) =
   let name = fn.fnName in
   let status = fnExecutionStatus vs fn id args in
-  if status = Pure
+  if fn.fnPreviewExecutionSafe
   then Vdom.noNode
   else
     let class_ = executionClass status in
