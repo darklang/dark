@@ -128,12 +128,6 @@ let init (flagString : string) (location : Web.Location.location) =
         ; RPC.sendPresence m avMessage ] )
 
 
-let updateError (oldErr : darkError) (newErrMsg : string) : darkError =
-  if oldErr.message = Some newErrMsg && not oldErr.showDetails
-  then oldErr
-  else {message = Some newErrMsg; showDetails = true}
-
-
 let processFocus (m : model) (focus : focus) : modification =
   match focus with
   | FocusNext (tlid, pred) ->
@@ -363,7 +357,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     in
     match mod_ with
     | DisplayError e ->
-        ({m with error = updateError m.error e}, Cmd.none)
+        ({m with error = Some e}, Cmd.none)
     | DisplayAndReportError (message, url, custom) ->
         let url = match url with Some url -> " (" ^ url ^ ")" | None -> "" in
         let custom = match custom with Some c -> ": " ^ c | None -> "" in
@@ -371,7 +365,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* Reload on bad csrf *)
         if String.contains error ~substring:"Bad CSRF"
         then Native.Location.reload true ;
-        ( {m with error = updateError m.error error}
+        ( {m with error = Some error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
         let now = Js.Date.now () |> Js.Date.fromFloat in
@@ -408,7 +402,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM =
           let error =
             if ApiError.shouldDisplayToUser apiError
-            then updateError m.error (ApiError.msg apiError)
+            then Some (ApiError.msg apiError)
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
@@ -416,7 +410,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         (newM, cmd)
     | ClearError ->
-        ({m with error = {message = None; showDetails = false}}, Cmd.none)
+        ({m with error = None}, Cmd.none)
     | RPC (ops, focus) ->
         handleRPC
           (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
@@ -1787,9 +1781,6 @@ let update_ (msg : msg) (m : model) : modification =
   | EnablePanning pan ->
       TweakModel
         (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
-  | ShowErrorDetails show ->
-      let e = m.error in
-      TweakModel (fun m -> {m with error = {e with showDetails = show}})
   | ClipboardCopyEvent e ->
       let toast =
         TweakModel
@@ -1942,8 +1933,7 @@ let update_ (msg : msg) (m : model) : modification =
               {m with canvasProps = {m.canvasProps with minimap = None}} )
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
-      TweakModel
-        (fun m -> {m with error = {message = None; showDetails = false}})
+      ClearError
 
 
 let rec filter_read_only (m : model) (modification : modification) =
