@@ -418,7 +418,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
+    ; d =
+        "URLBase64 encodes a string without padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
     ; f =
         InProcess
           (function
@@ -436,7 +437,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
+    ; d =
+        "Base64 decodes a string. Works with both the URL-safe and standard Base64 alphabets defined in RFC 4648 sections 4 and 5."
     ; f =
         InProcess
           (function
@@ -654,7 +656,7 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false }
-    ; { pns = ["String::toBytes"]
+  ; { pns = ["String::toBytes"]
     ; ins = []
     ; p = [par "str" TStr]
     ; r = TBytes
@@ -663,9 +665,9 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr str] ->
-              let theBytes = (Unicode_string.to_utf8_bytes str) in
+              let theBytes = Unicode_string.to_utf8_bytes str in
               DBytes theBytes
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }]
+    ; dep = false } ]

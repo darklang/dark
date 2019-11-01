@@ -5,10 +5,13 @@ open Runtime
 open Types.RuntimeT
 module Hash = Sodium.Password_hash.Bytes
 
-let digest_to_bytes (digest: Nocrypto.Hash.digest) : Libexecution.Types.RuntimeT.RawBytes.t =
+let digest_to_bytes (digest : Nocrypto.Hash.digest) :
+    Libexecution.Types.RuntimeT.RawBytes.t =
   let len = Cstruct.len digest in
   let bytes = Bytes.create len in
-  (Cstruct.blit_to_bytes digest 0 bytes 0 len); bytes
+  Cstruct.blit_to_bytes digest 0 bytes 0 len ;
+  bytes
+
 
 let fns : Lib.shortfn list =
   [ (* ====================================== *)
@@ -73,7 +76,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false } 
+    ; dep = false }
   ; { pns = ["Crypto::sha256hmac"]
     ; ins = []
     ; p = [par "key" TBytes; par "data" TBytes]
@@ -84,13 +87,10 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DBytes key; DBytes data] ->
-            let key = Cstruct.of_bytes key in
-            let data = Cstruct.of_bytes data in
-            (Nocrypto.Hash.SHA256.hmac ~key data)
-            |> digest_to_bytes
-            |> DBytes
+              let key = Cstruct.of_bytes key in
+              let data = Cstruct.of_bytes data in
+              Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-    ]
+    ; dep = false } ]

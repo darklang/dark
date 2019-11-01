@@ -48,7 +48,7 @@ val to_utf8_encoded_string : t -> string
 val to_string : t -> string
 (** alias of `to_utf8_encoded_string` **)
 
-val to_utf8_bytes: t -> Bytes.t
+val to_utf8_bytes : t -> Bytes.t
 (** get the bytes of the string, using utf8 encoding **)
 
 val uppercase : t -> t
