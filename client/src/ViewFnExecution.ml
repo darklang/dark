@@ -68,7 +68,7 @@ let executionClass status =
 let executionTitle status =
   match status with
   | Unsafe ->
-      "Cannot run interactively for security reasons."
+      "Cannot run interactively for security reasons"
   | IncompleteArgs ->
       "Cannot run: some parameters are incomplete"
   | Ready ->
@@ -79,6 +79,22 @@ let executionTitle status =
       "Click to execute function again"
   | Pure ->
       recover "pure function shouldn't show here" ""
+
+
+let executionError status =
+  match status with
+  | Unsafe ->
+      "Cannot run interactively for security reasons"
+  | IncompleteArgs ->
+      "Cannot run: some parameters are incomplete"
+  | Ready ->
+      "Click Play to execute function"
+  | Executing ->
+      "Function is executing"
+  | Replayable ->
+      "Click to execute function again"
+  | Pure ->
+      recover "pure is not an error state" ""
 
 
 let executionIcon status =
