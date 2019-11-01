@@ -30,6 +30,8 @@ module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module Token = FluidToken
 
+type viewState = ViewUtils.viewState
+
 (* -------------------- *)
 (* Utils *)
 (* -------------------- *)
@@ -4751,29 +4753,32 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   |> List.flatten
 
 
-let viewLiveValue ~tlid ~ast ~vs ~state : Types.msg Html.html =
+let viewLiveValue
+    ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
+    Types.msg Html.html =
   let liveValue, show, offset =
     let none = ([Vdom.noNode], false, 0) in
     getToken state ast
     |> Option.map ~f:(fun ti ->
            let fn = fnForToken state ti.token in
-           let id = Token.tid ti.token in
            let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
-           let status =
-             Option.map fn ~f:(fun fn ->
-                 ViewFnExecution.fnExecutionStatus vs fn id args )
-             |> Option.withDefault ~default:ViewFnExecution.Pure
-           in
            let row = ti.startRow in
            let id = Token.analysisID ti.token in
+           let fnText =
+             fn
+             |> Option.map ~f:(fun fn ->
+                    let id = Token.tid ti.token in
+                    ViewFnExecution.fnExecutionStatus vs fn id args )
+             |> Option.map ~f:ViewFnExecution.executionError
+           in
            if FluidToken.validID id
            then
              let loadable =
                Analysis.getLiveValueLoadable vs.analysisStore id
              in
              match (AC.highlighted state.ac, loadable) with
-             | None, LoadableSuccess DIncomplete ->
-                 let text = ViewFnExecution.executionTitle status in
+             | None, LoadableSuccess DIncomplete when Option.isSome fnText ->
+                 let text = Option.withDefault ~default:"" fnText in
                  ([Html.text text], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
