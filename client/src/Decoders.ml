@@ -13,18 +13,22 @@ external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
   = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"] *)
 
-
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = {
-  byteLength: int;
-} [@@bs.deriving abstract]
+type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
-external createUint8Array : jsArrayBuffer -> jsUint8Array = "Uint8Array" [@@bs.new]
-external getUint8ArrayIdx : jsUint8Array -> int -> int = "" [@@bs.get_index]
-external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = "" [@@bs.set_index]
 
-let dark_arrayBuffer_from_b64url = [%raw {|
+external createUint8Array : jsArrayBuffer -> jsUint8Array = "Uint8Array"
+  [@@bs.new]
+
+external getUint8ArrayIdx : jsUint8Array -> int -> int = "" [@@bs.get_index]
+
+external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = ""
+  [@@bs.set_index]
+
+let dark_arrayBuffer_from_b64url =
+  [%raw
+    {|
   function (base64) {
     console.log("DECODING: "+base64);
     // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
@@ -67,8 +71,8 @@ let dark_arrayBuffer_from_b64url = [%raw {|
     console.log(arraybuffer.byteLength);
     return arraybuffer;
   }
-|}
-]
+|}]
+
 
 (* XXX(JULIAN): This doesn't work -- "window" is undefined ??? *)
 (* external dark_arrayBuffer_from_b64url :
@@ -79,17 +83,17 @@ let dark_arrayBuffer_from_b64url = [%raw {|
 let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
   let len = byteLengthGet input in
   let bytes = Bytes.create len in
-  let reader = (createUint8Array input) in
-  for i = 0 to len-1 do
-    let char = (getUint8ArrayIdx reader i) in
+  let reader = createUint8Array input in
+  for i = 0 to len - 1 do
+    let char = getUint8ArrayIdx reader i in
     Bytes.unsafe_set bytes i (char_of_int char)
-  done;
+  done ;
   bytes
 
-let bytes_from_base64url (b64 : string) : Bytes.t = 
-  b64
-  |> dark_arrayBuffer_from_b64url
-  |> _bytes_from_uint8Array
+
+let bytes_from_base64url (b64 : string) : Bytes.t =
+  b64 |> dark_arrayBuffer_from_b64url |> _bytes_from_uint8Array
+
 
 (* identifiers are strings to the bucklescript client -- it knows nothing
  * about them being parseable as ints. if it doesn't look like a string

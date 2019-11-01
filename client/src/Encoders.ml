@@ -4,15 +4,18 @@ open Json_encode_extended
 (* Dark *)
 
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = {
-  byteLength: int;
-} [@@bs.deriving abstract]
+type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
-external createUint8Array : int -> jsUint8Array = "Uint8Array" [@@bs.new]
-external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = "" [@@bs.set_index]
 
-let dark_arrayBuffer_to_b64url = [%raw {|
+external createUint8Array : int -> jsUint8Array = "Uint8Array" [@@bs.new]
+
+external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = ""
+  [@@bs.set_index]
+
+let dark_arrayBuffer_to_b64url =
+  [%raw
+    {|
   function (arraybuffer) {
     console.log("ENCODING: ");
     console.log(arraybuffer);
@@ -43,8 +46,8 @@ let dark_arrayBuffer_to_b64url = [%raw {|
 
       return base64;
   }
-|}
-]
+|}]
+
 
 (* XXX(JULIAN): This doesn't work -- "window" is undefined ??? *)
 (* external dark_arrayBuffer_to_b64url :
@@ -54,16 +57,16 @@ let dark_arrayBuffer_to_b64url = [%raw {|
 
 let _bytes_to_uint8Array (input : Bytes.t) : jsUint8Array =
   let len = Bytes.length input in
-  let buf = (createUint8Array len) in
-  for i = 0 to len-1 do
-    (setUint8ArrayIdx buf i (int_of_char (Bytes.get input i)))
-  done;
+  let buf = createUint8Array len in
+  for i = 0 to len - 1 do
+    setUint8ArrayIdx buf i (int_of_char (Bytes.get input i))
+  done ;
   buf
 
+
 let base64url_bytes (input : Bytes.t) : string =
-  input
-  |> _bytes_to_uint8Array
-  |> dark_arrayBuffer_to_b64url
+  input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
+
 
 (* Don't attempt to encode these as integers, because we're not capable
  * of expressing all existing ids as ints because bucklescript is strict

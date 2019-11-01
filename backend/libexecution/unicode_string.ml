@@ -76,17 +76,18 @@ let of_utf8_encoded_string (s : string) : t option =
       None
 
 
-let to_utf8_bytes s = 
+let to_utf8_bytes s =
   (* This process works because the internal
      implementation here is via utf8 encoding.
      However, that detail shouldn't leak into the
      interface. *)
   let len = String.length s in
   let bytes = Bytes.create len in
-  for i = 0 to len-1 do
+  for i = 0 to len - 1 do
     Bytes.unsafe_set bytes i (String.unsafe_get s i)
-  done;
+  done ;
   bytes
+
 
 let of_string = of_utf8_encoded_string
 
