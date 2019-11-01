@@ -1307,11 +1307,18 @@ let handle_login_page ~execution_id req body =
                    session
             in
             let redirect_to =
-              match redirect with
+              ( match redirect with
               | None | Some "" ->
                   "/a/" ^ Uri.pct_encode username
               | Some redir ->
-                  Uri.pct_decode redir
+                  Uri.pct_decode redir )
+              |> Uri.of_string
+              |> Uri.path_and_query
+              (* Strip the host; that also means we'll use
+                                       the port of the incoming request, solving
+                                       the local login bug where we redirect to
+                                       darklang.localhost:80/something when we
+                                       want to hit :8000 *)
             in
             over_headers_promise
               ~f:(fun h -> Header.add_list h headers)
