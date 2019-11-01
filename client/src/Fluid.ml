@@ -4636,7 +4636,9 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
 
 let fnForToken state token : function_ option =
   match token with
-  | TFnVersion (_, _, _, fnName) | TFnName (_, _, _, fnName, _) ->
+  | TBinOp (_, fnName)
+  | TFnVersion (_, _, _, fnName)
+  | TFnName (_, _, _, fnName, _) ->
       Some (Functions.findByNameInList fnName state.ac.functions)
   | _ ->
       None
@@ -4655,6 +4657,8 @@ let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
     match findExpr id ast with
     | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
         exprs
+    | Some (EBinOp (_, _, lhs, rhs, _)) ->
+        [lhs; rhs]
     | _ ->
         []
   in
