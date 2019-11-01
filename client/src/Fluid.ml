@@ -4655,7 +4655,7 @@ let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
   in
   let exprs =
     match findExpr id ast with
-    | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
+    | Some (EFnCall (_, _, exprs, _)) ->
         exprs
     | Some (EBinOp (_, _, lhs, rhs, _)) ->
         [lhs; rhs]
