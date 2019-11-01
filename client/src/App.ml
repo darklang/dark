@@ -368,7 +368,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         ( {m with error = Some error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
-        Js.log2 "api error" apiError ;
         let now = Js.Date.now () |> Js.Date.fromFloat in
         let shouldReload =
           let buildHashMismatch =
@@ -387,7 +386,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (* Reload if it's an auth failure or the frontend is out of date *)
           ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
-        Js.log2 "shouldReload" shouldReload ;
         let cmd =
           if shouldReload
           then
@@ -407,7 +405,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             then Some (ApiError.msg apiError)
             else m.error
           in
-          Js.log2 "error" error ;
           let lastReload = if shouldReload then Some now else m.lastReload in
           {m with error; lastReload}
         in
