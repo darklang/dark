@@ -156,7 +156,6 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-fn-name,
   .fluid-fn-version {
     color: $white2;
-
     .execution-button {
       position: absolute;
       font-size: 55%;
@@ -197,6 +196,10 @@ https://github.com/chriskempson/tomorrow-theme */
         }
       }
     }
+  }
+
+  .related-change {
+    color: $hover-foreground;
   }
 
   .fluid-partial,
@@ -257,7 +260,7 @@ since they are essentially both commands just acting upon different things. */
 
   #fluid-dropdown {
     cursor: pointer;
-    background-color: $dropdown-background;
+    background-color: $black3;
     color: $dropdown-foreground;
     z-index: 1000;
     position: absolute;
@@ -279,7 +282,7 @@ since they are essentially both commands just acting upon different things. */
       padding-right: 5px;
 
       .fluid-selected {
-        background-color: $dropdown-selected-background;
+        background-color: $highlight-color;
         color: darken(white, 5%);
       }
 
