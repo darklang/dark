@@ -56,7 +56,6 @@ let replaceFunctionResult
     (fnName : string)
     (hash : dvalArgsHash)
     (dval : dval) : model =
-  (Debug.loG "replaceFunctionResult" dval);  
   let newResult = {fnName; callerID; argHash = hash; value = dval} in
   let traces =
     m.traces
@@ -219,7 +218,7 @@ module ReceiveAnalysis = struct
   let decode : (Js.Json.t, performAnalysisResult) Tea.Json.Decoder.t =
     let open Tea.Json.Decoder in
     map
-      (fun msg -> Debug.loG "recieve ana" msg; msg)
+      (fun msg -> msg)
       (field "detail" (Decoder (fun json -> Tea_result.Ok (Obj.magic json))))
 
 
@@ -378,13 +377,11 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
   let tl = TL.get m tlid in
   match (tl, trace) with
   | Some (TLHandler h), Some (_, Some traceData) ->
-      (Debug.loG "requestAnalysis handler Send" traceData);
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
                {handler = h; traceID; traceData; dbs; userFns; userTipes}) )
   | Some (TLFunc f), Some (_, Some traceData) ->
-      (Debug.loG "requestAnalysis func Send" traceID);
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
@@ -398,11 +395,9 @@ let analyzeFocused (m : model) : model * msg Cmd.t =
   | Some tlid ->
     ( match getCurrentTrace m tlid with
     | Some (traceID, None) ->
-        (Debug.loG "analyzeFocused traceID None" traceID);
         (* Fetch the trace data, if missing *)
-        (requestTrace m tlid traceID)
+        requestTrace m tlid traceID
     | Some (traceID, Some _) ->
-        (Debug.loG "analyzeFocused traceID Some" traceID);
         (* Run the analysis, if missing *)
         (m, requestAnalysis m tlid traceID)
     | None ->

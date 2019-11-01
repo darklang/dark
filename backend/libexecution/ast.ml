@@ -150,7 +150,6 @@ let should_send_to_rail (expr : nexpr) : bool =
 let rec exec
     ~(engine : engine) ~(state : exec_state) (st : symtable) (expr : expr) :
     dval =
-  let _ = (Log.inspecT "expr" expr) in
   let exe = exec ~engine ~state in
   let call = call_fn ~engine ~state in
   let ctx = engine.ctx in
@@ -192,10 +191,8 @@ let rec exec
       | Partial _ | Blank _ ->
           param
       | _ ->
-          ((Log.inspecT "There's a catchall" exp);
-          (ignore (exe st exp)) ;
           (* calculate the results inside this regardless *)
-          DIncomplete)
+          DIncomplete
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
     trace exp result st ;
@@ -525,7 +522,6 @@ and call_fn
     (id : id)
     (argvals : dval list)
     (send_to_rail : bool) : dval =
-  let _ = ((Log.inspecT "call_fn_ID" (string_of_id id)); (Log.inspecT "call_fn" (argvals))) in  
   let fn = Libs.get_fn state.user_fns name in
   match find_derrorrail argvals with
   | Some er ->
@@ -539,11 +535,9 @@ and call_fn
             let sfr_desc = (state.tlid, name, id) in
             ( match state.load_fn_result sfr_desc argvals with
             | Some (result, _ts) ->
-                ((Log.inspecT "Got a not incomplete" (string_of_id id)) ;
-                result)
+                result
             | inc ->
-                (Log.inspecT "Got an incomplete" (string_of_id id)) ;
-                (DIncomplete) )
+                DIncomplete )
         | Some fn ->
             (* equalize length *)
             let expected_length = List.length fn.parameters in
@@ -585,8 +579,7 @@ and exec_fn
     (id : id)
     (fn : fn)
     (args : dval_map) : dval =
-  let _ = ((Log.inspecT "exec_fn_ID" (string_of_id id)); (Log.inspecT "exec_fn" (DvalMap.values args))) in
-  let paramsIncomplete args = (List.exists args ~f:(( = ) DIncomplete)) in
+  let paramsIncomplete args = List.exists args ~f:(( = ) DIncomplete) in
   let paramsErroneous args =
     List.exists args ~f:(function
         | DError _ when String.Caseless.equal fnname "Bool::isError" ->
@@ -603,7 +596,7 @@ and exec_fn
   in
   let sfr_desc = (state.tlid, fnname, id) in
   if paramsIncomplete arglist
-  then ((Log.infO "paramsIncomplete arglist"); DIncomplete)
+  then DIncomplete
   else if paramsErroneous arglist
   then DError "Fn called with an error as an argument"
   else
@@ -613,10 +606,8 @@ and exec_fn
         then
           match state.load_fn_result sfr_desc arglist with
           | Some (result, _ts) ->
-            ((Log.inspecT "InProcess result" result);
-              result)
+              result
           | inc ->
-            (Log.inspecT "load_fn_result incomplete" inc);
               DIncomplete
         else
           let state =
@@ -640,8 +631,8 @@ and exec_fn
           in
           (* there's no point storing data we'll never ask for *)
           if not fn.preview_execution_safe
-          then ((Log.inspecT "not fn.preview_execution_safe" None); (state.store_fn_result sfr_desc arglist result)) ;
-          ((Log.inspecT "return result" result); result)
+          then state.store_fn_result sfr_desc arglist result ;
+          result
     | UserCreated (tlid, body) ->
       ( match
           Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
@@ -681,8 +672,7 @@ and exec_fn
           in
           DError ("Type error(s) in function parameters: " ^ error_msgs) )
     | API f ->
-        (Log.inspecT "API F" fnname) ;
-        (f args)
+        f args
 
 
 (* | TypeError args -> *)
@@ -717,7 +707,7 @@ let analysis_engine value_store tlid_store : engine =
 let execute_saving_intermediates
     ~(input_vars : input_vars) (state : exec_state) (ast : expr) :
     dval * dval_store * tlid list =
-  (Log.infO "Executing for intermediates") ;
+  Log.infO "Executing for intermediates" ;
   let value_store = IDTable.create () in
   let tlid_store = TLIDTable.create () in
   let engine = analysis_engine value_store tlid_store in

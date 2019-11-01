@@ -6,7 +6,6 @@
 // it will silently interpret them as 0, because bitwise ops coerce
 // undefined to 0, and undefined is the result of out-of-range array accesses in JS.
 function dark_arrayBuffer_from_padded_b64url(base64) {
-  console.log("DECODING: "+base64);
   // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
   // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
   // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
@@ -44,15 +43,11 @@ function dark_arrayBuffer_from_padded_b64url(base64) {
     bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
   }
 
-  console.log(arraybuffer);
-  console.log(arraybuffer.byteLength);
   return arraybuffer;
 }
 
 //Provides: dark_arrayBuffer_to_padded_b64url
 function dark_arrayBuffer_to_padded_b64url(arraybuffer) {
-  console.log("ENCODING: ");
-  console.log(arraybuffer);
   // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
   // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
   // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,

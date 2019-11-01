@@ -1284,8 +1284,4 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
     version the hash function and traces (this is a good idea anyway).
  *)
 let hash (arglist : dval list) : string =
-    let hashRes =
-    (arglist |> List.map ~f:to_hashable_repr |> String.concat) in
-    let _ = (Libcommon.Log.inspecT ("dValHash" ^ hashRes) arglist) in 
-    hashRes |> Util.hash
-
+  arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
