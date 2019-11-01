@@ -4457,7 +4457,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
-  (* Note that undo/redo is handled in KeyPress.defaultHandler *)
+  | FluidKeyPress {key} when key = K.Undo ->
+      KeyPress.undo_redo m false
+  | FluidKeyPress {key} when key = K.Redo ->
+      KeyPress.undo_redo m true
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
   | FluidKeyPress {key; metaKey; ctrlKey}
