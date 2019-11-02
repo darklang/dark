@@ -825,6 +825,11 @@ let fluid_shift_left_selects_chars_at_back (m : model) : testResult =
       fail "no selection range"
 
 
+let fluid_undo_redo_happen_exactly_once (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let varnames_are_incomplete (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -976,6 +981,8 @@ let trigger (test_name : string) : integrationTestState =
         fluid_shift_right_selects_chars_in_front
     | "fluid_shift_left_selects_chars_at_back" ->
         fluid_shift_left_selects_chars_at_back
+    | "fluid_undo_redo_happen_exactly_once" ->
+        fluid_undo_redo_happen_exactly_once
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->
