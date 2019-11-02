@@ -145,4 +145,21 @@ let fns : Lib.shortfn list =
           (function
           | _, [DError err] -> Dval.dstr_of_string_exn err | args -> fail args)
     ; ps = true
+    ; dep = false }
+  ; { pns = ["AWS::urlencode"]
+    ; ins = []
+    ; p = [par "str" TStr]
+    ; r = TStr
+    ; d = "Return a string representing the error"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr str] ->
+              str
+              |> Unicode_string.to_string
+              |> Util.AWS.url_encode
+              |> Dval.dstr_of_string_exn
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false } ]
