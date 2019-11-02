@@ -7,6 +7,16 @@ set -euo pipefail
 PATTERN=".*"
 DEBUG=false
 
+BROWSER='unknown'
+{
+  PLATFORM=$(uname -s)
+  if [[ $PLATFORM == "Darwin" ]]; then
+    BROWSER="chrome"
+  else
+    BROWSER="chromium"
+  fi
+}
+
 for i in "$@"
 do
   case "${i}" in
@@ -85,6 +95,6 @@ else
     --reporter=spec \
     $debugcmd \
     --test-grep "$PATTERN" \
-    "chromium" \
+    $BROWSER \
     integration-tests/tests.js
 fi

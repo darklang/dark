@@ -1118,6 +1118,23 @@ test("fluid_shift_left_selects_chars_at_back", async t => {
     .pressKey("down shift+left shift+up");
 });
 
+test("fluid_undo_redo_happen_exactly_once", async t => {
+  await t
+    .expect(available(".tl-608699171"))
+    .ok()
+    .click(Selector(".id-68470584.fluid-category-string"))
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"12345"')
+    .pressKey("ctrl+z")
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"1234"')
+    .pressKey("ctrl+shift+z")
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"12345"');
+});
+
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
