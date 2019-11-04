@@ -4766,7 +4766,8 @@ let toHtml
         let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
-              (["fluid-entry"] @ classes @ idclasses @ highlight |> String.join ~sep:" ")
+              ( ["fluid-entry"] @ classes @ idclasses @ highlight
+              |> String.join ~sep:" " )
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
