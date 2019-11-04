@@ -1997,6 +1997,16 @@ let () =
         (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
+      t
+        "inserting a thread into another thread gives a single thread"
+        (threadOn five [listFn [aList5]])
+        (press K.ShiftEnter 20)
+        ("5\n|>List::append [5]\n|>___\n", 23) ;
+      t
+        "inserting a thread into another thread gives a single thread"
+        five
+        (press K.ShiftEnter 1)
+        ("5\n|>___\n", 4) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
