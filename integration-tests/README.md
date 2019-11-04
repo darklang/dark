@@ -1,6 +1,6 @@
 # How the integration tests work
 
-##### (Updated May 1, 2019)
+##### (Updated Nov 8, 2019)
 
 ## Running
 
@@ -73,6 +73,14 @@ let {your_test_name} (m : model) : testResult =
 ```  
 
 4. Lastly to verify your newly written test works without running all the other tests, run the script with `--pattern={your_test_name}`
+
+## Clicking buttons
+It may be that you want to click a button - say, to play a REPL that includes
+non-preview-safe (backend-only) functions.
+
+To do this, you must call `.click(Selector("div.handler-trigger"))` twice. We're
+not sure why. See `sha256hmac_for_aws` in `integration-tests/tests.js` for a
+working example of this, including checking the live value at the end.
 
 ## How it works:
 
