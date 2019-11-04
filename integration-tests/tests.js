@@ -1202,3 +1202,26 @@ test("tobytes_roundtrip", async t => {
   await t.navigateTo("#handler=1115444997");
   await t.click(Selector(".fncall"));
 });
+
+// This runs through
+// https://docs.aws.amazon.com/general/latest/gr/sigv4-add-signature-to-request.html
+// It duplicates backend/test/test_otherlibs.ml's "Crypto::sha256hmac works for
+// AWS", _but_ its value _here_ is that we do not have any other tests that push
+// a handler's trigger play button; getting that working was surprisingly hard,
+// and so ismith wants to leave it around to use in future integration tests.
+//
+// See integration-tests/README.md for docs on this.
+//
+// I have tried several other approaches, including wait(3000) between
+// navigateTo() and click(), and putting navigateTo() and click() on separate
+// await ts, but only calling click() twice worked here.
+test("sha256hmac_for_aws", async t => {
+  await t
+    .navigateTo("#handler=1471262983")
+    .click(Selector("div.handler-trigger"))
+    .click(Selector("div.handler-trigger"));
+  await t.click(Selector(".id-1825632293"));
+  await t
+    .expect(Selector("div.live-value").innerText)
+    .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
+});
