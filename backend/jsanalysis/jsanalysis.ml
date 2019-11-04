@@ -83,11 +83,20 @@ type function_analysis_param =
 
 type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
 
-let load_from_trace results (tlid, fnname, caller_id) args :
-    (dval * Time.t) option =
+let load_from_trace
+    (results : Analysis_types.function_result list)
+    (tlid, fnname, caller_id)
+    args : (dval * Time.t) option =
+  let hashes =
+    Dval.supported_hash_versions
+    |> List.map ~f:(fun key -> (id_of_int key, Dval.hash key args))
+    |> IDMap.of_alist_exn
+  in
   results
-  |> List.filter_map ~f:(fun (rfnname, rcaller_id, hash, dval) ->
-         if fnname = rfnname && caller_id = rcaller_id && hash = Dval.hash args
+  |> List.filter_map ~f:(fun (rfnname, rcaller_id, hash, hash_version, dval) ->
+         if fnname = rfnname
+            && caller_id = rcaller_id
+            && hash = IDMap.find_exn hashes (id_of_int hash_version)
          then Some dval
          else None )
   |> List.hd
