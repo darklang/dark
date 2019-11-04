@@ -2486,6 +2486,23 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
       None
 
 
+let doShiftEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let id = Token.tid ti.token in
+  let exprToReplace =
+    findExpr id ast
+    |> Option.andThen ~f:(fun e -> findAppropriatePipingParent e ast)
+    |> Option.map ~f:extractSubexprFromPartial
+  in
+  match exprToReplace with
+  | None ->
+      (ast, s)
+  | Some expr ->
+      let threadChild = newB () in
+      let newExpr = EThread (gid (), [expr; threadChild]) in
+      let newAST = replaceExpr (eid expr) ast ~newExpr in
+      (newAST, moveBackTo (eid threadChild) newAST s)
+
+
 let updateFromACItem
     (entry : fluidAutocompleteItem)
     (ti : tokenInfo)
@@ -3328,6 +3345,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
         |> Option.withDefault ~default:(ast, s)
+    | K.ShiftEnter, L (_, ti), _ ->
+        doShiftEnter ti ast s
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
