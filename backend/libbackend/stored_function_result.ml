@@ -13,7 +13,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
     ~name:"stored_function_result.store"
     "INSERT INTO function_results_v2
      (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
-     VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
     ~params:
       [ Uuid canvas_id
       ; Uuid trace_id
