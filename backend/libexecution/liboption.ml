@@ -23,7 +23,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
     ; f =
         InProcess
           (function
@@ -42,7 +42,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
     ; f =
         InProcess
           (function
@@ -61,7 +61,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
     ; f =
         InProcess
           (function
