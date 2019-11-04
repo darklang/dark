@@ -369,13 +369,14 @@ let to_initial_load_rpc_result
 type execute_function_rpc_result =
   { result : RTT.dval
   ; hash : string
+  ; hashVersion : int
   ; touched_tlids : tlid list
   ; unlocked_dbs : tlid list }
 [@@deriving to_yojson]
 
-let to_execute_function_rpc_result hash touched_tlids unlocked_dbs dv : string
-    =
-  {result = dv; hash; touched_tlids; unlocked_dbs}
+let to_execute_function_rpc_result
+    hash (hashVersion : int) touched_tlids unlocked_dbs dv : string =
+  {result = dv; hash; hashVersion; touched_tlids; unlocked_dbs}
   |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

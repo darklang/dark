@@ -650,7 +650,11 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
 and functionResult (fr : Types.functionResult) : Js.Json.t =
   list
     identity
-    [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
+    [ string fr.fnName
+    ; id fr.callerID
+    ; string fr.argHash
+    ; int fr.argHashVersion
+    ; dval fr.value ]
 
 
 and traceID = string

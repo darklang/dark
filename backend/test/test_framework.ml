@@ -115,6 +115,7 @@ let t_trace_data_json_format_redacts_passwords () =
         [ ( "Password::hash"
           , id
           , "foobar"
+          , 0
           , DPassword (PasswordBytes.of_string "redactme2") ) ] }
   in
   let expected : Analysis_types.trace_data =
@@ -124,6 +125,7 @@ let t_trace_data_json_format_redacts_passwords () =
         [ ( "Password::hash"
           , id
           , "foobar"
+          , 0
           , DPassword (PasswordBytes.of_string "Redacted") ) ] }
   in
   trace_data

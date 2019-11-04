@@ -8,6 +8,30 @@ module RT = Runtime
 
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
 
+(* This and tuple5 are adapted from Bucklescript - see tuple4 for the original *)
+external unsafe_get : 'a array -> int -> 'a = "%array_unsafe_get"
+
+let tuple5 decodeA decodeB decodeC decodeD decodeE json =
+  if Js.Array.isArray json
+  then
+    let source : Js.Json.t array = Obj.magic (json : Js.Json.t) in
+    let length = Js.Array.length source in
+    if length = 5
+    then
+      try
+        ( decodeA (unsafe_get source 0)
+        , decodeB (unsafe_get source 1)
+        , decodeC (unsafe_get source 2)
+        , decodeD (unsafe_get source 3)
+        , decodeE (unsafe_get source 4) )
+      with DecodeError msg -> raise @@ DecodeError (msg ^ "\n\tin tuple5")
+    else
+      raise
+      @@ DecodeError
+           {j|Expected array of length 5, got array of length $length|j}
+  else raise @@ DecodeError "Expected array, got not-an-array"
+
+
 (* external jsGetFluidSelectionRange :
   unit -> int array Js.Nullable.t
   = "getFluidSelectionRange"
@@ -438,8 +462,10 @@ and inputValueDict j : inputValueDict =
 
 
 and functionResult j : functionResult =
-  let fnName, callerID, argHash, value = tuple4 string id string dval j in
-  {fnName; callerID; argHash; value}
+  let fnName, callerID, argHash, argHashVersion, value =
+    tuple5 string id string int dval j
+  in
+  {fnName; callerID; argHash; argHashVersion; value}
 
 
 and traceID j : traceID = wireIdentifier j
@@ -642,6 +668,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
 and executeFunctionRPCResult j : executeFunctionRPCResult =
   ( field "result" dval j
   , field "hash" string j
+  , field "hashVersion" int j
   , field "touched_tlids" (list tlid) j
   , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
 
