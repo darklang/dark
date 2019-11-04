@@ -1378,18 +1378,17 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-(* Starting from somewhere after the location, move back until we reach the
- * `target` expression, and return a state with its location. If blank, will
- * go to the start of the blank *)
-let moveBackTo (target : id) (ast : ast) (s : state) : state =
-  let s = recordAction "moveBackTo" s in
+(* Find first `target` expression (starting at the back), and return a state
+ * with its location. If blank, will go to the start of the blank *)
+let moveStateTo (target : id) (ast : ast) (s : state) : state =
+  let s = recordAction "moveStateTo" s in
   let tokens = toTokens s ast in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target )
   with
   | None ->
-      recover "cannot find token to moveBackTo" s
+      recover "cannot find token to moveStateTo" s
   | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
@@ -1779,11 +1778,11 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
             (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
             EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            (newState := fun ast -> moveBackTo (eid lhs) ast s) ;
+            (newState := fun ast -> moveStateTo (eid lhs) ast s) ;
             lhs
         | EPartial (_, _, _) ->
             let b = newB () in
-            (newState := fun ast -> moveBackTo (eid b) ast s) ;
+            (newState := fun ast -> moveStateTo (eid b) ast s) ;
             b
         | _ ->
             recover "not a partial in deletePartial" e )
@@ -2500,7 +2499,7 @@ let doShiftEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let threadChild = newB () in
       let newExpr = EThread (gid (), [expr; threadChild]) in
       let newAST = replaceExpr (eid expr) ast ~newExpr in
-      (newAST, moveBackTo (eid threadChild) newAST s)
+      (newAST, moveStateTo (eid threadChild) newAST s)
 
 
 let updateFromACItem
@@ -2726,17 +2725,17 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveStateTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveStateTo targetID ast s)
   | TStringMLEnd (id, thisStr, strOffset, _)
     when String.length thisStr = 1 && offset = strOffset ->
       let f str = removeCharAt str offset in
       let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveBackTo id newAST s in
+      let newState = moveStateTo id newAST s in
       (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TString _
   | TStringMLStart _
@@ -2860,7 +2859,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let newState =
         if String.length endStr = 1 && offset = 0
         then
-          let moved = moveBackTo id newAST s in
+          let moved = moveStateTo id newAST s in
           {moved with newPos = moved.newPos - 1 (* quote *)}
         else s
       in
@@ -2878,12 +2877,12 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveStateTo targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveStateTo targetID ast s)
   | TRecordField _
   | TInteger _
   | TPatternInteger _
