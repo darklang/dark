@@ -413,8 +413,8 @@ let () =
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in
       (* Account for the newlines as we find them, or else we won't know our
-          * position to find the newlines correctly. There'll be extra indentation,
-          * so we need to subtract those to get the pos we expect. *)
+       * position to find the newlines correctly. There'll be extra indentation,
+       * so we need to subtract those to get the pos we expect. *)
       result
       |> toTokens newState
       |> List.iter ~f:(fun ti ->
