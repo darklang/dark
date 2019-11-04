@@ -470,6 +470,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
+    | StartFluidCursorSelecting tlid ->
+        let cursorState =
+          if VariantTesting.isFluid m.tests
+          then FluidCursorSelecting tlid
+          else m.cursorState
+        in
+        let m = {m with cursorState} in
+        (m, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
@@ -1167,7 +1175,9 @@ let update_ (msg : msg) (m : model) : modification =
         then NoChange
         else Select (targetExnID, Some targetID)
     | FluidEntering _ ->
-        Select (targetExnID, Some targetID) )
+        Select (targetExnID, Some targetID)
+    | FluidCursorSelecting _ ->
+        StartFluidCursorSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
@@ -1205,7 +1215,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ ->
+        | FluidEntering _ | FluidCursorSelecting _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1877,6 +1887,8 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
+  | FluidMsg (FluidStartSelection targetExnID) ->
+      StartFluidCursorSelecting targetExnID
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
@@ -1892,8 +1904,6 @@ let update_ (msg : msg) (m : model) : modification =
                       ; newPos = selEnd
                       ; selectionStart = None } }
               | Some (selBegin, selEnd) ->
-                  (* re-apply selection *)
-                  (* Entry.setFluidSelectionRange (selBegin, selEnd) ; *)
                   { m with
                     fluidState =
                       { m.fluidState with

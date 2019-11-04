@@ -4468,6 +4468,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidStartSelection _
   | FluidKeyPress _
   | FluidCopy
   | FluidPaste _
@@ -4790,6 +4791,10 @@ let toHtml
                 | None ->
                     (* We expect that this doesn't happen *)
                     FluidMsg (FluidUpdateSelection (tlid, None)) )
+          ; ViewUtils.eventNoPropagation
+              ~key:("fluid-selection-mousedown" ^ idStr)
+              "mousedown"
+              (fun _ -> FluidMsg (FluidStartSelection tlid) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mouseup" ^ idStr)
               "mouseup"
