@@ -3183,12 +3183,13 @@ let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
 (* Always returns a selection represented as two ints with the smaller int first.
    The numbers are identical if there is no selection. *)
 let fluidGetSelectionRange (s : fluidState) : int * int =
-  let endIdx = s.newPos in
   match s.selectionStart with
-  | Some beginIdx ->
-      (beginIdx, endIdx)
+  | Some beginIdx when beginIdx < s.newPos ->
+      (beginIdx, s.newPos)
+  | Some endIdx ->
+      (s.newPos, endIdx)
   | None ->
-      (endIdx, endIdx)
+      (s.newPos, s.newPos)
 
 
 let fluidGetCollapsedSelectionStart (s : fluidState) : int =
