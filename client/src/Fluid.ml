@@ -2482,7 +2482,7 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
         findAppropriatePipingParent parent ast )
   | None ->
       (* If we get to the root *)
-      None
+      Some child
 
 
 let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
