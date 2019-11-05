@@ -2006,17 +2006,17 @@ let () =
         ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
         , 73 ) ;
       t
-        "inserting a thread into another thread gives a single thread"
+        "inserting a thread into another thread gives a single thread1"
         (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
-        "inserting a thread into another thread gives a single thread"
+        "inserting a thread into another thread gives a single thread2"
         (threadOn five [listFn [aList5]])
-        (press K.ShiftEnter 20)
+        (press K.ShiftEnter 19)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
-        "inserting a thread into another thread gives a single thread"
+        "inserting a thread into another thread gives a single thread3"
         five
         (press K.ShiftEnter 1)
         ("5\n|>___\n", 4) ;
@@ -2686,18 +2686,18 @@ let () =
         (modPresses [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (52, 48) ) ;
-      ts
-        "selecting an expression pipes to it"
-        (EBinOp
-           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
-        (selectionPress K.ShiftEnter 0 5)
-        ("4 + 5\n    |>___", (13, 13)) ;
-      ts
+      t
         "selecting an expression pipes from it"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
-        (selectionPress K.ShiftEnter 5 0)
-        ("4 + 5\n    |>___", (13, 13)) ;
+        (selectionPress K.ShiftEnter 4 5)
+        ("4 + 5\n    |>___\n", 12) ;
+      t
+        "selecting an expression pipes from it"
+        (EBinOp
+           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (selectionPress K.ShiftEnter 5 4)
+        ("4 + 5\n    |>___\n", 12) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
