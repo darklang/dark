@@ -3725,10 +3725,6 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
       None
 
 
-let collapseOptionalRange (sel : (int * int) option) : (int * int) option =
-  Option.andThen sel ~f:(fun (a, b) -> if a = b then None else sel)
-
-
 let getTokenRangeAtCaret (state : fluidState) (ast : ast) : (int * int) option
     =
   getToken state ast |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
