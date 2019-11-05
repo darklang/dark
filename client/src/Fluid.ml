@@ -3206,35 +3206,18 @@ let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
-let tokensInRange startPos endPos ~state ast : fluidTokenInfo list =
+let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
   toTokens state ast
-  |> List.foldl ~init:[] ~f:(fun t toks ->
-         (* this condition is a little flaky, sometimes selects wrong tokens *)
-         if (* token fully inside range
-             * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
-            t.startPos >= startPos
-            && t.startPos < endPos
-            && t.endPos > startPos
-            && t.endPos <= endPos
-            (* token partially inside range *)
-            (* - start is outside range but end is inside range
-             * e.g. `Int::add va^l1^ val2` - val1 token is partially within range *)
-            || t.startPos < startPos
-               && t.endPos > startPos
-               && t.endPos <= endPos
-            (* - start is inside range but end is outside range
-             * e.g. `Int::add ^va^l1 val2` - val1 token is partially within range *)
-            || t.endPos > endPos
-               && t.startPos < endPos
-               && t.startPos >= startPos
-            (* selection range is within token range
-             * e.g. `Int::add v^al^1 val2` - range is within val1 token *)
-            || t.startPos <= startPos
-               && t.startPos < endPos
-               && t.endPos > startPos
-               && t.endPos >= endPos
-         then toks @ [t]
-         else toks )
+  (* this condition is a little flaky, sometimes selects wrong tokens *)
+  |> List.filter ~f:(fun t ->
+         (* selectionStart within token *)
+         (t.startPos <= selStartPos && selStartPos < t.endPos)
+         (* selectionEnd within token *)
+         || (t.startPos < selEndPos && selEndPos <= t.endPos)
+         (* tokenStart within selection  *)
+         || (selStartPos <= t.startPos && t.startPos < selEndPos)
+         (* tokenEnd within selection  *)
+         || (selStartPos < t.endPos && t.endPos <= selEndPos) )
 
 
 let getTopmostSelectionID startPos endPos ~state ast : id option =
