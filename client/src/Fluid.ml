@@ -2485,11 +2485,12 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
       None
 
 
-let doShiftEnter (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
-  let id = Token.tid ti.token in
+let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
+    ast * state =
   let exprToReplace =
     findExpr id ast
-    |> Option.andThen ~f:(fun e -> findAppropriatePipingParent e ast)
+    |> Option.andThen ~f:(fun e ->
+           if findParent then findAppropriatePipingParent e ast else Some e )
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
@@ -3393,8 +3394,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
         |> Option.withDefault ~default:(ast, s)
-    | K.ShiftEnter, L (_, ti), _ ->
-        doShiftEnter ti ast s
+    | K.ShiftEnter, L _, _ ->
+        let startPos, endPos = fluidGetSelectionRange s in
+        let findParent = startPos = endPos in
+        let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
+        Option.map topmostID ~f:(fun id -> doShiftEnter ~findParent id ast s)
+        |> Option.withDefault ~default:(ast, s)
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
