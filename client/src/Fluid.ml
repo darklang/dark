@@ -3205,6 +3205,54 @@ let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
+let tokensInRange startPos endPos ~state ast : fluidTokenInfo list =
+  toTokens state ast
+  |> List.foldl ~init:[] ~f:(fun t toks ->
+         (* this condition is a little flaky, sometimes selects wrong tokens *)
+         if (* token fully inside range
+             * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
+            t.startPos >= startPos
+            && t.startPos < endPos
+            && t.endPos > startPos
+            && t.endPos <= endPos
+            (* token partially inside range *)
+            (* - start is outside range but end is inside range
+             * e.g. `Int::add va^l1^ val2` - val1 token is partially within range *)
+            || t.startPos < startPos
+               && t.endPos > startPos
+               && t.endPos <= endPos
+            (* - start is inside range but end is outside range
+             * e.g. `Int::add ^va^l1 val2` - val1 token is partially within range *)
+            || t.endPos > endPos
+               && t.startPos < endPos
+               && t.startPos >= startPos
+            (* selection range is within token range
+             * e.g. `Int::add v^al^1 val2` - range is within val1 token *)
+            || t.startPos <= startPos
+               && t.startPos < endPos
+               && t.endPos > startPos
+               && t.endPos >= endPos
+         then toks @ [t]
+         else toks )
+
+
+let getTopmostSelectionID startPos endPos ~state ast : id option =
+  (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
+  tokensInRange startPos endPos ~state ast
+  |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
+         let curID = Token.parentExprID ti.token in
+         let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
+         if (* check if current token is higher in the AST than the last token,
+             * or if there's no topmost ID yet *)
+            (curDepth < topmostDepth || topmostID = None)
+            (* account for tokens that don't have ancestors (depth = 0)
+             * but are not the topmost expression in the AST *)
+            && not (curDepth = 0 && findExpr curID ast != Some ast)
+         then (Some curID, curDepth)
+         else (topmostID, topmostDepth) )
+  |> Tuple2.first
+
+
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     ast * state =
   let pos = s.newPos in
@@ -3724,36 +3772,6 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         tID = tID' && typeName = typeName' )
     |> Option.map ~f:Tuple3.second
   in
-  let tokensInRange startPos endPos : fluidTokenInfo list =
-    toTokens state ast
-    |> List.foldl ~init:[] ~f:(fun t toks ->
-           (* this condition is a little flaky, sometimes selects wrong tokens *)
-           if (* token fully inside range 
-               * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
-              t.startPos >= startPos
-              && t.startPos < endPos
-              && t.endPos > startPos
-              && t.endPos <= endPos
-              (* token partially inside range *)
-              (* - start is outside range but end is inside range
-               * e.g. `Int::add va^l1^ val2` - val1 token is partially within range *)
-              || t.startPos < startPos
-                 && t.endPos > startPos
-                 && t.endPos <= endPos
-              (* - start is inside range but end is outside range
-               * e.g. `Int::add ^va^l1 val2` - val1 token is partially within range *)
-              || t.endPos > endPos
-                 && t.startPos < endPos
-                 && t.startPos >= startPos
-              (* selection range is within token range
-               * e.g. `Int::add v^al^1 val2` - range is within val1 token *)
-              || t.startPos <= startPos
-                 && t.startPos < endPos
-                 && t.endPos > startPos
-                 && t.endPos >= endPos
-           then toks @ [t]
-           else toks )
-  in
   let startPos, endPos = orderRangeFromSmallToBig range in
   (* main main recursive algorithm *)
   (* algo: 
@@ -3768,7 +3786,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     in
     let simplifiedTokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos
+      tokensInRange startPos endPos ~state ast
       |> List.map ~f:(fun ti ->
              let open String in
              let t = ti.token in
@@ -4030,7 +4048,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos
+          tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordField (_, _, index, newKey) ->
@@ -4142,22 +4160,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | _, _ ->
         Some (EBlank (gid ()))
   in
-  let topmostID =
-    (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
-    tokensInRange startPos endPos
-    |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-           let curID = Token.parentExprID ti.token in
-           let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
-           if (* check if current token is higher in the AST than the last token,
-               * or if there's no topmost ID yet *)
-              (curDepth < topmostDepth || topmostID = None)
-              (* account for tokens that don't have ancestors (depth = 0) 
-               * but are not the topmost expression in the AST *)
-              && not (curDepth = 0 && findExpr curID ast != Some ast)
-           then (Some curID, curDepth)
-           else (topmostID, topmostDepth) )
-    |> Tuple2.first
-  in
+  let topmostID = getTopmostSelectionID startPos endPos ~state ast in
   reconstruct ~topmostID (startPos, endPos)
 
 
