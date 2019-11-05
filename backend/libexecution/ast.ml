@@ -555,12 +555,12 @@ and call_fn
               exec_fn ~engine ~state name id fn args
             else
               DError
-                ( "Incorrect number of args in fncall to "
-                ^ name
-                ^ ", expected "
+                ( name
+                ^ " has "
                 ^ string_of_int expected_length
-                ^ ", got "
-                ^ string_of_int actual_length )
+                ^ " parameters, but here was called with "
+                ^ string_of_int actual_length
+                ^ " arguments." )
       in
       if send_to_rail
       then
