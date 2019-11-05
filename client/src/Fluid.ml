@@ -3378,7 +3378,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
         |> Option.withDefault ~default:(ast, s)
-    | K.ShiftEnter, L _, _ ->
+    | K.ShiftEnter, _, _ ->
         let startPos, endPos = fluidGetSelectionRange s in
         let findParent = startPos = endPos in
         let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
