@@ -379,7 +379,7 @@ let () =
       (pos : int)
       (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
-    let newlinesBeforeStartPos =
+    let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
        * 2*nl to get the pos in place. (Note: it's correct to just count them,
@@ -396,9 +396,9 @@ let () =
     in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
-    let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
-    let pos = pos + extra in
-    (* TODO: haven't wrapped selectionStart yet *)
+    let addWrapper pos = pos + wrapperOffset + (newlinesBefore pos * 2) in
+    let pos = addWrapper pos in
+    let selectionStart = Option.map selectionStart ~f:addWrapper in
     let s = {s with oldPos = pos; newPos = pos; selectionStart} in
     if debug
     then (
@@ -437,11 +437,7 @@ let () =
     in
     let finalPos = removeWrapperFromCaretPos newState.newPos in
     let selPos =
-      match newState.selectionStart with
-      | Some p ->
-          Some (removeWrapperFromCaretPos p)
-      | None ->
-          None
+      Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
