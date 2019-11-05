@@ -1,45 +1,10 @@
-use std::error::Error;
-use std::fmt;
 use std::sync::Arc;
 use std::thread;
 
-use slog::error; // macro
+use failure::Error;
+use slog::error;
 
 use crate::config;
-
-#[derive(Debug)]
-pub enum FatalError {
-    GenericPostgresError(postgres::Error),
-    PostgresConnectError(postgres::Error),
-}
-
-impl Error for FatalError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            FatalError::GenericPostgresError(e) => Some(e),
-            FatalError::PostgresConnectError(e) => Some(e),
-        }
-    }
-}
-
-impl fmt::Display for FatalError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            FatalError::GenericPostgresError(e) => {
-                write!(f, "FatalError::GenericPostgresError: {}", e)
-            }
-            FatalError::PostgresConnectError(e) => {
-                write!(f, "FatalError::PostgresConnectError: {}", e)
-            }
-        }
-    }
-}
-
-impl From<postgres::Error> for FatalError {
-    fn from(e: postgres::Error) -> Self {
-        FatalError::GenericPostgresError(e)
-    }
-}
 
 pub struct ErrorReporter {
     log: Arc<slog::Logger>,
@@ -76,12 +41,15 @@ impl ErrorReporter {
             .unwrap();
     }
 
-    pub fn report_error<E: Error>(
-        &self,
-        err: E,
-    ) -> thread::JoinHandle<Option<rollbar::ResponseStatus>> {
-        error!(*self.log, "fatal"; "error.msg" => format!("{}", err));
+    pub fn report_error(&self, err: Error) -> thread::JoinHandle<Option<rollbar::ResponseStatus>> {
+        error!(*self.log, "fatal"; "error.msg" => err.to_string());
+
+        // only print when !release
+        if cfg!(debug_assertions) {
+            println!("{}", err.backtrace());
+        }
         let c = &self.rollc;
-        rollbar::report_error!(c, err)
+        let rerr = err.compat();
+        rollbar::report_error!(c, rerr)
     }
 }
