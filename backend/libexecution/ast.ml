@@ -553,7 +553,14 @@ and call_fn
                 |> DvalMap.from_list_exn
               in
               exec_fn ~engine ~state name id fn args
-            else DError ("Incorrect number of args in fncall to " ^ name)
+            else
+              DError
+                ( "Incorrect number of args in fncall to "
+                ^ name
+                ^ ", expected "
+                ^ string_of_int expected_length
+                ^ ", got "
+                ^ string_of_int actual_length )
       in
       if send_to_rail
       then
