@@ -541,7 +541,9 @@ let () =
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      (expected : string * (int option * int)) =
+      ((expectedString, (expectedLeft, expectedRight)) : string * (int * int))
+      =
+    let expected = (expectedString, (Some expectedLeft, expectedRight)) in
     test
       ( name
       ^ " - `"
@@ -2660,19 +2662,19 @@ let () =
         longLets
         (modPresses [(K.Right, ShiftHeld)] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 4) ) ;
+        , (0, 4) ) ;
       ts
         "shift down selects"
         longLets
         (modPresses [(K.Down, ShiftHeld)] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 52) ) ;
+        , (4, 52) ) ;
       ts
         "shift left selects"
         longLets
         (modPresses [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 52, 48) ) ;
+        , (52, 48) ) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
