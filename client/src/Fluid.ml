@@ -3221,11 +3221,12 @@ let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
 
 
 let getTopmostSelectionID startPos endPos ~state ast : id option =
+  let asExpr = toExpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ~state ast
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = Token.parentExprID ti.token in
-         let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
+         let curDepth = AST.ancestors curID asExpr |> List.length in
          if (* check if current token is higher in the AST than the last token,
              * or if there's no topmost ID yet *)
             (curDepth < topmostDepth || topmostID = None)
