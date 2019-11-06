@@ -45,7 +45,8 @@ let load ~canvas_id ~trace_id tlid : function_result list =
              ( fnname
              , id_of_string id
              , hash
-             , hash_version |> int_of_string
+               (* hash_version is nullable, nulls come back as empty string *)
+             , (match hash_version with "" -> 0 | hv -> hv |> int_of_string)
              , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
              Exception.internal
