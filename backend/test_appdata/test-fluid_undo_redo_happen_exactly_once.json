@@ -1,0 +1,99 @@
+[
+  [ "TLSavepoint", 608699171 ],
+  [
+    "SetHandler",
+    608699171,
+    { "x": 800, "y": 351 },
+    {
+      "tlid": 608699171,
+      "ast": [ "Blank", 1312435743 ],
+      "spec": {
+        "module": [ "Filled", 1704783743, "REPL" ],
+        "name": [ "Filled", 1007820334, "zippyMouse" ],
+        "modifier": [ "Filled", 1876109371, "_" ],
+        "types": {
+          "input": [ "Blank", 351177358 ],
+          "output": [ "Blank", 933335448 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 608699171 ],
+  [
+    "SetHandler",
+    608699171,
+    { "x": 800, "y": 351 },
+    {
+      "tlid": 608699171,
+      "ast": [ "Filled", 68470584, [ "Value", "\"1234\"" ] ],
+      "spec": {
+        "module": [ "Filled", 1704783743, "REPL" ],
+        "name": [ "Filled", 1007820334, "zippyMouse" ],
+        "modifier": [ "Filled", 1876109371, "_" ],
+        "types": {
+          "input": [ "Blank", 79826125 ],
+          "output": [ "Blank", 1570590937 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 608699171 ],
+  [
+    "SetHandler",
+    608699171,
+    { "x": 800, "y": 351 },
+    {
+      "tlid": 608699171,
+      "ast": [ "Filled", 68470584, [ "Value", "\"12345\"" ] ],
+      "spec": {
+        "module": [ "Filled", 1704783743, "REPL" ],
+        "name": [ "Filled", 1007820334, "zippyMouse" ],
+        "modifier": [ "Filled", 1876109371, "_" ],
+        "types": {
+          "input": [ "Blank", 1160584269 ],
+          "output": [ "Blank", 665641384 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 608699171 ],
+  [
+    "SetHandler",
+    608699171,
+    { "x": 800, "y": 351 },
+    {
+      "tlid": 608699171,
+      "ast": [ "Filled", 496618803, [ "Value", "\"123456789\"" ] ],
+      "spec": {
+        "module": [ "Filled", 1704783743, "REPL" ],
+        "name": [ "Filled", 1007820334, "zippyMouse" ],
+        "modifier": [ "Filled", 1876109371, "_" ],
+        "types": {
+          "input": [ "Blank", 1976801835 ],
+          "output": [ "Blank", 444321252 ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 608699171 ],
+  [
+    "SetHandler",
+    608699171,
+    { "x": 800, "y": 351 },
+    {
+      "tlid": 608699171,
+      "ast": [ "Filled", 1563094735, [ "Value", "\"123456789abcde\"" ] ],
+      "spec": {
+        "module": [ "Filled", 1704783743, "REPL" ],
+        "name": [ "Filled", 1007820334, "zippyMouse" ],
+        "modifier": [ "Filled", 1876109371, "_" ],
+        "types": {
+          "input": [ "Blank", 481859721 ],
+          "output": [ "Blank", 780829661 ]
+        }
+      }
+    }
+  ],
+  [ "UndoTL", 608699171 ],
+  [ "UndoTL", 608699171 ]
+]

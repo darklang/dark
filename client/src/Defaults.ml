@@ -70,7 +70,7 @@ let defaultToast : toast = {toastMessage = None; toastPos = None}
 let defaultAccount : account = {name = ""; email = ""; username = ""}
 
 let defaultModel : model =
-  { error = {message = None; showDetails = false}
+  { error = None
   ; lastMsg = IgnoreMsg
   ; lastMod = NoChange
   ; opCtrs = StrDict.empty

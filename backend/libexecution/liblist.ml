@@ -38,6 +38,24 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["List::head_v2"]
+    ; ins = []
+    ; p = [par "list" TList]
+    ; r = TOption
+    ; d = "Fetches the head of the list and returns an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l] ->
+            ( match List.hd l with
+            | Some dv ->
+                Dval.to_opt_just dv
+            | None ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["List::empty"]
     ; ins = []
@@ -100,6 +118,22 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["List::last_v2"]
+    ; ins = []
+    ; p = [par "list" TList]
+    ; r = TOption
+    ; d = "Returns the last item in the list as an option"
+    ; f =
+        InProcess
+          (function
+          | _, [DList []] ->
+              DOption OptNothing
+          | _, [DList l] ->
+              Dval.to_opt_just (List.last_exn l)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["List::reverse"]
     ; ins = []
@@ -142,6 +176,26 @@ let fns =
                   DOption OptNothing
               | Some dv ->
                   DOption (OptJust dv) )
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["List::findFirst_v2"]
+    ; ins = []
+    ; p = [par "l" TList; func ["val"]]
+    ; r = TOption
+    ; d =
+        "Find the first element of the list, for which `f` returns true. Returns Nothing if none return true"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DBlock fn] ->
+              let f (dv : dval) : bool = DBool true = fn [dv] in
+              ( match List.find ~f l with
+              | None ->
+                  DOption OptNothing
+              | Some dv ->
+                  Dval.to_opt_just dv )
           | args ->
               fail args)
     ; ps = true
@@ -444,6 +498,23 @@ let fns =
           | _, [DList l; DInt index] ->
               List.nth l (Dint.to_int_exn index)
               |> Option.map ~f:(fun a -> DOption (OptJust a))
+              |> Option.value ~default:(DOption OptNothing)
+          | args ->
+              fail args)
+    ; ps = true
+    ; dep = true }
+  ; { pns = ["List::getAt_v1"]
+    ; ins = []
+    ; p = [par "l" TList; par "index" TInt]
+    ; r = TOption
+    ; d =
+        "Returns `Just item` at `index` in list `l` if `index` is less than the length of the list otherwise returns `Nothing`"
+    ; f =
+        InProcess
+          (function
+          | _, [DList l; DInt index] ->
+              List.nth l (Dint.to_int_exn index)
+              |> Option.map ~f:(fun a -> Dval.to_opt_just a)
               |> Option.value ~default:(DOption OptNothing)
           | args ->
               fail args)

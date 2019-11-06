@@ -873,9 +873,12 @@ test("rename_pattern_variable", async t => {
 test("taking_off_rail_works", async t => {
   await createRepl(t);
   await t
-    .typeText("#entry-box", "List::head_v1")
+    .typeText("#entry-box", "List::head_v2")
+    .pressKey("enter")
+    .typeText("#entry-box", "[")
     .pressKey("enter")
     .pressKey("esc")
+    .pressKey("shift+up")
     .pressKey("shift+up")
     .pressKey("alt+shift+e");
 });
@@ -1113,6 +1116,23 @@ test("fluid_shift_left_selects_chars_at_back", async t => {
     .ok()
     .click(Selector(".fluid-category-string"), { caretPos: 2 })
     .pressKey("down shift+left shift+up");
+});
+
+test("fluid_undo_redo_happen_exactly_once", async t => {
+  await t
+    .expect(available(".tl-608699171"))
+    .ok()
+    .click(Selector(".id-68470584.fluid-category-string"))
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"12345"')
+    .pressKey("ctrl+z")
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"1234"')
+    .pressKey("ctrl+shift+z")
+    .expect(Selector(".fluid-category-string").textContent)
+    .eql('"12345"');
 });
 
 test("varnames_are_incomplete", async t => {

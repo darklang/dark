@@ -41,6 +41,26 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Date::parse_v2"]
+    ; ins = []
+    ; p = [par "s" TStr]
+    ; r = TResult
+    ; d =
+        "Parses a string representing a date and time in the ISO 8601 format (for example: 2019-09-07T22:44:25Z) and returns a Date"
+    ; f =
+        InProcess
+          (function
+          | _, [DStr s] ->
+            ( try
+                Dval.to_res_ok
+                  (DDate (Util.date_of_isostring (Unicode_string.to_string s)))
+              with e ->
+                Dval.to_res_err (Dval.dstr_of_string_exn "Invalid date format")
+            )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Date::toString"]
     ; ins = []

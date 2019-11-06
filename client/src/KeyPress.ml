@@ -72,13 +72,21 @@ let openOmnibox (m : model) : modification =
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
-  let osCmdKeyHeld =
-    if Entry.getBrowserPlatform () = Mac then event.metaKey else event.ctrlKey
+  let isFluidState =
+    match m.cursorState with FluidEntering _ -> true | _ -> false
   in
-  if osCmdKeyHeld && event.keyCode = Key.Z
-  then undo_redo m event.shiftKey
+  let isMac = Entry.getBrowserPlatform () = Mac in
+  let osCmdKeyHeld = if isMac then event.metaKey else event.ctrlKey in
+  if isFluidState
+  then NoChange
   else if osCmdKeyHeld && event.keyCode = Key.Z
-  then undo_redo m event.shiftKey
+  then
+    undo_redo m event.shiftKey
+    (* Note: CTRL+Y is Windows redo
+      but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
+      See https://support.google.com/chrome/answer/157179?hl=en *)
+  else if (not isMac) && event.ctrlKey && event.keyCode = Key.Y
+  then undo_redo m true
   else if osCmdKeyHeld && event.keyCode = Key.S
   then ShowSaveToast
   else

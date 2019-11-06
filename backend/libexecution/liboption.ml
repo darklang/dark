@@ -23,7 +23,7 @@ let fns : Lib.shortfn list =
     ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing."
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
     ; f =
         InProcess
           (function
@@ -36,13 +36,32 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Option::map_v1"]
+    ; ins = []
+    ; p = [par "option" TOption; func ["val"]]
+    ; r = TOption
+    ; d =
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing."
+    ; f =
+        InProcess
+          (function
+          | _, [DOption o; DBlock fn] ->
+            ( match o with
+            | OptJust dv ->
+                Dval.to_opt_just (fn [dv])
+            | OptNothing ->
+                DOption OptNothing )
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Option::andThen"]
     ; ins = []
     ; p = [par "option" TOption; func ["val"]]
     ; r = TOption
     ; d =
-        "Transform an Option using `f`, only if the Option is a Just. If Nothing, doesn't nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
+        "Transform an Option using `f`, only if the Option is a Just. If Nothing, does nothing. Combines the result into a single option, where if both the caller and the result are Just, the result is a single Just"
     ; f =
         InProcess
           (function
