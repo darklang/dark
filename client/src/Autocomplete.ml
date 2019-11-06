@@ -587,17 +587,33 @@ let handlerFindtoName (h : handler) : string =
   ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"Undefined")
 
 
+let fnFindToName (f : userFunction) : string =
+  "Found in function: "
+  ^ ( f.ufMetadata.ufmName
+    |> B.toMaybe
+    |> Option.withDefault ~default:"Undefined" )
+
+
 let qSearch (m : model) (s : string) : omniAction list =
   if String.length s > 3
   then
-    TD.values m.handlers
-    |> List.filter ~f:(fun h -> AST.findString s h.ast)
-    |> List.map ~f:(fun h ->
-           Goto
-             ( FocusedHandler (h.hTLID, true)
-             , h.hTLID
-             , handlerFindtoName h
-             , true ) )
+    let handlers =
+      TD.values m.handlers
+      |> List.filter ~f:(fun h -> AST.findString s h.ast)
+      |> List.map ~f:(fun h ->
+             Goto
+               ( FocusedHandler (h.hTLID, true)
+               , h.hTLID
+               , handlerFindtoName h
+               , true ) )
+    in
+    let userFunctions =
+      TD.values m.userFunctions
+      |> List.filter ~f:(fun f -> AST.findString s f.ufAST)
+      |> List.map ~f:(fun f ->
+             Goto (FocusedFn f.ufTLID, f.ufTLID, fnFindToName f, true) )
+    in
+    handlers @ userFunctions
   else []
 
 
