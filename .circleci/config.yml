@@ -29,7 +29,6 @@ commands:
           command: |
             docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark << parameters.path >>"
 
-
   ##########################
   # Check the worktree
   ##########################
@@ -56,6 +55,49 @@ commands:
           path: artifacts
       - store_test_results:
           path: artifacts/rundir/test_results
+
+  rust-setup:
+    parameters:
+      project:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
+            - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
+            - v12-<< parameters.project >>
+      - run:
+          name: Set up volume for cargo
+          command: |
+            mkdir -p dotcargo
+            docker cp dotcargo/. vols:/home/dark/.cargo
+            rm -Rf dotcargo # don't copy it a second time when we copy-into-container
+      - set-ownership: { path: "/home/dark/.cargo" }
+
+  rust-cache:
+    parameters:
+      project:
+        type: string
+    steps:
+      - run:
+          name: Copy out generated files and caches
+          command: |
+            docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
+            docker cp vols:/home/dark/.cargo dotcargo
+      # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
+      - save_cache:
+          name: "Save << parameters.project >> cache"
+          paths:
+            - << parameters.project >>/target
+            - dotcargo/bin/
+            - dotcargo/registry/index/
+            - dotcargo/registry/cache/
+            - dotcargo/git/db/
+          key: v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - << parameters.project>>/target
 
 
   ##########################
@@ -104,7 +146,7 @@ commands:
           command: |
             # We list all the directories because volume creation has to be
             # done on creation afaict.
-            docker create -v /home/dark/app -v /home/dark/.esy -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
+            docker create -v /home/dark/app -v /home/dark/.esy -v /home/dark/.cargo -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
 
       - run:
           name: Install outer container utilities
@@ -166,107 +208,28 @@ jobs:
     steps:
       - checkout
       - initialize
-      - restore_cache:
-          keys:
-            - v11-stroller-{{ checksum "stroller/Cargo.lock" }}
-            - v11-stroller-{{ checksum "rundir/today-timestamp" }}
-            - v11-stroller-{{ checksum "rundir/minus1-timestamp" }}
-            - v11-stroller-{{ checksum "rundir/minus2-timestamp" }}
-            - v11-stroller-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "stroller/target" }
-      - clean-caches: { path: "cargo-home" }
-      - run:
-          # Everything else (including stroller/target) is copied in via
-          # copy-into-container, but it doesn't include this because it's not
-          # in /home/dark/app.
-          name: Set up volume for cargo
-          command: |
-            docker cp cargo-home vols:/usr/local/cargo-home
-            rm -Rf cargo-home # don't copy it a second time
-      - set-ownership:
-          path: "/usr/local/cargo-home"
+      - rust-setup: { project: "stroller" }
       - copy-into-container
       - run: scripts/builder --compile-stroller --test
       - run-background-container
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/app/stroller/target stroller/
-            docker cp vols:/usr/local/cargo-home cargo-home
-      - save_cache:
-          name: "Save cargolock-specific stroller cache"
-          paths:
-            - stroller/target
-            - cargo-home
-          key: v11-stroller-{{ checksum "stroller/Cargo.lock" }}
-      - save_cache:
-          name: "Save daily stroller cache"
-          paths:
-            - stroller/target
-            - cargo-home
-          key: v11-stroller-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for deploy
-            - stroller/target/release/dark-stroller
+      - rust-cache: { project: "stroller" }
 
   build-queue-scheduler:
     executor: my-executor
     steps:
       - checkout
       - initialize
-      - restore_cache:
-          keys:
-            - v11-scheduler-{{ checksum "queue-scheduler/Cargo.lock" }}
-            - v11-scheduler-{{ checksum "rundir/today-timestamp" }}
-            - v11-scheduler-{{ checksum "rundir/minus1-timestamp" }}
-            - v11-scheduler-{{ checksum "rundir/minus2-timestamp" }}
-            - v11-scheduler-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "queue-scheduler/target" }
-      - clean-caches: { path: "cargo-home" }
-      - run:
-          # Everything else (including queue-scheduler/target) is copied in via
-          # copy-into-container, but it doesn't include this because it's not
-          # in /home/dark/app.
-          name: Set up volume for cargo
-          command: |
-            docker cp cargo-home vols:/usr/local/cargo-home
-            rm -Rf cargo-home # don't copy it a second time
-      - set-ownership:
-          path: "/usr/local/cargo-home"
+      - rust-setup: { project: "queue-scheduler" }
       - copy-into-container
-      - run: scripts/builder --compile-scheduler --test
+      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
       - run-background-container
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            docker cp vols:/home/dark/app/queue-scheduler/target queue-scheduler/
-            docker cp vols:/usr/local/cargo-home cargo-home
-      - save_cache:
-          name: "Save cargolock-specific queue-scheduler cache"
-          paths:
-            - queue-scheduler/target
-            - cargo-home
-          key: v11-scheduler-{{ checksum "queue-scheduler/Cargo.lock" }}
-      - save_cache:
-          name: "Save daily queue-scheduler cache"
-          paths:
-            - queue-scheduler/target
-            - cargo-home
-          key: v11-scheduler-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for deploy
-            - queue-scheduler/target/release/dark-queue-scheduler
-
+      - rust-cache: { project: "queue-scheduler" }
 
   build-backend:
     executor: my-executor
@@ -430,6 +393,7 @@ jobs:
             - v9-client-{{ checksum "rundir/minus1-timestamp" }}
             - v9-client-{{ checksum "rundir/minus2-timestamp" }}
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+
       - copy-into-container
       - run-background-container
 
@@ -451,6 +415,28 @@ jobs:
 
       - extract-and-save-artifacts
 
+  rust-integration-tests:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - attach_workspace: { at: "." }
+      - restore_cache:
+          keys:
+            - v9-client-{{ checksum "client/package.json" }}
+            - v9-client-{{ checksum "rundir/today-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+
+      - rust-setup: { project: "queue-scheduler" }
+      - copy-into-container
+      - run-background-container
+      - wait-for-server
+      - run:
+          name: Run queue-scheduler tests
+          command: scripts/run-in-docker scripts/run-rust-tests queue-scheduler
+      - assert-clean-worktree
 
 
   push-to-gcp:
@@ -511,12 +497,17 @@ workflows:
       # initial builds & tests
       - build-backend
       - build-client
-      - build-stroller
       - build-queue-scheduler
+      - build-stroller
       - build-postgres-honeytail
       - validate-honeycomb-config
 
       # expensive tests
+      - rust-integration-tests:
+          requires:
+            - build-backend
+            - build-client
+            - build-queue-scheduler
       - integration-tests:
           requires:
             - build-backend
@@ -542,4 +533,5 @@ workflows:
           requires:
             - validate-honeycomb-config
             - integration-tests
+            - rust-integration-tests
             - push-to-gcp
