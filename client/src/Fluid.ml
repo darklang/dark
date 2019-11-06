@@ -5050,17 +5050,18 @@ let renderCallback (m : model) : unit =
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
-        (* When you change the text of a node in the DOM, the browser resets
-         * the cursor to the start of the node. After each rerender, we want to
+        (* When we change the cursor position manually with arrow keys it does not 
+         * place the cursor in the correct spot so after each rerender, we want to
          * make sure we set the cursor to it's exact place. We do it here to
          * make sure it's always set after a render, not waiting til the next
          * frame.
          *
-         * However, if there currently is a selection, set that range instead of
-         * the new cursor position because otherwise the selection gets overwritten.
+         * However, if there currently is a selection, we do not want to set the cursor
+         * position manually
          *)
         match m.fluidState.selectionStart with
         | Some selStart ->
+            (* Shouldnt get here since the cursorState should be FluidCursorSelecting while selecting *)
             Entry.setFluidSelectionRange (selStart, m.fluidState.newPos)
         | None ->
             Entry.setFluidCaret m.fluidState.newPos )
