@@ -259,12 +259,9 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUST_VERSI
 # install Rust dev tools
 RUN rustup component add clippy-preview rustfmt-preview
 
-# At this point, we've installed rust binaries in
-# /usr/local/cargo/bin and added them to the PATH. CARGO_HOME is the
-# place where cargo installs a lot of caches and so we want to put
-# those in a volume, so we make CARGO_HOME a different directory
-ENV CARGO_HOME=/usr/local/cargo-home
-
+# Once we have cargo and things installed in /usr/local/cargo and that added to PATH,
+# reset CARGO_HOME so that we can use it as a project cache directory like normal.
+ENV CARGO_HOME=/home/dark/.cargo
 
 ########################
 # DNS for integration tests

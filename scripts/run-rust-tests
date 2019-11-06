@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+cd $1
+RUST_BACKTRACE=1 cargo test
+cargo clippy --all-targets --tests -- -D warnings
