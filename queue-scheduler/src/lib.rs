@@ -27,7 +27,7 @@ impl Looper {
         }
     }
 
-    fn tick(&mut self) -> Result<(), Error> {
+    pub fn tick(&mut self) -> Result<(), Error> {
         let t_start = Instant::now();
 
         let newly_scheduled = schedule_events(&self.conn)?;
