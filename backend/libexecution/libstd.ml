@@ -150,7 +150,7 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "str" TStr]
     ; r = TStr
-    ; d = "Return a string representing the error"
+    ; d = "Url encode a string per AWS' requirements"
     ; f =
         InProcess
           (function
