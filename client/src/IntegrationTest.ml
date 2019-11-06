@@ -761,23 +761,7 @@ let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
     | _ ->
         fail "handler is not focused"
   in
-  let expectedCursorPos = 6 in
-  let browserCursorPass =
-    if Entry.getFluidCaretPos () = Some expectedCursorPos
-    then pass
-    else fail "incorrect browser cursor position"
-  in
-  let cursorPass =
-    match m.cursorState with
-    | FluidEntering _ ->
-        if m.fluidState.newPos = expectedCursorPos
-        then pass
-        else fail "incorrect cursor position"
-    | _ ->
-        fail "incorrect cursor state"
-  in
-  Result.combine [focusedPass; browserCursorPass; cursorPass]
-  |> Result.map (fun _ -> ())
+  Result.combine [focusedPass] |> Result.map (fun _ -> ())
 
 
 let fluid_double_click_with_alt_selects_expression (m : model) : testResult =
