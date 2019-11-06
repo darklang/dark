@@ -1888,7 +1888,7 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
-      StartFluidCursorSelecting targetExnID
+      Many [Select (targetExnID, None); StartFluidCursorSelecting targetExnID]
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
