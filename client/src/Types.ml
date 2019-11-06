@@ -1032,7 +1032,6 @@ and msg =
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
   | EnablePanning of bool
-  | ShowErrorDetails of bool
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
@@ -1115,11 +1114,6 @@ and handlerProp =
   ; showActions : bool }
 
 and tlCursors = traceID StrDict.t
-
-(* Error Handling *)
-and darkError =
-  { message : string option
-  ; showDetails : bool }
 
 (* Testing *)
 and testResult = (string, unit) Result.t
@@ -1343,7 +1337,7 @@ and avatarModelMessage =
   ; timestamp : float }
 
 and model =
-  { error : darkError
+  { error : string option
   ; lastMsg : msg
   ; lastMod : modification
   ; tests : variantTest list

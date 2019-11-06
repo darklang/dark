@@ -600,7 +600,7 @@ let rename_pattern_variable (m : model) : testResult =
 let taking_off_rail_works (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
-  | F (_, FnCall (F (_, "List::head_v1"), _, NoRail)) ->
+  | F (_, FnCall (F (_, "List::head_v2"), _, NoRail)) ->
       pass
   | _ ->
       fail ~f:show_expr ast
@@ -825,6 +825,11 @@ let fluid_shift_left_selects_chars_at_back (m : model) : testResult =
       fail "no selection range"
 
 
+let fluid_undo_redo_happen_exactly_once (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let varnames_are_incomplete (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -976,6 +981,8 @@ let trigger (test_name : string) : integrationTestState =
         fluid_shift_right_selects_chars_in_front
     | "fluid_shift_left_selects_chars_at_back" ->
         fluid_shift_left_selects_chars_at_back
+    | "fluid_undo_redo_happen_exactly_once" ->
+        fluid_undo_redo_happen_exactly_once
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->

@@ -1287,6 +1287,18 @@ let () =
         (press K.Equals 7)
         ("12345 <= 12345", 8) ;
       t
+        "changing binop to fn should work"
+        (EPartial
+           (gid (), "Int::add", EBinOp (gid (), "+", anInt, anInt, NoRail)))
+        (presses [K.Enter] 14)
+        ("Int::add 12345 12345", 15) ;
+      t
+        "changing fn to binops should work"
+        (EPartial
+           (gid (), "+", EFnCall (gid (), "Int::add", [anInt; anInt], NoRail)))
+        (presses [K.Enter] 1)
+        ("12345 + 12345", 0) ;
+      t
         "changing binop should work"
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
@@ -1945,6 +1957,12 @@ let () =
         (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________\n", 8) ;
       t
+        "creating a thread from an fn via a partial works"
+        (EPartial (gid (), "|>", aFnCall))
+        (enter 2)
+        (* This really should end in 18, but too much work for now *)
+        ("Int::add 5 _________\n|>___\n", 11) ;
+      t
         "enter at the end of a thread expr creates a new entry"
         aThread
         (enter 21)
@@ -1975,6 +1993,11 @@ let () =
         (enter 55)
         ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
         , 73 ) ;
+      t
+        "inserting a thread into another thread gives a single thread"
+        (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
+        (enter 23)
+        ("5\n|>List::append [5]\n|>___\n", 23) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
@@ -2408,7 +2431,7 @@ let () =
         "thread moves to right place on placeholder"
         aFnCall
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 ___\n           |>___\n", 28) ;
+        ("Int::add 5 _________\n|>___\n", 23) ;
       t
         "thread moves to right place in if then"
         emptyIf
@@ -2465,7 +2488,6 @@ let () =
       (*   ("match request.body", 18) ; *)
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (bs (EVariable (5, "request"))). *)
-      (*     gridFor ~pos:116 tokens) |> toEqual {row= 2; col= 2} ) ; *)
       () ) ;
   describe "Movement" (fun () ->
       let tokens = toTokens m.fluidState complexExpr in

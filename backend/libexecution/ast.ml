@@ -501,11 +501,11 @@ object but is a "
       | Filled (_, "Nothing"), [] ->
           DOption OptNothing
       | Filled (_, "Just"), [arg] ->
-          DOption (OptJust (exe st arg))
+          Dval.to_opt_just (exe st arg)
       | Filled (_, "Ok"), [arg] ->
-          DResult (ResOk (exe st arg))
+          Dval.to_res_ok (exe st arg)
       | Filled (_, "Error"), [arg] ->
-          DResult (ResError (exe st arg))
+          Dval.to_res_err (exe st arg)
       | _ ->
           DError "Invalid construction option" )
   in
@@ -553,7 +553,14 @@ and call_fn
                 |> DvalMap.from_list_exn
               in
               exec_fn ~engine ~state name id fn args
-            else DError ("Incorrect number of args in fncall to " ^ name)
+            else
+              DError
+                ( name
+                ^ " has "
+                ^ string_of_int expected_length
+                ^ " parameters, but here was called with "
+                ^ string_of_int actual_length
+                ^ " arguments." )
       in
       if send_to_rail
       then
