@@ -717,6 +717,10 @@ and function_ =
 (* autocomplete items *)
 and literal = string
 
+and displayText = string
+
+and isDynamic = bool
+
 and keyword =
   | KLet
   | KIf
@@ -738,7 +742,7 @@ and omniAction =
   | NewCronHandler of string option
   | NewReplHandler of string option
   | NewGroup of string option
-  | Goto of page * tlid * string
+  | Goto of page * tlid * displayText * isDynamic
 
 and autocompleteItem =
   | ACFunction of function_
