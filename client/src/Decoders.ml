@@ -50,6 +50,7 @@ external getUint8ArrayIdx : jsUint8Array -> int -> int = "" [@@bs.get_index]
 external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = ""
   [@@bs.set_index]
 
+(* Note: unsafe. Wrap in bytes_from_base64url, which validates the input *)
 let dark_arrayBuffer_from_b64url =
   [%raw
     {|
@@ -115,8 +116,23 @@ let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
   bytes
 
 
+exception Invalid_B64 of string
+
+let valid_rfc4648_b64_or_exn (str : string) =
+  let rfc4648_section5_alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\-_"
+  in
+  (* '=' isn't in the alphabet, but we allow it as padding *)
+  if Util.Regex.exactly ~re:("[" ^ rfc4648_section5_alphabet ^ "=" ^ "]*") str
+  then str
+  else raise (Invalid_B64 "Expected B64 input matching RFC4648 alphabet.")
+
+
 let bytes_from_base64url (b64 : string) : Bytes.t =
-  b64 |> dark_arrayBuffer_from_b64url |> _bytes_from_uint8Array
+  b64
+  |> valid_rfc4648_b64_or_exn
+  |> dark_arrayBuffer_from_b64url
+  |> _bytes_from_uint8Array
 
 
 (* identifiers are strings to the bucklescript client -- it knows nothing

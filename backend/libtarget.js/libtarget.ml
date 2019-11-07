@@ -62,10 +62,33 @@ let base64url_bytes (input : Bytes.t) : string =
   |> Js.to_string
 
 
+let regexp_replace ~(pattern : string) ~(replacement : string) (str : string) :
+    string =
+  Regexp.global_replace (Regexp.regexp pattern) str replacement
+
+
+exception Invalid_B64 of string
+
+let valid_rfc4648_b64_or_exn (str : string) =
+  let rfc4648_section5_alphabet =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\\-_"
+  in
+  let replaced_string =
+    regexp_replace (* '=' isn't in the alphabet, but we allow it as padding *)
+      ~pattern:("^[" ^ rfc4648_section5_alphabet ^ "=" ^ "]*$")
+      ~replacement:""
+      str
+  in
+  if replaced_string = ""
+  then str
+  else raise (Invalid_B64 "Expected B64 input matching RFC4648 alphabet.")
+
+
 (* The input here MUST be a b64 string as implemented;
    out-of-alphabet chars will map to 0 *)
 let bytes_from_base64url (b64 : string) : Bytes.t =
   b64
+  |> valid_rfc4648_b64_or_exn
   |> Js.string
   |> dark_arrayBuffer_from_padded_b64url
   |> _bytes_from_uint8Array
@@ -77,11 +100,6 @@ external dark_targetjs_digest256 :
 
 let digest256 (input : string) : string =
   input |> Js.string |> dark_targetjs_digest256 |> Js.to_string
-
-
-let regexp_replace ~(pattern : string) ~(replacement : string) (str : string) :
-    string =
-  Regexp.global_replace (Regexp.regexp pattern) str replacement
 
 
 let string_split ~(sep : string) (s : string) : string list =

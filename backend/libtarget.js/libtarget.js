@@ -1,10 +1,11 @@
 //Provides: dark_arrayBuffer_from_padded_b64url
 // dark_arrayBuffer_from_padded_b64url creates an ArrayBuffer filled with the bytes
 // encoded by the given base64 string.
-// XXX(JULIAN): If the string contains
+// NOTE: Unsafe! If the string contains
 // characters that are outside of the alphabet,
 // it will silently interpret them as 0, because bitwise ops coerce
 // undefined to 0, and undefined is the result of out-of-range array accesses in JS.
+// We solve this by wrapping it in bytes_from_b64 in libtarget.js/libtarget.ml
 function dark_arrayBuffer_from_padded_b64url(base64) {
   // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
   // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
