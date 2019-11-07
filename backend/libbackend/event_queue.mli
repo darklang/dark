@@ -40,20 +40,22 @@ val finish : transaction -> t -> unit
 
 val schedule_all : unit -> unit
 
-type canvas_id = Uuidm.t
-
 type scheduling_rule =
   { id : int
   ; rule_type : string
-  ; canvas_id : canvas_id
+  ; canvas_id : Uuidm.t
   ; handler_name : string
   ; event_space : string
   ; created_at : time }
 
 val get_all_scheduling_rules : unit -> scheduling_rule list
 
-val get_scheduling_rules_for_canvas : canvas_id -> scheduling_rule list
+val get_scheduling_rules_for_canvas : Uuidm.t -> scheduling_rule list
 
-val block_worker : canvas_id -> string -> unit
+val block_worker : Uuidm.t -> string -> unit
 
-val unblock_worker : canvas_id -> string -> unit
+val unblock_worker : Uuidm.t -> string -> unit
+
+val pause_worker : Uuidm.t -> string -> unit
+
+val unpause_worker : Uuidm.t -> string -> unit
