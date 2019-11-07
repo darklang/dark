@@ -5052,18 +5052,17 @@ let renderCallback (m : model) : unit =
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
-        (* When we change the cursor position manually with arrow keys it does not 
-         * place the cursor in the correct spot so after each rerender, we want to
-         * make sure we set the cursor to it's exact place. We do it here to
-         * make sure it's always set after a render, not waiting til the next
-         * frame.
-         *
-         * However, if there currently is a selection, we do not want to set the cursor
-         * position manually
-         *)
+        (* This for two different purposes: 
+         * 1. When a key press mutates the text in the content editable, the browser resets the caret position to the * beginnning of the content editable. Here we set the caret to the correct position from the fluidState
+         * 2. We intercept all keyboard caret movement, therefore we need to set the caret to the correct position 
+         * from the fluidState
+
+         * We do this after a render(not waiting til the next frame) so that the developer does not see the caret 
+         * flicker to default browser position
+        *)
         match m.fluidState.selectionStart with
         | Some selStart ->
-            (* Shouldnt get here since the cursorState should be FluidCursorSelecting while selecting *)
+            (* Updates the browser selection range for 2 in the context of selections *)
             Entry.setFluidSelectionRange (selStart, m.fluidState.newPos)
         | None ->
             Entry.setFluidCaret m.fluidState.newPos )
