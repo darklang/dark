@@ -751,5 +751,86 @@ let () =
                 )
               |> toEqual true ) ;
           () ) ;
+      describe "code search" (fun () ->
+          let http =
+            aHandler
+              ~tlid:(TLID "123")
+              ~space:(Some "HTTP")
+              ~expr:
+                (B.newF
+                   (FieldAccess
+                      (B.newF (Variable "request"), B.newF "queryParams")))
+              ()
+          in
+          let repl =
+            aHandler
+              ~tlid:(TLID "456")
+              ~space:(Some "REPL")
+              ~expr:(B.newF (FnCall (B.newF "Int::add", [], NoRail)))
+              ()
+          in
+          let fn =
+            aFunction
+              ~tlid:(TLID "789")
+              ~expr:
+                (B.newF
+                   (Let
+                      ( B.newF "bunny"
+                      , B.newF (Value "9")
+                      , B.newF (Value "\"hello\"") )))
+              ()
+          in
+          let cursorState = creatingCS in
+          let m =
+            defaultModel
+              ~handlers:[http; repl]
+              ~userFunctions:[fn]
+              ~cursorState
+              ()
+          in
+          let exprToStr ast = Fluid.exprToStrFn m.fluidState ast in
+          let astCache =
+            m.astCache
+            |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)
+            |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
+            |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
+          in
+          let m = {m with astCache} in
+          test "find variable" (fun () ->
+              let foundActions =
+                match qSearch m "bunny" with
+                | [Goto (_, tlid, _, true)] when tlid = fn.ufTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find string literal" (fun () ->
+              let foundActions =
+                match qSearch m "hello" with
+                | [Goto (_, tlid, _, true)] when tlid = fn.ufTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find field access" (fun () ->
+              let foundActions =
+                match qSearch m "request.query" with
+                | [Goto (_, tlid, _, true)] when tlid = http.hTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find function call" (fun () ->
+              let foundActions =
+                match qSearch m "Int::add" with
+                | [Goto (_, tlid, _, true)] when tlid = repl.hTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ) ;
       () ) ;
   ()
