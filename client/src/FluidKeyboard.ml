@@ -105,6 +105,8 @@ type key =
   | GoToEndOfLine
   | DeleteToStartOfLine
   | DeleteToEndOfLine
+  | GoToStartOfWord
+  | GoToEndOfWord
   | Undo
   | Redo
   | SelectAll
@@ -149,11 +151,12 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 36 ->
       Home
   | 37 ->
-      if isMacCmdHeld then GoToStartOfLine else Left
+
+      if osCmdKeyHeld then GoToStartOfLine else if ctrl then GoToStartOfWord else Left
   | 38 ->
       Up
   | 39 ->
-      if isMacCmdHeld then GoToEndOfLine else Right
+      if osCmdKeyHeld then GoToEndOfLine else if ctrl then GoToEndOfWord else Right
   | 40 ->
       Down
   | 45 ->
@@ -447,6 +450,8 @@ let toChar key : char option =
   | GoToEndOfLine
   | DeleteToStartOfLine
   | DeleteToEndOfLine
+  | GoToStartOfWord
+  | GoToEndOfWord
   | Undo
   | Redo
   | SelectAll ->
@@ -613,6 +618,10 @@ let toName (key : key) : string =
       "DeleteToStartOfLine"
   | DeleteToEndOfLine ->
       "DeleteToEndOfLine"
+  | GoToStartOfWord ->
+      "GoToStartOfWord"
+  | GoToEndOfWord ->
+      "GoToEndOfWord"
   | Undo ->
       "Undo"
   | Redo ->
