@@ -58,7 +58,8 @@ let dark_arrayBuffer_from_b64url =
     // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
     // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
     // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
-    // since it's shared and could be cached.
+    // since it's shared and could be cached. (This recreates the table every
+    // time the function is called.)
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
     // Use a lookup table to find the index.
