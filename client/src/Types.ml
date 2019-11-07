@@ -945,6 +945,7 @@ and modification =
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
   | StartFluidMouseSelecting of tlid
+  | UpdateASTCache of tlid * string
 
 (* ------------------- *)
 (* Msgs *)
@@ -1428,7 +1429,8 @@ and model =
   ; showTopbar : bool
   ; toast : toast
   ; username : string
-  ; account : account }
+  ; account : account
+  ; astCache : string TLIDDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =

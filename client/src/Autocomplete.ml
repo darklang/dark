@@ -595,11 +595,18 @@ let fnFindToName (f : userFunction) : string =
 
 
 let qSearch (m : model) (s : string) : omniAction list =
+  let findString tlid =
+    match TLIDDict.get ~tlid m.astCache with
+    | Some cache ->
+        String.contains ~substring:s cache
+    | None ->
+        false
+  in
   if String.length s > 3
   then
     let handlers =
       TD.values m.handlers
-      |> List.filter ~f:(fun h -> AST.findString s h.ast)
+      |> List.filter ~f:(fun h -> findString h.hTLID)
       |> List.map ~f:(fun h ->
              Goto
                ( FocusedHandler (h.hTLID, true)
@@ -609,7 +616,7 @@ let qSearch (m : model) (s : string) : omniAction list =
     in
     let userFunctions =
       TD.values m.userFunctions
-      |> List.filter ~f:(fun f -> AST.findString s f.ufAST)
+      |> List.filter ~f:(fun f -> findString f.ufTLID)
       |> List.map ~f:(fun f ->
              Goto (FocusedFn f.ufTLID, f.ufTLID, fnFindToName f, true) )
     in

@@ -123,23 +123,6 @@ let find (id : id) (expr : expr) : pointerData option =
   |> List.head
 
 
-let findString (substring : string) (expr : expr) : bool =
-  allData expr
-  |> List.any ~f:(function
-         | PVarBind (F (_, varname)) when String.contains ~substring varname ->
-             true
-         | PExpr (F (_, FnCall (F (_, name), _, _)))
-           when String.contains ~substring name ->
-             true
-         | PExpr (F (_, Value v)) when String.contains ~substring v ->
-             true
-         | PExpr (F (_, FieldAccess (_, F (_, name))))
-           when String.contains ~substring name ->
-             true
-         | _ ->
-             false )
-
-
 let rec uses (var : varName) (expr : expr) : expr list =
   let is_rebinding newbind =
     match newbind with
