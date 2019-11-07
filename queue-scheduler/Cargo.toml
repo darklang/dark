@@ -23,4 +23,4 @@ rand = "0.7.2"
 rollbar = "0.6.0"
 slog = "2.5.2"
 slog-json = "2.3.0"
-uuid = { version = "0.5", features = ["v4"] }
+uuid = { version = "0.8", features = ["v4"] }
