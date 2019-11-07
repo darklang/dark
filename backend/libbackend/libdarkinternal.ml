@@ -36,6 +36,17 @@ let internal_fn (f : exec_state * dval list -> dval) =
             |> Exception.code )
 
 
+let scheduling_rule_to_dval (r : Event_queue.scheduling_rule) : dval =
+  DvalMap.from_list
+    [ ("id", Dval.dint r.id)
+    ; ("rule_type", Dval.dstr_of_string_exn r.rule_type)
+    ; ("canvas_id", DUuid r.canvas_id)
+    ; ("handler_name", Dval.dstr_of_string_exn r.handler_name)
+    ; ("event_space", Dval.dstr_of_string_exn r.event_space)
+    ; ("created_at", DDate r.created_at) ]
+  |> DObj
+
+
 let fns : Lib.shortfn list =
   [ { pns = ["DarkInternal::checkAccess"]
     ; ins = []
@@ -1056,6 +1067,69 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let owner = Account.for_host_exn host in
                 let canvas_id = Serialize.fetch_canvas_id owner host in
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
+                DNull
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::getAllSchedulingRules"]
+    ; ins = []
+    ; p = []
+    ; r = TList
+    ; d = "Returns a list of all queue scheduling rules."
+    ; f =
+        internal_fn (function
+            | _, [] ->
+                Event_queue.get_all_scheduling_rules ()
+                |> List.map ~f:scheduling_rule_to_dval
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::getSchedulingRulesForCanvas"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid]
+    ; r = TList
+    ; d =
+        "Returns a list of all queue scheduling rules for the specified canvas_id"
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id] ->
+                Event_queue.get_scheduling_rules_for_canvas canvas_id
+                |> List.map ~f:scheduling_rule_to_dval
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::addWorkerSchedulingBlock"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; r = TNull
+    ; d =
+        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id; DStr handler_name] ->
+                Unicode_string.to_string handler_name
+                |> Event_queue.block_worker canvas_id ;
+                DNull
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::removeWorkerSchedulingBlock"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; r = TNull
+    ; d =
+        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id; DStr handler_name] ->
+                Unicode_string.to_string handler_name
+                |> Event_queue.unblock_worker canvas_id ;
                 DNull
             | args ->
                 fail args )
