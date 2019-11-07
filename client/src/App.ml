@@ -1001,6 +1001,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetClipboardContents (data, e) ->
         Clipboard.setData data e ;
         (m, Cmd.none)
+    | UpdateASTCache (tlid, str) ->
+        let astCache =
+          m.astCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+        in
+        ({m with astCache}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
