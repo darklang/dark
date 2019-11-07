@@ -4407,6 +4407,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       | Some newPos ->
           updateMouseClick newPos ast s
       | None ->
+          (* We reset the fluidState to prevent the selection and/or cursor position from presisting
+           * when a user switched handlers *)
           (ast, Defaults.defaultFluidState) )
     | FluidCut ->
         deleteSelection ~state:s ~ast
