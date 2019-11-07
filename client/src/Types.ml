@@ -946,6 +946,7 @@ and modification =
   | SetClipboardContents of clipboardContents * clipboardEvent
   | StartFluidMouseSelecting of tlid
   | UpdateASTCache of tlid * string
+  | InitASTCache of handler list * userFunction list
 
 (* ------------------- *)
 (* Msgs *)
