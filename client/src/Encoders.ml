@@ -17,8 +17,6 @@ let dark_arrayBuffer_to_b64url =
   [%raw
     {|
   function (arraybuffer) {
-    console.log("ENCODING: ");
-    console.log(arraybuffer);
     // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
     var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 

@@ -55,7 +55,6 @@ let dark_arrayBuffer_from_b64url =
   [%raw
     {|
   function (base64) {
-    console.log("DECODING: "+base64);
     // Modified version of https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js
     // Note that this version uses the url and filename safe alphabet instead of the standard b64 alphabet.
     // TODO(JULIAN): Figure out how to hoist the `lookup` definition out of the function,
