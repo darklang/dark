@@ -471,13 +471,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
     | StartFluidCursorSelecting tlid ->
-        let cursorState =
+        let newMod =
           if VariantTesting.isFluid m.tests
-          then FluidCursorSelecting tlid
-          else m.cursorState
+          then {m with cursorState = FluidCursorSelecting tlid}
+          else m
         in
-        let m = {m with cursorState} in
-        (m, Cmd.none)
+        (newMod, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
