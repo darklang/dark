@@ -1007,10 +1007,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with astCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
-        let exprToString ast =
-          let s = m.fluidState in
-          ast |> Fluid.fromExpr s |> Fluid.eToString s
-        in
+        let exprToString ast = Fluid.exprToStrFn m.fluidState ast in
         let hcache =
           handlers
           |> List.foldl ~init:m.astCache ~f:(fun h cache ->
