@@ -116,8 +116,9 @@ and side =
   | RightHand
 [@@deriving show]
 
-let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
-    key =
+let fromKeyboardCode
+    (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) (code : int) : key
+    =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
@@ -151,12 +152,11 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 36 ->
       Home
   | 37 ->
-
-      if osCmdKeyHeld then GoToStartOfLine else if ctrl then GoToStartOfWord else Left
+      if osCmdKeyHeld then GoToStartOfLine else if (isMac && alt) ||  ctrl then GoToStartOfWord else Left
   | 38 ->
       Up
   | 39 ->
-      if osCmdKeyHeld then GoToEndOfLine else if ctrl then GoToEndOfWord else Right
+      if osCmdKeyHeld then GoToEndOfLine else if (isMac && alt) || ctrl then GoToEndOfWord else Right
   | 40 ->
       Down
   | 45 ->
@@ -699,7 +699,8 @@ let keyEvent j =
   let ctrl = field "ctrlKey" bool j in
   let shift = field "shiftKey" bool j in
   let meta = field "metaKey" bool j in
-  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta
+  let alt = field "altKey" bool j in
+  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta alt
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
