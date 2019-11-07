@@ -1,10 +1,20 @@
 use std::sync::Arc;
 
 use failure::Error;
+use slog::o;
 use uuid::Uuid;
 
 use scheduler::config as sconfig;
 use scheduler::pg;
+use scheduler::Looper;
+
+pub fn setup() -> Result<(postgres::Connection, Looper), Error> {
+    let log = Arc::new(slog::Logger::root(slog::Discard {}, o!()));
+    let lconn = setup_database(log.clone())?;
+    let looper = Looper::new(lconn, log.clone());
+    let conn = setup_database(log.clone())?;
+    Ok((conn, looper))
+}
 
 pub fn setup_database(log: Arc<slog::Logger>) -> Result<postgres::Connection, Error> {
     let mut cfg = config::Config::new();
@@ -59,6 +69,7 @@ pub fn insert_event(
     conn: &postgres::Connection,
     cid: &Uuid,
     aid: &Uuid,
+    name: &str,
     delay: &str,
 ) -> Result<i32, Error> {
     let eid: i32 = conn
@@ -69,13 +80,30 @@ pub fn insert_event(
                     name, modifier, value, delay_until, enqueued_at
                  ) VALUES (
                     'new', NULL, $1, $2, 'WORKER',
-                    'test-1', '_', '{{}}', {}, CURRENT_TIMESTAMP
+                    $3, '_', '{{}}', {}, CURRENT_TIMESTAMP
                 ) RETURNING id",
                 delay
             ),
-            &[cid, aid],
+            &[cid, aid, &name.to_owned()],
         )?
-        // .map_err(|e| Error::from_boxed_compat(Box::new(e)))?
+        .get(0)
+        .get(0);
+
+    Ok(eid)
+}
+
+pub fn insert_pause_rule(
+    conn: &postgres::Connection,
+    cid: &Uuid,
+    name: &str,
+) -> Result<i32, Error> {
+    let eid: i32 = conn
+        .query(
+            "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
+             VALUES ('pause', $1, $2, 'WORKER')
+             RETURNING id",
+            &[cid, &name.to_owned()],
+        )?
         .get(0)
         .get(0);
 

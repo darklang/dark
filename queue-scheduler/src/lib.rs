@@ -46,8 +46,17 @@ impl Looper {
 
 fn schedule_events(conn: &postgres::Connection) -> Result<u64, Error> {
     conn.execute(
-        "UPDATE events SET status = 'scheduled' \
-         WHERE status = 'new' AND delay_until < CURRENT_TIMESTAMP",
+        "UPDATE events
+         SET status = 'scheduled'
+         WHERE NOT EXISTS (
+             SELECT * FROM scheduling_rules
+             WHERE rule_type IN ('block', 'pause')
+             AND canvas_id = events.canvas_id
+             AND handler_name = events.name
+             AND event_space = events.space
+         )
+         AND status = 'new'
+         AND delay_until < CURRENT_TIMESTAMP",
         &[],
     )
     .map_err(|e| Error::from_boxed_compat(Box::new(e)))
