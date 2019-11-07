@@ -657,7 +657,7 @@ let withDynamicItems
   List.uniqueBy ~f:asName (new_ @ withoutDynamic)
 
 
-let fnGotoName (name : string) : string = "Just to function: " ^ name
+let fnGotoName (name : string) : string = "Jump to function: " ^ name
 
 let tlGotoName (tl : toplevel) : string =
   match tl with
