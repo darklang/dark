@@ -193,12 +193,10 @@ let dequeue transaction : t option =
         ^ "]" )
 
 
-type canvas_id = Uuidm.t
-
 type scheduling_rule =
   { id : int
   ; rule_type : string
-  ; canvas_id : canvas_id
+  ; canvas_id : Uuidm.t
   ; handler_name : string
   ; event_space : string
   ; created_at : time }
@@ -212,27 +210,6 @@ let schedule_all unit : unit =
     ~params:[]
     "UPDATE events SET status = 'scheduled'
     WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
-
-
-(* DARK INTERNAL FN *)
-(* Gets all event scheduling rules, as used by the queue-scheduler. *)
-let get_all_scheduling_rules unit : scheduling_rule list =
-  Db.fetch
-    ~name:"get_all_scheduling_rules"
-    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
-    FROM scheduling_rules"
-    ~params:[]
-  |> List.map ~f:(function
-         | [id; rule_type; canvas_id; handler_name; event_space; created_at] ->
-             { id = int_of_string id
-             ; rule_type
-             ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
-             ; handler_name
-             ; event_space
-             ; created_at = Time.of_string created_at }
-         | _ ->
-             Exception.internal
-               "unexpected results parsing get_all_scheduling_rules" )
 
 
 let row_to_scheduling_rule row : scheduling_rule =
@@ -249,16 +226,18 @@ let row_to_scheduling_rule row : scheduling_rule =
 
 
 (* DARK INTERNAL FN *)
-(* Gets event scheduling rules for the specified canvas *)
-let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
+(* Gets all event scheduling rules, as used by the queue-scheduler. *)
+let get_all_scheduling_rules unit : scheduling_rule list =
   Db.fetch
-    ~name:"get_scheduling_rules_for_canvas"
+    ~name:"get_all_scheduling_rules"
     "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
     FROM scheduling_rules"
     ~params:[]
   |> List.map ~f:row_to_scheduling_rule
 
 
+(* DARK INTERNAL FN *)
+(* Gets event scheduling rules for the specified canvas *)
 let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
   Db.fetch
     ~name:"get_scheduling_rules_for_canvas"
@@ -270,28 +249,39 @@ let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
   |> List.map ~f:row_to_scheduling_rule
 
 
-(* DARK INTERNAL FN *)
-(* Blocks the given worker from executing by inserting a 'block' scheduling rule *)
-let block_worker canvas_id handler_name : unit =
+(* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
+ * 'pause' rules are developer-controlled whereas 'block' rules are accessible
+ * only as DarkInternal functions and cannot be removed by developers. *)
+let add_scheduling_rule rule_type canvas_id handler_name : unit =
   Db.run
     ~name:"add_scheduling_block"
-    ~params:[Uuid canvas_id; String handler_name]
+    ~params:[String rule_type; Uuid canvas_id; String handler_name]
     "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
-    VALUES ('block', $1, $2, 'WORKER')"
+    VALUES ( $1, $2, $3 'WORKER')"
 
 
-(* DARK INTERNAL FN *)
-(* Unblocks the given worker by removing any 'block' scheduling rule for the handler *)
-let unblock_worker canvas_id handler_name : unit =
+(* Removes a scheduling rule of the passed type if one exists.
+ * See also: add_scheduling_rule. *)
+let remove_scheduling_rule rule_type canvas_id handler_name : unit =
   Db.run
     ~name:"remove_scheduling_block"
-    ~params:[Uuid canvas_id; String handler_name]
+    ~params:[Uuid canvas_id; String handler_name; String rule_type]
     "DELETE FROM scheduling_rules
     WHERE canvas_id = $1
     AND handler_name = $2
     AND event_space = 'WORKER'
-    AND rule_type = 'block'"
+    AND rule_type = $3"
 
+
+(* DARK INTERNAL FN *)
+let block_worker = add_scheduling_rule "block"
+
+(* DARK INTERNAL FN *)
+let unblock_worker = remove_scheduling_rule "block"
+
+let pause_worker = add_scheduling_rule "pause"
+
+let unpause_worker = remove_scheduling_rule "pause"
 
 let begin_transaction () =
   let id = Util.create_id () in
