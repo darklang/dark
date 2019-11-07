@@ -99,12 +99,6 @@ let dark_arrayBuffer_from_b64url =
 |}]
 
 
-(* XXX(JULIAN): This doesn't work -- "window" is undefined ??? *)
-(* external dark_arrayBuffer_from_b64url :
-  string -> jsArrayBuffer
-  = "dark_arrayBuffer_from_b64url"
-  [@@bs.val] [@@bs.scope "window"] *)
-
 let _bytes_from_uint8Array (input : jsArrayBuffer) : Bytes.t =
   let len = byteLengthGet input in
   let bytes = Bytes.create len in
