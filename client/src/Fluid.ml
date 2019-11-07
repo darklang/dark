@@ -1427,6 +1427,63 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   setPosition s newPos
 
 
+let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
+    state =
+  let s = recordAction "goToStartOfWord" s in
+  let token =
+    toTokens s ast
+    |> List.find ~f:(fun info ->
+           (* If the cursor isnt at the beginning, move it to beginning  *)
+           (* or if pos is at the end of a token *)
+           if (pos != info.startPos && info.startPos == ti.startPos)
+              || pos = info.endPos
+           then
+             match info.token with
+             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
+             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+                 false
+                 (* | TString _ -> *)
+                 (* SYD TODO: Strings require special logic to go to front of a word
+                 * not the start of the next token *)
+                 (* false *)
+             | _ ->
+                 true
+           else false )
+    |> Option.withDefault ~default:ti
+  in
+  let newPos = token.startPos in
+  setPosition s newPos
+
+
+let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
+    =
+  let s = recordAction "goToEndOfWord" s in
+  let token =
+    toTokens s ast
+    |> List.reverse
+    |> List.find ~f:(fun info ->
+           (* If the cursor isnt at the end, move it to end  *)
+           (* or if pos is at the beginning of a token *)
+           if (pos != info.endPos && info.endPos == ti.endPos)
+              || pos = info.startPos
+           then
+             match info.token with
+             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
+             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+                 false
+             (* | TString _ -> *)
+             (* SYD TODO: Strings require special logic to go to front of a word
+                * not the start of the next token *)
+             (* false *)
+             | _ ->
+                 true
+           else false )
+    |> Option.withDefault ~default:ti
+  in
+  let newPos = token.endPos in
+  setPosition s newPos
+
+
 let moveToEnd (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~ti "moveToEnd" s in
   setPosition ~resetUD:true s (ti.endPos - 1)
@@ -3615,6 +3672,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* TODO: press equals when in a let *)
     (* TODO: press colon when in a record field *)
     (* Left/Right movement *)
+    | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
+        (ast, goToEndOfWord ~pos ast ti s)
+    | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
+        (ast, goToStartOfWord ~pos ast ti s)
     | K.Left, L (_, ti), _ ->
         (ast, doLeft ~pos ti s |> acMaybeShow ti)
     | K.Right, _, R (_, ti) ->
@@ -3900,7 +3961,9 @@ let shouldDoDefaultAction (key : K.key) : bool =
   | K.Delete
   | K.SelectAll
   | K.DeleteToEndOfLine
-  | K.DeleteToStartOfLine ->
+  | K.DeleteToStartOfLine
+  | K.GoToStartOfWord
+  | K.GoToEndOfWord ->
       false
   | _ ->
       true
