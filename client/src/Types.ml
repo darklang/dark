@@ -450,15 +450,23 @@ and timerAction =
   | RefreshAvatars
   | CheckUrlHashPosition
 
+and 'result loadable =
+  | LoadableSuccess of 'result
+  | LoadableNotInitialized
+  | LoadableLoading of 'result option
+  | LoadableError of string
+
 and lvDict = dval StrDict.t
+
+and dvalDict = dval StrDict.t
 
 and avDict = id StrDict.t StrDict.t
 
-and inputValueDict = dval StrDict.t
+and inputValueDict = dvalDict
 
-and analysisResults = {liveValues : lvDict}
+and analysisStore = lvDict loadable
 
-and analyses = analysisResults StrDict.t
+and analyses = analysisStore (* indexed by traceID *) StrDict.t
 
 and functionResult =
   { fnName : string
@@ -499,7 +507,7 @@ and traceData =
 
 and trace = traceID * traceData option
 
-and traces = trace list StrDict.t
+and traces = trace list (* indexed by tlid *) StrDict.t
 
 and fourOhFour =
   { space : string
@@ -617,7 +625,7 @@ and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
   | AnalyzeFunction of performFunctionAnalysisParams
 
-and analysisEnvelope = traceID * analysisResults
+and analysisEnvelope = traceID * dvalDict
 
 and analysisError =
   | AnalysisExecutionError of performAnalysisParams * string
@@ -880,7 +888,7 @@ and modification =
   | UpdateToplevels of handler list * db list * bool
   | SetDeletedToplevels of handler list * db list
   | UpdateDeletedToplevels of handler list * db list
-  | UpdateAnalysis of traceID * analysisResults
+  | UpdateAnalysis of traceID * dvalDict
   | SetUserFunctions of userFunction list * userFunction list * bool
   | SetUnlockedDBs of unlockedDBs
   | AppendUnlockedDBs of unlockedDBs
@@ -902,7 +910,7 @@ and modification =
   | EndIntegrationTest
   | SetCursorState of cursorState
   | SetPage of page
-  | SetCursor of tlid * traceID
+  | SetTLTraceID of tlid * traceID
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
@@ -1115,7 +1123,7 @@ and handlerProp =
   ; execution : exeState
   ; showActions : bool }
 
-and tlCursors = traceID StrDict.t
+and tlTraceIDs = traceID TLIDDict.t
 
 (* Testing *)
 and testResult = (string, unit) Result.t
@@ -1367,12 +1375,7 @@ and model =
   ; syncState : syncState
   ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
-  ; tlCursors :
-      tlCursors
-      (* This is TLID id to cursor index (the cursor being *)
-      (* the input to the toplevel currently used, not to *)
-      (* be confused with cursorState, which is the code *)
-      (* that is currently selected.) *)
+  ; tlTraceIDs : tlTraceIDs (* This is TLID id to traceID map *)
   ; featureFlags : flagsVS
   ; canvasProps : canvasProps
   ; canvasName : string
@@ -1425,7 +1428,7 @@ and serializableEditor =
   { timersEnabled : bool
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
-  ; tlCursors : tlCursors
+  ; tlTraceIDs : tlTraceIDs
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos

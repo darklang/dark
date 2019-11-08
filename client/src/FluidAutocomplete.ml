@@ -199,6 +199,7 @@ let findParamByType ({fnParameters} : function_) (tipe : tipe) :
 
 let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let tlid = TL.id tl in
+  let traceID = Analysis.getSelectedTraceID m tlid in
   let id =
     match ti.token with
     | TFieldName (_, fieldID, _) ->
@@ -212,7 +213,8 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
       AST.find id ast
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
-      |> Option.andThen ~f:(Analysis.getCurrentLiveValue m tlid)
+      |> Option.andThen2 traceID ~f:(fun traceID id ->
+             Analysis.getLiveValue m id traceID )
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
              if dv_ = DIncomplete then None else Some dv_ )
@@ -331,7 +333,7 @@ let init m = reset m
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
-let generateExprs m tl a ti =
+let generateExprs m (tl : toplevel) a ti =
   let functions = List.map ~f:(fun x -> FACFunction x) a.functions in
   let constructors =
     [ FACConstructorName ("Just", 1)
@@ -339,10 +341,11 @@ let generateExprs m tl a ti =
     ; FACConstructorName ("Ok", 1)
     ; FACConstructorName ("Error", 1) ]
   in
+  let id = FluidToken.tid ti.token in
   let varnames =
-    ti.token
-    |> FluidToken.tid
-    |> Analysis.getCurrentAvailableVarnames m tl
+    Analysis.getSelectedTraceID m (TL.id tl)
+    |> Option.map ~f:(Analysis.getAvailableVarnames m tl id)
+    |> Option.withDefault ~default:[]
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =

@@ -47,7 +47,7 @@ let editor2model (e : serializableEditor) : model =
     timersEnabled = e.timersEnabled
   ; cursorState = e.cursorState |> stripDragging
   ; routingTableOpenDetails = e.routingTableOpenDetails
-  ; tlCursors = e.tlCursors
+  ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
   ; handlerProps = finalHandlerStates e.handlerProps
   ; canvasProps = {m.canvasProps with offset = e.canvasPos}
@@ -60,7 +60,7 @@ let model2editor (m : model) : serializableEditor =
   ; cursorState = m.cursorState
   ; routingTableOpenDetails =
       m.routingTableOpenDetails (* state of the routing table *)
-  ; tlCursors = m.tlCursors (* what trace cursor is selected *)
+  ; tlTraceIDs = m.tlTraceIDs (* what trace is selected *)
   ; featureFlags = m.featureFlags (* which flags are expanded *)
   ; handlerProps = m.handlerProps
   ; canvasPos = m.canvasProps.offset

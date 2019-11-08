@@ -690,7 +690,7 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     [ ("timersEnabled", bool se.timersEnabled)
     ; ("cursorState", cursorState se.cursorState)
     ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
-    ; ("tlCursors", tcStrDict traceID se.tlCursors)
+    ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
     ; ("canvasPos", pos se.canvasPos)

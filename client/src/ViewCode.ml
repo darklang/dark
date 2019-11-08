@@ -122,20 +122,14 @@ let handlerIsExeFail (vs : viewState) : bool =
   then false
   else
     let outermostId =
-      let ast =
-        match vs.tl with TLHandler handler -> Some handler.ast | _ -> None
-      in
-      ast
-      |> Option.map ~f:(fun handler ->
-             (* I thought we had a string_of_id, but maybe that's only backend *)
-             match handler with Blank (ID id) -> id | F (ID id, _) -> id )
+      match vs.tl with
+      | TLHandler handler ->
+          Some (Blank.toID handler.ast)
+      | _ ->
+          None
     in
-    let outermostResult =
-      outermostId
-      |> Option.and_then ~f:(fun outermostId ->
-             StrDict.get ~key:outermostId vs.currentResults.liveValues )
-    in
-    outermostResult
+    outermostId
+    |> Option.andThen ~f:(Analysis.getLiveValue' vs.analysisStore)
     |> Option.map ~f:(fun outermostResult ->
            match outermostResult with
            | DIncomplete | DError _ | DErrorRail _ ->
@@ -247,102 +241,37 @@ and viewNExpr
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
-      let previous =
-        match vs.tl with
-        | TLHandler h ->
-            h.ast |> AST.threadPrevious id |> Option.toList
-        | TLFunc f ->
-            f.ufAST |> AST.threadPrevious id |> Option.toList
-        | TLTipe _ ->
-            []
-        | TLGroup _ ->
-            []
-        | TLDB db ->
-          ( match db.activeMigration with
-          | None ->
-              []
-          | Some am ->
-              [am.rollforward; am.rollback]
-              |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
-      in
       (* buttons *)
-      let allExprs = previous @ exprs in
-      let lvOf = ViewBlankOr.getLiveValue vs.currentResults.liveValues in
-      let isComplete v =
-        v
-        |> lvOf
-        |> fun v_ ->
-        match v_ with
-        | None ->
-            false
-        | Some (DError _) ->
-            false
-        | Some DIncomplete ->
-            false
-        | Some _ ->
-            true
+      let argExprs =
+        let previous =
+          match vs.tl with
+          | TLHandler h ->
+              h.ast |> AST.threadPrevious id |> Option.toList
+          | TLFunc f ->
+              f.ufAST |> AST.threadPrevious id |> Option.toList
+          | TLTipe _ ->
+              []
+          | TLGroup _ ->
+              []
+          | TLDB db ->
+            ( match db.activeMigration with
+            | None ->
+                []
+            | Some am ->
+                [am.rollforward; am.rollback]
+                |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
+        in
+        previous @ exprs
       in
-      let paramsComplete = List.all ~f:(isComplete << B.toID) allExprs in
-      let resultHasValue = isComplete id in
-      let buttonUnavailable = not paramsComplete in
-      let showButton =
-        (not fn.fnPreviewExecutionSafe) && vs.permission = Some ReadWrite
-      in
-      let buttonNeeded = not resultHasValue in
-      let showExecuting = functionIsExecuting vs id in
-      let exeIcon = "play" in
-      let events =
-        [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID vs.tlid ^ "-" ^ showID id ^ "-" ^ name)
-            "click"
-            (fun _ -> ExecuteFunctionButton (vs.tlid, id, name))
-        ; ViewUtils.nothingMouseEvent "mouseup"
-        ; ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "dblclick" ]
-      in
-      let {class_; event; title; icon} =
-        if name = "Password::check" || name = "Password::hash"
-        then
-          { class_ = "execution-button-unsafe"
-          ; event = []
-          ; title = "Cannot run interactively for security reasons."
-          ; icon = "times" }
-        else if buttonUnavailable
-        then
-          { class_ = "execution-button-unavailable"
-          ; event = []
-          ; title = "Cannot run: some parameters are incomplete"
-          ; icon = exeIcon }
-        else if buttonNeeded
-        then
-          { class_ = "execution-button-needed"
-          ; event = events
-          ; title = "Click to execute function"
-          ; icon = exeIcon }
-        else
-          { class_ = "execution-button-repeat"
-          ; event = events
-          ; title = "Click to execute function again"
-          ; icon = "redo" }
-      in
-      let executingClass = if showExecuting then " is-executing" else "" in
-      let button =
-        if not showButton
-        then []
-        else
-          [ Html.div
-              ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-                ; Html.title title ]
-              @ event )
-              [fontAwesome icon] ]
-      in
+      let argIDs = List.map ~f:B.toID argExprs in
+      let button = ViewFnExecution.fnExecutionButton vs fn id argIDs in
       let errorIcon =
         if sendToRail = NoRail
         then []
         else
           let returnTipe = Runtime.tipe2str fn.fnReturnTipe in
           let eval =
-            match lvOf id with
+            match Analysis.getLiveValue' vs.analysisStore id with
             | Some v ->
                 v |> Runtime.typeOf |> Runtime.tipe2str
             | None ->
@@ -362,7 +291,7 @@ and viewNExpr
           []
           nameBo
       in
-      let fnDiv parens = n [wc "op"; wc name] (fnname parens :: button) in
+      let fnDiv parens = n [wc "op"; wc name] [fnname parens; button] in
       let configs = withROP sendToRail @ all in
       ( match (fn.fnInfix, exprs, fn.fnParameters) with
       | true, [first; second], [p1; p2] ->
@@ -485,9 +414,7 @@ and viewNExpr
               [Html.class' "actions"]
               [(if isExpanded then hideModal else expandModal)] ]
       in
-      let condValue =
-        ViewBlankOr.getLiveValue vs.currentResults.liveValues (B.toID cond)
-      in
+      let condValue = Analysis.getLiveValue' vs.analysisStore (B.toID cond) in
       let condResult =
         condValue
         |> Option.map ~f:Runtime.isTrue
@@ -555,7 +482,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
       if vs.permission = Some ReadWrite
       then
         let hasData =
-          Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+          Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
                  |> Option.andThen ~f:(fun (_, data) -> data) )
@@ -594,7 +521,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
 let externalLink (vs : viewState) (name : string) =
   let urlPath =
     let currentTraceData =
-      Analysis.cursor' vs.tlCursors vs.traces vs.tlid
+      Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
       |> Option.andThen ~f:(fun trace_id ->
              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
              |> Option.andThen ~f:(fun (_, data) -> data) )

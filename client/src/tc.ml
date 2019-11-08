@@ -47,6 +47,11 @@ module Option = struct
 
   let map2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c) : 'c option =
     match (a, b) with Some a, Some b -> Some (f a b) | _ -> None
+
+
+  let andThen2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c option) :
+      'c option =
+    match (a, b) with Some a, Some b -> f a b | _ -> None
 end
 
 module Result = struct

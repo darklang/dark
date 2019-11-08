@@ -658,9 +658,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs }
         in
         processAutocompleteMods m [ACRegenerate]
-    | UpdateAnalysis (id, analysis) ->
-        let m2 = {m with analyses = Analysis.record m.analyses id analysis} in
-        processAutocompleteMods m2 [ACRegenerate]
+    | UpdateAnalysis (traceID, dvals) ->
+        let m =
+          { m with
+            analyses =
+              Analysis.record m.analyses traceID (LoadableSuccess dvals) }
+        in
+        processAutocompleteMods m [ACRegenerate]
     | UpdateDBStats statsStore ->
         let newStore =
           StrDict.merge
@@ -876,8 +880,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               {toastMessage = Some "Dark saves automatically!"; toastPos = None}
           }
         , Cmd.none )
-    | SetCursor (tlid, cur) ->
-        let m = Analysis.setCursor m tlid cur in
+    | SetTLTraceID (tlid, traceID) ->
+        let m = Analysis.setSelectedTraceID m tlid traceID in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, afCmd)
     | Drag (tlid, offset, hasMoved, state) ->
@@ -894,28 +898,29 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | ExecutingFunctionRPC (tlid, id, name) ->
       ( match TL.get m tlid with
       | Some tl ->
-        ( match Analysis.getCurrentTrace m tlid with
-        | Some (traceID, _) ->
-          ( match Analysis.getArguments m tl traceID id with
-          | Some args ->
-              let params =
-                { efpTLID = tlid
-                ; efpCallerID = id
-                ; efpTraceID = traceID
-                ; efpFnName = name
-                ; efpArgs = args }
-              in
-              (m, RPC.executeFunction m params)
+          let traceID = Analysis.getSelectedTraceID m tlid in
+          ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
+          | Some (traceID, _) ->
+            ( match Analysis.getArguments m tl id traceID with
+            | Some args ->
+                let params =
+                  { efpTLID = tlid
+                  ; efpCallerID = id
+                  ; efpTraceID = traceID
+                  ; efpFnName = name
+                  ; efpArgs = args }
+                in
+                (m, RPC.executeFunction m params)
+            | None ->
+                (m, Cmd.none)
+                |> updateMod
+                     (DisplayError "Traces are not loaded for this handler")
+                |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
           | None ->
               (m, Cmd.none)
               |> updateMod
                    (DisplayError "Traces are not loaded for this handler")
               |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
-        | None ->
-            (m, Cmd.none)
-            |> updateMod
-                 (DisplayError "Traces are not loaded for this handler")
-            |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
           (* Attempted to execute a function in a toplevel that we just deleted! *)
           (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)])
@@ -940,18 +945,19 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       | None ->
           (m, Cmd.none) )
     | TriggerHandlerRPC tlid ->
-      ( match Analysis.getCurrentTrace m tlid with
-      | Some (traceID, Some traceData) ->
-          let handlerProps =
-            RT.setHandlerExeState tlid Executing m.handlerProps
-          in
-          ( {m with handlerProps}
-          , RPC.triggerHandler
-              m
-              {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
-          )
-      | _ ->
-          (m, Cmd.none) )
+        let traceID = Analysis.getSelectedTraceID m tlid in
+        ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
+        | Some (traceID, Some traceData) ->
+            let handlerProps =
+              RT.setHandlerExeState tlid Executing m.handlerProps
+            in
+            ( {m with handlerProps}
+            , RPC.triggerHandler
+                m
+                {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
+            )
+        | _ ->
+            (m, Cmd.none) )
     | InitIntrospect tls ->
         (Introspect.refreshUsages m (List.map ~f:TL.id tls), Cmd.none)
     | RefreshUsages tlids ->
@@ -1218,9 +1224,9 @@ let update_ (msg : msg) (m : model) : modification =
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
-        Many [Select (tlid, None); SetCursor (tlid, traceID)]
+        Many [Select (tlid, None); SetTLTraceID (tlid, traceID)]
     | _ ->
-        SetCursor (tlid, traceID) )
+        SetTLTraceID (tlid, traceID) )
   | StartMigration tlid ->
       let mdb = tlid |> TL.get m |> Option.andThen ~f:TL.asDB in
       ( match mdb with
@@ -1732,7 +1738,7 @@ let update_ (msg : msg) (m : model) : modification =
         match List.head traces with
         | Some (first, _) ->
             let traceDict = StrDict.fromList [(deTLID tlid, traces)] in
-            [UpdateTraces traceDict; SetCursor (tlid, first)]
+            [UpdateTraces traceDict; SetTLTraceID (tlid, first)]
         | None ->
             []
       in

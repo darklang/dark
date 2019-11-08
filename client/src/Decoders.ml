@@ -148,99 +148,50 @@ let blankOr d =
     ; ("Partial", variant2 (fun id _ -> Blank id) id string) ]
 
 
-let rec pointerData j : pointerData =
-  let dv1 = variant1 in
-  variants
-    [ ("PVarBind", dv1 (fun x -> PVarBind x) (blankOr string))
-    ; ("PEventName", dv1 (fun x -> PEventName x) (blankOr string))
-    ; ("PEventModifier", dv1 (fun x -> PEventModifier x) (blankOr string))
-    ; ("PEventSpace", dv1 (fun x -> PEventSpace x) (blankOr string))
-    ; ("PExpr", dv1 (fun x -> PExpr x) expr)
-    ; ("PField", dv1 (fun x -> PField x) (blankOr string))
-    ; ("PDBColName", dv1 (fun x -> PDBColName x) (blankOr string))
-    ; ("PDBColType", dv1 (fun x -> PDBColType x) (blankOr string))
-    ; ("PFFMsg", dv1 (fun x -> PFFMsg x) (blankOr string))
-    ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
-    ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
-    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
-    ; ("PPattern", dv1 (fun x -> PPattern x) pattern) ]
-    j
-
-
-and handlerState j : handlerState =
-  j
-  |> variants
-       [ ("HandlerExpanded", variant0 HandlerExpanded)
-       ; ("HandlerPrepCollapse", variant0 HandlerPrepCollapse)
-       ; ("HandlerCollapsing", variant0 HandlerCollapsing)
-       ; ("HandlerCollapsed", variant0 HandlerCollapsed)
-       ; ("HandlerExpanding", variant0 HandlerExpanding) ]
-
-
-and exeState j : exeState =
-  j
-  |> variants
-       [ ("Idle", variant0 Idle)
-       ; ("Executing", variant0 Executing)
-       ; ("Complete", variant0 Complete) ]
-
-
-and handlerProp j : handlerProp =
-  { handlerLock = field "handlerLock" bool j
-  ; handlerState = field "handlerState" handlerState j
-  ; hoveringReferences = field "hoveringReferences" (list id) j
-  ; execution = field "executing" exeState j
-  ; showActions = field "showActions" bool j }
-
-
-and serializableEditor (j : Js.Json.t) : serializableEditor =
-  (* always use withDefault or optional because the field might be missing due
-   * to old editors or new fields.  *)
-  { timersEnabled = withDefault true (field "timersEnabled" bool) j
-  ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
-  ; routingTableOpenDetails =
-      withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
-  ; tlCursors = withDefault StrDict.empty (field "tlCursors" (dict traceID)) j
-  ; featureFlags =
-      withDefault StrDict.empty (field "featureFlags" (dict bool)) j
-  ; handlerProps =
-      withDefault StrDict.empty (field "handlerProps" (dict handlerProp)) j
-  ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
-  ; lastReload = optional (field "lastReload" jsDate) j
-  ; sidebarOpen =
-      withDefault
-        Defaults.defaultEditor.sidebarOpen
-        (field "sidebarOpen" bool)
-        j }
-
-
-and cursorState j =
+let rec tipe j : tipe =
   let dv0 = variant0 in
   let dv1 = variant1 in
   let dv2 = variant2 in
-  let dv4 = variant4 in
   variants
-    [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
-    ; ("Entering", dv1 (fun a -> Entering a) entering)
-    ; ( "Dragging"
-      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState
-      )
-    ; ("Deselected", dv0 Deselected)
-    ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
-    ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid) ]
+    [ ("TInt", dv0 TInt)
+    ; ("TStr", dv0 TStr)
+    ; ("TBool", dv0 TBool)
+    ; ("TFloat", dv0 TFloat)
+    ; ("TObj", dv0 TObj)
+    ; ("TList", dv0 TList)
+    ; ("TAny", dv0 TAny)
+    ; ("TNull", dv0 TNull)
+    ; ("TBlock", dv0 TBlock)
+    ; ("TIncomplete", dv0 TIncomplete)
+    ; ("TError", dv0 TError)
+    ; ("TResp", dv0 TResp)
+    ; ("TDB", dv0 TDB)
+    ; ("TDate", dv0 TDate)
+    ; ("TPassword", dv0 TPassword)
+    ; ("TUuid", dv0 TUuid)
+    ; ("TOption", dv0 TOption)
+    ; ("TErrorRail", dv0 TErrorRail)
+    ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
+    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
     j
 
 
-and entering j =
-  let dv1 = variant1 in
-  let dv2 = variant2 in
+let traceID j : traceID = wireIdentifier j
+
+let jsDate j : Js.Date.t = Js.Date.fromString (string j)
+
+let rec pattern j : pattern = blankOr nPattern j
+
+and nPattern j : nPattern =
   variants
-    [ ("Creating", dv1 (fun x -> Creating x) pos)
-    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
+    [ ("PVariable", variant1 (fun a -> PVariable a) string)
+    ; ("PLiteral", variant1 (fun a -> PLiteral a) string)
+    ; ( "PConstructor"
+      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) ) ]
     j
 
 
-and expr j : expr =
+let rec expr j : expr =
   let blankOrExpr =
     variants
       [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
@@ -298,51 +249,191 @@ and nExpr j : nExpr =
     j
 
 
-and pattern j : pattern = blankOr nPattern j
-
-and nPattern j : nPattern =
+let pointerData j : pointerData =
+  let dv1 = variant1 in
   variants
-    [ ("PVariable", variant1 (fun a -> PVariable a) string)
-    ; ("PLiteral", variant1 (fun a -> PLiteral a) string)
-    ; ( "PConstructor"
-      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) ) ]
+    [ ("PVarBind", dv1 (fun x -> PVarBind x) (blankOr string))
+    ; ("PEventName", dv1 (fun x -> PEventName x) (blankOr string))
+    ; ("PEventModifier", dv1 (fun x -> PEventModifier x) (blankOr string))
+    ; ("PEventSpace", dv1 (fun x -> PEventSpace x) (blankOr string))
+    ; ("PExpr", dv1 (fun x -> PExpr x) expr)
+    ; ("PField", dv1 (fun x -> PField x) (blankOr string))
+    ; ("PDBColName", dv1 (fun x -> PDBColName x) (blankOr string))
+    ; ("PDBColType", dv1 (fun x -> PDBColType x) (blankOr string))
+    ; ("PFFMsg", dv1 (fun x -> PFFMsg x) (blankOr string))
+    ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
+    ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
+    ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
+    ; ("PPattern", dv1 (fun x -> PPattern x) pattern) ]
     j
 
 
-and lvDict j : lvDict = j |> dict dval
+let rec dval j : dval =
+  let dv0 = variant0 in
+  let dv1 = variant1 in
+  let dv2 = variant2 in
+  let dd = dval in
+  let optionT =
+    variants
+      [("OptJust", dv1 (fun x -> OptJust x) dd); ("OptNothing", dv0 OptNothing)]
+  in
+  let resultT =
+    variants
+      [ ("ResOk", dv1 (fun x -> ResOk x) dd)
+      ; ("ResError", dv1 (fun x -> ResError x) dd) ]
+  in
+  let dhttp =
+    variants
+      [ ("Redirect", dv1 (fun x -> Redirect x) string)
+      ; ( "Response"
+        , dv2 (fun a b -> Response (a, b)) int (list (tuple2 string string)) )
+      ]
+  in
+  variants
+    [ ("DInt", dv1 (fun x -> DInt x) int)
+    ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
+    ; ("DBool", dv1 (fun x -> DBool x) bool)
+    ; ("DNull", dv0 DNull)
+    ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
+    ; ("DStr", dv1 (fun x -> DStr x) string)
+    ; ("DList", dv1 (fun x -> DList x) (array dd))
+    ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
+    ; ("DIncomplete", dv0 DIncomplete)
+    ; ("DError", dv1 (fun x -> DError x) string)
+    ; ("DBlock", dv0 DBlock)
+    ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
+    ; ("DResp", dv1 (fun (h, dv) -> DResp (h, dv)) (tuple2 dhttp dd))
+    ; ("DDB", dv1 (fun x -> DDB x) string)
+    ; ("DDate", dv1 (fun x -> DDate x) string)
+    ; ("DPassword", dv1 (fun x -> DPassword x) string)
+    ; ("DUuid", dv1 (fun x -> DUuid x) string)
+    ; ("DOption", dv1 (fun x -> DOption x) optionT)
+    ; ("DResult", dv1 (fun x -> DResult x) resultT)
+    ; ( "DBytes"
+      , dv1
+          (fun x ->
+            let x = x |> bytes_from_base64url in
+            DBytes x )
+          string ) ]
+    j
 
-and analysisResults j : analysisResults =
-  {liveValues = field "live_values" lvDict j}
+
+and handlerState j : handlerState =
+  j
+  |> variants
+       [ ("HandlerExpanded", variant0 HandlerExpanded)
+       ; ("HandlerPrepCollapse", variant0 HandlerPrepCollapse)
+       ; ("HandlerCollapsing", variant0 HandlerCollapsing)
+       ; ("HandlerCollapsed", variant0 HandlerCollapsed)
+       ; ("HandlerExpanding", variant0 HandlerExpanding) ]
 
 
-and analysisEnvelope j : traceID * analysisResults =
-  (tuple2 string analysisResults) j
+and exeState j : exeState =
+  j
+  |> variants
+       [ ("Idle", variant0 Idle)
+       ; ("Executing", variant0 Executing)
+       ; ("Complete", variant0 Complete) ]
 
 
-and handlerSpec j : handlerSpec =
+and handlerProp j : handlerProp =
+  { handlerLock = field "handlerLock" bool j
+  ; handlerState = field "handlerState" handlerState j
+  ; hoveringReferences = field "hoveringReferences" (list id) j
+  ; execution = field "executing" exeState j
+  ; showActions = field "showActions" bool j }
+
+
+and serializableEditor (j : Js.Json.t) : serializableEditor =
+  (* always use withDefault or optional because the field might be missing due
+   * to old editors or new fields.  *)
+  { timersEnabled = withDefault true (field "timersEnabled" bool) j
+  ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
+  ; routingTableOpenDetails =
+      withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
+  ; tlTraceIDs =
+      withDefault TLIDDict.empty (field "tlTraceIDs" (dict traceID)) j
+  ; featureFlags =
+      withDefault StrDict.empty (field "featureFlags" (dict bool)) j
+  ; handlerProps =
+      withDefault StrDict.empty (field "handlerProps" (dict handlerProp)) j
+  ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
+  ; lastReload = optional (field "lastReload" jsDate) j
+  ; sidebarOpen =
+      withDefault
+        Defaults.defaultEditor.sidebarOpen
+        (field "sidebarOpen" bool)
+        j }
+
+
+and cursorState j =
+  let dv0 = variant0 in
+  let dv1 = variant1 in
+  let dv2 = variant2 in
+  let dv4 = variant4 in
+  variants
+    [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
+    ; ("Entering", dv1 (fun a -> Entering a) entering)
+    ; ( "Dragging"
+      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState
+      )
+    ; ("Deselected", dv0 Deselected)
+    ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
+    ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid) ]
+    j
+
+
+and entering j =
+  let dv1 = variant1 in
+  let dv2 = variant2 in
+  variants
+    [ ("Creating", dv1 (fun x -> Creating x) pos)
+    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
+    j
+
+
+and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
+  variants
+    [ ("LoadableSuccess", variant1 (fun a -> LoadableSuccess a) decoder)
+    ; ("LoadableNotInitialized", variant0 LoadableNotInitialized)
+    ; ( "LoadableLoading"
+      , variant1 (fun a -> LoadableLoading a) (optional decoder) )
+    ; ("LoadableError", variant1 (fun a -> LoadableError a) string) ]
+    j
+
+
+let dvalDict (j : Js.Json.t) : dvalDict = dict dval j
+
+let lvDict (j : Js.Json.t) : lvDict = dict dval j
+
+let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
+  (tuple2 string dvalDict) j
+
+
+let handlerSpec j : handlerSpec =
   { space = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
   ; modifier = field "modifier" (blankOr string) j }
 
 
-and handler pos j : handler =
+let handler pos j : handler =
   { ast = field "ast" expr j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
   ; pos }
 
 
-and tipeString j : string = map RT.tipe2str tipe j
+let tipeString j : string = map RT.tipe2str tipe j
 
-and dbColList j : dbColumn list =
+let dbColList j : dbColumn list =
   list (tuple2 (blankOr string) (blankOr tipeString)) j
 
 
-and dbmColList j : dbColumn list =
+let dbmColList j : dbColumn list =
   list (tuple2 (blankOr string) (blankOr string)) j
 
 
-and dbMigrationState j : dbMigrationState =
+let dbMigrationState j : dbMigrationState =
   let dv0 = variant0 in
   variants
     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
@@ -350,7 +441,7 @@ and dbMigrationState j : dbMigrationState =
     j
 
 
-and dbMigration j : dbMigration =
+let dbMigration j : dbMigration =
   { startingVersion = field "starting_version" int j
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
@@ -359,7 +450,7 @@ and dbMigration j : dbMigration =
   ; rollback = field "rollback" expr j }
 
 
-and db pos j : db =
+let db pos j : db =
   { dbTLID = field "tlid" tlid j
   ; dbName = field "name" (blankOr string) j
   ; cols = field "cols" dbColList j
@@ -369,7 +460,7 @@ and db pos j : db =
   ; pos }
 
 
-and toplevel j : toplevel =
+let toplevel j : toplevel =
   let pos = field "pos" pos j in
   let variant =
     variants
@@ -379,35 +470,7 @@ and toplevel j : toplevel =
   field "data" variant j
 
 
-and tipe j : tipe =
-  let dv0 = variant0 in
-  let dv1 = variant1 in
-  let dv2 = variant2 in
-  variants
-    [ ("TInt", dv0 TInt)
-    ; ("TStr", dv0 TStr)
-    ; ("TBool", dv0 TBool)
-    ; ("TFloat", dv0 TFloat)
-    ; ("TObj", dv0 TObj)
-    ; ("TList", dv0 TList)
-    ; ("TAny", dv0 TAny)
-    ; ("TNull", dv0 TNull)
-    ; ("TBlock", dv0 TBlock)
-    ; ("TIncomplete", dv0 TIncomplete)
-    ; ("TError", dv0 TError)
-    ; ("TResp", dv0 TResp)
-    ; ("TDB", dv0 TDB)
-    ; ("TDate", dv0 TDate)
-    ; ("TPassword", dv0 TPassword)
-    ; ("TUuid", dv0 TUuid)
-    ; ("TOption", dv0 TOption)
-    ; ("TErrorRail", dv0 TErrorRail)
-    ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
-    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
-    j
-
-
-and userFunctionParameter j : userFunctionParameter =
+let userFunctionParameter j : userFunctionParameter =
   { ufpName = field "name" (blankOr string) j
   ; ufpTipe = field "tipe" (blankOr tipe) j
   ; ufpBlock_args = field "block_args" (list string) j
@@ -415,7 +478,7 @@ and userFunctionParameter j : userFunctionParameter =
   ; ufpDescription = field "description" string j }
 
 
-and userFunctionMetadata j : userFunctionMetadata =
+let userFunctionMetadata j : userFunctionMetadata =
   { ufmName = field "name" (blankOr string) j
   ; ufmParameters = field "parameters" (list userFunctionParameter) j
   ; ufmDescription = field "description" string j
@@ -423,13 +486,13 @@ and userFunctionMetadata j : userFunctionMetadata =
   ; ufmInfix = field "infix" bool j }
 
 
-and userFunction j : userFunction =
+let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
   ; ufAST = field "ast" expr j }
 
 
-and fof j : fourOhFour =
+let fof j : fourOhFour =
   { space = index 0 string j
   ; path = index 1 string j
   ; modifier = index 2 string j
@@ -437,25 +500,23 @@ and fof j : fourOhFour =
   ; traceID = index 4 traceID j }
 
 
-and deployStatus j : deployStatus =
+let deployStatus j : deployStatus =
   let sumtypes =
     [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
   in
   j |> variants sumtypes
 
 
-and jsDate j : Js.Date.t = Js.Date.fromString (string j)
-
-and sDeploy j : staticDeploy =
+let sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
   ; lastUpdate = field "last_update" jsDate j
   ; status = field "status" deployStatus j }
 
 
-and serverTime j : Js.Date.t = Js.Date.fromString (field "value" string j)
+let serverTime j : Js.Date.t = Js.Date.fromString (field "value" string j)
 
-and presenceMsg j : avatar =
+let presenceMsg j : avatar =
   { canvasId = field "canvasId" string j
   ; canvasName = field "canvasName" string j
   ; tlid = field "tlid" (optional string) j
@@ -466,54 +527,52 @@ and presenceMsg j : avatar =
   ; browserId = field "browserId" string j }
 
 
-and inputValueDict j : inputValueDict =
+let inputValueDict j : inputValueDict =
   j |> list (tuple2 string dval) |> StrDict.fromList
 
 
-and functionResult j : functionResult =
+let functionResult j : functionResult =
   let fnName, callerID, argHash, argHashVersion, value =
     tuple5 string id string int dval j
   in
   {fnName; callerID; argHash; argHashVersion; value}
 
 
-and traceID j : traceID = wireIdentifier j
-
-and traces j : traces =
-  j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
-
-
-and traceData j : traceData =
+let traceData j : traceData =
   { input = field "input" inputValueDict j
   ; timestamp = field "timestamp" string j
   ; functionResults = field "function_results" (list functionResult) j }
 
 
-and trace j : trace = pair traceID (optional traceData) j
+let trace j : trace = pair traceID (optional traceData) j
 
-and userRecordField j =
+let traces j : traces =
+  j |> list (tuple2 wireIdentifier (list trace)) |> StrDict.fromList
+
+
+let userRecordField j =
   { urfName = field "name" (blankOr string) j
   ; urfTipe = field "tipe" (blankOr tipe) j }
 
 
-and userTipeDefinition j =
+let userTipeDefinition j =
   variants
     [("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField))]
     j
 
 
-and userTipe j =
+let userTipe j =
   { utTLID = field "tlid" tlid j
   ; utName = field "name" (blankOr string) j
   ; utVersion = field "version" int j
   ; utDefinition = field "definition" userTipeDefinition j }
 
 
-and permission j =
+let permission j =
   variants [("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite)] j
 
 
-and op j : op =
+let op j : op =
   variants
     [ ( "SetHandler"
       , variant3
@@ -592,7 +651,7 @@ and op j : op =
     j
 
 
-and addOpRPCResult j : addOpRPCResult =
+let addOpRPCResult j : addOpRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
   { handlers = List.filterMap ~f:TL.asHandler tls
@@ -605,7 +664,7 @@ and addOpRPCResult j : addOpRPCResult =
   ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
-and addOpRPCParams j : addOpRPCParams =
+let addOpRPCParams j : addOpRPCParams =
   (* if we roll back the server, we might get new client code (this code), but
    * no opCtr from the server, so handle that case *)
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
@@ -616,39 +675,39 @@ and addOpRPCParams j : addOpRPCParams =
   ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
 
-and addOpRPCStrollerMsg j : addOpStrollerMsg =
+let addOpRPCStrollerMsg j : addOpStrollerMsg =
   { result = field "result" addOpRPCResult j
   ; params = field "params" addOpRPCParams j }
 
 
-and getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
+let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
   j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList
 
 
-and getTraceDataRPCResult j : getTraceDataRPCResult =
+let getTraceDataRPCResult j : getTraceDataRPCResult =
   {trace = field "trace" trace j}
 
 
-and dbStats j : dbStats =
+let dbStats j : dbStats =
   { count = field "count" int j
   ; example = field "example" (optional (tuple2 dval string)) j }
 
 
-and dbStatsStore j : dbStatsStore = dict dbStats j
+let dbStatsStore j : dbStatsStore = dict dbStats j
 
-and dbStatsRPCResult j = dbStatsStore j
+let dbStatsRPCResult j = dbStatsStore j
 
-and account j : account =
+let account j : account =
   { name = field "name" string j
   ; email = field "email" string j
   ; username = field "username" string j }
 
 
-and workerStats j : workerStats = {count = field "count" int j}
+let workerStats j : workerStats = {count = field "count" int j}
 
-and workerStatsRPCResult j = workerStats j
+let workerStatsRPCResult j = workerStats j
 
-and initialLoadRPCResult j : initialLoadRPCResult =
+let initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
   { handlers = List.filterMap ~f:TL.asHandler tls
@@ -674,7 +733,7 @@ and initialLoadRPCResult j : initialLoadRPCResult =
   ; account = field "account" account j }
 
 
-and executeFunctionRPCResult j : executeFunctionRPCResult =
+let executeFunctionRPCResult j : executeFunctionRPCResult =
   ( field "result" dval j
   , field "hash" string j
   , field "hashVersion" int j
@@ -682,35 +741,28 @@ and executeFunctionRPCResult j : executeFunctionRPCResult =
   , j |> field "unlocked_dbs" (list wireIdentifier) |> StrSet.fromList )
 
 
-and triggerHandlerRPCResult j : triggerHandlerRPCResult =
+let triggerHandlerRPCResult j : triggerHandlerRPCResult =
   field "touched_tlids" (list tlid) j
 
 
-and saveTestRPCResult j : saveTestRPCResult = string j
+let saveTestRPCResult j : saveTestRPCResult = string j
 
 (* -------------------------- *)
 (* Dval (some here because of cyclic dependencies) *)
 (* ------------------------- *)
-and isLiteralRepr (s : string) : bool =
-  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
-  then true
-  else
-    match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
 
-
-and typeOfLiteral (s : string) : tipe =
-  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
-  then TStr
-  else
-    match parseDvalLiteral s with
-    | None ->
-        TIncomplete
-    | Some dv ->
-        RT.typeOf dv
+let parseBasicDval str : dval =
+  oneOf
+    [ map (fun x -> DInt x) int
+    ; map (fun x -> DFloat x) Json_decode_extended.float
+    ; map (fun x -> DBool x) bool
+    ; nullAs DNull
+    ; map (fun x -> DStr x) string ]
+    str
 
 
 (* Ported directly from Dval.parse in the backend *)
-and parseDvalLiteral (str : string) : dval option =
+let parseDvalLiteral (str : string) : dval option =
   match String.toList str with
   | ['\''; c; '\''] ->
       Some (DCharacter (String.fromList [c]))
@@ -726,64 +778,22 @@ and parseDvalLiteral (str : string) : dval option =
     (try Some (parseBasicDval (Json.parseOrRaise str)) with _ -> None)
 
 
-and parseBasicDval str : dval =
-  oneOf
-    [ map (fun x -> DInt x) int
-    ; map (fun x -> DFloat x) Json_decode_extended.float
-    ; map (fun x -> DBool x) bool
-    ; nullAs DNull
-    ; map (fun x -> DStr x) string ]
-    str
+let isLiteralRepr (s : string) : bool =
+  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  then true
+  else
+    match parseDvalLiteral s with None -> false | Some dv -> RT.isLiteral dv
 
 
-and dval j : dval =
-  let dv0 = variant0 in
-  let dv1 = variant1 in
-  let dv2 = variant2 in
-  let dd = dval in
-  let optionT =
-    variants
-      [("OptJust", dv1 (fun x -> OptJust x) dd); ("OptNothing", dv0 OptNothing)]
-  in
-  let resultT =
-    variants
-      [ ("ResOk", dv1 (fun x -> ResOk x) dd)
-      ; ("ResError", dv1 (fun x -> ResError x) dd) ]
-  in
-  let dhttp =
-    variants
-      [ ("Redirect", dv1 (fun x -> Redirect x) string)
-      ; ( "Response"
-        , dv2 (fun a b -> Response (a, b)) int (list (tuple2 string string)) )
-      ]
-  in
-  variants
-    [ ("DInt", dv1 (fun x -> DInt x) int)
-    ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
-    ; ("DBool", dv1 (fun x -> DBool x) bool)
-    ; ("DNull", dv0 DNull)
-    ; ("DCharacter", dv1 (fun x -> DCharacter x) string)
-    ; ("DStr", dv1 (fun x -> DStr x) string)
-    ; ("DList", dv1 (fun x -> DList x) (array dd))
-    ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
-    ; ("DIncomplete", dv0 DIncomplete)
-    ; ("DError", dv1 (fun x -> DError x) string)
-    ; ("DBlock", dv0 DBlock)
-    ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
-    ; ("DResp", dv1 (fun (h, dv) -> DResp (h, dv)) (tuple2 dhttp dd))
-    ; ("DDB", dv1 (fun x -> DDB x) string)
-    ; ("DDate", dv1 (fun x -> DDate x) string)
-    ; ("DPassword", dv1 (fun x -> DPassword x) string)
-    ; ("DUuid", dv1 (fun x -> DUuid x) string)
-    ; ("DOption", dv1 (fun x -> DOption x) optionT)
-    ; ("DResult", dv1 (fun x -> DResult x) resultT)
-    ; ( "DBytes"
-      , dv1
-          (fun x ->
-            let x = x |> bytes_from_base64url in
-            DBytes x )
-          string ) ]
-    j
+let typeOfLiteral (s : string) : tipe =
+  if String.endsWith ~suffix:"\"" s && String.startsWith ~prefix:"\"" s
+  then TStr
+  else
+    match parseDvalLiteral s with
+    | None ->
+        TIncomplete
+    | Some dv ->
+        RT.typeOf dv
 
 
 let exception_ j : exception_ =

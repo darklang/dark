@@ -51,7 +51,7 @@ let variants decoders =
                   ^ constructors ) )
 
 
-let dict decoder json =
+let dict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a StrDict.t =
   dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
 
 

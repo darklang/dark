@@ -15,16 +15,15 @@ type viewState =
   ; showEntry : bool
   ; showLivevalue : bool
   ; dbLocked : bool
-  ; currentResults : analysisResults (* for current selected cursor/trace *)
+  ; analysisStore : analysisStore (* for current selected trace *)
   ; traces : trace list
-  ; analyses : analyses
   ; dbStats : dbStatsStore
   ; ufns : userFunction list
   ; fns : function_ list
   ; relatedBlankOrs : id list
   ; tooWide : bool
   ; executingFunctions : id list
-  ; tlCursors : tlCursors
+  ; tlTraceIDs : tlTraceIDs
   ; testVariants : variantTest list
   ; featureFlags : flagsVS
   ; handlerProp : handlerProp option
@@ -84,6 +83,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   let hp =
     match tl with TLHandler _ -> TD.get ~tlid m.handlerProps | _ -> None
   in
+  let traceID = Analysis.getSelectedTraceID m tlid in
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid
@@ -103,16 +103,17 @@ let createVS (m : model) (tl : toplevel) : viewState =
   ; dbLocked = DB.isLocked m tlid
   ; ufns = m.userFunctions |> TLIDDict.values
   ; fns = m.builtInFunctions
-  ; currentResults = Analysis.getCurrentAnalysisResults m tlid
+  ; analysisStore =
+      Option.map traceID ~f:(Analysis.getStoredAnalysis m)
+      |> Option.withDefault ~default:LoadableNotInitialized
   ; traces = Analysis.getTraces m tlid
-  ; analyses = m.analyses
   ; dbStats = m.dbStats
   ; relatedBlankOrs = usagesOfBindingAtCursor tl m.cursorState
   ; tooWide = false
   ; executingFunctions =
       List.filter ~f:(fun (tlid_, _) -> tlid_ = tlid) m.executingFunctions
       |> List.map ~f:(fun (_, id) -> id)
-  ; tlCursors = m.tlCursors
+  ; tlTraceIDs = m.tlTraceIDs
   ; testVariants = m.tests
   ; featureFlags = m.featureFlags
   ; handlerProp = hp
