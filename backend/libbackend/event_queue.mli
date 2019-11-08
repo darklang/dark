@@ -48,9 +48,18 @@ type scheduling_rule =
   ; event_space : string
   ; created_at : time }
 
+type workerState =
+  | Unknown
+  | Running
+  | Blocked
+  | Paused
+[@@deriving yojson]
+
 val get_all_scheduling_rules : unit -> scheduling_rule list
 
 val get_scheduling_rules_for_canvas : Uuidm.t -> scheduling_rule list
+
+val get_worker_schedules_for_canvas : Uuidm.t -> (string * string) list
 
 val block_worker : Uuidm.t -> string -> unit
 

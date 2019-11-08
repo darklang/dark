@@ -256,13 +256,25 @@ let tlCacheKey (m : model) tl =
     in
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in
+    let workerSchedule =
+      match tl with
+      | TLHandler h ->
+        ( match h.spec.name with
+        | F (_, name) ->
+            StrDict.get ~key:name m.worker_schedules
+        | Blank _ ->
+            None )
+      | _ ->
+          None
+    in
     Some
       ( tl
       , Analysis.getSelectedTraceID m tlid
       , hovered
       , tracesLoaded
       , avatarsList
-      , props )
+      , props
+      , workerSchedule )
 
 
 let tlCacheKeyDB (m : model) tl =

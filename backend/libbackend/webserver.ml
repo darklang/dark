@@ -818,8 +818,12 @@ let initial_load
           | None ->
               {username; email = ""; name = ""; admin = false} )
     in
-    let t7, result =
-      time "7-to-frontend" (fun _ ->
+    let t7, worker_schedules =
+      time "7-worker-schedules" (fun _ ->
+          Event_queue.get_worker_schedules_for_canvas !c.id )
+    in
+    let t8, result =
+      time "8-to-frontend" (fun _ ->
           Analysis.to_initial_load_rpc_result
             !c
             op_ctrs
@@ -828,11 +832,12 @@ let initial_load
             traces
             unlocked
             assets
-            account )
+            account
+            worker_schedules )
     in
     respond
       ~execution_id
-      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7])
+      ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6; t7; t8])
       `OK
       result
   with e -> Libexecution.Exception.reraise_as_pageable e
@@ -1047,6 +1052,51 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
           Analysis.to_get_unlocked_dbs_rpc_result unlocked !c )
     in
     respond ~execution_id ~resp_headers:(server_timing [t1; t2; t3]) `OK result
+  with e -> raise e
+
+
+let worker_schedule ~(execution_id : Types.id) (host : string) (body : string)
+    : (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
+  try
+    let t1, cid =
+      time "1-get-canvas-id" (fun _ ->
+          let owner = Account.for_host_exn host in
+          Serialize.fetch_canvas_id owner host )
+    in
+    let t2, params =
+      time "2-read-api-tlid" (fun _ ->
+          Api.to_worker_schedule_update_rpc_params body )
+    in
+    let t3, res =
+      time "3-update-worker-schedule" (fun _ ->
+          let module E = Event_queue in
+          match params.schedule with
+          | "pause" ->
+              E.pause_worker cid params.name ;
+              Ok (E.get_worker_schedules_for_canvas cid)
+          | "run" ->
+              Event_queue.unpause_worker cid params.name ;
+              Ok (E.get_worker_schedules_for_canvas cid)
+          | _ ->
+              Error "unknown action" )
+    in
+    let timing = server_timing [t1; t2; t3] in
+    match res with
+    | Ok schedules ->
+        let yoschedules =
+          List.map schedules ~f:(fun (k, v) -> `List [`String k; `String v])
+        in
+        respond
+          ~execution_id
+          ~resp_headers:timing
+          `OK
+          (Yojson.Safe.to_string (`List yoschedules))
+    | Error e ->
+        respond
+          ~execution_id
+          ~resp_headers:timing
+          `Bad_request
+          ("{ \"error\" : \"" ^ e ^ "\" } ")
   with e -> raise e
 
 
@@ -1580,6 +1630,10 @@ let admin_api_handler
   | `POST, ["api"; canvas; "get_unlocked_dbs"] ->
       when_can_view ~canvas (fun _ ->
           wrap_editor_api_headers (get_unlocked_dbs ~execution_id canvas body)
+      )
+  | `POST, ["api"; canvas; "worker_schedule"] ->
+      when_can_edit ~canvas (fun _ ->
+          wrap_editor_api_headers (worker_schedule ~execution_id canvas body)
       )
   | `POST, ["api"; canvas; "delete_404"] ->
       when_can_edit ~canvas (fun _ ->

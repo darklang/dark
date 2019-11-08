@@ -31,6 +31,13 @@ let show_queue_action qa =
   match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
 
 
+type workerState =
+  | Unknown
+  | Running
+  | Blocked
+  | Paused
+[@@deriving yojson]
+
 (* None in case we want to log on a timer or something, not
                      just on enqueue/dequeue *)
 
@@ -249,6 +256,40 @@ let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
   |> List.map ~f:row_to_scheduling_rule
 
 
+(* Returns an assoc list of every event handler (worker) in the given canvas
+ * and it's "schedule", which is usually "run", but can be either "block" or
+ * "pause" if there is a scheduling rule for that handler. A handler can have
+ * both a block and pause rule, in which case it is "block" (because block is
+ * an admin action). *)
+let get_worker_schedules_for_canvas canvas_id : (string * string) list =
+  (* build an assoc list (name * Running) for all worker names in canvas *)
+  let workers =
+    Db.fetch
+      ~name:"workers_for_canvas"
+      "SELECT name
+       FROM toplevel_oplists T
+       WHERE canvas_id = $1
+         AND tipe = 'handler'
+         AND module = 'WORKER'"
+      ~params:[Uuid canvas_id]
+    |> List.fold ~init:[] ~f:(fun acc row ->
+           List.Assoc.add ~equal:( = ) acc (List.hd_exn row) "run" )
+  in
+  (* get scheduling overrides for canvas, partitioned *)
+  let blocks, pauses =
+    get_scheduling_rules_for_canvas canvas_id
+    |> List.partition_tf ~f:(fun r -> r.rule_type = "block")
+  in
+  (* build as assoc list of (name * rule_type) where block overwrites pause *)
+  pauses @ blocks
+  |> List.fold ~init:[] ~f:(fun acc r ->
+         List.Assoc.add ~equal:( = ) acc r.handler_name r.rule_type )
+  (* then combine all workers list with rules list, meaning "run" is replaced with
+   * either "block" or "pause" for workers with rules *)
+  |> List.fold ~init:workers ~f:(fun acc (name, state) ->
+         List.Assoc.add ~equal:( = ) acc name state )
+
+
 (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
  * 'pause' rules are developer-controlled whereas 'block' rules are accessible
  * only as DarkInternal functions and cannot be removed by developers. *)
@@ -257,7 +298,8 @@ let add_scheduling_rule rule_type canvas_id handler_name : unit =
     ~name:"add_scheduling_block"
     ~params:[String rule_type; Uuid canvas_id; String handler_name]
     "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
-    VALUES ( $1, $2, $3 'WORKER')"
+    VALUES ( $1, $2, $3, 'WORKER')
+    ON CONFLICT DO NOTHING"
 
 
 (* Removes a scheduling rule of the passed type if one exists.

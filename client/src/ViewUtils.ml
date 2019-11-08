@@ -35,7 +35,8 @@ type viewState =
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
   ; permission : permission option
-  ; workerStats : workerStats option }
+  ; workerStats : workerStats option
+  ; workerSchedule : string option }
 
 (* ----------------------------- *)
 (* Events *)
@@ -151,7 +152,17 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           [] )
   ; permission = m.permission
-  ; workerStats = TLIDDict.get ~tlid m.workerStats }
+  ; workerStats = TLIDDict.get ~tlid m.workerStats
+  ; workerSchedule =
+      ( match tl with
+      | TLHandler h ->
+        ( match h.spec.name with
+        | F (_, name) ->
+            StrDict.get ~key:name m.worker_schedules
+        | Blank _ ->
+            None )
+      | _ ->
+          None ) }
 
 
 let fontAwesome (name : string) : msg Html.html =
