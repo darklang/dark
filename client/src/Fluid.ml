@@ -565,35 +565,33 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
   (* Js.log2 "creating tokens with builder" (b.indent, b.xPos, e) ; *)
   let open Builder in
-  let nest ?(placeholderFor : (string * int) option = None) ~indent e b =
-    let _ = placeholderFor in
-    b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(toTokens' s e))
-  in
   let ghostPartial id newName oldName =
     let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
-  (* As far as I can tell, we can do this separately and join it *)
-  (* let nested ?(placeholderFor : (string * int) option = None) (e : fluidExpr) : *)
-  (*     fluidToken list = *)
-  (*   match (e, placeholderFor) with *)
-  (*   | EBlank id, Some (fnname, pos) -> *)
-  (*       let name = *)
-  (*         s.ac.functions *)
-  (*         |> List.find ~f:(fun f -> f.fnName = fnname) *)
-  (*         |> Option.andThen ~f:(fun fn -> List.getAt ~index:pos fn.fnParameters) *)
-  (*         |> Option.map ~f:(fun p -> (p.paramName, Runtime.tipe2str p.paramTipe) *)
-  (*            ) *)
-  (*       in *)
-  (*       ( match name with *)
-  (*       | None -> *)
-  (*           asTokens (toTokens' empty s e) *)
-  (*       | Some placeholder -> *)
-  (*           [TPlaceholder (placeholder, id)] ) *)
-  (*   | _ -> *)
-  (*       asTokens (toTokens' empty s e) *)
-  (* in *)
+  let nest
+      ?(placeholderFor : (string * int) option = None)
+      ~indent
+      (e : fluidExpr)
+      (b : Builder.t) : Builder.t =
+    match (e, placeholderFor) with
+    | EBlank id, Some (fnname, pos) ->
+        let name =
+          s.ac.functions
+          |> List.find ~f:(fun f -> f.fnName = fnname)
+          |> Option.andThen ~f:(fun fn -> List.getAt ~index:pos fn.fnParameters)
+          |> Option.map ~f:(fun p -> (p.paramName, Runtime.tipe2str p.paramTipe)
+             )
+        in
+        ( match name with
+        | None ->
+            b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(fromExpr e))
+        | Some placeholder ->
+            b |> add (TPlaceholder (placeholder, id)) )
+    | _ ->
+        b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(fromExpr e))
+  in
   match e with
   | EInteger (id, i) ->
       add (TInteger (id, i)) b
@@ -781,7 +779,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
           recover "Thread with single entry found" (fromExpr single b)
       | head :: tail ->
           b
-          |> addNested ~f:(toTokens' s head)
+          |> addNested ~f:(fromExpr head)
           |> maybeNewline (TNewline (Some (id, id, Some 0)))
           |> addIter tail ~f:(fun i e b ->
                  b
