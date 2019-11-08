@@ -562,6 +562,7 @@ end
 
 (* x is the starting x-index of the token *)
 let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
+  let fromExpr e b = toTokens' s e b in
   (* Js.log2 "creating tokens with builder" (b.indent, b.xPos, e) ; *)
   let open Builder in
   let nest ?(placeholderFor : (string * int) option = None) ~indent e b =
@@ -613,9 +614,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> add (TLetKeyword (id, varId))
       |> add (TLetLHS (id, varId, lhs))
       |> add (TLetAssignment (id, varId))
-      |> addNested ~f:(toTokens' s rhs)
+      |> addNested ~f:(fromExpr rhs)
       |> maybeNewline (TNewline (Some (eid next, id, None)))
-      |> addNested ~f:(toTokens' s next)
+      |> addNested ~f:(fromExpr next)
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -643,16 +644,14 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EIf (id, cond, if', else') ->
       b
       |> add (TIfKeyword id)
-      |> nest ~indent:0 cond
+      |> addNested ~f:(fromExpr cond)
       |> maybeNewline (TNewline None)
       |> add (TIfThenKeyword id)
       |> maybeNewline (TNewline (Some (eid if', id, None)))
-      |> add (TIndent 2)
       |> nest ~indent:2 if'
       |> maybeNewline (TNewline None)
       |> add (TIfElseKeyword id)
       |> add (TNewline (Some (eid else', id, None)))
-      |> add (TIndent 2)
       |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
       let start b =
@@ -700,13 +699,10 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       b
       |> add (TFnName (id, partialName, displayName, fnName, ster))
       |> addMany versionToken
-      |> fun b ->
-      List.foldl args ~init:(b, 0) ~f:(fun e (b, i) ->
-          ( b
-            |> add TSep
-            |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e
-          , i + 1 ) )
-      |> Tuple2.first
+      |> addIter args ~f:(fun i e b ->
+             b
+             |> add TSep
+             |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e )
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let args, offset =
         match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
@@ -723,7 +719,8 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EConstructor (id, _, name, exprs) ->
       b
       |> add (TConstructorName (id, name))
-      |> addIter exprs ~f:(fun _ e b -> b |> add TSep |> nest ~indent:0 e)
+      |> addIter exprs ~f:(fun _ e b ->
+             b |> add TSep |> addNested ~f:(fromExpr e) )
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       let ghost = ghostPartial id newName oldName in
       b
@@ -735,22 +732,19 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              |> nest ~indent:0 ~placeholderFor:(Some (oldName, i)) e )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
-      |> nest ~indent:0 expr
+      |> addNested ~f:(fromExpr expr)
       |> addMany [TFieldOp id; TFieldName (id, fieldID, fieldname)]
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
-      let tnames =
-        names
-        |> List.indexedMap ~f:(fun i (aid, name) ->
-               [TLambdaVar (id, aid, i, name); TLambdaSep (id, i); TSep] )
-        |> List.concat
-        (* Remove the extra seperator *)
-        |> List.dropRight ~count:2
-      in
+      let isLast i = i = List.length names - 1 in
       b
       |> add (TLambdaSymbol id)
-      |> addMany tnames
+      |> addIter names ~f:(fun i (aid, name) b ->
+             b
+             |> add (TLambdaVar (id, aid, i, name))
+             |> addIf (not (isLast i)) (TLambdaSep (id, i))
+             |> addIf (not (isLast i)) TSep )
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
   | EList (id, exprs) ->
@@ -758,8 +752,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       b
       |> add (TListOpen id)
       |> addIter exprs ~f:(fun i e b ->
-             b |> nest ~indent:0 e |> addIf (i <> lastIndex) (TListSep (id, i))
-         )
+             b
+             |> addNested ~f:(fromExpr e)
+             |> addIf (i <> lastIndex) (TListSep (id, i)) )
       |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
@@ -773,7 +768,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
                    |> add (TNewline (Some (id, id, Some i)))
                    |> add (TRecordField (id, aid, i, fname))
                    |> add (TRecordSep (id, i, aid))
-                   |> nest ~indent:0 expr ) )
+                   |> addNested ~f:(fromExpr expr) ) )
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
              ; TRecordClose id ]
@@ -783,7 +778,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       | [] ->
           recover "Empty thread found" b
       | [single] ->
-          recover "Thread with single entry found" (b |> nest ~indent:0 single)
+          recover "Thread with single entry found" (fromExpr single b)
       | head :: tail ->
           b
           |> addNested ~f:(toTokens' s head)
@@ -791,8 +786,8 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TThreadPipe (id, i, length))
-                 |> addNested ~f:(toTokens' s e)
-                 |> maybeNewline (TNewline (Some (id, id, Some i))) )
+                 |> addNested ~f:(fromExpr e)
+                 |> maybeNewline (TNewline (Some (id, id, Some (i + 1)))) )
           |> maybeNewline (TNewline (Some (id, id, Some (List.length tail))))
       )
   | EThreadTarget _ ->
@@ -800,7 +795,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EMatch (id, mexpr, pairs) ->
       b
       |> add (TMatchKeyword id)
-      |> nest ~indent:2 mexpr
+      |> addNested ~f:(fromExpr mexpr)
       |> indentBy ~indent:2 ~f:(fun b ->
              b
              |> addIter pairs ~f:(fun i (pattern, expr) b ->
@@ -808,7 +803,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
                     |> maybeNewline (TNewline (Some (id, id, Some i)))
                     |> addMany (patternToToken pattern)
                     |> addMany [TSep; TMatchSep (pid pattern); TSep]
-                    |> nest ~indent:0 expr )
+                    |> addNested ~f:(fromExpr expr) )
              |> maybeNewline
                   (TNewline (Some (id, id, Some (List.length pairs)))) )
   | EOldExpr expr ->
@@ -816,9 +811,11 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EPartial (id, str, _) ->
       b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->
-      b |> nest ~indent:0 expr |> addMany [TSep; TRightPartial (id, newOp)]
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TSep; TRightPartial (id, newOp)]
   | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
-      b |> nest ~indent:0 casea
+      b |> addNested ~f:(fromExpr casea)
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
