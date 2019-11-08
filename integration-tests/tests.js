@@ -1199,7 +1199,6 @@ test("sidebar_opens_function", async t => {
 
 // model logic in client/src/IntegrationTest.ml
 test("tobytes_roundtrip", async t => {
-  await t
-  .navigateTo("#handler=1115444997");
+  await t.navigateTo("#handler=1115444997");
   await t.click(Selector(".fncall"));
 });
