@@ -464,8 +464,6 @@ and avDict = id StrDict.t StrDict.t
 
 and inputValueDict = dvalDict
 
-(* How we store the analysis. Because we can update individual values in
-  * the analysis, each value in here is loadable. *)
 and analysisStore = lvDict loadable
 
 and analyses = analysisStore (* indexed by traceID *) StrDict.t
