@@ -67,7 +67,8 @@ let () =
             ; hoveringRefs = []
             ; avatarsList = []
             ; permission = Some ReadWrite
-            ; workerStats = None }
+            ; workerStats = None
+            ; workerSchedule = None }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
       () ) ;

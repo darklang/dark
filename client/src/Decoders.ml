@@ -708,6 +708,10 @@ let workerStats j : workerStats = {count = field "count" int j}
 
 let workerStatsRPCResult j = workerStats j
 
+let updateWorkerScheduleRPCResult j : string StrDict.t =
+  (list (pair string string)) j |> StrDict.fromList
+
+
 let initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
   let dtls = field "deleted_toplevels" (list toplevel) j in
@@ -731,7 +735,11 @@ let initialLoadRPCResult j : initialLoadRPCResult =
   ; permission = field "permission" (optional permission) j
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
-  ; account = field "account" account j }
+  ; account = field "account" account j
+  ; worker_schedules =
+      j
+      |> field "worker_schedules" (list (tuple2 string string))
+      |> StrDict.fromList }
 
 
 let executeFunctionRPCResult j : executeFunctionRPCResult =

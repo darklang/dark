@@ -142,4 +142,5 @@ let defaultModel : model =
   ; permission = None
   ; showTopbar = true
   ; toast = defaultToast
-  ; account = defaultAccount }
+  ; account = defaultAccount
+  ; worker_schedules = StrDict.empty }
