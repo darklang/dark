@@ -596,7 +596,7 @@ let foundFnName (f : userFunction) : string =
 
 let qSearch (m : model) (s : string) : omniAction list =
   let findString tlid =
-    match TLIDDict.get ~tlid m.astCache with
+    match TLIDDict.get ~tlid m.searchCache with
     | Some cache ->
         String.contains ~substring:s cache
     | None ->

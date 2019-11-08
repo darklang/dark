@@ -1002,25 +1002,25 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         Clipboard.setData data e ;
         (m, Cmd.none)
     | UpdateASTCache (tlid, str) ->
-        let astCache =
-          m.astCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+        let searchCache =
+          m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
         in
-        ({m with astCache}, Cmd.none)
+        ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
         let exprToString ast = Fluid.exprToStr m.fluidState ast in
         let hcache =
           handlers
-          |> List.foldl ~init:m.astCache ~f:(fun h cache ->
+          |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
                  let value = exprToString h.ast in
                  cache |> TLIDDict.insert ~tlid:h.hTLID ~value )
         in
-        let astCache =
+        let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
                  let value = exprToString f.ufAST in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value )
         in
-        ({m with astCache}, Cmd.none)
+        ({m with searchCache}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
