@@ -33,7 +33,7 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.t =
 (* -------------------- *)
 (* Analysis result *)
 (* -------------------- *)
-type analysis = {live_values : dval_store} [@@deriving to_yojson]
+type analysis = dval_store [@@deriving to_yojson]
 
 type input_vars = (string * dval) list [@@deriving eq, show, yojson]
 

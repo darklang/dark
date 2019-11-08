@@ -69,8 +69,7 @@ let viewInput
   Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
-let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
-    =
+let viewInputs (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
   let traceToHtml ((traceID, traceData) : trace) =
     let value = Option.map ~f:(fun td -> td.input) traceData in
     let timestamp =
@@ -78,14 +77,11 @@ let viewInputs (vs : ViewUtils.viewState) (ID astID : id) : msg Html.html list
     in
     (* Note: the isActive and hoverID tlcursors are very different things *)
     let isActive =
-      Analysis.cursor' vs.tlCursors vs.traces vs.tlid = Some traceID
+      Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid = Some traceID
     in
     let isHover = vs.hovering = Some (vs.tlid, ID traceID) in
     let astTipe =
-      StrDict.get ~key:traceID vs.analyses
-      |> Option.map ~f:(fun x -> x.liveValues)
-      |> Option.andThen ~f:(StrDict.get ~key:astID)
-      |> Option.map ~f:Runtime.typeOf
+      Analysis.getTipeOf' vs.analysisStore astID
       |> Option.withDefault ~default:TIncomplete
     in
     viewInput vs.tl traceID value timestamp isActive isHover astTipe
@@ -133,8 +129,8 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
   in
   let selectedValue =
     match vs.cursorState with
-    | Selecting (_, Some (ID id)) ->
-        StrDict.get ~key:id vs.currentResults.liveValues
+    | Selecting (_, Some id) ->
+        Analysis.getLiveValue' vs.analysisStore id
     | _ ->
         None
   in

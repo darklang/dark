@@ -30,6 +30,8 @@ module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module Token = FluidToken
 
+type viewState = ViewUtils.viewState
+
 (* -------------------- *)
 (* Utils *)
 (* -------------------- *)
@@ -4523,7 +4525,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             then
               let asExpr = toExpr newAST in
               let requestAnalysis =
-                match Analysis.cursor m tlid with
+                match Analysis.getSelectedTraceID m tlid with
                 | Some traceID ->
                     let m = TL.withAST m tlid asExpr in
                     MakeCmd (Analysis.requestAnalysis m tlid traceID)
@@ -4600,20 +4602,18 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
+let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
   let returnTipe name =
     let fn = Functions.findByNameInList name state.ac.functions in
     Runtime.tipe2str fn.fnReturnTipe
   in
   let sentToRail id =
-    let dv =
-      StrDict.get ~key:(deID id) currentResults.liveValues
-      |> Option.withDefault ~default:DNull
-    in
+    let dv = Analysis.getLiveValue' analysisStore id in
     match dv with
-    | DErrorRail (DResult (ResError _)) | DErrorRail (DOption OptNothing) ->
+    | Some (DErrorRail (DResult (ResError _)))
+    | Some (DErrorRail (DOption OptNothing)) ->
         "ErrorRail"
-    | DIncomplete | DError _ ->
+    | Some DIncomplete | Some (DError _) ->
         "EvalFail"
     | _ ->
         ""
@@ -4634,114 +4634,57 @@ let viewErrorIndicator ~tlid ~currentResults ~state ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let viewPlayIcon
-    ~(vs : ViewUtils.viewState)
-    ~tlid
-    ~currentResults
-    ~executingFunctions
-    ~state
-    (ast : ast)
-    (ti : tokenInfo) : Types.msg Html.html =
-  match ti.token with
-  | TFnVersion (id, _, displayName, fnName)
-  | TFnName (id, _, displayName, fnName, _) ->
-      let fn = Functions.findByNameInList fnName state.ac.functions in
-      let previous =
-        toExpr ast
-        |> AST.threadPrevious id
-        |> Option.toList
-        |> List.map ~f:(fromExpr state)
-      in
-      let exprs =
-        match findExpr id ast with
-        | Some (EFnCall (id, name, exprs, _)) when id = id && name = name ->
-            exprs
-        | _ ->
-            []
-      in
-      (* buttons *)
-      let allExprs = previous @ exprs in
-      let isComplete id =
-        id
-        |> ViewBlankOr.getLiveValue currentResults.liveValues
-        |> fun v ->
-        match v with
-        | None | Some (DError _) | Some DIncomplete ->
-            false
-        | Some _ ->
-            true
-      in
-      let paramsComplete = List.all ~f:(isComplete << eid) allExprs in
-      let buttonUnavailable = not paramsComplete in
-      (* Dont show button on the function token if it has a version, show on version token *)
-      let showButton =
-        vs.permission = Some ReadWrite
-        &&
-        match ti.token with
-        | TFnVersion _ ->
-            not fn.fnPreviewExecutionSafe
-        | TFnName _ | _ ->
-            (* displayName and fnName will be equal if there is no version *)
-            displayName == fnName && not fn.fnPreviewExecutionSafe
-      in
-      let buttonNeeded = not (isComplete id) in
-      let exeIcon = "play" in
-      let events =
-        [ ViewUtils.eventNoPropagation
-            ~key:("efb-" ^ showTLID tlid ^ "-" ^ showID id ^ "-" ^ fnName)
-            "click"
-            (fun _ -> ExecuteFunctionButton (tlid, id, fnName))
-        ; ViewUtils.nothingMouseEvent "mouseup"
-        ; ViewUtils.nothingMouseEvent "mousedown"
-        ; ViewUtils.nothingMouseEvent "dblclick" ]
-      in
-      let class_, event, title, icon =
-        if fnName = "Password::check" || fnName = "Password::hash"
-        then
-          ( "execution-button-unsafe"
-          , []
-          , "Cannot run interactively for security reasons."
-          , "times" )
-        else if buttonUnavailable
-        then
-          ( "execution-button-unavailable"
-          , []
-          , "Cannot run: some parameters are incomplete"
-          , exeIcon )
-        else if buttonNeeded
-        then
-          ( "execution-button-needed"
-          , events
-          , "Click to execute function"
-          , exeIcon )
-        else
-          ( "execution-button-repeat"
-          , events
-          , "Click to execute function again"
-          , "redo" )
-      in
-      let executingClass =
-        if List.member ~value:id executingFunctions then "is-executing" else ""
-      in
-      if not showButton
-      then Vdom.noNode
-      else
-        Html.div
-          ( [ Html.class' ("execution-button " ^ class_ ^ executingClass)
-            ; Html.title title ]
-          @ event )
-          [ViewUtils.fontAwesome icon]
+let fnForToken state token : function_ option =
+  match token with
+  | TBinOp (_, fnName)
+  | TFnVersion (_, _, _, fnName)
+  | TFnName (_, _, _, fnName, _) ->
+      Some (Functions.findByNameInList fnName state.ac.functions)
   | _ ->
+      None
+
+
+let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
+    fluidExpr list =
+  let id = Token.tid token in
+  let previous =
+    toExpr ast
+    |> AST.threadPrevious id
+    |> Option.toList
+    |> List.map ~f:(fromExpr state)
+  in
+  let exprs =
+    match findExpr id ast with
+    | Some (EFnCall (_, _, exprs, _)) ->
+        exprs
+    | Some (EBinOp (_, _, lhs, rhs, _)) ->
+        [lhs; rhs]
+    | _ ->
+        []
+  in
+  previous @ exprs
+
+
+let viewPlayIcon
+    ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : tokenInfo) :
+    Types.msg Html.html =
+  match fnForToken state ti.token with
+  | Some fn ->
+      let allExprs = fnArgExprs ti.token ast state in
+      let argIDs = List.map ~f:eid allExprs in
+      ( match ti.token with
+      | TFnVersion (id, _, _, _) ->
+          ViewFnExecution.fnExecutionButton vs fn id argIDs
+      | TFnName (id, _, displayName, fnName, _) when displayName = fnName ->
+          ViewFnExecution.fnExecutionButton vs fn id argIDs
+      | _ ->
+          Vdom.noNode )
+  | None ->
       Vdom.noNode
 
 
-let toHtml
-    ~(vs : ViewUtils.viewState)
-    ~tlid
-    ~currentResults
-    ~executingFunctions
-    ~state
-    (ast : ast) : Types.msg Html.html list =
+let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
+    Types.msg Html.html list =
   let l = ast |> toTokens state in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -4809,56 +4752,50 @@ let toHtml
           ([Html.text content] @ nested)
       in
       if vs.permission = Some ReadWrite
-      then
-        [ element
-            [ dropdown ()
-            ; ti
-              |> viewPlayIcon
-                   ~vs
-                   ~tlid
-                   ~currentResults
-                   ~executingFunctions
-                   ~state
-                   ast ] ]
+      then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
       else [] )
   |> List.flatten
 
 
-type lvType =
-  | LValue of string * int
-  | LSpinner of int
-  | LVNone
-
-let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
-  let liveValues, show, offset =
-    let lv =
-      (* Flatten conditions to eval live values *)
-      getToken state ast
-      |> Option.map ~f:(fun ti ->
-             let id = Token.analysisID ti.token in
-             if FluidToken.validID id
-             then
-               StrDict.get ~key:(deID id) currentResults.liveValues
-               |> Option.map ~f:(fun exprValue ->
-                      match AC.highlighted state.ac with
-                      | Some (FACVariable (_, Some acValue)) ->
-                          LValue (Runtime.toRepr acValue, ti.startRow)
-                      | Some _ ->
-                          LVNone
-                      | None ->
-                          LValue (Runtime.toRepr exprValue, ti.startRow) )
-               |> Option.withDefault ~default:(LSpinner ti.startRow)
-             else LVNone )
-      |> Option.withDefault ~default:LVNone
-    in
-    (* Render live values *)
-    match lv with
-    | LValue (s, row) ->
-        ([Html.text s; viewCopyButton tlid s], true, row)
-    | LSpinner row ->
-        ([ViewUtils.fontAwesome "spinner"], true, row)
-    | LVNone ->
-        ([Vdom.noNode], false, 0)
+let viewLiveValue
+    ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
+    Types.msg Html.html =
+  let liveValue, show, offset =
+    let none = ([Vdom.noNode], false, 0) in
+    getToken state ast
+    |> Option.map ~f:(fun ti ->
+           let fn = fnForToken state ti.token in
+           let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
+           let row = ti.startRow in
+           let id = Token.analysisID ti.token in
+           let fnText =
+             fn
+             |> Option.map ~f:(fun fn ->
+                    let id = Token.tid ti.token in
+                    ViewFnExecution.fnExecutionStatus vs fn id args )
+             |> Option.map ~f:ViewFnExecution.executionError
+           in
+           if FluidToken.validID id
+           then
+             let loadable =
+               Analysis.getLiveValueLoadable vs.analysisStore id
+             in
+             match (AC.highlighted state.ac, loadable) with
+             | None, LoadableSuccess DIncomplete when Option.isSome fnText ->
+                 let text = Option.withDefault ~default:"" fnText in
+                 ([Html.text text], true, ti.startRow)
+             | Some (FACVariable (_, Some dval)), _
+             | None, LoadableSuccess dval ->
+                 let text = Runtime.toRepr dval in
+                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
+             | Some _, _ ->
+                 none
+             | None, LoadableNotInitialized | None, LoadableLoading _ ->
+                 ([ViewUtils.fontAwesome "spinner"], true, row)
+             | None, LoadableError err ->
+                 ([Html.text ("Error loading live value: " ^ err)], true, row)
+           else none )
+    |> Option.withDefault ~default:none
   in
   let offset = float_of_int offset +. 1.5 in
   Html.div
@@ -4866,14 +4803,12 @@ let viewLiveValue ~tlid ~ast ~currentResults ~state : Types.msg Html.html =
     ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
     ; Attrs.autofocus false
     ; Vdom.attribute "" "spellcheck" "false" ]
-    liveValues
+    liveValue
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     =
-  let ({currentResults; executingFunctions; tlid} : ViewUtils.viewState) =
-    vs
-  in
+  let ({analysisStore; tlid} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =
@@ -4890,7 +4825,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     let indicators =
       tokenInfos
       |> List.map ~f:(fun ti ->
-             viewErrorIndicator ~tlid ~currentResults ~state ti )
+             viewErrorIndicator ~tlid ~analysisStore ~state ti )
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
@@ -4899,7 +4834,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   in
   let liveValue =
     if tlidOf vs.cursorState = Some tlid
-    then viewLiveValue ~tlid ~ast ~currentResults ~state
+    then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
   [ liveValue
@@ -4909,7 +4844,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Attrs.autofocus true
       ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown" ]
-      (ast |> toHtml ~vs ~tlid ~currentResults ~executingFunctions ~state)
+      (toHtml ast ~vs ~tlid ~state)
   ; errorRail ]
 
 

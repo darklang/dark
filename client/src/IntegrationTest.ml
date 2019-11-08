@@ -424,7 +424,10 @@ let feature_flag_works (m : model) : testResult =
                           , _ ) )
                   , F (_, Value "\"A\"")
                   , F (_, Value "\"B\"") ) ) ) ) ->
-      let res = Analysis.getCurrentLiveValue m h.hTLID id in
+      let res =
+        Analysis.getSelectedTraceID m h.hTLID
+        |> Option.andThen ~f:(Analysis.getLiveValue m id)
+      in
       ( match res with
       | Some val_ ->
           if val_ = DStr "B" then pass else fail (show_expr ast, val_)
