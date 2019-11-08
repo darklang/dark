@@ -1073,6 +1073,14 @@ test("fluid_single_click_on_token_in_deselected_handler_focuses", async t => {
     .click(Selector(".id-2068425241.fluid-let-lhs"), { caretPos: 2 });
 });
 
+test("fluid_click_2x_on_token_places_cursor", async t => {
+  await t
+    .expect(available(".id-549681748.fluid-let-lhs"))
+    .ok()
+    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 })
+    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 });
+});
+
 test("fluid_double_click_selects_token", async t => {
   await t
     .navigateTo("#handler=123")

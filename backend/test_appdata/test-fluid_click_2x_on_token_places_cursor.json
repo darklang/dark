@@ -1,0 +1,30 @@
+[
+  [ "TLSavepoint", 1835485706 ],
+  [
+    "SetHandler",
+    1835485706,
+    { "x": 641, "y": 244 },
+    {
+      "tlid": 1835485706,
+      "ast": [
+        "Filled",
+        549681748,
+        [
+          "Let",
+          [ "Filled", 759097728, "someText" ],
+          [ "Filled", 1289514518, [ "Value", "\"Some text\"" ] ],
+          [ "Blank", 1191311861 ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 1209063948, "REPL" ],
+        "name": [ "Filled", 119976452, "flickeringOpossum" ],
+        "modifier": [ "Filled", 638523352, "_" ],
+        "types": {
+          "input": [ "Blank", 178405468 ],
+          "output": [ "Blank", 1215927390 ]
+        }
+      }
+    }
+  ]
+]
