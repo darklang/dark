@@ -1191,7 +1191,8 @@ let of_form_encoding (f : string) : dval =
  * amenable to change without a migration. Don't change ANYTHING for existing
  * values, but continue to add representations for new values. Also, inline
  * everything! *)
-let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
+let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) :
+    string =
   let nl = "\n" ^ String.make indent ' ' in
   let inl = "\n" ^ String.make (indent + 2) ' ' in
   let indent = indent + 2 in
@@ -1269,10 +1270,27 @@ let rec to_hashable_repr ?(indent = 0) (dv : dval) : string =
   | DResult (ResError dv) ->
       "ResultError " ^ to_hashable_repr ~indent dv
   | DBytes bytes ->
-      bytes |> RawBytes.to_string
+      if old_bytes
+      then bytes |> RawBytes.to_string
+      else bytes |> Util.hash_bytes
 
+
+let supported_hash_versions : int list = [0; 1]
+
+let current_hash_version = 1
 
 (* Originally to prevent storing sensitive data to disk, this also reduces the
  * size of the data stored by only storing a hash *)
-let hash (arglist : dval list) : string =
-  arglist |> List.map ~f:to_hashable_repr |> String.concat |> Util.hash
+let hash (version : int) (arglist : dval list) : string =
+  (* Version 0 deprecated because it has a collision between [b"a"; b"bc"] and
+   * [b"ab"; b"c"] *)
+  match version with
+  | 0 ->
+      arglist
+      |> List.map ~f:(to_hashable_repr ~old_bytes:true)
+      |> String.concat
+      |> Util.hash
+  | 1 ->
+      DList arglist |> to_hashable_repr |> Util.hash
+  | _ ->
+      Exception.internal ("Invalid Dval.hash version: " ^ string_of_int version)

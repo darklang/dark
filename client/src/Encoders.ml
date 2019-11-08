@@ -3,6 +3,63 @@ open Json_encode_extended
 
 (* Dark *)
 
+(* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
+type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
+
+type jsUint8Array [@@bs.deriving abstract]
+
+external createUint8Array : int -> jsUint8Array = "Uint8Array" [@@bs.new]
+
+external setUint8ArrayIdx : jsUint8Array -> int -> int -> unit = ""
+  [@@bs.set_index]
+
+let dark_arrayBuffer_to_b64url =
+  [%raw
+    {|
+  function (arraybuffer) {
+    // TODO(JULIAN): Actually import https://github.com/niklasvh/base64-arraybuffer/blob/master/lib/base64-arraybuffer.js as a lib and use encode here
+    var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    // Use a lookup table to find the index.
+    var lookup = new Uint8Array(256);
+    for (var i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+
+      var bytes = new Uint8Array(arraybuffer),
+      i, len = bytes.length, base64 = "";
+
+      for (i = 0; i < len; i+=3) {
+        base64 += chars[bytes[i] >> 2];
+        base64 += chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
+        base64 += chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
+        base64 += chars[bytes[i + 2] & 63];
+      }
+
+      if ((len % 3) === 2) {
+        base64 = base64.substring(0, base64.length - 1) + "=";
+      } else if (len % 3 === 1) {
+        base64 = base64.substring(0, base64.length - 2) + "==";
+      }
+
+      return base64;
+  }
+|}]
+
+
+let _bytes_to_uint8Array (input : Bytes.t) : jsUint8Array =
+  let len = Bytes.length input in
+  let buf = createUint8Array len in
+  for i = 0 to len - 1 do
+    setUint8ArrayIdx buf i (int_of_char (Bytes.get input i))
+  done ;
+  buf
+
+
+let base64url_bytes (input : Bytes.t) : string =
+  input |> _bytes_to_uint8Array |> dark_arrayBuffer_to_b64url
+
+
 (* Don't attempt to encode these as integers, because we're not capable
  * of expressing all existing ids as ints because bucklescript is strict
  * about int == 32 bit. As far as we're concerned, ids are strings and
@@ -92,7 +149,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
           | ResError dv ->
               ev "ResError" [dval dv] ) ]
   | DBytes bin ->
-      ev "DBytes" [string (bin |> Bytes.to_string |> Webapi.Base64.atob)]
+      ev "DBytes" [string (bin |> base64url_bytes)]
 
 
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
@@ -585,7 +642,11 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
 and functionResult (fr : Types.functionResult) : Js.Json.t =
   list
     identity
-    [string fr.fnName; id fr.callerID; string fr.argHash; dval fr.value]
+    [ string fr.fnName
+    ; id fr.callerID
+    ; string fr.argHash
+    ; int fr.argHashVersion
+    ; dval fr.value ]
 
 
 and traceID = string

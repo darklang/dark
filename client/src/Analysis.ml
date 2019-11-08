@@ -55,8 +55,15 @@ let replaceFunctionResult
     (callerID : id)
     (fnName : string)
     (hash : dvalArgsHash)
+    (hashVersion : int)
     (dval : dval) : model =
-  let newResult = {fnName; callerID; argHash = hash; value = dval} in
+  let newResult =
+    { fnName
+    ; callerID
+    ; argHash = hash
+    ; argHashVersion = hashVersion
+    ; value = dval }
+  in
   let traces =
     m.traces
     |> StrDict.update ~key:(deTLID tlid) ~f:(fun ml ->

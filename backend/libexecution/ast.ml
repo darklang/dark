@@ -191,7 +191,6 @@ let rec exec
       | Partial _ | Blank _ ->
           param
       | _ ->
-          ignore (exe st exp) ;
           (* calculate the results inside this regardless *)
           DIncomplete
       (* partial w/ exception, full with dincomplete, or option dval? *)
@@ -537,7 +536,7 @@ and call_fn
             ( match state.load_fn_result sfr_desc argvals with
             | Some (result, _ts) ->
                 result
-            | _ ->
+            | inc ->
                 DIncomplete )
         | Some fn ->
             (* equalize length *)
@@ -615,7 +614,7 @@ and exec_fn
           match state.load_fn_result sfr_desc arglist with
           | Some (result, _ts) ->
               result
-          | _ ->
+          | inc ->
               DIncomplete
         else
           let state =

@@ -406,6 +406,21 @@ let t_unicode_string_regex_replace_works_with_emojis () =
     (Unicode_string.regexp_replace ~pattern ~replacement s1)
 
 
+(* ---------------- *)
+(* Dval hashing *)
+(* ---------------- *)
+let t_dval_hash_differs_for_version_0_and_1 () =
+  let arglist =
+    [ DBytes ("ab" |> Libtarget.bytes_from_base64url)
+    ; DBytes ("c" |> Libtarget.bytes_from_base64url) ]
+  in
+  AT.check
+    AT.bool
+    "DVal.hash differs for version 0 and 1"
+    false
+    (Dval.hash 0 arglist = Dval.hash 1 arglist)
+
+
 let suite =
   [ ("int_add_works", `Quick, t_int_add_works)
   ; ("lambda_with_foreach", `Quick, t_lambda_with_foreach)
@@ -459,4 +474,5 @@ let suite =
   ; ( "Unicode_string.regex_replace_works_with_emojis"
     , `Quick
     , t_unicode_string_regex_replace_works_with_emojis )
-  ; ("DError propagation", `Quick, t_derror_propagation) ]
+  ; ("DError propagation", `Quick, t_derror_propagation)
+  ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1) ]
