@@ -37,6 +37,13 @@ type viewState =
   ; permission : permission option
   ; workerStats : workerStats option }
 
+(* ----------------------------- *)
+(* Events *)
+(* ----------------------------- *)
+type domEvent = msg Vdom.property
+
+type domEventList = domEvent list
+
 let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
   match unwrapCursorState cs with
   | Entering (Filling (_, id)) ->

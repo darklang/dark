@@ -4409,7 +4409,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       | Some newPos ->
           updateMouseClick newPos ast s
       | None ->
-          (ast, {s with error = Some "found no pos"}) )
+          (* We reset the fluidState to prevent the selection and/or cursor position from persisting
+           * when a user switched handlers *)
+          (ast, Defaults.defaultFluidState) )
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -4470,6 +4472,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidStartSelection _
   | FluidKeyPress _
   | FluidCopy
   | FluidPaste _
@@ -4710,8 +4713,6 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           [ Attrs.class'
               ( ["fluid-entry"] @ classes @ idclasses @ highlight
               |> String.join ~sep:" " )
-            (* TODO(korede): figure out how to disable default selection while allowing click event *)
-          ; ViewUtils.nothingMouseEvent "mousemove"
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
@@ -4737,7 +4738,29 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                     (* We expect that this doesn't happen *)
                     FluidMsg (FluidUpdateSelection (tlid, None)) )
           ; ViewUtils.eventNoPropagation
-              ~key:("fluid-selection-click" ^ idStr)
+              ~key:("fluid-selection-mousedown" ^ idStr)
+              "mousedown"
+              (fun _ -> FluidMsg (FluidStartSelection tlid) )
+          ; ViewUtils.eventNoPropagation
+              ~key:("fluid-selection-mouseup" ^ idStr)
+              "mouseup"
+              (fun _ ->
+                match Entry.getFluidSelectionRange () with
+                | Some range ->
+                    FluidMsg (FluidUpdateSelection (tlid, Some range))
+                | None ->
+                    (* This will happen if it gets a selection and there is no
+                 focused node (weird browser problem?) *)
+                    IgnoreMsg )
+          ; ViewUtils.eventNoPropagation
+              ~key:
+                ( "fluid-selection-click-"
+                ^
+                match state.selectionStart with
+                | Some x ->
+                    string_of_int x
+                | None ->
+                    "nosel" )
               "click"
               (fun ev ->
                 match Entry.getFluidSelectionRange () with
@@ -4958,23 +4981,23 @@ let selectedASTAsText (m : model) : string option =
   TL.selectedAST m |> Option.map ~f:(fromExpr s) |> Option.map ~f:(eToString s)
 
 
-let renderCallback (m : model) =
+let renderCallback (m : model) : unit =
   match m.cursorState with
   | FluidEntering _ ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
-        (* When you change the text of a node in the DOM, the browser resets
-         * the cursor to the start of the node. After each rerender, we want to
-         * make sure we set the cursor to it's exact place. We do it here to
-         * make sure it's always set after a render, not waiting til the next
-         * frame.
-         *
-         * However, if there currently is a selection, set that range instead of
-         * the new cursor position because otherwise the selection gets overwritten.
-         *)
+        (* This for two different purposes: 
+         * 1. When a key press mutates the text in the content editable, the browser resets the caret position to the * beginnning of the content editable. Here we set the caret to the correct position from the fluidState
+         * 2. We intercept all keyboard caret movement, therefore we need to set the caret to the correct position 
+         * from the fluidState
+
+         * We do this after a render(not waiting til the next frame) so that the developer does not see the caret 
+         * flicker to default browser position
+        *)
         match m.fluidState.selectionStart with
         | Some selStart ->
+            (* Updates the browser selection range for 2 in the context of selections *)
             Entry.setFluidSelectionRange (selStart, m.fluidState.newPos)
         | None ->
             Entry.setFluidCaret m.fluidState.newPos )

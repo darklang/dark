@@ -1,7 +1,7 @@
 import { ClientFunction, Selector } from "testcafe";
 const child_process = require("child_process");
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
-
+const getPageUrl = ClientFunction(() => window.location.href);
 function startXvfb(testname) {
   if (process.env.IN_DEV_CONTAINER != "true") return;
   const script = "scripts/support/start-recording-xvfb";
@@ -1073,6 +1073,25 @@ test("fluid_single_click_on_token_in_deselected_handler_focuses", async t => {
     .click(Selector(".id-2068425241.fluid-let-lhs"), { caretPos: 2 });
 });
 
+test("fluid_click_2x_on_token_places_cursor", async t => {
+  await t
+    .expect(available(".id-549681748.fluid-let-lhs"))
+    .ok()
+    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 })
+    .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 });
+});
+
+test("fluid_click_2x_in_function_places_cursor", async t => {
+  await t
+    .navigateTo("#fn=1352039682")
+    .expect(available(".id-677483670.fluid-let-lhs"))
+    .ok()
+    .click(Selector(".id-677483670.fluid-let-lhs"), { caretPos: 2 })
+    .expect(available(".id-96908617.fluid-category-string"))
+    .ok()
+    .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
+});
+
 test("fluid_double_click_selects_token", async t => {
   await t
     .navigateTo("#handler=123")
@@ -1164,4 +1183,16 @@ test("max_callstack_bug", async t => {
     // bug
     .typeText("#entry-box", "2000")
     .pressKey("enter");
+});
+
+test("sidebar_opens_function", async t => {
+  await t
+    .expect(available(".sidebar-section.fns .headerSummary"))
+    .ok()
+    .click(Selector(".sidebar-section.fns .headerSummary"))
+    .expect(available(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .ok()
+    .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .expect(getPageUrl())
+    .match(/.+#fn=1352039682$/, "Url is incorrect");
 });

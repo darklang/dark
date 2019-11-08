@@ -470,6 +470,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
+    | StartFluidMouseSelecting tlid ->
+        let newMod =
+          if VariantTesting.isFluid m.tests
+          then {m with cursorState = FluidMouseSelecting tlid}
+          else m
+        in
+        (newMod, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
@@ -1101,7 +1108,7 @@ let update_ (msg : msg) (m : model) : modification =
               , origCursorState ) ]
     | _ ->
         NoChange )
-  | ToplevelMouseDown (targetTLID, event) ->
+  | TLDragRegionMouseDown (targetTLID, event) ->
       if event.button = Defaults.leftButton
       then
         let tl = TL.get m targetTLID in
@@ -1111,7 +1118,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
-  | ToplevelMouseUp (_, event) ->
+  | TLDragRegionMouseUp (_, event) ->
       if event.button = Defaults.leftButton
       then
         match m.cursorState with
@@ -1174,7 +1181,9 @@ let update_ (msg : msg) (m : model) : modification =
         then NoChange
         else Select (targetExnID, Some targetID)
     | FluidEntering _ ->
-        Select (targetExnID, Some targetID) )
+        Select (targetExnID, Some targetID)
+    | FluidMouseSelecting _ ->
+        StartFluidMouseSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
@@ -1212,7 +1221,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ ->
+        | FluidEntering _ | FluidMouseSelecting _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1886,6 +1895,8 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
+  | FluidMsg (FluidStartSelection targetExnID) ->
+      Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
@@ -1901,8 +1912,6 @@ let update_ (msg : msg) (m : model) : modification =
                       ; newPos = selEnd
                       ; selectionStart = None } }
               | Some (selBegin, selEnd) ->
-                  (* re-apply selection *)
-                  Entry.setFluidSelectionRange (selBegin, selEnd) ;
                   { m with
                     fluidState =
                       { m.fluidState with

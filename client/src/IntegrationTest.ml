@@ -14,6 +14,37 @@ let fail ?(f : 'a -> string = Js.String.make) (v : 'a) : testResult =
   Error (f v)
 
 
+let testIntOption ~(errMsg : string) ~(expected : int) ~(actual : int option) :
+    testResult =
+  match actual with
+  | Some a when a = expected ->
+      pass
+  | Some a ->
+      fail
+        ( errMsg
+        ^ " (Actual: "
+        ^ string_of_int a
+        ^ ", Expected: "
+        ^ string_of_int expected
+        ^ ")" )
+  | None ->
+      fail
+        (errMsg ^ " (Actual: None, Expected: " ^ string_of_int expected ^ ")")
+
+
+let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
+  if actual = expected
+  then pass
+  else
+    fail
+      ( errMsg
+      ^ " (Actual: "
+      ^ string_of_int actual
+      ^ ", Expected: "
+      ^ string_of_int expected
+      ^ ")" )
+
+
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
 let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
@@ -757,25 +788,64 @@ let fluid_double_click_selects_token (m : model) : testResult =
 
 let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
     testResult =
+  match m.currentPage with
+  | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
+      pass
+  | _ ->
+      fail "handler is not focused"
+
+
+let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
   let focusedPass =
     match m.currentPage with
-    | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
+    | FocusedHandler (tlid, _) when tlid = TLID.fromString "1835485706" ->
         pass
     | _ ->
         fail "handler is not focused"
   in
   let expectedCursorPos = 6 in
   let browserCursorPass =
-    if Entry.getFluidCaretPos () = Some expectedCursorPos
-    then pass
-    else fail "incorrect browser cursor position"
+    testIntOption
+      ~errMsg:"incorrect browser cursor position"
+      ~expected:expectedCursorPos
+      ~actual:(Entry.getFluidCaretPos ())
   in
   let cursorPass =
     match m.cursorState with
     | FluidEntering _ ->
-        if m.fluidState.newPos = expectedCursorPos
-        then pass
-        else fail "incorrect cursor position"
+        testInt
+          ~errMsg:"incorrect cursor position"
+          ~expected:expectedCursorPos
+          ~actual:m.fluidState.newPos
+    | _ ->
+        fail "incorrect cursor state"
+  in
+  Result.combine [focusedPass; browserCursorPass; cursorPass]
+  |> Result.map (fun _ -> ())
+
+
+let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
+  let focusedPass =
+    match m.currentPage with
+    | FocusedFn tlid when tlid = TLID.fromString "1352039682" ->
+        pass
+    | _ ->
+        fail "function is not focused"
+  in
+  let expectedCursorPos = 17 in
+  let browserCursorPass =
+    testIntOption
+      ~errMsg:"incorrect browser cursor position"
+      ~expected:expectedCursorPos
+      ~actual:(Entry.getFluidCaretPos ())
+  in
+  let cursorPass =
+    match m.cursorState with
+    | FluidEntering _ ->
+        testInt
+          ~errMsg:"incorrect cursor position"
+          ~expected:expectedCursorPos
+          ~actual:m.fluidState.newPos
     | _ ->
         fail "incorrect cursor state"
   in
@@ -844,6 +914,11 @@ let center_toplevel (_m : model) : testResult =
 
 
 let max_callstack_bug (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
+let sidebar_opens_function (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
 
@@ -976,6 +1051,10 @@ let trigger (test_name : string) : integrationTestState =
         extract_from_function
     | "fluid_single_click_on_token_in_deselected_handler_focuses" ->
         fluid_single_click_on_token_in_deselected_handler_focuses
+    | "fluid_click_2x_on_token_places_cursor" ->
+        fluid_click_2x_on_token_places_cursor
+    | "fluid_click_2x_in_function_places_cursor" ->
+        fluid_click_2x_in_function_places_cursor
     | "fluid_double_click_selects_token" ->
         fluid_double_click_selects_token
     | "fluid_double_click_with_alt_selects_expression" ->
@@ -992,5 +1071,7 @@ let trigger (test_name : string) : integrationTestState =
         center_toplevel
     | "max_callstack_bug" ->
         max_callstack_bug
+    | "sidebar_opens_function" ->
+        sidebar_opens_function
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

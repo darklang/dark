@@ -7,6 +7,8 @@ module B = Blank
 
 type viewState = ViewUtils.viewState
 
+type domEventList = ViewUtils.domEventList
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -169,7 +171,8 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
     (name :: (cols @ funcs @ errorMsg @ actions))
 
 
-let viewDB (vs : viewState) (db : db) : msg Html.html list =
+let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
+    msg Html.html list =
   let locked =
     if vs.dbLocked && db.activeMigration = None
     then
@@ -202,6 +205,8 @@ let viewDB (vs : viewState) (db : db) : msg Html.html list =
     | None ->
         []
   in
-  [Html.div [Html.class' "db"] (locked :: namediv :: keyView :: coldivs)]
+  [ Html.div
+      (Html.class' "db" :: dragEvents)
+      (locked :: namediv :: keyView :: coldivs) ]
   @ migrationView
   @ [data]
