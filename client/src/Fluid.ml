@@ -5030,5 +5030,5 @@ let stripFluidConstructsFromHandlers (hs : handler list) : handler list =
   List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})
 
 
-let exprToStrFn (s : state) (e : expr) : string =
+let exprToStr (s : state) (e : expr) : string =
   e |> fromExpr s |> eToString s

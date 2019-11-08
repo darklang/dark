@@ -578,7 +578,7 @@ let qHTTPHandler (s : string) : omniAction =
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
 
 
-let handlerFindtoName (h : handler) : string =
+let foundHandlerName (h : handler) : string =
   "Found in "
   ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
   ^ "::"
@@ -587,7 +587,7 @@ let handlerFindtoName (h : handler) : string =
   ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
 
 
-let fnFindToName (f : userFunction) : string =
+let foundFnName (f : userFunction) : string =
   "Found in function: "
   ^ ( f.ufMetadata.ufmName
     |> B.toMaybe
@@ -611,14 +611,14 @@ let qSearch (m : model) (s : string) : omniAction list =
              Goto
                ( FocusedHandler (h.hTLID, true)
                , h.hTLID
-               , handlerFindtoName h
+               , foundHandlerName h
                , true ) )
     in
     let userFunctions =
       TD.values m.userFunctions
       |> List.filter ~f:(fun f -> findString f.ufTLID)
       |> List.map ~f:(fun f ->
-             Goto (FocusedFn f.ufTLID, f.ufTLID, fnFindToName f, true) )
+             Goto (FocusedFn f.ufTLID, f.ufTLID, foundFnName f, true) )
     in
     handlers @ userFunctions
   else []
