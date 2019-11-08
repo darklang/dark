@@ -1255,12 +1255,6 @@ and fluidToken =
    * id with the newline, the extra context is the index of which one it is.
    * The second id is that of the Newline's parent expression*)
   | TNewline of (id * id * int option) option
-  (* All newlines in the nested tokens start indented to this position. *)
-  | TIndentToHere of fluidToken list
-  (* Increase the level of indentation for all these tokens. *)
-  | TIndented of fluidToken list
-  (* TIndentToHere and TIndented are preprocessed to the right indentation
-   * and turned into TIndents *)
   | TIndent of int
   | TLetKeyword of id * analysisId
   (* Let-expr id * varBind id * varname *)

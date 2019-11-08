@@ -473,70 +473,149 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
       [TPatternString (mid, Blank.toID op, "TODO: old pattern")]
 
 
-let rec toTokens' (s : state) (e : ast) : token list =
+module Builder = struct
+  type t =
+    { tokens : fluidToken list
+    ; indent : (* tracks the indent after a newline *) int
+    ; xPos :
+        (* tracks the indent for nesting, none indicates it's ready to go after a newline *)
+        int option }
+
+  let rec endsInNewline (b : t) : bool =
+    match List.reverse b.tokens with
+    | TNewline _ :: _ ->
+        true
+    | TIndent _ :: tail ->
+        endsInNewline {b with tokens = tail}
+    | _ ->
+        false
+
+
+  let empty = {tokens = []; xPos = Some 0; indent = 0}
+
+  let add (token : fluidToken) (b : t) : t =
+    (* Js.log2 "adding token" token ; *)
+    let tokenLength = token |> Token.toText |> String.length in
+    let tokens, xPos =
+      if endsInNewline b
+      then
+        ( (* Js.log2 "indenting first" b.indent ; *)
+          [TIndent b.indent; token]
+        , Some (b.indent + tokenLength) )
+      else
+        let newXPos =
+          match token with
+          | TNewline _ ->
+              None
+          | _ ->
+              let old = Option.withDefault b.xPos ~default:b.indent in
+              Some (old + tokenLength)
+        in
+        (* Js.log2 "tracking new xPos" newXPos ; *)
+        ([token], newXPos)
+    in
+    {b with tokens = b.tokens @ tokens; xPos}
+
+
+  let addIf (cond : bool) (token : fluidToken) (b : t) : t =
+    if cond then add token b else b
+
+
+  let addIter (xs : 'a list) ~(f : int -> 'a -> t -> t) (b : t) : t =
+    List.foldl xs ~init:(b, 0) ~f:(fun x (b, i) -> (f i x b, i + 1))
+    |> Tuple2.first
+
+
+  let addMany (tokens : fluidToken list) (b : t) : t =
+    List.foldl tokens ~init:b ~f:add
+
+
+  let indentBy ~(indent : int) ~(f : t -> t) (b : t) : t =
+    let oldIndent = b.indent in
+    (* Js.log2 "setting indent to sum of" (b.xPos, indent) ; *)
+    let b = {b with indent = b.indent + indent} in
+    let newB = f b in
+    (* Js.log2 "restoring old indent of " oldIndent ; *)
+    {newB with indent = oldIndent}
+
+
+  (* the issue is that we reset the indent based on a newline, but we wait until the next token arrives, which is too late for intdentBy and addNested, so they use old values. But we did it that way because we add newlines within eg threads whose indentation are based on being outside the threads. *)
+
+  let addNested ~(f : t -> t) (b : t) : t =
+    let oldIndent = b.indent in
+    (* Js.log2 "adding nesting, set to " oldIndent ; *)
+    (* Js.log2 "(old setting was => " (b.xPos, b.indent) ; *)
+    let newIndent = Option.withDefault ~default:b.indent b.xPos in
+    let b = {b with indent = newIndent} in
+    let newB = f b in
+    (* Js.log2 "restoring old indentation" oldIndent ; *)
+    (* Js.log2 "(xPos is " b.xPos ; *)
+    {newB with indent = oldIndent}
+
+
+  let maybeNewline (nlToken : fluidToken) (b : t) : t =
+    if endsInNewline b then b else add nlToken b
+
+
+  let asTokens (b : t) : fluidToken list = b.tokens
+end
+
+(* x is the starting x-index of the token *)
+let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
+  (* Js.log2 "creating tokens with builder" (b.indent, b.xPos, e) ; *)
+  let open Builder in
+  let nest ?(placeholderFor : (string * int) option = None) ~indent e b =
+    let _ = placeholderFor in
+    b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(toTokens' s e))
+  in
   let ghostPartial id newName oldName =
     let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
-  let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
-    let tokens =
-      match (b, placeholderFor) with
-      | EBlank id, Some (fnname, pos) ->
-          let name =
-            s.ac.functions
-            |> List.find ~f:(fun f -> f.fnName = fnname)
-            |> Option.andThen ~f:(fun fn ->
-                   List.getAt ~index:pos fn.fnParameters )
-            |> Option.map ~f:(fun p ->
-                   (p.paramName, Runtime.tipe2str p.paramTipe) )
-          in
-          ( match name with
-          | None ->
-              toTokens' s b
-          | Some placeholder ->
-              [TPlaceholder (placeholder, id)] )
-      | _ ->
-          toTokens' s b
-    in
-    TIndentToHere tokens
-  in
-  let rec endsInNewline (e : Types.fluidToken) : bool =
-    match e with
-    | TNewline _ ->
-        true
-    | TIndentToHere tokens ->
-      (match List.last tokens with Some t -> endsInNewline t | _ -> false)
-    | _ ->
-        false
-  in
+  (* As far as I can tell, we can do this separately and join it *)
+  (* let nested ?(placeholderFor : (string * int) option = None) (e : fluidExpr) : *)
+  (*     fluidToken list = *)
+  (*   match (e, placeholderFor) with *)
+  (*   | EBlank id, Some (fnname, pos) -> *)
+  (*       let name = *)
+  (*         s.ac.functions *)
+  (*         |> List.find ~f:(fun f -> f.fnName = fnname) *)
+  (*         |> Option.andThen ~f:(fun fn -> List.getAt ~index:pos fn.fnParameters) *)
+  (*         |> Option.map ~f:(fun p -> (p.paramName, Runtime.tipe2str p.paramTipe) *)
+  (*            ) *)
+  (*       in *)
+  (*       ( match name with *)
+  (*       | None -> *)
+  (*           asTokens (toTokens' empty s e) *)
+  (*       | Some placeholder -> *)
+  (*           [TPlaceholder (placeholder, id)] ) *)
+  (*   | _ -> *)
+  (*       asTokens (toTokens' empty s e) *)
+  (* in *)
   match e with
   | EInteger (id, i) ->
-      [TInteger (id, i)]
-  | EBool (id, b) ->
-      if b then [TTrue id] else [TFalse id]
+      add (TInteger (id, i)) b
+  | EBool (id, bool') ->
+      add (if bool' then TTrue id else TFalse id) b
   | ENull id ->
-      [TNullToken id]
+      add (TNullToken id) b
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
         if fraction = "" then [] else [TFloatFraction (id, fraction)]
       in
-      whole @ [TFloatPoint id] @ fraction
+      addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
-      [TBlank id]
+      add (TBlank id) b
   | ELet (id, varId, lhs, rhs, next) ->
-      let newline =
-        if endsInNewline (nested rhs)
-        then []
-        else [TNewline (Some (eid next, id, None))]
-      in
-      [ TLetKeyword (id, varId)
-      ; TLetLHS (id, varId, lhs)
-      ; TLetAssignment (id, varId)
-      ; nested rhs ]
-      @ newline
-      @ [nested next]
+      b
+      |> add (TLetKeyword (id, varId))
+      |> add (TLetLHS (id, varId, lhs))
+      |> add (TLetAssignment (id, varId))
+      |> addNested ~f:(toTokens' s rhs)
+      |> maybeNewline (TNewline (Some (eid next, id, None)))
+      |> addNested ~f:(toTokens' s next)
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -544,69 +623,68 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       ( match strings with
       | [] ->
-          [TString (id, "")]
+          add (TString (id, "")) b
       | starting :: rest ->
         ( match List.reverse rest with
         | [] ->
-            [TString (id, str)]
+            add (TString (id, str)) b
         | ending :: revrest ->
-            let nl = TNewline None in
-            let starting = [TStringMLStart (id, starting, 0, str); nl] in
-            let endingOffset = size * (List.length revrest + 1) in
-            let ending = [TStringMLEnd (id, ending, endingOffset, str)] in
-            let middle =
-              revrest
-              |> List.reverse
-              |> List.indexedMap ~f:(fun i s ->
-                     [TStringMLMiddle (id, s, size * (i + 1), str); nl] )
-              |> List.concat
-            in
-            starting @ middle @ ending ) )
+            b
+            |> addNested ~f:(fun b ->
+                   let endingOffset = size * (List.length revrest + 1) in
+                   b
+                   |> add (TStringMLStart (id, starting, 0, str))
+                   |> add (TNewline None)
+                   |> addIter (List.reverse revrest) ~f:(fun i s b ->
+                          b
+                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                          |> add (TNewline None) )
+                   |> add (TStringMLEnd (id, ending, endingOffset, str)) ) ) )
   | EIf (id, cond, if', else') ->
-      let condNewline =
-        if endsInNewline (nested cond) then [] else [TNewline None]
-      in
-      let thenNewline =
-        if endsInNewline (nested if') then [] else [TNewline None]
-      in
-      [TIfKeyword id; nested cond]
-      @ condNewline
-      @ [ TIfThenKeyword id
-          (* The newline ID is pretty hacky here. It's used to make it possible
-         * to press Enter on the expression inside. It might be better to
-         * instead have a special newline where an id is relevant, and another
-         * newline which is boring. *)
-        ; TNewline (Some (eid if', id, None))
-        ; TIndent 2
-        ; nested if' ]
-      @ thenNewline
-      @ [ TIfElseKeyword id
-        ; TNewline (Some (eid else', id, None))
-        ; TIndent 2
-        ; nested else' ]
+      b
+      |> add (TIfKeyword id)
+      |> nest ~indent:0 cond
+      |> maybeNewline (TNewline None)
+      |> add (TIfThenKeyword id)
+      |> maybeNewline (TNewline (Some (eid if', id, None)))
+      |> add (TIndent 2)
+      |> nest ~indent:2 if'
+      |> maybeNewline (TNewline None)
+      |> add (TIfElseKeyword id)
+      |> add (TNewline (Some (eid else', id, None)))
+      |> add (TIndent 2)
+      |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      let start =
+      let start b =
         match lexpr with
         | EThreadTarget _ ->
-            []
+            b
         | _ ->
-            [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep]
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
+            |> add TSep
       in
-      start
-      @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+      b
+      |> start
+      |> addMany [TBinOp (id, op); TSep]
+      |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName oldName in
-      let start =
+      let start b =
         match lexpr with
         | EThreadTarget _ ->
-            []
+            b
         | _ ->
-            [nested ~placeholderFor:(Some (oldName, 0)) lexpr; TSep]
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
+            |> add TSep
       in
-      start
-      @ [TPartial (id, newName)]
-      @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
+      b
+      |> start
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> add TSep
+      |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
       let args, offset =
         match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
@@ -619,36 +697,48 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( List.indexedMap args ~f:(fun i e ->
-              [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
-        |> List.concat )
+      b
+      |> add (TFnName (id, partialName, displayName, fnName, ster))
+      |> addMany versionToken
+      |> fun b ->
+      List.foldl args ~init:(b, 0) ~f:(fun e (b, i) ->
+          ( b
+            |> add TSep
+            |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e
+          , i + 1 ) )
+      |> Tuple2.first
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let args, offset =
         match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
       in
       let ghost = ghostPartial id newName oldName in
-      [TPartial (id, newName)]
-      @ ghost
-      @ ( List.indexedMap args ~f:(fun i e ->
-              [TSep; nested ~placeholderFor:(Some (oldName, offset + i)) e] )
-        |> List.flatten )
+      b
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> addIter args ~f:(fun i e b ->
+             b
+             |> add TSep
+             |> nest ~indent:0 ~placeholderFor:(Some (oldName, offset + i)) e
+         )
   | EConstructor (id, _, name, exprs) ->
-      [TConstructorName (id, name)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+      b
+      |> add (TConstructorName (id, name))
+      |> addIter exprs ~f:(fun _ e b -> b |> add TSep |> nest ~indent:0 e)
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       let ghost = ghostPartial id newName oldName in
-      [TPartial (id, newName)]
-      @ ghost
-      @ ( List.indexedMap
-            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (oldName, i)) e])
-            exprs
-        |> List.flatten )
+      b
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> addIter exprs ~f:(fun i e b ->
+             b
+             |> add TSep
+             |> nest ~indent:0 ~placeholderFor:(Some (oldName, i)) e )
   | EFieldAccess (id, expr, fieldID, fieldname) ->
-      [nested expr; TFieldOp id; TFieldName (id, fieldID, fieldname)]
+      b
+      |> nest ~indent:0 expr
+      |> addMany [TFieldOp id; TFieldName (id, fieldID, fieldname)]
   | EVariable (id, name) ->
-      [TVariable (id, name)]
+      b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
       let tnames =
         names
@@ -658,121 +748,105 @@ let rec toTokens' (s : state) (e : ast) : token list =
         (* Remove the extra seperator *)
         |> List.dropRight ~count:2
       in
-      [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
+      b
+      |> add (TLambdaSymbol id)
+      |> addMany tnames
+      |> add (TLambdaArrow id)
+      |> nest ~indent:2 body
   | EList (id, exprs) ->
-      let ts =
-        exprs
-        |> List.indexedMap ~f:(fun i expr -> [nested expr; TListSep (id, i)])
-        |> List.concat
-        (* Remove the extra seperator *)
-        |> List.dropRight ~count:1
-      in
-      [TListOpen id] @ ts @ [TListClose id]
+      let lastIndex = List.length exprs - 1 in
+      b
+      |> add (TListOpen id)
+      |> addIter exprs ~f:(fun i e b ->
+             b |> nest ~indent:0 e |> addIf (i <> lastIndex) (TListSep (id, i))
+         )
+      |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
-      then [TRecordOpen id; TRecordClose id]
+      then b |> addMany [TRecordOpen id; TRecordClose id]
       else
-        [ [TRecordOpen id]
-        ; List.mapi fields ~f:(fun i (aid, fname, expr) ->
-              [ TNewline (Some (id, id, Some i))
-              ; TIndentToHere
-                  [ TIndent 2
-                  ; TRecordField (id, aid, i, fname)
-                  ; TRecordSep (id, i, aid)
-                  ; nested expr ] ] )
-          |> List.concat
-        ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
-        ]
-        |> List.concat
+        b
+        |> add (TRecordOpen id)
+        |> indentBy ~indent:2 ~f:(fun b ->
+               addIter fields b ~f:(fun i (aid, fname, expr) b ->
+                   b
+                   |> add (TNewline (Some (id, id, Some i)))
+                   |> add (TRecordField (id, aid, i, fname))
+                   |> add (TRecordSep (id, i, aid))
+                   |> nest ~indent:0 expr ) )
+        |> addMany
+             [ TNewline (Some (id, id, Some (List.length fields)))
+             ; TRecordClose id ]
   | EThread (id, exprs) ->
-    ( match exprs with
-    | [] ->
-        Js.log2 "Empty thread found" (show_fluidExpr e) ;
-        []
-    | [single] ->
-        Js.log2 "Thread with single entry found" (show_fluidExpr single) ;
-        [nested single]
-    | head :: tail ->
-        let length = List.length exprs in
-        let tailTokens =
-          TIndentToHere
-            ( tail
-            |> List.indexedMap ~f:(fun i e ->
-                   let thread =
-                     [TIndentToHere [TThreadPipe (id, i, length); nested e]]
-                   in
-                   if i == 0
-                   then thread
-                   else TNewline (Some (id, id, Some i)) :: thread )
-            |> List.concat )
-        in
-        let tailNewline =
-          if endsInNewline tailTokens
-          then []
-          else [TNewline (Some (id, id, Some (List.length tail)))]
-        in
-        [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
-        @ tailNewline )
+      let length = List.length exprs in
+      ( match exprs with
+      | [] ->
+          recover "Empty thread found" b
+      | [single] ->
+          recover "Thread with single entry found" (b |> nest ~indent:0 single)
+      | head :: tail ->
+          b
+          |> addNested ~f:(toTokens' s head)
+          |> maybeNewline (TNewline (Some (id, id, Some 0)))
+          |> addIter tail ~f:(fun i e b ->
+                 b
+                 |> add (TThreadPipe (id, i, length))
+                 |> addNested ~f:(toTokens' s e)
+                 |> maybeNewline (TNewline (Some (id, id, Some i))) )
+          |> maybeNewline (TNewline (Some (id, id, Some (List.length tail))))
+      )
   | EThreadTarget _ ->
-      recover "should never be making tokens for EThreadTarget" []
+      recover "should never be making tokens for EThreadTarget" b
   | EMatch (id, mexpr, pairs) ->
-      let finalNewline =
-        if List.last pairs
-           |> Option.map ~f:Tuple2.second
-           |> Option.map ~f:(fun e -> nested e)
-           |> Option.map ~f:endsInNewline
-           |> Option.withDefault ~default:false
-        then []
-        else [TNewline (Some (id, id, Some (List.length pairs)))]
-      in
-      [TMatchKeyword id; nested mexpr]
-      @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-              let patternNewline =
-                if i == 0 && endsInNewline (nested mexpr)
-                then []
-                else [TNewline (Some (id, id, Some i)); TIndent 2]
-              in
-              patternNewline
-              @ patternToToken pattern
-              @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
-        |> List.concat )
-      @ finalNewline
+      b
+      |> add (TMatchKeyword id)
+      |> nest ~indent:2 mexpr
+      |> indentBy ~indent:2 ~f:(fun b ->
+             b
+             |> addIter pairs ~f:(fun i (pattern, expr) b ->
+                    b
+                    |> maybeNewline (TNewline (Some (id, id, Some i)))
+                    |> addMany (patternToToken pattern)
+                    |> addMany [TSep; TMatchSep (pid pattern); TSep]
+                    |> nest ~indent:0 expr )
+             |> maybeNewline
+                  (TNewline (Some (id, id, Some (List.length pairs)))) )
   | EOldExpr expr ->
-      [TPartial (Blank.toID expr, "TODO: oldExpr")]
+      b |> add (TPartial (Blank.toID expr, "TODO: oldExpr"))
   | EPartial (id, str, _) ->
-      [TPartial (id, str)]
+      b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->
-      [nested expr; TSep; TRightPartial (id, newOp)]
+      b |> nest ~indent:0 expr |> addMany [TSep; TRightPartial (id, newOp)]
   | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
-      [nested casea]
+      b |> nest ~indent:0 casea
 
 
 (* TODO: we need some sort of reflow thing that handles line length. *)
-let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
-  let startingX = x in
-  List.indexedMap startingTokens ~f:(fun i e -> (i, e))
-  |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) ->
-         let text = Token.toText t in
-         let len = String.length text in
-         match t with
-         | TIndented tokens ->
-             let newX, newTokens = reflow ~x:(x + 2) tokens in
-             (newX, old @ [TIndent (startingX + 2)] @ newTokens)
-         | TIndentToHere tokens ->
-             let newX, newTokens = reflow ~x tokens in
-             (newX, old @ newTokens)
-         | TNewline _ ->
-             (* if this TNewline is at the very end of a set of tokens (for
+(* let rec reflow ~(x : int) (startingTokens : token list) : int * token list = *)
+(*   let startingX = x in *)
+(*   List.indexedMap startingTokens ~f:(fun i e -> (i, e)) *)
+(*   |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) -> *)
+(*          let text = Token.toText t in *)
+(*          let len = String.length text in *)
+(*          match t with *)
+(*          | TIndented tokens -> *)
+(*              let newX, newTokens = reflow ~x:(x + 2) tokens in *)
+(*              (newX, old @ [TIndent (startingX + 2)] @ newTokens) *)
+(*          | TIndentToHere tokens -> *)
+(*              let newX, newTokens = reflow ~x tokens in *)
+(*              (newX, old @ newTokens) *)
+(*          | TNewline _ -> *)
+(* if this TNewline is at the very end of a set of tokens (for
             * example - the TNewline at the end of an EMatch) - then we don't
             * want to add a TIndent, because that will indent the following,
             * non-EMatch, expr. *)
-             let isLast = i == List.length startingTokens - 1 in
-             if startingX = 0 || isLast
-             then (startingX, old @ [t])
-             else (startingX, old @ [t; TIndent startingX])
-         | _ ->
-             (x + len, old @ [t]) )
-
+(*              let isLast = i == List.length startingTokens - 1 in *)
+(*              if startingX = 0 || isLast *)
+(*              then (startingX, old @ [t]) *)
+(*              else (startingX, old @ [t; TIndent startingX]) *)
+(*          | _ -> *)
+(*              (x + len, old @ [t]) ) *)
+(*  *)
 
 let infoize ~(pos : int) tokens : tokenInfo list =
   let row, col = (ref 0, ref 0) in
@@ -807,12 +881,15 @@ let validateTokens (tokens : fluidToken list) : fluidToken list =
   tokens
 
 
+let tidy (tokens : fluidToken list) : fluidToken list =
+  tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
+
+
 let toTokens (s : state) (e : ast) : tokenInfo list =
-  e
-  |> toTokens' s
+  toTokens' s e Builder.empty
+  |> Builder.asTokens
+  |> tidy
   |> validateTokens
-  |> reflow ~x:0
-  |> Tuple2.second
   |> infoize ~pos:0
 
 
@@ -1283,7 +1360,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
@@ -1300,7 +1377,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
@@ -1318,7 +1395,7 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
            then
              match info.token with
              (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
-             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+             | TThreadPipe _ | TIndent _ ->
                  false
              | _ ->
                  true
@@ -1340,7 +1417,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   let newPos =
     match token.token with
     (* To prevent the cursor from going to the end of an indent or to a new line *)
-    | TNewline _ | TIndent _ | TIndentToHere _ ->
+    | TNewline _ | TIndent _ ->
         token.startPos
     | _ ->
         token.endPos
@@ -2699,8 +2776,6 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBlank _
   | TPlaceholder _
   | TIndent _
-  | TIndentToHere _
-  | TIndented _
   | TLetAssignment _
   | TListClose _
   | TListOpen _
@@ -2817,8 +2892,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBlank _
   | TPlaceholder _
   | TIndent _
-  | TIndentToHere _
-  | TIndented _
   | TLetAssignment _
   | TListClose _
   | TListOpen _
@@ -3129,8 +3202,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   | TLetKeyword _
   | TLetAssignment _
   | TSep
-  | TIndented _
-  | TIndentToHere _
   | TListClose _
   | TListSep _
   | TIndent _

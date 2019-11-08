@@ -66,7 +66,7 @@ let tid (t : token) : id =
   | TPatternFloatFraction (_, id, _)
   | TNewline (Some (id, _, _)) ->
       id
-  | TNewline None | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
+  | TNewline None | TSep | TIndent _ ->
       fakeid
 
 
@@ -142,8 +142,6 @@ let isTextToken token : bool =
   | TIfElseKeyword _
   | TFieldOp _
   | TNewline _
-  | TIndented _
-  | TIndentToHere _
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
@@ -309,10 +307,6 @@ let toText (t : token) : string =
       shouldntBeEmpty (Caml.String.make indent ' ')
   (* We dont want this to be transparent, so have these make their presence
    * known *)
-  | TIndented _ ->
-      "TIndented"
-  | TIndentToHere _ ->
-      "TIndentToHere"
   | TListOpen _ ->
       "["
   | TListClose _ ->
@@ -430,10 +424,6 @@ let toTypeName (t : token) : string =
       "let-lhs"
   | TSep ->
       "sep"
-  | TIndented _ ->
-      "indented"
-  | TIndentToHere _ ->
-      "indent-to-here"
   | TIndent _ ->
       "indent"
   | TNewline _ ->
@@ -530,7 +520,7 @@ let toCategoryName (t : token) : string =
       "function"
   | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
       "let"
-  | TIndented _ | TIndentToHere _ | TIndent _ ->
+  | TIndent _ ->
       "indent"
   | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
       "if"
