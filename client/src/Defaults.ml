@@ -143,4 +143,4 @@ let defaultModel : model =
   ; showTopbar = true
   ; toast = defaultToast
   ; account = defaultAccount
-  ; astCache = TLIDDict.empty }
+  ; searchCache = TLIDDict.empty }

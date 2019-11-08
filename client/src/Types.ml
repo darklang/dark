@@ -1431,7 +1431,7 @@ and model =
   ; toast : toast
   ; username : string
   ; account : account
-  ; astCache : string TLIDDict.t }
+  ; searchCache : string TLIDDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =

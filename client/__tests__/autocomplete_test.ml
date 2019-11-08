@@ -788,14 +788,14 @@ let () =
               ~cursorState
               ()
           in
-          let exprToStr ast = Fluid.exprToStrFn m.fluidState ast in
-          let astCache =
-            m.astCache
+          let exprToStr ast = Fluid.exprToStr m.fluidState ast in
+          let searchCache =
+            m.searchCache
             |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)
             |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
             |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
           in
-          let m = {m with astCache} in
+          let m = {m with searchCache} in
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with
