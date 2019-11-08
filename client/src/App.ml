@@ -716,8 +716,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
-    | UpdateTraceFunctionResult (tlid, traceID, callerID, fnName, hash, dval)
-      ->
+    | UpdateTraceFunctionResult
+        (tlid, traceID, callerID, fnName, hash, hashVersion, dval) ->
         let m =
           Analysis.replaceFunctionResult
             m
@@ -726,6 +726,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             callerID
             fnName
             hash
+            hashVersion
             dval
         in
         (* traces could be missing *)
@@ -1465,7 +1466,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; InitIntrospect (TD.values allTLs) ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
-  | ExecuteFunctionRPCCallback (params, Ok (dval, hash, tlids, unlockedDBs)) ->
+  | ExecuteFunctionRPCCallback
+      (params, Ok (dval, hash, hashVersion, tlids, unlockedDBs)) ->
       let traces =
         List.map
           ~f:(fun tlid -> (deTLID tlid, [(params.efpTraceID, None)]))
@@ -1478,6 +1480,7 @@ let update_ (msg : msg) (m : model) : modification =
             , params.efpCallerID
             , params.efpFnName
             , hash
+            , hashVersion
             , dval )
         ; ExecutingFunctionComplete [(params.efpTLID, params.efpCallerID)]
         ; OverrideTraces (StrDict.fromList traces)

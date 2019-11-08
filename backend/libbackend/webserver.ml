@@ -866,7 +866,8 @@ let execute_function ~(execution_id : Types.id) (host : string) body :
   let t5, response =
     time "5-to-frontend" (fun _ ->
         Analysis.to_execute_function_rpc_result
-          (Dval.hash params.args)
+          (Dval.hash Dval.current_hash_version params.args)
+          Dval.current_hash_version
           tlids
           unlocked
           result )

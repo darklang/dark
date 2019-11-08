@@ -194,4 +194,8 @@ val empty_dobj : Types.RuntimeT.dval
 (* ------------------------- *)
 (* Misc *)
 (* ------------------------- *)
-val hash : Types.RuntimeT.dval list -> string
+val supported_hash_versions : int list
+
+val current_hash_version : int
+
+val hash : int -> Types.RuntimeT.dval list -> string

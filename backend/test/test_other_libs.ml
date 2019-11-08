@@ -411,6 +411,29 @@ let t_date_functions_work () =
   ()
 
 
+let t_sha256hmac_for_aws () =
+  check_dval
+    (* These values come from https://docs.aws.amazon.com/general/latest/gr/sigv4-calculate-signature.html*)
+    "Crypto::sha256hmac behaves as AWS' example expects (link in test)"
+    (Dval.dstr_of_string_exn
+       "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7")
+    (exec_ast
+       "(let scope '20150830/us-east-1/iam/aws4_request'
+       (let content 'f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59'
+       (let strs ('AWS4-HMAC-SHA256' '20150830T123600Z' scope content)
+       (let strToSign  (String::join strs (String::newline))
+       (let secret (String::toBytes 'AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY')
+       (let data (String::toBytes '20150830')
+       (let date (Crypto::sha256hmac secret data)
+       (let region (Crypto::sha256hmac date (String::toBytes 'us-east-1'))
+       (let service (Crypto::sha256hmac region (String::toBytes 'iam'))
+       (let signing (Crypto::sha256hmac service (String::toBytes 'aws4_request'))
+       (let signed (Crypto::sha256hmac signing (String::toBytes strToSign))
+        (String::toLowercase_v1 (Bytes::hexEncode signed))
+       ))))))))))) ") ;
+  ()
+
+
 let t_internal_functions () =
   Libbackend.Account.set_admin "test" true ;
   check_dval
@@ -452,4 +475,5 @@ let suite =
   ; ("JWT lib works.", `Quick, t_jwt_functions_work)
   ; ("Date lib works", `Quick, t_date_functions_work)
   ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
-  ; ("Internal functions work", `Quick, t_internal_functions) ]
+  ; ("Internal functions work", `Quick, t_internal_functions)
+  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws) ]

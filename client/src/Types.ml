@@ -464,6 +464,7 @@ and functionResult =
   { fnName : string
   ; callerID : id
   ; argHash : string
+  ; argHashVersion : int
   ; value : dval }
 
 and fetchRequest =
@@ -648,7 +649,8 @@ and addOpStrollerMsg =
 
 and dvalArgsHash = string
 
-and executeFunctionRPCResult = dval * dvalArgsHash * tlid list * unlockedDBs
+and executeFunctionRPCResult =
+  dval * dvalArgsHash * int * tlid list * unlockedDBs
 
 and triggerHandlerRPCResult = tlid list
 
@@ -908,7 +910,7 @@ and modification =
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
-      tlid * traceID * id * fnName * dvalArgsHash * dval
+      tlid * traceID * id * fnName * dvalArgsHash * int * dval
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)

@@ -12,15 +12,16 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
   Db.run
     ~name:"stored_function_result.store"
     "INSERT INTO function_results_v2
-     (canvas_id, trace_id, tlid, fnname, id, hash, timestamp, value)
-     VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
+     (canvas_id, trace_id, tlid, fnname, id, hash, hash_version, timestamp, value)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, $8)"
     ~params:
       [ Uuid canvas_id
       ; Uuid trace_id
       ; ID tlid
       ; String fnname
       ; ID id
-      ; String (Dval.hash arglist)
+      ; String (Dval.hash Dval.current_hash_version arglist)
+      ; Int Dval.current_hash_version
       ; RoundtrippableDval result ]
 
 
@@ -31,19 +32,21 @@ let load ~canvas_id ~trace_id tlid : function_result list =
   Db.fetch
     ~name:"sfr_load"
     "SELECT
-       DISTINCT ON (fnname, id, hash)
-       fnname, id, hash, value, timestamp
+       DISTINCT ON (fnname, id, hash, hash_version)
+       fnname, id, hash, hash_version, value, timestamp
      FROM function_results_v2
      WHERE canvas_id = $1
        AND trace_id = $2
        AND tlid = $3
-     ORDER BY fnname, id, hash, timestamp DESC"
+     ORDER BY fnname, id, hash, hash_version, timestamp DESC"
     ~params:[Db.Uuid canvas_id; Db.Uuid trace_id; Db.ID tlid]
   |> List.map ~f:(function
-         | [fnname; id; hash; dval; ts] ->
+         | [fnname; id; hash; hash_version; dval; ts] ->
              ( fnname
              , id_of_string id
              , hash
+               (* hash_version is nullable, nulls come back as empty string *)
+             , (match hash_version with "" -> 0 | hv -> hv |> int_of_string)
              , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
              Exception.internal

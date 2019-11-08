@@ -75,6 +75,7 @@ let init (extras : shortfn list) : unit =
     @ Libresult.fns
     @ Libstd.fns
     @ Libstring.fns
+    @ Libbytes.fns
     @ Libuuid.fns
     (* only implemented on server *)
     @ extras

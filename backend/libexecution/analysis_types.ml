@@ -39,9 +39,11 @@ type input_vars = (string * dval) list [@@deriving eq, show, yojson]
 
 type function_arg_hash = string [@@deriving eq, show, yojson]
 
+type hash_version = int [@@deriving eq, show, yojson]
+
 type fnname = string [@@deriving yojson]
 
-type function_result = fnname * id * function_arg_hash * dval
+type function_result = fnname * id * function_arg_hash * hash_version * dval
 [@@deriving eq, show, yojson]
 
 type traceid = uuid [@@deriving show, yojson]
