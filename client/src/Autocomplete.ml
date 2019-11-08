@@ -578,47 +578,39 @@ let qHTTPHandler (s : string) : omniAction =
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
 
 
-let foundHandlerName (h : handler) : string =
-  "Found in "
-  ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
-  ^ "::"
-  ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
-  ^ " - "
-  ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
+let foundHandlerOmniAction (h : handler) : omniAction =
+  let name =
+    "Found in "
+    ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
+    ^ "::"
+    ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
+    ^ " - "
+    ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
+  in
+  Goto (FocusedHandler (h.hTLID, true), h.hTLID, name, true)
 
 
-let foundFnName (f : userFunction) : string =
-  "Found in function: "
-  ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+let foundFnOmniAction (f : userFunction) : omniAction =
+  let name =
+    "Found in function: "
+    ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+  in
+  Goto (FocusedFn f.ufTLID, f.ufTLID, name, true)
 
 
 let qSearch (m : model) (s : string) : omniAction list =
-  let findString tlid =
-    match TLIDDict.get ~tlid m.searchCache with
-    | Some cache ->
-        String.contains ~substring:s cache
-    | None ->
-        false
-  in
   if String.length s > 3
   then
-    let handlers =
-      TD.values m.handlers
-      |> List.filter ~f:(fun h -> findString h.hTLID)
-      |> List.map ~f:(fun h ->
-             Goto
-               ( FocusedHandler (h.hTLID, true)
-               , h.hTLID
-               , foundHandlerName h
-               , true ) )
-    in
-    let userFunctions =
-      TD.values m.userFunctions
-      |> List.filter ~f:(fun f -> findString f.ufTLID)
-      |> List.map ~f:(fun f ->
-             Goto (FocusedFn f.ufTLID, f.ufTLID, foundFnName f, true) )
-    in
-    handlers @ userFunctions
+    TLIDDict.toList m.searchCache
+    |> List.filterMap ~f:(fun (tlid, code) ->
+           if String.contains ~substring:s code
+           then
+             TLIDDict.get ~tlid m.handlers
+             |> Option.map ~f:foundHandlerOmniAction
+             |> Option.orElse
+                  ( TLIDDict.get ~tlid m.userFunctions
+                  |> Option.map ~f:foundFnOmniAction )
+           else None )
   else []
 
 
