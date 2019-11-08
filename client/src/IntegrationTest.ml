@@ -918,6 +918,11 @@ let max_callstack_bug (_m : model) : testResult =
   pass
 
 
+let sidebar_opens_function (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1066,5 +1071,7 @@ let trigger (test_name : string) : integrationTestState =
         center_toplevel
     | "max_callstack_bug" ->
         max_callstack_bug
+    | "sidebar_opens_function" ->
+        sidebar_opens_function
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
