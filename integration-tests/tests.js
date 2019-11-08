@@ -1081,6 +1081,22 @@ test("fluid_click_2x_on_token_places_cursor", async t => {
     .click(Selector(".id-549681748.fluid-let-lhs"), { caretPos: 2 });
 });
 
+test("fluid_click_2x_in_function_places_cursor", async t => {
+  await t
+    .expect(available(".sidebar-section.fns .headerSummary"))
+    .ok()
+    .click(Selector(".sidebar-section.fns .headerSummary"))
+    .expect(available(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .ok()
+    .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
+    .expect(available(".id-677483670.fluid-let-lhs"))
+    .ok()
+    .click(Selector(".id-677483670.fluid-let-lhs"), { caretPos: 2 })
+    .expect(available(".id-96908617.fluid-category-string"))
+    .ok()
+    .click(Selector(".id-96908617.fluid-category-string"), { caretPos: 2 });
+});
+
 test("fluid_double_click_selects_token", async t => {
   await t
     .navigateTo("#handler=123")
