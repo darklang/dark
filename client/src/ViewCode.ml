@@ -10,6 +10,8 @@ module B = Blank
 
 type viewState = ViewUtils.viewState
 
+type domEventList = ViewUtils.domEventList
+
 let isLocked = ViewUtils.isHandlerLocked
 
 let isExpanded = ViewUtils.isHandlerExpanded
@@ -601,7 +603,9 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
         actions ]
 
 
-let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
+let viewEventSpec
+    (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
+    msg Html.html =
   let viewEventName =
     let configs = (enterable :: idConfigs) @ [wc "name"] in
     viewText EventName vs configs spec.name
@@ -685,7 +689,7 @@ let viewEventSpec (vs : viewState) (spec : handlerSpec) : msg Html.html =
         baseClass
   in
   Html.div
-    [Html.class' classes]
+    (Html.class' classes :: dragEvents)
     [ btnLock
     ; viewEventSpace
     ; viewEventName
@@ -739,8 +743,9 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
 
 
-let viewHandler (vs : viewState) (h : handler) : msg Html.html list =
+let viewHandler (vs : viewState) (h : handler) (dragEvents : domEventList) :
+    msg Html.html list =
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
   let ast = Html.div attrs (view vs h.ast) in
-  let header = viewEventSpec vs h.spec in
+  let header = viewEventSpec vs h.spec dragEvents in
   [header; ast]

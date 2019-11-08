@@ -437,6 +437,7 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
+  | FluidMouseSelecting of tlid
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
@@ -939,6 +940,7 @@ and modification =
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
+  | StartFluidMouseSelecting of tlid
 
 (* ------------------- *)
 (* Msgs *)
@@ -955,6 +957,7 @@ and fluidMsg =
    * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
    * This bi-directionality is not ideal and could use some rethinking.
    *)
+  | FluidStartSelection of tlid
   | FluidUpdateSelection of tlid * (int * int) option
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
@@ -963,10 +966,10 @@ and msg =
   | GlobalClick of mouseEvent
   | IgnoreMsg
   | FluidMsg of fluidMsg
-  | ToplevelMouseDown of tlid * mouseEvent
-  (* we have the actual node when ToplevelMouseUp is created, *)
+  | TLDragRegionMouseDown of tlid * mouseEvent
+  (* we have the actual node when TLDragRegionMouseUp is created, *)
   (* but by the time we use it the proper node will be changed *)
-  | ToplevelMouseUp of tlid * mouseEvent
+  | TLDragRegionMouseUp of tlid * mouseEvent
   | ToplevelClick of tlid * mouseEvent
   | ToplevelDelete of tlid
   | ToplevelDeleteForever of tlid

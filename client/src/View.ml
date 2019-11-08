@@ -33,34 +33,63 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
   let body, data =
+    let dragEvents =
+      if VariantTesting.isFluid m.tests
+      then
+        [ ViewUtils.eventNoPropagation
+            ~key:("tlmd-" ^ showTLID tlid)
+            "mousedown"
+            (fun x -> TLDragRegionMouseDown (tlid, x))
+        ; ViewUtils.eventNoPropagation
+            ~key:("tlmu-" ^ showTLID tlid)
+            "mouseup"
+            (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+      else []
+    in
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h, ViewData.viewData vs h.ast)
+        (ViewCode.viewHandler vs h dragEvents, ViewData.viewData vs h.ast)
     | TLDB db ->
-        (ViewDB.viewDB vs db, [])
+        (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
         ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
         ([ViewUserType.viewUserTipe vs t], [])
     | TLGroup g ->
-        ([ViewGroup.viewGroup m vs g], [])
+        ([ViewGroup.viewGroup m vs g dragEvents], [])
   in
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
   in
+  (* JS click events are mousedown->mouseup->click so previously ToplevelClick was being called after mouseup when selecting in fluid and would reset the fluid cursor state, we changed it to mouseup to prevent this *)
   let events =
-    [ ViewUtils.eventNoPropagation
-        ~key:("tlmd-" ^ showTLID tlid)
-        "mousedown"
-        (fun x -> ToplevelMouseDown (tlid, x))
-    ; ViewUtils.eventNoPropagation
-        ~key:("tlmu-" ^ showTLID tlid)
-        "mouseup"
-        (fun x -> ToplevelMouseUp (tlid, x))
-    ; ViewUtils.eventNoPropagation
-        ~key:("tlc-" ^ showTLID tlid)
-        "click"
-        (fun x -> ToplevelClick (tlid, x)) ]
+    if VariantTesting.isFluid m.tests
+    then
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlc-" ^ showTLID tlid)
+          "mouseup"
+          (fun x ->
+            match Entry.getFluidSelectionRange () with
+            | None ->
+                ToplevelClick (tlid, x)
+            | Some (selBegin, selEnd) when selBegin = selEnd ->
+                ToplevelClick (tlid, x)
+            | Some range ->
+                (* Persist fluid selection when clicking in handler *)
+                FluidMsg (FluidUpdateSelection (tlid, Some range)) ) ]
+    else
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlmd-" ^ showTLID tlid)
+          "mousedown"
+          (fun x -> TLDragRegionMouseDown (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlmu-" ^ showTLID tlid)
+          "mouseup"
+          (fun x -> TLDragRegionMouseUp (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlc-" ^ showTLID tlid)
+          "click"
+          (fun x -> ToplevelClick (tlid, x)) ]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in

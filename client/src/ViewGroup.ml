@@ -8,6 +8,8 @@ module TL = Toplevel
 
 type viewState = ViewUtils.viewState
 
+type domEventList = ViewUtils.domEventList
+
 type htmlConfig = ViewBlankOr.htmlConfig
 
 let idConfigs = ViewBlankOr.idConfigs
@@ -87,9 +89,9 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
   let body, data =
     match tl with
     | TLHandler h ->
-        (ViewCode.viewHandler vs h, ViewData.viewData vs h.ast)
+        (ViewCode.viewHandler vs h [], ViewData.viewData vs h.ast)
     | TLDB db ->
-        (ViewDB.viewDB vs db, [])
+        (ViewDB.viewDB vs db [], [])
     | _ ->
         ([], [])
   in
@@ -121,7 +123,9 @@ let viewGroupMembers
       memberList
 
 
-let viewGroup (m : model) (vs : viewState) (group : group) : msg Html.html =
+let viewGroup
+    (m : model) (vs : viewState) (group : group) (dragEvents : domEventList) :
+    msg Html.html =
   (* Disabling detail view for now *)
   (* let isPreview = not (Some group.gTLID = tlidOf m.cursorState) in *)
   let isPreview = true in
@@ -160,5 +164,5 @@ let viewGroup (m : model) (vs : viewState) (group : group) : msg Html.html =
     viewGroupMembers m vs group.gTLID group.members isPreview
   in
   Html.div
-    [Html.class' "group-data"]
+    (Html.class' "group-data" :: dragEvents)
     [Html.div [Html.class' "group-top"] [nameView; closeIcon]; groupMemberView]

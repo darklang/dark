@@ -534,7 +534,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           NoChange )
     | Dragging (_, _, _, _) ->
         NoChange
-    | FluidEntering _ ->
+    | FluidEntering _ | FluidMouseSelecting _ ->
         NoChange
 
 
