@@ -1,0 +1,32 @@
+[
+  [ "TLSavepoint", 1115444997 ],
+  [
+    "SetHandler",
+    1115444997,
+    { "x": 589, "y": 248 },
+    {
+      "tlid": 1115444997,
+      "ast": [
+        "Filled",
+        231178914,
+        [
+          "Thread",
+          [
+            [ "Filled", 578809795, [ "Value", "\"foo\"" ] ],
+            [ "Filled", 1295562043, [ "FnCall", "String::toBytes", [] ] ],
+            [ "Filled", 2118602247, [ "FnCall", "toString", [] ] ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 837189236, "REPL" ],
+        "name": [ "Filled", 924688629, "mischievousBabirusa" ],
+        "modifier": [ "Filled", 1118045712, "_" ],
+        "types": {
+          "input": [ "Blank", 1288928774 ],
+          "output": [ "Blank", 1806595116 ]
+        }
+      }
+    }
+  ]
+]
