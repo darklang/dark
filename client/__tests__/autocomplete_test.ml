@@ -77,19 +77,26 @@ let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
     ?(space : string option = None)
+    ?(name : string option = None)
+    ?(modifier : string option = None)
     () : handler =
-  let space =
-    match space with None -> B.new_ () | Some name -> B.newF name
+  let spec =
+    { space = B.ofOption space
+    ; name = B.ofOption name
+    ; modifier = B.ofOption modifier }
   in
-  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
   {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
-let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
-    userFunction =
+let aFunction
+    ?(tlid = defaultTLID)
+    ?(expr = defaultExpr)
+    ?(params = [])
+    ?(name = "myFunc")
+    () : userFunction =
   { ufTLID = tlid
   ; ufMetadata =
-      { ufmName = B.newF "myFunc"
+      { ufmName = B.newF name
       ; ufmParameters = params
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
@@ -97,10 +104,14 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
   ; ufAST = expr }
 
 
-let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
-    : db =
+let aDB
+    ?(tlid = defaultTLID)
+    ?(fieldid = defaultID)
+    ?(typeid = defaultID2)
+    ?(name = "MyDB")
+    () : db =
   { dbTLID = tlid
-  ; dbName = B.newF "MyDB"
+  ; dbName = B.newF name
   ; cols = [(Blank fieldid, Blank typeid)]
   ; version = 0
   ; oldMigrations = []
@@ -756,6 +767,8 @@ let () =
             aHandler
               ~tlid:(TLID "123")
               ~space:(Some "HTTP")
+              ~name:(Some "/hello")
+              ~modifier:(Some "GET")
               ~expr:
                 (B.newF
                    (FieldAccess
@@ -766,12 +779,15 @@ let () =
             aHandler
               ~tlid:(TLID "456")
               ~space:(Some "REPL")
+              ~name:(Some "findingDori")
+              ~modifier:(Some "_")
               ~expr:(B.newF (FnCall (B.newF "Int::add", [], NoRail)))
               ()
           in
           let fn =
             aFunction
               ~tlid:(TLID "789")
+              ~name:"fn1"
               ~expr:
                 (B.newF
                    (Let
@@ -799,7 +815,8 @@ let () =
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with
-                | [Goto (_, tlid, _, true)] when tlid = fn.ufTLID ->
+                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                  when tlid = fn.ufTLID ->
                     true
                 | _ ->
                     false
@@ -808,7 +825,8 @@ let () =
           test "find string literal" (fun () ->
               let foundActions =
                 match qSearch m "hello" with
-                | [Goto (_, tlid, _, true)] when tlid = fn.ufTLID ->
+                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                  when tlid = fn.ufTLID ->
                     true
                 | _ ->
                     false
@@ -817,7 +835,12 @@ let () =
           test "find field access" (fun () ->
               let foundActions =
                 match qSearch m "request.query" with
-                | [Goto (_, tlid, _, true)] when tlid = http.hTLID ->
+                | [ Goto
+                      ( FocusedHandler _
+                      , tlid
+                      , "Found in HTTP::/hello - GET"
+                      , true ) ]
+                  when tlid = http.hTLID ->
                     true
                 | _ ->
                     false
@@ -826,7 +849,12 @@ let () =
           test "find function call" (fun () ->
               let foundActions =
                 match qSearch m "Int::add" with
-                | [Goto (_, tlid, _, true)] when tlid = repl.hTLID ->
+                | [ Goto
+                      ( FocusedHandler _
+                      , tlid
+                      , "Found in REPL::findingDori - _"
+                      , true ) ]
+                  when tlid = repl.hTLID ->
                     true
                 | _ ->
                     false
