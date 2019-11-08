@@ -589,9 +589,7 @@ let foundHandlerName (h : handler) : string =
 
 let foundFnName (f : userFunction) : string =
   "Found in function: "
-  ^ ( f.ufMetadata.ufmName
-    |> B.toMaybe
-    |> Option.withDefault ~default:"" )
+  ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let qSearch (m : model) (s : string) : omniAction list =

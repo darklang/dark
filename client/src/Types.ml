@@ -719,6 +719,14 @@ and literal = string
 
 and displayText = string
 
+(* Some AC items needs to be dynamically added to the list,
+   while others can be filtered in and out of the list.
+  For example: Goto will take you to focus on a toplevel.
+  In the case of "Jump to", results are filtered by name,
+    and do not need to be dynamically generated.
+  But in the case of "Found in", results are dynamically generated,
+    based on the content that is inside.
+*)
 and isDynamic = bool
 
 and keyword =
