@@ -470,10 +470,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
-    | StartFluidCursorSelecting tlid ->
+    | StartFluidMouseSelecting tlid ->
         let newMod =
           if VariantTesting.isFluid m.tests
-          then {m with cursorState = FluidCursorSelecting tlid}
+          then {m with cursorState = FluidMouseSelecting tlid}
           else m
         in
         (newMod, Cmd.none)
@@ -1175,8 +1175,8 @@ let update_ (msg : msg) (m : model) : modification =
         else Select (targetExnID, Some targetID)
     | FluidEntering _ ->
         Select (targetExnID, Some targetID)
-    | FluidCursorSelecting _ ->
-        StartFluidCursorSelecting targetExnID )
+    | FluidMouseSelecting _ ->
+        StartFluidMouseSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
@@ -1214,7 +1214,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ | FluidCursorSelecting _ ->
+        | FluidEntering _ | FluidMouseSelecting _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1887,7 +1887,7 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
-      Many [Select (targetExnID, None); StartFluidCursorSelecting targetExnID]
+      Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)

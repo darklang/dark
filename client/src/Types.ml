@@ -437,7 +437,7 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
-  | FluidCursorSelecting of tlid
+  | FluidMouseSelecting of tlid
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
@@ -930,7 +930,7 @@ and modification =
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | StartFluidCursorSelecting of tlid
+  | StartFluidMouseSelecting of tlid
 
 (* ------------------- *)
 (* Msgs *)
