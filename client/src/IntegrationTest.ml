@@ -785,14 +785,11 @@ let fluid_double_click_selects_token (m : model) : testResult =
 
 let fluid_single_click_on_token_in_deselected_handler_focuses (m : model) :
     testResult =
-  let focusedPass =
-    match m.currentPage with
-    | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
-        pass
-    | _ ->
-        fail "handler is not focused"
-  in
-  Result.combine [focusedPass] |> Result.map (fun _ -> ())
+  match m.currentPage with
+  | FocusedHandler (tlid, _) when tlid = TLID.fromString "598813411" ->
+      pass
+  | _ ->
+      fail "handler is not focused"
 
 
 let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
