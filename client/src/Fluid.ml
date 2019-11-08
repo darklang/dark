@@ -694,13 +694,32 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
+      let singleLine =
+        args
+        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:Builder.asTokens
+        |> List.concat
+        |> List.map ~f:(Token.toText >> String.length >> Debug.log "asd")
+        |> List.sum
+        |> ( + ) (String.length fnName)
+        |> ( + ) (* separators *) (List.length args + 1)
+        |> ( + ) (Option.withDefault ~default:0 b.xPos)
+        |> ( > ) 120
+      in
       b
       |> add (TFnName (id, partialName, displayName, fnName, ster))
       |> addMany versionToken
       |> addIter args ~f:(fun i e b ->
-             b
-             |> add TSep
-             |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e )
+             if singleLine
+             then
+               b
+               |> add TSep
+               |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e
+             else
+               b
+               |> maybeNewline (TNewline (Some (id, id, None)))
+               |> nest ~indent:2 ~placeholderFor:(Some (fnName, offset + 1)) e
+         )
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let args, offset =
         match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
