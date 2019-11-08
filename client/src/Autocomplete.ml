@@ -580,18 +580,18 @@ let qHTTPHandler (s : string) : omniAction =
 
 let handlerFindtoName (h : handler) : string =
   "Found in "
-  ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+  ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
   ^ "::"
-  ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+  ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
   ^ " - "
-  ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"Undefined")
+  ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
 
 
 let fnFindToName (f : userFunction) : string =
   "Found in function: "
   ^ ( f.ufMetadata.ufmName
     |> B.toMaybe
-    |> Option.withDefault ~default:"Undefined" )
+    |> Option.withDefault ~default:"" )
 
 
 let qSearch (m : model) (s : string) : omniAction list =
