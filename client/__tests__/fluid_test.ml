@@ -1219,6 +1219,25 @@ let () =
         render
         ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
         , 0 ) ;
+      tp
+        "reflows work for partials too "
+        (EPartial
+           ( gid ()
+           , "TEST"
+           , EFnCall
+               ( gid ()
+               , "HttpClient::post_v4"
+               , [ EString
+                     ( gid ()
+                     , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+                     )
+                 ; b ()
+                 ; b ()
+                 ; b () ]
+               , NoRail ) ))
+        render
+        ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
+        , 0 ) ;
       (* t *)
       (*   "reflows work for functions whose arguments have newlines" *)
       (*   (b ()) *)
