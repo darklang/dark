@@ -494,14 +494,10 @@ module Builder = struct
   let empty = {tokens = []; xPos = Some 0; indent = 0}
 
   let add (token : fluidToken) (b : t) : t =
-    (* Js.log2 "adding token" token ; *)
     let tokenLength = token |> Token.toText |> String.length in
     let tokens, xPos =
       if endsInNewline b
-      then
-        ( (* Js.log2 "indenting first" b.indent ; *)
-          [TIndent b.indent; token]
-        , Some (b.indent + tokenLength) )
+      then ([TIndent b.indent; token], Some (b.indent + tokenLength))
       else
         let newXPos =
           match token with
@@ -511,7 +507,6 @@ module Builder = struct
               let old = Option.withDefault b.xPos ~default:b.indent in
               Some (old + tokenLength)
         in
-        (* Js.log2 "tracking new xPos" newXPos ; *)
         ([token], newXPos)
     in
     {b with tokens = b.tokens @ tokens; xPos}
@@ -532,24 +527,16 @@ module Builder = struct
 
   let indentBy ~(indent : int) ~(f : t -> t) (b : t) : t =
     let oldIndent = b.indent in
-    (* Js.log2 "setting indent to sum of" (b.xPos, indent) ; *)
     let b = {b with indent = b.indent + indent} in
     let newB = f b in
-    (* Js.log2 "restoring old indent of " oldIndent ; *)
     {newB with indent = oldIndent}
 
 
-  (* the issue is that we reset the indent based on a newline, but we wait until the next token arrives, which is too late for intdentBy and addNested, so they use old values. But we did it that way because we add newlines within eg threads whose indentation are based on being outside the threads. *)
-
   let addNested ~(f : t -> t) (b : t) : t =
     let oldIndent = b.indent in
-    (* Js.log2 "adding nesting, set to " oldIndent ; *)
-    (* Js.log2 "(old setting was => " (b.xPos, b.indent) ; *)
     let newIndent = Option.withDefault ~default:b.indent b.xPos in
     let b = {b with indent = newIndent} in
     let newB = f b in
-    (* Js.log2 "restoring old indentation" oldIndent ; *)
-    (* Js.log2 "(xPos is " b.xPos ; *)
     {newB with indent = oldIndent}
 
 
@@ -834,33 +821,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
       b |> addNested ~f:(fromExpr casea)
 
-
-(* TODO: we need some sort of reflow thing that handles line length. *)
-(* let rec reflow ~(x : int) (startingTokens : token list) : int * token list = *)
-(*   let startingX = x in *)
-(*   List.indexedMap startingTokens ~f:(fun i e -> (i, e)) *)
-(*   |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) -> *)
-(*          let text = Token.toText t in *)
-(*          let len = String.length text in *)
-(*          match t with *)
-(*          | TIndented tokens -> *)
-(*              let newX, newTokens = reflow ~x:(x + 2) tokens in *)
-(*              (newX, old @ [TIndent (startingX + 2)] @ newTokens) *)
-(*          | TIndentToHere tokens -> *)
-(*              let newX, newTokens = reflow ~x tokens in *)
-(*              (newX, old @ newTokens) *)
-(*          | TNewline _ -> *)
-(* if this TNewline is at the very end of a set of tokens (for
-            * example - the TNewline at the end of an EMatch) - then we don't
-            * want to add a TIndent, because that will indent the following,
-            * non-EMatch, expr. *)
-(*              let isLast = i == List.length startingTokens - 1 in *)
-(*              if startingX = 0 || isLast *)
-(*              then (startingX, old @ [t]) *)
-(*              else (startingX, old @ [t; TIndent startingX]) *)
-(*          | _ -> *)
-(*              (x + len, old @ [t]) ) *)
-(*  *)
 
 let infoize ~(pos : int) tokens : tokenInfo list =
   let row, col = (ref 0, ref 0) in
