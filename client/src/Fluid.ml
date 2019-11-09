@@ -552,7 +552,6 @@ end
 (* x is the starting x-index of the token *)
 let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
-  (* Js.log2 "creating tokens with builder" (b.indent, b.xPos, e) ; *)
   let open Builder in
   let ghostPartial id newName oldName =
     let oldName = ViewUtils.partialName oldName in
