@@ -584,6 +584,34 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
     in
     b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
+  let addArgs (name : string) (id : id) (args : fluidExpr list) (b : Builder.t)
+      : Builder.t =
+    let args, offset =
+      match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+    in
+    let singleLine =
+      args
+      |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+      |> List.map ~f:Builder.asTokens
+      |> List.concat
+      |> List.map ~f:(Token.toText >> String.length)
+      |> List.sum
+      |> ( + ) (* separators *) (List.length args + 1)
+      |> ( + ) (Option.withDefault ~default:0 b.xPos)
+      |> ( > ) 120
+    in
+    b
+    |> addIter args ~f:(fun i e b ->
+           if singleLine
+           then
+             b
+             |> add TSep
+             |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e
+           else
+             b
+             |> maybeNewline (TNewline (Some (id, id, None)))
+             |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e )
+  in
   match e with
   | EInteger (id, i) ->
       add (TInteger (id, i)) b
@@ -675,9 +703,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> add TSep
       |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
-      let args, offset =
-        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
-      in
       let displayName = ViewUtils.fnDisplayName fnName in
       let versionDisplayName = ViewUtils.versionDisplayName fnName in
       let partialName = ViewUtils.partialName fnName in
@@ -686,59 +711,24 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
-      let singleLine =
-        args
-        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
-        |> List.map ~f:Builder.asTokens
-        |> List.concat
-        |> List.map ~f:(Token.toText >> String.length)
-        |> List.sum
-        |> ( + ) (String.length fnName)
-        |> ( + ) (* separators *) (List.length args + 1)
-        |> ( + ) (Option.withDefault ~default:0 b.xPos)
-        |> ( > ) 120
-      in
       b
       |> add (TFnName (id, partialName, displayName, fnName, ster))
       |> addMany versionToken
-      |> addIter args ~f:(fun i e b ->
-             if singleLine
-             then
-               b
-               |> add TSep
-               |> nest ~indent:0 ~placeholderFor:(Some (fnName, offset + i)) e
-             else
-               b
-               |> maybeNewline (TNewline (Some (id, id, None)))
-               |> nest ~indent:2 ~placeholderFor:(Some (fnName, offset + i)) e
-         )
+      |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let args, offset =
-        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
-      in
       let ghost = ghostPartial id newName oldName in
       b
       |> add (TPartial (id, newName))
       |> addMany ghost
-      |> addIter args ~f:(fun i e b ->
-             b
-             |> add TSep
-             |> nest ~indent:0 ~placeholderFor:(Some (oldName, offset + i)) e
-         )
+      |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->
-      b
-      |> add (TConstructorName (id, name))
-      |> addIter exprs ~f:(fun _ e b ->
-             b |> add TSep |> addNested ~f:(fromExpr e) )
+      b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       let ghost = ghostPartial id newName oldName in
       b
       |> add (TPartial (id, newName))
       |> addMany ghost
-      |> addIter exprs ~f:(fun i e b ->
-             b
-             |> add TSep
-             |> nest ~indent:0 ~placeholderFor:(Some (oldName, i)) e )
+      |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
