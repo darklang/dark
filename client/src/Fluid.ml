@@ -564,22 +564,26 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       ~indent
       (e : fluidExpr)
       (b : Builder.t) : Builder.t =
-    match (e, placeholderFor) with
-    | EBlank id, Some (fnname, pos) ->
-        let name =
-          s.ac.functions
-          |> List.find ~f:(fun f -> f.fnName = fnname)
-          |> Option.andThen ~f:(fun fn -> List.getAt ~index:pos fn.fnParameters)
-          |> Option.map ~f:(fun p -> (p.paramName, Runtime.tipe2str p.paramTipe)
-             )
-        in
-        ( match name with
-        | None ->
-            b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(fromExpr e))
-        | Some placeholder ->
-            b |> add (TPlaceholder (placeholder, id)) )
-    | _ ->
-        b |> indentBy ~indent ~f:(fun b -> addNested b ~f:(fromExpr e))
+    let tokensFn b =
+      match (e, placeholderFor) with
+      | EBlank id, Some (fnname, pos) ->
+          let name =
+            s.ac.functions
+            |> List.find ~f:(fun f -> f.fnName = fnname)
+            |> Option.andThen ~f:(fun fn ->
+                   List.getAt ~index:pos fn.fnParameters )
+            |> Option.map ~f:(fun p ->
+                   (p.paramName, Runtime.tipe2str p.paramTipe) )
+          in
+          ( match name with
+          | None ->
+              fromExpr e b
+          | Some placeholder ->
+              add (TPlaceholder (placeholder, id)) b )
+      | _ ->
+          fromExpr e b
+    in
+    b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
   match e with
   | EInteger (id, i) ->
@@ -707,7 +711,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              else
                b
                |> maybeNewline (TNewline (Some (id, id, None)))
-               |> nest ~indent:2 ~placeholderFor:(Some (fnName, offset + 1)) e
+               |> nest ~indent:2 ~placeholderFor:(Some (fnName, offset + i)) e
          )
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let args, offset =

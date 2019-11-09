@@ -336,6 +336,17 @@ let () =
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = false }
+        ; { fnName = "HttpClient::post_v4"
+          ; fnParameters =
+              [ fnParam "url" TStr false
+              ; fnParam "body" TAny false
+              ; fnParam "query" TObj false
+              ; fnParam "headers" TObj false ]
+          ; fnReturnTipe = TInt
+          ; fnDescription = "Get the square root of an Int"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
           ; fnParameters = [fnParam "table" TDB false]
           ; fnReturnTipe = TList
@@ -1175,6 +1186,54 @@ let () =
         (b ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
+      t
+        "reflows work for functions"
+        (EFnCall
+           ( gid ()
+           , "HttpClient::post_v4"
+           , [ EString (gid (), "0123456789abcdefghij0123456789abcdefghij")
+             ; ERecord
+                 ( gid ()
+                 , [ ( gid ()
+                     , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+                     , b () ) ] )
+             ; ERecord (gid (), [])
+             ; ERecord (gid (), []) ]
+           , NoRail ))
+        render
+        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
+        , 0 ) ;
+      t
+        "reflows work for functions with long strings"
+        (EFnCall
+           ( gid ()
+           , "HttpClient::post_v4"
+           , [ EString
+                 ( gid ()
+                 , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+                 )
+             ; b ()
+             ; b ()
+             ; b () ]
+           , NoRail ))
+        render
+        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
+        , 0 ) ;
+      (* t *)
+      (*   "reflows work for functions whose arguments have newlines" *)
+      (*   (b ()) *)
+      (*   (presses [K.Letter 'x'] 0) *)
+      (*   ("", 13) ; *)
+      (* t *)
+      (*   "reflows work for partials" *)
+      (*   (b ()) *)
+      (*   (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0) *)
+      (*   ("", 13) ; *)
+      (* t *)
+      (*   "reflows position the cursor in the right place" *)
+      (*   (b ()) *)
+      (*   (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0) *)
+      (*   ("", 13) ; *)
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
