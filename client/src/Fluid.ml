@@ -589,28 +589,37 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
     let args, offset =
       match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
     in
-    let singleLine =
-      args
-      |> List.map ~f:(fun a -> fromExpr a Builder.empty)
-      |> List.map ~f:Builder.asTokens
-      |> List.concat
-      |> List.map ~f:(Token.toText >> String.length)
-      |> List.sum
-      |> ( + ) (* separators *) (List.length args + 1)
-      |> ( + ) (Option.withDefault ~default:0 b.xPos)
-      |> ( > ) 120
+    let reflow =
+      let tokens =
+        args
+        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:Builder.asTokens
+        |> List.concat
+      in
+      let length =
+        tokens
+        |> List.map ~f:(Token.toText >> String.length)
+        |> List.sum
+        |> ( + ) (* separators *) (List.length args + 1)
+        |> ( + ) (Option.withDefault ~default:0 b.xPos)
+      in
+      let tooLong = length > 120 in
+      let hasNewline =
+        List.any tokens ~f:(function TNewline _ -> true | _ -> false)
+      in
+      tooLong || hasNewline
     in
     b
     |> addIter args ~f:(fun i e b ->
-           if singleLine
+           if reflow
            then
              b
-             |> add TSep
-             |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e
+             |> maybeNewline (TNewline (Some (id, id, None)))
+             |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
-             |> maybeNewline (TNewline (Some (id, id, None)))
-             |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e )
+             |> add TSep
+             |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e )
   in
   match e with
   | EInteger (id, i) ->
