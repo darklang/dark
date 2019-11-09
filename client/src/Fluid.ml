@@ -497,7 +497,9 @@ module Builder = struct
     let tokenLength = token |> Token.toText |> String.length in
     let tokens, xPos =
       if endsInNewline b
-      then ([TIndent b.indent; token], Some (b.indent + tokenLength))
+      then
+        ( (if b.indent <> 0 then [TIndent b.indent; token] else [token])
+        , Some (b.indent + tokenLength) )
       else
         let newXPos =
           match token with
