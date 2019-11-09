@@ -28,6 +28,7 @@ let () =
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
             { tl
+            ; likes = 0
             ; cursorState = Deselected
             ; fluidState = Defaults.defaultFluidState
             ; tlid = gtlid ()

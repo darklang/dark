@@ -963,6 +963,7 @@ and fluidMsg =
   | FluidCommandsClick of command
 
 and msg =
+  | Like of int * tlid
   | GlobalClick of mouseEvent
   | IgnoreMsg
   | FluidMsg of fluidMsg
@@ -1352,6 +1353,7 @@ and avatarModelMessage =
 and model =
   { error : string option
   ; lastMsg : msg
+  ; likes : int
   ; lastMod : modification
   ; tests : variantTest list
   ; complete : autocomplete

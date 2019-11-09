@@ -71,6 +71,7 @@ let defaultAccount : account = {name = ""; email = ""; username = ""}
 
 let defaultModel : model =
   { error = None
+  ; likes = 0
   ; lastMsg = IgnoreMsg
   ; lastMod = NoChange
   ; opCtrs = StrDict.empty

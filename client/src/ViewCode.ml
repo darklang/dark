@@ -472,6 +472,24 @@ let view (vs : viewState) (e : expr) =
     [ast; errorRail]
 
 
+let handlerLikes (vs : viewState) (_spec : handlerSpec) : msg Html.html =
+  let classes = Html.classList [("likes", true)] in
+  let attrs =
+    [ ViewUtils.eventNoPropagation
+        ~key:("like" ^ "-" ^ showTLID vs.tlid)
+        "click"
+        (fun _ -> Like (1, vs.tlid)) ]
+  in
+  (* heart-o is what I actually wanted, but it isn't in FA5, and I'm not sure
+   * how to use the v4 shims *)
+  let icon = match vs.likes with 0 -> "heartbeat" | _ -> "heart" in
+  Html.div
+    (classes :: attrs)
+    ( if vs.likes = 0
+    then [fontAwesome icon]
+    else [fontAwesome icon; Html.text (" " ^ (vs.likes |> string_of_int))] )
+
+
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
     =
   match (spec.space, spec.name, spec.modifier) with
@@ -695,6 +713,7 @@ let viewEventSpec
     ; viewEventName
     ; viewEventModifier
     ; viewMenu vs spec
+    ; handlerLikes vs spec
     (* ; btnExpCollapse *) ]
 
 

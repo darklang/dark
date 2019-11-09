@@ -1089,6 +1089,10 @@ let update_ (msg : msg) (m : model) : modification =
       ClearHover (tlid, ID traceID)
   | TriggerHandler tlid ->
       TriggerHandlerRPC tlid
+  | Like (ls, tlid) ->
+      Many
+        [ TweakModel (fun old -> {old with likes = m.likes + ls})
+        ; Select (tlid, None) ]
   | DragToplevel (_, mousePos) ->
     ( match m.cursorState with
     | Dragging (draggingTLID, startVPos, _, origCursorState) ->

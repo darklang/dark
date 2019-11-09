@@ -14,6 +14,7 @@ type viewState =
   ; ac : autocomplete
   ; showEntry : bool
   ; showLivevalue : bool
+  ; likes : int
   ; dbLocked : bool
   ; analysisStore : analysisStore (* for current selected trace *)
   ; traces : trace list
@@ -94,6 +95,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
   { tl
   ; cursorState = unwrapCursorState m.cursorState
   ; tlid
+  ; likes = m.likes
   ; hovering =
       m.hovering
       |> List.filter ~f:(fun (tlid, _) -> tlid = tlid)
