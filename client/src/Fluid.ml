@@ -699,7 +699,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> List.map ~f:(fun a -> fromExpr a Builder.empty)
         |> List.map ~f:Builder.asTokens
         |> List.concat
-        |> List.map ~f:(Token.toText >> String.length >> Debug.log "asd")
+        |> List.map ~f:(Token.toText >> String.length)
         |> List.sum
         |> ( + ) (String.length fnName)
         |> ( + ) (* separators *) (List.length args + 1)
