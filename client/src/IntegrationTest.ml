@@ -923,6 +923,10 @@ let sidebar_opens_function (_m : model) : testResult =
   pass
 
 
+let tobytes_roundtrip (m : model) : testResult =
+  match m.error with None -> pass | Some msg -> fail ("Error: " ^ msg)
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1073,5 +1077,7 @@ let trigger (test_name : string) : integrationTestState =
         max_callstack_bug
     | "sidebar_opens_function" ->
         sidebar_opens_function
+    | "tobytes_roundtrip" ->
+        tobytes_roundtrip
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

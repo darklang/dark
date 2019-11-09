@@ -65,7 +65,7 @@ test('{your_test_name}', async t => {
 ```  
 
 
-3. To complete the test, write a validation function in `client/IntegrationTest.ml`.
+3. To complete the test, write a validation function in `client/src/IntegrationTest.ml`.
 ```
 let {your_test_name} (m : model) : testResult = 
     (* Model assertions go here; common ones include checking the AST or looking for allowed/disallowed states *)
