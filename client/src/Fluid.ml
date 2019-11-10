@@ -3007,7 +3007,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos - 1
     | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
-        (* no quote here, unline TStringMLStart *)
+        (* no quote here, unlike TStringMLStart *)
         pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
