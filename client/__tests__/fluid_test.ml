@@ -1238,21 +1238,32 @@ let () =
         render
         ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
         , 0 ) ;
-      (* t *)
-      (*   "reflows work for functions whose arguments have newlines" *)
-      (*   (b ()) *)
-      (*   (presses [K.Letter 'x'] 0) *)
-      (*   ("", 13) ; *)
-      (* t *)
-      (*   "reflows work for partials" *)
-      (*   (b ()) *)
-      (*   (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0) *)
-      (*   ("", 13) ; *)
-      (* t *)
-      (*   "reflows position the cursor in the right place" *)
-      (*   (b ()) *)
-      (*   (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0) *)
-      (*   ("", 13) ; *)
+      t
+        "reflows happen for functions whose arguments have newlines"
+        (EFnCall
+           ( gid ()
+           , "HttpClient::post_v4"
+           , [ EString (gid (), "")
+             ; ERecord (gid (), [(gid (), "", b ())])
+             ; b ()
+             ; b () ]
+           , NoRail ))
+        render
+        ( "HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________"
+        , 0 ) ;
+      t
+        "reflows don't happen for functions whose only newline is in the last argument"
+        (EFnCall
+           ( gid ()
+           , "HttpClient::post_v4"
+           , [ EString (gid (), "")
+             ; b ()
+             ; b ()
+             ; ERecord (gid (), [(gid (), "", b ())]) ]
+           , NoRail ))
+        render
+        ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
+        , 0 ) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;

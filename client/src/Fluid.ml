@@ -604,10 +604,17 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> ( + ) (Option.withDefault ~default:0 b.xPos)
       in
       let tooLong = length > 120 in
-      let hasNewline =
-        List.any tokens ~f:(function TNewline _ -> true | _ -> false)
+      let needsNewlineBreak =
+        (* newlines aren't disruptive in the last argument *)
+        args
+        |> List.init
+        |> Option.withDefault ~default:[]
+        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:Builder.asTokens
+        |> List.concat
+        |> List.any ~f:(function TNewline _ -> true | _ -> false)
       in
-      tooLong || hasNewline
+      tooLong || needsNewlineBreak
     in
     b
     |> addIter args ~f:(fun i e b ->
