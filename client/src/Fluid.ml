@@ -1433,6 +1433,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   let findWhitespaceOffset (token : fluidTokenInfo) : int =
     let t = Token.toText token.token in
     let stringLength = String.length t in
+    (* Counts the leading white space(s) *)
     let leadingWhiteSpace =
       t
       |> Util.Regex.replace ~re:(Util.Regex.regex "^\\s+") ~repl:""
@@ -1446,21 +1447,19 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   let token =
     let tokens = toTokens s ast in
     let mPrev, _, _ = getTokensAtPosition ~pos tokens in
-    match mPrev with 
+    match mPrev with
     (* if cursor is at front of current token, go to begining of previous token *)
-    | Some prev when ti.startPos + findWhitespaceOffset ti  == pos  -> 
-      (match prev.token with 
-        | TNewline _ ->
-        (* Skip TNewline to avoid placing cursor at the front of a new line, which
+    | Some prev when ti.startPos + findWhitespaceOffset ti == pos ->
+      ( match prev.token with
+      | TNewline _ ->
+          (* Skip TNewline to avoid placing cursor at the front of a new line, which
       * would be the end of the line above *)
-        let newPrev, _, _ =
-          getTokensAtPosition ~pos:prev.startPos tokens
-        in
-        newPrev |> Option.withDefault ~default:prev
-             | _ ->
-       prev)
+          let newPrev, _, _ = getTokensAtPosition ~pos:prev.startPos tokens in
+          newPrev |> Option.withDefault ~default:prev
+      | _ ->
+          prev )
     | _ ->
-      ti
+        ti
   in
   let offset = findWhitespaceOffset token in
   let newPos = token.startPos + offset in
@@ -1470,29 +1469,29 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     =
   let s = recordAction "goToEndOfWord" s in
-  let token =
-    toTokens s ast
-    |> List.reverse
-    |> List.find ~f:(fun info ->
-           (* If the cursor isnt at the end, move it to end  *)
-           (* or if pos is at the beginning of a token *)
-           if (pos != info.endPos && info.endPos == ti.endPos)
-              || pos = info.startPos
-           then
-             match info.token with
-             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
-             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
-                 false
-             (* | TString _ -> *)
-             (* SYD TODO: Strings require special logic to go to front of a word
-                * not the start of the next token *)
-             (* false *)
-             | _ ->
-                 true
-           else false )
-    |> Option.withDefault ~default:ti
+  let offset (token : fluidTokenInfo) : int =
+    let t = Token.toText token.token in
+    let stringLength = String.length t in
+    (* Counts the trailing white space(s) *)
+    let trailingWhiteSpace =
+      t
+      |> Util.Regex.replace ~re:(Util.Regex.regex "\\s+$") ~repl:""
+      |> String.length
+    in
+    stringLength - trailingWhiteSpace
   in
-  let newPos = token.endPos in
+  let token =
+    let tokens = toTokens s ast in
+    let _, _, mNext = getTokensAtPosition ~pos tokens in
+    match (ti, mNext) with
+    (* if cursor is at the end of current token, go to end of next token *)
+    | t, Some nxt when t.endPos - offset t == pos ->
+        nxt
+    | _ ->
+        ti
+  in
+  let offset = offset token in
+  let newPos = token.endPos - offset in
   setPosition s newPos
 
 
