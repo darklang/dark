@@ -6,6 +6,30 @@ open Types
 module B = Blank
 module TL = Toplevel
 
+let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
+    msg Html.html =
+  let strTLID = showTLID vs.tlid in
+  match vs.workerStats with
+  | Some ws when ws.schedule = Some "run" ->
+      Html.div
+        [ ViewUtils.eventNoPropagation
+            ~key:("pause-" ^ strTLID)
+            "click"
+            (fun _ -> PauseWorker name )
+        ; Html.class' "pause-worker"
+        ; Html.title "Pause worker" ]
+        [ViewUtils.fontAwesome "pause-circle"]
+  | Some ws when ws.schedule = Some "pause" ->
+      Html.div
+        [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
+              RunWorker name )
+        ; Html.class' "restart-worker"
+        ; Html.title "Run worker" ]
+        [ViewUtils.fontAwesome "play-circle"]
+  | _ ->
+      Vdom.noNode
+
+
 let viewInput
     (tl : toplevel)
     (traceID : traceID)
@@ -134,10 +158,22 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
     | _ ->
         None
   in
+  let pauseBtn =
+    vs.tl
+    |> TL.asHandler
+    |> Option.andThen ~f:(fun h ->
+           match (h.spec.space, h.spec.name) with
+           | F (_, "WORKER"), F (_, name) ->
+               Some (pauseWorkerButton vs name)
+           | _ ->
+               None )
+    |> Option.withDefault ~default:Vdom.noNode
+  in
   [ Html.div
       [ Html.classList
           [ ("view-data", true)
           ; ("show-worker-stats", showWorkerStats)
           ; ("live-view-selection-active", selectedValue <> None) ]
       ; Html.style "max-height" maxHeight ]
-      [workQStats; Html.ul [Html.class' "request-cursor"] requestEls] ]
+      [pauseBtn; workQStats; Html.ul [Html.class' "request-cursor"] requestEls]
+  ]

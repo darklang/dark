@@ -54,6 +54,12 @@
     }
   }
 
+  .pause-worker,
+  .restart-worker {
+    margin-top: 4px;
+    color: $queue-color;
+  }
+
   ul.request-cursor {
     float: none;
     margin-top: 10px;

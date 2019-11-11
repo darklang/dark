@@ -551,27 +551,6 @@ let externalLink (vs : viewState) (name : string) =
     [fontAwesome "external-link-alt"; Html.text "Open in new tab"]
 
 
-let pauseWorkerButton (vs : viewState) (name : string) : msg Html.html =
-  let strTLID = showTLID vs.tlid in
-  match vs.workerSchedule with
-  | Some "run" ->
-      Html.div
-        [ ViewUtils.eventNoPropagation
-            ~key:("pause-" ^ strTLID)
-            "click"
-            (fun _ -> PauseWorker name )
-        ; Html.title "Pause worker" ]
-        [fontAwesome "toggle-on"]
-  | Some "pause" ->
-      Html.div
-        [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
-              RunWorker name )
-        ; Html.title "Run worker" ]
-        [fontAwesome "toggle-off"]
-  | _ ->
-      Vdom.noNode
-
-
 let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let strTLID = showTLID vs.tlid in
   let showMenu =
@@ -646,9 +625,8 @@ let viewEventSpec
         Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
     | F (_, "CRON"), _, _ ->
         Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
-    | F (_, "WORKER"), _, F (_, name) ->
-        let pauseBtn = pauseWorkerButton vs name in
-        Html.div [] [pauseBtn; triggerBtn]
+    | F (_, "WORKER"), _, F _ ->
+        Html.div [Html.class' "modifier"] [triggerBtn]
     | _ ->
         triggerBtn
   in
