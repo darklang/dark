@@ -253,7 +253,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
       newHandler m "REPL" (Some name) unused pos
   | NewGroup name ->
       Groups.createEmptyGroup name pos
-  | Goto (page, tlid, _) ->
+  | Goto (page, tlid, _, _) ->
       Many [SetPage page; Select (tlid, None)]
 
 
