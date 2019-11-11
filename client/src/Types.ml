@@ -717,6 +717,18 @@ and function_ =
 (* autocomplete items *)
 and literal = string
 
+and displayText = string
+
+(* Some AC items needs to be dynamically added to the list,
+   while others can be filtered in and out of the list.
+  For example: Goto will take you to focus on a toplevel.
+  In the case of "Jump to", results are filtered by name,
+    and do not need to be dynamically generated.
+  But in the case of "Found in", results are dynamically generated,
+    based on the content that is inside.
+*)
+and isDynamic = bool
+
 and keyword =
   | KLet
   | KIf
@@ -738,7 +750,7 @@ and omniAction =
   | NewCronHandler of string option
   | NewReplHandler of string option
   | NewGroup of string option
-  | Goto of page * tlid * string
+  | Goto of page * tlid * displayText * isDynamic
 
 and autocompleteItem =
   | ACFunction of function_
@@ -941,6 +953,8 @@ and modification =
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
   | StartFluidMouseSelecting of tlid
+  | UpdateASTCache of tlid * string
+  | InitASTCache of handler list * userFunction list
 
 (* ------------------- *)
 (* Msgs *)
@@ -1424,7 +1438,8 @@ and model =
   ; showTopbar : bool
   ; toast : toast
   ; username : string
-  ; account : account }
+  ; account : account
+  ; searchCache : string TLIDDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =

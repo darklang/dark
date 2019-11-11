@@ -77,19 +77,26 @@ let aHandler
     ?(tlid = defaultTLID)
     ?(expr = defaultExpr)
     ?(space : string option = None)
+    ?(name : string option = None)
+    ?(modifier : string option = None)
     () : handler =
-  let space =
-    match space with None -> B.new_ () | Some name -> B.newF name
+  let spec =
+    { space = B.ofOption space
+    ; name = B.ofOption name
+    ; modifier = B.ofOption modifier }
   in
-  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
   {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
-let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
-    userFunction =
+let aFunction
+    ?(tlid = defaultTLID)
+    ?(expr = defaultExpr)
+    ?(params = [])
+    ?(name = "myFunc")
+    () : userFunction =
   { ufTLID = tlid
   ; ufMetadata =
-      { ufmName = B.newF "myFunc"
+      { ufmName = B.newF name
       ; ufmParameters = params
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
@@ -97,10 +104,14 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) ?(params = []) () :
   ; ufAST = expr }
 
 
-let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
-    : db =
+let aDB
+    ?(tlid = defaultTLID)
+    ?(fieldid = defaultID)
+    ?(typeid = defaultID2)
+    ?(name = "MyDB")
+    () : db =
   { dbTLID = tlid
-  ; dbName = B.newF "MyDB"
+  ; dbName = B.newF name
   ; cols = [(Blank fieldid, Blank typeid)]
   ; version = 0
   ; oldMigrations = []
@@ -751,5 +762,103 @@ let () =
                 )
               |> toEqual true ) ;
           () ) ;
+      describe "code search" (fun () ->
+          let http =
+            aHandler
+              ~tlid:(TLID "123")
+              ~space:(Some "HTTP")
+              ~name:(Some "/hello")
+              ~modifier:(Some "GET")
+              ~expr:
+                (B.newF
+                   (FieldAccess
+                      (B.newF (Variable "request"), B.newF "queryParams")))
+              ()
+          in
+          let repl =
+            aHandler
+              ~tlid:(TLID "456")
+              ~space:(Some "REPL")
+              ~name:(Some "findingDori")
+              ~modifier:(Some "_")
+              ~expr:(B.newF (FnCall (B.newF "Int::add", [], NoRail)))
+              ()
+          in
+          let fn =
+            aFunction
+              ~tlid:(TLID "789")
+              ~name:"fn1"
+              ~expr:
+                (B.newF
+                   (Let
+                      ( B.newF "bunny"
+                      , B.newF (Value "9")
+                      , B.newF (Value "\"hello\"") )))
+              ()
+          in
+          let cursorState = creatingCS in
+          let m =
+            defaultModel
+              ~handlers:[http; repl]
+              ~userFunctions:[fn]
+              ~cursorState
+              ()
+          in
+          let exprToStr ast = Fluid.exprToStr m.fluidState ast in
+          let searchCache =
+            m.searchCache
+            |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)
+            |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
+            |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
+          in
+          let m = {m with searchCache} in
+          test "find variable" (fun () ->
+              let foundActions =
+                match qSearch m "bunny" with
+                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                  when tlid = fn.ufTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find string literal" (fun () ->
+              let foundActions =
+                match qSearch m "hello" with
+                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                  when tlid = fn.ufTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find field access" (fun () ->
+              let foundActions =
+                match qSearch m "request.query" with
+                | [ Goto
+                      ( FocusedHandler _
+                      , tlid
+                      , "Found in HTTP::/hello - GET"
+                      , true ) ]
+                  when tlid = http.hTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ;
+          test "find function call" (fun () ->
+              let foundActions =
+                match qSearch m "Int::add" with
+                | [ Goto
+                      ( FocusedHandler _
+                      , tlid
+                      , "Found in REPL::findingDori - _"
+                      , true ) ]
+                  when tlid = repl.hTLID ->
+                    true
+                | _ ->
+                    false
+              in
+              expect foundActions |> toEqual true ) ) ;
       () ) ;
   ()
