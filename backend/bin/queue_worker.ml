@@ -8,10 +8,15 @@ let shutdown = ref false
 let queue_worker execution_id =
   Libbackend.Init.init ~run_side_effects:false ;
   let rec queue_worker () =
-    let%lwt () = Lwt_unix.sleep 1.0 in
     let result = Libbackend.Queue_worker.run execution_id in
     match result with
-    | Ok _ ->
+    | Ok None ->
+        if not !shutdown
+        then
+          let%lwt () = Lwt_unix.sleep 1.0 in
+          (queue_worker [@tailcall]) ()
+        else Lwt.return ()
+    | Ok (Some _) ->
         if not !shutdown then (queue_worker [@tailcall]) () else Lwt.return ()
     | Error (bt, e) ->
         Log.erroR
