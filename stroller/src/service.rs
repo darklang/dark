@@ -12,14 +12,38 @@ use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
 use uuid::Uuid;
 
+use crate::segment::SegmentMessage;
 use crate::worker::Message;
 
 use slog::{o, slog_error, slog_info};
 use slog_scope::{error, info};
 
+fn handle_result(
+    r: Result<(), ()>,
+    uuid: String,
+    request_id: String,
+    event: String,
+    mut response: Response<Body>,
+) -> Response<Body> {
+    match r {
+        Ok(()) => {
+            *response.status_mut() = StatusCode::ACCEPTED;
+            *response.body_mut() = Body::from("OK");
+            response
+        }
+        Err(_) => {
+            error!("Tried to send event to worker, but it was dropped!"; o!("canvas" => &uuid, "event" => &event, "x-request-id" => &request_id));
+            *response.status_mut() = StatusCode::ACCEPTED;
+            *response.body_mut() = Body::empty();
+            response
+        }
+    }
+}
+
 pub fn handle(
     shutting_down: &Arc<AtomicBool>,
     sender: Sender<Message>,
+    segment_sender: Sender<SegmentMessage>,
     req: Request<Body>,
 ) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
     let start = SystemTime::now();
@@ -34,11 +58,20 @@ pub fn handle(
         return Either::A(future::ok(response));
     }
 
-    let method = req.method().to_string();
     let uri = req.uri().to_string();
-    let path_segments: Vec<&str> = req.uri().path().split('/').collect();
+    let method = req.method().to_string();
+    let (parts, body) = req.into_parts();
+    let path_segments: Vec<&str> = uri.split('/').collect();
+    let m = parts.method;
+    let event_type = uri.split('/').collect::<Vec<&str>>()[1].to_string();
+    let req_body = body.fold(Vec::new(), |mut acc, chunk| {
+        acc.extend_from_slice(&*chunk);
+        // this horrible type annotation is from an aturon suggestion:
+        // https://github.com/hyperium/hyper/issues/953#issuecomment-273568843
+        future::ok::<_, hyper::Error>(acc)
+    });
 
-    match (req.method(), path_segments.as_slice()) {
+    match (&m, path_segments.as_slice()) {
         (&Method::GET, ["", ""]) => {
             *response.body_mut() = Body::from("OK");
         }
@@ -49,44 +82,47 @@ pub fn handle(
             );
 
             shutting_down.store(true, Ordering::Release);
+            if segment_sender.send(SegmentMessage::Die).is_err() {
+                slog_error!(
+                    slog_scope::logger(),
+                    "Tried to send `Die` to segment worker, but it was dropped!"
+                );
+            };
             if sender.send(Message::Die).is_err() {
                 slog_error!(
                     slog_scope::logger(),
-                    "Tried to send `Die` to worker, but it was dropped!"
+                    "Tried to send `Die` to pusher worker, but it was dropped!"
                 );
             };
 
             *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
         }
-        (&Method::POST, ["", "canvas", canvas_uuid, "events", event]) => {
-            let canvas_uuid = canvas_uuid.to_string();
+        (&Method::POST, ["", "canvas", uuid, "events", event])
+        | (&Method::POST, ["", "segment", uuid, "event", event]) => {
+            let uuid = uuid.to_string();
             let event = event.to_string();
             let moved_request_id = request_id.clone();
-            let handled = req
-                .into_body()
-                .fold(Vec::new(), |mut acc, chunk| {
-                    acc.extend_from_slice(&*chunk);
-                    // this horrible type annotation is from an aturon suggestion:
-                    // https://github.com/hyperium/hyper/issues/953#issuecomment-273568843
-                    future::ok::<_, hyper::Error>(acc)
-                })
+            let handled = req_body
                 .map(move |req_body| {
-                    let canvas_event = Message::CanvasEvent(canvas_uuid.clone(), event.clone(), req_body, moved_request_id.clone());
+                    let result = match event_type.as_ref() {
+                        "canvas" => {
+                            let msg = Message::CanvasEvent(
+                                uuid.clone(),
+                                event.clone(),
+                                req_body,
+                                moved_request_id.clone(),
+                            );
+                            sender.send(msg).map_err(|_| ())
+                        }
+                        "segment" => {
+                            let msg = crate::segment::new_message(uuid.to_string(), req_body);
+                            segment_sender.send(msg).map_err(|_| ())
+                        }
+                        _ => panic!("Unhandled case!"),
+                    };
 
-                    match sender.send(canvas_event) {
-                        Ok(()) => {
-                            *response.status_mut() = StatusCode::ACCEPTED;
-                            *response.body_mut() = Body::from("OK");
-                            response
-                        }
-                        Err(_) => {
-                            error!("Tried to send CanvasEvent to worker, but it was dropped!"; o!("canvas" => &canvas_uuid, "event" => &event, "x-request-id" => &moved_request_id));
-                            *response.status_mut() = StatusCode::ACCEPTED;
-                            *response.body_mut() = Body::empty();
-                            response
-                        }
-                    }
+                    handle_result(result, uuid.to_string(), moved_request_id, event, response)
                 })
                 .or_else(|_| {
                     error!("Couldn't read request body from client!");

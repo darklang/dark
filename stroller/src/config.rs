@@ -35,3 +35,7 @@ pub fn pusher_secret() -> String {
 pub fn pusher_cluster() -> String {
     require_str("DARK_CONFIG_PUSHER_CLUSTER")
 }
+
+pub fn segment_write_key() -> String {
+    require_str("DARK_CONFIG_SEGMENT_WRITE_KEY")
+}
