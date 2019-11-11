@@ -1430,28 +1430,40 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
   let s = recordAction "goToStartOfWord" s in
-  let token =
-    toTokens s ast
-    |> List.find ~f:(fun info ->
-           (* If the cursor isnt at the beginning, move it to beginning  *)
-           (* or if pos is at the end of a token *)
-           if (pos != info.startPos && info.startPos == ti.startPos)
-              || pos = info.endPos
-           then
-             match info.token with
-             (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
-             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
-                 false
-                 (* | TString _ -> *)
-                 (* SYD TODO: Strings require special logic to go to front of a word
-                 * not the start of the next token *)
-                 (* false *)
-             | _ ->
-                 true
-           else false )
-    |> Option.withDefault ~default:ti
+  let findWhitespaceOffset (token : fluidTokenInfo) : int =
+    let t = Token.toText token.token in
+    let stringLength = String.length t in
+    let leadingWhiteSpace =
+      t
+      |> Util.Regex.replace ~re:(Util.Regex.regex "^\\s+") ~repl:""
+      |> String.length
+    in
+    (* If the string length is equal to the leadingWhiteSpace, its a blank *)
+    if stringLength == stringLength - leadingWhiteSpace
+    then 0
+    else stringLength - leadingWhiteSpace
   in
-  let newPos = token.startPos in
+  let token =
+    let tokens = toTokens s ast in
+    let mPrev, _, _ = getTokensAtPosition ~pos tokens in
+    match mPrev with 
+    (* if cursor is at front of current token, go to begining of previous token *)
+    | Some prev when ti.startPos + findWhitespaceOffset ti  == pos  -> 
+      (match prev.token with 
+        | TNewline _ ->
+        (* Skip TNewline to avoid placing cursor at the front of a new line, which
+      * would be the end of the line above *)
+        let newPrev, _, _ =
+          getTokensAtPosition ~pos:prev.startPos tokens
+        in
+        newPrev |> Option.withDefault ~default:prev
+             | _ ->
+       prev)
+    | _ ->
+      ti
+  in
+  let offset = findWhitespaceOffset token in
+  let newPos = token.startPos + offset in
   setPosition s newPos
 
 
