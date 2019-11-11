@@ -370,5 +370,7 @@ module Rollbar = struct
       [%raw
         {| (typeof window === 'undefined') ? self.rollbar : window.rollbar |}]
     in
+    (* Note that this prints an exception in test as the rollbar field doesn't
+     * exist. *)
     rb##error msg url Js.null Js.null custom
 end
