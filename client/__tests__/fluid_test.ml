@@ -319,6 +319,7 @@ let () =
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
+        ; infixFn "++" TStr TStr
         ; infixFn "==" TAny TBool
         ; infixFn "<=" TInt TBool
         ; infixFn "||" TBool TBool
@@ -385,11 +386,13 @@ let () =
   in
   let process
       ~(debug : bool)
+      ~(clone : bool)
       (keys : (K.key * shiftState) list)
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
+    let ast = if clone then Fluid.clone ~state:s ast else ast in
     let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
@@ -465,43 +468,58 @@ let () =
     ((eToString s result, (selPos, finalPos)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
-    process ~debug:false [] None 0 expr
+    process ~clone:false ~debug:false [] None 0 expr
   in
-  let del ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Delete, ShiftNotHeld)] None pos expr
-  in
-  let bs ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
-  in
-  let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Tab, ShiftNotHeld)] None pos expr
-  in
-  let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
-  in
-  let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Space, ShiftNotHeld)] None pos expr
-  in
-  let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Enter, ShiftNotHeld)] None pos expr
-  in
-  let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
+  let del ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
+  in
+  let bs ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
+  in
+  let tab ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
+  in
+  let shiftTab ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr)
+      : testResult =
+    process ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+  in
+  let space ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
+  in
+  let enter ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
+      testResult =
+    process ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+  in
+  let press
+      ?(debug = false)
+      ?(clone = true)
+      (key : K.key)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~clone ~debug [(key, ShiftNotHeld)] None pos expr
   in
   let selectionPress
       ?(debug = false)
+      ?(clone = true)
       (key : K.key)
       (selectionStart : int)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~debug [(key, ShiftNotHeld)] (Some selectionStart) pos expr
+    process ~clone ~debug [(key, ShiftNotHeld)] (Some selectionStart) pos expr
   in
   let presses
-      ?(debug = false) (keys : K.key list) (pos : int) (expr : fluidExpr) :
-      testResult =
+      ?(debug = false)
+      ?(clone = true)
+      (keys : K.key list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     process
       ~debug
+      ~clone
       (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
       None
       pos
@@ -509,15 +527,20 @@ let () =
   in
   let modPresses
       ?(debug = false)
+      ?(clone = true)
       (keys : (K.key * shiftState) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~debug keys None pos expr
+    process ~clone ~debug keys None pos expr
   in
-  let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
-      testResult =
+  let insert
+      ?(debug = false)
+      ?(clone = true)
+      (char : char)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
   let t
@@ -2096,7 +2119,7 @@ let () =
         , 73 ) ;
       t
         "inserting a thread into another thread gives a single thread1"
-        (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
+        (threadOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
@@ -2598,7 +2621,7 @@ let () =
       t
         "autocomplete for field"
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
-        (enter 10)
+        (enter ~clone:false 10)
         ("request.body", 12) ;
       (* TODO: this doesn't work but should *)
       (* t *)

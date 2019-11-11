@@ -3819,12 +3819,14 @@ let trimQuotes s : string =
   |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
 
 
+let clone ~(state : state) (ast : fluidExpr) : fluidExpr =
+  ast |> toExpr ~inThread:false |> AST.clone |> fromExpr state
+
+
 let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     =
-  let ast =
-    (* clone ast to prevent duplicates *)
-    toExpr ast |> AST.clone |> fromExpr state
-  in
+  (* prevent duplicates *)
+  let ast = clone ~state ast in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
