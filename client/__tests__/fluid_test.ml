@@ -263,6 +263,13 @@ let () =
   (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
   (* in *)
   let aConstructor = EConstructor (gid (), gid (), "Just", [b ()]) in
+  let emptyRow = [(gid (), "", b ())] in
+  let recordRow1 = (gid (), "f1", fiftySix) in
+  let recordRow2 = (gid (), "f2", seventyEight) in
+  let singleRowRecord = ERecord (gid (), [recordRow1]) in
+  let multiRowRecord = ERecord (gid (), [recordRow1; recordRow2]) in
+  let emptyRowRecord = ERecord (gid (), emptyRow) in
+  let emptyRecord = ERecord (gid (), []) in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -1209,36 +1216,26 @@ let () =
         (b ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
+      let string40 = "0123456789abcdefghij0123456789abcdefghij" in
+      let string80 = string40 ^ string40 in
+      let string160 = string80 ^ string80 in
+      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
       t
         "reflows work for functions"
-        (EFnCall
-           ( gid ()
-           , "HttpClient::post_v4"
-           , [ EString (gid (), "0123456789abcdefghij0123456789abcdefghij")
-             ; ERecord
-                 ( gid ()
-                 , [ ( gid ()
-                     , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
-                     , b () ) ] )
-             ; ERecord (gid (), [])
-             ; ERecord (gid (), []) ]
-           , NoRail ))
+        (fn
+           "HttpClient::post_v4"
+           [ EString (gid (), string40)
+           ; ERecord (gid (), [(gid (), string80, b ())])
+           ; emptyRowRecord
+           ; emptyRowRecord ])
         render
         ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
         , 0 ) ;
       t
         "reflows work for functions with long strings"
-        (EFnCall
-           ( gid ()
-           , "HttpClient::post_v4"
-           , [ EString
-                 ( gid ()
-                 , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
-                 )
-             ; b ()
-             ; b ()
-             ; b () ]
-           , NoRail ))
+        (fn
+           "HttpClient::post_v4"
+           [EString (gid (), string160); b (); b (); b ()])
         render
         ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
         , 0 ) ;
@@ -1247,43 +1244,21 @@ let () =
         (EPartial
            ( gid ()
            , "TEST"
-           , EFnCall
-               ( gid ()
-               , "HttpClient::post_v4"
-               , [ EString
-                     ( gid ()
-                     , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
-                     )
-                 ; b ()
-                 ; b ()
-                 ; b () ]
-               , NoRail ) ))
+           , fn
+               "HttpClient::post_v4"
+               [EString (gid (), string160); b (); b (); b ()] ))
         render
         ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
         , 0 ) ;
       t
         "reflows happen for functions whose arguments have newlines"
-        (EFnCall
-           ( gid ()
-           , "HttpClient::post_v4"
-           , [ EString (gid (), "")
-             ; ERecord (gid (), [(gid (), "", b ())])
-             ; b ()
-             ; b () ]
-           , NoRail ))
+        (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b (); b ()])
         render
         ( "HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________"
         , 0 ) ;
       t
         "reflows don't happen for functions whose only newline is in the last argument"
-        (EFnCall
-           ( gid ()
-           , "HttpClient::post_v4"
-           , [ EString (gid (), "")
-             ; b ()
-             ; b ()
-             ; ERecord (gid (), [(gid (), "", b ())]) ]
-           , NoRail ))
+        (fn "HttpClient::post_v4" [emptyStr; b (); b (); emptyRowRecord])
         render
         ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
         , 0 ) ;
@@ -2273,7 +2248,7 @@ let () =
         "insert separator before item creates blank"
         single
         (insert ',' 1)
-        ("[___,56]", 2) ;
+        ("[___,56]", 1) ;
       t
         "insert separator after item creates blank"
         single
@@ -2364,13 +2339,6 @@ let () =
         ("[\"ab\",\"ef\"]", 5) ;
       () ) ;
   describe "Record" (fun () ->
-      let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [(gid (), "", b ())]) in
-      let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
-      let multi =
-        ERecord
-          (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
-      in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" (b ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
@@ -2385,12 +2353,12 @@ let () =
         ("{}", 1) ;
       t
         "inserting space in empty record field does nothing"
-        emptyRow
+        emptyRowRecord
         (space 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "inserting space in empty record value does nothing"
-        emptyRow
+        emptyRowRecord
         (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
@@ -2398,20 +2366,20 @@ let () =
         emptyRecord
         (enter 1)
         ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
+      t "enter fieldname" emptyRowRecord (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
         "move to the front of an empty record"
-        emptyRow
+        emptyRowRecord
         (press K.GoToStartOfLine 13)
         ("{\n  *** : ___\n}", 4) ;
       t
         "move to the end of an empty record"
-        emptyRow
+        emptyRowRecord
         (press K.GoToEndOfLine 4)
         ("{\n  *** : ___\n}", 13) ;
       t
         "cant enter invalid fieldname"
-        emptyRow
+        emptyRowRecord
         (insert '^' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
@@ -2436,88 +2404,88 @@ let () =
         ("{}", 2) ;
       t
         "backspacing empty record field clears entry"
-        emptyRow
+        emptyRowRecord
         (bs 4)
         (* TODO: buggy. Should be 1 *)
         ("{}", 2) ;
       t
         "appending to int in expr works"
-        single
+        singleRowRecord
         (insert '1' 11)
         ("{\n  f1 : 561\n}", 12) ;
       t
         "appending to int in expr works"
-        multi
+        multiRowRecord
         (insert '1' 21)
         ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
       t
-        "move to the front of a record with multiple values"
-        multi
+        "move to the front of a record with multiRowRecordple values"
+        multiRowRecord
         (press K.GoToStartOfLine 21)
         ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
       t
-        "move to the end of a record with multiple values"
-        multi
+        "move to the end of a record with multiRowRecordple values"
+        multiRowRecord
         (press K.GoToEndOfLine 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
       t
         "inserting at the end of the key works"
-        emptyRow
+        emptyRowRecord
         (insert 'f' 6)
         ("{\n  f : ___\n}", 5) ;
       t
         "pressing enter at start adds a row"
-        multi
+        multiRowRecord
         (enter 1)
         ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       t
         "pressing enter at the back adds a row"
-        multi
+        multiRowRecord
         (enter 22)
         ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
       t
         "pressing enter at the start of a field adds a row"
-        multi
+        multiRowRecord
         (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
       t
         "pressing enter at the end of row adds a row"
-        multi
+        multiRowRecord
         (enter 11)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
         "dont allow weird chars in recordFields"
-        emptyRow
+        emptyRowRecord
         (press K.RightParens 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars"
-        emptyRow
+        emptyRowRecord
         (press K.Plus 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars, pt 2"
-        single
+        singleRowRecord
         (press K.Plus 6)
         ("{\n  f1 : 56\n}", 6) ;
       t
         "colon should skip over the record colon"
-        emptyRow
+        emptyRowRecord
         (press K.Colon 7)
         ("{\n  *** : ___\n}", 10) ;
       t
         "dont allow key to start with a number"
-        emptyRow
+        emptyRowRecord
         (insert '5' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont allow key to start with a number, pt 2"
-        single
+        singleRowRecord
         (insert '5' 4)
         ("{\n  f1 : 56\n}", 4) ;
       t
         "dont allow key to start with a number, pt 3"
-        emptyRow
+        emptyRowRecord
         (insert '5' 6)
         ("{\n  *** : ___\n}", 6) ;
       () ) ;
