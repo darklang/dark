@@ -1689,8 +1689,8 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
           recover "not a field in replaceFieldName" e )
 
 
-let exprToFieldAccess (id : id) (ast : ast) : ast =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
+let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
+  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -2995,6 +2995,18 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
+type offset = int
+
+type motion = int
+
+type newPosition =
+  (* | WithinToken of id * offset *)
+  | RightOne
+  | RightTwo
+  | SamePlace
+  | TwoAfterEnd
+  | Exactly of int
+
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~ti ~pos "doInsert" s in
@@ -3011,11 +3023,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
-  in
-  let right =
-    if FluidToken.isBlank ti.token
-    then moveTo (ti.startPos + 1) s
-    else moveOneRight pos s
   in
   let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
@@ -3060,148 +3067,166 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     then EInteger (newID, letterStr |> coerceStringTo63BitInt)
     else EPartial (newID, letterStr, EBlank (gid ()))
   in
-  match ti.token with
-  | (TFieldName (id, _, _) | TVariable (id, _))
-    when pos = ti.endPos && letter = '.' ->
-      (exprToFieldAccess id ast, right)
-  (* Dont add space to blanks *)
-  | ti when FluidToken.isBlank ti && letterStr == " " ->
-      (ast, s)
-  (* replace blank *)
-  | TBlank id | TPlaceholder (_, id) ->
-      (replaceExpr id ~newExpr ast, moveTo (ti.startPos + 1) s)
-  (* lists *)
-  | TListOpen id ->
-      (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
-  (* lambda *)
-  | TLambdaSymbol id when letter = ',' ->
-      (insertLambdaVar ~index:0 id ~name:"" ast, s)
-  | TLambdaVar (id, _, index, _) when letter = ',' ->
-      ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-      , moveTo (ti.endPos + 2) s )
-  (* Ignore invalid situations *)
-  | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
-      (ast, s)
-  | TInteger _
-  | TPatternInteger _
-  | TFloatFraction _
-  | TFloatWhole _
-  | TPatternFloatWhole _
-  | TPatternFloatFraction _
-    when not (isNumber letterStr) ->
-      (ast, s)
-  | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
-    when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TVariable _
-  | TPatternVariable _
-  | TLetLHS _
-  | TFieldName _
-  | TLambdaVar _
-  | TRecordField _
-    when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TVariable _
-  | TPatternVariable _
-  | TLetLHS _
-  | TFieldName _
-  | TLambdaVar _
-  | TRecordField _
-    when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
-      (ast, s)
-  | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
-      (ast, s)
-  (* Do the insert *)
-  | (TString (_, str) | TStringMLEnd (_, str, _, _))
-    when pos = ti.endPos - 1 && String.length str = 40 ->
-      (* Strings with end quotes *)
-      let s = recordAction ~pos ~ti "string to mlstring" s in
-      (* Inserting at the end of an multi-line segment goes to next segment *)
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-      (newAST, moveOneRight newState.newPos newState)
-  | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
-    when pos = ti.endPos && String.length str = 40 ->
-      (* Strings without end quotes *)
-      let s = recordAction ~pos ~ti "extend multiline string" s in
-      (* Inserting at the end of an multi-line segment goes to next segment *)
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-      (newAST, moveOneRight newState.newPos newState)
-  | TRecordField _
-  | TFieldName _
-  | TVariable _
-  | TPartial _
-  | TRightPartial _
-  | TString _
-  | TStringMLStart _
-  | TStringMLMiddle _
-  | TStringMLEnd _
-  | TPatternString _
-  | TLetLHS _
-  | TTrue _
-  | TFalse _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TNullToken _
-  | TPatternNullToken _
-  | TPatternVariable _
-  | TBinOp _
-  | TLambdaVar _ ->
-      (replaceStringToken ~f ti.token ast, right)
-  | TPatternInteger (_, _, i) | TInteger (_, i) ->
-      let newLength = f i |> coerceStringTo63BitInt |> String.length in
-      let move = if newLength > offset then right else s in
-      (replaceStringToken ~f ti.token ast, move)
-  | TFloatWhole (id, str) ->
-      (replaceFloatWhole (f str) id ast, right)
-  | TFloatFraction (id, str) ->
-      (replaceFloatFraction (f str) id ast, right)
-  | TFloatPoint id ->
-      (insertAtFrontOfFloatFraction letterStr id ast, right)
-  | TPatternFloatWhole (mID, id, str) ->
-      (replacePatternFloatWhole (f str) mID id ast, right)
-  | TPatternFloatFraction (mID, id, str) ->
-      (replacePatternFloatFraction (f str) mID id ast, right)
-  | TPatternFloatPoint (mID, id) ->
-      (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
-  | TPatternConstructorName _ ->
-      (ast, s)
-  | TPatternBlank (mID, pID) ->
-      let newPat =
-        if letter = '"'
-        then FPString (mID, newID, "")
-        else if isNumber letterStr
-        then FPInteger (mID, newID, letterStr |> coerceStringTo63BitInt)
-        else FPVariable (mID, newID, letterStr)
-      in
-      (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
-  (* do nothing *)
-  | TNewline _
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TFieldOp _
-  | TFnName _
-  | TFnVersion _
-  | TLetKeyword _
-  | TLetAssignment _
-  | TSep
-  | TListClose _
-  | TListSep _
-  | TIndent _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TThreadPipe _
-  | TLambdaSymbol _
-  | TLambdaArrow _
-  | TConstructorName _
-  | TLambdaSep _
-  | TMatchSep _
-  | TMatchKeyword _
-  | TPartialGhost _ ->
-      (ast, s)
+  let ast, newPosition =
+    match ti.token with
+    | (TFieldName (id, _, _) | TVariable (id, _))
+      when pos = ti.endPos && letter = '.' ->
+        let fieldID = gid () in
+        ( exprToFieldAccess id fieldID ast
+        , RightOne (* WithinToken (fieldID, 0) *) )
+    (* Dont add space to blanks *)
+    | ti when FluidToken.isBlank ti && letterStr == " " ->
+        (ast, SamePlace)
+    (* replace blank *)
+    | TBlank id | TPlaceholder (_, id) ->
+        (replaceExpr id ~newExpr ast, RightOne)
+    (* lists *)
+    | TListOpen id ->
+        (insertInList ~index:0 id ~newExpr ast, SamePlace)
+    (* lambda *)
+    | TLambdaSymbol id when letter = ',' ->
+        (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
+    | TLambdaVar (id, _, index, _) when letter = ',' ->
+        (insertLambdaVar ~index:(index + 1) id ~name:"" ast, TwoAfterEnd)
+    (* Ignore invalid situations *)
+    | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
+        (ast, SamePlace)
+    | TInteger _
+    | TPatternInteger _
+    | TFloatFraction _
+    | TFloatWhole _
+    | TPatternFloatWhole _
+    | TPatternFloatFraction _
+      when not (isNumber letterStr) ->
+        (ast, SamePlace)
+    | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+      when '0' = letter && offset = 0 ->
+        (ast, SamePlace)
+    | TVariable _
+    | TPatternVariable _
+    | TLetLHS _
+    | TFieldName _
+    | TLambdaVar _
+    | TRecordField _
+      when not (isIdentifierChar letterStr) ->
+        (ast, SamePlace)
+    | TVariable _
+    | TPatternVariable _
+    | TLetLHS _
+    | TFieldName _
+    | TLambdaVar _
+    | TRecordField _
+      when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
+        (ast, SamePlace)
+    | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
+        (ast, SamePlace)
+    (* Do the insert *)
+    | (TString (_, str) | TStringMLEnd (_, str, _, _))
+      when pos = ti.endPos - 1 && String.length str = 40 ->
+        (* Strings with end quotes *)
+        let s = recordAction ~pos ~ti "string to mlstring" s in
+        (* Inserting at the end of an multi-line segment goes to next segment *)
+        let newAST = replaceStringToken ~f ti.token ast in
+        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+        (newAST, Exactly (newState.newPos + 1))
+    | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
+      when pos = ti.endPos && String.length str = 40 ->
+        (* Strings without end quotes *)
+        let s = recordAction ~pos ~ti "extend multiline string" s in
+        (* Inserting at the end of an multi-line segment goes to next segment *)
+        let newAST = replaceStringToken ~f ti.token ast in
+        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+        (newAST, Exactly (newState.newPos + 1))
+    | TRecordField _
+    | TFieldName _
+    | TVariable _
+    | TPartial _
+    | TRightPartial _
+    | TString _
+    | TStringMLStart _
+    | TStringMLMiddle _
+    | TStringMLEnd _
+    | TPatternString _
+    | TLetLHS _
+    | TTrue _
+    | TFalse _
+    | TPatternTrue _
+    | TPatternFalse _
+    | TNullToken _
+    | TPatternNullToken _
+    | TPatternVariable _
+    | TBinOp _
+    | TLambdaVar _ ->
+        (replaceStringToken ~f ti.token ast, RightOne)
+    | TPatternInteger (_, _, i) | TInteger (_, i) ->
+        let newLength = f i |> coerceStringTo63BitInt |> String.length in
+        let move = if newLength > offset then RightOne else SamePlace in
+        (replaceStringToken ~f ti.token ast, move)
+    | TFloatWhole (id, str) ->
+        (replaceFloatWhole (f str) id ast, RightOne)
+    | TFloatFraction (id, str) ->
+        (replaceFloatFraction (f str) id ast, RightOne)
+    | TFloatPoint id ->
+        (insertAtFrontOfFloatFraction letterStr id ast, RightOne)
+    | TPatternFloatWhole (mID, id, str) ->
+        (replacePatternFloatWhole (f str) mID id ast, RightOne)
+    | TPatternFloatFraction (mID, id, str) ->
+        (replacePatternFloatFraction (f str) mID id ast, RightOne)
+    | TPatternFloatPoint (mID, id) ->
+        (insertAtFrontOfPatternFloatFraction letterStr mID id ast, RightOne)
+    | TPatternConstructorName _ ->
+        (ast, SamePlace)
+    | TPatternBlank (mID, pID) ->
+        let newPat =
+          if letter = '"'
+          then FPString (mID, newID, "")
+          else if isNumber letterStr
+          then FPInteger (mID, newID, letterStr |> coerceStringTo63BitInt)
+          else FPVariable (mID, newID, letterStr)
+        in
+        (replacePattern mID pID ~newPat ast, RightOne)
+    (* do nothing *)
+    | TNewline _
+    | TIfKeyword _
+    | TIfThenKeyword _
+    | TIfElseKeyword _
+    | TFieldOp _
+    | TFnName _
+    | TFnVersion _
+    | TLetKeyword _
+    | TLetAssignment _
+    | TSep
+    | TListClose _
+    | TListSep _
+    | TIndent _
+    | TRecordOpen _
+    | TRecordClose _
+    | TRecordSep _
+    | TThreadPipe _
+    | TLambdaSymbol _
+    | TLambdaArrow _
+    | TConstructorName _
+    | TLambdaSep _
+    | TMatchSep _
+    | TMatchKeyword _
+    | TPartialGhost _ ->
+        (ast, SamePlace)
+  in
+  let newPos =
+    match newPosition with
+    | SamePlace ->
+        pos
+    | RightOne ->
+        if FluidToken.isBlank ti.token then ti.startPos + 1 else pos + 1
+    | RightTwo ->
+        if FluidToken.isBlank ti.token then ti.startPos + 2 else pos + 2
+    | Exactly pos ->
+        pos
+    | TwoAfterEnd ->
+        ti.endPos + 2
+    (* | WithinToken  *)
+  in
+  (ast, {s with newPos})
 
 
 let doInsert
