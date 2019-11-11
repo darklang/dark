@@ -23,7 +23,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
         &config::pusher_key(),
         &config::pusher_secret(),
     );
-    info!("Worker initialized");
+    info!("Pusher worker initialized");
     loop {
         match channel.recv() {
             Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
