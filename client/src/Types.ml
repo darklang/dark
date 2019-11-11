@@ -533,7 +533,9 @@ and dbStats =
 
 and dbStatsStore = dbStats StrDict.t
 
-and workerStats = {count : int}
+and workerStats =
+  { count : int
+  ; schedule : string option }
 
 (* ------------------- *)
 (* ops *)

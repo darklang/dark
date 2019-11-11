@@ -704,7 +704,7 @@ let account j : account =
   ; username = field "username" string j }
 
 
-let workerStats j : workerStats = {count = field "count" int j}
+let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsRPCResult j = workerStats j
 

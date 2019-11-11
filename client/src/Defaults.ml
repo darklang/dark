@@ -69,6 +69,8 @@ let defaultToast : toast = {toastMessage = None; toastPos = None}
 
 let defaultAccount : account = {name = ""; email = ""; username = ""}
 
+let defaultWorkerStats : workerStats = {count = 0; schedule = None}
+
 let defaultModel : model =
   { error = None
   ; lastMsg = IgnoreMsg

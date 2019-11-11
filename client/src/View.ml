@@ -257,15 +257,7 @@ let tlCacheKey (m : model) tl =
     let avatarsList = Avatar.filterAvatarsByTlid m.avatarsList tlid in
     let props = TLIDDict.get ~tlid m.handlerProps in
     let workerSchedule =
-      match tl with
-      | TLHandler h ->
-        ( match h.spec.name with
-        | F (_, name) ->
-            StrDict.get ~key:name m.worker_schedules
-        | Blank _ ->
-            None )
-      | _ ->
-          None
+      tl |> TL.asHandler |> Option.andThen ~f:(Handlers.getWorkerSchedule m)
     in
     Some
       ( tl
