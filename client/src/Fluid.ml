@@ -3027,14 +3027,14 @@ let adjustPosForReflow
   match (adjustment, newTI) with
   | SamePlace, _ ->
       oldPos + diff
-  | RightOne, _ when FluidToken.isBlank oldTI.token ->
-      oldTI.startPos + diff + 1
   | RightOne, _ ->
-      oldPos + diff + 1
-  | RightTwo, _ when FluidToken.isBlank oldTI.token ->
-      oldTI.startPos + diff + 2
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 1
+      else oldPos + diff + 1
   | RightTwo, _ ->
-      oldPos + diff + 2
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 2
+      else oldPos + diff + 2
   | Exactly pos, _ ->
       pos
   | TwoAfterEnd, None ->
