@@ -101,7 +101,6 @@ pub fn handle(
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "canvas", uuid, "events", event])
-            // we call it event here, but it maps to track/identify/group/etc
         | (&Method::POST, ["", "segment", "track", uuid, "event", event]) => {
             let uuid = uuid.to_string();
             let event = event.to_string();
