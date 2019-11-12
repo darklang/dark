@@ -3005,6 +3005,44 @@ type newPosition =
   | TwoAfterEnd
   | Exactly of int
 
+let adjustPosForReflow
+    ~state
+    (newAST : fluidExpr)
+    (oldTI : tokenInfo)
+    (oldPos : int)
+    (adjustment : newPosition) : int =
+  (* Any character change can cause the token to reflow: we need to find the
+     * token and then use it to put the pos back together *)
+  let newTokens = toTokens state newAST in
+  let newTI =
+    List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
+  in
+  let diff =
+    match newTI with
+    | Some newTI ->
+        newTI.startPos - oldTI.startPos
+    | None ->
+        0
+  in
+  match (adjustment, newTI) with
+  | SamePlace, _ ->
+      oldPos + diff
+  | RightOne, _ when FluidToken.isBlank oldTI.token ->
+      oldTI.startPos + diff + 1
+  | RightOne, _ ->
+      oldPos + diff + 1
+  | RightTwo, _ when FluidToken.isBlank oldTI.token ->
+      oldTI.startPos + diff + 2
+  | RightTwo, _ ->
+      oldPos + diff + 2
+  | Exactly pos, _ ->
+      pos
+  | TwoAfterEnd, None ->
+      oldTI.endPos + 2
+  | TwoAfterEnd, Some newTI ->
+      newTI.endPos + 2
+
+
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~ti ~pos "doInsert" s in
@@ -3065,7 +3103,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     then EInteger (newID, letterStr |> coerceStringTo63BitInt)
     else EPartial (newID, letterStr, EBlank (gid ()))
   in
-  let ast, newPosition =
+  let newAST, newPosition =
     match ti.token with
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
@@ -3209,35 +3247,8 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPartialGhost _ ->
         (ast, SamePlace)
   in
-  let newPos =
-    (* Any character change can cause the token to reflow: we need to find the
-     * token and then use it to put the pos back together *)
-    let newTokens = toTokens s ast in
-    let newTI =
-      List.find newTokens ~f:(fun x -> Token.matches ti.token x.token)
-    in
-    let diff =
-      match newTI with Some newTI -> newTI.startPos - ti.startPos | None -> 0
-    in
-    match (newPosition, newTI) with
-    | SamePlace, _ ->
-        pos + diff
-    | RightOne, _ when FluidToken.isBlank ti.token ->
-        ti.startPos + diff + 1
-    | RightOne, _ ->
-        pos + diff + 1
-    | RightTwo, _ when FluidToken.isBlank ti.token ->
-        ti.startPos + diff + 2
-    | RightTwo, _ ->
-        pos + diff + 2
-    | Exactly pos, _ ->
-        pos
-    | TwoAfterEnd, None ->
-        ti.endPos + 2
-    | TwoAfterEnd, Some newTI ->
-        newTI.endPos + 2
-  in
-  (ast, {s with newPos})
+  let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
+  (newAST, {s with newPos})
 
 
 let doInsert
