@@ -382,6 +382,20 @@ let toTestText (t : token) : string =
   result
 
 
+let toIndex (t : token) : int option =
+  match t with
+  | TStringMLMiddle (_, _, index, _)
+  | TLambdaVar (_, _, index, _)
+  | TLambdaSep (_, index)
+  | TThreadPipe (_, _, index)
+  | TRecordField (_, _, index, _)
+  | TRecordSep (_, index, _)
+  | TNewline (Some (_, _, Some index)) ->
+      Some index
+  | _ ->
+      None
+
+
 let toTypeName (t : token) : string =
   match t with
   | TInteger _ ->
@@ -585,3 +599,14 @@ let show_tokenInfo (ti : tokenInfo) =
     (tid ti.token |> deID)
     (toTypeName ti.token)
     (toDebugInfo ti.token)
+
+
+(* Since tokens don't have unique IDs, it is hard to look at two tokens streams
+ * and find which tokens represent the same thing. You can use toText and ID,
+ * but that doesn't work where the content has changed, which is a thing we
+ * want to check for. *)
+let matches (t1 : token) (t2 : token) : bool =
+  tid t1 = tid t2
+  && toTypeName t1 = toTypeName t2
+  && toIndex t1 = toIndex t2
+  && t1 <> (* Matches too many things *) TNewline None

@@ -597,6 +597,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> List.concat
       in
       let length =
+        (* TODO: this doesn't account for the indentation of arguments
+         * correctly, as they may also be indented by xPos in many cases if
+         * they are on multiple lines *)
         tokens
         |> List.map ~f:(Token.toText >> String.length)
         |> List.sum
@@ -2995,12 +2998,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (newAST, s)
 
 
-type offset = int
-
-type motion = int
-
 type newPosition =
-  (* | WithinToken of id * offset *)
   | RightOne
   | RightTwo
   | SamePlace
@@ -3072,8 +3070,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
         let fieldID = gid () in
-        ( exprToFieldAccess id fieldID ast
-        , RightOne (* WithinToken (fieldID, 0) *) )
+        (exprToFieldAccess id fieldID ast, RightOne)
     (* Dont add space to blanks *)
     | ti when FluidToken.isBlank ti && letterStr == " " ->
         (ast, SamePlace)
@@ -3213,18 +3210,32 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, SamePlace)
   in
   let newPos =
-    match newPosition with
-    | SamePlace ->
+    (* Any character change can cause the token to reflow: we need to find the
+     * token and then use it to put the pos back together *)
+    let newTokens = toTokens s ast in
+    let newTI =
+      List.find newTokens ~f:(fun x -> Token.matches ti.token x.token)
+    in
+    let diff =
+      match newTI with Some newTI -> newTI.startPos - ti.startPos | None -> 0
+    in
+    match (newPosition, newTI) with
+    | SamePlace, _ ->
+        pos + diff
+    | RightOne, _ when FluidToken.isBlank ti.token ->
+        ti.startPos + diff + 1
+    | RightOne, _ ->
+        pos + diff + 1
+    | RightTwo, _ when FluidToken.isBlank ti.token ->
+        ti.startPos + diff + 2
+    | RightTwo, _ ->
+        pos + diff + 2
+    | Exactly pos, _ ->
         pos
-    | RightOne ->
-        if FluidToken.isBlank ti.token then ti.startPos + 1 else pos + 1
-    | RightTwo ->
-        if FluidToken.isBlank ti.token then ti.startPos + 2 else pos + 2
-    | Exactly pos ->
-        pos
-    | TwoAfterEnd ->
+    | TwoAfterEnd, None ->
         ti.endPos + 2
-    (* | WithinToken  *)
+    | TwoAfterEnd, Some newTI ->
+        newTI.endPos + 2
   in
   (ast, {s with newPos})
 
