@@ -291,6 +291,8 @@ let get_worker_schedules_for_canvas canvas_id : (string * string) list =
 
 
 (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
+ * Then, un-schedules any currently schedules events for this handler to keep
+ * them from being processed.
  * 'pause' rules are developer-controlled whereas 'block' rules are accessible
  * only as DarkInternal functions and cannot be removed by developers. *)
 let add_scheduling_rule rule_type canvas_id handler_name : unit =
@@ -299,7 +301,16 @@ let add_scheduling_rule rule_type canvas_id handler_name : unit =
     ~params:[String rule_type; Uuid canvas_id; String handler_name]
     "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
     VALUES ( $1, $2, $3, 'WORKER')
-    ON CONFLICT DO NOTHING"
+    ON CONFLICT DO NOTHING" ;
+  Db.run
+    ~name:"unschedule_events"
+    ~params:[Uuid canvas_id; String handler_name]
+    "UPDATE events
+    SET status = 'new'
+    WHERE space = 'WORKER'
+      AND status = 'scheduled'
+      AND canvas_id = $1
+      AND name = $2"
 
 
 (* Removes a scheduling rule of the passed type if one exists.
