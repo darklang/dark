@@ -2720,6 +2720,51 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* Code entering/interaction *)
 (* -------------------- *)
 
+type newPosition =
+  | RightOne
+  | RightTwo
+  | SamePlace
+  | TwoAfterEnd
+  | Exactly of int
+
+let adjustPosForReflow
+    ~state
+    (newAST : fluidExpr)
+    (oldTI : tokenInfo)
+    (oldPos : int)
+    (adjustment : newPosition) : int =
+  (* Any character change can cause the token to reflow: we need to find the
+     * token and then use it to put the pos back together *)
+  let newTokens = toTokens state newAST in
+  let newTI =
+    List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
+  in
+  let diff =
+    match newTI with
+    | Some newTI ->
+        newTI.startPos - oldTI.startPos
+    | None ->
+        0
+  in
+  match (adjustment, newTI) with
+  | SamePlace, _ ->
+      oldPos + diff
+  | RightOne, _ ->
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 1
+      else oldPos + diff + 1
+  | RightTwo, _ ->
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 2
+      else oldPos + diff + 2
+  | Exactly pos, _ ->
+      pos
+  | TwoAfterEnd, None ->
+      oldTI.endPos + 2
+  | TwoAfterEnd, Some newTI ->
+      newTI.endPos + 2
+
+
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
@@ -2996,51 +3041,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         else s
       in
       (newAST, s)
-
-
-type newPosition =
-  | RightOne
-  | RightTwo
-  | SamePlace
-  | TwoAfterEnd
-  | Exactly of int
-
-let adjustPosForReflow
-    ~state
-    (newAST : fluidExpr)
-    (oldTI : tokenInfo)
-    (oldPos : int)
-    (adjustment : newPosition) : int =
-  (* Any character change can cause the token to reflow: we need to find the
-     * token and then use it to put the pos back together *)
-  let newTokens = toTokens state newAST in
-  let newTI =
-    List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
-  in
-  let diff =
-    match newTI with
-    | Some newTI ->
-        newTI.startPos - oldTI.startPos
-    | None ->
-        0
-  in
-  match (adjustment, newTI) with
-  | SamePlace, _ ->
-      oldPos + diff
-  | RightOne, _ ->
-      if FluidToken.isBlank oldTI.token
-      then oldTI.startPos + diff + 1
-      else oldPos + diff + 1
-  | RightTwo, _ ->
-      if FluidToken.isBlank oldTI.token
-      then oldTI.startPos + diff + 2
-      else oldPos + diff + 2
-  | Exactly pos, _ ->
-      pos
-  | TwoAfterEnd, None ->
-      oldTI.endPos + 2
-  | TwoAfterEnd, Some newTI ->
-      newTI.endPos + 2
 
 
 let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
