@@ -7,12 +7,26 @@ use slog_scope::{error, info};
 
 use std::sync::mpsc::Receiver;
 
-// TODO: in dev mode, can we write to stdout or sth?
 pub fn send(m: &Message) {
-    let client = HttpClient::default();
-    client
-        .send(&config::segment_write_key(), m)
-        .expect("Could not send to segment.")
+    match &config::segment_write_key() {
+        Some(segment_write_key) => {
+            let client = HttpClient::default();
+            client
+                .send(segment_write_key, m)
+                .expect("Could not send to segment.")
+        }
+        None => {
+            let kv = serde_json::to_value(m).unwrap_or_else(|_| {
+                serde_json::from_str(
+                    "{\"message\": \"could not deserialize Segment message for logging\"}",
+                )
+                .unwrap()
+            });
+            // It'd be nice if we could do info!("segment msg sent", kv), but I'm not sure how to
+            // get slog::SerdeValue to recognize a serde Value ...
+            info!("segment message sent"; "msg" => kv.to_string())
+        }
+    }
 }
 
 // TODO batcher! https://github.com/segmentio/analytics-rust/blob/master/src/batcher.rs
