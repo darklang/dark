@@ -145,4 +145,5 @@ let defaultModel : model =
   ; showTopbar = true
   ; toast = defaultToast
   ; account = defaultAccount
-  ; worker_schedules = StrDict.empty }
+  ; worker_schedules = StrDict.empty
+  ; searchCache = TLIDDict.empty }

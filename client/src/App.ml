@@ -1004,6 +1004,26 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | SetClipboardContents (data, e) ->
         Clipboard.setData data e ;
         (m, Cmd.none)
+    | UpdateASTCache (tlid, str) ->
+        let searchCache =
+          m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
+        in
+        ({m with searchCache}, Cmd.none)
+    | InitASTCache (handlers, userFunctions) ->
+        let exprToString ast = Fluid.exprToStr m.fluidState ast in
+        let hcache =
+          handlers
+          |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
+                 let value = exprToString h.ast in
+                 cache |> TLIDDict.insert ~tlid:h.hTLID ~value )
+        in
+        let searchCache =
+          userFunctions
+          |> List.foldl ~init:hcache ~f:(fun f cache ->
+                 let value = exprToString f.ufAST in
+                 cache |> TLIDDict.insert ~tlid:f.ufTLID ~value )
+        in
+        ({m with searchCache}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1482,7 +1502,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; extraMod
         ; newState
         ; UpdateTraces traces
-        ; InitIntrospect (TD.values allTLs) ]
+        ; InitIntrospect (TD.values allTLs)
+        ; InitASTCache (r.handlers, r.userFunctions) ]
   | SaveTestRPCCallback (Ok msg_) ->
       DisplayError ("Success! " ^ msg_)
   | ExecuteFunctionRPCCallback
