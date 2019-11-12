@@ -175,6 +175,12 @@ $wrapper-background: $black2;
     li.autocomplete-item {
       font-size: 1rem;
       padding: 2px $left-margin;
+
+      &.new-tl + .found-in,
+      &.new-tl + .jump-to,
+      &.found-in + .jump-to {
+        margin-top: 10px;
+      }
     }
   }
 }
