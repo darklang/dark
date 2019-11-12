@@ -166,10 +166,6 @@ impl PusherClient {
                 "x-request-id" => request_id,
                 "channel" => channel_name,
                 "event" => event_name));
-        // TODO ismith:
-        // recursion limit reached while expanding the macro `kv`
-        // (on o!(...))
-        //"json_bytes" => json_bytes.to_string()));
 
         let start = SystemTime::now();
 
