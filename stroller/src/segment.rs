@@ -3,28 +3,37 @@ use analytics::client::Client;
 use analytics::http::HttpClient;
 use analytics::message::{Message, Track, User};
 use slog::o;
-use slog_scope::{error, info};
+use slog_scope::{debug, error, info};
 
 use std::sync::mpsc::Receiver;
+
+fn msg_to_json_string(m: &Message) -> String {
+    serde_json::to_value(m)
+        .unwrap_or_else(|_| {
+            serde_json::from_str(
+                "{\"message\": \"could not deserialize Segment message for logging\"}",
+            )
+            .unwrap()
+        })
+        .to_string()
+}
 
 pub fn send(m: &Message) {
     match &config::segment_write_key() {
         Some(segment_write_key) => {
             let client = HttpClient::default();
-            client
-                .send(segment_write_key, m)
-                .expect("Could not send to segment.")
+            debug!("about to send to segment" ; "msg" => msg_to_json_string(m) );
+            match client.send(segment_write_key, m) {
+                Ok(_) => {
+                    info!("Successfully sent to segment.");
+                }
+                Err(e) => error!("Could not send to segment: {}", e),
+            }
         }
         None => {
-            let kv = serde_json::to_value(m).unwrap_or_else(|_| {
-                serde_json::from_str(
-                    "{\"message\": \"could not deserialize Segment message for logging\"}",
-                )
-                .unwrap()
-            });
             // It'd be nice if we could do info!("segment msg sent", kv), but I'm not sure how to
             // get slog::SerdeValue to recognize a serde Value ...
-            info!("segment message sent"; "msg" => kv.to_string())
+            info!("segment message sent"; "msg" => msg_to_json_string(m))
         }
     }
 }
