@@ -815,7 +815,7 @@ let () =
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with
-                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
@@ -825,7 +825,7 @@ let () =
           test "find string literal" (fun () ->
               let foundActions =
                 match qSearch m "hello" with
-                | [Goto (FocusedFn _, tlid, "Found in function: fn1", true)]
+                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
@@ -852,7 +852,7 @@ let () =
                 | [ Goto
                       ( FocusedHandler _
                       , tlid
-                      , "Found in REPL::findingDori - _"
+                      , "Found in REPL::findingDori"
                       , true ) ]
                   when tlid = repl.hTLID ->
                     true
