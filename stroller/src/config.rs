@@ -6,6 +6,10 @@ fn require_str(name: &str) -> String {
     env::var(name).unwrap_or_else(|_| panic!("{} must be set", name))
 }
 
+fn maybe_str(name: &str) -> Option<String> {
+    env::var(name).ok()
+}
+
 fn require_parse<T>(name: &str) -> T
 where
     T: FromStr,
@@ -36,6 +40,6 @@ pub fn pusher_cluster() -> String {
     require_str("DARK_CONFIG_PUSHER_CLUSTER")
 }
 
-pub fn segment_write_key() -> String {
-    require_str("DARK_CONFIG_SEGMENT_WRITE_KEY")
+pub fn segment_write_key() -> Option<String> {
+    maybe_str("DARK_CONFIG_SEGMENT_WRITE_KEY")
 }

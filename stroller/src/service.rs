@@ -98,8 +98,8 @@ pub fn handle(
             *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
         }
-        (&Method::POST, ["", "canvas", uuid, msg_type, event])
-        | (&Method::POST, ["", "segment", uuid, msg_type, event]) => {
+        (&Method::POST, ["", "canvas", uuid, msg_type @ "events", event])
+        | (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
             let msg_type = msg_type.to_string();
             let uuid = uuid.to_string();
             let event = event.to_string();
@@ -117,7 +117,13 @@ pub fn handle(
                             sender.send(msg).map_err(|_| ())
                         }
                         "segment" => {
-                            let msg = crate::segment::new_message(msg_type.to_string(), uuid.to_string(), event.clone(), req_body, moved_request_id.clone());
+                            let msg = crate::segment::new_message(
+                                msg_type.to_string(),
+                                uuid.to_string(),
+                                event.clone(),
+                                req_body,
+                                moved_request_id.clone(),
+                            );
 
                             msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
                         }
