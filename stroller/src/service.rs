@@ -168,6 +168,11 @@ mod tests {
         sender
     }
 
+    fn test_segment_channel() -> Sender<SegmentMessage> {
+        let (sender, _) = mpsc::channel();
+        sender
+    }
+
     fn not_shutting_down() -> Arc<AtomicBool> {
         Arc::new(AtomicBool::new(false))
     }
@@ -178,14 +183,26 @@ mod tests {
 
     #[test]
     fn responds_ok() {
-        let resp = handle(&not_shutting_down(), test_channel(), get("/")).wait();
+        let resp = handle(
+            &not_shutting_down(),
+            test_channel(),
+            test_segment_channel(),
+            get("/"),
+        )
+        .wait();
 
         assert_eq!(resp.unwrap().status(), 200);
     }
 
     #[test]
     fn responds_404() {
-        let resp = handle(&not_shutting_down(), test_channel(), get("/nonexistent")).wait();
+        let resp = handle(
+            &not_shutting_down(),
+            test_channel(),
+            test_segment_channel(),
+            get("/nonexistent"),
+        )
+        .wait();
 
         assert_eq!(resp.unwrap().status(), 404);
     }
@@ -195,7 +212,13 @@ mod tests {
         let req = Request::post("/canvas/8afcbf52-2954-4353-9397-b5f417c08ebb/events/traces")
             .body(Body::from("{\"foo\":\"bar\"}"))
             .unwrap();
-        let resp = handle(&not_shutting_down(), test_channel(), req).wait();
+        let resp = handle(
+            &not_shutting_down(),
+            test_channel(),
+            test_segment_channel(),
+            req,
+        )
+        .wait();
 
         assert_eq!(resp.unwrap().status(), 202);
     }
@@ -205,12 +228,18 @@ mod tests {
         let shutting_down = Arc::new(AtomicBool::new(false));
 
         let req = Request::post("/pkill").body(Body::empty()).unwrap();
-        let resp = handle(&shutting_down, test_channel(), req).wait();
+        let resp = handle(&shutting_down, test_channel(), test_segment_channel(), req).wait();
 
         assert_eq!(resp.unwrap().status(), 202);
         assert!(shutting_down.load(Ordering::Acquire));
 
-        let resp = handle(&shutting_down, test_channel(), get("/")).wait();
+        let resp = handle(
+            &shutting_down,
+            test_channel(),
+            test_segment_channel(),
+            get("/"),
+        )
+        .wait();
         assert_eq!(resp.unwrap().status(), 503);
     }
 }
