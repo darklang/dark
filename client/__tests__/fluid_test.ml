@@ -1226,8 +1226,8 @@ let () =
            "HttpClient::post_v4"
            [ EString (gid (), string40)
            ; ERecord (gid (), [(gid (), string80, b ())])
-           ; emptyRowRecord
-           ; emptyRowRecord ])
+           ; emptyRecord
+           ; emptyRecord ])
         render
         ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
         , 0 ) ;
@@ -1262,6 +1262,20 @@ let () =
         render
         ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
         , 0 ) ;
+      tp
+        "reflows put the cursor in the right place"
+        (let justShortEnoughNotToReflow =
+           "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0"
+         in
+         fn
+           "HttpClient::post_v4"
+           [ emptyStr
+           ; emptyRecord
+           ; emptyRecord
+           ; EVariable (gid (), justShortEnoughNotToReflow) ])
+        (insert 'x' 135)
+        ( "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0x"
+        , 128 ) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
