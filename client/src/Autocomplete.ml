@@ -632,16 +632,22 @@ let foundFnOmniAction (f : userFunction) : omniAction =
 let qSearch (m : model) (s : string) : omniAction list =
   if String.length s > 3
   then
-    TLIDDict.toList m.searchCache
-    |> List.filterMap ~f:(fun (tlid, code) ->
-           if String.contains ~substring:s code
-           then
-             TLIDDict.get ~tlid m.handlers
-             |> Option.map ~f:foundHandlerOmniAction
-             |> Option.orElse
-                  ( TLIDDict.get ~tlid m.userFunctions
-                  |> Option.map ~f:foundFnOmniAction )
-           else None )
+    let maxResults = 20 in
+    let results =
+      TLIDDict.toList m.searchCache
+      |> List.filterMap ~f:(fun (tlid, code) ->
+             if String.contains ~substring:s code
+             then
+               TLIDDict.get ~tlid m.handlers
+               |> Option.map ~f:foundHandlerOmniAction
+               |> Option.orElse
+                    ( TLIDDict.get ~tlid m.userFunctions
+                    |> Option.map ~f:foundFnOmniAction )
+             else None )
+    in
+    if List.length results > maxResults
+    then List.take ~count:maxResults results
+    else results
   else []
 
 
