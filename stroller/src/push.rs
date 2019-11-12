@@ -189,10 +189,13 @@ impl PusherClient {
                                 );
                         Ok(())
                     }
-                    // TODO time to failure might be nice to log here
                     code => resp
                         .text()
-                        .map_err(|e| format!("Error reading push error: {:?}", e).into())
+                        .map_err(|e| {
+                            let ms =
+                                1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+                            format!("Error reading push error after {}ms: {:?}", ms, e).into()
+                        })
                         .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
                 }
             })
