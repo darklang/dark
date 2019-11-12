@@ -2,6 +2,7 @@ use crate::config;
 use analytics::client::Client;
 use analytics::http::HttpClient;
 use analytics::message::{Message, Track, User};
+use slog::o;
 use slog_scope::{error, info};
 
 use std::sync::mpsc::Receiver;
@@ -17,7 +18,7 @@ pub fn send(m: &Message) {
 // TODO batcher! https://github.com/segmentio/analytics-rust/blob/master/src/batcher.rs
 
 pub enum SegmentMessage {
-    Message(Box<analytics::message::Message>),
+    Message(Box<analytics::message::Message>, String, String, String),
     Die,
 }
 
@@ -32,8 +33,10 @@ pub fn new_message(
     user_id: String,
     event: String,
     body: Vec<u8>,
+    request_id: String,
 ) -> Option<SegmentMessage> {
     let event = event.to_owned();
+    let moved_event = event.clone();
     let user = User::UserId {
         user_id: format!("user-{}", user_id),
     };
@@ -50,17 +53,19 @@ pub fn new_message(
         }
     };
 
-    msg.map(|msg| SegmentMessage::Message(Box::new(msg)))
+    msg.map(|msg| SegmentMessage::Message(Box::new(msg), msg_type, moved_event, request_id))
 }
 
 pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
     info!("Segment worker initialized");
     loop {
         match channel.recv() {
-            Ok(SegmentMessage::Message(m)) => {
-                // TODO: log x-request-id, maybe other metadata?
-                info!("analytics msg recv: ok");
-                // TODO actually handle message here
+            Ok(SegmentMessage::Message(m, msg_type, event, request_id)) => {
+                info!("analytics msg recv: ok"; o!(
+                "msg_type" => msg_type,
+                "event" => event,
+                "x-request-id" => &request_id
+                ));
                 send(&m);
             }
             Ok(SegmentMessage::Die) => {

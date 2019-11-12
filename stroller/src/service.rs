@@ -119,7 +119,7 @@ pub fn handle(
                             sender.send(msg).map_err(|_| ())
                         }
                         "segment" => {
-                            let msg = crate::segment::new_message(msg_type.unwrap(), uuid.to_string(), event.clone(), req_body);
+                            let msg = crate::segment::new_message(msg_type.unwrap(), uuid.to_string(), event.clone(), req_body, moved_request_id.clone());
 
                             msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
                         }
