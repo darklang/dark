@@ -63,20 +63,28 @@ pub fn new_message(
     let user = User::UserId {
         user_id: format!("user-{}", user_id),
     };
-    let msg = match msg_type.as_str() {
-        "track" => Some(analytics::message::Message::Track(Track {
-            user,
-            event,
-            properties: serde_json::Value::from(body),
-            ..Default::default()
-        })),
-        _ => {
-            error!("Segment message type '{}' is not supported.", msg_type);
-            None
-        }
-    };
 
-    msg.map(|msg| SegmentMessage::Message(Box::new(msg), msg_type, moved_event, request_id))
+    String::from_utf8(body)
+        .map_err(|_| error!("Segment body was not a valid utf8 string"))
+        .and_then(|s: String| {
+            serde_json::from_str(&s).map_err(|_| {
+                error!("Segment body was not valid json");
+            })
+        })
+        .ok()
+        .and_then(|properties| match msg_type.as_str() {
+            "track" => Some(analytics::message::Message::Track(Track {
+                user,
+                event,
+                properties,
+                ..Default::default()
+            })),
+            _ => {
+                error!("Segment message type '{}' is not supported.", msg_type);
+                None
+            }
+        })
+        .map(|msg| SegmentMessage::Message(Box::new(msg), msg_type, moved_event, request_id))
 }
 
 pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
