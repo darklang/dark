@@ -1450,14 +1450,17 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     match mPrev with
     (* if cursor is at front of current token, go to begining of previous token *)
     | Some prev when ti.startPos + findWhitespaceOffset ti == pos ->
-      ( match prev.token with
-      | TNewline _ ->
-          (* Skip TNewline to avoid placing cursor at the front of a new line, which
-      * would be the end of the line above *)
-          let newPrev, _, _ = getTokensAtPosition ~pos:prev.startPos tokens in
+        let newToken =
+          (* Skip non-text tokens *)
+          if Token.isTextToken prev.token
+          then prev
+          else
+            let newPrev, _, _ =
+              getTokensAtPosition ~pos:prev.startPos tokens
+            in
           newPrev |> Option.withDefault ~default:prev
-      | _ ->
-          prev )
+        in
+        newToken
     | _ ->
         ti
   in
