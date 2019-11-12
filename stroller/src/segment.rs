@@ -2,7 +2,6 @@ use crate::config;
 use analytics::client::Client;
 use analytics::http::HttpClient;
 use analytics::message::{Message, Track, User};
-use serde_json::json;
 use slog_scope::{error, info};
 
 use std::sync::mpsc::Receiver;
@@ -18,7 +17,7 @@ pub fn send(m: &Message) {
 // TODO batcher! https://github.com/segmentio/analytics-rust/blob/master/src/batcher.rs
 
 pub enum SegmentMessage {
-    Message(analytics::message::Message),
+    Message(Box<analytics::message::Message>),
     Die,
 }
 
@@ -28,16 +27,30 @@ pub enum WorkerTerminationReason {
 }
 
 // currently just Track, could expand to other types
-pub fn new_message(user_id: String, _body: Vec<u8>) -> SegmentMessage {
-    // TODO use body
-    SegmentMessage::Message(analytics::message::Message::Track(Track {
-        user: User::UserId {
-            user_id: format!("user-{}", user_id),
-        },
-        event: "Example event".to_owned(),
-        properties: json!({}),
-        ..Default::default()
-    }))
+pub fn new_message(
+    msg_type: String,
+    user_id: String,
+    event: String,
+    body: Vec<u8>,
+) -> Option<SegmentMessage> {
+    let event = event.to_owned();
+    let user = User::UserId {
+        user_id: format!("user-{}", user_id),
+    };
+    let msg = match msg_type.as_str() {
+        "track" => Some(analytics::message::Message::Track(Track {
+            user,
+            event,
+            properties: serde_json::Value::from(body),
+            ..Default::default()
+        })),
+        _ => {
+            error!("Segment message type '{}' is not supported.", msg_type);
+            None
+        }
+    };
+
+    msg.map(|msg| SegmentMessage::Message(Box::new(msg)))
 }
 
 pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
