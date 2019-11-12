@@ -380,7 +380,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Key.Spacebar ->
             ( match cursor with
             | Creating _ ->
-                NoChange
+                if AC.isOmnibox m.complete
+                then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
+                else NoChange
             | _ ->
                 if m.complete.value = "=" || AC.isStringEntry m.complete
                 then NoChange

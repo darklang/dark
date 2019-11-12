@@ -87,7 +87,7 @@ let asName (aci : autocompleteItem) : string =
           "New group named " ^ name
       | None ->
           "New group" )
-    | Goto (_, _, desc) ->
+    | Goto (_, _, desc, _) ->
         desc )
   | ACConstructorName name ->
       name
@@ -578,12 +578,48 @@ let qHTTPHandler (s : string) : omniAction =
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
 
 
+let foundHandlerOmniAction (h : handler) : omniAction =
+  let name =
+    "Found in "
+    ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
+    ^ "::"
+    ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
+    ^ " - "
+    ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
+  in
+  Goto (FocusedHandler (h.hTLID, true), h.hTLID, name, true)
+
+
+let foundFnOmniAction (f : userFunction) : omniAction =
+  let name =
+    "Found in function: "
+    ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
+  in
+  Goto (FocusedFn f.ufTLID, f.ufTLID, name, true)
+
+
+let qSearch (m : model) (s : string) : omniAction list =
+  if String.length s > 3
+  then
+    TLIDDict.toList m.searchCache
+    |> List.filterMap ~f:(fun (tlid, code) ->
+           if String.contains ~substring:s code
+           then
+             TLIDDict.get ~tlid m.handlers
+             |> Option.map ~f:foundHandlerOmniAction
+             |> Option.orElse
+                  ( TLIDDict.get ~tlid m.userFunctions
+                  |> Option.map ~f:foundFnOmniAction )
+           else None )
+  else []
+
+
 let isDynamicItem (item : autocompleteItem) : bool =
   match item with
   | ACLiteral _ ->
       true
-  | ACOmniAction (Goto _) ->
-      false
+  | ACOmniAction (Goto (_, _, _, dyna)) ->
+      dyna
   | ACOmniAction _ ->
       true
   | ACEventSpace _ ->
@@ -615,6 +651,7 @@ let toDynamicItems
         ; qWorkerHandler q
         ; qCronHandler q
         ; qReplHandler q ]
+        @ qSearch m q
       in
       (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
       let all =
@@ -690,7 +727,8 @@ let tlDestinations (m : model) : autocompleteItem list =
     |> TL.structural
     |> TD.values
     |> List.sortBy ~f:tlGotoName
-    |> List.map ~f:(fun tl -> Goto (TL.asPage tl true, TL.id tl, tlGotoName tl))
+    |> List.map ~f:(fun tl ->
+           Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false) )
   in
   let ufs =
     m.userFunctions
@@ -699,7 +737,9 @@ let tlDestinations (m : model) : autocompleteItem list =
            | Blank _ ->
                None
            | F (_, name) ->
-               Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name)) )
+               Some
+                 (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name, false))
+       )
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
@@ -1201,3 +1241,10 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
 *)
 let isOpened (ac : autocomplete) : bool =
   Option.isSome ac.target || ac.isCommandMode
+
+
+let isOmnibox (ac : autocomplete) : bool =
+  ac.target = None
+  && ac.targetDval = None
+  && (not ac.isCommandMode)
+  && ac.visible
