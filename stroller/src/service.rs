@@ -62,6 +62,8 @@ pub fn handle(
     let method = req.method().to_string();
     let (parts, body) = req.into_parts();
     let path_segments: Vec<&str> = uri.split('/').collect();
+    // only used for segment service, but extracting here for borrow-checker reasons
+    let msg_type = path_segments.get(2).map(|s| s.to_string());
     let m = parts.method;
     let event_type = uri.split('/').collect::<Vec<&str>>()[1].to_string();
     let req_body = body.fold(Vec::new(), |mut acc, chunk| {
@@ -99,7 +101,8 @@ pub fn handle(
             *response.body_mut() = Body::from("OK");
         }
         (&Method::POST, ["", "canvas", uuid, "events", event])
-        | (&Method::POST, ["", "segment", uuid, "event", event]) => {
+            // we call it event here, but it maps to track/identify/group/etc
+        | (&Method::POST, ["", "segment", "track", uuid, "event", event]) => {
             let uuid = uuid.to_string();
             let event = event.to_string();
             let moved_request_id = request_id.clone();
@@ -116,8 +119,9 @@ pub fn handle(
                             sender.send(msg).map_err(|_| ())
                         }
                         "segment" => {
-                            let msg = crate::segment::new_message(uuid.to_string(), req_body);
-                            segment_sender.send(msg).map_err(|_| ())
+                            let msg = crate::segment::new_message(msg_type.unwrap(), uuid.to_string(), event.clone(), req_body);
+
+                            msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
                         }
                         _ => panic!("Unhandled case!"),
                     };
