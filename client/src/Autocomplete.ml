@@ -596,23 +596,36 @@ let qHTTPHandler (s : string) : omniAction =
   else NewHTTPHandler (Some (assertValid httpNameValidator ("/" ^ name)))
 
 
-let foundHandlerOmniAction (h : handler) : omniAction =
-  let name =
-    "Found in "
-    ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"")
-    ^ "::"
-    ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"")
-    ^ " - "
-    ^ (h.spec.modifier |> B.toMaybe |> Option.withDefault ~default:"")
+let handlerDisplayName (h : handler) : string =
+  let space =
+    h.spec.space
+    |> B.toMaybe
+    |> Option.map ~f:(fun x -> x ^ "::")
+    |> Option.withDefault ~default:""
   in
+  let name = h.spec.name |> B.toMaybe |> Option.withDefault ~default:"" in
+  let modi =
+    h.spec.modifier
+    |> B.toMaybe
+    |> Option.map ~f:(fun x -> if x = "_" then "" else " - " ^ x)
+    |> Option.withDefault ~default:""
+  in
+  space ^ name ^ modi
+
+
+let fnDisplayName (f : userFunction) : string =
+  f.ufMetadata.ufmName
+  |> B.toMaybe
+  |> Option.withDefault ~default:"undefinedFunction"
+
+
+let foundHandlerOmniAction (h : handler) : omniAction =
+  let name = "Found in " ^ handlerDisplayName h in
   Goto (FocusedHandler (h.hTLID, true), h.hTLID, name, true)
 
 
 let foundFnOmniAction (f : userFunction) : omniAction =
-  let name =
-    "Found in function: "
-    ^ (f.ufMetadata.ufmName |> B.toMaybe |> Option.withDefault ~default:"")
-  in
+  let name = "Found in function " ^ fnDisplayName f in
   Goto (FocusedFn f.ufTLID, f.ufTLID, name, true)
 
 
@@ -714,19 +727,10 @@ let withDynamicItems
   List.uniqueBy ~f:asName (new_ @ withoutDynamic)
 
 
-let fnGotoName (name : string) : string = "Jump to function: " ^ name
-
 let tlGotoName (tl : toplevel) : string =
   match tl with
   | TLHandler h ->
-      "Jump to handler: "
-      ^ (h.spec.space |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ "::"
-      ^ (h.spec.name |> B.toMaybe |> Option.withDefault ~default:"Undefined")
-      ^ " - "
-      ^ ( h.spec.modifier
-        |> B.toMaybe
-        |> Option.withDefault ~default:"Undefined" )
+      "Jump to handler: " ^ handlerDisplayName h
   | TLDB db ->
       "Jump to DB: "
       ^ (db.dbName |> B.toMaybe |> Option.withDefault ~default:"Unnamed DB")
@@ -751,13 +755,8 @@ let tlDestinations (m : model) : autocompleteItem list =
   let ufs =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun fn ->
-           match fn.ufMetadata.ufmName with
-           | Blank _ ->
-               None
-           | F (_, name) ->
-               Some
-                 (Goto (FocusedFn fn.ufTLID, fn.ufTLID, fnGotoName name, false))
-       )
+           let name = "Jump to function: " ^ fnDisplayName fn in
+           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)) )
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
