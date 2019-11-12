@@ -230,6 +230,16 @@ let daily_cron ast : HandlerT.handler =
       ; types = {input = b (); output = b ()} } }
 
 
+let worker name ast : HandlerT.handler =
+  { tlid
+  ; ast
+  ; spec =
+      { module_ = f "WORKER"
+      ; name = f name
+      ; modifier = f "_"
+      ; types = {input = b (); output = b ()} } }
+
+
 let hop h = Op.SetHandler (tlid, pos, h)
 
 let user_fn name params ast : user_fn =
