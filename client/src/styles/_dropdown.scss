@@ -173,8 +173,14 @@ $wrapper-background: $black2;
     @include border-radius-bottom(6px);
 
     li.autocomplete-item {
-      font-size: 1rem;
+      font-size: $code-font-size;
       padding: 2px $left-margin;
+
+      &.new-tl + .found-in,
+      &.new-tl + .jump-to,
+      &.found-in + .jump-to {
+        margin-top: 10px;
+      }
     }
   }
 }

@@ -105,11 +105,13 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
               Html.span [Html.class' "name"] [Html.text name]
         in
         let typeStr = Autocomplete.asTypeString item in
+        let specialClass = Autocomplete.asTypeClass item in
         Html.li
           [ Attributes.classList
               [ ("autocomplete-item", true)
               ; ("highlighted", highlighted)
-              ; (class', true) ]
+              ; (class', true)
+              ; (specialClass, true) ]
           ; nothingMouseEvent "mouseup"
           ; defaultPasteHandler
           ; nothingMouseEvent "mousedown"
