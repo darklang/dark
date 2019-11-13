@@ -342,7 +342,7 @@ type initial_load_rpc_result =
   ; op_ctrs : (string * int) list
   ; permission : Authorization.permission option
   ; account : Account.user_info
-  ; worker_schedules : (string * string) list }
+  ; worker_schedules : Event_queue.Worker_states.t }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -354,7 +354,7 @@ let to_initial_load_rpc_result
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list)
     (account : Account.user_info)
-    (worker_schedules : (string * string) list) : string =
+    (worker_schedules : Event_queue.Worker_states.t) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels =
       IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs

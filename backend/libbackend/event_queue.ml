@@ -31,12 +31,67 @@ let show_queue_action qa =
   match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
 
 
-type workerState =
-  | Unknown
-  | Running
-  | Blocked
-  | Paused
-[@@deriving yojson]
+module Scheduling_rule = struct
+  type rule_type =
+    | Block
+    | Pause
+
+  let rule_type_of_string r =
+    match r with "block" -> Some Block | "pause" -> Some Pause | _ -> None
+
+
+  let rule_type_to_string r =
+    match r with Block -> "block" | Pause -> "pause"
+
+
+  type t =
+    { id : int
+    ; rule_type : rule_type
+    ; canvas_id : Uuidm.t
+    ; handler_name : string
+    ; event_space : string
+    ; created_at : time }
+
+  let to_dval r =
+    DvalMap.from_list
+      [ ("id", Dval.dint r.id)
+      ; ( "rule_type"
+        , r.rule_type |> rule_type_to_string |> Dval.dstr_of_string_exn )
+      ; ("canvas_id", DUuid r.canvas_id)
+      ; ("handler_name", Dval.dstr_of_string_exn r.handler_name)
+      ; ("event_space", Dval.dstr_of_string_exn r.event_space)
+      ; ("created_at", DDate r.created_at) ]
+    |> DObj
+end
+
+module Worker_states = struct
+  type state =
+    | Running
+    | Blocked
+    | Paused
+
+  let state_to_string s =
+    match s with
+    | Running ->
+        "run"
+    | Blocked ->
+        "block"
+    | Paused ->
+        "pause"
+
+
+  type t = (string, state, String.comparator_witness) Map.t
+
+  let empty = Map.empty (module String)
+
+  let to_yojson (m : t) =
+    `Assoc
+      ( Map.to_alist m
+      |> List.map ~f:(fun (k, v) -> (k, `String (state_to_string v))) )
+
+
+  let find (m : t) (k : string) = Map.find m k
+end
 
 (* None in case we want to log on a timer or something, not
                      just on enqueue/dequeue *)
@@ -200,14 +255,6 @@ let dequeue transaction : t option =
         ^ "]" )
 
 
-type scheduling_rule =
-  { id : int
-  ; rule_type : string
-  ; canvas_id : Uuidm.t
-  ; handler_name : string
-  ; event_space : string
-  ; created_at : time }
-
 (* TESTS ONLY *)
 (* schedule_all bypasses actual scheduling logic and is meant only for allowing
  * testing without running the queue-scheduler process *)
@@ -219,11 +266,12 @@ let schedule_all unit : unit =
     WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
 
 
-let row_to_scheduling_rule row : scheduling_rule =
+let row_to_scheduling_rule row : Scheduling_rule.t =
+  let open Scheduling_rule in
   match row with
   | [id; rule_type; canvas_id; handler_name; event_space; created_at] ->
       { id = int_of_string id
-      ; rule_type
+      ; rule_type = rule_type |> rule_type_of_string |> Option.value_exn
       ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
       ; handler_name
       ; event_space
@@ -234,7 +282,7 @@ let row_to_scheduling_rule row : scheduling_rule =
 
 (* DARK INTERNAL FN *)
 (* Gets all event scheduling rules, as used by the queue-scheduler. *)
-let get_all_scheduling_rules unit : scheduling_rule list =
+let get_all_scheduling_rules unit : Scheduling_rule.t list =
   Db.fetch
     ~name:"get_all_scheduling_rules"
     "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
@@ -245,7 +293,7 @@ let get_all_scheduling_rules unit : scheduling_rule list =
 
 (* DARK INTERNAL FN *)
 (* Gets event scheduling rules for the specified canvas *)
-let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
+let get_scheduling_rules_for_canvas canvas_id : Scheduling_rule.t list =
   Db.fetch
     ~name:"get_scheduling_rules_for_canvas"
     "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
@@ -257,13 +305,14 @@ let get_scheduling_rules_for_canvas canvas_id : scheduling_rule list =
 
 
 (* Returns an assoc list of every event handler (worker) in the given canvas
- * and it's "schedule", which is usually "run", but can be either "block" or
+ * and its "schedule", which is usually "run", but can be either "block" or
  * "pause" if there is a scheduling rule for that handler. A handler can have
  * both a block and pause rule, in which case it is "block" (because block is
  * an admin action). *)
-let get_worker_schedules_for_canvas canvas_id : (string * string) list =
+let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
+  let open Worker_states in
   (* build an assoc list (name * Running) for all worker names in canvas *)
-  let workers =
+  let states =
     Db.fetch
       ~name:"workers_for_canvas"
       "SELECT name
@@ -272,22 +321,20 @@ let get_worker_schedules_for_canvas canvas_id : (string * string) list =
          AND tipe = 'handler'
          AND module = 'WORKER'"
       ~params:[Uuid canvas_id]
-    |> List.fold ~init:[] ~f:(fun acc row ->
-           List.Assoc.add ~equal:( = ) acc (List.hd_exn row) "run" )
+    |> List.fold ~init:Worker_states.empty ~f:(fun states row ->
+           Map.set states ~key:(List.hd_exn row) ~data:Running )
   in
   (* get scheduling overrides for canvas, partitioned *)
   let blocks, pauses =
     get_scheduling_rules_for_canvas canvas_id
-    |> List.partition_tf ~f:(fun r -> r.rule_type = "block")
+    |> List.partition_tf ~f:(fun r -> r.rule_type = Block)
   in
-  (* build as assoc list of (name * rule_type) where block overwrites pause *)
+  (* take the map of workers (where everything is set to Running) and overwrite
+   * any worker that has (in order) a pause or a block *)
   pauses @ blocks
-  |> List.fold ~init:[] ~f:(fun acc r ->
-         List.Assoc.add ~equal:( = ) acc r.handler_name r.rule_type )
-  (* then combine all workers list with rules list, meaning "run" is replaced with
-   * either "block" or "pause" for workers with rules *)
-  |> List.fold ~init:workers ~f:(fun acc (name, state) ->
-         List.Assoc.add ~equal:( = ) acc name state )
+  |> List.fold ~init:states ~f:(fun states r ->
+         let v = match r.rule_type with Block -> Blocked | Pause -> Paused in
+         Map.set states ~key:r.handler_name ~data:v )
 
 
 (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
