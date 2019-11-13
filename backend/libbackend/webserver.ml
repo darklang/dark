@@ -1083,14 +1083,13 @@ let worker_schedule ~(execution_id : Types.id) (host : string) (body : string)
     let timing = server_timing [t1; t2; t3] in
     match res with
     | Ok schedules ->
-        let yoschedules =
-          List.map schedules ~f:(fun (k, v) -> `List [`String k; `String v])
-        in
         respond
           ~execution_id
           ~resp_headers:timing
           `OK
-          (Yojson.Safe.to_string (`List yoschedules))
+          ( schedules
+          |> Event_queue.Worker_states.to_yojson
+          |> Yojson.Safe.to_string )
     | Error e ->
         respond
           ~execution_id

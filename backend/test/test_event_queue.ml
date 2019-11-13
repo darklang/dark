@@ -90,16 +90,21 @@ let t_get_worker_schedules_for_canvas () =
   in
   Canvas.save_all !c ;
   let open Event_queue in
+  let open Event_queue.Worker_states in
   pause_worker !c.id "apple" ;
   pause_worker !c.id "banana" ;
   block_worker !c.id "banana" ;
   let res = get_worker_schedules_for_canvas !c.id in
-  let find k =
-    List.Assoc.find ~equal:( = ) res k |> Option.value ~default:""
+  let check name value =
+    let actual =
+      Core_kernel.Map.find res name |> Option.value_exn |> state_to_string
+    in
+    let expected = state_to_string value in
+    AT.check AT.string (name ^ " is " ^ expected) expected actual
   in
-  AT.check AT.string "apple is paused" "pause" (find "apple") ;
-  AT.check AT.string "banana is blocked" "block" (find "banana") ;
-  AT.check AT.string "cherry is running" "run" (find "cherry") ;
+  check "apple" Paused ;
+  check "banana" Blocked ;
+  check "cherry" Running ;
   ()
 
 

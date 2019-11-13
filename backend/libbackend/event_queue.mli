@@ -40,26 +40,46 @@ val finish : transaction -> t -> unit
 
 val schedule_all : unit -> unit
 
-type scheduling_rule =
-  { id : int
-  ; rule_type : string
-  ; canvas_id : Uuidm.t
-  ; handler_name : string
-  ; event_space : string
-  ; created_at : time }
+module Scheduling_rule : sig
+  type rule_type =
+    | Block
+    | Pause
 
-type workerState =
-  | Unknown
-  | Running
-  | Blocked
-  | Paused
-[@@deriving yojson]
+  type t =
+    { id : int
+    ; rule_type : rule_type
+    ; canvas_id : Uuidm.t
+    ; handler_name : string
+    ; event_space : string
+    ; created_at : time }
 
-val get_all_scheduling_rules : unit -> scheduling_rule list
+  val rule_type_of_string : string -> rule_type option
 
-val get_scheduling_rules_for_canvas : Uuidm.t -> scheduling_rule list
+  val rule_type_to_string : rule_type -> string
 
-val get_worker_schedules_for_canvas : Uuidm.t -> (string * string) list
+  val to_dval : t -> dval
+end
+
+module Worker_states : sig
+  type state =
+    | Running
+    | Blocked
+    | Paused
+
+  val state_to_string : state -> string
+
+  type t = (string, state, String.comparator_witness) Map.t
+
+  val to_yojson : t -> Yojson.Safe.t
+
+  val find : t -> string -> state option
+end
+
+val get_all_scheduling_rules : unit -> Scheduling_rule.t list
+
+val get_scheduling_rules_for_canvas : Uuidm.t -> Scheduling_rule.t list
+
+val get_worker_schedules_for_canvas : Uuidm.t -> Worker_states.t
 
 val block_worker : Uuidm.t -> string -> unit
 

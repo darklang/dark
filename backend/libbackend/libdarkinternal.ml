@@ -36,17 +36,6 @@ let internal_fn (f : exec_state * dval list -> dval) =
             |> Exception.code )
 
 
-let scheduling_rule_to_dval (r : Event_queue.scheduling_rule) : dval =
-  DvalMap.from_list
-    [ ("id", Dval.dint r.id)
-    ; ("rule_type", Dval.dstr_of_string_exn r.rule_type)
-    ; ("canvas_id", DUuid r.canvas_id)
-    ; ("handler_name", Dval.dstr_of_string_exn r.handler_name)
-    ; ("event_space", Dval.dstr_of_string_exn r.event_space)
-    ; ("created_at", DDate r.created_at) ]
-  |> DObj
-
-
 let fns : Lib.shortfn list =
   [ { pns = ["DarkInternal::checkAccess"]
     ; ins = []
@@ -1081,7 +1070,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (function
             | _, [] ->
                 Event_queue.get_all_scheduling_rules ()
-                |> List.map ~f:scheduling_rule_to_dval
+                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
                 fail args )
@@ -1097,7 +1086,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (function
             | _, [DUuid canvas_id] ->
                 Event_queue.get_scheduling_rules_for_canvas canvas_id
-                |> List.map ~f:scheduling_rule_to_dval
+                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
                 fail args )
