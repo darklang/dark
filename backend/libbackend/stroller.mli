@@ -4,7 +4,8 @@ type segment_type = Track
 
 val segment_event :
      canvas_id:Uuidm.t
-  -> user_id:Uuidm.t
+  -> canvas:string
+  -> username:string
   -> execution_id:Types.id
   -> event:string
   -> segment_type

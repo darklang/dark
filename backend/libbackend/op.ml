@@ -37,6 +37,70 @@ type op =
   | DeleteTypeForever of tlid
 [@@deriving eq, yojson, show, bin_io]
 
+let event_name_of_op (op : op) : string =
+  match op with
+  | SetHandler _ ->
+      "SetHandler"
+  | CreateDB _ ->
+      "CreateDB"
+  | AddDBCol _ ->
+      "AddDBCol"
+  | SetDBColName _ ->
+      "SetDBColName"
+  | SetDBColType _ ->
+      "SetDBColType"
+  | DeleteTL _ ->
+      "DeleteTL"
+  | MoveTL _ ->
+      "MoveTL"
+  | SetFunction _ ->
+      "SetFunction"
+  | ChangeDBColName _ ->
+      "ChangeDBColName"
+  | ChangeDBColType _ ->
+      "ChangeDBColType"
+  | UndoTL _ ->
+      "UndoTL"
+  | RedoTL _ ->
+      "RedoTL"
+  | DeprecatedInitDbm _ ->
+      "DeprecatedInitDbm"
+  | SetExpr _ ->
+      "SetExpr"
+  | TLSavepoint _ ->
+      "TLSavepoint"
+  | DeleteFunction _ ->
+      "DeleteFunction"
+  | CreateDBMigration _ ->
+      "CreateDBMigration"
+  | AddDBColToDBMigration _ ->
+      "AddDBColToDBMigration"
+  | SetDBColNameInDBMigration _ ->
+      "SetDBColNameInDBMigration"
+  | SetDBColTypeInDBMigration _ ->
+      "SetDBColTypeInDBMigration"
+  | AbandonDBMigration _ ->
+      "AbandonDBMigration"
+  | DeleteColInDBMigration _ ->
+      "DeleteColInDBMigration"
+  | DeleteDBCol _ ->
+      "DeleteDBCol"
+  | RenameDBname _ ->
+      "RenameDBname"
+  | CreateDBWithBlankOr _ ->
+      "CreateDBWithBlankOr"
+  | DeleteTLForever _ ->
+      "DeleteTLForever"
+  | DeleteFunctionForever _ ->
+      "DeleteFunctionForever"
+  | SetType _ ->
+      "SetType"
+  | DeleteType _ ->
+      "DeleteType"
+  | DeleteTypeForever _ ->
+      "DeleteTypeForever"
+
+
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 type oplist = op list [@@deriving eq, yojson, show, bin_io]
