@@ -1435,7 +1435,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     (* Ex: "A Big Bug" *)
     (* Turn string to array of characters:*)
     (* Ex: ["A", " " , "b", "i", "g", " ", "B", "u", "g"] *)
-    let strList = t |> String.split ~on:"" in
+    let strList = t |> String.trim |> String.split ~on:"" in
     strList
     (* Create list of index's that are spaces or a qoute mark *)
     (* Ex: [None, Some 1 , None, None, None, Some 4, None, None, None] *)
@@ -1467,9 +1467,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     in
     if stringLength == stringLength - leadingWhiteSpace
     then 0
-    else if String.contains ~substring:" " (String.trim t)
-    then parseString t token
-    else stringLength - leadingWhiteSpace
+    else parseString t token
   in
   let token =
     let tokens = toTokens s ast in
