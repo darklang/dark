@@ -33,6 +33,65 @@ let status () =
           Lwt.return (`Unhealthy "Exception in stroller healthcheck") )
 
 
+type segment_type = Track [@@deriving show]
+
+let segment_event
+    ~(canvas_id : Uuidm.t)
+    ~(user_id : Uuidm.t)
+    ~(execution_id : Types.id)
+    ~(event : string)
+    (msg_type : segment_type)
+    (payload : Yojson.Safe.t) =
+  let canvas_id_str = Uuidm.to_string canvas_id in
+  let user_id_str = Uuidm.to_string user_id in
+  let log_params =
+    [("canvas_id", canvas_id_str); ("event", event); ("user_id", user_id_str)]
+  in
+  match Config.stroller_port with
+  | None ->
+      Log.infO "stroller not configured, skipping segment" ~params:log_params
+  | Some port ->
+      Log.infO "pushing segment event via stroller" ~params:log_params ;
+      let uri =
+        Uri.make
+          ()
+          ~scheme:"http"
+          ~host:"127.0.0.1"
+          ~port
+          ~path:
+            (sprintf
+               "segment/%s/%s/event/%s"
+               user_id_str
+               (msg_type |> show_segment_type |> String.lowercase)
+               event)
+      in
+      Lwt.async (fun () ->
+          try%lwt
+                let%lwt resp, _ =
+                  let payload = payload |> Yojson.Safe.to_string in
+                  Clu.Client.post uri ~body:(Cl.Body.of_string payload)
+                in
+                let code =
+                  resp |> CResponse.status |> Cohttp.Code.code_of_status
+                in
+                Log.infO
+                  "pushed to segment via stroller"
+                  ~jsonparams:[("status", `Int code)]
+                  ~params:log_params ;
+                Lwt.return ()
+          with e ->
+            let bt = Exception.get_backtrace () in
+            let%lwt _ =
+              Rollbar.report_lwt
+                e
+                bt
+                (Segment event)
+                (Types.show_id execution_id)
+            in
+            Lwt.return () ) ;
+      ()
+
+
 let push
     ~(execution_id : Types.id)
     ~(canvas_id : Uuidm.t)

@@ -17,6 +17,7 @@ type err_ctx =
   | EventQueue
   | CronChecker
   | Push of string
+  | Segment of string
   | Other of string
 
 val string_of_ctx : err_ctx -> string
