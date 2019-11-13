@@ -33,19 +33,34 @@ let status () =
           Lwt.return (`Unhealthy "Exception in stroller healthcheck") )
 
 
-type segment_type = Track [@@deriving show]
+type segment_type = Track
+
+let show_segment_type (st : segment_type) : string =
+  match st with Track -> "track"
+
 
 let segment_event
     ~(canvas_id : Uuidm.t)
-    ~(user_id : Uuidm.t)
+    ~(canvas : string)
+    ~(username : string)
     ~(execution_id : Types.id)
     ~(event : string)
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
   let canvas_id_str = Uuidm.to_string canvas_id in
-  let user_id_str = Uuidm.to_string user_id in
   let log_params =
-    [("canvas_id", canvas_id_str); ("event", event); ("user_id", user_id_str)]
+    [("canvas_id", canvas_id_str); ("event", event); ("username", username)]
+  in
+  let payload =
+    match payload with
+    | `Assoc orig_payload_items ->
+        `Assoc
+          [ ("canvas_id", `String canvas_id_str)
+          ; ("canvas", `String canvas)
+          ; ("execution_id", `String (execution_id |> Types.string_of_id)) ]
+    | _ ->
+        Exception.internal
+          "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
   in
   match Config.stroller_port with
   | None ->
@@ -61,8 +76,8 @@ let segment_event
           ~path:
             (sprintf
                "segment/%s/%s/event/%s"
-               user_id_str
-               (msg_type |> show_segment_type |> String.lowercase)
+               username
+               (msg_type |> show_segment_type)
                event)
       in
       Lwt.async (fun () ->
