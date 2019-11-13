@@ -64,7 +64,7 @@ pub fn handle(
     let (parts, body) = req.into_parts();
     let path_segments: Vec<&str> = uri.split('/').collect();
     let m = parts.method;
-    let event_type = uri.split('/').collect::<Vec<&str>>()[1].to_string();
+    let event_type = path_segments[1].to_string();
     let req_body = body.fold(Vec::new(), |mut acc, chunk| {
         acc.extend_from_slice(&*chunk);
         // this horrible type annotation is from an aturon suggestion:

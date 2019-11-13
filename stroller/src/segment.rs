@@ -59,7 +59,6 @@ pub fn new_message(
     request_id: String,
 ) -> Option<SegmentMessage> {
     let event = event.to_owned();
-    let moved_event = event.clone();
     let user = User::UserId {
         user_id: format!("user-{}", user_id),
     };
@@ -85,7 +84,7 @@ pub fn new_message(
         .and_then(|properties| match msg_type.as_str() {
             "track" => Some(analytics::message::Message::Track(Track {
                 user,
-                event,
+                event: event.clone(),
                 properties,
                 ..Default::default()
             })),
@@ -94,7 +93,7 @@ pub fn new_message(
                 None
             }
         })
-        .map(|msg| SegmentMessage::Message(Box::new(msg), msg_type, moved_event, request_id))
+        .map(|msg| SegmentMessage::Message(Box::new(msg), msg_type, event, request_id))
 }
 
 pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
