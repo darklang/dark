@@ -14,7 +14,7 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::Server;
 
-use crate::worker::{Message, WorkerTerminationReason};
+use crate::worker::{PusherMessage, WorkerTerminationReason};
 
 use slog::o;
 use slog_scope::{error, info};
@@ -55,7 +55,7 @@ fn main() {
     let shutting_down = Arc::new(AtomicBool::new(false));
 
     // create 'infinite', non-blocking, multi-producer, single-consumer channel
-    let (pusher_sender, pusher_receiver) = mpsc::channel::<Message>();
+    let (pusher_sender, pusher_receiver) = mpsc::channel::<PusherMessage>();
     thread::spawn(move || match worker::run(pusher_receiver) {
         WorkerTerminationReason::ViaDie => std::process::exit(0),
         WorkerTerminationReason::SendersDropped => std::process::exit(1),
