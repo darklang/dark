@@ -13,7 +13,7 @@ use hyper::{Body, Method, Request, Response, StatusCode};
 use uuid::Uuid;
 
 use crate::segment::SegmentMessage;
-use crate::worker::Message;
+use crate::worker::PusherMessage;
 
 use slog::{o, slog_error, slog_info};
 use slog_scope::{error, info};
@@ -42,7 +42,7 @@ fn handle_result(
 
 pub fn handle(
     shutting_down: &Arc<AtomicBool>,
-    sender: Sender<Message>,
+    pusher_sender: Sender<PusherMessage>,
     segment_sender: Sender<SegmentMessage>,
     req: Request<Body>,
 ) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
@@ -88,7 +88,7 @@ pub fn handle(
                     "Tried to send `Die` to segment worker, but it was dropped!"
                 );
             };
-            if sender.send(Message::Die).is_err() {
+            if pusher_sender.send(PusherMessage::Die).is_err() {
                 slog_error!(
                     slog_scope::logger(),
                     "Tried to send `Die` to pusher worker, but it was dropped!"
@@ -108,13 +108,13 @@ pub fn handle(
                 .map(move |req_body| {
                     let result = match event_type.as_ref() {
                         "canvas" => {
-                            let msg = Message::CanvasEvent(
+                            let msg = PusherMessage::CanvasEvent(
                                 uuid.clone(),
                                 event.clone(),
                                 req_body,
                                 moved_request_id.clone(),
                             );
-                            sender.send(msg).map_err(|_| ())
+                            pusher_sender.send(msg).map_err(|_| ())
                         }
                         "segment" => {
                             let msg = crate::segment::new_message(
@@ -163,7 +163,7 @@ mod tests {
     use super::*;
 
     use std::sync::mpsc;
-    fn test_channel() -> Sender<Message> {
+    fn test_channel() -> Sender<PusherMessage> {
         let (sender, _) = mpsc::channel();
         sender
     }
