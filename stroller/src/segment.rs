@@ -67,9 +67,19 @@ pub fn new_message(
     String::from_utf8(body)
         .map_err(|_| error!("Segment body was not a valid utf8 string"))
         .and_then(|s: String| {
-            serde_json::from_str(&s).map_err(|_| {
-                error!("Segment body was not valid json");
-            })
+            serde_json::from_str(&s)
+                .map_err(|_| {
+                    error!("Segment body was not valid json");
+                })
+                .and_then(|value: serde_json::Value| {
+                    if value.is_object() {
+                        Ok(value)
+                    } else {
+                        // segment's api fails silently if the properties value is not an object
+                        error!("Segment body was valid json, but not an object.");
+                        Err(())
+                    }
+                })
         })
         .ok()
         .and_then(|properties| match msg_type.as_str() {
