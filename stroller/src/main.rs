@@ -2,6 +2,7 @@ mod config;
 mod push;
 mod segment;
 mod service;
+mod util;
 mod worker;
 
 use std::sync::atomic::AtomicBool;

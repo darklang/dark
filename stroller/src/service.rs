@@ -13,6 +13,7 @@ use hyper::{Body, Method, Request, Response, StatusCode};
 use uuid::Uuid;
 
 use crate::segment::SegmentMessage;
+use crate::util::ms_duration;
 use crate::worker::PusherMessage;
 
 use slog::{o, slog_error, slog_info};
@@ -139,8 +140,7 @@ pub fn handle(
                         .body(Body::empty())
                         .unwrap())
                 });
-            let req_time = start.elapsed().unwrap();
-            let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
+            let ms = ms_duration(start);
             info!("handle(...):";
                o!(
             "uri" => uri,

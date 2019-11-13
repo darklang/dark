@@ -15,6 +15,8 @@ use serde::Serialize;
 use slog::o;
 use slog_scope::info;
 
+use crate::util::ms_duration;
+
 #[derive(Debug)]
 pub enum PusherError {
     MalformedPayload(String),
@@ -172,28 +174,24 @@ impl PusherClient {
         self.http
             .execute(pusher_request)
             .map_err(|e| PusherError::HttpError(e.to_string()))
-            .and_then(move |mut resp| {
-                let req_time = start.elapsed().unwrap();
-                match resp.status() {
-                    StatusCode::OK => {
-                        let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
-                        info!(
-                                    "Pushed event in {}ms",
-                                    ms;
-                                    o!("dur_ms" => ms,
-                        "x-request-id" => request_id)
-                                );
-                        Ok(())
-                    }
-                    code => resp
-                        .text()
-                        .map_err(|e| {
-                            let ms =
-                                1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
-                            format!("Error reading push error after {}ms: {:?}", ms, e).into()
-                        })
-                        .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
+            .and_then(move |mut resp| match resp.status() {
+                StatusCode::OK => {
+                    let ms = ms_duration(start);
+                    info!(
+                                "Pushed event in {}ms",
+                                ms;
+                                o!("dur_ms" => ms,
+                    "x-request-id" => request_id)
+                            );
+                    Ok(())
                 }
+                code => resp
+                    .text()
+                    .map_err(|e| {
+                        let ms = ms_duration(start);
+                        format!("Error reading push error after {}ms: {:?}", ms, e).into()
+                    })
+                    .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
             })
     }
 }
