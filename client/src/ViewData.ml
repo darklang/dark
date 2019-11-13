@@ -26,6 +26,8 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
         ; Html.class' "restart-worker"
         ; Html.title "Run worker" ]
         [ViewUtils.fontAwesome "play-circle"]
+  | Some ws when ws.schedule = Some "block" ->
+      Html.div [Html.class' "blocked-worker"] [ViewUtils.fontAwesome "ban"]
   | _ ->
       Vdom.noNode
 

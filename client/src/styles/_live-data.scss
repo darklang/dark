@@ -56,8 +56,12 @@
 
   .pause-worker,
   .restart-worker {
-    margin-top: 4px;
     color: $queue-color;
+  }
+
+  .blocked-worker {
+    color: $grey2;
+    cursor: not-allowed;
   }
 
   ul.request-cursor {
