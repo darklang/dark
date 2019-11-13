@@ -15,6 +15,8 @@ use serde::Serialize;
 use slog::o;
 use slog_scope::info;
 
+use crate::util::ms_duration;
+
 #[derive(Debug)]
 pub enum PusherError {
     MalformedPayload(String),
@@ -166,35 +168,30 @@ impl PusherClient {
                 "x-request-id" => request_id,
                 "channel" => channel_name,
                 "event" => event_name));
-        // TODO ismith:
-        // recursion limit reached while expanding the macro `kv`
-        // (on o!(...))
-        //"json_bytes" => json_bytes.to_string()));
 
         let start = SystemTime::now();
 
         self.http
             .execute(pusher_request)
             .map_err(|e| PusherError::HttpError(e.to_string()))
-            .and_then(move |mut resp| {
-                let req_time = start.elapsed().unwrap();
-                match resp.status() {
-                    StatusCode::OK => {
-                        let ms = 1000 * req_time.as_secs() + u64::from(req_time.subsec_millis());
-                        info!(
-                                    "Pushed event in {}ms",
-                                    ms;
-                                    o!("dur_ms" => ms,
-                        "x-request-id" => request_id)
-                                );
-                        Ok(())
-                    }
-                    // TODO time to failure might be nice to log here
-                    code => resp
-                        .text()
-                        .map_err(|e| format!("Error reading push error: {:?}", e).into())
-                        .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
+            .and_then(move |mut resp| match resp.status() {
+                StatusCode::OK => {
+                    let ms = ms_duration(start);
+                    info!(
+                                "Pushed event in {}ms",
+                                ms;
+                                o!("dur_ms" => ms,
+                    "x-request-id" => request_id)
+                            );
+                    Ok(())
                 }
+                code => resp
+                    .text()
+                    .map_err(|e| {
+                        let ms = ms_duration(start);
+                        format!("Error reading push error after {}ms: {:?}", ms, e).into()
+                    })
+                    .and_then(move |msg| Err(PusherError::HttpRequestUnsuccessful(code, msg))),
             })
     }
 }

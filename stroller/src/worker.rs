@@ -6,7 +6,7 @@ use crate::push::PusherClient;
 use slog::o;
 use slog_scope::{error, info};
 
-pub enum Message {
+pub enum PusherMessage {
     CanvasEvent(String, String, Vec<u8>, String),
     Die,
 }
@@ -16,17 +16,17 @@ pub enum WorkerTerminationReason {
     SendersDropped,
 }
 
-pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
+pub fn run(channel: Receiver<PusherMessage>) -> WorkerTerminationReason {
     let mut client = PusherClient::new(
         &config::pusher_cluster(),
         &config::pusher_app_id(),
         &config::pusher_key(),
         &config::pusher_secret(),
     );
-    info!("Worker initialized");
+    info!("Pusher worker initialized");
     loop {
         match channel.recv() {
-            Ok(Message::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
+            Ok(PusherMessage::CanvasEvent(canvas_uuid, event_name, body, request_id)) => {
                 info!("msg recv: ok"; o!("canvas" => &canvas_uuid,
                 "event" => &event_name,
                 "body" => String::from_utf8_lossy(&body).to_string(),
@@ -41,7 +41,7 @@ pub fn run(channel: Receiver<Message>) -> WorkerTerminationReason {
                     ));
                 }
             }
-            Ok(Message::Die) => {
+            Ok(PusherMessage::Die) => {
                 info!("Received `Die` in worker thread");
                 break WorkerTerminationReason::ViaDie;
             }
