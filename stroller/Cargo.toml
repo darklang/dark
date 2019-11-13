@@ -18,3 +18,4 @@ slog-scope = "4.3.0"
 slog-json = "2.3.0"
 chrono = "0.4.9"
 uuid = { version = "0.8", features = ["v4"] }
+analytics = "0.2"

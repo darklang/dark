@@ -1,6 +1,8 @@
 mod config;
 mod push;
+mod segment;
 mod service;
+mod util;
 mod worker;
 
 use std::sync::atomic::AtomicBool;
@@ -13,7 +15,7 @@ use hyper::rt::Future;
 use hyper::service::service_fn;
 use hyper::Server;
 
-use crate::worker::{Message, WorkerTerminationReason};
+use crate::worker::{PusherMessage, WorkerTerminationReason};
 
 use slog::o;
 use slog_scope::{error, info};
@@ -54,17 +56,32 @@ fn main() {
     let shutting_down = Arc::new(AtomicBool::new(false));
 
     // create 'infinite', non-blocking, multi-producer, single-consumer channel
-    let (sender, receiver) = mpsc::channel::<Message>();
-    thread::spawn(move || match worker::run(receiver) {
+    let (pusher_sender, pusher_receiver) = mpsc::channel::<PusherMessage>();
+    thread::spawn(move || match worker::run(pusher_receiver) {
         WorkerTerminationReason::ViaDie => std::process::exit(0),
         WorkerTerminationReason::SendersDropped => std::process::exit(1),
     });
 
+    // create 'infinite', non-blocking, multi-producer, single-consumer channel
+    let (segment_sender, segment_receiver) = mpsc::channel::<segment::SegmentMessage>();
+    thread::spawn(move || match segment::run(segment_receiver) {
+        segment::WorkerTerminationReason::ViaDie => std::process::exit(0),
+        segment::WorkerTerminationReason::SendersDropped => std::process::exit(1),
+    });
+
     let make_service = move || {
         let shutting_down = shutting_down.clone();
-        let sender = sender.clone();
+        let pusher_sender = pusher_sender.clone();
+        let segment_sender = segment_sender.clone();
 
-        service_fn(move |req| service::handle(&shutting_down, sender.clone(), req))
+        service_fn(move |req| {
+            service::handle(
+                &shutting_down,
+                pusher_sender.clone(),
+                segment_sender.clone(),
+                req,
+            )
+        })
     };
 
     let server = Server::bind(&addr)
