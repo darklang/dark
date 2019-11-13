@@ -18,10 +18,9 @@ fn msg_to_json_string(m: &Message) -> String {
         .to_string()
 }
 
-pub fn send(m: &Message) {
+pub fn send(m: &Message, client: &HttpClient) {
     match &config::segment_write_key() {
         Some(segment_write_key) => {
-            let client = HttpClient::default();
             debug!("about to send to segment" ; "msg" => msg_to_json_string(m) );
             match client.send(segment_write_key, m) {
                 Ok(_) => {
@@ -97,6 +96,8 @@ pub fn new_message(
 }
 
 pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
+    let client = HttpClient::default();
+
     info!("Segment worker initialized");
     loop {
         match channel.recv() {
@@ -106,7 +107,7 @@ pub fn run(channel: Receiver<SegmentMessage>) -> WorkerTerminationReason {
                 "event" => event,
                 "x-request-id" => &request_id
                 ));
-                send(&m);
+                send(&m, &client);
             }
             Ok(SegmentMessage::Die) => {
                 info!("Received `Die` in segment worker thread");
