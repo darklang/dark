@@ -708,9 +708,7 @@ let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsRPCResult j = workerStats j
 
-let updateWorkerScheduleRPCResult j : string StrDict.t =
-  (list (pair string string)) j |> StrDict.fromList
-
+let updateWorkerScheduleRPCResult j : string StrDict.t = (dict string) j
 
 let initialLoadRPCResult j : initialLoadRPCResult =
   let tls = field "toplevels" (list toplevel) j in
@@ -736,10 +734,7 @@ let initialLoadRPCResult j : initialLoadRPCResult =
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
-  ; worker_schedules =
-      j
-      |> field "worker_schedules" (list (tuple2 string string))
-      |> StrDict.fromList }
+  ; worker_schedules = field "worker_schedules" (dict string) j }
 
 
 let executeFunctionRPCResult j : executeFunctionRPCResult =
