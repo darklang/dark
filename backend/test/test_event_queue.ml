@@ -46,6 +46,49 @@ let t_event_queue_roundtrip () =
   ()
 
 
+let t_event_queue_is_fifo () =
+  let module E = Event_queue in
+  clear_test_data () ;
+  let apple = worker "apple" (ast_for "event") in
+  let banana = worker "banana" (ast_for "event") in
+  let c = ops2c_exn "test-worker-fifo" [hop apple; hop banana] in
+  Canvas.save_all !c ;
+  let enqueue name i =
+    E.enqueue
+      "WORKER"
+      name
+      "_"
+      (DInt (Dint.of_int i))
+      ~account_id:!c.owner
+      ~canvas_id:!c.id
+  in
+  enqueue "apple" 1 ;
+  enqueue "apple" 2 ;
+  enqueue "banana" 3 ;
+  enqueue "apple" 4 ;
+  E.schedule_all () ;
+  let check_dequeue tx i exname =
+    let evt = E.dequeue tx |> Option.value_exn in
+    AT.check
+      AT.string
+      (Printf.sprintf "dequeue %d is handler %s" i exname)
+      exname
+      evt.name ;
+    let actual = match evt.value with DInt i -> Dint.to_int_exn i | _ -> 0 in
+    AT.check AT.int (Printf.sprintf "dequeue %d has value %d" i i) i actual ;
+    E.finish tx evt
+  in
+  let _ =
+    E.with_transaction (fun tx ->
+        check_dequeue tx 1 "apple" ;
+        check_dequeue tx 2 "apple" ;
+        check_dequeue tx 3 "banana" ;
+        check_dequeue tx 4 "apple" ;
+        Ok (Some DNull) )
+  in
+  ()
+
+
 (* ------------------- *)
 (*        cron         *)
 (* ------------------- *)
@@ -77,16 +120,11 @@ let t_cron_just_ran () =
 
 let t_get_worker_schedules_for_canvas () =
   clear_test_data () ;
-  let t1, t2, t3 = (Int63.of_int 7, Int63.of_int 7, Int63.of_int 7) in
-  let apple = {(worker "apple" (ast_for "1")) with tlid = t1} in
-  let banana = {(worker "banana" (ast_for "1")) with tlid = t2} in
-  let cherry = {(worker "cherry" (ast_for "1")) with tlid = t3} in
+  let apple = worker "apple" (ast_for "1") in
+  let banana = worker "banana" (ast_for "1") in
+  let cherry = worker "cherry" (ast_for "1") in
   let c =
-    ops2c_exn
-      "test-worker-scheduling-rules"
-      [ Op.SetHandler (t1, pos, apple)
-      ; Op.SetHandler (t2, pos, banana)
-      ; Op.SetHandler (t3, pos, cherry) ]
+    ops2c_exn "test-worker-scheduling-rules" [hop apple; hop banana; hop cherry]
   in
   Canvas.save_all !c ;
   let open Event_queue in
@@ -112,6 +150,7 @@ let suite =
   [ ("event_queue roundtrip", `Quick, t_event_queue_roundtrip)
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
+  ; ("Event queue is FIFO per worker", `Quick, t_event_queue_is_fifo)
   ; ( "get_worker_schedules_for_canvas"
     , `Quick
     , t_get_worker_schedules_for_canvas ) ]
