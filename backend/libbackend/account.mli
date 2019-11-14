@@ -8,6 +8,13 @@ type user_info =
   ; name : string
   ; admin : bool }
 
+type user_info_and_created_at =
+  { username : username
+  ; email : string
+  ; name : string
+  ; admin : bool
+  ; created_at : string }
+
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
 
@@ -36,6 +43,8 @@ val set_admin : username:string -> bool -> unit
 (* Get a user's info *)
 val get_user : string -> user_info option
 
+val get_user_and_created_at : string -> user_info_and_created_at option
+
 (* Get a user's info by their email address *)
 val get_user_by_email : string -> user_info option
 
@@ -60,6 +69,9 @@ val init : unit -> unit
 val init_testing : unit -> unit
 
 val user_info_to_yojson : user_info -> Yojson.Safe.t
+
+val user_info_and_created_at_to_yojson :
+  user_info_and_created_at -> Yojson.Safe.t
 
 module Testing : sig
   val validate_username : string -> (unit, string) Result.t
