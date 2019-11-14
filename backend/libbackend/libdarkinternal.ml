@@ -36,6 +36,20 @@ let internal_fn (f : exec_state * dval list -> dval) =
             |> Exception.code )
 
 
+let modify_schedule fn =
+  internal_fn (function
+      | state, [DUuid canvas_id; DStr handler_name] ->
+          Unicode_string.to_string handler_name |> fn canvas_id ;
+          let s = Event_queue.get_worker_schedules_for_canvas canvas_id in
+          Stroller.push_worker_states
+            ~execution_id:state.execution_id
+            ~canvas_id
+            s ;
+          DNull
+      | args ->
+          fail args )
+
+
 let fns : Lib.shortfn list =
   [ { pns = ["DarkInternal::checkAccess"]
     ; ins = []
@@ -1098,14 +1112,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; r = TNull
     ; d =
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
-    ; f =
-        internal_fn (function
-            | _, [DUuid canvas_id; DStr handler_name] ->
-                Unicode_string.to_string handler_name
-                |> Event_queue.block_worker canvas_id ;
-                DNull
-            | args ->
-                fail args )
+    ; f = modify_schedule Event_queue.block_worker
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::removeWorkerSchedulingBlock"]
@@ -1114,13 +1121,6 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; r = TNull
     ; d =
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
-    ; f =
-        internal_fn (function
-            | _, [DUuid canvas_id; DStr handler_name] ->
-                Unicode_string.to_string handler_name
-                |> Event_queue.unblock_worker canvas_id ;
-                DNull
-            | args ->
-                fail args )
+    ; f = modify_schedule Event_queue.unblock_worker
     ; ps = false
     ; dep = false } ]

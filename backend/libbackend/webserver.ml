@@ -1080,7 +1080,15 @@ let worker_schedule ~(execution_id : Types.id) (host : string) (body : string)
           | _ ->
               Error "unknown action" )
     in
-    let timing = server_timing [t1; t2; t3] in
+    let t4, _ =
+      time "4-push-new-states" (fun _ ->
+          match res with
+          | Ok ws ->
+              Stroller.push_worker_states ~execution_id ~canvas_id:cid ws
+          | _ ->
+              () )
+    in
+    let timing = server_timing [t1; t2; t3; t4] in
     match res with
     | Ok schedules ->
         respond
