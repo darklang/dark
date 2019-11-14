@@ -23,7 +23,8 @@ let update (m : model) ~(tlid : tlid) ~(f : handler -> handler) : model =
 let remove (m : model) (h : handler) : model =
   {m with handlers = TD.remove ~tlid:h.hTLID m.handlers}
 
-let getWorkerSchedule (m : model) (h : handler) : string option = 
+
+let getWorkerSchedule (m : model) (h : handler) : string option =
   match h.spec.name with
   | F (_, name) ->
       StrDict.get ~key:name m.worker_schedules
