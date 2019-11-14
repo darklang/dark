@@ -71,13 +71,7 @@ module Worker_states = struct
     | Paused
 
   let state_to_string s =
-    match s with
-    | Running ->
-        "run"
-    | Blocked ->
-        "block"
-    | Paused ->
-        "pause"
+    match s with Running -> "run" | Blocked -> "block" | Paused -> "pause"
 
 
   type t = (string, state, String.comparator_witness) Map.t
