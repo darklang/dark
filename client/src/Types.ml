@@ -1012,6 +1012,7 @@ and msg =
   | NewTracePush of (traceID * tlid list)
   | New404Push of fourOhFour
   | NewStaticDeployPush of staticDeploy
+  | WorkerStatePush of string StrDict.t
   | Delete404RPCCallback of delete404RPCParams * (unit, httpError) Tea.Result.t
       [@printer opaque "Delete404RPCCallback"]
   | InitialLoadRPCCallback of

@@ -187,3 +187,11 @@ let push_new_event
     ~(event : string)
     (payload : string) =
   push ~execution_id ~canvas_id ~event payload
+
+
+let push_worker_states
+    ~(execution_id : Types.id)
+    ~(canvas_id : Uuidm.t)
+    (ws : Event_queue.Worker_states.t) =
+  let payload = Analysis.to_worker_schedules_push ws in
+  push ~execution_id ~canvas_id ~event:"worker_state" payload
