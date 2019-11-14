@@ -58,10 +58,11 @@ let segment_event
     match payload with
     | `Assoc orig_payload_items ->
         `Assoc
-          [ ("canvas_id", `String canvas_id_str)
-          ; ("canvas", `String canvas)
-          ; ("execution_id", `String (execution_id |> Types.string_of_id))
-          ; ("timestamp", `String timestamp) ]
+          ( orig_payload_items
+          @ [ ("canvas_id", `String canvas_id_str)
+            ; ("canvas", `String canvas)
+            ; ("execution_id", `String (execution_id |> Types.string_of_id))
+            ; ("timestamp", `String timestamp) ] )
     | _ ->
         Exception.internal
           "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
