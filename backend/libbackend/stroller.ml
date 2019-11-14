@@ -33,17 +33,19 @@ let status () =
           Lwt.return (`Unhealthy "Exception in stroller healthcheck") )
 
 
-type segment_type = Track
+type segment_type =
+  | Track
+  | Identify
 
 let show_segment_type (st : segment_type) : string =
-  match st with Track -> "track"
+  match st with Track -> "track" | Identify -> "identify"
 
 
 let segment_event
     ~(canvas_id : Uuidm.t)
     ~(canvas : string)
     ~(username : string)
-    ~(execution_id : Types.id)
+    ?execution_id
     ~(event : string)
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
@@ -61,7 +63,11 @@ let segment_event
           ( orig_payload_items
           @ [ ("canvas_id", `String canvas_id_str)
             ; ("canvas", `String canvas)
-            ; ("execution_id", `String (execution_id |> Types.string_of_id))
+            ; ( "execution_id"
+              , execution_id
+                |> Option.map ~f:Types.string_of_id
+                |> Option.map ~f:(fun eid -> `String eid)
+                |> Option.value ~default:`Null )
             ; ("timestamp", `String timestamp) ] )
     | _ ->
         Exception.internal
@@ -106,14 +112,33 @@ let segment_event
                 e
                 bt
                 (Segment event)
-                (Types.show_id execution_id)
+                ( execution_id
+                |> Option.map ~f:Types.show_id
+                |> Option.value ~default:"no execution_id" )
             in
             Lwt.return () ) ;
       ()
 
 
+let segment_identify_user (username : string) : unit =
+  let payload =
+    Account.get_user_and_created_at username
+    |> Option.map ~f:Account.user_info_and_created_at_to_yojson
+  in
+  payload
+  |> Option.map ~f:(fun payload ->
+         segment_event
+           ~canvas_id:Uuidm.nil
+           ~canvas:""
+           ~username
+           ~event:""
+           Identify
+           payload )
+  |> Option.value ~default:()
+
+
 let push
-    ~(execution_id : Types.id)
+    ?(execution_id : Types.id option)
     ~(canvas_id : Uuidm.t)
     ~(event : string)
     (payload : string) =
@@ -150,7 +175,13 @@ let push
           with e ->
             let bt = Exception.get_backtrace () in
             let%lwt _ =
-              Rollbar.report_lwt e bt (Push event) (Types.show_id execution_id)
+              Rollbar.report_lwt
+                e
+                bt
+                (Push event)
+                ( execution_id
+                |> Option.map ~f:Types.show_id
+                |> Option.value ~default:"not in execution" )
             in
             Lwt.return () )
 

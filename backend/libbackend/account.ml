@@ -64,6 +64,14 @@ type user_info =
   ; admin : bool }
 [@@deriving yojson]
 
+type user_info_and_created_at =
+  { username : username
+  ; email : string
+  ; name : string
+  ; admin : bool
+  ; created_at : string }
+[@@deriving yojson]
+
 (************************)
 (* Adding *)
 (************************)
@@ -114,6 +122,7 @@ let upsert_account ?(validate : bool = true) (account : account) :
           ; String account.name
           ; String account.email
           ; String (Password.to_bytes account.password) ] )
+  |> Result.map ~f:(fun () -> Stroller.segment_identify_user account.username)
 
 
 let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
@@ -142,6 +151,7 @@ let upsert_admin ?(validate : bool = true) (account : account) :
           ; String account.name
           ; String account.email
           ; String (Password.to_bytes account.password) ] )
+  |> Result.map ~f:(fun () -> Stroller.segment_identify_user account.username)
 
 
 let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
@@ -187,6 +197,29 @@ let get_user username =
              None )
 
 
+let get_user_and_created_at username =
+  Db.fetch_one_option
+    ~name:"get_user_and_created_at"
+    ~subject:username
+    "SELECT name, email, admin, created_at from accounts
+     WHERE accounts.username = $1"
+    ~params:[String username]
+  |> Option.bind ~f:(function
+         | [name; email; admin; created_at] ->
+             Some
+               { username
+               ; name
+               ; admin = admin = "t"
+               ; email
+               ; created_at =
+                   created_at
+                   |> Db.date_of_sqlstring
+                   |> Core.Time.to_string_iso8601_basic
+                        ~zone:Core.Time.Zone.utc }
+         | _ ->
+             None )
+
+
 let get_user_by_email email =
   Db.fetch_one_option
     ~name:"get_user_by_email"
@@ -221,7 +254,8 @@ let set_admin ~username (admin : bool) : unit =
     ~name:"set_admin"
     ~subject:username
     "UPDATE accounts SET admin = $1 where username = $2"
-    ~params:[Bool admin; String username]
+    ~params:[Bool admin; String username] ;
+  Stroller.segment_identify_user username
 
 
 let valid_user ~(username : username) ~(password : string) : bool =
