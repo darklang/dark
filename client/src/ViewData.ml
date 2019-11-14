@@ -27,7 +27,11 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
         ; Html.title "Run worker" ]
         [ViewUtils.fontAwesome "play-circle"]
   | Some ws when ws.schedule = Some "block" ->
-      Html.div [Html.class' "blocked-worker"] [ViewUtils.fontAwesome "ban"]
+      Html.div
+        [ Html.class' "blocked-worker"
+        ; Html.title
+            "Worker disabled by Dark. Please get in touch to discuss why." ]
+        [ViewUtils.fontAwesome "ban"]
   | _ ->
       Vdom.noNode
 
@@ -83,7 +87,7 @@ let viewInput
   (* Fixes: https://trello.com/c/Vv8mMOls/1595-top-request-cursor-is-unselectable-10-6 *)
   (* viewKey contains the:
    traceID  - to update with every new traceId,
-   classes  - to update when hover/mouseover, 
+   classes  - to update when hover/mouseover,
    valueStr - to update from loading to loaded *)
   let viewKey = traceID ^ classes ^ valueStr in
   let dotHtml =
