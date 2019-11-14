@@ -47,6 +47,9 @@ let segment_event
     ~(event : string)
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
+  let timestamp =
+    Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
+  in
   let canvas_id_str = Uuidm.to_string canvas_id in
   let log_params =
     [("canvas_id", canvas_id_str); ("event", event); ("username", username)]
@@ -57,7 +60,8 @@ let segment_event
         `Assoc
           [ ("canvas_id", `String canvas_id_str)
           ; ("canvas", `String canvas)
-          ; ("execution_id", `String (execution_id |> Types.string_of_id)) ]
+          ; ("execution_id", `String (execution_id |> Types.string_of_id))
+          ; ("timestamp", `String timestamp) ]
     | _ ->
         Exception.internal
           "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
