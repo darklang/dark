@@ -680,7 +680,8 @@ let static_assets_upload_handler
   with _ -> respond ~execution_id `Not_found "Not found"
 
 
-let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
+let admin_add_op_handler
+    ~(execution_id : Types.id) (host : string) (username : string) body :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
   let t1, (params, canvas_id) =
     time "1-read-api-ops" (fun _ ->
@@ -730,11 +731,36 @@ let admin_add_op_handler ~(execution_id : Types.id) (host : string) body :
               Some strollerMsg )
             else None )
       in
+      let t6, _ =
+        time "send event to segment" (fun _ ->
+            (* NB: I believe we only send one op at a time, but the type is op
+             * list *)
+            ops
+            (* MoveTL and TLSavepoint make for noisy data, so exclude it from segment
+               * *)
+            |> List.filter ~f:(function
+                   | MoveTL _ | TLSavepoint _ ->
+                       false
+                   | _ ->
+                       true )
+            |> List.iter ~f:(fun op ->
+                   Stroller.segment_event
+                     ~canvas_id
+                     ~canvas:host
+                     ~username
+                     ~execution_id
+                     Track
+                     ~event:(op |> Op.event_name_of_op)
+                     (* currently empty, but we could add annotations -
+                      * 'properties', in segment's language - later *)
+                     (`Assoc []) ) ;
+            () )
+      in
       Log.add_log_annotations
         [("op_ctr", `Int params.opCtr)]
         (fun _ ->
           respond
-            ~resp_headers:(server_timing [t1; t2; t3; t4; t5])
+            ~resp_headers:(server_timing [t1; t2; t3; t4; t5; t6])
             ~execution_id
             `OK
             (Option.value
@@ -1555,7 +1581,7 @@ let admin_api_handler
   | `POST, ["api"; canvas; "add_op"] ->
       when_can_edit ~canvas (fun _ ->
           wrap_editor_api_headers
-            (admin_add_op_handler ~execution_id canvas body) )
+            (admin_add_op_handler ~execution_id canvas username body) )
   | `POST, ["api"; canvas; "initial_load"] ->
       when_can_view ~canvas (fun permission ->
           wrap_editor_api_headers

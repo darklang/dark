@@ -1,5 +1,17 @@
 open Libexecution
 
+type segment_type = Track
+
+val segment_event :
+     canvas_id:Uuidm.t
+  -> canvas:string
+  -> username:string
+  -> execution_id:Types.id
+  -> event:string
+  -> segment_type
+  -> Yojson.Safe.t
+  -> unit
+
 val push :
   execution_id:Types.id -> canvas_id:Uuidm.t -> event:string -> string -> unit
 
