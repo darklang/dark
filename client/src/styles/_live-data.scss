@@ -1,7 +1,7 @@
 .view-data {
   position: absolute;
   width: max-content;
-  top: 0;
+  top: -16px;
   left: -20px;
   cursor: pointer;
   overflow: hidden;
@@ -54,9 +54,21 @@
     }
   }
 
+  .pause-worker,
+  .restart-worker {
+    color: $queue-color;
+  }
+
+  .blocked-worker {
+    color: $queue-color;
+    cursor: default;
+  }
+
   ul.request-cursor {
     float: none;
     margin-top: 10px;
+    position: relative;
+
     li {
       font-size: 30px;
       height: 15px;

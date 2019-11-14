@@ -151,7 +151,22 @@ let createVS (m : model) (tl : toplevel) : viewState =
       | _ ->
           [] )
   ; permission = m.permission
-  ; workerStats = TLIDDict.get ~tlid m.workerStats }
+  ; workerStats =
+      (* Right now we patch because worker execution link depends on name instead of TLID. When we fix our worker association to depend on TLID instead of name, then we will get rid of this patchy hack. *)
+      (let count = TLIDDict.get ~tlid m.workerStats in
+       let asWorkerSchedule = Handlers.getWorkerSchedule m in
+       let schedule =
+         tl |> TL.asHandler |> Option.andThen ~f:asWorkerSchedule
+       in
+       match (count, schedule) with
+       | None, None ->
+           None
+       | Some c, None ->
+           Some c
+       | None, Some _ ->
+           Some {Defaults.defaultWorkerStats with schedule}
+       | Some c, Some _ ->
+           Some {c with schedule}) }
 
 
 let fontAwesome (name : string) : msg Html.html =

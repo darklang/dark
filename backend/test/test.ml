@@ -17,7 +17,8 @@ let () =
     ; ("api-libs", Test_api_libs.suite)
     ; ("framework", Test_framework.suite)
     ; ("other-libs", Test_other_libs.suite)
-    ; ("analysis", Test_analysis.suite) ]
+    ; ("analysis", Test_analysis.suite)
+    ; ("event-queue", Test_event_queue.suite) ]
   in
   Init.init ~run_side_effects:true ;
   Log.set_level `All ;

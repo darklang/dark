@@ -1060,4 +1060,67 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args )
     ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::getAllSchedulingRules"]
+    ; ins = []
+    ; p = []
+    ; r = TList
+    ; d = "Returns a list of all queue scheduling rules."
+    ; f =
+        internal_fn (function
+            | _, [] ->
+                Event_queue.get_all_scheduling_rules ()
+                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::getSchedulingRulesForCanvas"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid]
+    ; r = TList
+    ; d =
+        "Returns a list of all queue scheduling rules for the specified canvas_id"
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id] ->
+                Event_queue.get_scheduling_rules_for_canvas canvas_id
+                |> List.map ~f:Event_queue.Scheduling_rule.to_dval
+                |> DList
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::addWorkerSchedulingBlock"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; r = TNull
+    ; d =
+        "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id; DStr handler_name] ->
+                Unicode_string.to_string handler_name
+                |> Event_queue.block_worker canvas_id ;
+                DNull
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::removeWorkerSchedulingBlock"]
+    ; ins = []
+    ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
+    ; r = TNull
+    ; d =
+        "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
+    ; f =
+        internal_fn (function
+            | _, [DUuid canvas_id; DStr handler_name] ->
+                Unicode_string.to_string handler_name
+                |> Event_queue.unblock_worker canvas_id ;
+                DNull
+            | args ->
+                fail args )
+    ; ps = false
     ; dep = false } ]

@@ -102,6 +102,19 @@ let getUnlockedDBs (m : model) : msg Tea.Cmd.t =
   Tea.Http.send (fun x -> GetUnlockedDBsRPCCallback x) request
 
 
+let updateWorkerSchedule (m : model) (params : updateWorkerScheduleRPCParams) :
+    msg Tea.Cmd.t =
+  let url = "/api/" ^ Tea.Http.encodeUri m.canvasName ^ "/worker_schedule" in
+  let request =
+    postJson
+      Decoders.updateWorkerScheduleRPCResult
+      m.csrfToken
+      url
+      (Encoders.updateWorkerScheduleRPCParams params)
+  in
+  Tea.Http.send (fun x -> UpdateWorkerScheduleCallback x) request
+
+
 let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
   let url =
     String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404"]
