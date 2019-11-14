@@ -2,6 +2,7 @@ use crate::config;
 use analytics::client::Client;
 use analytics::http::HttpClient;
 use analytics::message::{Message, Track, User};
+use chrono::{DateTime, Utc};
 use slog::o;
 use slog_scope::{debug, error, info};
 
@@ -80,13 +81,36 @@ pub fn new_message(
                 })
         })
         .ok()
-        .and_then(|properties| match msg_type.as_str() {
-            "track" => Some(analytics::message::Message::Track(Track {
-                user,
-                event: event.clone(),
-                properties,
-                ..Default::default()
-            })),
+        .and_then(|mut properties| match msg_type.as_str() {
+            "track" => {
+                // note: this leaves {"timestamp": null} in the Value; I think that's ok
+                let timestamp: Option<DateTime<Utc>> = match properties["timestamp"].take() {
+                    serde_json::Value::String(s) => DateTime::parse_from_rfc3339(&s)
+                        .map(|dt| dt.with_timezone(&Utc))
+                        .map_err(|e| {
+                            error!("Expected rfc3339 datetime"; o!("invalid_datetime" => s));
+                            e
+                        })
+                        .ok(),
+                    _ => {
+                        error!(
+                            "no timestamp key in body of /segment/ event";
+                            o!("request_id" => request_id.clone(),
+                               "event" => event.clone(),
+                               "msg_type" => msg_type.clone())
+                        );
+                        None
+                    }
+                };
+
+                Some(analytics::message::Message::Track(Track {
+                    user,
+                    event: event.clone(),
+                    timestamp,
+                    properties,
+                    ..Default::default()
+                }))
+            }
             _ => {
                 error!("Segment message type '{}' is not supported.", msg_type);
                 None
