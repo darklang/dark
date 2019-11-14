@@ -52,9 +52,15 @@ let worker_stats (c : canvas) (tlid : tlid) : worker_stat =
     Db.fetch_one
       ~name:"count_workers"
       ~subject:(show_tlid tlid)
-      "SELECT COUNT(1) as num from events E
-        INNER JOIN toplevel_oplists TL on TL.canvas_id = E.canvas_id and TL.module = E.space and TL.name = E.name
-        WHERE TL.tlid = $1 and TL.canvas_id = $2 and E.status IN('new', 'error')"
+      "SELECT COUNT(1) AS num
+      FROM events E
+      INNER JOIN toplevel_oplists TL
+        ON TL.canvas_id = E.canvas_id
+        AND TL.module = E.space
+        AND TL.name = E.name
+      WHERE TL.tlid = $1
+      AND TL.canvas_id = $2
+      AND E.status IN('new', 'scheduled')"
       ~params:[Db.ID tlid; Db.Uuid c.id]
     |> List.hd_exn
     |> int_of_string
@@ -335,7 +341,8 @@ type initial_load_rpc_result =
   ; deleted_user_tipes : RTT.user_tipe list
   ; op_ctrs : (string * int) list
   ; permission : Authorization.permission option
-  ; account : Account.user_info }
+  ; account : Account.user_info
+  ; worker_schedules : Event_queue.Worker_states.t }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -346,7 +353,8 @@ let to_initial_load_rpc_result
     (traces : tlid_traceid list)
     (unlocked_dbs : tlid list)
     (assets : SA.static_deploy list)
-    (account : Account.user_info) : string =
+    (account : Account.user_info)
+    (worker_schedules : Event_queue.Worker_states.t) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
   ; deleted_toplevels =
       IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
@@ -360,7 +368,8 @@ let to_initial_load_rpc_result
   ; assets
   ; op_ctrs
   ; permission
-  ; account }
+  ; account
+  ; worker_schedules }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 

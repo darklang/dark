@@ -448,6 +448,12 @@ and workerStatsRPCParams (params : Types.workerStatsRPCParams) : Js.Json.t =
   object_ [("tlid", tlid params.workerStatsTlid)]
 
 
+and updateWorkerScheduleRPCParams
+    (params : Types.updateWorkerScheduleRPCParams) : Js.Json.t =
+  object_
+    [("name", string params.workerName); ("schedule", string params.schedule)]
+
+
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     : Js.Json.t =
   object_

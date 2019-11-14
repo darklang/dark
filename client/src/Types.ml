@@ -533,7 +533,9 @@ and dbStats =
 
 and dbStatsStore = dbStats StrDict.t
 
-and workerStats = {count : int}
+and workerStats =
+  { count : int
+  ; schedule : string option }
 
 (* ------------------- *)
 (* ops *)
@@ -605,6 +607,10 @@ and getTraceDataRPCParams =
 and dbStatsRPCParams = {dbStatsTlids : tlid list}
 
 and workerStatsRPCParams = {workerStatsTlid : tlid}
+
+and updateWorkerScheduleRPCParams =
+  { workerName : string
+  ; schedule : string }
 
 and performHandlerAnalysisParams =
   { handler : handler
@@ -690,7 +696,8 @@ and initialLoadRPCResult =
   ; opCtrs : int StrDict.t
   ; groups : group list
   ; deletedGroups : group list
-  ; account : account }
+  ; account : account
+  ; worker_schedules : string StrDict.t }
 
 and saveTestRPCResult = string
 
@@ -913,6 +920,7 @@ and modification =
   | GetUnlockedDBsRPC
   | GetWorkerStatsRPC of tlid
   | UpdateWorkerStats of tlid * workerStats
+  | UpdateWorkerSchedules of string StrDict.t
   | NoChange
   | MakeCmd of msg Tea.Cmd.t [@printer opaque "MakeCmd"]
   | AutocompleteMod of autocompleteMod
@@ -1088,6 +1096,10 @@ and msg =
   | HideTopbar
   | LogoutOfDark
   | DismissErrorBar
+  | PauseWorker of string
+  | RunWorker of string
+  | UpdateWorkerScheduleCallback of (string StrDict.t, httpError) Tea.Result.t
+      [@printer opaque "UpdateWorkerScheduleCallback"]
 
 (* ----------------------------- *)
 (* AB tests *)
@@ -1239,7 +1251,7 @@ and fluidToken =
   | TPartialGhost of id * string
   | TSep
   (* Newlines sometimes need to hold context. When there are many things in the
-   * id with the newline, the extra context is the index of which one it is. 
+   * id with the newline, the extra context is the index of which one it is.
    * The second id is that of the Newline's parent expression*)
   | TNewline of (id * id * int option) option
   (* All newlines in the nested tokens start indented to this position. *)
@@ -1439,6 +1451,7 @@ and model =
   ; toast : toast
   ; username : string
   ; account : account
+  ; worker_schedules : string StrDict.t
   ; searchCache : string TLIDDict.t }
 
 (* Values that we serialize *)

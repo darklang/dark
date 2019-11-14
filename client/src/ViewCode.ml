@@ -618,53 +618,17 @@ let viewEventSpec
     let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     let viewMod = viewText EventModifier vs configs spec.modifier in
-    match (spec.space, spec.modifier) with
-    | F (_, "CRON"), Blank _ | F (_, "HTTP"), Blank _ ->
+    match (spec.space, spec.modifier, spec.name) with
+    | F (_, "CRON"), Blank _, _ | F (_, "HTTP"), Blank _, _ ->
         Html.div [] [viewMod; triggerBtn]
-    | F (_, "HTTP"), _ ->
+    | F (_, "HTTP"), _, _ ->
         Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
-    | F (_, "CRON"), _ ->
+    | F (_, "CRON"), _, _ ->
         Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
+    | F (_, "WORKER"), _, F _ ->
+        Html.div [Html.class' "modifier"] [triggerBtn]
     | _ ->
         triggerBtn
-  in
-  let btnLock =
-    let isLocked = isLocked vs in
-    toggleButton
-      ~name:"handler-lock"
-      ~activeIcon:"lock"
-      ~inactiveIcon:"unlock"
-      ~msg:(fun _ ->
-        if vs.permission = Some ReadWrite
-        then LockHandler (vs.tlid, not isLocked)
-        else IgnoreMsg )
-      ~active:isLocked
-      ~key:("lh" ^ "-" ^ showTLID vs.tlid ^ "-" ^ string_of_bool isLocked)
-  in
-  (* TODO: figure this out when architexture view is implemented *)
-  let _btnExpCollapse =
-    let isExpand = isExpanded vs in
-    let state = ViewUtils.getHandlerState vs in
-    let expandFun _ =
-      match state with
-      | HandlerExpanding ->
-          IgnoreMsg
-      | HandlerExpanded ->
-          UpdateHandlerState (vs.tlid, HandlerPrepCollapse)
-      | HandlerPrepCollapse ->
-          IgnoreMsg
-      | HandlerCollapsing ->
-          IgnoreMsg
-      | HandlerCollapsed ->
-          UpdateHandlerState (vs.tlid, HandlerExpanding)
-    in
-    toggleButton
-      ~name:"handler-expand"
-      ~activeIcon:"caret-up"
-      ~inactiveIcon:"caret-down"
-      ~msg:expandFun
-      ~active:isExpand
-      ~key:("ech" ^ "-" ^ showTLID vs.tlid ^ "-" ^ show_handlerState state)
   in
   let baseClass = "spec-header" in
   let classes =
@@ -690,8 +654,7 @@ let viewEventSpec
   in
   Html.div
     (Html.class' classes :: dragEvents)
-    [ btnLock
-    ; viewEventSpace
+    [ viewEventSpace
     ; viewEventName
     ; viewEventModifier
     ; viewMenu vs spec

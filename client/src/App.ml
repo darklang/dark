@@ -696,6 +696,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         let m = {m with workerStats = newWorkerStats} in
         (m, Cmd.none)
+    | UpdateWorkerSchedules schedules ->
+        let m = {m with worker_schedules = schedules} in
+        (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
           Analysis.mergeTraces
@@ -1490,6 +1493,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
         ; SetTypes (r.userTipes, r.deletedUserTipes, true)
         ; SetUnlockedDBs r.unlockedDBs
+        ; UpdateWorkerSchedules r.worker_schedules
         ; SetPermission r.permission
         ; Append404s r.fofs
         ; AppendStaticDeploy r.staticDeploys
@@ -1973,6 +1977,14 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
       ClearError
+  | PauseWorker workerName ->
+      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "pause"})
+  | RunWorker workerName ->
+      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "run"})
+  | UpdateWorkerScheduleCallback (Ok schedules) ->
+      UpdateWorkerSchedules schedules
+  | UpdateWorkerScheduleCallback (Error _) ->
+      DisplayError "Failed to update worker schedule"
 
 
 let rec filter_read_only (m : model) (modification : modification) =

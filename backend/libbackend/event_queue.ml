@@ -31,6 +31,62 @@ let show_queue_action qa =
   match qa with Enqueue -> "enqueue" | Dequeue -> "dequeue" | None -> "none"
 
 
+module Scheduling_rule = struct
+  type rule_type =
+    | Block
+    | Pause
+
+  let rule_type_of_string r =
+    match r with "block" -> Some Block | "pause" -> Some Pause | _ -> None
+
+
+  let rule_type_to_string r =
+    match r with Block -> "block" | Pause -> "pause"
+
+
+  type t =
+    { id : int
+    ; rule_type : rule_type
+    ; canvas_id : Uuidm.t
+    ; handler_name : string
+    ; event_space : string
+    ; created_at : time }
+
+  let to_dval r =
+    DvalMap.from_list
+      [ ("id", Dval.dint r.id)
+      ; ( "rule_type"
+        , r.rule_type |> rule_type_to_string |> Dval.dstr_of_string_exn )
+      ; ("canvas_id", DUuid r.canvas_id)
+      ; ("handler_name", Dval.dstr_of_string_exn r.handler_name)
+      ; ("event_space", Dval.dstr_of_string_exn r.event_space)
+      ; ("created_at", DDate r.created_at) ]
+    |> DObj
+end
+
+module Worker_states = struct
+  type state =
+    | Running
+    | Blocked
+    | Paused
+
+  let state_to_string s =
+    match s with Running -> "run" | Blocked -> "block" | Paused -> "pause"
+
+
+  type t = (string, state, String.comparator_witness) Map.t
+
+  let empty = Map.empty (module String)
+
+  let to_yojson (m : t) =
+    `Assoc
+      ( Map.to_alist m
+      |> List.map ~f:(fun (k, v) -> (k, `String (state_to_string v))) )
+
+
+  let find (m : t) (k : string) = Map.find m k
+end
+
 (* None in case we want to log on a timer or something, not
                      just on enqueue/dequeue *)
 
@@ -203,6 +259,123 @@ let schedule_all unit : unit =
     "UPDATE events SET status = 'scheduled'
     WHERE status = 'new' AND delay_until <= CURRENT_TIMESTAMP"
 
+
+let row_to_scheduling_rule row : Scheduling_rule.t =
+  let open Scheduling_rule in
+  match row with
+  | [id; rule_type; canvas_id; handler_name; event_space; created_at] ->
+      { id = int_of_string id
+      ; rule_type = rule_type |> rule_type_of_string |> Option.value_exn
+      ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
+      ; handler_name
+      ; event_space
+      ; created_at = Time.of_string created_at }
+  | _ ->
+      Exception.internal "unexpected structure parsing scheduling_rule row"
+
+
+(* DARK INTERNAL FN *)
+(* Gets all event scheduling rules, as used by the queue-scheduler. *)
+let get_all_scheduling_rules unit : Scheduling_rule.t list =
+  Db.fetch
+    ~name:"get_all_scheduling_rules"
+    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
+    FROM scheduling_rules"
+    ~params:[]
+  |> List.map ~f:row_to_scheduling_rule
+
+
+(* DARK INTERNAL FN *)
+(* Gets event scheduling rules for the specified canvas *)
+let get_scheduling_rules_for_canvas canvas_id : Scheduling_rule.t list =
+  Db.fetch
+    ~name:"get_scheduling_rules_for_canvas"
+    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
+    FROM scheduling_rules
+    WHERE canvas_id = $1
+    "
+    ~params:[Uuid canvas_id]
+  |> List.map ~f:row_to_scheduling_rule
+
+
+(* Returns an assoc list of every event handler (worker) in the given canvas
+ * and its "schedule", which is usually "run", but can be either "block" or
+ * "pause" if there is a scheduling rule for that handler. A handler can have
+ * both a block and pause rule, in which case it is "block" (because block is
+ * an admin action). *)
+let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
+  let open Worker_states in
+  (* build an assoc list (name * Running) for all worker names in canvas *)
+  let states =
+    Db.fetch
+      ~name:"workers_for_canvas"
+      "SELECT name
+       FROM toplevel_oplists T
+       WHERE canvas_id = $1
+         AND tipe = 'handler'
+         AND module = 'WORKER'"
+      ~params:[Uuid canvas_id]
+    |> List.fold ~init:Worker_states.empty ~f:(fun states row ->
+           Map.set states ~key:(List.hd_exn row) ~data:Running )
+  in
+  (* get scheduling overrides for canvas, partitioned *)
+  let blocks, pauses =
+    get_scheduling_rules_for_canvas canvas_id
+    |> List.partition_tf ~f:(fun r -> r.rule_type = Block)
+  in
+  (* take the map of workers (where everything is set to Running) and overwrite
+   * any worker that has (in order) a pause or a block *)
+  pauses @ blocks
+  |> List.fold ~init:states ~f:(fun states r ->
+         let v = match r.rule_type with Block -> Blocked | Pause -> Paused in
+         Map.set states ~key:r.handler_name ~data:v )
+
+
+(* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
+ * Then, un-schedules any currently schedules events for this handler to keep
+ * them from being processed.
+ * 'pause' rules are developer-controlled whereas 'block' rules are accessible
+ * only as DarkInternal functions and cannot be removed by developers. *)
+let add_scheduling_rule rule_type canvas_id handler_name : unit =
+  Db.run
+    ~name:"add_scheduling_block"
+    ~params:[String rule_type; Uuid canvas_id; String handler_name]
+    "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
+    VALUES ( $1, $2, $3, 'WORKER')
+    ON CONFLICT DO NOTHING" ;
+  Db.run
+    ~name:"unschedule_events"
+    ~params:[Uuid canvas_id; String handler_name]
+    "UPDATE events
+    SET status = 'new'
+    WHERE space = 'WORKER'
+      AND status = 'scheduled'
+      AND canvas_id = $1
+      AND name = $2"
+
+
+(* Removes a scheduling rule of the passed type if one exists.
+ * See also: add_scheduling_rule. *)
+let remove_scheduling_rule rule_type canvas_id handler_name : unit =
+  Db.run
+    ~name:"remove_scheduling_block"
+    ~params:[Uuid canvas_id; String handler_name; String rule_type]
+    "DELETE FROM scheduling_rules
+    WHERE canvas_id = $1
+    AND handler_name = $2
+    AND event_space = 'WORKER'
+    AND rule_type = $3"
+
+
+(* DARK INTERNAL FN *)
+let block_worker = add_scheduling_rule "block"
+
+(* DARK INTERNAL FN *)
+let unblock_worker = remove_scheduling_rule "block"
+
+let pause_worker = add_scheduling_rule "pause"
+
+let unpause_worker = remove_scheduling_rule "pause"
 
 let begin_transaction () =
   let id = Util.create_id () in

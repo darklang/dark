@@ -64,6 +64,19 @@ let to_worker_stats_rpc_params (payload : string) : worker_stats_rpc_params =
   |> Result.ok_or_failwith
 
 
+type worker_schedule_update_rpc_params =
+  { name : string
+  ; schedule : string }
+[@@deriving yojson]
+
+let to_worker_schedule_update_rpc_params (payload : string) :
+    worker_schedule_update_rpc_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> worker_schedule_update_rpc_params_of_yojson
+  |> Result.ok_or_failwith
+
+
 let to_get_trace_data_rpc_params (payload : string) : get_trace_data_rpc_params
     =
   payload
