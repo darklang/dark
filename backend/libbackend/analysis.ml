@@ -287,6 +287,10 @@ let to_new_static_deploy_frontend (asset : SA.static_deploy) : string =
   asset |> SA.static_deploy_to_yojson |> Yojson.Safe.to_string ~std:true
 
 
+let to_worker_schedules_push (ws : Event_queue.Worker_states.t) : string =
+  ws |> Event_queue.Worker_states.to_yojson |> Yojson.Safe.to_string ~std:true
+
+
 (* Toplevel deletion:
  * The server announces that a toplevel is deleted by it appearing in
  * deleted_toplevels. The server announces it is no longer deleted by it

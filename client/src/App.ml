@@ -1555,6 +1555,8 @@ let update_ (msg : msg) (m : model) : modification =
       UpdateAvatarList avatarsList
   | NewStaticDeployPush asset ->
       AppendStaticDeploy [asset]
+  | WorkerStatePush ws ->
+      UpdateWorkerSchedules ws
   | Delete404RPC f404 ->
       Many
         [ (* This deletion is speculative *)
@@ -2082,7 +2084,9 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           ReceiveFetch s )
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
           NewPresencePush s )
-    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s) ]
+    ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s)
+    ; Analysis.WorkerStatePush.listen ~key:"worker_state_push" (fun s ->
+          WorkerStatePush s ) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->

@@ -278,6 +278,18 @@ module AddOp = struct
   let listen ~key tagger = Native.registerGlobal "addOp" key tagger decode
 end
 
+module WorkerStatePush = struct
+  let decode =
+    let open Tea.Json.Decoder in
+    field
+      "detail"
+      (Decoders.wrapDecoder Decoders.updateWorkerScheduleRPCResult)
+
+
+  let listen ~key tagger =
+    Native.registerGlobal "workerStatePush" key tagger decode
+end
+
 (* Request analysis *)
 module RequestAnalysis = struct
   external send : performAnalysisParams -> unit = "requestAnalysis"
