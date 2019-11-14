@@ -704,6 +704,8 @@ let account j : account =
   ; username = field "username" string j }
 
 
+(* schedule is None here but gets updated when we create a view state
+ * see createVS in ViewUtils.ml for details *)
 let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsRPCResult j = workerStats j
