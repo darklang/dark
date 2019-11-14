@@ -550,6 +550,10 @@ setTimeout(function() {
       var event = new CustomEvent("addOp", { detail: data });
       document.dispatchEvent(event);
     });
+    pusherChannel.bind("worker_state", data => {
+      var event = new CustomEvent("workerStatePush", { detail: data });
+      document.dispatchEvent(event);
+    });
   }
 }, 1);
 // ---------------------------
