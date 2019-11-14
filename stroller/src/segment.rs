@@ -93,7 +93,7 @@ pub fn new_message(
                         })
                         .ok(),
                     _ => {
-                        info!(
+                        error!(
                             "no timestamp key in body of /segment/ event";
                             o!("request_id" => request_id.clone(),
                                "event" => event.clone(),
