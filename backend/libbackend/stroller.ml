@@ -130,6 +130,110 @@ let segment_event
       ()
 
 
+let blocking_curl_post (url : string) (body : string) : int * string * string =
+  let errorbuf = ref "" in
+  let open Curl in
+  let responsebuf = Buffer.create 16384 in
+  try
+    let c = init () in
+    set_url c url ;
+    set_followlocation c false ;
+    set_maxredirs c 1 ;
+    set_connecttimeout c 5 ;
+    set_timeout c 10 ;
+    set_httpheader c [] ;
+    set_post c true ;
+    set_postfields c body ;
+    set_postfieldsize c (String.length body) ;
+    perform c ;
+    let responsebody = Buffer.contents responsebuf in
+    let response = (get_responsecode c, !errorbuf, responsebody) in
+    cleanup c ;
+    response
+  with Curl.CurlException (curl_code, code, s) ->
+    let params =
+      [ ("url", url)
+      ; ("error", Curl.strerror curl_code)
+      ; ("curl_code", string_of_int code)
+      ; ("response", Buffer.contents responsebuf) ]
+    in
+    Log.erroR
+      ("Internal HTTP error in blocking_curl_post: " ^ strerror curl_code)
+      ~params ;
+    (code, "", "")
+
+
+let segment_event_blocking
+    ?canvas_id
+    ?canvas
+    ~(username : string)
+    ?execution_id
+    ?event
+    (msg_type : segment_type)
+    (payload : Yojson.Safe.t) =
+  let timestamp =
+    Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
+  in
+  let log_params =
+    [ ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
+    ; ("event", event)
+    ; ("username", Some username) ]
+    |> List.filter_map ~f:(fun (k, v) ->
+           match v with Some v -> Some (k, v) | _ -> None )
+  in
+  let payload =
+    match payload with
+    | `Assoc orig_payload_items ->
+        `Assoc
+          ( orig_payload_items
+          @ ( canvas
+            |> Option.map ~f:(fun c -> [("canvas", `String c)])
+            |> Option.value ~default:[] )
+          @ ( canvas_id
+            |> Option.map ~f:(fun c ->
+                   [("canvas_id", `String (c |> Uuidm.to_string))] )
+            |> Option.value ~default:[] )
+          @ ( execution_id
+            |> Option.map ~f:(fun eid ->
+                   [("execution_id", `String (eid |> Types.string_of_id))] )
+            |> Option.value ~default:[] )
+          @ [("timestamp", `String timestamp)] )
+    | _ ->
+        Exception.internal
+          "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
+  in
+  match Config.stroller_port with
+  | None ->
+      Log.infO "stroller not configured, skipping segment" ~params:log_params
+  | Some port ->
+      Log.infO "pushing segment event via stroller" ~params:log_params ;
+      let path =
+        sprintf
+          "segment/%s/%s/event/%s"
+          username
+          (msg_type |> show_segment_type)
+          (event |> Option.value ~default:(msg_type |> show_segment_type))
+      in
+      let uri = Uri.make () ~scheme:"http" ~host:"127.0.0.1" ~port ~path in
+      let payload = payload |> Yojson.Safe.to_string in
+      let code, _, _ = blocking_curl_post (uri |> Uri.to_string) payload in
+      ( match code with
+      | 202 ->
+          Log.infO
+            "pushed to segment via stroller"
+            ~jsonparams:[("status", `Int code)]
+            ~params:log_params
+      | _ ->
+          Log.erroR
+            "failed to push to segment via stroller"
+            ~jsonparams:[("status", `Int code)]
+            ~params:log_params ) ;
+      ()
+
+
+(* We call this in two contexts: DarkInternal:: fns, and
+ * bin/segment_identify_users.exe. Neither of those is an async/lwt context, so
+ * we use the blocking_curl_post instead of Curl_lwt. *)
 let segment_track
     ~(canvas_id : Uuidm.t)
     ~(canvas : string)
@@ -154,7 +258,8 @@ let segment_identify_user (username : string) : unit =
     |> Option.map ~f:Account.user_info_and_created_at_to_yojson
   in
   payload
-  |> Option.map ~f:(fun payload -> segment_event ~username Identify payload)
+  |> Option.map ~f:(fun payload ->
+         segment_event_blocking ~username Identify payload )
   |> Option.value ~default:()
 
 
@@ -162,7 +267,7 @@ let push
     ?(execution_id : Types.id option)
     ~(canvas_id : Uuidm.t)
     ~(event : string)
-    (payload : string) =
+    (payload : string) : unit =
   let canvas_id_str = Uuidm.to_string canvas_id in
   let log_params =
     [("canvas_id", canvas_id_str); ("event", event); ("payload", payload)]
