@@ -2864,6 +2864,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TRecordClose _
     | TRecordSep _
     | TSep _
+    | TParenOpen _
+    | TParenClose _
     | TPatternBlank _
     | TPartialGhost _ ->
         (ast, LeftOne)
@@ -2989,6 +2991,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordOpen _
   | TRecordSep _
   | TSep _
+  | TParenOpen _
+  | TParenClose _
   | TPartialGhost _ ->
       (ast, s)
   | TConstructorName (id, str)
@@ -3302,7 +3306,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TLambdaSep _
     | TMatchSep _
     | TMatchKeyword _
-    | TPartialGhost _ ->
+    | TPartialGhost _
+    | TParenOpen _ (* TODO(JULIAN): Is this reasonable? *)
+    | TParenClose _ ->
         (ast, SamePlace)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
