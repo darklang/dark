@@ -4,11 +4,11 @@ type segment_type =
   | Track
   | Identify
 
-val segment_event :
+val segment_track :
      canvas_id:Uuidm.t
   -> canvas:string
   -> username:string
-  -> ?execution_id:Types.id
+  -> execution_id:Types.id
   -> event:string
   -> segment_type
   -> Yojson.Safe.t
