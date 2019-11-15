@@ -122,7 +122,6 @@ let upsert_account ?(validate : bool = true) (account : account) :
           ; String account.name
           ; String account.email
           ; String (Password.to_bytes account.password) ] )
-  |> Result.map ~f:(fun () -> Stroller.segment_identify_user account.username)
 
 
 let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
@@ -151,7 +150,6 @@ let upsert_admin ?(validate : bool = true) (account : account) :
           ; String account.name
           ; String account.email
           ; String (Password.to_bytes account.password) ] )
-  |> Result.map ~f:(fun () -> Stroller.segment_identify_user account.username)
 
 
 let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
@@ -249,13 +247,14 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 
+(* Any external calls to this should also call Stroller.segment_identify_user;
+ * we can't do it here because that sets up a module dependency cycle *)
 let set_admin ~username (admin : bool) : unit =
   Db.run
     ~name:"set_admin"
     ~subject:username
     "UPDATE accounts SET admin = $1 where username = $2"
-    ~params:[Bool admin; String username] ;
-  Stroller.segment_identify_user username
+    ~params:[Bool admin; String username]
 
 
 let valid_user ~(username : username) ~(password : string) : bool =
@@ -317,6 +316,8 @@ let for_host_exn (host : string) : Uuidm.t =
 (* Darkinternal functions *)
 (************************)
 
+(* Any external calls to this should also call Stroller.segment_identify_user;
+ * we can't do it here because that sets up a module dependency cycle *)
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
     (string, string) Result.t =
   let plaintext = Util.random_string 16 in
