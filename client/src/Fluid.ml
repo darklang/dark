@@ -2726,11 +2726,10 @@ type newPosition =
   | LeftOne
   | LeftThree
   | MoveToStart
-  | MoveToTokenEnd of id
+  | MoveToTokenEnd of id * (* offset *) int
   | SamePlace
   | TwoAfterEnd
   | Exactly of int
-  | ManyMoves of newPosition list
 
 let adjustPosForReflow
     ~state
@@ -2786,14 +2785,14 @@ let adjustPosForReflow
       max 0 newPos
   | Exactly pos, _ ->
       pos
-  | MoveToTokenEnd id, _ ->
-      Js.log "move to token end" ;
-      Js.log2 "token is" newTI ;
+  | MoveToTokenEnd (id, offset), _ ->
       newTokens
       |> List.reverse
       |> List.find ~f:(fun x -> Token.tid x.token = id)
       |> Option.map ~f:(fun ti ->
-             if FluidToken.isBlank ti.token then ti.startPos else ti.endPos )
+             if FluidToken.isBlank ti.token
+             then ti.startPos
+             else ti.endPos + offset )
       |> recoverOpt "didn't find expected token in MoveToToken" ~default:newPos
   | MoveToStart, Some newTI ->
       newTI.startPos
@@ -2803,8 +2802,6 @@ let adjustPosForReflow
       oldTI.endPos + 2
   | TwoAfterEnd, Some newTI ->
       newTI.endPos + 2
-  | ManyMoves _, _ ->
-      todo "not implemented yet" newPos
 
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -2875,18 +2872,18 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceWithPartial (f str) id ast, LeftOne)
     | TRightPartial (_, str) when String.length str = 1 ->
         let ast, targetID = deleteRightPartial ti ast in
-        (ast, MoveToTokenEnd targetID)
+        (ast, MoveToTokenEnd (targetID, 0))
     | TPartial (_, str) when String.length str = 1 ->
         let newAST, newState = deletePartial ti ast s in
         (newAST, Exactly newState.newPos)
     | TBinOp (_, str) when String.length str = 1 ->
         let ast, targetID = deleteBinOp ti ast in
-        (ast, MoveToTokenEnd targetID)
+        (ast, MoveToTokenEnd (targetID, 0))
     | TStringMLEnd (id, thisStr, strOffset, _)
       when String.length thisStr = 1 && offset = strOffset ->
         let f str = removeCharAt str offset in
         let newAST = replaceStringToken ~f ti.token ast in
-        (newAST, ManyMoves [MoveToTokenEnd id; LeftOne (* quote *)])
+        (newAST, MoveToTokenEnd (id, -1) (* quote *))
     | TString _
     | TStringMLStart _
     | TStringMLMiddle _
