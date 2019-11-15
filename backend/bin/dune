@@ -18,6 +18,15 @@
 )
 
 (executable
+  (name segment_identify_users)
+  (public_name segment_identify_users)
+  (modules segment_identify_users)
+  (flags (-warn-error +A))
+  (libraries libbackend libcommon)
+  (package dark)
+)
+
+(executable
   (name get_functions_and_tlids)
   (public_name get_functions_and_tlids)
   (modules get_functions_and_tlids)
