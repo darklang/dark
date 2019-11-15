@@ -2723,9 +2723,14 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 type newPosition =
   | RightOne
   | RightTwo
+  | LeftOne
+  | LeftThree
+  | MoveToStart
+  | MoveToTokenEnd of id
   | SamePlace
   | TwoAfterEnd
   | Exactly of int
+  | ManyMoves of newPosition list
 
 let adjustPosForReflow
     ~state
@@ -2746,29 +2751,65 @@ let adjustPosForReflow
     | None ->
         0
   in
+  let newPos = oldPos + diff in
   match (adjustment, newTI) with
   | SamePlace, _ ->
-      oldPos + diff
+      newPos
   | RightOne, _ ->
       if FluidToken.isBlank oldTI.token
       then oldTI.startPos + diff + 1
-      else oldPos + diff + 1
+      else newPos + 1
   | RightTwo, _ ->
       if FluidToken.isBlank oldTI.token
       then oldTI.startPos + diff + 2
-      else oldPos + diff + 2
+      else newPos + 2
+  | LeftOne, Some newTI ->
+      (* Js.log "leftone" ; *)
+      (* Js.log2 "newPos" newPos ; *)
+      (* Js.log2 "newTI.endPos" newTI.endPos ; *)
+      (* Js.log2 "oldPos" oldPos ; *)
+      (* Js.log2 "diff" diff ; *)
+      if Token.isAtom newTI.token
+      then newTI.startPos
+      else if newTI.endPos < newPos
+      then newTI.endPos
+      else newPos - 1
+  | LeftOne, None ->
+      let newPos = newPos - 1 in
+      max 0 newPos
+  | LeftThree, Some newTI ->
+      let newPos = min newPos newTI.endPos in
+      let newPos = newPos - 3 in
+      max 0 newPos
+  | LeftThree, None ->
+      let newPos = newPos - 3 in
+      max 0 newPos
   | Exactly pos, _ ->
       pos
+  | MoveToTokenEnd id, _ ->
+      Js.log "move to token end" ;
+      Js.log2 "token is" newTI ;
+      newTokens
+      |> List.reverse
+      |> List.find ~f:(fun x -> Token.tid x.token = id)
+      |> Option.map ~f:(fun ti ->
+             if FluidToken.isBlank ti.token then ti.startPos else ti.endPos )
+      |> recoverOpt "didn't find expected token in MoveToToken" ~default:newPos
+  | MoveToStart, Some newTI ->
+      newTI.startPos
+  | MoveToStart, None ->
+      oldTI.startPos
   | TwoAfterEnd, None ->
       oldTI.endPos + 2
   | TwoAfterEnd, Some newTI ->
       newTI.endPos + 2
+  | ManyMoves _, _ ->
+      todo "not implemented yet" newPos
 
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
-  let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
     | TPatternString _ | TString _ | TStringMLStart _ ->
@@ -2784,116 +2825,122 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos - 1
   in
   let newID = gid () in
-  match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
-      (ast, moveToStart ti s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-      let newAST = removeEmptyExpr (Token.tid ti.token) ast in
-      if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
-  | TString (id, "") ->
-      (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
-  | TPatternString (mID, id, "") ->
-      (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
-  | TLambdaSep (id, idx) ->
-      (removeLambdaSepToken id ast idx, left s)
-  | TListSep (id, idx) ->
-      (removeListSepToken id ast idx, left s)
-  | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
-      (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
-  | TRecordField (id, _, i, "") when pos = ti.startPos ->
-      ( removeRecordField id i ast
-      , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
-  | TPatternBlank (mID, id) when pos = ti.startPos ->
-      ( removePatternRow mID id ast
-      , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
-  | TBlank _
-  | TPlaceholder _
-  | TIndent _
-  | TLetAssignment _
-  | TListClose _
-  | TListOpen _
-  | TNewline _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TSep
-  | TPatternBlank _
-  | TPartialGhost _ ->
-      (ast, left s)
-  | TFieldOp id ->
-      (removeField id ast, left s)
-  | TFloatPoint id ->
-      (removePointFromFloat id ast, left s)
-  | TPatternFloatPoint (mID, id) ->
-      (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, str)
-  (* str is the partialName: *)
-  | TFnName (id, str, _, _, _)
-  | TFnVersion (id, str, _, _) ->
-      let f str = removeCharAt str offset in
-      (replaceWithPartial (f str) id ast, left s)
-  | TRightPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveStateTo targetID ast s)
-  | TPartial (_, str) when String.length str = 1 ->
-      deletePartial ti ast s
-  | TBinOp (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteBinOp ti ast in
-      (ast, moveStateTo targetID ast s)
-  | TStringMLEnd (id, thisStr, strOffset, _)
-    when String.length thisStr = 1 && offset = strOffset ->
-      let f str = removeCharAt str offset in
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveStateTo id newAST s in
-      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
-  | TString _
-  | TStringMLStart _
-  | TStringMLMiddle _
-  | TStringMLEnd _
-  | TPatternString _
-  | TRecordField _
-  | TInteger _
-  | TTrue _
-  | TFalse _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TNullToken _
-  | TVariable _
-  | TFieldName _
-  | TLetLHS _
-  | TPatternInteger _
-  | TPatternNullToken _
-  | TPatternVariable _
-  | TRightPartial _
-  | TPartial _
-  | TBinOp _
-  | TLambdaVar _ ->
-      let f str = removeCharAt str offset in
-      (replaceStringToken ~f ti.token ast, left s)
-  | TPatternFloatWhole (mID, id, str) ->
-      let str = removeCharAt str offset in
-      (replacePatternFloatWhole str mID id ast, left s)
-  | TPatternFloatFraction (mID, id, str) ->
-      let str = removeCharAt str offset in
-      (replacePatternFloatFraction str mID id ast, left s)
-  | TFloatWhole (id, str) ->
-      let str = removeCharAt str offset in
-      (replaceFloatWhole str id ast, left s)
-  | TFloatFraction (id, str) ->
-      let str = removeCharAt str offset in
-      (replaceFloatFraction str id ast, left s)
-  | TPatternConstructorName (mID, id, str) ->
-      let f str = removeCharAt str offset in
-      (replacePatternWithPartial (f str) mID id ast, left s)
-  | TThreadPipe (id, i, _) ->
-      let s =
-        match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
-        | Some leftTI, _, _ ->
-            doLeft ~pos:ti.startPos leftTI s
-        | _ ->
-            recover "TThreadPipe should never occur on first line of AST" s
-      in
-      (removeThreadPipe id ast i, s)
+  let newAST, newPosition =
+    match ti.token with
+    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+        (ast, MoveToStart)
+    | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
+        let newAST = removeEmptyExpr (Token.tid ti.token) ast in
+        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
+    | TString (id, "") ->
+        (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
+    | TPatternString (mID, id, "") ->
+        (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
+    | TLambdaSep (id, idx) ->
+        (removeLambdaSepToken id ast idx, LeftOne)
+    | TListSep (id, idx) ->
+        (removeListSepToken id ast idx, LeftOne)
+    | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
+        (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
+    | TRecordField (id, _, i, "") when pos = ti.startPos ->
+        (removeRecordField id i ast, LeftThree)
+    | TPatternBlank (mID, id) when pos = ti.startPos ->
+        (removePatternRow mID id ast, LeftThree)
+    | TBlank _
+    | TPlaceholder _
+    | TIndent _
+    | TLetAssignment _
+    | TListClose _
+    | TListOpen _
+    | TRecordOpen _
+    | TRecordClose _
+    | TRecordSep _
+    | TSep
+    | TPatternBlank _
+    | TPartialGhost _ ->
+        (ast, LeftOne)
+    | TNewline _ ->
+        (ast, Exactly ti.startPos)
+    | TFieldOp id ->
+        (removeField id ast, LeftOne)
+    | TFloatPoint id ->
+        (removePointFromFloat id ast, LeftOne)
+    | TPatternFloatPoint (mID, id) ->
+        (removePatternPointFromFloat mID id ast, LeftOne)
+    | TConstructorName (id, str)
+    (* str is the partialName: *)
+    | TFnName (id, str, _, _, _)
+    | TFnVersion (id, str, _, _) ->
+        let f str = removeCharAt str offset in
+        (replaceWithPartial (f str) id ast, LeftOne)
+    | TRightPartial (_, str) when String.length str = 1 ->
+        let ast, targetID = deleteRightPartial ti ast in
+        (ast, MoveToTokenEnd targetID)
+    | TPartial (_, str) when String.length str = 1 ->
+        let newAST, newState = deletePartial ti ast s in
+        (newAST, Exactly newState.newPos)
+    | TBinOp (_, str) when String.length str = 1 ->
+        let ast, targetID = deleteBinOp ti ast in
+        (ast, MoveToTokenEnd targetID)
+    | TStringMLEnd (id, thisStr, strOffset, _)
+      when String.length thisStr = 1 && offset = strOffset ->
+        let f str = removeCharAt str offset in
+        let newAST = replaceStringToken ~f ti.token ast in
+        (newAST, ManyMoves [MoveToTokenEnd id; LeftOne (* quote *)])
+    | TString _
+    | TStringMLStart _
+    | TStringMLMiddle _
+    | TStringMLEnd _
+    | TPatternString _
+    | TRecordField _
+    | TInteger _
+    | TTrue _
+    | TFalse _
+    | TPatternTrue _
+    | TPatternFalse _
+    | TNullToken _
+    | TVariable _
+    | TFieldName _
+    | TLetLHS _
+    | TPatternInteger _
+    | TPatternNullToken _
+    | TPatternVariable _
+    | TRightPartial _
+    | TPartial _
+    | TBinOp _
+    | TLambdaVar _ ->
+        let f str = removeCharAt str offset in
+        (replaceStringToken ~f ti.token ast, LeftOne)
+    | TPatternFloatWhole (mID, id, str) ->
+        let str = removeCharAt str offset in
+        (replacePatternFloatWhole str mID id ast, LeftOne)
+    | TPatternFloatFraction (mID, id, str) ->
+        let str = removeCharAt str offset in
+        (replacePatternFloatFraction str mID id ast, LeftOne)
+    | TFloatWhole (id, str) ->
+        let str = removeCharAt str offset in
+        (replaceFloatWhole str id ast, LeftOne)
+    | TFloatFraction (id, str) ->
+        let str = removeCharAt str offset in
+        (replaceFloatFraction str id ast, LeftOne)
+    | TPatternConstructorName (mID, id, str) ->
+        let f str = removeCharAt str offset in
+        (replacePatternWithPartial (f str) mID id ast, LeftOne)
+    | TThreadPipe (id, i, _) ->
+        let newPosition =
+          match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+          | Some leftTI, _, _ ->
+              let newState = doLeft ~pos:ti.startPos leftTI s in
+              Exactly newState.newPos
+          | _ ->
+              recover
+                "TThreadPipe should never occur on first line of AST"
+                SamePlace
+        in
+        (removeThreadPipe id ast i, newPosition)
+  in
+  let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
+  (newAST, {s with newPos})
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :

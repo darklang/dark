@@ -1263,7 +1263,7 @@ let () =
         ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
         , 0 ) ;
       tp
-        "reflows put the cursor in the right place"
+        "reflows put the cursor in the right place on insert"
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0"
          in
@@ -1273,9 +1273,23 @@ let () =
            ; emptyRecord
            ; emptyRecord
            ; EVariable (gid (), justShortEnoughNotToReflow) ])
-        (insert 'x' 135)
+        (insert 'x' 119)
         ( "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0x"
         , 128 ) ;
+      tp
+        "reflows put the cursor in the right place on bs"
+        (let justLongEnoughToReflow =
+           "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
+         in
+         fn
+           "HttpClient::post_v4"
+           [ emptyStr
+           ; emptyRecord
+           ; emptyRecord
+           ; EVariable (gid (), justLongEnoughToReflow) ])
+        (bs 128)
+        ( "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0"
+        , 119 ) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
