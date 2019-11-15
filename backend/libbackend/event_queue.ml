@@ -198,7 +198,7 @@ let dequeue transaction : t option =
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
        WHERE status = 'scheduled'
-       ORDER BY id DESC, retries ASC
+       ORDER BY e.id ASC
        FOR UPDATE OF e SKIP LOCKED
        LIMIT 1"
       ~params:[]
