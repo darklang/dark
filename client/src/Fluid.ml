@@ -4941,6 +4941,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
              let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
              someId )
   in
+  let nesting = ref 0 in
   List.map l ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
@@ -4958,8 +4959,17 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         let analysisId = Token.analysisID ti.token in
         (* Apply CSS classes to token *)
         let tokenClasses = Token.toCssClasses ti.token in
+        let nestingClass = 
+          let tokenPrecedence = (match ti.token with 
+          | TParenOpen _ -> nesting := !nesting + 1; !nesting
+          | TParenClose _ -> nesting := !nesting - 1; !nesting + 1
+          | _ -> !nesting) in
+          (* We want 0 precedence to only show up at the root and not in any wraparounds, so this goes 0123412341234... *)
+          ("precedence-" ^ (string_of_int (if tokenPrecedence > 0 then 
+                                          (((tokenPrecedence-1) mod 4) + 1)
+                                          else tokenPrecedence))) in
         let cls =
-          "fluid-entry" :: ("id-" ^ idStr) :: tokenClasses
+          "fluid-entry" :: ("id-" ^ idStr) :: (nestingClass :: tokenClasses)
           |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
         let conditionalClasses =

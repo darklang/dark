@@ -2,6 +2,24 @@
 // Fluid
 //*************
 
+/* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
+$prec-colors: (#471b6f, #194f75, #2b2a6b, #1a4219);
+@mixin precedence($depth) {
+  .precedence-#{$depth} {
+    background-color: nth($prec-colors, $depth);
+  }
+  .precedence-#{$depth}.fluid-category-paren {
+    color: nth($prec-colors, $depth);
+  }
+}
+
+.fluid-paren-open {
+  border-radius: 7px 0 0 7px;
+}
+.fluid-paren-close {
+  border-radius: 0 7px 7px 0;
+}
+
 .fluid-variant .live-values {
   display: none;
   position: absolute;
@@ -88,12 +106,18 @@ https://github.com/chriskempson/tomorrow-theme */
 
   font-family: monaco, monospace;
 
-  .fluid-newline {
-    display: block;
+  .fluid-entry {
+    display: inline-block;
+    white-space: pre;
+    
+    &.fluid-newline {
+      white-space: nowrap;
+    }
   }
 
-  .fluid-indent {
-    white-space: pre;
+
+  .fluid-newline {
+    display: block;
   }
 
   .fluid-category-string {
@@ -107,16 +131,6 @@ https://github.com/chriskempson/tomorrow-theme */
     }
     white-space: pre;
     color: $string-color;
-  }
-
-  // The cursor disappears when the element it should appear
-  // in has no size. To make it have size, we need all of this.
-  // https://stackoverflow.com/questions/25897883/
-  .fluid-sep,
-  .fluid-empty {
-    display: inline-block;
-    white-space: pre;
-    margin-left: 1px;
   }
 
   // Part of the same problem, making space for it.
@@ -322,6 +336,11 @@ since they are essentially both commands just acting upon different things. */
   flex-direction: row;
   justify-content: space-between;
   width: 100%;
+
+  @include precedence(1);
+  @include precedence(2);
+  @include precedence(3);
+  @include precedence(4);
 }
 
 .fluid-error-rail {
