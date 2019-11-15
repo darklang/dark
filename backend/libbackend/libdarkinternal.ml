@@ -175,7 +175,12 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let username = Unicode_string.to_string username in
                 let email = Unicode_string.to_string email in
                 let name = Unicode_string.to_string name in
-                let result = Account.upsert_user ~username ~email ~name () in
+                let result =
+                  Account.upsert_user ~username ~email ~name ()
+                  |> Result.map ~f:(fun r ->
+                         Stroller.segment_identify_user username ;
+                         r )
+                in
                 ( match result with
                 | Ok password ->
                     DResult (ResOk (Dval.dstr_of_string_exn password))
@@ -270,7 +275,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; f =
         internal_fn (function
             | _, [DStr username; DBool admin] ->
-                Account.set_admin (Unicode_string.to_string username) admin ;
+                let username = Unicode_string.to_string username in
+                Account.set_admin username admin ;
+                Stroller.segment_identify_user username ;
                 DNull
             | args ->
                 fail args )

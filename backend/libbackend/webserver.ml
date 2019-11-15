@@ -744,7 +744,7 @@ let admin_add_op_handler
                    | _ ->
                        true )
             |> List.iter ~f:(fun op ->
-                   Stroller.segment_event
+                   Stroller.segment_track
                      ~canvas_id
                      ~canvas:host
                      ~username

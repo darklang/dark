@@ -64,6 +64,14 @@ type user_info =
   ; admin : bool }
 [@@deriving yojson]
 
+type user_info_and_created_at =
+  { username : username
+  ; email : string
+  ; name : string
+  ; admin : bool
+  ; created_at : string }
+[@@deriving yojson]
+
 (************************)
 (* Adding *)
 (************************)
@@ -187,6 +195,29 @@ let get_user username =
              None )
 
 
+let get_user_and_created_at username =
+  Db.fetch_one_option
+    ~name:"get_user_and_created_at"
+    ~subject:username
+    "SELECT name, email, admin, created_at from accounts
+     WHERE accounts.username = $1"
+    ~params:[String username]
+  |> Option.bind ~f:(function
+         | [name; email; admin; created_at] ->
+             Some
+               { username
+               ; name
+               ; admin = admin = "t"
+               ; email
+               ; created_at =
+                   created_at
+                   |> Db.date_of_sqlstring
+                   |> Core.Time.to_string_iso8601_basic
+                        ~zone:Core.Time.Zone.utc }
+         | _ ->
+             None )
+
+
 let get_user_by_email email =
   Db.fetch_one_option
     ~name:"get_user_by_email"
@@ -216,6 +247,8 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 
+(* Any external calls to this should also call Stroller.segment_identify_user;
+ * we can't do it here because that sets up a module dependency cycle *)
 let set_admin ~username (admin : bool) : unit =
   Db.run
     ~name:"set_admin"
@@ -283,6 +316,8 @@ let for_host_exn (host : string) : Uuidm.t =
 (* Darkinternal functions *)
 (************************)
 
+(* Any external calls to this should also call Stroller.segment_identify_user;
+ * we can't do it here because that sets up a module dependency cycle *)
 let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
     (string, string) Result.t =
   let plaintext = Util.random_string 16 in
