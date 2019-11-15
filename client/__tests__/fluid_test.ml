@@ -1098,7 +1098,7 @@ let () =
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
       t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
-      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 2) ;
+      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 0) ;
       t "insert blank->string" (b ()) (insert '"' 0) ("\"\"", 1) ;
       t "del blank->string" emptyStr (del 0) (blank, 0) ;
       t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
