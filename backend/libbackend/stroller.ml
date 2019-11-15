@@ -41,34 +41,42 @@ let show_segment_type (st : segment_type) : string =
   match st with Track -> "track" | Identify -> "identify"
 
 
+(* private function *)
 let segment_event
-    ~(canvas_id : Uuidm.t)
-    ~(canvas : string)
+    ?canvas_id
+    ?canvas
     ~(username : string)
     ?execution_id
-    ~(event : string)
+    ?event
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
   let timestamp =
     Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
   in
-  let canvas_id_str = Uuidm.to_string canvas_id in
   let log_params =
-    [("canvas_id", canvas_id_str); ("event", event); ("username", username)]
+    [ ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
+    ; ("event", event)
+    ; ("username", Some username) ]
+    |> List.filter_map ~f:(fun (k, v) ->
+           match v with Some v -> Some (k, v) | _ -> None )
   in
   let payload =
     match payload with
     | `Assoc orig_payload_items ->
         `Assoc
           ( orig_payload_items
-          @ [ ("canvas_id", `String canvas_id_str)
-            ; ("canvas", `String canvas)
-            ; ( "execution_id"
-              , execution_id
-                |> Option.map ~f:Types.string_of_id
-                |> Option.map ~f:(fun eid -> `String eid)
-                |> Option.value ~default:`Null )
-            ; ("timestamp", `String timestamp) ] )
+          @ ( canvas
+            |> Option.map ~f:(fun c -> [("canvas", `String c)])
+            |> Option.value ~default:[] )
+          @ ( canvas_id
+            |> Option.map ~f:(fun c ->
+                   [("canvas_id", `String (c |> Uuidm.to_string))] )
+            |> Option.value ~default:[] )
+          @ ( execution_id
+            |> Option.map ~f:(fun eid ->
+                   [("execution_id", `String (eid |> Types.string_of_id))] )
+            |> Option.value ~default:[] )
+          @ [("timestamp", `String timestamp)] )
     | _ ->
         Exception.internal
           "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
@@ -89,7 +97,7 @@ let segment_event
                "segment/%s/%s/event/%s"
                username
                (msg_type |> show_segment_type)
-               event)
+               (event |> Option.value ~default:(msg_type |> show_segment_type)))
       in
       Lwt.async (fun () ->
           try%lwt
@@ -111,7 +119,9 @@ let segment_event
               Rollbar.report_lwt
                 e
                 bt
-                (Segment event)
+                (Segment
+                   ( event
+                   |> Option.value ~default:(msg_type |> show_segment_type) ))
                 ( execution_id
                 |> Option.map ~f:Types.show_id
                 |> Option.value ~default:"no execution_id" )
@@ -120,20 +130,31 @@ let segment_event
       ()
 
 
+let segment_track
+    ~(canvas_id : Uuidm.t)
+    ~(canvas : string)
+    ~(username : string)
+    ~(execution_id : Types.id)
+    ~(event : string)
+    (msg_type : segment_type)
+    (payload : Yojson.Safe.t) : unit =
+  segment_event
+    ~canvas_id
+    ~canvas
+    ~username
+    ~execution_id
+    ~event
+    msg_type
+    payload
+
+
 let segment_identify_user (username : string) : unit =
   let payload =
     Account.get_user_and_created_at username
     |> Option.map ~f:Account.user_info_and_created_at_to_yojson
   in
   payload
-  |> Option.map ~f:(fun payload ->
-         segment_event
-           ~canvas_id:Uuidm.nil
-           ~canvas:""
-           ~username
-           ~event:""
-           Identify
-           payload )
+  |> Option.map ~f:(fun payload -> segment_event ~username Identify payload)
   |> Option.value ~default:()
 
 
