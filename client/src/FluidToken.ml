@@ -390,6 +390,7 @@ let toIndex (t : token) : int option =
   | TThreadPipe (_, _, index)
   | TRecordField (_, _, index, _)
   | TRecordSep (_, index, _)
+  | TListSep (_, index)
   | TNewline (Some (_, _, Some index)) ->
       Some index
   | _ ->
