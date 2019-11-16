@@ -67,6 +67,21 @@ end
 module List = struct
   include Tablecloth.List
 
+  let findWithIndex ~(f : int -> 'a -> bool) (l : 'a list) : int option =
+    let rec findIndexHelper
+        ~(i : int) ~(predicate : int -> 'a -> bool) (l : 'a list) : int option
+        =
+      match l with
+      | [] ->
+          None
+      | x :: rest ->
+          if predicate i x
+          then Some i
+          else findIndexHelper ~i:(i + 1) ~predicate rest
+    in
+    findIndexHelper ~i:0 ~predicate:f l
+
+
   let rec dropLeft ~(count : int) (l : 'a list) : 'a list =
     if count <= 0
     then l

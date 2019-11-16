@@ -1497,29 +1497,39 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     =
   let s = recordAction "goToEndOfWord" s in
-  let offset (token : fluidTokenInfo) : int =
-    let t = Token.toText token.token in
-    let stringLength = String.length t in
-    (* Counts the trailing white space(s) *)
-    let trailingWhiteSpace =
-      t
-      |> Util.Regex.replace ~re:(Util.Regex.regex "\\s+$") ~repl:""
-      |> String.length
-    in
-    stringLength - trailingWhiteSpace
-  in
   let token =
     let tokens = toTokens s ast in
     let _, _, mNext = getTokensAtPosition ~pos tokens in
-    match (ti, mNext) with
-    (* if cursor is at the end of current token, go to end of next token *)
-    | t, Some nxt when t.endPos - offset t == pos ->
+    match (ti.token, mNext) with
+    | TString _, _ when pos != ti.endPos ->
+        ti
+    | _, Some nxt when Token.isTextToken nxt.token ->
         nxt
+    | _, Some nxt ->
+        let _, _, mNext = getTokensAtPosition ~pos:nxt.startPos tokens in
+        mNext |> Option.withDefault ~default:nxt
     | _ ->
         ti
   in
-  let offset = offset token in
-  let newPos = token.endPos - offset in
+  (* Finds how many moves to get to first whitespace *)
+  let findPosOffsetToNextWhiteSpace (token : fluidTokenInfo) : int =
+    Token.toText token.token
+    |> String.split ~on:""
+    |> List.findWithIndex ~f:(fun idx x ->
+           if token.startPos + idx > pos
+              && (x == " " || x = "\"" || x = "\n" || x = "\t")
+           then true
+           else false )
+    |> Option.withDefault ~default:token.length
+  in
+  let newPos =
+    match token.token with
+    | TString _ ->
+        let offset = findPosOffsetToNextWhiteSpace token in
+        token.startPos + offset
+    | _ ->
+        token.endPos
+  in
   setPosition s newPos
 
 
