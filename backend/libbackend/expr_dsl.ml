@@ -80,7 +80,7 @@ let rec sexp_for_ (e : expr) : Sexp.t =
           ; sexp_for_ body ]
     | Value v ->
         (* TODO confirm? *)
-        Sexp.Atom ("\"" ^ v ^ "\"")
+        Sexp.Atom v
     | FieldAccess (obj, fld) ->
         Sexp.List
           [Sexp.Atom "."; sexp_for_ obj; Sexp.Atom (string_of_orblank fld)]
