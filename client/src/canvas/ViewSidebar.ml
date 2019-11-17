@@ -746,11 +746,22 @@ let adminDebuggerView (m : model) : msg Html.html =
       ; Html.class' "state-info-row save-state" ]
       [Html.text "SAVE STATE FOR INTEGRATION TEST"]
   in
+  let saveSexpsButton =
+    Html.a
+      [ ViewUtils.eventNoPropagation ~key:"sexpb" "mouseup" (fun _ ->
+            SaveSexpsButton)
+      ; Html.class' "state-info-row save-sexps" ]
+      [Html.text "SAVE STATE AS S-EXPRESSIONS"]
+  in
   let hoverView =
     [ Html.div
         [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; toggleFluidDebugger; debugger; saveTestButton]
-    ]
+        [ stateInfo
+        ; toggleTimer
+        ; toggleFluidDebugger
+        ; debugger
+        ; saveTestButton
+        ; saveSexpsButton ] ]
   in
   let icon =
     Html.div

@@ -1307,6 +1307,18 @@ let save_test_handler ~(execution_id : Types.id) host =
         "Failed to load canvas"
 
 
+let save_sexps_handler ~(execution_id : Types.id) host =
+  let c = C.load_all host [] in
+  match c with
+  | Ok c ->
+      let filename = C.save_sexps !c in
+      respond ~execution_id `OK ("Saved as: " ^ filename)
+  | Error errs ->
+      Exception.internal
+        ~info:[("errs", String.concat ~sep:", " errs)]
+        "Failed to load canvas"
+
+
 let check_csrf_then_handle ~execution_id ~session handler req =
   if CRequest.meth req = `POST
   then
@@ -1673,6 +1685,8 @@ let admin_api_handler
       respond ~execution_id `OK "Cleared"
   | `POST, ["api"; canvas; "save_test"] when Config.allow_test_routes ->
       save_test_handler ~execution_id canvas
+  | `POST, ["api"; canvas; "save_sexps"] when Config.allow_test_routes ->
+      save_sexps_handler ~execution_id canvas
   (* Canvas API *)
   | `POST, ["api"; canvas; "rpc"] (* old name, remove later *)
   | `POST, ["api"; canvas; "add_op"] ->

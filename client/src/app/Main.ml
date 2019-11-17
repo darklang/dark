@@ -1218,7 +1218,9 @@ let update_ (msg : msg) (m : model) : modification =
   | ToggleEditorSetting fn ->
       TweakModel (fun m -> {m with editorSettings = fn m.editorSettings})
   | SaveTestButton ->
-      MakeCmd (API.saveTest m)
+      MakeCmd (RPC.saveTest m)
+  | SaveSexpsButton ->
+      MakeCmd (RPC.saveSexp m)
   | FinishIntegrationTest ->
       EndIntegrationTest
   | StartFeatureFlag ->

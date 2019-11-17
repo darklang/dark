@@ -593,6 +593,32 @@ let save_test (c : canvas) : string =
   file
 
 
+(* TODO: save somewhere other than testdata? *)
+let save_sexps (c : canvas) : string =
+  let c = minimize c in
+  let host = "sexp-" ^ c.host in
+  let file = Serialize.json_filename host in
+  let host =
+    if File.file_exists ~root:Testdata file
+    then host ^ "_" ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
+    else host
+  in
+  let file = Serialize.json_filename host in
+  Serialize.save_json_to_disk ~root:Testdata file c.ops ;
+  let handlers =
+    c.handlers
+    |> Map.fold ~init:[] ~f:(fun ~key:_ ~data:v acc -> v :: acc)
+    |> List.filter_map ~f:Libexecution.Toplevel.as_handler
+    |> List.map ~f:(fun h -> h.ast)
+    |> List.map ~f:Expr_dsl.sexp_for_
+  in
+  Sexp.List handlers
+  |> Sexp.to_string_hum
+  |> (fun s -> s ^ "\n")
+  |> File.writefile Config.Testdata file ;
+  file
+
+
 let validate_op host op =
   if Op.is_deprecated op
   then
