@@ -19,10 +19,99 @@ let b_or_f (name : string) : string or_blank =
   match name with "_" -> b () | name -> f name
 
 
+let string_of_orblank (sob : string or_blank) : string =
+  match sob with
+  | Blank _ ->
+      "blank"
+  | Filled (_, str) ->
+      str
+  | Partial _ ->
+      "PARTIAL NOT IMPLEMENTED"
+
+
 let rail2fnname name : string = String.slice name 1 0
 
 let is_send_to_rail (name : string) : bool =
   String.is_prefix ~prefix:"`" name && name |> rail2fnname |> is_fn
+
+
+let rec sexp_for_ (e : expr) : Sexp.t =
+  match e with
+  | Blank _ ->
+      Sexp.Atom "_"
+  | Partial _ ->
+      Sexp.Atom "PARTIAL NOT IMPLEMENTED"
+  | Filled (_, nexp) ->
+    ( match nexp with
+    | If (cond, ifbody, elsebody) ->
+        Sexp.List
+          [Sexp.Atom "if"; sexp_for_ cond; sexp_for_ ifbody; sexp_for_ elsebody]
+    | Thread exprs ->
+        Sexp.List (Sexp.Atom "|" :: List.map ~f:sexp_for_ exprs)
+    | FnCall (fnname, args) ->
+        Sexp.List (Sexp.Atom fnname :: List.map ~f:sexp_for_ args)
+    | Variable varname ->
+        Sexp.Atom varname
+    | Let (var, value, body) ->
+        (* TODO is this redundant? *)
+        (* let var =
+          match var with
+          | Filled (_, var) ->
+              var
+          | Blank _ ->
+              "_"
+          | Partial _ ->
+              "PARTIAL NOT IMPLEMENTED"
+        in *)
+        Sexp.List
+          [ Sexp.Atom "let"
+          ; Sexp.Atom (string_of_orblank var)
+          ; sexp_for_ value
+          ; sexp_for_ body ]
+    | Lambda (varbinds, body) ->
+        (* TODO check this works for arity > 1, and that ast_for_ does likewise
+         *)
+        Sexp.List
+          [ Sexp.Atom
+              ( varbinds
+              |> List.map ~f:(fun v -> "\\" ^ string_of_orblank v)
+              |> String.concat ~sep:" " )
+          ; Sexp.Atom "->"
+          ; sexp_for_ body ]
+    | Value v ->
+        (* TODO confirm? *)
+        Sexp.Atom ("\"" ^ v ^ "\"")
+    | FieldAccess (obj, fld) ->
+        Sexp.List
+          [Sexp.Atom "."; sexp_for_ obj; Sexp.Atom (string_of_orblank fld)]
+    | ObjectLiteral alist ->
+        Sexp.List
+          ( Sexp.Atom "obj"
+          :: ( alist
+             |> List.map ~f:(fun (k, v) ->
+                    Sexp.List [Sexp.Atom (string_of_orblank k); sexp_for_ v] )
+             ) )
+    | ListLiteral exprs ->
+        Sexp.List (List.map ~f:sexp_for_ exprs)
+    | FeatureFlag (name, cond, oldcode, newcode) ->
+        Sexp.List
+          [ Sexp.Atom "flag"
+          ; Sexp.Atom (string_of_orblank name)
+          ; sexp_for_ cond
+          ; sexp_for_ oldcode
+          ; sexp_for_ newcode ]
+    | FnCallSendToRail (fnname, args) ->
+        (* TODO confirm - rail2fnname? *)
+        Sexp.List (Sexp.Atom ("`" ^ fnname) :: List.map ~f:sexp_for_ args)
+    | Constructor (ctor, exprs) ->
+        let ctor = ctor |> string_of_orblank in
+        Sexp.List (Sexp.Atom ctor :: List.map ~f:sexp_for_ exprs)
+    | Match (exp, pairs) ->
+        Sexp.Atom "MATCH NOT IMPLEMENTED"
+    | FluidPartial (str, exp) ->
+        Sexp.Atom "PARTIAL NOT IMPLEMENTED"
+    | FluidRightPartial (str, exp) ->
+        Sexp.Atom "PARTIAL NOT IMPLEMENTED" )
 
 
 let rec ast_for_ (sexp : Sexp.t) : expr =
