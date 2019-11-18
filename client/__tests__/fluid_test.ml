@@ -2687,13 +2687,13 @@ let () =
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (52, 48) ) ;
       t
-        "selecting an expression pipes from it"
+        "selecting an expression pipes from it 1"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
         (selectionPress K.ShiftEnter 4 5)
         ("4 + 5\n    |>___\n", 12) ;
       t
-        "selecting an expression pipes from it"
+        "selecting an expression pipes from it 2"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
         (selectionPress K.ShiftEnter 5 4)
