@@ -119,6 +119,56 @@ let () =
         expect (fn initial |> insertCursor)
         |> toEqual (expected |> insertCursor) )
   in
+  let roundtrip ?(debug = false) (ast : fluidExpr) =
+    let name = "roundtripping: " in
+    let emptyState = Defaults.defaultFluidState in
+    let expectedString = eToString emptyState ast in
+    test
+      ( name
+      ^ " - `"
+      ^ (expectedString |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+      ^ "`" )
+      (fun () ->
+        let pos = String.length expectedString in
+        let e = clipboardEvent () in
+        let clipboardData state e =
+          Clipboard.getData e
+          |> Fluid.clipboardContentsToExpr ~state
+          |> Option.map ~f:(fun expr -> eToString state expr)
+          |> Option.withDefault ~default:"Nothing in clipboard"
+        in
+        let h = Fluid_utils.h ast in
+        let m =
+          { Defaults.defaultModel with
+            tests = [FluidVariant]
+          ; handlers = Handlers.fromList [h]
+          ; cursorState = FluidEntering h.hTLID }
+        in
+        let s =
+          { Defaults.defaultFluidState with
+            ac = AC.reset m
+          ; selectionStart = Some 0
+          ; oldPos = pos
+          ; newPos = pos }
+        in
+        let m = {m with fluidState = s} in
+        if debug
+        then (
+          Js.log2 "state before " (Fluid_utils.debugState s) ;
+          Js.log2 "ast before" (eToStructure s ast) ;
+          Js.log2 "clipboard before" (clipboardData s e) ) ;
+        let mod_ = App.update_ (ClipboardCutEvent e) m in
+        let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+        let mod_ = App.update_ (ClipboardPasteEvent e) newM in
+        let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
+        let newState = newM.fluidState in
+        let newAST =
+          TL.selectedAST newM
+          |> Option.withDefault ~default:(Blank.new_ ())
+          |> fromExpr newState
+        in
+        expect expectedString |> toEqual (eToString newState newAST) )
+  in
   describe "Booleans" (fun () ->
       t
         "copying a bool adds an EBool to clipboard"
@@ -884,4 +934,8 @@ let () =
       (* TODO: test match statements, implementation is slightly inconsistent*)
       () ) ;
   describe "Feature Flags" (fun () ->
-      (* TODO: test feature flags, not yet in fluid *) () )
+      (* TODO: test feature flags, not yet in fluid *) () ) ;
+  describe "Copy/paste roundtrip" (fun () ->
+      roundtrip (EBlank (gid ())) ;
+      roundtrip (EInteger (gid (), "6")) ;
+      () )
