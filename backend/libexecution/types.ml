@@ -411,6 +411,7 @@ module RuntimeT = struct
     | DObj of dval_map
     (* special types - see notes above *)
     | DIncomplete
+    | DSrcIncomplete of id
     | DError of string
     | DBlock of dval block
     | DErrorRail of dval

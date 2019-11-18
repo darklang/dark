@@ -299,6 +299,7 @@ let rec dval j : dval =
     ; ("DList", dv1 (fun x -> DList x) (array dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
     ; ("DIncomplete", dv0 DIncomplete)
+    ; ("DSrcIncomplete", dv1 (fun x -> DSrcIncomplete x) id)
     ; ("DError", dv1 (fun x -> DError x) string)
     ; ("DBlock", dv0 DBlock)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
