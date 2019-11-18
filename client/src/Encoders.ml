@@ -115,6 +115,8 @@ let rec dval (dv : Types.dval) : Js.Json.t =
       ev "DBlock" [null]
   | DIncomplete ->
       ev "DIncomplete" []
+  | DSrcIncomplete i ->
+      ev "DSrcIncomplete" [id i]
   (* user-ish types *)
   | DCharacter c ->
       ev "DCharacter" [string c]

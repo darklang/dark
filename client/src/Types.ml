@@ -400,6 +400,7 @@ and dval =
   | DList of dval array
   | DObj of dval StrDict.t
   | DIncomplete
+  | DSrcIncomplete of id
   | DError of string
   | DBlock
   | DErrorRail of dval

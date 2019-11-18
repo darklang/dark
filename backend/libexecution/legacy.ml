@@ -30,7 +30,7 @@ module PrettyResponseJsonV0 = struct
         |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
         |> fun x -> `Assoc x
-    | DBlock _ | DIncomplete ->
+    | DBlock _ | DIncomplete | DSrcIncomplete _ ->
         wrap_user_type `Null
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)

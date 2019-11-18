@@ -297,6 +297,8 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       F (id, Value (literalToString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
+  | EFieldAccess (id, obj, _, "") ->
+      F (id, FieldAccess (toExpr obj, Blank.new_ ()))
   | EFieldAccess (id, obj, fieldID, fieldname) ->
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
@@ -3625,14 +3627,14 @@ let shouldDoDefaultAction (key : K.key) : bool =
 
 let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
   (* get the beginning and end of the range from
-    * the expression's first and last token 
+    * the expression's first and last token
     * by cross-referencing the tokens it evaluates to via toTokens
     * with the tokens for the whole ast.
     *
     * This is preferred to just getting all the tokens with the same exprID
-    * because the last expression in a token range 
+    * because the last expression in a token range
     * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
-    * different ID, (in the above case the last token TInt(2) belongs to the 
+    * different ID, (in the above case the last token TInt(2) belongs to the
     * second sub-expr of the FnCall) *)
   let astTokens = toTokens state ast in
   let exprTokens =
@@ -3650,7 +3652,7 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
                None )
   in
   match (exprStartToken, exprEndToken) with
-  (* range is from startPos of first token in expr to 
+  (* range is from startPos of first token in expr to
     * endPos of last token in expr *)
   | Some {startPos}, Some {endPos} ->
       Some (startPos, endPos)
@@ -3709,7 +3711,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     toTokens state ast
     |> List.foldl ~init:[] ~f:(fun t toks ->
            (* this condition is a little flaky, sometimes selects wrong tokens *)
-           if (* token fully inside range 
+           if (* token fully inside range
                * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
               t.startPos >= startPos
               && t.startPos < endPos
@@ -3737,9 +3739,9 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
   in
   let startPos, endPos = orderRangeFromSmallToBig range in
   (* main main recursive algorithm *)
-  (* algo: 
-    * find topmost expression by ID and 
-    * reconstruct full/subset of expression 
+  (* algo:
+    * find topmost expression by ID and
+    * reconstruct full/subset of expression
     * recurse into children (that remain in subset) to reconstruct those too *)
   let rec reconstruct ~topmostID (startPos, endPos) : fluidExpr option =
     let topmostExpr =
@@ -3890,8 +3892,8 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         in
         ( match (reconstructExpr expr1, reconstructExpr expr2) with
         | Some newExpr1, Some newExpr2 when newName = "" ->
-          (* since we don't allow empty partials, reconstruct the binop as we would when 
-           * the binop is manually deleted 
+          (* since we don't allow empty partials, reconstruct the binop as we would when
+           * the binop is manually deleted
            * (by elevating the argument expressions into ELets provided they aren't blanks) *)
           ( match (newExpr1, newExpr2) with
           | EBlank _, EBlank _ ->
@@ -3939,7 +3941,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         | _, _ ->
             None )
     | ELambda (eID, _, body), tokens ->
-        (* might be an edge case here where one of the vars is not (fully) selected but 
+        (* might be an edge case here where one of the vars is not (fully) selected but
          * is still bound in the body, would be worth turning the EVars in the body to partials somehow *)
         let newVars =
           (* get lambda-var tokens that belong to this expression
@@ -4118,7 +4120,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
              , reconstructExpr thenBody |> orDefaultExpr
              , reconstructExpr elseBody |> orDefaultExpr ))
     (* Unknowns:
-     * - EThreadTarget: assuming it can't be selected since it doesn't produce tokens 
+     * - EThreadTarget: assuming it can't be selected since it doesn't produce tokens
      * - EOldExpr: going to ignore the "TODO: oldExpr" and assume it's a blank *)
     | _, _ ->
         Some (EBlank (gid ()))
@@ -4132,7 +4134,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
            if (* check if current token is higher in the AST than the last token,
                * or if there's no topmost ID yet *)
               (curDepth < topmostDepth || topmostID = None)
-              (* account for tokens that don't have ancestors (depth = 0) 
+              (* account for tokens that don't have ancestors (depth = 0)
                * but are not the topmost expression in the AST *)
               && not (curDepth = 0 && findExpr curID ast != Some ast)
            then (Some curID, curDepth)
@@ -4365,7 +4367,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
             collapsedSelStart + String.length (eToString state exprToPaste) }
       )
   (* TODO:
-   * - inserting thread after expression 
+   * - inserting thread after expression
    * - *)
   | _ ->
       (ast, state)
@@ -4708,11 +4710,33 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           else []
         in
         let classes = Token.toCssClasses ti.token in
-        let idStr = deID (Token.tid ti.token) in
+        let tokenId = Token.tid ti.token in
+        let idStr = deID tokenId in
         let idclasses = ["id-" ^ idStr] in
+        let errorClasses =
+          (* Here we want to find out the dval so we can apply error classes to the token *)
+          let id = Token.analysisID ti.token in
+          if FluidToken.validID id
+          then
+            (* match (Analysis.getLiveValueLoadable vs.analysisStore id, ti.token) with
+             | (LoadableSuccess DIncomplete, TBlank _)
+             | (LoadableSuccess DIncomplete, TPlaceholder _)
+             | (LoadableSuccess DIncomplete, TPartial _)
+             | (LoadableSuccess DIncomplete, TRightPartial _)
+             | (LoadableSuccess DIncomplete, TPartialGhost _) ->
+              (* TODO later we want to match token id with DIncomplete id *)
+              ["fluid-incomplete"]
+             | _ -> [] *)
+            match Analysis.getLiveValueLoadable vs.analysisStore id with
+            | LoadableSuccess (DSrcIncomplete incId) when incId = tokenId ->
+                ["fluid-incomplete"]
+            | _ ->
+                []
+          else []
+        in
         Html.span
           [ Attrs.class'
-              ( ["fluid-entry"] @ classes @ idclasses @ highlight
+              ( ["fluid-entry"] @ classes @ idclasses @ highlight @ errorClasses
               |> String.join ~sep:" " )
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
@@ -4811,7 +4835,14 @@ let viewLiveValue
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
                  let text = Runtime.toRepr dval in
-                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
+                 let copyBtn =
+                   match dval with
+                   | DIncomplete | DError _ ->
+                       Vdom.noNode
+                   | _ ->
+                       viewCopyButton tlid text
+                 in
+                 ([Html.text text; copyBtn], true, ti.startRow)
              | Some _, _ ->
                  none
              | None, LoadableNotInitialized | None, LoadableLoading _ ->
@@ -4988,12 +5019,12 @@ let renderCallback (m : model) : unit =
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
-        (* This for two different purposes: 
+        (* This for two different purposes:
          * 1. When a key press mutates the text in the content editable, the browser resets the caret position to the * beginnning of the content editable. Here we set the caret to the correct position from the fluidState
-         * 2. We intercept all keyboard caret movement, therefore we need to set the caret to the correct position 
+         * 2. We intercept all keyboard caret movement, therefore we need to set the caret to the correct position
          * from the fluidState
 
-         * We do this after a render(not waiting til the next frame) so that the developer does not see the caret 
+         * We do this after a render(not waiting til the next frame) so that the developer does not see the caret
          * flicker to default browser position
         *)
         match m.fluidState.selectionStart with
