@@ -604,15 +604,46 @@ let save_sexps (c : canvas) : string =
     else host
   in
   let file = Serialize.json_filename host in
-  Serialize.save_json_to_disk ~root:Testdata file c.ops ;
-  let handlers =
-    c.handlers
+  let ufns =
+    let string_orblank sob =
+      match sob with
+      | Blank _ ->
+          "blank"
+      | Filled (_, s) ->
+          s
+      | Partial _ ->
+          "PARTIAL NOT IMPLEMENTED"
+    in
+    let tipe_orblank tob =
+      match tob with Blank _ | Partial _ -> TAny | Filled (_, t) -> t
+    in
+    c.user_functions
     |> Map.fold ~init:[] ~f:(fun ~key:_ ~data:v acc -> v :: acc)
-    |> List.filter_map ~f:Libexecution.Toplevel.as_handler
-    |> List.map ~f:(fun h -> h.ast)
-    |> List.map ~f:Expr_dsl.sexp_for_
+    |> List.map ~f:(fun ufn ->
+           let ast = Expr_dsl.sexp_for_ ufn.ast in
+           let metadata = ufn.metadata in
+           let name, description, return_type =
+             ( string_orblank metadata.name
+             , metadata.description
+             , metadata.return_type |> tipe_orblank |> show_tipe_ )
+           in
+           let params =
+             metadata.parameters
+             |> List.map ~f:(fun (param : RTT.ufn_param) ->
+                    Sexp.List
+                      [ Sexp.Atom (param.name |> string_orblank)
+                      ; Sexp.Atom (param.tipe |> tipe_orblank |> show_tipe_) ]
+                )
+           in
+           Sexp.List
+             [ Sexp.Atom name
+             ; Sexp.Atom description
+             ; Sexp.List params
+             ; Sexp.Atom return_type
+             ; ast ] )
   in
-  Sexp.List handlers
+  ufns
+  |> Sexp.List
   |> Sexp.to_string_hum
   |> (fun s -> s ^ "\n")
   |> File.writefile Config.Testdata file ;
