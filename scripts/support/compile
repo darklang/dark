@@ -166,7 +166,7 @@ def rust_build(name):
     build_flags = ""
 
   start = time.time()
-  build = f"cd {name} && sudo chown dark -R /home/dark/.cargo && unbuffer cargo build{build_flags}"
+  build = f"cd {name} && unbuffer cargo build{build_flags}"
   if profile:
     return run_backend(start, landmarks + build)
   else:
