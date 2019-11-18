@@ -117,6 +117,70 @@ type tipe_ =
 
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
+let tipe_of_str (s : string) : tipe_ =
+  match s with
+  | "Types.TAny" ->
+      TAny
+  | "Types.TInt" ->
+      TInt
+  | "Types.TFloat" ->
+      TFloat
+  | "Types.TBool" ->
+      TBool
+  | "Types.TNull" ->
+      TNull
+  | "Types.TStr" ->
+      TStr
+  | "Types.TList" ->
+      TList
+  | "Types.TObj" ->
+      TObj
+  | "Types.TIncomplete" ->
+      TIncomplete
+  | "Types.TError" ->
+      TError
+  | "Types.TBlock" ->
+      TBlock
+  | "Types.TResp" ->
+      TResp
+  | "Types.TDB" ->
+      TDB
+  | "Types.TDate" ->
+      TDate
+  | "Types.TPassword" ->
+      TPassword
+  | "Types.TUuid" ->
+      TUuid
+  | "Types.TOption" ->
+      TOption
+  | "Types.TErrorRail" ->
+      TErrorRail
+  | "Types.TCharacter" ->
+      TCharacter
+  | "Types.TResult" ->
+      TResult
+  | "Types.TBytes" ->
+      TBytes
+  | "Types.TDeprecated1" ->
+      TDeprecated1
+  | "Types.TDeprecated6" ->
+      TDeprecated6
+  | "Types.TDeprecated2" ->
+      TDeprecated2
+  | "Types.TDeprecated3" ->
+      TDeprecated3
+  | "Types.TDeprecated4 of string"
+  | "Types.TDeprecated5 of string"
+  | "Types.TDbList of tipe_"
+  | "Types.TUserType of string * int"
+  | _ ->
+      (* Unsupported because let's not bother supporting non-trivial types for
+     * now. We def don't need to support TUserType in sexps - we're using that
+     * for developing stdlib in Dark. *)
+      Caml.print_endline ("Unsupported type for tipe_of_str: " ^ s) ;
+      TAny
+
+
 module RuntimeT = struct
   (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type fnname = string [@@deriving eq, compare, yojson, show, bin_io]
