@@ -1,0 +1,3 @@
+((stringMultiplier "" ((str Types.TStr) (times Types.TInt)) Types.TAny
+  (let strs (List::map (List::range 1 times) ("\\val" -> str))
+   (String::join strs "\"\""))))
