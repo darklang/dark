@@ -3224,6 +3224,7 @@ let getTopmostSelectionID startPos endPos ~state ast : id option =
   let asExpr = toExpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ~state ast
+  |> List.filter ~f:(fun ti -> not (Token.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
          let curID = Token.parentExprID ti.token in
          let curDepth = AST.ancestors curID asExpr |> List.length in
