@@ -3336,12 +3336,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, L (_, _), _ when Option.isSome s.selectionStart ->
+    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
+      ->
         deleteSelection ~state:s ~ast
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
-    | K.Delete, _, R (_, _) when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
