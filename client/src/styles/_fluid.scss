@@ -241,7 +241,8 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-pipe-symbol {
     color: $blue;
     font-size: 10px;
-    top: -1px;
+    padding-top: 3px;
+    padding-bottom: 1px;
   }
 
   /* Will style more later. Cmd palette should look like a smaller version of omnibox
