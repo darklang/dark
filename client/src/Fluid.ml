@@ -2737,8 +2737,15 @@ let adjustPosForReflow
     (oldTI : tokenInfo)
     (oldPos : int)
     (adjustment : newPosition) : int =
-  (* Any character change can cause the token to reflow: we need to find the
-     * token and then use it to put the pos back together *)
+  (* Reflow refers to adjusting layout for to prevent overly long lines. Any
+   * character change can cause that line to be too long (and so it will
+   * reflow) or no longer too long (and so it will un-reflow).
+   *
+   * We need to find where the cursor should be in the new AST, given the old
+   * position, the old token it was in, and the new AST. We do this by finding
+   * the old token in the new token stream, and then doing the appropriate
+   * adjustment. There are definitely places this won't work, but I haven't
+   * found them yet. *)
   let newTokens = toTokens state newAST in
   let newTI =
     List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
