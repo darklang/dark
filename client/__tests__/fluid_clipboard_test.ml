@@ -362,6 +362,45 @@ let () =
         (paste ~clipboard:(EString (gid (), "newString")) (11, 15))
         ("\"abcd EFGH newString 1234\"", "\"newString\"", 20) ;
       t
+        "pasting an EString in a TLStringMLStart should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij" ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (11, 15))
+        ( "\"0123456789XXXefghij0123456789abcdefghij0\n123456789abcdefghij\""
+        , "\"XXX\""
+        , 14 ) ;
+      t
+        "pasting an EString in the first TLStringMLMiddle should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (43, 50))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0XXX89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\""
+        , "\"XXX\""
+        , 46 ) ;
+      t
+        "pasting an EString in the second TLStringMLMiddle should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (96, 84))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXXdefghij0123456789abcdefghij012345678\n9abcdefghij\""
+        , "\"XXX\""
+        , 87 ) ;
+      t
+        "pasting an EString in a TLStringMLEnd should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (125, 126))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXX23456789abcdefghij\""
+        , "\"XXX\""
+        , 128 ) ;
+      t
         "pasting an EInteger in a string should paste it"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste ~clipboard:(EInteger (gid (), "5678")) (11, 15))
