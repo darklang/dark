@@ -136,7 +136,7 @@ let fns =
                 match fn [Dval.dstr_of_string_exn key; data] with
                 | DBool b ->
                     b
-                | DIncomplete ->
+                | DIncomplete _ ->
                     incomplete := true ;
                     false
                 | v ->
@@ -145,7 +145,9 @@ let fns =
                       ~result:v
                       ~actual:data
               in
-              if !incomplete then DIncomplete else DObj (Base.Map.filteri ~f o)
+              if !incomplete
+              then DIncomplete SourceNone (*TODO(ds) source info *)
+              else DObj (Base.Map.filteri ~f o)
           | args ->
               fail args)
     ; ps = true

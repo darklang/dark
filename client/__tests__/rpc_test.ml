@@ -27,7 +27,7 @@ let () =
           rtDval "int" (DInt 5) ;
           rtDval "obj" (DObj (StrDict.fromList [("foo", DInt 5)])) ;
           rtDval "date" (DDate "can be anything atm") ;
-          rtDval "incomplete" DIncomplete ;
+          rtDval "incomplete" (DIncomplete SourceNone) ;
           rtDval "float" (DFloat 7.2) ;
           rtDval "true" (DBool true) ;
           rtDval "false" (DBool false) ;

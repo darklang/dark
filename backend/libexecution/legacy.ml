@@ -30,7 +30,7 @@ module PrettyResponseJsonV0 = struct
         |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson ~redact v))
         |> fun x -> `Assoc x
-    | DBlock _ | DIncomplete | DSrcIncomplete _ ->
+    | DBlock _ | DIncomplete _ ->
         wrap_user_type `Null
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
@@ -126,7 +126,7 @@ module PrettyRequestJsonV0 = struct
   let is_stringable (dv : dval) : bool =
     match dv with
     | DBlock _
-    | DIncomplete
+    | DIncomplete _
     | DError _
     | DDate _
     | DPassword _

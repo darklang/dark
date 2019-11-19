@@ -192,7 +192,7 @@ let rec exec
           param
       | _ ->
           (* calculate the results inside this regardless *)
-          DIncomplete
+          DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
     trace exp result st ;
@@ -201,9 +201,9 @@ let rec exec
   let value _ =
     match expr with
     | Blank id ->
-        DSrcIncomplete id
+        DIncomplete (SourceId id)
     | Partial (id, _) ->
-        DSrcIncomplete id
+        DIncomplete (SourceId id)
     | Filled (_, FluidPartial (_, expr))
     | Filled (_, FluidRightPartial (_, expr)) ->
         exe st expr
@@ -234,7 +234,7 @@ let rec exec
                    None
                | v ->
                  ( match exe st v with
-                 | DIncomplete | DSrcIncomplete _ ->
+                 | DIncomplete _ ->
                      None (* ignore unfinished subexpr *)
                  | dv ->
                      Some dv ) )
@@ -247,7 +247,7 @@ let rec exec
                    let expr = exe st v in
                    trace_blank k expr st ;
                    ( match expr with
-                   | DIncomplete | DSrcIncomplete _ ->
+                   | DIncomplete _ ->
                        None
                    | _ ->
                        Some (keyname, expr) )
@@ -266,7 +266,7 @@ let rec exec
            * we guarantee to users that variables they can lookup have been
            * bound. However, we shouldn't crash out here when running analysis
            * because it gives a horrible user experience *)
-          DSrcIncomplete id
+          DIncomplete (SourceId id)
       | None, Real ->
           DError ("There is no variable named: " ^ name)
       | Some other, _ ->
@@ -288,10 +288,8 @@ let rec exec
           ( match exe st cond with
           | DBool false | DNull ->
               elseresult
-          | DIncomplete ->
-              DIncomplete
-          | DSrcIncomplete id ->
-              DSrcIncomplete id
+          | DIncomplete _ as i ->
+              i
           | DError _ ->
               DError "Expected boolean, got error"
           | DErrorRail _ as er ->
@@ -305,8 +303,8 @@ let rec exec
         (* only false and 'null' are falsey *)
         | DBool false | DNull ->
             exe st elsebody
-        | DIncomplete ->
-            DIncomplete
+        | DIncomplete _ as i ->
+            i
         | DError _ ->
             DError "Expected boolean, got error"
         | DErrorRail _ as er ->
@@ -346,7 +344,7 @@ let rec exec
           ( match condresult with
           | DBool true ->
               newresult
-          | DIncomplete ->
+          | DIncomplete _ ->
               oldresult
           | DError _ ->
               oldresult
@@ -369,7 +367,7 @@ let rec exec
               exe st newcode
           | DErrorRail _ ->
               exe st oldcode
-          | DIncomplete ->
+          | DIncomplete _ ->
               exe st oldcode
           | DError _ ->
               exe st oldcode
@@ -382,7 +380,9 @@ let rec exec
           * executed. So first we execute with no context to get some
           * live values. *)
           let fake_st =
-            Util.merge_left (Symtable.singleton "var" DIncomplete) st
+            Util.merge_left
+              (Symtable.singleton "var" (DIncomplete SourceNone))
+              st
           in
           ignore (exe fake_st body)
         else () ;
@@ -423,14 +423,14 @@ let rec exec
           List.fold_left es ~init:fst ~f:(fun previous nxt ->
               let result = inject_param_and_execute st previous nxt in
               match result with
-              | DIncomplete | DSrcIncomplete _ ->
+              | DIncomplete _ ->
                   previous
               (* let execution through *)
               (* DErrorRail is handled by inject_param_and_execute *)
               | _ ->
                   result )
       | [] ->
-          DSrcIncomplete id )
+          DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
         let rec matches dv (pat, e) =
           let result =
@@ -469,7 +469,7 @@ let rec exec
         let matched = List.filter_map ~f:(matches matchVal) cases in
         ( match matched with
         | [] ->
-            DSrcIncomplete id
+            DIncomplete (SourceId id)
         | (e, vars) :: _ ->
             let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
@@ -481,13 +481,11 @@ let rec exec
           | DObj o ->
             ( match field with
             | Partial (id, _) | Blank id ->
-                DSrcIncomplete id
+                DIncomplete (SourceId id)
             | Filled (_, f) ->
               (match Map.find o f with Some v -> v | None -> DNull) )
-          | DIncomplete ->
-              DIncomplete
-          | DSrcIncomplete id ->
-              DSrcIncomplete id
+          | DIncomplete _ as i ->
+              i
           | DErrorRail _ ->
               obj
           | x ->
@@ -541,7 +539,7 @@ and call_fn
             | Some (result, _ts) ->
                 result
             | inc ->
-                DSrcIncomplete id )
+                DIncomplete (SourceId id) )
         | Some fn ->
             (* equalize length *)
             let expected_length = List.length fn.parameters in
@@ -572,10 +570,8 @@ and call_fn
             v
         | DResult (ResOk v) ->
             v
-        | DIncomplete ->
-            DIncomplete
-        | DSrcIncomplete id ->
-            DSrcIncomplete id
+        | DIncomplete _ as i ->
+            i
         | DError e ->
             DError e
         (* There should only be DOptions and DResults here, but hypothetically we got
@@ -593,11 +589,7 @@ and exec_fn
     (fn : fn)
     (args : dval_map) : dval =
   let paramsIncomplete args =
-    List.find args ~f:(function
-        | DIncomplete | DSrcIncomplete _ ->
-            true
-        | _ ->
-            false )
+    List.find args ~f:(function DIncomplete _ -> true | _ -> false)
   in
   let paramsErroneous args =
     List.exists args ~f:(function
@@ -615,10 +607,8 @@ and exec_fn
   in
   let sfr_desc = (state.tlid, fnname, id) in
   match paramsIncomplete arglist with
-  | Some DIncomplete ->
-      DIncomplete
-  | Some (DSrcIncomplete id) ->
-      DSrcIncomplete id
+  | Some i ->
+      i
   | _ ->
       if paramsErroneous arglist
       then DError "Fn called with an error as an argument"
@@ -631,7 +621,7 @@ and exec_fn
               | Some (result, _ts) ->
                   result
               | inc ->
-                  DSrcIncomplete id
+                  DIncomplete (SourceId id)
             else
               let state =
                 {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}

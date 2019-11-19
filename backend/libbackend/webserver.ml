@@ -335,7 +335,7 @@ let result_to_response
     Header.add_unless_exists resp_headers "Content-Type" inferred_ct
   in
   match result with
-  | RTT.DIncomplete | RTT.DSrcIncomplete _ ->
+  | RTT.DIncomplete _ ->
       Respond
         { resp_headers = maybe_infer_cors (Header.init ())
         ; execution_id

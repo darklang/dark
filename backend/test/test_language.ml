@@ -76,9 +76,8 @@ let t_nothing () =
 
 
 let t_incomplete_propagation () =
-  check_dval
+  check_incomplete
     "Fn with incomplete return incomplete"
-    DIncomplete
     (exec_ast "(List::head _)") ;
   check_dval
     "Incompletes stripped from lists"
@@ -92,10 +91,7 @@ let t_incomplete_propagation () =
     "Blanks stripped from objects"
     (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
     (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
-  check_dval
-    "incomplete if conds are incomplete"
-    DIncomplete
-    (exec_ast "(if _ 5 6)") ;
+  check_incomplete "incomplete if conds are incomplete" (exec_ast "(if _ 5 6)") ;
   check_dval
     "blanks in threads are ignored"
     (Dval.dint 8)
@@ -108,14 +104,12 @@ let t_incomplete_propagation () =
     "incomplete at the end of a thread is skipped"
     (Dval.dint 5)
     (exec_ast "(| 5 (+ _))") ;
-  check_dval "empty thread is incomplete" DIncomplete (exec_ast "(|)") ;
-  check_dval
+  check_incomplete "empty thread is incomplete" (exec_ast "(|)") ;
+  check_incomplete
     "incomplete obj in field access is incomplete"
-    DIncomplete
     (exec_ast "(. (List::head _) field)") ;
-  check_dval
+  check_incomplete
     "incomplete name in field access is incomplete"
-    DIncomplete
     (exec_ast "(. (obj (i 5)) _)") ;
   ()
 
@@ -125,17 +119,12 @@ let t_derror_propagation () =
     "Mapping error results in error"
     (DError "Expected 2 arguments, got 1")
     (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))") ;
-  check_dval
+  check_incomplete
     "Incomplete in Just results in Incomplete"
-    DIncomplete
     (exec_ast "(Just _)") ;
-  check_dval
-    "Incomplete in Ok results in Incomplete"
-    DIncomplete
-    (exec_ast "(Ok _)") ;
-  check_dval
+  check_incomplete "Incomplete in Ok results in Incomplete" (exec_ast "(Ok _)") ;
+  check_incomplete
     "Incomplete in Error results in Incomplete"
-    DIncomplete
     (exec_ast "(Error _)") ;
   check_dval
     "ErrorRail in Error results in ErrorRail"
@@ -197,17 +186,14 @@ let t_error_rail_is_propagated_by_functions () =
     "push"
     (DErrorRail (DOption OptNothing))
     (exec_ast "(List::push (1 2 3 4) (`List::head_v1 []))") ;
-  check_dval
+  check_incomplete
     "filter with incomplete"
-    DIncomplete
     (exec_ast "(List::filter_v1 (1 2 3 4) (\\x -> _))") ;
-  check_dval
+  check_incomplete
     "map with incomplete"
-    DIncomplete
     (exec_ast "(List::map (1 2 3 4) (\\x -> _))") ;
-  check_dval
+  check_incomplete
     "fold with incomplete"
-    DIncomplete
     (exec_ast "(List::fold (1 2 3 4) 1 (\\x y -> (+ x _)))") ;
   check_dval
     "filter with error rail"

@@ -4619,7 +4619,7 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
     | Some (DErrorRail (DResult (ResError _)))
     | Some (DErrorRail (DOption OptNothing)) ->
         "ErrorRail"
-    | Some DIncomplete | Some (DError _) ->
+    | Some (DIncomplete _) | Some (DError _) ->
         "EvalFail"
     | _ ->
         ""
@@ -4728,7 +4728,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
               ["fluid-incomplete"]
              | _ -> [] *)
             match Analysis.getLiveValueLoadable vs.analysisStore id with
-            | LoadableSuccess (DSrcIncomplete incId) when incId = tokenId ->
+            | LoadableSuccess (DIncomplete (SourceId incId))
+              when incId = tokenId ->
                 ["fluid-incomplete"]
             | _ ->
                 []
@@ -4829,7 +4830,8 @@ let viewLiveValue
                Analysis.getLiveValueLoadable vs.analysisStore id
              in
              match (AC.highlighted state.ac, loadable) with
-             | None, LoadableSuccess DIncomplete when Option.isSome fnText ->
+             | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
+               ->
                  let text = Option.withDefault ~default:"" fnText in
                  ([Html.text text], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
@@ -4837,7 +4839,7 @@ let viewLiveValue
                  let text = Runtime.toRepr dval in
                  let copyBtn =
                    match dval with
-                   | DIncomplete | DError _ ->
+                   | DIncomplete _ | DError _ ->
                        Vdom.noNode
                    | _ ->
                        viewCopyButton tlid text

@@ -99,6 +99,9 @@ let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 let check_condition msg dval ~(f : dval -> bool) =
   AT.check AT.bool msg (f dval) true
 
+let check_incomplete =
+  check_condition ~f:(function DIncomplete _ -> true | _ -> false)
+
 
 let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 
@@ -416,7 +419,7 @@ let sample_dvals =
         (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
-  ; ("incomplete", DIncomplete)
+  ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError "some error string")
   ; ("block", DBlock (fun _args -> DNull))
   ; ("errorrail", DErrorRail (Dval.dint 5))
