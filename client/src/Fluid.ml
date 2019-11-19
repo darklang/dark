@@ -4764,6 +4764,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ViewUtils.eventNoPropagation
               ~key:
                 ( "fluid-selection-click-"
+                ^ idStr
+                ^ "-"
                 ^
                 match state.selectionStart with
                 | Some x ->
