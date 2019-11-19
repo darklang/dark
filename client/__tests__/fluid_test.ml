@@ -2141,12 +2141,11 @@ let () =
         (press K.ShiftEnter 11)
         ("let *** = 6\n          |>___\n5", 24) ;
       t
-        "shift enter in a record's mnewline creates the pipe in the expr, not the entire record"
+        "shift enter in a record's newline creates the pipe in the expr, not the entire record"
         (ERecord
            (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
         (press K.ShiftEnter 11)
-        (* TODO: the 2nd newline should go away with the next PR *)
-        ("{\n  f1 : 56\n       |>___\n\n  f2 : 78\n}", 21) ;
+        ("{\n  f1 : 56\n       |>___\n  f2 : 78\n}", 21) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
