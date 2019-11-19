@@ -4726,18 +4726,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           let id = Token.analysisID ti.token in
           if FluidToken.validID id
           then
-            (* match (Analysis.getLiveValueLoadable vs.analysisStore id, ti.token) with
-             | (LoadableSuccess DIncomplete, TBlank _)
-             | (LoadableSuccess DIncomplete, TPlaceholder _)
-             | (LoadableSuccess DIncomplete, TPartial _)
-             | (LoadableSuccess DIncomplete, TRightPartial _)
-             | (LoadableSuccess DIncomplete, TPartialGhost _) ->
-              (* TODO later we want to match token id with DIncomplete id *)
-              ["fluid-incomplete"]
-             | _ -> [] *)
             match Analysis.getLiveValueLoadable vs.analysisStore id with
             | LoadableSuccess (DIncomplete (SourceId incId))
-              when incId = tokenId ->
+              when incId = id && not (Token.isNewline ti.token) ->
                 ["fluid-incomplete"]
             | _ ->
                 []

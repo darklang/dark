@@ -340,8 +340,11 @@ since they are essentially both commands just acting upon different things. */
   display: none;
 }
 
-.toplevel.selected .fluid-incomplete {
+.toplevel.selected .fluid-empty.fluid-incomplete {
   background-color: transparent;
+}
+
+.toplevel.selected .fluid-incomplete {
   border: 1px dashed saturate($red, 10%);
   &.fluid-placeholder {
     color: darken($red, 10%);
