@@ -783,7 +783,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> indentBy ~indent:2 ~f:(fun b ->
                addIter fields b ~f:(fun i (aid, fname, expr) b ->
                    b
-                   |> add (TNewline (Some (id, id, Some i)))
+                   |> maybeNewline (TNewline (Some (id, id, Some i)))
                    |> add (TRecordField (id, aid, i, fname))
                    |> add (TRecordSep (id, i, aid))
                    |> addNested ~f:(fromExpr expr) ) )
