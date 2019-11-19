@@ -4787,7 +4787,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
       in
       if vs.permission = Some ReadWrite
       then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
-      else [] )
+      else [element []] )
   |> List.flatten
 
 
