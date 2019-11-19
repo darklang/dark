@@ -4185,6 +4185,18 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
+let getStringIndex ti pos : int =
+  match ti.token with
+  | TString (_, _) ->
+      pos - ti.startPos - 1
+  | TStringMLStart (_, _, offset, _) ->
+      pos - ti.startPos + offset - 1
+  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
+      pos - ti.startPos + offset
+  | _ ->
+      recover "getting index of non-string" 0
+
+
 let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
@@ -4211,16 +4223,18 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting other kinds of expressions into string *)
-  | Some clipboardExpr, Some (EString (_, str)), Some {startPos} ->
+  | Some clipboardExpr, Some (EString (_, str)), Some ti ->
       let insert = eToString state clipboardExpr |> trimQuotes in
-      let index = state.newPos - startPos - 1 in
+      let index = getStringIndex ti state.newPos in
       let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
+      (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
+      let newPos = state.newPos + String.length insert in
+      (newAST, {state with newPos})
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
     , Some (EInteger (_, pasting))
