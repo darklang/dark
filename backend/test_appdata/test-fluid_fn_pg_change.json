@@ -1,0 +1,38 @@
+[
+  [ "TLSavepoint", 2091743543 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 2091743543,
+      "metadata": {
+        "name": [ "Filled", 835928855, "fn1" ],
+        "parameters": [],
+        "return_type": [ "Filled", 1302107065, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [ "Filled", 1030169545, [ "Value", "\"let's have some fun\"" ] ]
+    }
+  ],
+  [ "TLSavepoint", 2091743543 ],
+  [ "TLSavepoint", 1464810122 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 1464810122,
+      "metadata": {
+        "name": [ "Filled", 256468695, "fn2" ],
+        "parameters": [],
+        "return_type": [ "Filled", 489186938, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [
+        "Filled",
+        1154335426,
+        [ "Value", "\"wow! that was too much fun\"" ]
+      ]
+    }
+  ],
+  [ "TLSavepoint", 1464810122 ]
+]

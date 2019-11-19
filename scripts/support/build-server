@@ -202,6 +202,7 @@ def main():
   run("sudo chown dark:dark /home/dark/.esy")
   run("sudo chown dark:dark client/node_modules")
   run("sudo chown dark:dark client/lib")
+  run("sudo chown dark:dark /home/dark/.cargo")
   run("sudo chown dark:dark stroller/target")
   run("sudo chown dark:dark queue-scheduler/target")
   run_or_fail("scripts/support/write-config-file")

@@ -73,6 +73,7 @@ type key =
   | CapsLock
   | Escape
   | Enter
+  | ShiftEnter
   | Backspace
   | Delete
   | PageUp
@@ -120,7 +121,7 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 9 ->
       if shift then ShiftTab else Tab
   | 13 ->
-      Enter
+      if shift then ShiftEnter else Enter
   | 16 ->
       Shift None
   | 17 ->
@@ -404,6 +405,7 @@ let toChar key : char option =
   | Escape
   | CapsLock
   | Enter
+  | ShiftEnter
   | Backspace
   | Delete
   | PageUp
@@ -536,6 +538,8 @@ let toName (key : key) : string =
       "Escape"
   | Enter ->
       "Enter"
+  | ShiftEnter ->
+      "ShiftEnter"
   | Backspace ->
       "Backspace"
   | Delete ->

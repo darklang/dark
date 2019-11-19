@@ -5426,10 +5426,10 @@ punycode@^2.1.0, punycode@^2.1.1:
   resolved "https://registry.yarnpkg.com/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
 
-pusher-js@^5.0.2:
-  version "5.0.2"
-  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-5.0.2.tgz#bb65976d0a093e98a6e222020586ae72e5bd4bc4"
-  integrity sha512-onQui1AwE+Z0ab3kvSruz5TgW+i4qr98fN0jgV/iLlkj2B+LWtqcP+kh9H8sPmHOEnwayhhkNJHaC6jGLHHl7w==
+pusher-js@^5.0.3:
+  version "5.0.3"
+  resolved "https://registry.yarnpkg.com/pusher-js/-/pusher-js-5.0.3.tgz#22c62d0a094ed23f356d3a18aef360a5aacb1bd6"
+  integrity sha512-vbaflcd8LYaErJ0LrXZyLQ+meMuD3N2kl9hXUrj22VZLsKyfRFbXS3eCb6/2erQLFeHcnbkWPyBvxya+706+zw==
 
 qrcode-terminal@^0.10.0:
   version "0.10.0"
@@ -5795,10 +5795,10 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^3.0.0"
     inherits "^2.0.1"
 
-rollbar@^2.14.2:
-  version "2.14.2"
-  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.14.2.tgz#f92d260f50755394b76b6778c6b0a1ae92f9c930"
-  integrity sha512-hOvv8wPw0FmtfOIm36ZU5u7dTeA52ue/cAXAd6l7tNzXg5RSA+egcnWSt7sLZJe0ylkV9oplcAfKkoXI9i90Fg==
+rollbar@^2.14.4:
+  version "2.14.4"
+  resolved "https://registry.yarnpkg.com/rollbar/-/rollbar-2.14.4.tgz#b89f6ddd57adb88ae48f6d8c46619ef44fb27888"
+  integrity sha512-96m2/pBV8UioBjmqa7/WXiPIcumuuGvmfiB9WHRdVBdHcAuBhYBivWl+NMmS/op2XZ54qAmJyd3uThW6SSKvzQ==
   dependencies:
     async "~1.2.1"
     buffer-from "~1.1.1"
