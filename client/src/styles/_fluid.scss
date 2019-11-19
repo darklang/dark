@@ -3,7 +3,7 @@
 //*************
 
 /* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
-$prec-colors: (#301728, #93385F, #4F3466, #9F6B99);
+$prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 @mixin precedence($depth) {
   .precedence-#{$depth} {
     background-color: nth($prec-colors, $depth);
@@ -109,12 +109,11 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-entry {
     display: inline-block;
     white-space: pre;
-    
+
     &.fluid-newline {
       white-space: nowrap;
     }
   }
-
 
   .fluid-newline {
     display: block;

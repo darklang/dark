@@ -359,8 +359,11 @@ let toText (t : token) : string =
       canBeEmpty name
   | TPatternConstructorName (_, _, name) ->
       canBeEmpty name
-  | TParenOpen _ -> "(" (* TODO(JULIAN): It isn't immediately clear if we want to make toText do this, depending on how toText is used... *)
-  | TParenClose _ -> ")"
+  | TParenOpen _ ->
+      "("
+      (* TODO(JULIAN): It isn't immediately clear if we want to make toText do this, depending on how toText is used... *)
+  | TParenClose _ ->
+      ")"
 
 
 let toTestText (t : token) : string =
