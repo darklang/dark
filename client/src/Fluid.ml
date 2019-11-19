@@ -3835,8 +3835,13 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
                then ENull id
                else EPartial (gid (), newValue, ENull id) )
     | EString (eID, _), tokens ->
-        findTokenValue tokens eID "string"
-        |> Option.map ~f:(fun newValue -> EString (id, trimQuotes newValue))
+        let merged =
+          tokens
+          |> List.filter ~f:(fun (_, _, type_) -> type_ <> "newline")
+          |> List.map ~f:Tuple3.second
+          |> String.join ~sep:""
+        in
+        if merged = "" then None else Some (EString (eID, trimQuotes merged))
     | EFloat (eID, _, _), tokens ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
