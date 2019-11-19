@@ -41,8 +41,44 @@ let show_segment_type (st : segment_type) : string =
   match st with Track -> "track" | Identify -> "identify"
 
 
-(* private function *)
-let segment_event
+let _payload_for_segment_event
+    ~execution_id ~canvas ~canvas_id (payload : Yojson.Safe.t) : Yojson.Safe.t
+    =
+  let timestamp =
+    Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
+  in
+  match payload with
+  | `Assoc orig_payload_items ->
+      `Assoc
+        ( orig_payload_items
+        @ ( canvas
+          |> Option.map ~f:(fun c -> [("canvas", `String c)])
+          |> Option.value ~default:[] )
+        @ ( canvas_id
+          |> Option.map ~f:(fun c ->
+                 [("canvas_id", `String (c |> Uuidm.to_string))] )
+          |> Option.value ~default:[] )
+        @ ( execution_id
+          |> Option.map ~f:(fun eid ->
+                 [("execution_id", `String (eid |> Types.string_of_id))] )
+          |> Option.value ~default:[] )
+        @ [("timestamp", `String timestamp)] )
+  | _ ->
+      Exception.internal
+        "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
+
+
+let _log_params_for_segment ~canvas ~canvas_id ~event ~username :
+    (string * string) list =
+  [ ("canvas", canvas)
+  ; ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
+  ; ("event", event)
+  ; ("username", Some username) ]
+  |> List.filter_map ~f:(fun (k, v) ->
+         match v with Some v -> Some (k, v) | _ -> None )
+
+
+let _segment_event
     ?canvas_id
     ?canvas
     ~(username : string)
@@ -50,36 +86,11 @@ let segment_event
     ?event
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
-  let timestamp =
-    Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
-  in
   let log_params =
-    [ ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
-    ; ("event", event)
-    ; ("username", Some username) ]
-    |> List.filter_map ~f:(fun (k, v) ->
-           match v with Some v -> Some (k, v) | _ -> None )
+    _log_params_for_segment ~canvas ~canvas_id ~event ~username
   in
   let payload =
-    match payload with
-    | `Assoc orig_payload_items ->
-        `Assoc
-          ( orig_payload_items
-          @ ( canvas
-            |> Option.map ~f:(fun c -> [("canvas", `String c)])
-            |> Option.value ~default:[] )
-          @ ( canvas_id
-            |> Option.map ~f:(fun c ->
-                   [("canvas_id", `String (c |> Uuidm.to_string))] )
-            |> Option.value ~default:[] )
-          @ ( execution_id
-            |> Option.map ~f:(fun eid ->
-                   [("execution_id", `String (eid |> Types.string_of_id))] )
-            |> Option.value ~default:[] )
-          @ [("timestamp", `String timestamp)] )
-    | _ ->
-        Exception.internal
-          "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
+    payload |> _payload_for_segment_event ~execution_id ~canvas ~canvas_id
   in
   match Config.stroller_port with
   | None ->
@@ -171,36 +182,11 @@ let segment_event_blocking
     ?event
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) =
-  let timestamp =
-    Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
+  let payload =
+    payload |> _payload_for_segment_event ~execution_id ~canvas ~canvas_id
   in
   let log_params =
-    [ ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
-    ; ("event", event)
-    ; ("username", Some username) ]
-    |> List.filter_map ~f:(fun (k, v) ->
-           match v with Some v -> Some (k, v) | _ -> None )
-  in
-  let payload =
-    match payload with
-    | `Assoc orig_payload_items ->
-        `Assoc
-          ( orig_payload_items
-          @ ( canvas
-            |> Option.map ~f:(fun c -> [("canvas", `String c)])
-            |> Option.value ~default:[] )
-          @ ( canvas_id
-            |> Option.map ~f:(fun c ->
-                   [("canvas_id", `String (c |> Uuidm.to_string))] )
-            |> Option.value ~default:[] )
-          @ ( execution_id
-            |> Option.map ~f:(fun eid ->
-                   [("execution_id", `String (eid |> Types.string_of_id))] )
-            |> Option.value ~default:[] )
-          @ [("timestamp", `String timestamp)] )
-    | _ ->
-        Exception.internal
-          "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
+    _log_params_for_segment ~canvas_id ~canvas ~event ~username
   in
   match Config.stroller_port with
   | None ->
@@ -239,7 +225,7 @@ let segment_track
     ~(event : string)
     (msg_type : segment_type)
     (payload : Yojson.Safe.t) : unit =
-  segment_event
+  _segment_event
     ~canvas_id
     ~canvas
     ~username
