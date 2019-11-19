@@ -4011,6 +4011,15 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         let newFnName =
           findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
         in
+        let newFnVersion =
+          findTokenValue tokens eID "fn-version"
+          |> Option.withDefault ~default:""
+        in
+        let newFnName =
+          if newFnVersion = ""
+          then newFnName
+          else newFnName ^ "_" ^ newFnVersion
+        in
         let e = EFnCall (id, fnName, newArgs, ster) in
         if newFnName = ""
         then None

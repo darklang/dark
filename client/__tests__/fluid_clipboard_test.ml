@@ -837,6 +837,11 @@ let () =
         (copy (0, 9))
         ("Int::sqrt 122", "Int::sqrt ___", 9) ;
       t
+        "copying a function name with a version adds an EFnCall, not a partial"
+        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail))
+        (copy (0, 18))
+        ("HttpClient::postv4 \"\"", "HttpClient::postv4 ___", 18) ;
+      t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 4))
