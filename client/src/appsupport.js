@@ -161,8 +161,20 @@ function isChildOfEditor(node) {
 // part of a fluid editor. Begin may be > or < end,
 // depending on the selection direction. If there is no true selection
 // but rather a placement, begin == end.
-// This function assumes there are no nested DOM nodes, just a flat list of spans
+// This function assumes there is a flat list of .fluid-entry tokens
+// in the editor, and that any nesting is limited to stylistic nesting within a
+// .fluid-entry node (such as that used for parens).
 function getFluidSelectionRange() {
+  function _parentCrawlToFluidEntryParentOrUndefined(node) {
+    while (node !== null) {
+      if (node.classList.contains("fluid-entry")) {
+        return node;
+      }
+      node = node.parentNode;
+    }
+    return undefined;
+  }
+
   // OPT(JULIAN): There's likely a more performant way of getting selection
   // start and end than to walk all prior nodes twice.
   let sel = window.getSelection();
@@ -177,8 +189,12 @@ function getFluidSelectionRange() {
   // within the text of that node.
   let selBeginIdx = sel.anchorOffset;
   {
-    let node = sel.anchorNode.parentNode;
-    // This only works because there is no nesting
+    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.anchorNode.parentNode);
+    if (!node) {
+      // If this happens, it means that the selection wasn't inside a .fluid-entry node
+      return undefined;
+    }
+    // This only works because we expect .fluid-entry nodes to be siblings with no nesting
     while (node.previousSibling) {
       node = node.previousSibling;
       selBeginIdx += node.textContent.length;
@@ -189,8 +205,12 @@ function getFluidSelectionRange() {
   // (and where the cursor is now located) within the text of that node.
   let selEndIdx = sel.focusOffset;
   {
-    let node = sel.focusNode.parentNode;
-    // This only works because there is no nesting
+    let node = _parentCrawlToFluidEntryParentOrUndefined(sel.focusNode.parentNode);
+    if (!node) {
+      // If this happens, it means that the selection wasn't inside a .fluid-entry node
+      return undefined;
+    }
+    // This only works because we expect .fluid-entry nodes to be siblings with no nesting
     while (node.previousSibling) {
       node = node.previousSibling;
       selEndIdx += node.textContent.length;
@@ -202,7 +222,9 @@ function getFluidSelectionRange() {
 // setFluidSelectionRange([beginIdx, endIdx]) attempts to select the passed
 // region in the currently selected fluid editor, if there is one.
 // If beginIdx == endIdx, it sets the caret position (0-width selection).
-// This function assumes there are no nested DOM nodes, just a flat list of spans.
+// This function assumes we never want to place the selection within a
+// nested DOM node (it crawls siblings).
+// See getFluidSelectionRange for the counterpart.
 function setFluidSelectionRange([beginIdx, endIdx]) {
   let clamp = function(num, min, max) {
     if (num < min) {
@@ -224,7 +246,8 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
   let focusNodeOffset = clamp(endIdx, 0, maxChars);
   let anchorNode, focusNode; // The beginIdx is in the anchorNode and the endIdx is in the focusNode
   let childNodes = editor.childNodes;
-  // This only works because there is no nesting
+  // This only works because nesting is so limited
+  // TODO(JULIAN): We need to revisit the assumptions here if we need multi-char nesting.
   for (let i = 0; i < childNodes.length; i++) {
     let nodeLen = childNodes[i].textContent.length;
     if (anchorNodeOffset <= nodeLen /* the beginIdx must be inside this node */) {
@@ -236,7 +259,8 @@ function setFluidSelectionRange([beginIdx, endIdx]) {
       anchorNodeOffset -= nodeLen;
     }
   }
-  // This only works because there is no nesting
+  // This only works because nesting is so limited
+  // TODO(JULIAN): We need to revisit the assumptions here if we need multi-char nesting.
   for (let i = 0; i < childNodes.length; i++) {
     let nodeLen = childNodes[i].textContent.length;
     if (focusNodeOffset <= nodeLen /* the endIdx must be inside this node */) {
