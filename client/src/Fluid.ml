@@ -4959,22 +4959,35 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         let analysisId = Token.analysisID ti.token in
         (* Apply CSS classes to token *)
         let tokenClasses = Token.toCssClasses ti.token in
-        let (backingNestingClass, innerNestingClass) = 
-          let (tokenBackingPrecedence, tokenInnerPrecedence) = 
-            (let currNesting = !nesting in
-              (match ti.token with 
-              | TParenOpen _ -> nesting := !nesting + 1; (currNesting, Some !nesting)
-              | TParenClose _ -> nesting := !nesting - 1; (!nesting, Some currNesting)
-              | _ -> (currNesting, None))) in
+        let backingNestingClass, innerNestingClass =
+          let tokenBackingPrecedence, tokenInnerPrecedence =
+            let currNesting = !nesting in
+            match ti.token with
+            | TParenOpen _ ->
+                nesting := !nesting + 1 ;
+                (currNesting, Some !nesting)
+            | TParenClose _ ->
+                nesting := !nesting - 1 ;
+                (!nesting, Some currNesting)
+            | _ ->
+                (currNesting, None)
+          in
           (* We want 0 precedence to only show up at the AST root and not in any wraparounds, so this goes 0123412341234... *)
-          let wraparoundPrecedenceClass ~ext n = (let wraparoundPrecedence = (if n > 0 then 
-                                          (((n-1) mod 4) + 1)
-                                          else n) in (["precedence-" ^ (wraparoundPrecedence |> string_of_int)] @ ext)) in
-          ((tokenBackingPrecedence |> (wraparoundPrecedenceClass ~ext:[])),
-           (tokenInnerPrecedence |> Option.map ~f:(wraparoundPrecedenceClass ~ext:["fluid-inner"])))
-           in
+          let wraparoundPrecedenceClass ~ext n =
+            let wraparoundPrecedence =
+              if n > 0 then ((n - 1) mod 4) + 1 else n
+            in
+            ["precedence-" ^ (wraparoundPrecedence |> string_of_int)] @ ext
+          in
+          ( tokenBackingPrecedence |> wraparoundPrecedenceClass ~ext:[]
+          , tokenInnerPrecedence
+            |> Option.map ~f:(wraparoundPrecedenceClass ~ext:["fluid-inner"])
+          )
+        in
         let cls =
-          "fluid-entry" :: ("id-" ^ idStr) :: (backingNestingClass @ tokenClasses)
+          "fluid-entry"
+          :: ("id-" ^ idStr)
+          :: (backingNestingClass @ tokenClasses)
           |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
         let conditionalClasses =
@@ -4994,8 +5007,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
             ) ]
         in
-        let clickHandlers = [
-          ViewUtils.eventNeither
+        let clickHandlers =
+          [ ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
               (fun ev ->
@@ -5055,15 +5068,20 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
-                    IgnoreMsg )
-        ] in
+                    IgnoreMsg ) ]
+        in
         let innerNode =
-          (match innerNestingClass with
-          | Some cls -> [(Html.span ([(Attrs.class' (cls |> String.join ~sep:" "))] @ clickHandlers) [Html.text content])]
-          | None -> [Html.text content]) in
-        (Html.span
-          ((Html.classList (cls @ conditionalClasses)) :: clickHandlers)
-        (innerNode @ nested))
+          match innerNestingClass with
+          | Some cls ->
+              [ Html.span
+                  ([Attrs.class' (cls |> String.join ~sep:" ")] @ clickHandlers)
+                  [Html.text content] ]
+          | None ->
+              [Html.text content]
+        in
+        Html.span
+          (Html.classList (cls @ conditionalClasses) :: clickHandlers)
+          (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
       then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
