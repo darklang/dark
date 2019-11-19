@@ -3773,17 +3773,16 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
       (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos ~state ast
       |> List.map ~f:(fun ti ->
-             let open String in
              let t = ti.token in
              let text =
                (* trim tokens if they're on the edge of the range *)
                Token.toText t
-               |> dropLeft
+               |> String.dropLeft
                     ~count:
                       ( if ti.startPos < startPos
                       then startPos - ti.startPos
                       else 0 )
-               |> dropRight
+               |> String.dropRight
                     ~count:
                       (if ti.endPos > endPos then ti.endPos - endPos else 0)
                |> fun text ->
