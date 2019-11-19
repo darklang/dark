@@ -4007,7 +4007,14 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         then Some (EPartial (gid (), newValue, e))
         else Some e
     | EFnCall (eID, fnName, args, ster), tokens ->
-        let newArgs = List.map args ~f:(reconstructExpr >> orDefaultExpr) in
+        let newArgs =
+          match args with
+          | EThreadTarget _ :: args ->
+              EThreadTarget (gid ())
+              :: List.map args ~f:(reconstructExpr >> orDefaultExpr)
+          | _ ->
+              List.map args ~f:(reconstructExpr >> orDefaultExpr)
+        in
         let newFnName =
           findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
         in

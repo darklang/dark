@@ -882,6 +882,13 @@ let () =
         aThread
         (copy (0, 2))
         ("[]\n|>List::append [5]\n|>List::append [5]\n", "[]", 2) ;
+      t
+        "copying thread adds it to clipboard"
+        aThread
+        (copy (0, 41))
+        ( "[]\n|>List::append [5]\n|>List::append [5]\n"
+        , "[]\n|>List::append [5]\n|>List::append [5]\n"
+        , 41 ) ;
       () ) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
