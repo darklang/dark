@@ -176,6 +176,7 @@ let t_result_stdlibs_work () =
 
 let t_dict_stdlibs_work () =
   let dstr = Dval.dstr_of_string_exn in
+  let dint i = DInt (Dint.of_int i) in
   check_dval
     "dict keys"
     (exec_ast "(Dict::keys (obj (key1 'val1')))")
@@ -213,13 +214,23 @@ let t_dict_stdlibs_work () =
   check_dval
     "dict filter keeps val"
     (exec_ast
-       "(Dict::filter (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
     (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
   check_dval
     "dict filter keeps key"
     (exec_ast
-       "(Dict::filter (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
     (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
+  check_dval
+    "dict filter propagates incomplete from lambda"
+    (exec_ast
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k _)))")
+    DIncomplete ;
+  check_dval
+    "dict filter ignores incomplete from obj"
+    (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
+    (exec_ast
+       "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
   ()
 
 
