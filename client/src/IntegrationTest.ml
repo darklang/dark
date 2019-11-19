@@ -932,6 +932,11 @@ let sha256hmac_for_aws (_m : model) : testResult =
   pass
 
 
+let fluid_fn_pg_change (_m : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1086,5 +1091,7 @@ let trigger (test_name : string) : integrationTestState =
         tobytes_roundtrip
     | "sha256hmac_for_aws" ->
         sha256hmac_for_aws
+    | "fluid_fn_pg_change" ->
+        fluid_fn_pg_change
     | n ->
         Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

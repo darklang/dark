@@ -375,10 +375,11 @@ let () =
   let process
       ~(debug : bool)
       (keys : (K.key * shiftState) list)
+      (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
-    let newlinesBeforeStartPos =
+    let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
        * 2*nl to get the pos in place. (Note: it's correct to just count them,
@@ -395,9 +396,10 @@ let () =
     in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
-    let extra = wrapperOffset + (newlinesBeforeStartPos * 2) in
-    let pos = pos + extra in
-    let s = {s with oldPos = pos; newPos = pos} in
+    let addWrapper pos = pos + wrapperOffset + (newlinesBefore pos * 2) in
+    let pos = addWrapper pos in
+    let selectionStart = Option.map selectionStart ~f:addWrapper in
+    let s = {s with oldPos = pos; newPos = pos; selectionStart} in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
@@ -413,8 +415,8 @@ let () =
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in
       (* Account for the newlines as we find them, or else we won't know our
-          * position to find the newlines correctly. There'll be extra indentation,
-          * so we need to subtract those to get the pos we expect. *)
+       * position to find the newlines correctly. There'll be extra indentation,
+       * so we need to subtract those to get the pos we expect. *)
       result
       |> toTokens newState
       |> List.iter ~f:(fun ti ->
@@ -435,11 +437,7 @@ let () =
     in
     let finalPos = removeWrapperFromCaretPos newState.newPos in
     let selPos =
-      match newState.selectionStart with
-      | Some p ->
-          Some (removeWrapperFromCaretPos p)
-      | None ->
-          None
+      Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
@@ -456,46 +454,59 @@ let () =
     ((eToString s result, (selPos, finalPos)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
-    process ~debug:false [] 0 expr
+    process ~debug:false [] None 0 expr
   in
   let del ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Delete, ShiftNotHeld)] pos expr
+    process ~debug [(K.Delete, ShiftNotHeld)] None pos expr
   in
   let bs ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Backspace, ShiftNotHeld)] pos expr
+    process ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
   in
   let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Tab, ShiftNotHeld)] pos expr
+    process ~debug [(K.Tab, ShiftNotHeld)] None pos expr
   in
   let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.ShiftTab, ShiftNotHeld)] pos expr
+    process ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
   in
   let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Space, ShiftNotHeld)] pos expr
+    process ~debug [(K.Space, ShiftNotHeld)] None pos expr
   in
   let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Enter, ShiftNotHeld)] pos expr
+    process ~debug [(K.Enter, ShiftNotHeld)] None pos expr
   in
   let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~debug [(key, ShiftNotHeld)] pos expr
+    process ~debug [(key, ShiftNotHeld)] None pos expr
+  in
+  let selectionPress
+      ?(debug = false)
+      (key : K.key)
+      (selectionStart : int)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~debug [(key, ShiftNotHeld)] (Some selectionStart) pos expr
   in
   let presses
       ?(debug = false) (keys : K.key list) (pos : int) (expr : fluidExpr) :
       testResult =
-    process ~debug (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys) pos expr
+    process
+      ~debug
+      (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
+      None
+      pos
+      expr
   in
   let modPresses
       ?(debug = false)
       (keys : (K.key * shiftState) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~debug keys pos expr
+    process ~debug keys None pos expr
   in
   let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
       testResult =
     let key = K.fromChar char in
-    process ~debug [(key, ShiftNotHeld)] pos expr
+    process ~debug [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
   let t
@@ -541,7 +552,9 @@ let () =
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      (expected : string * (int option * int)) =
+      ((expectedString, (expectedLeft, expectedRight)) : string * (int * int))
+      =
+    let expected = (expectedString, (Some expectedLeft, expectedRight)) in
     test
       ( name
       ^ " - `"
@@ -1993,10 +2006,32 @@ let () =
         ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
         , 73 ) ;
       t
-        "inserting a thread into another thread gives a single thread"
+        "inserting a thread into another thread gives a single thread1"
         (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
+      t
+        "inserting a thread into another thread gives a single thread2"
+        (threadOn five [listFn [aList5]])
+        (press K.ShiftEnter 19)
+        ("5\n|>List::append [5]\n|>___\n", 23) ;
+      t
+        "inserting a thread into another thread gives a single thread3"
+        five
+        (press K.ShiftEnter 1)
+        ("5\n|>___\n", 4) ;
+      t
+        "shift enter at a let's newline creates the pipe on the rhs"
+        nonEmptyLet
+        (press K.ShiftEnter 11)
+        ("let *** = 6\n          |>___\n5", 24) ;
+      t
+        "shift enter in a record's mnewline creates the pipe in the expr, not the entire record"
+        (ERecord
+           (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
+        (press K.ShiftEnter 11)
+        (* TODO: the 2nd newline should go away with the next PR *)
+        ("{\n  f1 : 56\n       |>___\n\n  f2 : 78\n}", 21) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
@@ -2650,19 +2685,31 @@ let () =
         longLets
         (modPresses [(K.Right, ShiftHeld)] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 0, 4) ) ;
+        , (0, 4) ) ;
       ts
         "shift down selects"
         longLets
         (modPresses [(K.Down, ShiftHeld)] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 4, 52) ) ;
+        , (4, 52) ) ;
       ts
         "shift left selects"
         longLets
         (modPresses [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (Some 52, 48) ) ;
+        , (52, 48) ) ;
+      t
+        "selecting an expression pipes from it 1"
+        (EBinOp
+           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (selectionPress K.ShiftEnter 4 5)
+        ("4 + 5\n    |>___\n", 12) ;
+      t
+        "selecting an expression pipes from it 2"
+        (EBinOp
+           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (selectionPress K.ShiftEnter 5 4)
+        ("4 + 5\n    |>___\n", 12) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
