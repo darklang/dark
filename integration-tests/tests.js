@@ -1225,3 +1225,17 @@ test("sha256hmac_for_aws", async t => {
     .expect(Selector("div.live-value").innerText)
     .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
 });
+
+test("fluid_fn_pg_change", async t => {
+  await t.navigateTo("#fn=2091743543");
+  await t.expect(available(".tl-2091743543")).ok();
+
+  await t.navigateTo("#fn=1464810122");
+  await t.expect(available(".tl-1464810122")).ok();
+
+  // Click into code to edit
+  await t.click(Selector(".fluid-entry.id-1154335426"));
+
+  //Make sure we stay on the page
+  await t.expect(available(".tl-1464810122")).ok({ timeout: 1000 });
+});
