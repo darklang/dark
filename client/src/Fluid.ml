@@ -4377,11 +4377,6 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       (ast, state)
 
 
-let copy (state : fluidState) (ast : fluidExpr) : fluidExpr option =
-  fluidGetOptionalSelectionRange state
-  |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
-
-
 let fluidDataFromModel m : (fluidState * fluidExpr) option =
   match Toplevel.selectedAST m with
   | Some expr ->
