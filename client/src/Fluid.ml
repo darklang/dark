@@ -1429,68 +1429,45 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
-  let s = recordAction "goToStartOfWord" s in
-  (* Made it to parse the token as a string and go to the front of each word instead of each token *)
-  let parseString (t : string) (token : fluidTokenInfo) : int =
-    (* Ex: "A Big Bug" *)
-    (* Turn string to array of characters:*)
-    (* Ex: ["A", " " , "b", "i", "g", " ", "B", "u", "g"] *)
-    let strList = t |> String.trim |> String.split ~on:"" in
-    strList
-    (* Create list of index's that are spaces or a qoute mark *)
-    (* Ex: [None, Some 1 , None, None, None, Some 4, None, None, None] *)
+  let optionTokenInfo =
+    let tokens = toTokens s ast in
+    let rec findToken (tokenInfo : fluidTokenInfo option) =
+      match tokenInfo with
+      | Some ti ->
+          if Token.isTextToken ti.token && pos != ti.startPos
+          then Some ti
+          else
+            let mPrev, _, _ = getTokensAtPosition ~pos:ti.startPos tokens in
+            findToken mPrev
+      | None ->
+          None
+    in
+    findToken (Some ti)
+  in
+  (* Finds how many moves to get to first whitespace *)
+  let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
+    Token.toText tokenInfo.token
+    |> String.split ~on:""
     |> List.mapi ~f:(fun idx a ->
            if a == " " || a = "\""
-           then if idx == token.length - 1 then Some idx else Some (idx + 1)
+           then if idx == tokenInfo.length - 1 then Some idx else Some (idx + 1)
            else None )
-    (* Filter out Options *)
-    (* Ex: [1,4] *)
     |> List.filterMap ~f:(fun v -> v)
-    (* Reverse the list to read from right -> left *)
-    (* Ex: [4,1] *)
     |> List.reverse
-    (* Find the first one after the current position *)
-    (* Ex: currentPos = 5; below returns: 4 *)
     |> List.find ~f:(fun x ->
            (* Not a position after the cursor, or currently on that space *)
-           if x + token.startPos >= pos then false else true )
+           if x + tokenInfo.startPos >= pos then false else true )
     |> Option.withDefault ~default:0
   in
-  let findWhitespaceOffset (token : fluidTokenInfo) : int =
-    let t = Token.toText token.token in
-    let stringLength = token.length in
-    (* Counts the leading white space(s) *)
-    let leadingWhiteSpace =
-      t
-      |> Util.Regex.replace ~re:(Util.Regex.regex "^\\s+") ~repl:""
-      |> String.length
-    in
-    if stringLength == stringLength - leadingWhiteSpace
-    then 0
-    else parseString t token
-  in
-  let token =
-    let tokens = toTokens s ast in
-    let mPrev, _, _ = getTokensAtPosition ~pos tokens in
-    match mPrev with
-    (* if cursor is at front of current token, go to begining of previous token *)
-    | Some prev when ti.startPos + findWhitespaceOffset ti == pos ->
-        let newToken =
-          (* Skip non-text tokens *)
-          if Token.isTextToken prev.token
-          then prev
-          else
-            let newPrev, _, _ =
-              getTokensAtPosition ~pos:prev.startPos tokens
-            in
-            newPrev |> Option.withDefault ~default:prev
-        in
-        newToken
+  let newPos =
+    let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
+    match tokenInfo.token with
+    | TString _ ->
+        let offset = findPosOffsetToNextWhiteSpace tokenInfo in
+        tokenInfo.startPos + offset
     | _ ->
-        ti
+        tokenInfo.startPos
   in
-  let offset = findWhitespaceOffset token in
-  let newPos = token.startPos + offset in
   setPosition s newPos
 
 
