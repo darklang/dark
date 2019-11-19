@@ -938,4 +938,9 @@ let () =
   describe "Copy/paste roundtrip" (fun () ->
       roundtrip (EBlank (gid ())) ;
       roundtrip (EInteger (gid (), "6")) ;
+      roundtrip
+        (EString
+           ( gid ()
+           , "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+           )) ;
       () )
