@@ -93,6 +93,9 @@ let parentExprID (t : token) : id =
 
 let validID id = id <> fakeid
 
+(* Tokens that are 'editable' are considered text tokens
+ * specifically if you have the situation _|_ and the left token is a text token
+ * then pressing a character here will append to the end of that token *)
 let isTextToken token : bool =
   match token with
   | TInteger _
