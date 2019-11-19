@@ -3336,12 +3336,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, L (_, _), _ when Option.isSome s.selectionStart ->
+    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
+      ->
         deleteSelection ~state:s ~ast
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
-    | K.Delete, _, R (_, _) when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Delete, _, R (_, ti) ->
         doDelete ~pos ti ast s
     (* Autocomplete menu *)
@@ -3774,17 +3773,16 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
       (* simplify tokens to make them homogenous, easier to parse *)
       tokensInRange startPos endPos ~state ast
       |> List.map ~f:(fun ti ->
-             let open String in
              let t = ti.token in
              let text =
                (* trim tokens if they're on the edge of the range *)
                Token.toText t
-               |> dropLeft
+               |> String.dropLeft
                     ~count:
                       ( if ti.startPos < startPos
                       then startPos - ti.startPos
                       else 0 )
-               |> dropRight
+               |> String.dropRight
                     ~count:
                       (if ti.endPos > endPos then ti.endPos - endPos else 0)
                |> fun text ->
@@ -3837,8 +3835,14 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
                then ENull id
                else EPartial (gid (), newValue, ENull id) )
     | EString (eID, _), tokens ->
-        findTokenValue tokens eID "string"
-        |> Option.map ~f:(fun newValue -> EString (id, trimQuotes newValue))
+        let merged =
+          tokens
+          |> List.filter ~f:(fun (_, _, type_) ->
+                 type_ <> "newline" && type_ <> "indent" )
+          |> List.map ~f:Tuple3.second
+          |> String.join ~sep:""
+        in
+        if merged = "" then None else Some (EString (eID, trimQuotes merged))
     | EFloat (eID, _, _), tokens ->
         let newWhole = findTokenValue tokens eID "float-whole" in
         let pointSelected = findTokenValue tokens eID "float-point" <> None in
@@ -4004,9 +4008,25 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         then Some (EPartial (gid (), newValue, e))
         else Some e
     | EFnCall (eID, fnName, args, ster), tokens ->
-        let newArgs = List.map args ~f:(reconstructExpr >> orDefaultExpr) in
+        let newArgs =
+          match args with
+          | EThreadTarget _ :: args ->
+              EThreadTarget (gid ())
+              :: List.map args ~f:(reconstructExpr >> orDefaultExpr)
+          | _ ->
+              List.map args ~f:(reconstructExpr >> orDefaultExpr)
+        in
         let newFnName =
           findTokenValue tokens eID "fn-name" |> Option.withDefault ~default:""
+        in
+        let newFnVersion =
+          findTokenValue tokens eID "fn-version"
+          |> Option.withDefault ~default:""
+        in
+        let newFnName =
+          if newFnVersion = ""
+          then newFnName
+          else newFnName ^ "_" ^ newFnVersion
         in
         let e = EFnCall (id, fnName, newArgs, ster) in
         if newFnName = ""
@@ -4182,6 +4202,18 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
+let getStringIndex ti pos : int =
+  match ti.token with
+  | TString (_, _) ->
+      pos - ti.startPos - 1
+  | TStringMLStart (_, _, offset, _) ->
+      pos - ti.startPos + offset - 1
+  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
+      pos - ti.startPos + offset
+  | _ ->
+      recover "getting index of non-string" 0
+
+
 let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
@@ -4208,16 +4240,18 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting other kinds of expressions into string *)
-  | Some clipboardExpr, Some (EString (_, str)), Some {startPos} ->
+  | Some clipboardExpr, Some (EString (_, str)), Some ti ->
       let insert = eToString state clipboardExpr |> trimQuotes in
-      let index = state.newPos - startPos - 1 in
+      let index = getStringIndex ti state.newPos in
       let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
-      (newAST, {state with newPos = collapsedSelStart + String.length insert})
+      (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
+      let newPos = state.newPos + String.length insert in
+      (newAST, {state with newPos})
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
     , Some (EInteger (_, pasting))
@@ -4379,11 +4413,6 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       (ast, state)
 
 
-let copy (state : fluidState) (ast : fluidExpr) : fluidExpr option =
-  fluidGetOptionalSelectionRange state
-  |> Option.andThen ~f:(reconstructExprFromRange ~state ~ast)
-
-
 let fluidDataFromModel m : (fluidState * fluidExpr) option =
   match Toplevel.selectedAST m with
   | Some expr ->
@@ -4423,8 +4452,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
-        let ast, state = deleteSelection ~state:s ~ast in
-        let ast, state = pasteOverSelection ~state ~ast data in
+        let ast, state = pasteOverSelection ~state:s ~ast data in
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)

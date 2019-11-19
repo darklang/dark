@@ -119,6 +119,65 @@ let () =
         expect (fn initial |> insertCursor)
         |> toEqual (expected |> insertCursor) )
   in
+  let roundtrip ?(debug = false) (ast : fluidExpr) =
+    let name = "roundtripping: " in
+    let emptyState = Defaults.defaultFluidState in
+    let expectedString = eToString emptyState ast in
+    test
+      ( name
+      ^ " - `"
+      ^ (expectedString |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
+      ^ "`" )
+      (fun () ->
+        let pos = String.length expectedString in
+        let e = clipboardEvent () in
+        let clipboardData state e =
+          Clipboard.getData e
+          |> Fluid.clipboardContentsToExpr ~state
+          |> Option.map ~f:(fun expr -> eToString state expr)
+          |> Option.withDefault ~default:"Nothing in clipboard"
+        in
+        let h = Fluid_utils.h ast in
+        let m =
+          { Defaults.defaultModel with
+            tests = [FluidVariant]
+          ; handlers = Handlers.fromList [h]
+          ; cursorState = FluidEntering h.hTLID }
+        in
+        let s =
+          { Defaults.defaultFluidState with
+            ac = AC.reset m
+          ; selectionStart = Some 0
+          ; oldPos = pos
+          ; newPos = pos }
+        in
+        let m = {m with fluidState = s} in
+        if debug
+        then (
+          Js.log2 "state before " (Fluid_utils.debugState s) ;
+          Js.log2 "ast before" (eToStructure s ast) ;
+          Js.log2 "clipboard before" (clipboardData s e) ) ;
+        let mod_ = App.update_ (ClipboardCutEvent e) m in
+        let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+        let mod_ = App.update_ (ClipboardPasteEvent e) newM in
+        let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
+        let newState = newM.fluidState in
+        let newAST =
+          TL.selectedAST newM
+          |> Option.withDefault ~default:(Blank.new_ ())
+          |> fromExpr newState
+        in
+        expect expectedString |> toEqual (eToString newState newAST) )
+  in
+  let threadOn expr fns = EThread (gid (), expr :: fns) in
+  let emptyList = EList (gid (), []) in
+  let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
+  let listFn args =
+    EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+  in
+  let aThread =
+    threadOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
+  in
   describe "Booleans" (fun () ->
       t
         "copying a bool adds an EBool to clipboard"
@@ -311,6 +370,45 @@ let () =
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste ~clipboard:(EString (gid (), "newString")) (11, 15))
         ("\"abcd EFGH newString 1234\"", "\"newString\"", 20) ;
+      t
+        "pasting an EString in a TLStringMLStart should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij" ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (11, 15))
+        ( "\"0123456789XXXefghij0123456789abcdefghij0\n123456789abcdefghij\""
+        , "\"XXX\""
+        , 14 ) ;
+      t
+        "pasting an EString in the first TLStringMLMiddle should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (43, 50))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0XXX89abcdefghij0123456789abcdefghij0123\n456789abcdefghij0123456789abcdefghij0123\n456789abcdefghij\""
+        , "\"XXX\""
+        , 46 ) ;
+      t
+        "pasting an EString in the second TLStringMLMiddle should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (96, 84))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXXdefghij0123456789abcdefghij012345678\n9abcdefghij\""
+        , "\"XXX\""
+        , 87 ) ;
+      t
+        "pasting an EString in a TLStringMLEnd should paste it"
+        (EString
+           ( gid ()
+           , "0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij"
+           ))
+        (paste ~clipboard:(EString (gid (), "XXX")) (125, 126))
+        ( "\"0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0123456789abcdefghij0123456789abcdefghij\n0XXX23456789abcdefghij\""
+        , "\"XXX\""
+        , 128 ) ;
       t
         "pasting an EInteger in a string should paste it"
         (EString (gid (), "abcd EFGH ijkl 1234"))
@@ -748,6 +846,11 @@ let () =
         (copy (0, 9))
         ("Int::sqrt 122", "Int::sqrt ___", 9) ;
       t
+        "copying a function name with a version adds an EFnCall, not a partial"
+        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail))
+        (copy (0, 18))
+        ("HttpClient::postv4 \"\"", "HttpClient::postv4 ___", 18) ;
+      t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 4))
@@ -774,20 +877,18 @@ let () =
         ("Int::sqrt ___", "122", 10) ;
       () ) ;
   describe "Threads" (fun () ->
-      let threadOn expr fns = EThread (gid (), expr :: fns) in
-      let emptyList = EList (gid (), []) in
-      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
-      let listFn args =
-        EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
-      in
-      let aThread =
-        threadOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
-      in
       t
         "copying first expression of thread adds it to clipboard"
         aThread
         (copy (0, 2))
         ("[]\n|>List::append [5]\n|>List::append [5]\n", "[]", 2) ;
+      t
+        "copying thread adds it to clipboard"
+        aThread
+        (copy (0, 41))
+        ( "[]\n|>List::append [5]\n|>List::append [5]\n"
+        , "[]\n|>List::append [5]\n|>List::append [5]\n"
+        , 41 ) ;
       () ) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
@@ -884,4 +985,19 @@ let () =
       (* TODO: test match statements, implementation is slightly inconsistent*)
       () ) ;
   describe "Feature Flags" (fun () ->
-      (* TODO: test feature flags, not yet in fluid *) () )
+      (* TODO: test feature flags, not yet in fluid *) () ) ;
+  describe "Copy/paste roundtrip" (fun () ->
+      let longString =
+        EString
+          ( gid ()
+          , "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+          )
+      in
+      roundtrip (EBlank (gid ())) ;
+      roundtrip (EInteger (gid (), "6")) ;
+      roundtrip aThread ;
+      roundtrip
+        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
+      roundtrip longString ;
+      roundtrip (ELet (gid (), gid (), "myVariable", longString, newB ())) ;
+      () )
