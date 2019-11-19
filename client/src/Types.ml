@@ -391,8 +391,8 @@ and resultT =
   | ResError of dval
 
 and dval_source =
-    | SourceNone
-    | SourceId of id
+  | SourceNone
+  | SourceId of id
 
 and dval =
   | DInt of int
