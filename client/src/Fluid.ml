@@ -4709,6 +4709,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         in
         let classes = Token.toCssClasses ti.token in
         let idStr = deID (Token.tid ti.token) in
+        let tlidStr = showTLID tlid in
         let idclasses = ["id-" ^ idStr] in
         Html.span
           [ Attrs.class'
@@ -4756,6 +4757,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ViewUtils.eventNoPropagation
               ~key:
                 ( "fluid-selection-click-"
+                ^ tlidStr
+                ^ "-"
                 ^
                 match state.selectionStart with
                 | Some x ->
