@@ -21,10 +21,7 @@ let fnExecutionStatus
     (vs : viewState) (fn : function_) (id : id) (args : id list) =
   let isComplete id =
     match Analysis.getLiveValue' vs.analysisStore id with
-    | None
-    | Some (DError _)
-    | Some DIncomplete
-    | Some (DSrcIncomplete _) ->
+    | None | Some (DError _) | Some (DIncomplete _) ->
         false
     | Some _ ->
         true

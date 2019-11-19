@@ -134,7 +134,7 @@ let handlerIsExeFail (vs : viewState) : bool =
     |> Option.andThen ~f:(Analysis.getLiveValue' vs.analysisStore)
     |> Option.map ~f:(fun outermostResult ->
            match outermostResult with
-           | DIncomplete | DError _ | DErrorRail _ ->
+           | DIncomplete _ | DError _ | DErrorRail _ ->
                true
            | _ ->
                false )

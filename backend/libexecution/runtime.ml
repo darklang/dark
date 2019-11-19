@@ -4,8 +4,8 @@ open Types.RuntimeT
 
 let error
     ?(bt : Caml.Printexc.raw_backtrace option)
-    ?(actual = DIncomplete)
-    ?(result = DIncomplete)
+    ?(actual = DIncomplete SourceNone)
+    ?(result = DIncomplete SourceNone)
     ?(info = [])
     ?(expected = "")
     ?(workarounds = [])
