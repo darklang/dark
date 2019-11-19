@@ -1378,18 +1378,17 @@ let moveTo (newPos : int) (s : state) : state =
   setPosition s newPos
 
 
-(* Starting from somewhere after the location, move back until we reach the
- * `target` expression, and return a state with its location. If blank, will
- * go to the start of the blank *)
-let moveBackTo (target : id) (ast : ast) (s : state) : state =
-  let s = recordAction "moveBackTo" s in
+(* Find first `target` expression (starting at the back), and return a state
+ * with its location. If blank, will go to the start of the blank *)
+let moveToEndOfTarget (target : id) (ast : ast) (s : state) : state =
+  let s = recordAction "moveToEndOfTarget" s in
   let tokens = toTokens s ast in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target )
   with
   | None ->
-      recover "cannot find token to moveBackTo" s
+      recover "cannot find token to moveToEndOfTarget" s
   | Some lastToken ->
       let newPos =
         if FluidToken.isBlank lastToken.token
@@ -1779,11 +1778,11 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
             (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
             EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            (newState := fun ast -> moveBackTo (eid lhs) ast s) ;
+            (newState := fun ast -> moveToEndOfTarget (eid lhs) ast s) ;
             lhs
         | EPartial (_, _, _) ->
             let b = newB () in
-            (newState := fun ast -> moveBackTo (eid b) ast s) ;
+            (newState := fun ast -> moveToEndOfTarget (eid b) ast s) ;
             b
         | _ ->
             recover "not a partial in deletePartial" e )
@@ -2483,7 +2482,25 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
         findAppropriatePipingParent parent ast )
   | None ->
       (* If we get to the root *)
-      None
+      Some child
+
+
+let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
+    ast * state =
+  let exprToReplace =
+    findExpr id ast
+    |> Option.andThen ~f:(fun e ->
+           if findParent then findAppropriatePipingParent e ast else Some e )
+    |> Option.map ~f:extractSubexprFromPartial
+  in
+  match exprToReplace with
+  | None ->
+      (ast, s)
+  | Some expr ->
+      let threadChild = newB () in
+      let newExpr = EThread (gid (), [expr; threadChild]) in
+      let newAST = replaceExpr (eid expr) ast ~newExpr in
+      (newAST, moveToEndOfTarget (eid threadChild) newAST s)
 
 
 let updateFromACItem
@@ -2709,17 +2726,17 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceWithPartial (f str) id ast, left s)
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveToEndOfTarget targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveToEndOfTarget targetID ast s)
   | TStringMLEnd (id, thisStr, strOffset, _)
     when String.length thisStr = 1 && offset = strOffset ->
       let f str = removeCharAt str offset in
       let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveBackTo id newAST s in
+      let newState = moveToEndOfTarget id newAST s in
       (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
   | TString _
   | TStringMLStart _
@@ -2843,7 +2860,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       let newState =
         if String.length endStr = 1 && offset = 0
         then
-          let moved = moveBackTo id newAST s in
+          let moved = moveToEndOfTarget id newAST s in
           {moved with newPos = moved.newPos - 1 (* quote *)}
         else s
       in
@@ -2861,12 +2878,12 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replacePattern mID id ~newPat:(FPString (mID, newID, str)) ast, s)
   | TRightPartial (_, str) when String.length str = 1 ->
       let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveToEndOfTarget targetID ast s)
   | TPartial (_, str) when String.length str = 1 ->
       deletePartial ti ast s
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
-      (ast, moveBackTo targetID ast s)
+      (ast, moveToEndOfTarget targetID ast s)
   | TRecordField _
   | TInteger _
   | TPatternInteger _
@@ -3167,12 +3184,13 @@ let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
 (* Always returns a selection represented as two ints with the smaller int first.
    The numbers are identical if there is no selection. *)
 let fluidGetSelectionRange (s : fluidState) : int * int =
-  let endIdx = s.newPos in
   match s.selectionStart with
-  | Some beginIdx ->
-      (beginIdx, endIdx)
+  | Some beginIdx when beginIdx < s.newPos ->
+      (beginIdx, s.newPos)
+  | Some endIdx ->
+      (s.newPos, endIdx)
   | None ->
-      (endIdx, endIdx)
+      (s.newPos, s.newPos)
 
 
 let fluidGetCollapsedSelectionStart (s : fluidState) : int =
@@ -3186,6 +3204,39 @@ let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
       Some (beginIdx, endIdx)
   | None ->
       None
+
+
+let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
+  toTokens state ast
+  (* this condition is a little flaky, sometimes selects wrong tokens *)
+  |> List.filter ~f:(fun t ->
+         (* selectionStart within token *)
+         (t.startPos <= selStartPos && selStartPos < t.endPos)
+         (* selectionEnd within token *)
+         || (t.startPos < selEndPos && selEndPos <= t.endPos)
+         (* tokenStart within selection  *)
+         || (selStartPos <= t.startPos && t.startPos < selEndPos)
+         (* tokenEnd within selection  *)
+         || (selStartPos < t.endPos && t.endPos <= selEndPos) )
+
+
+let getTopmostSelectionID startPos endPos ~state ast : id option =
+  let asExpr = toExpr ast in
+  (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
+  tokensInRange startPos endPos ~state ast
+  |> List.filter ~f:(fun ti -> not (Token.isNewline ti.token))
+  |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
+         let curID = Token.parentExprID ti.token in
+         let curDepth = AST.ancestors curID asExpr |> List.length in
+         if (* check if current token is higher in the AST than the last token,
+             * or if there's no topmost ID yet *)
+            (curDepth < topmostDepth || topmostID = None)
+            (* account for tokens that don't have ancestors (depth = 0)
+             * but are not the topmost expression in the AST *)
+            && not (curDepth = 0 && findExpr curID ast != Some ast)
+         then (Some curID, curDepth)
+         else (topmostID, topmostDepth) )
+  |> Tuple2.first
 
 
 let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
@@ -3327,6 +3378,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         let ast, s = acEnter ti ast s K.Tab in
         getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
+        |> Option.withDefault ~default:(ast, s)
+    | K.ShiftEnter, _, _ ->
+        let startPos, endPos = fluidGetSelectionRange s in
+        let findParent = startPos = endPos in
+        let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
+        Option.map topmostID ~f:(fun id -> doShiftEnter ~findParent id ast s)
         |> Option.withDefault ~default:(ast, s)
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
@@ -3658,10 +3715,6 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
       None
 
 
-let collapseOptionalRange (sel : (int * int) option) : (int * int) option =
-  Option.andThen sel ~f:(fun (a, b) -> if a = b then None else sel)
-
-
 let getTokenRangeAtCaret (state : fluidState) (ast : ast) : (int * int) option
     =
   getToken state ast |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
@@ -3705,36 +3758,6 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         tID = tID' && typeName = typeName' )
     |> Option.map ~f:Tuple3.second
   in
-  let tokensInRange startPos endPos : fluidTokenInfo list =
-    toTokens state ast
-    |> List.foldl ~init:[] ~f:(fun t toks ->
-           (* this condition is a little flaky, sometimes selects wrong tokens *)
-           if (* token fully inside range 
-               * e.g. `Int::add ^val1^ val2` - val1 token is fully within range *)
-              t.startPos >= startPos
-              && t.startPos < endPos
-              && t.endPos > startPos
-              && t.endPos <= endPos
-              (* token partially inside range *)
-              (* - start is outside range but end is inside range
-               * e.g. `Int::add va^l1^ val2` - val1 token is partially within range *)
-              || t.startPos < startPos
-                 && t.endPos > startPos
-                 && t.endPos <= endPos
-              (* - start is inside range but end is outside range
-               * e.g. `Int::add ^va^l1 val2` - val1 token is partially within range *)
-              || t.endPos > endPos
-                 && t.startPos < endPos
-                 && t.startPos >= startPos
-              (* selection range is within token range
-               * e.g. `Int::add v^al^1 val2` - range is within val1 token *)
-              || t.startPos <= startPos
-                 && t.startPos < endPos
-                 && t.endPos > startPos
-                 && t.endPos >= endPos
-           then toks @ [t]
-           else toks )
-  in
   let startPos, endPos = orderRangeFromSmallToBig range in
   (* main main recursive algorithm *)
   (* algo: 
@@ -3749,7 +3772,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     in
     let simplifiedTokens =
       (* simplify tokens to make them homogenous, easier to parse *)
-      tokensInRange startPos endPos
+      tokensInRange startPos endPos ~state ast
       |> List.map ~f:(fun ti ->
              let open String in
              let t = ti.token in
@@ -4011,7 +4034,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
-          tokensInRange startPos endPos
+          tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
                  | TRecordField (_, _, index, newKey) ->
@@ -4123,22 +4146,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | _, _ ->
         Some (EBlank (gid ()))
   in
-  let topmostID =
-    (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
-    tokensInRange startPos endPos
-    |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-           let curID = Token.parentExprID ti.token in
-           let curDepth = toExpr ast |> AST.ancestors curID |> List.length in
-           if (* check if current token is higher in the AST than the last token,
-               * or if there's no topmost ID yet *)
-              (curDepth < topmostDepth || topmostID = None)
-              (* account for tokens that don't have ancestors (depth = 0) 
-               * but are not the topmost expression in the AST *)
-              && not (curDepth = 0 && findExpr curID ast != Some ast)
-           then (Some curID, curDepth)
-           else (topmostID, topmostDepth) )
-    |> Tuple2.first
-  in
+  let topmostID = getTopmostSelectionID startPos endPos ~state ast in
   reconstruct ~topmostID (startPos, endPos)
 
 
