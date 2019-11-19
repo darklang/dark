@@ -1900,20 +1900,48 @@ let canvas_handler
     ~(body : string)
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
-  match verb with
-  (* transform HEAD req method to GET, discards body in response*)
-  | `HEAD ->
-      user_page_handler
-        ~execution_id
-        ~canvas
-        ~ip
-        ~uri
-        ~body
-        (coalesce_head_to_get req)
-      |> respond_or_redirect_empty_body
-  | _ ->
-      user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
-      |> respond_or_redirect
+  (* TODO make sure this resolves before returning *)
+  let segment_promise =
+    Stroller.segment_track
+      ~canvas_id:Uuidm.nil
+      ~canvas
+      ~execution_id (* TODO should username be the canvas owner, or the ip? *)
+      ~username:ip
+      ~event:"canvas_traffic"
+      Track
+      (`Assoc
+        [ ("verb", `String (verb |> Cohttp.Code.string_of_method))
+        ; ("path", `String (uri |> Uri.path))
+        ; ( "useragent"
+          , `String
+              ( req
+              |> CRequest.headers
+              |> fun hs ->
+              Cohttp.Header.get hs Cohttp.Header.user_agent
+              |> Option.value ~default:"" ) )
+        ; ("ip", `String ip) ])
+  in
+  let resp =
+    match verb with
+    (* transform HEAD req method to GET, discards body in response*)
+    | `HEAD ->
+        user_page_handler
+          ~execution_id
+          ~canvas
+          ~ip
+          ~uri
+          ~body
+          (coalesce_head_to_get req)
+        |> respond_or_redirect_empty_body
+    | _ ->
+        user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
+        |> respond_or_redirect
+  in
+  (* TODO: 1) this blocks on segment_track returning Lwt.t, not ()
+   * 2) it'd be nice to do these concurrently, instead of waiting for
+   * segment_promise before doing the actual req/resp work *)
+  (* can we use Lwt.join here? *)
+  segment_promise >>= fun () -> resp
 
 
 let callback ~k8s_callback ip req body execution_id =
