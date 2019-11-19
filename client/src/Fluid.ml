@@ -3837,7 +3837,8 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | EString (eID, _), tokens ->
         let merged =
           tokens
-          |> List.filter ~f:(fun (_, _, type_) -> type_ <> "newline")
+          |> List.filter ~f:(fun (_, _, type_) ->
+                 type_ <> "newline" && type_ <> "indent" )
           |> List.map ~f:Tuple3.second
           |> String.join ~sep:""
         in

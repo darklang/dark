@@ -987,14 +987,17 @@ let () =
   describe "Feature Flags" (fun () ->
       (* TODO: test feature flags, not yet in fluid *) () ) ;
   describe "Copy/paste roundtrip" (fun () ->
+      let longString =
+        EString
+          ( gid ()
+          , "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
+          )
+      in
       roundtrip (EBlank (gid ())) ;
       roundtrip (EInteger (gid (), "6")) ;
       roundtrip aThread ;
       roundtrip
         (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
-      roundtrip
-        (EString
-           ( gid ()
-           , "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
-           )) ;
+      roundtrip longString ;
+      roundtrip (ELet (gid (), gid (), "myVariable", longString, newB ())) ;
       () )
