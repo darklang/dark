@@ -303,7 +303,12 @@ let rec dval j : dval =
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (array dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
-    ; ("DIncomplete", dv1 (fun x -> DIncomplete x) srcT)
+    ; ( "DIncomplete"
+        (* catch decoding errors for backwards compatibility. if you see this
+         * comment in master, the withDefault can be removed *)
+      , withDefault
+          (DIncomplete SourceNone)
+          (dv1 (fun x -> DIncomplete x) srcT) )
     ; ("DError", dv1 (fun x -> DError x) string)
     ; ("DBlock", dv0 DBlock)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
