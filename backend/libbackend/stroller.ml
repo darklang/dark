@@ -231,9 +231,6 @@ let segment_event_blocking
       ()
 
 
-(* We call this in two contexts: DarkInternal:: fns, and
- * bin/segment_identify_users.exe. Neither of those is an async/lwt context, so
- * we use the blocking_curl_post instead of Curl_lwt. *)
 let segment_track
     ~(canvas_id : Uuidm.t)
     ~(canvas : string)
@@ -252,6 +249,9 @@ let segment_track
     payload
 
 
+(* We call this in two contexts: DarkInternal:: fns, and
+ * bin/segment_identify_users.exe. Neither of those is an async/lwt context, so
+ * we use the blocking_curl_post instead of Curl_lwt. *)
 let segment_identify_user (username : string) : unit =
   let payload =
     Account.get_user_and_created_at username
