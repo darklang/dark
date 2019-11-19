@@ -8,16 +8,26 @@ $prec-colors: (#301728, #93385F, #4F3466, #9F6B99);
   .precedence-#{$depth} {
     background-color: nth($prec-colors, $depth);
   }
-  .precedence-#{$depth}.fluid-category-paren {
+  .fluid-category-paren .fluid-inner.precedence-#{$depth} {
     color: nth($prec-colors, $depth);
   }
 }
 
-.fluid-paren-open {
-  border-radius: 7px 0 0 7px;
+.fluid-paren-open .fluid-inner {
+  border-radius: 8px 0 0 8px;
+  width: 1ch;
+  position: absolute;
+  display: inline-block;
+  left: 0;
+  height: 16px;
 }
-.fluid-paren-close {
-  border-radius: 0 7px 7px 0;
+.fluid-paren-close .fluid-inner {
+  border-radius: 0 8px 8px 0;
+  width: 1ch;
+  position: absolute;
+  display: inline-block;
+  left: 0;
+  height: 16px;
 }
 
 .fluid-variant .live-values {
