@@ -518,6 +518,8 @@ module Builder = struct
     if cond then add token b else b
 
 
+  (* Take a list of 'a, and iterate through them, adding them to `b` by
+   * calling `f` on them *)
   let addIter (xs : 'a list) ~(f : int -> 'a -> t -> t) (b : t) : t =
     List.foldl xs ~init:(b, 0) ~f:(fun x (b, i) -> (f i x b, i + 1))
     |> Tuple2.first
