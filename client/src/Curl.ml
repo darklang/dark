@@ -21,6 +21,10 @@ let objAsHeaderCurl (dv : dval) : string option =
   match dv with
   | DObj o ->
       StrDict.toList o
+      (* curl will add content-length automatically, and having it specified
+       * explicitly causes weird errors if the user, say, changes the body of
+       * the request without changing the value of this header *)
+      |> List.filter ~f:(fun (k, _) -> k != "content-length")
       |> List.map ~f:(fun (k, v) ->
              "-H '" ^ k ^ ":" ^ (RT.toRepr v |> RT.stripQuotes) ^ "'" )
       |> String.join ~sep:" "

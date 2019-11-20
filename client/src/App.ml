@@ -307,7 +307,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               DB.upsert newM db
           | Some (TLHandler h) ->
               Handlers.upsert newM h
-          | Some (TLGroup _) | Some (TLTipe _) | Some (TLFunc _) | None ->
+          | Some (TLFunc func) ->
+              Functions.upsert newM func
+          | Some (TLGroup _) | Some (TLTipe _) | None ->
               newM )
       | None ->
           newM
@@ -752,6 +754,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.batch [afCmd; acCmd; reExeCmd])
     | SetUserFunctions (userFuncs, deletedUserFuncs, updateCurrent) ->
         (* TODO: note: this updates existing, despite not being called update *)
+        let oldM = m in
         let userFuncs =
           if VariantTesting.isFluid m.tests
           then userFuncs
@@ -771,24 +774,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
-        let m =
-          match tlidOf m.cursorState with
-          | Some tlid ->
-              if updateCurrent
-              then m
-              else (
-                match TL.get m tlid with
-                | Some (TLFunc f) ->
-                    Functions.upsert m f
-                | Some (TLTipe _)
-                | Some (TLDB _)
-                | Some (TLHandler _)
-                | Some (TLGroup _)
-                | None ->
-                    m )
-          | None ->
-              m
-        in
+        let m = if updateCurrent then m else bringBackCurrentTL oldM m in
         let m = Refactor.updateUsageCounts m in
         let m = FluidAutocomplete.updateFunctions m in
         processAutocompleteMods m [ACRegenerate]
