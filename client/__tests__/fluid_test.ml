@@ -350,9 +350,9 @@ let () =
               ; fnParam "body" TAny false
               ; fnParam "query" TObj false
               ; fnParam "headers" TObj false ]
-          ; fnReturnTipe = TInt
-          ; fnDescription = "Get the square root of an Int"
-          ; fnPreviewExecutionSafe = true
+          ; fnReturnTipe = TResult
+          ; fnDescription = "Make blocking HTTP POST call to `uri`."
+          ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
