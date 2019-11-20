@@ -120,7 +120,7 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   (* user-ish types *)
   | DCharacter c ->
       ev "DCharacter" [string c]
-  | DError msg ->
+  | DError (_, msg) ->
       ev "DError" [string msg]
   | DResp (h, hdv) ->
       ev "DResp" [tuple2 dhttp dval (h, hdv)]

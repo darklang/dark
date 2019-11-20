@@ -404,7 +404,7 @@ and dval =
   | DList of dval array
   | DObj of dval StrDict.t
   | DIncomplete of dval_source
-  | DError of string
+  | DError of (dval_source * string)
   | DBlock
   | DErrorRail of dval
   | DResp of dhttp * dval

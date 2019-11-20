@@ -181,7 +181,7 @@ let t_result_to_response_works () =
                "without any other settings, we get Access-Control-Allow-Origin: *."
                (Some "*")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( DError "oh no :("
+       ; ( DError (SourceNone, "oh no :(")
          , req
          , None
          , fun r ->

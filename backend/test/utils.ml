@@ -100,8 +100,28 @@ let check_condition msg dval ~(f : dval -> bool) =
   AT.check AT.bool msg (f dval) true
 
 
-let check_incomplete =
-  check_condition ~f:(function DIncomplete _ -> true | _ -> false)
+let check_error msg dval expected =
+  let at_error =
+    AT.testable
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+      (fun a b ->
+        match (a, b) with
+        | DError (_, msg1), DError (_, msg2) ->
+            msg1 = msg2
+        | _ ->
+            false )
+  in
+  AT.check at_error msg (DError (SourceNone, expected)) dval
+
+
+let check_incomplete msg dval =
+  let at_incomplete =
+    AT.testable
+      (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
+      (fun a b ->
+        match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false )
+  in
+  AT.check at_incomplete msg (DIncomplete SourceNone) dval
 
 
 let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
@@ -421,7 +441,7 @@ let sample_dvals =
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete SourceNone)
-  ; ("error", DError "some error string")
+  ; ("error", DError (SourceNone, "some error string"))
   ; ("block", DBlock (fun _args -> DNull))
   ; ("errorrail", DErrorRail (Dval.dint 5))
   ; ("redirect", DResp (Redirect "/home", DNull))

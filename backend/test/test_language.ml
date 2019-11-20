@@ -23,10 +23,10 @@ let t_lambda_with_foreach () =
 
 
 let t_multiple_copies_of_same_name () =
-  check_dval
+  check_error
     "record field names"
     (exec_ast "(obj (col1 1) (col1 2))")
-    (DError "Duplicate key: col1") ;
+    "Duplicate key: col1" ;
   ()
 
 
@@ -115,10 +115,10 @@ let t_incomplete_propagation () =
 
 
 let t_derror_propagation () =
-  check_dval
+  check_error
     "Mapping error results in error"
-    (DError "Expected 2 arguments, got 1")
-    (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))") ;
+    (exec_ast "(List::map (1 2 3 4 5) (\\x y -> x))")
+    "Expected 2 arguments, got 1" ;
   check_incomplete
     "Incomplete in Just results in Incomplete"
     (exec_ast "(Just _)") ;
