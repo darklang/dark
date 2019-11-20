@@ -4819,11 +4819,14 @@ let viewLiveValue
            let row = ti.startRow in
            let id = Token.analysisID ti.token in
            let fnText =
-             fn
-             |> Option.map ~f:(fun fn ->
-                    let id = Token.tid ti.token in
-                    ViewFnExecution.fnExecutionStatus vs fn id args )
-             |> Option.map ~f:ViewFnExecution.executionError
+             Option.and_then fn ~f:(fun fn ->
+                 if fn.fnPreviewExecutionSafe
+                 then None
+                 else
+                   let id = Token.tid ti.token in
+                   ViewFnExecution.fnExecutionStatus vs fn id args
+                   |> ViewFnExecution.executionError
+                   |> Option.some )
            in
            if FluidToken.validID id
            then
