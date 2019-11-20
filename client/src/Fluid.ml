@@ -2770,11 +2770,6 @@ let adjustPosForReflow
       then oldTI.startPos + diff + 2
       else newPos + 2
   | LeftOne, Some newTI ->
-      (* Js.log "leftone" ; *)
-      (* Js.log2 "newPos" newPos ; *)
-      (* Js.log2 "newTI.endPos" newTI.endPos ; *)
-      (* Js.log2 "oldPos" oldPos ; *)
-      (* Js.log2 "diff" diff ; *)
       if Token.isAtom newTI.token
       then newTI.startPos
       else if newTI.endPos < newPos
