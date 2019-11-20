@@ -70,7 +70,7 @@ let t_option_stdlibs_work () =
     ( match
         exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))"
       with
-    | DError msg ->
+    | DError (_, msg) ->
         Prelude.String.contains
           ~substring:"Expected `f` to return an option"
           msg
@@ -161,7 +161,7 @@ let t_result_stdlibs_work () =
     AT.bool
     "andThen wrong type"
     ( match exec_ast "(Result::andThen (Ok 8) (\\x -> (Int::divide x 2)))" with
-    | DError msg ->
+    | DError (_, msg) ->
         Prelude.String.contains
           ~substring:"Expected `f` to return a result"
           msg

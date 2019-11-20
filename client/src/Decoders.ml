@@ -309,7 +309,10 @@ let rec dval j : dval =
       , withDefault
           (DIncomplete SourceNone)
           (dv1 (fun x -> DIncomplete x) srcT) )
-    ; ("DError", dv1 (fun x -> DError x) string)
+    ; ( "DError"
+      , tryDecode2
+          (dv1 (fun x -> DError (SourceNone, x)) string)
+          (dv1 (fun (i, msg) -> DError (i, msg)) (tuple2 srcT string)) )
     ; ("DBlock", dv0 DBlock)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)
     ; ("DResp", dv1 (fun (h, dv) -> DResp (h, dv)) (tuple2 dhttp dd))

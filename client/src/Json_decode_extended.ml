@@ -51,6 +51,8 @@ let variants decoders =
                   ^ constructors ) )
 
 
+let tryDecode2 try1 try2 json = try try1 json with DecodeError _ -> try2 json
+
 let dict (decoder : Js.Json.t -> 'a) (json : Js.Json.t) : 'a StrDict.t =
   dict decoder json |> Js.Dict.entries |> Belt.Map.String.fromArray
 

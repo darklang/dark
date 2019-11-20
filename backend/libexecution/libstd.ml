@@ -143,7 +143,10 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DError err] -> Dval.dstr_of_string_exn err | args -> fail args)
+          | _, [DError (_, err)] ->
+              Dval.dstr_of_string_exn err
+          | args ->
+              fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["AWS::urlencode"]

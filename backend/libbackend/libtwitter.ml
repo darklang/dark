@@ -39,13 +39,13 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
     |> DvalMap.to_list
   in
   if auth.consumer_key = ""
-  then DError "Missing string field `consumerKey`"
+  then DError (SourceNone, "Missing string field `consumerKey`")
   else if auth.consumer_secret = ""
-  then DError "Missing string field `consumerSecret`"
+  then DError (SourceNone, "Missing string field `consumerSecret`")
   else if auth.access_token = ""
-  then DError "Missing string field `accessTokenKey`"
+  then DError (SourceNone, "Missing string field `accessTokenKey`")
   else if auth.access_token_secret = ""
-  then DError "Missing string field `accessTokenSecret`"
+  then DError (SourceNone, "Missing string field `accessTokenSecret`")
   else
     let header = Twitter.authorization_header auth url verb authargs in
     let headers =

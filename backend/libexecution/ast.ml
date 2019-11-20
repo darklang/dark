@@ -181,7 +181,9 @@ let rec exec
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
-              DError "Internal type error: lambda did not produce a block" )
+              DError
+                ( SourceId id
+                , "Internal type error: lambda did not produce a block" ) )
       | Filled (id, (FnCall (name, exprs) as fncall))
       | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
           let send_to_rail = should_send_to_rail fncall in
@@ -222,9 +224,9 @@ let rec exec
                   st
             in
             exe bound body )
-    | Filled (_, Value s) ->
+    | Filled (id, Value s) ->
         Dval.parse_literal s
-        |> Option.value ~default:(DError "Unparsable value")
+        |> Option.value ~default:(DError (SourceId id, "Unparsable value"))
     | Filled (_, ListLiteral exprs) ->
         (* We ignore incompletes but not error rail. Other places that lists
      are created propagate incompletes instead of ignoring *)
@@ -268,7 +270,7 @@ let rec exec
            * because it gives a horrible user experience *)
           DIncomplete (SourceId id)
       | None, Real ->
-          DError ("There is no variable named: " ^ name)
+          DError (SourceId id, "There is no variable named: " ^ name)
       | Some other, _ ->
           other )
     | Filled (id, FnCallSendToRail (name, exprs)) ->
@@ -290,8 +292,8 @@ let rec exec
               elseresult
           | DIncomplete _ as i ->
               i
-          | DError _ ->
-              DError "Expected boolean, got error"
+          | DError (src, _) ->
+              DError (src, "Expected boolean, got error")
           | DErrorRail _ as er ->
               er
           | _ ->
@@ -305,8 +307,8 @@ let rec exec
             exe st elsebody
         | DIncomplete _ as i ->
             i
-        | DError _ ->
-            DError "Expected boolean, got error"
+        | DError (src, _) ->
+            DError (src, "Expected boolean, got error")
         | DErrorRail _ as er ->
             er
         | _ ->
@@ -400,10 +402,11 @@ let rec exec
                 if List.length filled <> List.length args
                 then
                   DError
-                    ( "Expected "
-                    ^ string_of_int (List.length filled)
-                    ^ " arguments, got "
-                    ^ string_of_int (List.length args) )
+                    ( SourceId id
+                    , "Expected "
+                      ^ string_of_int (List.length filled)
+                      ^ " arguments, got "
+                      ^ string_of_int (List.length args) )
                 else (
                   List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
                       trace_blank var dv st ) ;
@@ -490,14 +493,14 @@ let rec exec
               obj
           | x ->
               DError
-                ( "Attempting to access of a field of something that isn't an
-object but is a "
-                ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
-                ^ "" )
+                ( SourceId id
+                , "Attempting to access of a field of something that isn't an object but is a "
+                  ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)
+                  ^ "" )
         in
         trace_blank field result st ;
         result
-    | Filled (_, Constructor (name, args)) ->
+    | Filled (id, Constructor (name, args)) ->
       ( match (name, args) with
       | Filled (_, "Nothing"), [] ->
           DOption OptNothing
@@ -508,7 +511,7 @@ object but is a "
       | Filled (_, "Error"), [arg] ->
           Dval.to_res_err (exe st arg)
       | _ ->
-          DError "Invalid construction option" )
+          DError (SourceId id, "Invalid construction option") )
   in
   let execed_value = value () in
   trace expr execed_value st ;
@@ -556,12 +559,13 @@ and call_fn
               exec_fn ~engine ~state name id fn args
             else
               DError
-                ( name
-                ^ " has "
-                ^ string_of_int expected_length
-                ^ " parameters, but here was called with "
-                ^ string_of_int actual_length
-                ^ " arguments." )
+                ( SourceId id
+                , name
+                  ^ " has "
+                  ^ string_of_int expected_length
+                  ^ " parameters, but here was called with "
+                  ^ string_of_int actual_length
+                  ^ " arguments." )
       in
       if send_to_rail
       then
@@ -572,8 +576,8 @@ and call_fn
             v
         | DIncomplete _ as i ->
             i
-        | DError e ->
-            DError e
+        | DError _ as e ->
+            e
         (* There should only be DOptions and DResults here, but hypothetically we got
         * something else, they would go on the error rail too.  *)
         | other ->
@@ -588,11 +592,11 @@ and exec_fn
     (id : id)
     (fn : fn)
     (args : dval_map) : dval =
-  let paramsIncomplete args =
-    List.find args ~f:(function DIncomplete _ -> true | _ -> false)
+  let findIncompleteArg =
+    List.find ~f:(function DIncomplete _ -> true | _ -> false)
   in
-  let paramsErroneous args =
-    List.exists args ~f:(function
+  let findErrorArg =
+    List.find ~f:(function
         | DError _ when String.Caseless.equal fnname "Bool::isError" ->
             false
         | DError _ ->
@@ -606,89 +610,92 @@ and exec_fn
     |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
-  match paramsIncomplete arglist with
+  match findIncompleteArg arglist with
   | Some i ->
       i
   | _ ->
-      if paramsErroneous arglist
-      then DError "Fn called with an error as an argument"
-      else (
-        match fn.func with
-        | InProcess f ->
-            if engine.ctx = Preview && not fn.preview_execution_safe
-            then
-              match state.load_fn_result sfr_desc arglist with
-              | Some (result, _ts) ->
-                  result
-              | inc ->
-                  DIncomplete (SourceId id)
-            else
-              let state =
-                {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-              in
-              let result =
-                try f (state, arglist) with
-                | Exception.DarkException de as e when de.tipe = Code ->
-                    (* These are exceptions that come from an RT.error, which is all
+    ( match findErrorArg arglist with
+    | Some (DError (src, _)) ->
+        DError (src, "Fn called with an error as an argument")
+    | _ ->
+      ( match fn.func with
+      | InProcess f ->
+          if engine.ctx = Preview && not fn.preview_execution_safe
+          then
+            match state.load_fn_result sfr_desc arglist with
+            | Some (result, _ts) ->
+                result
+            | inc ->
+                DIncomplete (SourceId id)
+          else
+            let state =
+              {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+            in
+            let result =
+              try f (state, arglist) with
+              | Exception.DarkException de as e when de.tipe = Code ->
+                  (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-                    Dval.exception_to_dval e
-                | e ->
-                    (* After the rethrow, this gets eventually caught then shown to the
+                  Dval.exception_to_dval e
+              | e ->
+                  (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
             * because we didn't anticipate the problem, give it a nice error
             * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
             * this, give it a nice exception via RT.error.  *)
-                    Exception.reraise e
+                  Exception.reraise e
+            in
+            (* there's no point storing data we'll never ask for *)
+            if not fn.preview_execution_safe
+            then state.store_fn_result sfr_desc arglist result ;
+            result
+      | UserCreated (tlid, body) ->
+        ( match
+            Type_checker.check_function_call
+              ~user_tipes:state.user_tipes
+              fn
+              args
+          with
+        | Ok () ->
+            let args_with_dbs =
+              let db_dvals =
+                state.dbs
+                |> List.filter_map ~f:(fun db ->
+                       match db.name with
+                       | Filled (_, name) ->
+                           Some (name, DDB name)
+                       | Partial _ | Blank _ ->
+                           None )
+                |> DvalMap.from_list
               in
-              (* there's no point storing data we'll never ask for *)
-              if not fn.preview_execution_safe
-              then state.store_fn_result sfr_desc arglist result ;
-              result
-        | UserCreated (tlid, body) ->
-          ( match
-              Type_checker.check_function_call
-                ~user_tipes:state.user_tipes
-                fn
-                args
-            with
-          | Ok () ->
-              let args_with_dbs =
-                let db_dvals =
-                  state.dbs
-                  |> List.filter_map ~f:(fun db ->
-                         match db.name with
-                         | Filled (_, name) ->
-                             Some (name, DDB name)
-                         | Partial _ | Blank _ ->
-                             None )
-                  |> DvalMap.from_list
-                in
-                Util.merge_left db_dvals args
-              in
-              engine.trace_tlid tlid ;
-              (* Don't execute user functions if it's preview mode and we have a result *)
-              ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
-              | Preview, Some (result, _ts) ->
-                  Dval.unwrap_from_errorrail result
-              | _ ->
-                  (* It's okay to execute user functions in both Preview and Real contexts,
+              Util.merge_left db_dvals args
+            in
+            engine.trace_tlid tlid ;
+            (* Don't execute user functions if it's preview mode and we have a result *)
+            ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
+            | Preview, Some (result, _ts) ->
+                Dval.unwrap_from_errorrail result
+            | _ ->
+                (* It's okay to execute user functions in both Preview and Real contexts,
                * But in Preview we might not have all the data we need *)
-                  state.store_fn_arguments tlid args ;
-                  let state = {state with tlid} in
-                  let result = exec ~engine ~state args_with_dbs body in
-                  state.store_fn_result sfr_desc arglist result ;
-                  Dval.unwrap_from_errorrail result )
-          | Error errs ->
-              let error_msgs =
-                errs
-                |> List.map ~f:Type_checker.Error.to_string
-                |> String.concat ~sep:", "
-              in
-              DError ("Type error(s) in function parameters: " ^ error_msgs) )
-        | API f ->
-            f args )
+                state.store_fn_arguments tlid args ;
+                let state = {state with tlid} in
+                let result = exec ~engine ~state args_with_dbs body in
+                state.store_fn_result sfr_desc arglist result ;
+                Dval.unwrap_from_errorrail result )
+        | Error errs ->
+            let error_msgs =
+              errs
+              |> List.map ~f:Type_checker.Error.to_string
+              |> String.concat ~sep:", "
+            in
+            DError
+              ( SourceId id
+              , "Type error(s) in function parameters: " ^ error_msgs ) )
+      | API f ->
+          f args ) )
 
 
 (* | TypeError args -> *)
