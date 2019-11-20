@@ -2315,6 +2315,7 @@ let () =
             ; EString (gid (), "ef") ] )
       in
       t "create list" (b ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
+      t "insert into empty list inserts" emptyList (insert '5' 1) ("[5]", 2) ;
       t
         "inserting before the list does nothing"
         emptyList
