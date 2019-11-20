@@ -1464,7 +1464,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   let newPos =
     let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
     match tokenInfo.token with
-    | TString _ ->
+    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
         let offset = findPosOffsetToNextWhiteSpace tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
@@ -1506,7 +1506,7 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   let newPos =
     let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
     match tokenInfo.token with
-    | TString _ ->
+    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
         let offset = findPosOffsetToNextWhiteSpace tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
