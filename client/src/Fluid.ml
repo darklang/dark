@@ -1449,7 +1449,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     Token.toText tokenInfo.token
     |> String.split ~on:""
     |> List.mapi ~f:(fun idx a ->
-           if a == " " || a = "\""
+           if a == " " || a = "\"" || a = "\n" || a = "\t"
            then if idx == tokenInfo.length - 1 then Some idx else Some (idx + 1)
            else None )
     |> List.filterMap ~f:(fun v -> v)
