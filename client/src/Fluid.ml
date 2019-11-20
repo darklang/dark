@@ -867,6 +867,7 @@ let validateTokens (tokens : fluidToken list) : fluidToken list =
   tokens
 
 
+(* Remove artifacts of the token generation process *)
 let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
