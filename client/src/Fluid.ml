@@ -1432,11 +1432,14 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   let optionTokenInfo =
     let tokens = toTokens s ast in
     let rec findToken (tokenInfo : fluidTokenInfo option) =
+      (* Finds the closest white space before the current cursor position *)
       match tokenInfo with
       | Some ti ->
+          (* If the token is editable, we want to place the cursor in that token *)
           if Token.isTextToken ti.token && pos != ti.startPos
           then Some ti
           else
+            (* If not, we want to try the previous token *)
             let mPrev, _, _ = getTokensAtPosition ~pos:ti.startPos tokens in
             findToken mPrev
       | None ->
@@ -1454,9 +1457,8 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
            else None )
     |> List.filterMap ~f:(fun v -> v)
     |> List.reverse
-    |> List.find ~f:(fun x ->
-           (* Not a position after the cursor, or currently on that space *)
-           if x + tokenInfo.startPos >= pos then false else true )
+    (* Not a position after the cursor, or currently on that space *)
+    |> List.find ~f:(fun x -> not (x + tokenInfo.startPos >= pos))
     |> Option.withDefault ~default:0
   in
   let newPos =
@@ -1476,12 +1478,15 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   let s = recordAction "goToEndOfWord" s in
   let optionTokenInfo =
     let tokens = toTokens s ast in
+    (* Finds the next whitespace after the current cursor position *)
     let rec findToken (tokenInfo : fluidTokenInfo option) =
       match tokenInfo with
       | Some ti ->
+          (* If the token is editable, we want to place the cursor in that token *)
           if Token.isTextToken ti.token
           then Some ti
           else
+            (* If not, we want to try the next token *)
             let _, _, mNext = getTokensAtPosition ~pos:ti.startPos tokens in
             findToken mNext
       | None ->
@@ -1494,10 +1499,8 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     Token.toText tokenInfo.token
     |> String.split ~on:""
     |> List.findWithIndex ~f:(fun idx x ->
-           if tokenInfo.startPos + idx > pos
-              && (x == " " || x = "\"" || x = "\n" || x = "\t")
-           then true
-           else false )
+           tokenInfo.startPos + idx > pos
+           && (x == " " || x = "\"" || x = "\n" || x = "\t") )
     |> Option.withDefault ~default:tokenInfo.length
   in
   let newPos =
