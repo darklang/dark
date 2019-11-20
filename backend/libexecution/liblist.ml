@@ -391,7 +391,7 @@ let fns =
                     RT.error "Expecting fn to return bool" ~result:v ~actual:dv
               in
               if !incomplete
-              then DIncomplete SourceNone (*TODO(ds) source info *)
+              then DIncomplete SourceNone
               else DList (List.filter ~f l)
           | args ->
               fail args)

@@ -385,10 +385,8 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap s
   | DBlock ->
       asType
-  | DIncomplete SourceNone ->
+  | DIncomplete _ ->
       asType
-  | DIncomplete (SourceId id) ->
-      "DIncomplete<" ^ show_id id ^ ">"
   | DResp (Redirect url, dv_) ->
       "302 " ^ url ^ nl ^ toRepr_ indent dv_
   | DResp (Response (code, hs), dv_) ->
