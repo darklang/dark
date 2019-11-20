@@ -3159,8 +3159,10 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TBlank id | TPlaceholder (_, id) ->
         (replaceExpr id ~newExpr ast, RightOne)
     (* lists *)
+    | TListOpen id when letter = ',' ->
+        (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
     | TListOpen id ->
-        (insertInList ~index:0 id ~newExpr ast, SamePlace)
+        (insertInList ~index:0 id ~newExpr ast, RightOne)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
