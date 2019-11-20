@@ -394,6 +394,7 @@ let () =
   let process
       ~(debug : bool)
       ~(clone : bool)
+      ~(wrap : bool)
       (keys : (K.key * shiftState) list)
       (selectionStart : int option)
       (pos : int)
@@ -413,11 +414,15 @@ let () =
       |> List.length
     in
     let ast =
-      EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
+      if wrap
+      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
+      else ast
     in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
-    let addWrapper pos = pos + wrapperOffset + (newlinesBefore pos * 2) in
+    let addWrapper pos =
+      if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
+    in
     let pos = addWrapper pos in
     let selectionStart = Option.map selectionStart ~f:addWrapper in
     let s = {s with oldPos = pos; newPos = pos; selectionStart} in
@@ -428,7 +433,9 @@ let () =
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
-      | EIf (_, _, expr, _) ->
+      | EIf (_, _, expr, _) when wrap ->
+          expr
+      | expr when not wrap ->
           expr
       | expr ->
           Debug.crash ("the wrapper is broken: " ^ eToString s expr)
@@ -456,7 +463,11 @@ let () =
           * weird to test for *)
       max 0 (min last !endPos)
     in
-    let finalPos = removeWrapperFromCaretPos newState.newPos in
+    let finalPos =
+      if wrap
+      then removeWrapperFromCaretPos newState.newPos
+      else newState.newPos
+    in
     let selPos =
       Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     in
@@ -475,56 +486,91 @@ let () =
     ((eToString s result, (selPos, finalPos)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
-    process ~clone:false ~debug:false [] None 0 expr
+    process ~wrap:true ~clone:false ~debug:false [] None 0 expr
   in
-  let del ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
+  let del
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
   in
-  let bs ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
+  let bs
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
   in
-  let tab ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
+  let tab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
   in
-  let shiftTab ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr)
-      : testResult =
-    process ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+  let shiftTab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
   in
-  let space ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
+  let space
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
   in
-  let enter ?(debug = false) ?(clone = true) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+  let enter
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
   in
   let press
+      ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
       (key : K.key)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~clone ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [(key, ShiftNotHeld)] None pos expr
   in
   let selectionPress
+      ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
       (key : K.key)
       (selectionStart : int)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~clone ~debug [(key, ShiftNotHeld)] (Some selectionStart) pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(key, ShiftNotHeld)]
+      (Some selectionStart)
+      pos
+      expr
   in
   let presses
+      ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
       (keys : K.key list)
       (pos : int)
       (expr : fluidExpr) : testResult =
     process
+      ~wrap
       ~debug
       ~clone
       (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
@@ -533,21 +579,23 @@ let () =
       expr
   in
   let modPresses
+      ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
       (keys : (K.key * shiftState) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~clone ~debug keys None pos expr
+    process ~wrap ~clone ~debug keys None pos expr
   in
   let insert
       ?(debug = false)
+      ?(wrap = true)
       ?(clone = true)
       (char : char)
       (pos : int)
       (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~debug ~clone [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
   let t
