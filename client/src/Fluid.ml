@@ -596,13 +596,10 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> List.concat
       in
       let length =
-        (* TODO: this doesn't account for the indentation of arguments
-         * correctly, as they may also be indented by xPos in many cases if
-         * they are on multiple lines *)
         tokens
         |> List.map ~f:(Token.toText >> String.length)
         |> List.sum
-        |> ( + ) (* separators *) (List.length args + 1)
+        |> ( + ) (* separators, including at the front *) (List.length args)
         |> ( + ) (Option.withDefault ~default:0 b.xPos)
       in
       let tooLong = length > 120 in
