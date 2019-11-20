@@ -549,7 +549,6 @@ module Builder = struct
   let asTokens (b : t) : fluidToken list = b.tokens
 end
 
-(* x is the starting x-index of the token *)
 let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
   let open Builder in
