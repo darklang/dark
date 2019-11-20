@@ -65,6 +65,8 @@ let set_expr (id : id) (expr : RuntimeT.expr) (tl : toplevel) : toplevel =
       failwith "not implemented yet"
 
 
+(* This has a clone on the frontend in AST.ml. Any changes to
+ * this should likely be reflected there too. *)
 let rec expr_to_string ~(indent : int) (e : expr) : string =
   let bs = Ast.blank_to_string in
   let rec nexpr_to_string ~indent (nexpr : nexpr) : string =
