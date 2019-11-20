@@ -542,8 +542,8 @@ module Builder = struct
     {newB with indent = oldIndent}
 
 
-  let maybeNewline (nlToken : fluidToken) (b : t) : t =
-    if endsInNewline b then b else add nlToken b
+  let addNewlineIfNeeded (nlInfo : (id * id * int option) option) (b : t) : t =
+    if endsInNewline b then b else add (TNewline nlInfo) b
 
 
   let asTokens (b : t) : fluidToken list = b.tokens
@@ -624,7 +624,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
            if reflow
            then
              b
-             |> maybeNewline (TNewline (Some (id, id, None)))
+             |> addNewlineIfNeeded (Some (id, id, None))
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
@@ -652,7 +652,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> add (TLetLHS (id, varId, lhs))
       |> add (TLetAssignment (id, varId))
       |> addNested ~f:(fromExpr rhs)
-      |> maybeNewline (TNewline (Some (eid next, id, None)))
+      |> addNewlineIfNeeded (Some (eid next, id, None))
       |> addNested ~f:(fromExpr next)
   | EString (id, str) ->
       let size = 40 in
@@ -682,11 +682,11 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       b
       |> add (TIfKeyword id)
       |> addNested ~f:(fromExpr cond)
-      |> maybeNewline (TNewline None)
+      |> addNewlineIfNeeded None
       |> add (TIfThenKeyword id)
-      |> maybeNewline (TNewline (Some (eid if', id, None)))
+      |> addNewlineIfNeeded (Some (eid if', id, None))
       |> nest ~indent:2 if'
-      |> maybeNewline (TNewline None)
+      |> addNewlineIfNeeded None
       |> add (TIfElseKeyword id)
       |> add (TNewline (Some (eid else', id, None)))
       |> nest ~indent:2 else'
@@ -783,7 +783,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         |> indentBy ~indent:2 ~f:(fun b ->
                addIter fields b ~f:(fun i (aid, fname, expr) b ->
                    b
-                   |> maybeNewline (TNewline (Some (id, id, Some i)))
+                   |> addNewlineIfNeeded (Some (id, id, Some i))
                    |> add (TRecordField (id, aid, i, fname))
                    |> add (TRecordSep (id, i, aid))
                    |> addNested ~f:(fromExpr expr) ) )
@@ -800,14 +800,13 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       | head :: tail ->
           b
           |> addNested ~f:(fromExpr head)
-          |> maybeNewline (TNewline (Some (id, id, Some 0)))
+          |> addNewlineIfNeeded (Some (id, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TThreadPipe (id, i, length))
                  |> addNested ~f:(fromExpr e)
-                 |> maybeNewline (TNewline (Some (id, id, Some (i + 1)))) )
-          |> maybeNewline (TNewline (Some (id, id, Some (List.length tail))))
-      )
+                 |> addNewlineIfNeeded (Some (id, id, Some (i + 1))) )
+          |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EThreadTarget _ ->
       recover "should never be making tokens for EThreadTarget" b
   | EMatch (id, mexpr, pairs) ->
@@ -818,12 +817,11 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              b
              |> addIter pairs ~f:(fun i (pattern, expr) b ->
                     b
-                    |> maybeNewline (TNewline (Some (id, id, Some i)))
+                    |> addNewlineIfNeeded (Some (id, id, Some i))
                     |> addMany (patternToToken pattern)
                     |> addMany [TSep; TMatchSep (pid pattern); TSep]
                     |> addNested ~f:(fromExpr expr) )
-             |> maybeNewline
-                  (TNewline (Some (id, id, Some (List.length pairs)))) )
+             |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))) )
   | EOldExpr expr ->
       b |> add (TPartial (Blank.toID expr, "TODO: oldExpr"))
   | EPartial (id, str, _) ->
