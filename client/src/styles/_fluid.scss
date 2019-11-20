@@ -56,7 +56,7 @@ https://github.com/chriskempson/tomorrow-theme */
   $black: #1d1f21;
   $background: transparent;
   $selected-background: #2d2d2d;
-  $blanks: lighten($toplevel-background, 10%);
+  $blanks: lighten($toplevel-background, 5%);
   $currentline: $black3;
   $selection: $grey3;
   $foreground: $white2;
@@ -130,18 +130,25 @@ https://github.com/chriskempson/tomorrow-theme */
     color: $orange;
   }
 
-  .fluid-blank {
+  .fluid-blank,
+  .fluid-placeholder,
+  .fluid-empty {
     background-color: $blanks;
+
+    &.cursor-on {
+      background-color: lighten($blanks, 10%);
+    }
   }
 
   .fluid-placeholder {
-    background-color: $blanks;
     color: $grey3;
+    &.cursor-on {
+      color: lighten($grey3, 5%);
+    }
   }
 
   .fluid-empty {
-    color: lighten($grey2, 5%);
-    background-color: $blanks;
+    color: lighten($grey2, 10%);
   }
 
   .fluid-keyword {

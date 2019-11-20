@@ -4728,6 +4728,7 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
+  let currentTokenInfo = getToken state ast in
   List.map l ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
@@ -4749,6 +4750,13 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         let tokenId = Token.tid ti.token in
         let idStr = deID tokenId in
         let idclasses = ["id-" ^ idStr] in
+        let isCursorOn =
+          match currentTokenInfo with
+          | Some currTi ->
+              if currTi = ti then ["cursor-on"] else []
+          | None ->
+              []
+        in
         let errorClasses =
           (* Here we want to find out the dval so we can apply error classes to the token *)
           let id = Token.analysisID ti.token in
@@ -4764,7 +4772,12 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         in
         Html.span
           [ Attrs.class'
-              ( ["fluid-entry"] @ classes @ idclasses @ highlight @ errorClasses
+              ( ["fluid-entry"]
+                @ classes
+                @ idclasses
+                @ highlight
+                @ errorClasses
+                @ isCursorOn
               |> String.join ~sep:" " )
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
