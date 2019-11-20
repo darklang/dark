@@ -151,6 +151,45 @@ let fns =
           | args ->
               fail args)
     ; ps = true
+    ; dep = true }
+  ; { pns = ["Dict::filter_v1"]
+    ; ins = []
+    ; p = [par "dict" TObj; func ["key"; "value"]]
+    ; r = TObj
+    ; d =
+        "Return only values in `dict` which meet the function's criteria. The function should return true to keep the entry or false to remove it."
+    ; f =
+        InProcess
+          (function
+          | _, [DObj o; DBlock fn] ->
+              let filter_propagating_errors ~key ~data acc =
+                match acc with
+                | Error dv ->
+                    Error dv
+                | Ok m ->
+                  ( match fn [Dval.dstr_of_string_exn key; data] with
+                  | DBool true ->
+                      Ok (Base.Map.set m ~key ~data)
+                  | DBool false ->
+                      Ok m
+                  | (DIncomplete _ as e) | (DError _ as e) ->
+                      Error e
+                  | other ->
+                      RT.error
+                        "Fn returned incorrect type"
+                        ~expected:"bool"
+                        ~actual:other )
+              in
+              let filtered_result =
+                Base.Map.fold
+                  o
+                  ~init:(Ok DvalMap.empty)
+                  ~f:filter_propagating_errors
+              in
+              (match filtered_result with Ok o -> DObj o | Error dv -> dv)
+          | args ->
+              fail args)
+    ; ps = true
     ; dep = false }
   ; { pns = ["Dict::empty"]
     ; ins = []
