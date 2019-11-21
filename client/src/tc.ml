@@ -52,6 +52,10 @@ module Option = struct
   let andThen2 (a : 'a option) (b : 'b option) ~(f : 'a -> 'b -> 'c option) :
       'c option =
     match (a, b) with Some a, Some b -> f a b | _ -> None
+
+
+  let someIsValue ~(equals : 'a) (o : 'a option) : bool =
+    match o with Some a when a = equals -> true | _ -> false
 end
 
 module Result = struct
