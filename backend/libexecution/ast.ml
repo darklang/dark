@@ -596,14 +596,16 @@ and exec_fn
     |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
-  match
+  let badArg =
     List.find arglist ~f:(function
-        | (DIncomplete _ | DError _)
-          when not (String.Caseless.equal fnname "Bool::isError") ->
+        | DError _ when String.Caseless.equal fnname "Bool::isError" ->
+            false
+        | DError _ | DIncomplete _ ->
             true
         | _ ->
             false )
-  with
+  in
+  match badArg with
   | Some (DIncomplete src) ->
       DIncomplete src
   | Some (DError (src, _)) ->
