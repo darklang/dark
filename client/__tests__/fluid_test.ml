@@ -263,6 +263,13 @@ let () =
   (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
   (* in *)
   let aConstructor = EConstructor (gid (), gid (), "Just", [b ()]) in
+  let emptyRow = [(gid (), "", b ())] in
+  let recordRow1 = (gid (), "f1", fiftySix) in
+  let recordRow2 = (gid (), "f2", seventyEight) in
+  let singleRowRecord = ERecord (gid (), [recordRow1]) in
+  let multiRowRecord = ERecord (gid (), [recordRow1; recordRow2]) in
+  let emptyRowRecord = ERecord (gid (), emptyRow) in
+  let emptyRecord = ERecord (gid (), []) in
   let aField =
     EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
   in
@@ -319,6 +326,7 @@ let () =
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
+        ; infixFn "++" TStr TStr
         ; infixFn "==" TAny TBool
         ; infixFn "<=" TInt TBool
         ; infixFn "||" TBool TBool
@@ -334,6 +342,17 @@ let () =
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "HttpClient::post_v4"
+          ; fnParameters =
+              [ fnParam "url" TStr false
+              ; fnParam "body" TAny false
+              ; fnParam "query" TObj false
+              ; fnParam "headers" TObj false ]
+          ; fnReturnTipe = TResult
+          ; fnDescription = "Make blocking HTTP POST call to `uri`."
+          ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
           ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
@@ -374,11 +393,14 @@ let () =
   in
   let process
       ~(debug : bool)
+      ~(clone : bool)
+      ~(wrap : bool)
       (keys : (K.key * shiftState) list)
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
+    let ast = if clone then Fluid.clone ~state:s ast else ast in
     let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
@@ -392,11 +414,15 @@ let () =
       |> List.length
     in
     let ast =
-      EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
+      if wrap
+      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
+      else ast
     in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
-    let addWrapper pos = pos + wrapperOffset + (newlinesBefore pos * 2) in
+    let addWrapper pos =
+      if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
+    in
     let pos = addWrapper pos in
     let selectionStart = Option.map selectionStart ~f:addWrapper in
     let s = {s with oldPos = pos; newPos = pos; selectionStart} in
@@ -407,7 +433,9 @@ let () =
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
-      | EIf (_, _, expr, _) ->
+      | EIf (_, _, expr, _) when wrap ->
+          expr
+      | expr when not wrap ->
           expr
       | expr ->
           Debug.crash ("the wrapper is broken: " ^ eToString s expr)
@@ -435,7 +463,11 @@ let () =
           * weird to test for *)
       max 0 (min last !endPos)
     in
-    let finalPos = removeWrapperFromCaretPos newState.newPos in
+    let finalPos =
+      if wrap
+      then removeWrapperFromCaretPos newState.newPos
+      else newState.newPos
+    in
     let selPos =
       Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
     in
@@ -454,59 +486,116 @@ let () =
     ((eToString s result, (selPos, finalPos)), partialsFound)
   in
   let render (expr : fluidExpr) : testResult =
-    process ~debug:false [] None 0 expr
+    process ~wrap:true ~clone:false ~debug:false [] None 0 expr
   in
-  let del ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Delete, ShiftNotHeld)] None pos expr
+  let del
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
   in
-  let bs ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
+  let bs
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
   in
-  let tab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Tab, ShiftNotHeld)] None pos expr
+  let tab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
   in
-  let shiftTab ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+  let shiftTab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
   in
-  let space ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Space, ShiftNotHeld)] None pos expr
+  let space
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
   in
-  let enter ?(debug = false) (pos : int) (expr : fluidExpr) : testResult =
-    process ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+  let enter
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
   in
-  let press ?(debug = false) (key : K.key) (pos : int) (expr : fluidExpr) :
-      testResult =
-    process ~debug [(key, ShiftNotHeld)] None pos expr
+  let press
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (key : K.key)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(key, ShiftNotHeld)] None pos expr
   in
   let selectionPress
+      ?(wrap = true)
       ?(debug = false)
+      ?(clone = true)
       (key : K.key)
       (selectionStart : int)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~debug [(key, ShiftNotHeld)] (Some selectionStart) pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(key, ShiftNotHeld)]
+      (Some selectionStart)
+      pos
+      expr
   in
   let presses
-      ?(debug = false) (keys : K.key list) (pos : int) (expr : fluidExpr) :
-      testResult =
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (keys : K.key list)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     process
+      ~wrap
       ~debug
+      ~clone
       (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
       None
       pos
       expr
   in
   let modPresses
+      ?(wrap = true)
       ?(debug = false)
+      ?(clone = true)
       (keys : (K.key * shiftState) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~debug keys None pos expr
+    process ~wrap ~clone ~debug keys None pos expr
   in
-  let insert ?(debug = false) (char : char) (pos : int) (expr : fluidExpr) :
-      testResult =
+  let insert
+      ?(debug = false)
+      ?(wrap = true)
+      ?(clone = true)
+      (char : char)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
   let t
@@ -1057,7 +1146,7 @@ let () =
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
       t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
-      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 2) ;
+      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 0) ;
       t "insert blank->string" (b ()) (insert '"' 0) ("\"\"", 1) ;
       t "del blank->string" emptyStr (del 0) (blank, 0) ;
       t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
@@ -1175,6 +1264,89 @@ let () =
         (b ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
+      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
+      t
+        "backspacing a fn arg's separator goes to the right place"
+        (fn "Int::add" [five; six])
+        (bs 11)
+        ("Int::add 5 6", 10) ;
+      let string40 = "0123456789abcdefghij0123456789abcdefghij" in
+      let string80 = string40 ^ string40 in
+      let string160 = string80 ^ string80 in
+      t
+        "reflows work for functions"
+        (fn
+           "HttpClient::post_v4"
+           [ EString (gid (), string40)
+           ; ERecord (gid (), [(gid (), string80, b ())])
+           ; emptyRecord
+           ; emptyRecord ])
+        render
+        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
+        , 0 ) ;
+      t
+        "reflows work for functions with long strings"
+        (fn
+           "HttpClient::post_v4"
+           [EString (gid (), string160); b (); b (); b ()])
+        render
+        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
+        , 0 ) ;
+      tp
+        "reflows work for partials too "
+        (EPartial
+           ( gid ()
+           , "TEST"
+           , fn
+               "HttpClient::post_v4"
+               [EString (gid (), string160); b (); b (); b ()] ))
+        render
+        ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
+        , 0 ) ;
+      t
+        "reflows happen for functions whose arguments have newlines"
+        (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b (); b ()])
+        render
+        ( "HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________"
+        , 0 ) ;
+      t
+        "reflows don't happen for functions whose only newline is in the last argument"
+        (fn "HttpClient::post_v4" [emptyStr; b (); b (); emptyRowRecord])
+        render
+        ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
+        , 0 ) ;
+      tp
+        "reflows put the cursor in the right place on insert"
+        (let justShortEnoughNotToReflow =
+           "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
+         in
+         fn
+           "HttpClient::post_v4"
+           [ emptyStr
+           ; emptyRecord
+           ; emptyRecord
+           ; EVariable (gid (), justShortEnoughNotToReflow) ])
+        (insert ~wrap:false 'x' 120)
+        ( "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x"
+          (* TODO: This should be 129, but reflow puts the cursor in the wrong
+           * place for new partials *)
+        , 121 ) ;
+      tp
+        "reflows put the cursor in the right place on bs"
+        (let justLongEnoughToReflow =
+           "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
+         in
+         fn
+           "HttpClient::post_v4"
+           [ emptyStr
+           ; emptyRecord
+           ; emptyRecord
+           ; EVariable (gid (), justLongEnoughToReflow) ])
+        (bs ~wrap:false 129)
+        ( "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
+          (* TODO: This should be 120, but reflow puts the cursor in the wrong
+           * place for new partials *)
+        , 128 ) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
@@ -2007,7 +2179,7 @@ let () =
         , 73 ) ;
       t
         "inserting a thread into another thread gives a single thread1"
-        (threadOn five [ERightPartial (gid (), "|>", listFn [aList5])])
+        (threadOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
@@ -2026,12 +2198,11 @@ let () =
         (press K.ShiftEnter 11)
         ("let *** = 6\n          |>___\n5", 24) ;
       t
-        "shift enter in a record's mnewline creates the pipe in the expr, not the entire record"
+        "shift enter in a record's newline creates the pipe in the expr, not the entire record"
         (ERecord
            (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
         (press K.ShiftEnter 11)
-        (* TODO: the 2nd newline should go away with the next PR *)
-        ("{\n  f1 : 56\n       |>___\n\n  f2 : 78\n}", 21) ;
+        ("{\n  f1 : 56\n       |>___\n  f2 : 78\n}", 21) ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting threaded infix fns *)
       (* TODO: test for deleting threaded prefix fns *)
@@ -2149,6 +2320,7 @@ let () =
             ; EString (gid (), "ef") ] )
       in
       t "create list" (b ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
+      t "insert into empty list inserts" emptyList (insert '5' 1) ("[5]", 2) ;
       t
         "inserting before the list does nothing"
         emptyList
@@ -2161,7 +2333,7 @@ let () =
         "insert separator before item creates blank"
         single
         (insert ',' 1)
-        ("[___,56]", 2) ;
+        ("[___,56]", 1) ;
       t
         "insert separator after item creates blank"
         single
@@ -2252,13 +2424,6 @@ let () =
         ("[\"ab\",\"ef\"]", 5) ;
       () ) ;
   describe "Record" (fun () ->
-      let emptyRecord = ERecord (gid (), []) in
-      let emptyRow = ERecord (gid (), [(gid (), "", b ())]) in
-      let single = ERecord (gid (), [(gid (), "f1", fiftySix)]) in
-      let multi =
-        ERecord
-          (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)])
-      in
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" (b ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
       t
@@ -2273,12 +2438,12 @@ let () =
         ("{}", 1) ;
       t
         "inserting space in empty record field does nothing"
-        emptyRow
+        emptyRowRecord
         (space 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "inserting space in empty record value does nothing"
-        emptyRow
+        emptyRowRecord
         (space 10)
         ("{\n  *** : ___\n}", 10) ;
       t
@@ -2286,20 +2451,20 @@ let () =
         emptyRecord
         (enter 1)
         ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRow (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
+      t "enter fieldname" emptyRowRecord (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
       t
         "move to the front of an empty record"
-        emptyRow
+        emptyRowRecord
         (press K.GoToStartOfLine 13)
         ("{\n  *** : ___\n}", 4) ;
       t
         "move to the end of an empty record"
-        emptyRow
+        emptyRowRecord
         (press K.GoToEndOfLine 4)
         ("{\n  *** : ___\n}", 13) ;
       t
         "cant enter invalid fieldname"
-        emptyRow
+        emptyRowRecord
         (insert '^' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
@@ -2324,88 +2489,88 @@ let () =
         ("{}", 2) ;
       t
         "backspacing empty record field clears entry"
-        emptyRow
+        emptyRowRecord
         (bs 4)
         (* TODO: buggy. Should be 1 *)
         ("{}", 2) ;
       t
         "appending to int in expr works"
-        single
+        singleRowRecord
         (insert '1' 11)
         ("{\n  f1 : 561\n}", 12) ;
       t
         "appending to int in expr works"
-        multi
+        multiRowRecord
         (insert '1' 21)
         ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
       t
-        "move to the front of a record with multiple values"
-        multi
+        "move to the front of a record with multiRowRecordple values"
+        multiRowRecord
         (press K.GoToStartOfLine 21)
         ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
       t
-        "move to the end of a record with multiple values"
-        multi
+        "move to the end of a record with multiRowRecordple values"
+        multiRowRecord
         (press K.GoToEndOfLine 14)
         ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
       t
         "inserting at the end of the key works"
-        emptyRow
+        emptyRowRecord
         (insert 'f' 6)
         ("{\n  f : ___\n}", 5) ;
       t
         "pressing enter at start adds a row"
-        multi
+        multiRowRecord
         (enter 1)
         ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
       t
         "pressing enter at the back adds a row"
-        multi
+        multiRowRecord
         (enter 22)
         ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
       t
         "pressing enter at the start of a field adds a row"
-        multi
+        multiRowRecord
         (enter 14)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
       t
         "pressing enter at the end of row adds a row"
-        multi
+        multiRowRecord
         (enter 11)
         ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
       t
         "dont allow weird chars in recordFields"
-        emptyRow
+        emptyRowRecord
         (press K.RightParens 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars"
-        emptyRow
+        emptyRowRecord
         (press K.Plus 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont jump in recordFields with infix chars, pt 2"
-        single
+        singleRowRecord
         (press K.Plus 6)
         ("{\n  f1 : 56\n}", 6) ;
       t
         "colon should skip over the record colon"
-        emptyRow
+        emptyRowRecord
         (press K.Colon 7)
         ("{\n  *** : ___\n}", 10) ;
       t
         "dont allow key to start with a number"
-        emptyRow
+        emptyRowRecord
         (insert '5' 4)
         ("{\n  *** : ___\n}", 4) ;
       t
         "dont allow key to start with a number, pt 2"
-        single
+        singleRowRecord
         (insert '5' 4)
         ("{\n  f1 : 56\n}", 4) ;
       t
         "dont allow key to start with a number, pt 3"
-        emptyRow
+        emptyRowRecord
         (insert '5' 6)
         ("{\n  *** : ___\n}", 6) ;
       () ) ;
@@ -2509,7 +2674,7 @@ let () =
       t
         "autocomplete for field"
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
-        (enter 10)
+        (enter ~clone:false 10)
         ("request.body", 12) ;
       (* TODO: this doesn't work but should *)
       (* t *)
