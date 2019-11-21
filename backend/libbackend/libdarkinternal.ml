@@ -847,6 +847,60 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 fail args )
     ; ps = false
     ; dep = false }
+  ; { pns = ["DarkInternal::grantsFor"]
+    ; ins = []
+    ; p = [par "org" TStr]
+    ; r = TObj
+    ; d =
+        "Returns a dict mapping username->permission of users who have been granted permissions for a given auth_domain"
+    ; f =
+        internal_fn (function
+            | _, [DStr org] ->
+                let grants =
+                  Authorization.grants_for
+                    ~auth_domain:(Unicode_string.to_string org)
+                in
+                grants
+                |> List.fold ~init:DvalMap.empty ~f:(fun map (user, perm) ->
+                       DvalMap.insert
+                         ~key:user
+                         ~value:
+                           ( perm
+                           |> Authorization.permission_to_string
+                           |> Dval.dstr_of_string_exn )
+                         map )
+                |> fun obj -> DObj obj
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["DarkInternal::orgsFor"]
+    ; ins = []
+    ; p = [par "username" TStr]
+    ; r = TObj
+    ; d =
+        "Returns a dict mapping orgs->permission to which the given `username` has been given permission"
+    ; f =
+        internal_fn (function
+            | _, [DStr username] ->
+                let orgs =
+                  Authorization.orgs_for
+                    ~username:(Unicode_string.to_string username)
+                in
+                orgs
+                |> List.fold ~init:DvalMap.empty ~f:(fun map (org, perm) ->
+                       DvalMap.insert
+                         ~key:org
+                         ~value:
+                           ( perm
+                           |> Authorization.permission_to_string
+                           |> Dval.dstr_of_string_exn )
+                         map )
+                |> fun obj -> DObj obj
+            | args ->
+                fail args )
+    ; ps = false
+    ; dep = false }
   ; { pns = ["DarkInternal::checkPermission"]
     ; ins = []
     ; p = [par "username" TStr; par "canvas" TStr]
@@ -860,10 +914,8 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 in
                 let username = Unicode_string.to_string username in
                 ( match Authorization.permission ~auth_domain ~username with
-                | Some ReadWrite ->
-                    "rw"
-                | Some Read ->
-                    "r"
+                | Some perm ->
+                    Authorization.permission_to_string perm
                 | None ->
                     "" )
                 |> Dval.dstr_of_string_exn
