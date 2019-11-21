@@ -1140,3 +1140,144 @@ let variablesIn (ast : expr) : avDict =
   let trace expr st = IDTable.set sym_store (deID (Blank.toID expr)) st in
   sym_exec ~trace VarDict.empty ast ;
   sym_store |> IDTable.toList |> StrDict.fromList
+
+
+(* Taken directly from the backend: toplevel.expr_to_string, and adapted *)
+let rec expr_to_string ~(indent : int) (e : expr) : string =
+  let bs (bo : string blankOr) : string =
+    match bo with F (_, a) -> a | Blank _ -> "___"
+  in
+  let rec nexpr_to_string ~indent (nexpr : nExpr) : string =
+    let needs_parens arg =
+      match arg with
+      | F (_, Value _)
+      | F (_, ListLiteral _)
+      | F (_, ObjectLiteral _)
+      | F (_, Variable _)
+      | F (_, FieldAccess _)
+      | F (_, FnCall (_, [], NoRail))
+      | Blank _ ->
+          false
+      | _ ->
+          true
+    in
+    let nli = "\n" ^ String.repeat ~count:(indent + 2) " " in
+    let nl = "\n" ^ String.repeat ~count:indent " " in
+    let esi = expr_to_string ~indent:(indent + 2) in
+    let es ?(indent = indent) = expr_to_string ~indent in
+    match nexpr with
+    | FluidPartial (_, expr) ->
+        es expr
+    | FluidRightPartial (_, expr) ->
+        es expr
+    | Value v ->
+        v
+    | Variable name ->
+        name
+    | Let (lhs, rhs, body) ->
+        "let "
+        ^ bs lhs
+        ^ " = "
+        ^ es ~indent:(indent + String.length (bs lhs) + 7) rhs
+        ^ " in"
+        ^ nl
+        ^ es body
+    | If (cond, ifbody, elsebody) ->
+        "if "
+        ^ es ~indent:(indent + 3) cond
+        ^ nl
+        ^ "then"
+        ^ nli
+        ^ esi ifbody
+        ^ nl
+        ^ "else "
+        ^ nli
+        ^ esi elsebody
+    | FnCall (name, args, NoRail) ->
+        let name = bs name in
+        List.foldl ~init:name args ~f:(fun arg old ->
+            let argstr =
+              let old_length =
+                String.repeat ~count:indent " " ^ old ^ " "
+                |> String.split ~on:"\n"
+                |> List.last
+                |> Option.withDefault ~default:""
+                |> String.length
+              in
+              let indent = old_length + if needs_parens arg then 1 else 0 in
+              if needs_parens arg
+              then "(" ^ es ~indent arg ^ ")"
+              else es ~indent arg
+            in
+            old ^ " " ^ argstr )
+    | FnCall (name, exprs, Rail) ->
+        let name = bs name in
+        nexpr_to_string
+          ~indent
+          (FnCall (B.newF (name ^ "-with-rail"), exprs, Rail))
+    | Lambda (vars, body) ->
+        "\\("
+        ^ (List.map vars ~f:bs |> String.join ~sep:", ")
+        ^ " -> "
+        ^ nli
+        ^ es ~indent:(indent + 3) body
+        ^ " )"
+    | Thread exprs ->
+        List.map ~f:(es ~indent:(indent + 3)) exprs
+        |> String.join ~sep:(nl ^ "|> ")
+    | FieldAccess (obj, field) ->
+        if needs_parens obj
+        then "(" ^ es obj ^ ")." ^ bs field
+        else es obj ^ "." ^ bs field
+    | ListLiteral exprs ->
+        List.foldl ~init:"" exprs ~f:(fun arg old ->
+            let argstr =
+              let indent =
+                indent
+                + 1
+                + String.length old
+                + if needs_parens arg then 1 else 0
+              in
+              if needs_parens arg
+              then "(" ^ expr_to_string ~indent arg ^ "), "
+              else expr_to_string ~indent arg ^ ", "
+            in
+            old ^ " " ^ argstr )
+    | ObjectLiteral pairs ->
+        "{"
+        ^ String.join
+            ~sep:""
+            (List.map pairs ~f:(fun (k, v) ->
+                 nli
+                 ^ bs k
+                 ^ ": "
+                 ^ es ~indent:(indent + 2 + String.length (bs k)) v ))
+        ^ nl
+        ^ "}"
+    | FeatureFlag (msg, cond, a, b) ->
+        "ff("
+        ^ bs msg
+        ^ ") "
+        ^ nl
+        ^ "ff-condition"
+        ^ nli
+        ^ esi cond
+        ^ nl
+        ^ "ff-a"
+        ^ nli
+        ^ esi a
+        ^ nl
+        ^ "ff-b"
+        ^ nli
+        ^ esi b
+    | Match (cond, _pats) ->
+        "match " ^ es ~indent:(indent + 6) cond ^ "TODO patterns"
+    | Constructor (name, args) ->
+        bs name
+        ^ " "
+        ^ (args |> List.map ~f:(es ~indent) |> String.join ~sep:" ")
+  in
+  e |> B.map ~f:(nexpr_to_string ~indent) |> bs
+
+
+let toString (ast : expr) : string = expr_to_string ~indent:0 ast
