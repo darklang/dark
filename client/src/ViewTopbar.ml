@@ -37,5 +37,14 @@ let html (m : model) =
                 (fun _ -> IgnoreMsg ) ]
             [Html.text "(go to the old editor)"]
         ; Html.text " "
+        ; Html.a
+            [ Html.href
+                "https://darkcommunity.slack.com/archives/CQWEKP85V/p1574372251002600"
+            ; ViewUtils.eventNoPropagation
+                ~key:"toggle-fluid"
+                "mouseup"
+                (fun _ -> IgnoreMsg ) ]
+            [Html.text "(send us feedback!)"]
+        ; Html.br []
         ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
   else []

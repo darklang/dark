@@ -1,14 +1,13 @@
 .topbar {
   position: relative;
   width: 100%;
-  background-color: darken($canvas-background, 10%);
+  background-color: $cyan;
+  color: $black1;
   align-items: center;
   align-content: center;
   text-align: center;
-  color: $white1;
   a {
-    color: $white1;
-
+    color: $black2;
     &:hover {
       cursor: pointer;
     }
