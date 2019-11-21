@@ -4887,6 +4887,7 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
+  (* Gets the source of a DIncomplete given an expr id *)
   let dvalSrc id =
     if FluidToken.validID id
     then
@@ -4898,7 +4899,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     else SourceNone
   in
   let currentTokenInfo = getToken state ast in
-  let originIdOfCursor =
+  let srcIdOfCurrentToken =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
            let curId = Token.analysisID ti.token in
@@ -4939,18 +4940,20 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         let errorClasses =
           (* Here we want to find out the dval so we can apply error classes to the token *)
           let id = Token.analysisID ti.token in
-          if FluidToken.validID id
-          then
-            match Analysis.getLiveValueLoadable vs.analysisStore id with
-            | LoadableSuccess (DIncomplete (SourceId incId))
-              when incId = id && not (Token.isNewline ti.token) ->
-                ["fluid-incomplete"]
-            | LoadableSuccess (DError (SourceId incId, _))
-              when incId = id && not (Token.isNewline ti.token) ->
-                ["fluid-incomplete"]
-            | _ ->
-                []
-          else []
+          match dvalSrc id with
+          | SourceId srcId ->
+              if srcId = id && Token.isTextToken ti.token
+              then
+                let cls = ["fluid-incomplete"] in
+                (* Finds if this expression is the source of an error propogated to where the cursor is currently at  *)
+                match srcIdOfCurrentToken with
+                | Some originatorId when srcId = originatorId ->
+                    "is-origin" :: cls
+                | _ ->
+                    cls
+              else []
+          | SourceNone ->
+              []
         in
         Html.span
           [ Attrs.class'
