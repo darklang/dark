@@ -9,8 +9,26 @@ module TL = Toplevel
 let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
     msg Html.html =
   let strTLID = showTLID vs.tlid in
-  match vs.workerStats with
-  | Some ws when ws.schedule = Some "run" ->
+  let schedule =
+    vs.workerStats
+    |> Option.andThen ~f:(fun (ws : Types.workerStats) -> ws.schedule)
+    |> Option.withDefault ~default:"run"
+  in
+  match schedule with
+  | "pause" ->
+      Html.div
+        [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
+              RunWorker name )
+        ; Html.class' "restart-worker"
+        ; Html.title "Run worker" ]
+        [ViewUtils.fontAwesome "play-circle"]
+  | "block" ->
+      Html.div
+        [ Html.class' "blocked-worker"
+        ; Html.title
+            "Worker disabled by Dark. Please get in touch to discuss why." ]
+        [ViewUtils.fontAwesome "ban"]
+  | "run" ->
       Html.div
         [ ViewUtils.eventNoPropagation
             ~key:("pause-" ^ strTLID)
@@ -19,19 +37,6 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
         ; Html.class' "pause-worker"
         ; Html.title "Pause worker" ]
         [ViewUtils.fontAwesome "pause-circle"]
-  | Some ws when ws.schedule = Some "pause" ->
-      Html.div
-        [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
-              RunWorker name )
-        ; Html.class' "restart-worker"
-        ; Html.title "Run worker" ]
-        [ViewUtils.fontAwesome "play-circle"]
-  | Some ws when ws.schedule = Some "block" ->
-      Html.div
-        [ Html.class' "blocked-worker"
-        ; Html.title
-            "Worker disabled by Dark. Please get in touch to discuss why." ]
-        [ViewUtils.fontAwesome "ban"]
   | _ ->
       Vdom.noNode
 
