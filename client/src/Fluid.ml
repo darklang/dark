@@ -634,7 +634,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
-             |> add (TSep id)
+             |> add (TSep (eid e))
              |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e )
   in
   match e with

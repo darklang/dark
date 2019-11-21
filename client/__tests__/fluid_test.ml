@@ -1264,10 +1264,15 @@ let () =
         (b ())
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         ("DB::getAllv1 ___________________", 13) ;
+      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
+      t
+        "backspacing a fn arg's separator goes to the right place"
+        (fn "Int::add" [five; six])
+        (bs 11)
+        ("Int::add 5 6", 10) ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
-      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
       t
         "reflows work for functions"
         (fn
