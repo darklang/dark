@@ -204,7 +204,7 @@ let rec tipe_of (dv : dval) : tipe =
       TBlock
   | DError _ ->
       TError
-  | DIncomplete ->
+  | DIncomplete _ ->
       TIncomplete
   | DResp _ ->
       TResp
@@ -262,7 +262,7 @@ let exception_to_dval exc = DError (Exception.to_string exc)
  * code. They should be propagated through the programs execution whenever they are
  * found.*)
 let is_fake_marker_dval (dv : dval) =
-  match dv with DErrorRail _ | DIncomplete | DError _ -> true | _ -> false
+  match dv with DErrorRail _ | DIncomplete _ | DError _ -> true | _ -> false
 
 
 (* Anytime we create a dlist with the except of list literals,
@@ -363,7 +363,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
     ( match tipe with
     | "incomplete" ->
-        DIncomplete
+        DIncomplete SourceNone
     | "option" ->
         DOption OptNothing
     | "block" ->
@@ -463,7 +463,7 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       | _ ->
           DObj (unsafe_dvalmap_of_yojson_v1 json) )
   | `Assoc [("type", `String "incomplete"); ("value", `Null)] ->
-      DIncomplete
+      DIncomplete SourceNone
   | `Assoc [("type", `String "option"); ("value", dv)] ->
       if dv = `Null
       then DOption OptNothing
@@ -529,7 +529,7 @@ let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
       |> DvalMap.to_list
       |> List.map ~f:(fun (k, v) -> (k, unsafe_dval_to_yojson_v0 ~redact v))
       |> fun x -> `Assoc x
-  | DBlock _ | DIncomplete ->
+  | DBlock _ | DIncomplete _ ->
       wrap_user_type `Null
   | DCharacter c ->
       wrap_user_str (Unicode_string.Character.to_string c)
@@ -754,7 +754,7 @@ let rec to_enduser_readable_text_v0 dval =
         "<DB: " ^ dbname ^ ">"
     | DError msg ->
         "Error: " ^ msg
-    | DIncomplete ->
+    | DIncomplete _ ->
         "<Incomplete>"
     | DBlock _ ->
         "<Block>"
@@ -813,7 +813,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         "null"
     | DBlock _ ->
         justtipe
-    | DIncomplete ->
+    | DIncomplete _ ->
         justtipe
     | DError msg ->
         wrap msg
@@ -880,7 +880,7 @@ let to_pretty_machine_yojson_v1 dval =
         |> DvalMap.to_list
         |> List.map ~f:(fun (k, v) -> (k, recurse v))
         |> fun x -> `Assoc x
-    | DBlock _ | DIncomplete ->
+    | DBlock _ | DIncomplete _ ->
         `Null
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
@@ -976,8 +976,10 @@ let rec show dv =
       "<DB: " ^ dbname ^ ">"
   | DError msg ->
       "<Error: " ^ msg ^ ">"
-  | DIncomplete ->
+  | DIncomplete SourceNone ->
       "<Incomplete>"
+  | DIncomplete (SourceId id) ->
+      Printf.sprintf "<Incomplete[%s]>" (string_of_id id)
   | DBlock _ ->
       "<Block>"
   | DPassword _ ->
@@ -1089,7 +1091,7 @@ let to_string_pairs_exn dv : (string * string) list =
 (* For putting into URLs as query params *)
 let rec to_url_string_exn (dv : dval) : string =
   match dv with
-  | DBlock _ | DIncomplete | DPassword _ ->
+  | DBlock _ | DIncomplete _ | DPassword _ ->
       "<" ^ (dv |> tipename) ^ ">"
   | DInt i ->
       Dint.to_string i
@@ -1213,7 +1215,7 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) :
       "\"" ^ Unicode_string.to_string s ^ "\""
   | DCharacter c ->
       "'" ^ Unicode_string.Character.to_string c ^ "'"
-  | DIncomplete ->
+  | DIncomplete _ ->
       "<incomplete: <incomplete>>" (* Can't be used anyway *)
   | DBlock _ ->
       "<block: <block>>"

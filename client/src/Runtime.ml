@@ -188,7 +188,7 @@ let typeOf (dv : dval) : tipe =
       TObj
   | DBlock ->
       TBlock
-  | DIncomplete ->
+  | DIncomplete _ ->
       TIncomplete
   | DError _ ->
       TError
@@ -294,7 +294,7 @@ let convertDisplayStringToLiteral (s : string) : string =
 
 
 let isComplete (dv : dval) : bool =
-  match dv with DError _ -> false | DIncomplete -> false | _ -> true
+  match dv with DError _ | DIncomplete _ -> false | _ -> true
 
 
 let isTrue (dv : dval) : bool = dv = DBool true
@@ -385,7 +385,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap s
   | DBlock ->
       asType
-  | DIncomplete ->
+  | DIncomplete _ ->
       asType
   | DResp (Redirect url, dv_) ->
       "302 " ^ url ^ nl ^ toRepr_ indent dv_
@@ -477,7 +477,7 @@ let inputVariables (tl : toplevel) : varName list =
 let sampleInputValue (tl : toplevel) : inputValueDict =
   tl
   |> inputVariables
-  |> List.map ~f:(fun v -> (v, DIncomplete))
+  |> List.map ~f:(fun v -> (v, DIncomplete SourceNone))
   |> StrDict.fromList
 
 

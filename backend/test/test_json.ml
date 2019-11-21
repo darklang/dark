@@ -190,7 +190,7 @@ let t_result_to_response_works () =
                "we get Access-Control-Allow-Origin: * even for errors."
                (Some "*")
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
-       ; ( DIncomplete
+       ; ( DIncomplete SourceNone
          , req
          , None
          , fun r ->

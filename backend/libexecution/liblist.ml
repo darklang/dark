@@ -384,13 +384,15 @@ let fns =
                 match fn [dv] with
                 | DBool b ->
                     b
-                | DIncomplete ->
+                | DIncomplete _ ->
                     incomplete := true ;
                     false
                 | v ->
                     RT.error "Expecting fn to return bool" ~result:v ~actual:dv
               in
-              if !incomplete then DIncomplete else DList (List.filter ~f l)
+              if !incomplete
+              then DIncomplete SourceNone
+              else DList (List.filter ~f l)
           | args ->
               fail args)
     ; ps = true
@@ -412,7 +414,7 @@ let fns =
                 match fn [dv] with
                 | DBool b ->
                     b
-                | (DIncomplete | DErrorRail _) as dv ->
+                | (DIncomplete _ | DErrorRail _) as dv ->
                     fakecf := Some dv ;
                     false
                 | v ->

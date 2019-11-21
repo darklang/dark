@@ -40,25 +40,30 @@ let fns : Lib.shortfn list =
               let result =
                 Unicode_string.map_characters ~f:(fun c -> fn [DCharacter c]) s
               in
-              if List.exists ~f:(( = ) DIncomplete) result
-              then DIncomplete
-              else
-                result
-                |> list_coerce ~f:Dval.to_char
-                >>| String.concat
-                >>| (fun x -> Dval.dstr_of_string_exn x)
-                |> Result.map_error ~f:(fun (result, example_value) ->
-                       RT.error
-                         ~actual:(DList result)
-                         ~result:(DList result)
-                         ~long:
-                           ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
-                           ^ Dval.to_developer_repr_v0 example_value
-                           ^ " is a "
-                           ^ Dval.tipename example_value )
-                         ~expected:"every value to be a char"
-                         "foreach expects you to return chars" )
-                |> Result.ok_exn
+              ( match
+                  List.find
+                    ~f:(function DIncomplete _ -> true | _ -> false)
+                    result
+                with
+              | Some i ->
+                  i
+              | None ->
+                  result
+                  |> list_coerce ~f:Dval.to_char
+                  >>| String.concat
+                  >>| (fun x -> Dval.dstr_of_string_exn x)
+                  |> Result.map_error ~f:(fun (result, example_value) ->
+                         RT.error
+                           ~actual:(DList result)
+                           ~result:(DList result)
+                           ~long:
+                             ( "String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example "
+                             ^ Dval.to_developer_repr_v0 example_value
+                             ^ " is a "
+                             ^ Dval.tipename example_value )
+                           ~expected:"every value to be a char"
+                           "foreach expects you to return chars" )
+                  |> Result.ok_exn )
           | args ->
               fail args)
     ; ps = true

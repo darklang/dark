@@ -390,6 +390,10 @@ and resultT =
   | ResOk of dval
   | ResError of dval
 
+and dval_source =
+  | SourceNone
+  | SourceId of id
+
 and dval =
   | DInt of int
   | DFloat of float
@@ -399,7 +403,7 @@ and dval =
   | DStr of string
   | DList of dval array
   | DObj of dval StrDict.t
-  | DIncomplete
+  | DIncomplete of dval_source
   | DError of string
   | DBlock
   | DErrorRail of dval

@@ -100,6 +100,10 @@ let check_condition msg dval ~(f : dval -> bool) =
   AT.check AT.bool msg (f dval) true
 
 
+let check_incomplete =
+  check_condition ~f:(function DIncomplete _ -> true | _ -> false)
+
+
 let testable_handler = AT.testable HandlerT.pp_handler HandlerT.equal_handler
 
 let testable_string_dval_pair =
@@ -416,7 +420,7 @@ let sample_dvals =
         (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
            ; ("value", Dval.dstr_of_string_exn "x") ]) )
-  ; ("incomplete", DIncomplete)
+  ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError "some error string")
   ; ("block", DBlock (fun _args -> DNull))
   ; ("errorrail", DErrorRail (Dval.dint 5))

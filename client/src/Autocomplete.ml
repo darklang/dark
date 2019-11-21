@@ -167,7 +167,7 @@ let asTypeString (item : autocompleteItem) : string =
       let tipe =
         lit
         |> Decoders.parseDvalLiteral
-        |> Option.withDefault ~default:DIncomplete
+        |> Option.withDefault ~default:(DIncomplete SourceNone)
         |> RT.typeOf
         |> RT.tipe2str
       in
@@ -315,7 +315,8 @@ let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
   |> Option.andThen2 traceID ~f:(fun traceID id ->
          Analysis.getLiveValue m id traceID )
   (* don't filter on incomplete values *)
-  |> Option.andThen ~f:(fun dv_ -> if dv_ = DIncomplete then None else Some dv_)
+  |> Option.andThen ~f:(fun dv_ ->
+         match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
 
 
 let isThreadMember (m : model) ((tlid, pd) : target) =

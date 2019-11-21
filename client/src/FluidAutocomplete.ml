@@ -116,7 +116,7 @@ let asTypeString (item : autocompleteItem) : string =
       let tipe =
         lit
         |> Decoders.parseDvalLiteral
-        |> Option.withDefault ~default:DIncomplete
+        |> Option.withDefault ~default:(DIncomplete SourceNone)
         |> RT.typeOf
         |> RT.tipe2str
       in
@@ -217,7 +217,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
              Analysis.getLiveValue m id traceID )
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
-             if dv_ = DIncomplete then None else Some dv_ )
+             match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
   | None ->
       None
 
