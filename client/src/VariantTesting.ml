@@ -23,12 +23,27 @@ let libtwitterAvailable (vts : variantTest list) : bool =
   List.member ~value:LibtwitterVariant vts
 
 
-(* This is temporary to force Darklings(minus ellen, and jessica) to use fluid. *)
+(* This is temporary to force everyone other than existing active users to use fluid while we decide whether to roll out for everyone. *)
 (* To turn off fluid, add the ?fluidv2=0 or ?fluidv2=false *)
-let forceFluid (isAdmin : bool) (username : string) (vts : variantTest list) :
+let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
     variantTest list =
   let shouldForceFluid =
-    isAdmin && username != "ellen" && username != "jessicajenkins"
+    let exemptUsers =
+      [ "cordeliamurphy"
+      ; "eagon"
+      ; "geoffrey"
+      ; "hkgumbs"
+      ; "jgaskins"
+      ; "listo"
+      ; "maximfilimonov"
+      ; "pmmck"
+      ; "renee"
+      ; "rockspot"
+      ; "stevehind"
+      ; "trown"
+      ]
+    in
+    not (List.member ~value:username exemptUsers)
   in
   if shouldForceFluid
   then
