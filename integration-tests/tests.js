@@ -1154,6 +1154,50 @@ test("fluid_undo_redo_happen_exactly_once", async t => {
     .eql('"12345"');
 });
 
+test("fluid_ctrl_left_on_string", async t => {
+  await t
+    .navigateTo("#handler=428972234")
+    .expect(available(".tl-428972234"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-string"), { caretPos: 10 })
+    .pressKey("ctrl+left");
+});
+
+test("fluid_ctrl_right_on_string", async t => {
+  await t
+    .navigateTo("#handler=428972234")
+    .expect(available(".tl-428972234"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-string"), { caretPos: 10 })
+    .pressKey("ctrl+right");
+});
+
+test("fluid_ctrl_left_on_empty_match", async t => {
+  await t
+    .navigateTo("#handler=281413634")
+    .expect(available(".tl-281413634"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-category-pattern.id-63381027"), { caretPos: 0 })
+    .pressKey("ctrl+left");
+});
+
+test("fluid_ctrl_right_on_empty_match", async t => {
+  await t
+    .navigateTo("#handler=281413634")
+    .expect(available(".tl-281413634"))
+    .ok()
+    .expect(available(".selected #fluid-editor"))
+    .ok()
+    .click(Selector(".fluid-blank.id-830005490"), { caretPos: 3 })
+    .pressKey("ctrl+right");
+});
+
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
