@@ -38,8 +38,12 @@ let forceFluid (isAdmin : bool) (username : string) (vts : variantTest list) :
     let containsFluid =
       String.contains urlString ~substring:"fluidv2=0"
       || String.contains urlString ~substring:"fluidv2=false"
+      || String.contains urlString ~substring:"fluid=false"
+      || String.contains urlString ~substring:"fluid=0"
     in
-    if isFluid vts || containsFluid then vts else vts @ [FluidVariant]
+    if isFluid vts || containsFluid
+    then vts
+    else vts @ [FluidWithoutStatusVariant]
   else vts
 
 

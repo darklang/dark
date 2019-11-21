@@ -9,18 +9,15 @@ let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
 
 
 let html (m : model) =
-  (* Right now, we're hiding topbar from everyone - remove `|| true` to bring it
-   * back *)
-  if m.showTopbar = false || true
-  then []
-  else
-    let fluid = VariantTesting.isFluidForCustomers m.tests in
-    let fluidUrl =
+  if m.showTopbar && VariantTesting.isFluid m.tests
+  then
+    let nonFluidUrl =
       let qp =
-        ("fluid", not fluid) :: Url.queryParams
+        Url.queryParams
         |> List.uniqueBy ~f:(fun (k, _) -> k)
         |> List.filter ~f:(fun (_, v) -> v)
         |> List.map ~f:(fun (k, _) -> k ^ "=1")
+        |> List.cons "fluid=0"
         |> String.join ~sep:"&"
         |> fun s -> "?" ^ s
       in
@@ -29,21 +26,25 @@ let html (m : model) =
     in
     [ Html.div
         [Html.styles []; Html.classList [("topbar", true)]]
-        [ Html.a
-            [ Html.href fluidUrl
+        [ Html.text
+            "This is our new \"Fluid\" editor. Typing code should mostly feel just like text. "
+        ; Html.br []
+        ; Html.a
+            [ Html.href nonFluidUrl
             ; ViewUtils.eventNoPropagation
                 ~key:"toggle-fluid"
                 "mouseup"
                 (fun _ -> IgnoreMsg ) ]
-            [ Html.text
-                (* NB: right now, this "old editor" link will take you
-                       * from ?fluidv2=1&fluid=1 -> ?fluidv2=1, so it won't take
-                       * you to the structured editor, it'll just put the
-                       * status/debug box back.  Once we remove the fluidv2
-                       * feature flag - that is, ship it to customers - then
-                       * it'll take you from fluid to not-fluid *)
-                ( if fluid
-                then "Back to the old editor"
-                else "Try our new editor!" ) ]
+            [Html.text "(go to the old editor)"]
         ; Html.text " "
+        ; Html.a
+            [ Html.href
+                "https://darkcommunity.slack.com/archives/CQWEKP85V/p1574372251002600"
+            ; ViewUtils.eventNoPropagation
+                ~key:"toggle-fluid"
+                "mouseup"
+                (fun _ -> IgnoreMsg ) ]
+            [Html.text "(send us feedback!)"]
+        ; Html.br []
         ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
+  else []
