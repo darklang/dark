@@ -447,7 +447,7 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
   | FPVariable (mid, id, name) ->
       [TPatternVariable (mid, id, name)]
   | FPConstructor (mid, id, name, args) ->
-      let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
+      let args = List.map args ~f:(fun a -> TSep id :: patternToToken a) in
       List.concat ([TPatternConstructorName (mid, id, name)] :: args)
   | FPInteger (mid, id, i) ->
       [TPatternInteger (mid, id, i)]
@@ -626,7 +626,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
-             |> add TSep
+             |> add (TSep id)
              |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e )
   in
   match e with
@@ -696,11 +696,11 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
-            |> add TSep
+            |> add (TSep (eid lexpr))
       in
       b
       |> start
-      |> addMany [TBinOp (id, op); TSep]
+      |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName oldName in
@@ -711,13 +711,13 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
-            |> add TSep
+            |> add (TSep (eid lexpr))
       in
       b
       |> start
       |> add (TPartial (id, newName))
       |> addMany ghost
-      |> add TSep
+      |> add (TSep id)
       |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
       let displayName = ViewUtils.fnDisplayName fnName in
@@ -760,7 +760,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              b
              |> add (TLambdaVar (id, aid, i, name))
              |> addIf (not (isLast i)) (TLambdaSep (id, i))
-             |> addIf (not (isLast i)) TSep )
+             |> addIf (not (isLast i)) (TSep aid) )
       |> add (TLambdaArrow id)
       |> nest ~indent:2 body
   | EList (id, exprs) ->
@@ -817,7 +817,8 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
                     b
                     |> addNewlineIfNeeded (Some (id, id, Some i))
                     |> addMany (patternToToken pattern)
-                    |> addMany [TSep; TMatchSep (pid pattern); TSep]
+                    |> addMany
+                         [TSep id; TMatchSep (pid pattern); TSep (pid pattern)]
                     |> addNested ~f:(fromExpr expr) )
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))) )
   | EOldExpr expr ->
@@ -827,7 +828,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | ERightPartial (id, newOp, expr) ->
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany [TSep; TRightPartial (id, newOp)]
+      |> addMany [TSep id; TRightPartial (id, newOp)]
   | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
       b |> addNested ~f:(fromExpr casea)
 
@@ -926,7 +927,7 @@ let editorID = "fluid-editor"
 (* Update fluid state *)
 (* -------------------- *)
 let tiSentinel : tokenInfo =
-  { token = TSep
+  { token = TSep (ID "0")
   ; startPos = -1000
   ; startRow = -1000
   ; startCol = -1000
@@ -1345,7 +1346,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ ->
+      | TSep _ | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
@@ -1362,7 +1363,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ ->
+      | TSep _ | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
@@ -2497,7 +2498,7 @@ let acMoveBasedOnKey
         ( match thisTi with
         (* Only move forward to skip over a separator *)
         (* TODO: are there more separators we should consider here? *)
-        | Some {token} when token = TSep ->
+        | Some {token = TSep _} ->
             min nextBlank (startPos + offset + 1)
         | _ ->
             (* if new position is after next blank, stay in next blank *)
@@ -2851,7 +2852,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TRecordOpen _
     | TRecordClose _
     | TRecordSep _
-    | TSep
+    | TSep _
     | TPatternBlank _
     | TPartialGhost _ ->
         (ast, LeftOne)
@@ -2975,7 +2976,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordOpen _
   | TRecordSep _
-  | TSep
+  | TSep _
   | TPartialGhost _ ->
       (ast, s)
   | TConstructorName (id, str)
@@ -3275,7 +3276,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TFnVersion _
     | TLetKeyword _
     | TLetAssignment _
-    | TSep
+    | TSep _
     | TListClose _
     | TListSep _
     | TIndent _
@@ -3559,7 +3560,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
         (ast, doDown ~pos ast s)
-    | K.Space, _, R (TSep, _) ->
+    | K.Space, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
     (* comma - add another of the thing *)
     | K.Comma, L (TListOpen _, toTheLeft), _

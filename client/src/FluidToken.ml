@@ -64,9 +64,10 @@ let tid (t : token) : id =
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
+  | TSep id
   | TNewline (Some (id, _, _)) ->
       id
-  | TNewline None | TSep | TIndent _ ->
+  | TNewline None | TIndent _ ->
       fakeid
 
 
@@ -131,7 +132,7 @@ let isTextToken token : bool =
   | TListOpen _
   | TListClose _
   | TListSep (_, _)
-  | TSep
+  | TSep _
   | TLetKeyword _
   | TRecordOpen _
   | TRecordClose _
@@ -269,7 +270,7 @@ let toText (t : token) : string =
       shouldntBeEmpty str
   | TPartialGhost (_, str) ->
       shouldntBeEmpty str
-  | TSep ->
+  | TSep _ ->
       " "
   | TNewline _ ->
       "\n"
@@ -437,7 +438,7 @@ let toTypeName (t : token) : string =
       "let-assignment"
   | TLetLHS _ ->
       "let-lhs"
-  | TSep ->
+  | TSep _ ->
       "sep"
   | TIndent _ ->
       "indent"
@@ -521,7 +522,7 @@ let toCategoryName (t : token) : string =
       "integer"
   | TString _ | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
       "string"
-  | TVariable _ | TNewline _ | TSep | TBlank _ | TPlaceholder _ ->
+  | TVariable _ | TNewline _ | TSep _ | TBlank _ | TPlaceholder _ ->
       ""
   | TPartial _ | TRightPartial _ | TPartialGhost _ ->
       "partial"
