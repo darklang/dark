@@ -1743,10 +1743,10 @@ bs-uuid@^0.3.1:
   dependencies:
     uuid "^3.2.1"
 
-bs-webapi@^0.15.5:
-  version "0.15.5"
-  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.5.tgz#59acb66a3b747f72eae3715253e4fcc536e94b58"
-  integrity sha512-6hruP0HIpXpa5pEoAlOBaKa97WodjN8zNA6TsxtInawTKiV7fXcSkkvnEP4yXfwU4OcGnBw8fuchWO4bUr7vuQ==
+bs-webapi@^0.15.6:
+  version "0.15.6"
+  resolved "https://registry.yarnpkg.com/bs-webapi/-/bs-webapi-0.15.6.tgz#967a074854c76ba0097653a1745fd981eaf62f7b"
+  integrity sha512-J+6+fBhkZ8DC8Xrq5Zv7w5pufEv/23TSsHSPMMoOJ1tejEbmXvk8qkwUi0JqPhWmA86XyGMO7Z2XbNNUtd/CPw==
 
 bser@^2.0.0:
   version "2.0.0"
