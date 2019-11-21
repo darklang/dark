@@ -4888,26 +4888,21 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
   (* Gets the source of a DIncomplete given an expr id *)
-  let dvalSrc id =
+  let sourceOfExprValue id =
     if FluidToken.validID id
     then
       match Analysis.getLiveValueLoadable vs.analysisStore id with
-      | LoadableSuccess (DIncomplete src) ->
-          src
+      | LoadableSuccess (DIncomplete (SourceId id)) ->
+          Some id
       | _ ->
-          SourceNone
-    else SourceNone
+          None
+    else None
   in
   let currentTokenInfo = getToken state ast in
-  let srcIdOfCurrentToken =
+  let sourceOfCurrentToken =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
-           let curId = Token.analysisID ti.token in
-           match dvalSrc curId with
-           | SourceId id ->
-               Some id
-           | SourceNone ->
-               None )
+           Token.analysisID ti.token |> sourceOfExprValue )
   in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -4937,23 +4932,23 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           | None ->
               []
         in
+        (* Here we want to find out the dval so we can apply error classes to the token *)
         let errorClasses =
-          (* Here we want to find out the dval so we can apply error classes to the token *)
-          let id = Token.analysisID ti.token in
-          match dvalSrc id with
-          | SourceId srcId ->
-              if srcId = id && Token.isTextToken ti.token
-              then
-                let cls = ["fluid-incomplete"] in
-                (* Finds if this expression is the source of an error propogated to where the cursor is currently at  *)
-                match srcIdOfCurrentToken with
-                | Some originatorId when srcId = originatorId ->
-                    "is-origin" :: cls
-                | _ ->
-                    cls
-              else []
-          | SourceNone ->
-              []
+          (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
+          if Token.isTextToken ti.token
+          then
+            let id = Token.analysisID ti.token in
+            match sourceOfExprValue id with
+            | Some srcId when srcId = id ->
+                (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
+                let incompleteClass = ["fluid-incomplete"] in
+                (* This expression is the source of an incomplete propogated into another expression, where the cursor is currently on *)
+                if sourceOfCurrentToken = Some id
+                then "is-origin" :: incompleteClass
+                else incompleteClass
+            | _ ->
+                []
+          else []
         in
         Html.span
           [ Attrs.class'
