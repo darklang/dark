@@ -77,6 +77,8 @@ let grants_for ~auth_domain : (Account.username * permission) list =
                "bad format from Authorization.grants_for#fetch_grants" )
 
 
+(* Returns a list of (organization name, permission) pairs for a given username,
+ * denoting which organizations the user has been granted permissions towards *)
 let orgs_for ~(username : Account.username) : (string * permission) list =
   Db.fetch
     ~name:"fetch_orgs"
