@@ -235,11 +235,16 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
         EMatch (id, f mexpr, pairs)
     | FeatureFlag (msg, cond, casea, caseb) ->
         EFeatureFlag
-          (id, varToName msg, Blank.toID msg, f cond, f casea, f caseb)
+          ( id
+          , varToName msg
+          , Blank.toID msg
+          , f cond
+          , fromExpr ~inThread s casea
+          , fromExpr ~inThread s caseb )
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, f oldExpr)
+        EPartial (id, str, fromExpr ~inThread s oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, f oldExpr) )
+        ERightPartial (id, str, fromExpr ~inThread s oldExpr) )
 
 
 let literalToString
@@ -373,7 +378,10 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       F
         ( id
         , FeatureFlag
-            (F (nameID, name), toExpr cond, toExpr caseA, toExpr caseB) )
+            ( F (nameID, name)
+            , toExpr cond
+            , toExpr ~inThread caseA
+            , toExpr ~inThread caseB ) )
   | EOldExpr expr ->
       expr
 
@@ -449,7 +457,7 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
   | FPVariable (mid, id, name) ->
       [TPatternVariable (mid, id, name)]
   | FPConstructor (mid, id, name, args) ->
-      let args = List.map args ~f:(fun a -> TSep :: patternToToken a) in
+      let args = List.map args ~f:(fun a -> TSep id :: patternToToken a) in
       List.concat ([TPatternConstructorName (mid, id, name)] :: args)
   | FPInteger (mid, id, i) ->
       [TPatternInteger (mid, id, i)]
@@ -475,15 +483,99 @@ let rec patternToToken (p : fluidPattern) : fluidToken list =
       [TPatternString (mid, Blank.toID op, "TODO: old pattern")]
 
 
-let rec toTokens' (s : state) (e : ast) : token list =
+module Builder = struct
+  type t =
+    { tokens : fluidToken list
+    ; indent : (* tracks the indent after a newline *) int
+    ; xPos :
+        (* tracks the indent for nesting, none indicates it's ready to go after a newline *)
+        int option }
+
+  let rec endsInNewline (b : t) : bool =
+    match List.reverse b.tokens with
+    | TNewline _ :: _ ->
+        true
+    | TIndent _ :: tail ->
+        endsInNewline {b with tokens = tail}
+    | _ ->
+        false
+
+
+  let empty = {tokens = []; xPos = Some 0; indent = 0}
+
+  let add (token : fluidToken) (b : t) : t =
+    let tokenLength = token |> Token.toText |> String.length in
+    let tokens, xPos =
+      if endsInNewline b
+      then
+        ( (if b.indent <> 0 then [TIndent b.indent; token] else [token])
+        , Some (b.indent + tokenLength) )
+      else
+        let newXPos =
+          match token with
+          | TNewline _ ->
+              None
+          | _ ->
+              let old = Option.withDefault b.xPos ~default:b.indent in
+              Some (old + tokenLength)
+        in
+        ([token], newXPos)
+    in
+    {b with tokens = b.tokens @ tokens; xPos}
+
+
+  let addIf (cond : bool) (token : fluidToken) (b : t) : t =
+    if cond then add token b else b
+
+
+  (* Take a list of 'a, and iterate through them, adding them to `b` by
+   * calling `f` on them *)
+  let addIter (xs : 'a list) ~(f : int -> 'a -> t -> t) (b : t) : t =
+    List.foldl xs ~init:(b, 0) ~f:(fun x (b, i) -> (f i x b, i + 1))
+    |> Tuple2.first
+
+
+  let addMany (tokens : fluidToken list) (b : t) : t =
+    List.foldl tokens ~init:b ~f:add
+
+
+  let indentBy ~(indent : int) ~(f : t -> t) (b : t) : t =
+    let oldIndent = b.indent in
+    let b = {b with indent = b.indent + indent} in
+    let newB = f b in
+    {newB with indent = oldIndent}
+
+
+  let addNested ~(f : t -> t) (b : t) : t =
+    let oldIndent = b.indent in
+    let newIndent = Option.withDefault ~default:b.indent b.xPos in
+    let b = {b with indent = newIndent} in
+    let newB = f b in
+    {newB with indent = oldIndent}
+
+
+  let addNewlineIfNeeded (nlInfo : (id * id * int option) option) (b : t) : t =
+    if endsInNewline b then b else add (TNewline nlInfo) b
+
+
+  let asTokens (b : t) : fluidToken list = b.tokens
+end
+
+let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
+  let fromExpr e b = toTokens' s e b in
+  let open Builder in
   let ghostPartial id newName oldName =
     let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
-  let nested ?(placeholderFor : (string * int) option = None) b : fluidToken =
-    let tokens =
-      match (b, placeholderFor) with
+  let nest
+      ?(placeholderFor : (string * int) option = None)
+      ~indent
+      (e : fluidExpr)
+      (b : Builder.t) : Builder.t =
+    let tokensFn b =
+      match (e, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
           let name =
             s.ac.functions
@@ -495,50 +587,81 @@ let rec toTokens' (s : state) (e : ast) : token list =
           in
           ( match name with
           | None ->
-              toTokens' s b
+              fromExpr e b
           | Some placeholder ->
-              [TPlaceholder (placeholder, id)] )
+              add (TPlaceholder (placeholder, id)) b )
       | _ ->
-          toTokens' s b
+          fromExpr e b
     in
-    TIndentToHere tokens
+    b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
-  let rec endsInNewline (e : Types.fluidToken) : bool =
-    match e with
-    | TNewline _ ->
-        true
-    | TIndentToHere tokens ->
-      (match List.last tokens with Some t -> endsInNewline t | _ -> false)
-    | _ ->
-        false
+  let addArgs (name : string) (id : id) (args : fluidExpr list) (b : Builder.t)
+      : Builder.t =
+    let args, offset =
+      match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
+    in
+    let reflow =
+      let tokens =
+        args
+        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:Builder.asTokens
+        |> List.concat
+      in
+      let length =
+        tokens
+        |> List.map ~f:(Token.toText >> String.length)
+        |> List.sum
+        |> ( + ) (* separators, including at the front *) (List.length args)
+        |> ( + ) (Option.withDefault ~default:0 b.xPos)
+      in
+      let tooLong = length > 120 in
+      let needsNewlineBreak =
+        (* newlines aren't disruptive in the last argument *)
+        args
+        |> List.init
+        |> Option.withDefault ~default:[]
+        |> List.map ~f:(fun a -> fromExpr a Builder.empty)
+        |> List.map ~f:Builder.asTokens
+        |> List.concat
+        |> List.any ~f:(function TNewline _ -> true | _ -> false)
+      in
+      tooLong || needsNewlineBreak
+    in
+    b
+    |> addIter args ~f:(fun i e b ->
+           if reflow
+           then
+             b
+             |> addNewlineIfNeeded (Some (id, id, None))
+             |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
+           else
+             b
+             |> add (TSep (eid e))
+             |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e )
   in
   match e with
   | EInteger (id, i) ->
-      [TInteger (id, i)]
-  | EBool (id, b) ->
-      if b then [TTrue id] else [TFalse id]
+      add (TInteger (id, i)) b
+  | EBool (id, bool') ->
+      add (if bool' then TTrue id else TFalse id) b
   | ENull id ->
-      [TNullToken id]
+      add (TNullToken id) b
   | EFloat (id, whole, fraction) ->
       let whole = if whole = "" then [] else [TFloatWhole (id, whole)] in
       let fraction =
         if fraction = "" then [] else [TFloatFraction (id, fraction)]
       in
-      whole @ [TFloatPoint id] @ fraction
+      addMany (whole @ [TFloatPoint id] @ fraction) b
   | EBlank id ->
-      [TBlank id]
+      add (TBlank id) b
   | ELet (id, varId, lhs, rhs, next) ->
-      let newline =
-        if endsInNewline (nested rhs)
-        then []
-        else [TNewline (Some (eid next, id, None))]
-      in
-      [ TLetKeyword (id, varId)
-      ; TLetLHS (id, varId, lhs)
-      ; TLetAssignment (id, varId)
-      ; nested rhs ]
-      @ newline
-      @ [nested next]
+      b
+      |> add (TLetKeyword (id, varId))
+      |> add (TLetLHS (id, varId, lhs))
+      |> add (TLetAssignment (id, varId))
+      |> addNested ~f:(fromExpr rhs)
+      |> addNewlineIfNeeded (Some (eid next, id, None))
+      |> addNested ~f:(fromExpr next)
   | EString (id, str) ->
       let size = 40 in
       let strings =
@@ -546,73 +669,67 @@ let rec toTokens' (s : state) (e : ast) : token list =
       in
       ( match strings with
       | [] ->
-          [TString (id, "")]
+          add (TString (id, "")) b
       | starting :: rest ->
         ( match List.reverse rest with
         | [] ->
-            [TString (id, str)]
+            add (TString (id, str)) b
         | ending :: revrest ->
-            let nl = TNewline None in
-            let starting = [TStringMLStart (id, starting, 0, str); nl] in
-            let endingOffset = size * (List.length revrest + 1) in
-            let ending = [TStringMLEnd (id, ending, endingOffset, str)] in
-            let middle =
-              revrest
-              |> List.reverse
-              |> List.indexedMap ~f:(fun i s ->
-                     [TStringMLMiddle (id, s, size * (i + 1), str); nl] )
-              |> List.concat
-            in
-            starting @ middle @ ending ) )
+            b
+            |> addNested ~f:(fun b ->
+                   let endingOffset = size * (List.length revrest + 1) in
+                   b
+                   |> add (TStringMLStart (id, starting, 0, str))
+                   |> add (TNewline None)
+                   |> addIter (List.reverse revrest) ~f:(fun i s b ->
+                          b
+                          |> add (TStringMLMiddle (id, s, size * (i + 1), str))
+                          |> add (TNewline None) )
+                   |> add (TStringMLEnd (id, ending, endingOffset, str)) ) ) )
   | EIf (id, cond, if', else') ->
-      let condNewline =
-        if endsInNewline (nested cond) then [] else [TNewline None]
-      in
-      let thenNewline =
-        if endsInNewline (nested if') then [] else [TNewline None]
-      in
-      [TIfKeyword id; nested cond]
-      @ condNewline
-      @ [ TIfThenKeyword id
-          (* The newline ID is pretty hacky here. It's used to make it possible
-         * to press Enter on the expression inside. It might be better to
-         * instead have a special newline where an id is relevant, and another
-         * newline which is boring. *)
-        ; TNewline (Some (eid if', id, None))
-        ; TIndent 2
-        ; nested if' ]
-      @ thenNewline
-      @ [ TIfElseKeyword id
-        ; TNewline (Some (eid else', id, None))
-        ; TIndent 2
-        ; nested else' ]
+      b
+      |> add (TIfKeyword id)
+      |> addNested ~f:(fromExpr cond)
+      |> addNewlineIfNeeded None
+      |> add (TIfThenKeyword id)
+      |> addNewlineIfNeeded (Some (eid if', id, None))
+      |> nest ~indent:2 if'
+      |> addNewlineIfNeeded None
+      |> add (TIfElseKeyword id)
+      |> add (TNewline (Some (eid else', id, None)))
+      |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      let start =
+      let start b =
         match lexpr with
         | EThreadTarget _ ->
-            []
+            b
         | _ ->
-            [nested ~placeholderFor:(Some (op, 0)) lexpr; TSep]
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
+            |> add (TSep (eid lexpr))
       in
-      start
-      @ [TBinOp (id, op); TSep; nested ~placeholderFor:(Some (op, 1)) rexpr]
+      b
+      |> start
+      |> addMany [TBinOp (id, op); TSep id]
+      |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName oldName in
-      let start =
+      let start b =
         match lexpr with
         | EThreadTarget _ ->
-            []
+            b
         | _ ->
-            [nested ~placeholderFor:(Some (oldName, 0)) lexpr; TSep]
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
+            |> add (TSep (eid lexpr))
       in
-      start
-      @ [TPartial (id, newName)]
-      @ ghost
-      @ [TSep; nested ~placeholderFor:(Some (oldName, 1)) rexpr]
+      b
+      |> start
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> add (TSep id)
+      |> nest ~indent:2 ~placeholderFor:(Some (oldName, 1)) rexpr
   | EFnCall (id, fnName, args, ster) ->
-      let args, offset =
-        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
-      in
       let displayName = ViewUtils.fnDisplayName fnName in
       let versionDisplayName = ViewUtils.versionDisplayName fnName in
       let partialName = ViewUtils.partialName fnName in
@@ -621,159 +738,109 @@ let rec toTokens' (s : state) (e : ast) : token list =
         then []
         else [TFnVersion (id, partialName, versionDisplayName, fnName)]
       in
-      [TFnName (id, partialName, displayName, fnName, ster)]
-      @ versionToken
-      @ ( List.indexedMap args ~f:(fun i e ->
-              [TSep; nested ~placeholderFor:(Some (fnName, offset + i)) e] )
-        |> List.concat )
+      b
+      |> add (TFnName (id, partialName, displayName, fnName, ster))
+      |> addMany versionToken
+      |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let args, offset =
-        match args with EThreadTarget _ :: args -> (args, 1) | _ -> (args, 0)
-      in
       let ghost = ghostPartial id newName oldName in
-      [TPartial (id, newName)]
-      @ ghost
-      @ ( List.indexedMap args ~f:(fun i e ->
-              [TSep; nested ~placeholderFor:(Some (oldName, offset + i)) e] )
-        |> List.flatten )
+      b
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->
-      [TConstructorName (id, name)]
-      @ (exprs |> List.map ~f:(fun e -> [TSep; nested e]) |> List.concat)
+      b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       let ghost = ghostPartial id newName oldName in
-      [TPartial (id, newName)]
-      @ ghost
-      @ ( List.indexedMap
-            ~f:(fun i e -> [TSep; nested ~placeholderFor:(Some (oldName, i)) e])
-            exprs
-        |> List.flatten )
+      b
+      |> add (TPartial (id, newName))
+      |> addMany ghost
+      |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
-      [nested expr; TFieldOp id; TFieldName (id, fieldID, fieldname)]
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TFieldOp id; TFieldName (id, fieldID, fieldname)]
   | EVariable (id, name) ->
-      [TVariable (id, name)]
+      b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
-      let tnames =
-        names
-        |> List.indexedMap ~f:(fun i (aid, name) ->
-               [TLambdaVar (id, aid, i, name); TLambdaSep (id, i); TSep] )
-        |> List.concat
-        (* Remove the extra seperator *)
-        |> List.dropRight ~count:2
-      in
-      [TLambdaSymbol id] @ tnames @ [TLambdaArrow id; nested body]
+      let isLast i = i = List.length names - 1 in
+      b
+      |> add (TLambdaSymbol id)
+      |> addIter names ~f:(fun i (aid, name) b ->
+             b
+             |> add (TLambdaVar (id, aid, i, name))
+             |> addIf (not (isLast i)) (TLambdaSep (id, i))
+             |> addIf (not (isLast i)) (TSep aid) )
+      |> add (TLambdaArrow id)
+      |> nest ~indent:2 body
   | EList (id, exprs) ->
-      let ts =
-        exprs
-        |> List.indexedMap ~f:(fun i expr -> [nested expr; TListSep (id, i)])
-        |> List.concat
-        (* Remove the extra seperator *)
-        |> List.dropRight ~count:1
-      in
-      [TListOpen id] @ ts @ [TListClose id]
+      let lastIndex = List.length exprs - 1 in
+      b
+      |> add (TListOpen id)
+      |> addIter exprs ~f:(fun i e b ->
+             b
+             |> addNested ~f:(fromExpr e)
+             |> addIf (i <> lastIndex) (TListSep (id, i)) )
+      |> add (TListClose id)
   | ERecord (id, fields) ->
       if fields = []
-      then [TRecordOpen id; TRecordClose id]
+      then b |> addMany [TRecordOpen id; TRecordClose id]
       else
-        [ [TRecordOpen id]
-        ; List.mapi fields ~f:(fun i (aid, fname, expr) ->
-              [ TNewline (Some (id, id, Some i))
-              ; TIndentToHere
-                  [ TIndent 2
-                  ; TRecordField (id, aid, i, fname)
-                  ; TRecordSep (id, i, aid)
-                  ; nested expr ] ] )
-          |> List.concat
-        ; [TNewline (Some (id, id, Some (List.length fields))); TRecordClose id]
-        ]
-        |> List.concat
+        b
+        |> add (TRecordOpen id)
+        |> indentBy ~indent:2 ~f:(fun b ->
+               addIter fields b ~f:(fun i (aid, fname, expr) b ->
+                   b
+                   |> addNewlineIfNeeded (Some (id, id, Some i))
+                   |> add (TRecordField (id, aid, i, fname))
+                   |> add (TRecordSep (id, i, aid))
+                   |> addNested ~f:(fromExpr expr) ) )
+        |> addMany
+             [ TNewline (Some (id, id, Some (List.length fields)))
+             ; TRecordClose id ]
   | EThread (id, exprs) ->
-    ( match exprs with
-    | [] ->
-        Js.log2 "Empty thread found" (show_fluidExpr e) ;
-        []
-    | [single] ->
-        Js.log2 "Thread with single entry found" (show_fluidExpr single) ;
-        [nested single]
-    | head :: tail ->
-        let length = List.length exprs in
-        let tailTokens =
-          TIndentToHere
-            ( tail
-            |> List.indexedMap ~f:(fun i e ->
-                   let thread =
-                     [TIndentToHere [TThreadPipe (id, i, length); nested e]]
-                   in
-                   if i == 0
-                   then thread
-                   else TNewline (Some (id, id, Some i)) :: thread )
-            |> List.concat )
-        in
-        let tailNewline =
-          if endsInNewline tailTokens
-          then []
-          else [TNewline (Some (id, id, Some (List.length tail)))]
-        in
-        [nested head; TNewline (Some (id, id, Some 0)); tailTokens]
-        @ tailNewline )
+      let length = List.length exprs in
+      ( match exprs with
+      | [] ->
+          recover "Empty thread found" b
+      | [single] ->
+          recover "Thread with single entry found" (fromExpr single b)
+      | head :: tail ->
+          b
+          |> addNested ~f:(fromExpr head)
+          |> addNewlineIfNeeded (Some (id, id, Some 0))
+          |> addIter tail ~f:(fun i e b ->
+                 b
+                 |> add (TThreadPipe (id, i, length))
+                 |> addNested ~f:(fromExpr e)
+                 |> addNewlineIfNeeded (Some (id, id, Some (i + 1))) )
+          |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EThreadTarget _ ->
-      recover "should never be making tokens for EThreadTarget" []
+      recover "should never be making tokens for EThreadTarget" b
   | EMatch (id, mexpr, pairs) ->
-      let finalNewline =
-        if List.last pairs
-           |> Option.map ~f:Tuple2.second
-           |> Option.map ~f:(fun e -> nested e)
-           |> Option.map ~f:endsInNewline
-           |> Option.withDefault ~default:false
-        then []
-        else [TNewline (Some (id, id, Some (List.length pairs)))]
-      in
-      [TMatchKeyword id; nested mexpr]
-      @ ( List.indexedMap pairs ~f:(fun i (pattern, expr) ->
-              let patternNewline =
-                if i == 0 && endsInNewline (nested mexpr)
-                then []
-                else [TNewline (Some (id, id, Some i)); TIndent 2]
-              in
-              patternNewline
-              @ patternToToken pattern
-              @ [TSep; TMatchSep (pid pattern); TSep; nested expr] )
-        |> List.concat )
-      @ finalNewline
+      b
+      |> add (TMatchKeyword id)
+      |> addNested ~f:(fromExpr mexpr)
+      |> indentBy ~indent:2 ~f:(fun b ->
+             b
+             |> addIter pairs ~f:(fun i (pattern, expr) b ->
+                    b
+                    |> addNewlineIfNeeded (Some (id, id, Some i))
+                    |> addMany (patternToToken pattern)
+                    |> addMany
+                         [TSep id; TMatchSep (pid pattern); TSep (pid pattern)]
+                    |> addNested ~f:(fromExpr expr) )
+             |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))) )
   | EOldExpr expr ->
-      [TPartial (Blank.toID expr, "TODO: oldExpr")]
+      b |> add (TPartial (Blank.toID expr, "TODO: oldExpr"))
   | EPartial (id, str, _) ->
-      [TPartial (id, str)]
+      b |> add (TPartial (id, str))
   | ERightPartial (id, newOp, expr) ->
-      [nested expr; TSep; TRightPartial (id, newOp)]
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TSep id; TRightPartial (id, newOp)]
   | EFeatureFlag (_id, _msg, _msgid, _cond, casea, _caseb) ->
-      [nested casea]
-
-
-(* TODO: we need some sort of reflow thing that handles line length. *)
-let rec reflow ~(x : int) (startingTokens : token list) : int * token list =
-  let startingX = x in
-  List.indexedMap startingTokens ~f:(fun i e -> (i, e))
-  |> List.foldl ~init:(x, []) ~f:(fun (i, t) (x, old) ->
-         let text = Token.toText t in
-         let len = String.length text in
-         match t with
-         | TIndented tokens ->
-             let newX, newTokens = reflow ~x:(x + 2) tokens in
-             (newX, old @ [TIndent (startingX + 2)] @ newTokens)
-         | TIndentToHere tokens ->
-             let newX, newTokens = reflow ~x tokens in
-             (newX, old @ newTokens)
-         | TNewline _ ->
-             (* if this TNewline is at the very end of a set of tokens (for
-            * example - the TNewline at the end of an EMatch) - then we don't
-            * want to add a TIndent, because that will indent the following,
-            * non-EMatch, expr. *)
-             let isLast = i == List.length startingTokens - 1 in
-             if startingX = 0 || isLast
-             then (startingX, old @ [t])
-             else (startingX, old @ [t; TIndent startingX])
-         | _ ->
-             (x + len, old @ [t]) )
+      b |> addNested ~f:(fromExpr casea)
 
 
 let infoize ~(pos : int) tokens : tokenInfo list =
@@ -809,12 +876,16 @@ let validateTokens (tokens : fluidToken list) : fluidToken list =
   tokens
 
 
+(* Remove artifacts of the token generation process *)
+let tidy (tokens : fluidToken list) : fluidToken list =
+  tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
+
+
 let toTokens (s : state) (e : ast) : tokenInfo list =
-  e
-  |> toTokens' s
+  toTokens' s e Builder.empty
+  |> Builder.asTokens
+  |> tidy
   |> validateTokens
-  |> reflow ~x:0
-  |> Tuple2.second
   |> infoize ~pos:0
 
 
@@ -866,7 +937,7 @@ let editorID = "fluid-editor"
 (* Update fluid state *)
 (* -------------------- *)
 let tiSentinel : tokenInfo =
-  { token = TSep
+  { token = TSep (ID "sentinel-token")
   ; startPos = -1000
   ; startRow = -1000
   ; startCol = -1000
@@ -1285,7 +1356,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep _ | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
@@ -1302,7 +1373,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
         pos
     | ti :: rest ->
       ( match ti.token with
-      | TSep | TNewline _ | TIndent _ | TIndentToHere _ | TIndented _ ->
+      | TSep _ | TNewline _ | TIndent _ ->
           getNextWS rest
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
@@ -1320,7 +1391,7 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
            then
              match info.token with
              (* To prevent the cursor from being put in TThreadPipes or TIndents token *)
-             | TThreadPipe _ | TIndent _ | TIndentToHere _ ->
+             | TThreadPipe _ | TIndent _ ->
                  false
              | _ ->
                  true
@@ -1342,7 +1413,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
   let newPos =
     match token.token with
     (* To prevent the cursor from going to the end of an indent or to a new line *)
-    | TNewline _ | TIndent _ | TIndentToHere _ ->
+    | TNewline _ | TIndent _ ->
         token.startPos
     | _ ->
         token.endPos
@@ -1629,8 +1700,8 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
           recover "not a field in replaceFieldName" e )
 
 
-let exprToFieldAccess (id : id) (ast : ast) : ast =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (gid (), e, gid (), ""))
+let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
+  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -2437,7 +2508,7 @@ let acMoveBasedOnKey
         ( match thisTi with
         (* Only move forward to skip over a separator *)
         (* TODO: are there more separators we should consider here? *)
-        | Some {token} when token = TSep ->
+        | Some {token = TSep _} ->
             min nextBlank (startPos + offset + 1)
         | _ ->
             (* if new position is after next blank, stay in next blank *)
@@ -2657,10 +2728,95 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* Code entering/interaction *)
 (* -------------------- *)
 
+type newPosition =
+  | RightOne
+  | RightTwo
+  | LeftOne
+  | LeftThree
+  | MoveToStart
+  | MoveToTokenEnd of id * (* offset *) int
+  | SamePlace
+  | TwoAfterEnd
+  | Exactly of int
+
+let adjustPosForReflow
+    ~state
+    (newAST : fluidExpr)
+    (oldTI : tokenInfo)
+    (oldPos : int)
+    (adjustment : newPosition) : int =
+  (* Reflow refers to adjusting layout for to prevent overly long lines. Any
+   * character change can cause that line to be too long (and so it will
+   * reflow) or no longer too long (and so it will un-reflow).
+   *
+   * We need to find where the cursor should be in the new AST, given the old
+   * position, the old token it was in, and the new AST. We do this by finding
+   * the old token in the new token stream, and then doing the appropriate
+   * adjustment. There are definitely places this won't work, but I haven't
+   * found them yet. *)
+  let newTokens = toTokens state newAST in
+  let newTI =
+    List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
+  in
+  let diff =
+    match newTI with
+    | Some newTI ->
+        newTI.startPos - oldTI.startPos
+    | None ->
+        0
+  in
+  let newPos = oldPos + diff in
+  match (adjustment, newTI) with
+  | SamePlace, _ ->
+      newPos
+  | RightOne, _ ->
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 1
+      else newPos + 1
+  | RightTwo, _ ->
+      if FluidToken.isBlank oldTI.token
+      then oldTI.startPos + diff + 2
+      else newPos + 2
+  | LeftOne, Some newTI ->
+      if Token.isAtom newTI.token
+      then newTI.startPos
+      else if newTI.endPos < newPos
+      then newTI.endPos
+      else newPos - 1
+  | LeftOne, None ->
+      let newPos = newPos - 1 in
+      max 0 newPos
+  | LeftThree, Some newTI ->
+      let newPos = min newPos newTI.endPos in
+      let newPos = newPos - 3 in
+      max 0 newPos
+  | LeftThree, None ->
+      let newPos = newPos - 3 in
+      max 0 newPos
+  | Exactly pos, _ ->
+      pos
+  | MoveToTokenEnd (id, offset), _ ->
+      newTokens
+      |> List.reverse
+      |> List.find ~f:(fun x -> Token.tid x.token = id)
+      |> Option.map ~f:(fun ti ->
+             if FluidToken.isBlank ti.token
+             then ti.startPos
+             else ti.endPos + offset )
+      |> recoverOpt "didn't find expected token in MoveToToken" ~default:newPos
+  | MoveToStart, Some newTI ->
+      newTI.startPos
+  | MoveToStart, None ->
+      oldTI.startPos
+  | TwoAfterEnd, None ->
+      oldTI.endPos + 2
+  | TwoAfterEnd, Some newTI ->
+      newTI.endPos + 2
+
+
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     ast * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
-  let left s = moveOneLeft (min pos ti.endPos) s in
   let offset =
     match ti.token with
     | TPatternString _ | TString _ | TStringMLStart _ ->
@@ -2676,118 +2832,122 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos - 1
   in
   let newID = gid () in
-  match ti.token with
-  | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
-      (ast, moveToStart ti s)
-  | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-      let newAST = removeEmptyExpr (Token.tid ti.token) ast in
-      if newAST = ast then (ast, s) else (newAST, moveToStart ti s)
-  | TString (id, "") ->
-      (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
-  | TPatternString (mID, id, "") ->
-      (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, left s)
-  | TLambdaSep (id, idx) ->
-      (removeLambdaSepToken id ast idx, left s)
-  | TListSep (id, idx) ->
-      (removeListSepToken id ast idx, left s)
-  | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
-      (replaceExpr id ~newExpr:(EBlank newID) ast, left s)
-  | TRecordField (id, _, i, "") when pos = ti.startPos ->
-      ( removeRecordField id i ast
-      , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
-  | TPatternBlank (mID, id) when pos = ti.startPos ->
-      ( removePatternRow mID id ast
-      , s |> left |> fun s -> moveOneLeft (s.newPos - 1) s )
-  | TBlank _
-  | TPlaceholder _
-  | TIndent _
-  | TIndentToHere _
-  | TIndented _
-  | TLetAssignment _
-  | TListClose _
-  | TListOpen _
-  | TNewline _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TSep
-  | TPatternBlank _
-  | TPartialGhost _ ->
-      (ast, left s)
-  | TFieldOp id ->
-      (removeField id ast, left s)
-  | TFloatPoint id ->
-      (removePointFromFloat id ast, left s)
-  | TPatternFloatPoint (mID, id) ->
-      (removePatternPointFromFloat mID id ast, left s)
-  | TConstructorName (id, str)
-  (* str is the partialName: *)
-  | TFnName (id, str, _, _, _)
-  | TFnVersion (id, str, _, _) ->
-      let f str = removeCharAt str offset in
-      (replaceWithPartial (f str) id ast, left s)
-  | TRightPartial (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteRightPartial ti ast in
-      (ast, moveToEndOfTarget targetID ast s)
-  | TPartial (_, str) when String.length str = 1 ->
-      deletePartial ti ast s
-  | TBinOp (_, str) when String.length str = 1 ->
-      let ast, targetID = deleteBinOp ti ast in
-      (ast, moveToEndOfTarget targetID ast s)
-  | TStringMLEnd (id, thisStr, strOffset, _)
-    when String.length thisStr = 1 && offset = strOffset ->
-      let f str = removeCharAt str offset in
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveToEndOfTarget id newAST s in
-      (newAST, {newState with newPos = newState.newPos - 1 (* quote *)})
-  | TString _
-  | TStringMLStart _
-  | TStringMLMiddle _
-  | TStringMLEnd _
-  | TPatternString _
-  | TRecordField _
-  | TInteger _
-  | TTrue _
-  | TFalse _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TNullToken _
-  | TVariable _
-  | TFieldName _
-  | TLetLHS _
-  | TPatternInteger _
-  | TPatternNullToken _
-  | TPatternVariable _
-  | TRightPartial _
-  | TPartial _
-  | TBinOp _
-  | TLambdaVar _ ->
-      let f str = removeCharAt str offset in
-      (replaceStringToken ~f ti.token ast, left s)
-  | TPatternFloatWhole (mID, id, str) ->
-      let str = removeCharAt str offset in
-      (replacePatternFloatWhole str mID id ast, left s)
-  | TPatternFloatFraction (mID, id, str) ->
-      let str = removeCharAt str offset in
-      (replacePatternFloatFraction str mID id ast, left s)
-  | TFloatWhole (id, str) ->
-      let str = removeCharAt str offset in
-      (replaceFloatWhole str id ast, left s)
-  | TFloatFraction (id, str) ->
-      let str = removeCharAt str offset in
-      (replaceFloatFraction str id ast, left s)
-  | TPatternConstructorName (mID, id, str) ->
-      let f str = removeCharAt str offset in
-      (replacePatternWithPartial (f str) mID id ast, left s)
-  | TThreadPipe (id, i, _) ->
-      let s =
-        match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
-        | Some leftTI, _, _ ->
-            doLeft ~pos:ti.startPos leftTI s
-        | _ ->
-            recover "TThreadPipe should never occur on first line of AST" s
-      in
-      (removeThreadPipe id ast i, s)
+  let newAST, newPosition =
+    match ti.token with
+    | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
+        (ast, MoveToStart)
+    | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
+        let newAST = removeEmptyExpr (Token.tid ti.token) ast in
+        if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
+    | TString (id, "") ->
+        (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
+    | TPatternString (mID, id, "") ->
+        (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
+    | TLambdaSep (id, idx) ->
+        (removeLambdaSepToken id ast idx, LeftOne)
+    | TListSep (id, idx) ->
+        (removeListSepToken id ast idx, LeftOne)
+    | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
+        (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
+    | TRecordField (id, _, i, "") when pos = ti.startPos ->
+        (removeRecordField id i ast, LeftThree)
+    | TPatternBlank (mID, id) when pos = ti.startPos ->
+        (removePatternRow mID id ast, LeftThree)
+    | TBlank _
+    | TPlaceholder _
+    | TIndent _
+    | TLetAssignment _
+    | TListClose _
+    | TListOpen _
+    | TRecordOpen _
+    | TRecordClose _
+    | TRecordSep _
+    | TSep _
+    | TPatternBlank _
+    | TPartialGhost _ ->
+        (ast, LeftOne)
+    | TNewline _ ->
+        (ast, Exactly ti.startPos)
+    | TFieldOp id ->
+        (removeField id ast, LeftOne)
+    | TFloatPoint id ->
+        (removePointFromFloat id ast, LeftOne)
+    | TPatternFloatPoint (mID, id) ->
+        (removePatternPointFromFloat mID id ast, LeftOne)
+    | TConstructorName (id, str)
+    (* str is the partialName: *)
+    | TFnName (id, str, _, _, _)
+    | TFnVersion (id, str, _, _) ->
+        let f str = removeCharAt str offset in
+        (replaceWithPartial (f str) id ast, LeftOne)
+    | TRightPartial (_, str) when String.length str = 1 ->
+        let ast, targetID = deleteRightPartial ti ast in
+        (ast, MoveToTokenEnd (targetID, 0))
+    | TPartial (_, str) when String.length str = 1 ->
+        let newAST, newState = deletePartial ti ast s in
+        (newAST, Exactly newState.newPos)
+    | TBinOp (_, str) when String.length str = 1 ->
+        let ast, targetID = deleteBinOp ti ast in
+        (ast, MoveToTokenEnd (targetID, 0))
+    | TStringMLEnd (id, thisStr, strOffset, _)
+      when String.length thisStr = 1 && offset = strOffset ->
+        let f str = removeCharAt str offset in
+        let newAST = replaceStringToken ~f ti.token ast in
+        (newAST, MoveToTokenEnd (id, -1) (* quote *))
+    | TString _
+    | TStringMLStart _
+    | TStringMLMiddle _
+    | TStringMLEnd _
+    | TPatternString _
+    | TRecordField _
+    | TInteger _
+    | TTrue _
+    | TFalse _
+    | TPatternTrue _
+    | TPatternFalse _
+    | TNullToken _
+    | TVariable _
+    | TFieldName _
+    | TLetLHS _
+    | TPatternInteger _
+    | TPatternNullToken _
+    | TPatternVariable _
+    | TRightPartial _
+    | TPartial _
+    | TBinOp _
+    | TLambdaVar _ ->
+        let f str = removeCharAt str offset in
+        (replaceStringToken ~f ti.token ast, LeftOne)
+    | TPatternFloatWhole (mID, id, str) ->
+        let str = removeCharAt str offset in
+        (replacePatternFloatWhole str mID id ast, LeftOne)
+    | TPatternFloatFraction (mID, id, str) ->
+        let str = removeCharAt str offset in
+        (replacePatternFloatFraction str mID id ast, LeftOne)
+    | TFloatWhole (id, str) ->
+        let str = removeCharAt str offset in
+        (replaceFloatWhole str id ast, LeftOne)
+    | TFloatFraction (id, str) ->
+        let str = removeCharAt str offset in
+        (replaceFloatFraction str id ast, LeftOne)
+    | TPatternConstructorName (mID, id, str) ->
+        let f str = removeCharAt str offset in
+        (replacePatternWithPartial (f str) mID id ast, LeftOne)
+    | TThreadPipe (id, i, _) ->
+        let newPosition =
+          match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+          | Some leftTI, _, _ ->
+              let newState = doLeft ~pos:ti.startPos leftTI s in
+              Exactly newState.newPos
+          | _ ->
+              recover
+                "TThreadPipe should never occur on first line of AST"
+                SamePlace
+        in
+        (removeThreadPipe id ast i, newPosition)
+  in
+  let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
+  (newAST, {s with newPos})
 
 
 let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -2819,8 +2979,6 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBlank _
   | TPlaceholder _
   | TIndent _
-  | TIndentToHere _
-  | TIndented _
   | TLetAssignment _
   | TListClose _
   | TListOpen _
@@ -2828,7 +2986,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TRecordClose _
   | TRecordOpen _
   | TRecordSep _
-  | TSep
+  | TSep _
   | TPartialGhost _ ->
       (ast, s)
   | TConstructorName (id, str)
@@ -2951,15 +3109,10 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         pos - ti.startPos - 1
     | TStringMLMiddle (_, _, strOffset, _) | TStringMLEnd (_, _, strOffset, _)
       ->
-        (* no quote here, unline TStringMLStart *)
+        (* no quote here, unlike TStringMLStart *)
         pos - ti.startPos + strOffset
     | _ ->
         pos - ti.startPos
-  in
-  let right =
-    if FluidToken.isBlank ti.token
-    then moveTo (ti.startPos + 1) s
-    else moveOneRight pos s
   in
   let f str = String.insertAt ~index:offset ~insert:letterStr str in
   let newID = gid () in
@@ -3004,150 +3157,154 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     then EInteger (newID, letterStr |> coerceStringTo63BitInt)
     else EPartial (newID, letterStr, EBlank (gid ()))
   in
-  match ti.token with
-  | (TFieldName (id, _, _) | TVariable (id, _))
-    when pos = ti.endPos && letter = '.' ->
-      (exprToFieldAccess id ast, right)
-  (* Dont add space to blanks *)
-  | ti when FluidToken.isBlank ti && letterStr == " " ->
-      (ast, s)
-  (* replace blank *)
-  | TBlank id | TPlaceholder (_, id) ->
-      (replaceExpr id ~newExpr ast, moveTo (ti.startPos + 1) s)
-  (* lists *)
-  | TListOpen id ->
-      (insertInList ~index:0 id ~newExpr ast, moveTo (ti.startPos + 2) s)
-  (* lambda *)
-  | TLambdaSymbol id when letter = ',' ->
-      (insertLambdaVar ~index:0 id ~name:"" ast, s)
-  | TLambdaVar (id, _, index, _) when letter = ',' ->
-      ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
-      , moveTo (ti.endPos + 2) s )
-  (* Ignore invalid situations *)
-  | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
-      (ast, s)
-  | TInteger _
-  | TPatternInteger _
-  | TFloatFraction _
-  | TFloatWhole _
-  | TPatternFloatWhole _
-  | TPatternFloatFraction _
-    when not (isNumber letterStr) ->
-      (ast, s)
-  | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
-    when '0' = letter && offset = 0 ->
-      (ast, s)
-  | TVariable _
-  | TPatternVariable _
-  | TLetLHS _
-  | TFieldName _
-  | TLambdaVar _
-  | TRecordField _
-    when not (isIdentifierChar letterStr) ->
-      (ast, s)
-  | TVariable _
-  | TPatternVariable _
-  | TLetLHS _
-  | TFieldName _
-  | TLambdaVar _
-  | TRecordField _
-    when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
-      (ast, s)
-  | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
-      (ast, s)
-  (* Do the insert *)
-  | (TString (_, str) | TStringMLEnd (_, str, _, _))
-    when pos = ti.endPos - 1 && String.length str = 40 ->
-      (* Strings with end quotes *)
-      let s = recordAction ~pos ~ti "string to mlstring" s in
-      (* Inserting at the end of an multi-line segment goes to next segment *)
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-      (newAST, moveOneRight newState.newPos newState)
-  | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
-    when pos = ti.endPos && String.length str = 40 ->
-      (* Strings without end quotes *)
-      let s = recordAction ~pos ~ti "extend multiline string" s in
-      (* Inserting at the end of an multi-line segment goes to next segment *)
-      let newAST = replaceStringToken ~f ti.token ast in
-      let newState = moveToNextNonWhitespaceToken ~pos newAST s in
-      (newAST, moveOneRight newState.newPos newState)
-  | TRecordField _
-  | TFieldName _
-  | TVariable _
-  | TPartial _
-  | TRightPartial _
-  | TString _
-  | TStringMLStart _
-  | TStringMLMiddle _
-  | TStringMLEnd _
-  | TPatternString _
-  | TLetLHS _
-  | TTrue _
-  | TFalse _
-  | TPatternTrue _
-  | TPatternFalse _
-  | TNullToken _
-  | TPatternNullToken _
-  | TPatternVariable _
-  | TBinOp _
-  | TLambdaVar _ ->
-      (replaceStringToken ~f ti.token ast, right)
-  | TPatternInteger (_, _, i) | TInteger (_, i) ->
-      let newLength = f i |> coerceStringTo63BitInt |> String.length in
-      let move = if newLength > offset then right else s in
-      (replaceStringToken ~f ti.token ast, move)
-  | TFloatWhole (id, str) ->
-      (replaceFloatWhole (f str) id ast, right)
-  | TFloatFraction (id, str) ->
-      (replaceFloatFraction (f str) id ast, right)
-  | TFloatPoint id ->
-      (insertAtFrontOfFloatFraction letterStr id ast, right)
-  | TPatternFloatWhole (mID, id, str) ->
-      (replacePatternFloatWhole (f str) mID id ast, right)
-  | TPatternFloatFraction (mID, id, str) ->
-      (replacePatternFloatFraction (f str) mID id ast, right)
-  | TPatternFloatPoint (mID, id) ->
-      (insertAtFrontOfPatternFloatFraction letterStr mID id ast, right)
-  | TPatternConstructorName _ ->
-      (ast, s)
-  | TPatternBlank (mID, pID) ->
-      let newPat =
-        if letter = '"'
-        then FPString (mID, newID, "")
-        else if isNumber letterStr
-        then FPInteger (mID, newID, letterStr |> coerceStringTo63BitInt)
-        else FPVariable (mID, newID, letterStr)
-      in
-      (replacePattern mID pID ~newPat ast, moveTo (ti.startPos + 1) s)
-  (* do nothing *)
-  | TNewline _
-  | TIfKeyword _
-  | TIfThenKeyword _
-  | TIfElseKeyword _
-  | TFieldOp _
-  | TFnName _
-  | TFnVersion _
-  | TLetKeyword _
-  | TLetAssignment _
-  | TSep
-  | TIndented _
-  | TIndentToHere _
-  | TListClose _
-  | TListSep _
-  | TIndent _
-  | TRecordOpen _
-  | TRecordClose _
-  | TRecordSep _
-  | TThreadPipe _
-  | TLambdaSymbol _
-  | TLambdaArrow _
-  | TConstructorName _
-  | TLambdaSep _
-  | TMatchSep _
-  | TMatchKeyword _
-  | TPartialGhost _ ->
-      (ast, s)
+  let newAST, newPosition =
+    match ti.token with
+    | (TFieldName (id, _, _) | TVariable (id, _))
+      when pos = ti.endPos && letter = '.' ->
+        let fieldID = gid () in
+        (exprToFieldAccess id fieldID ast, RightOne)
+    (* Dont add space to blanks *)
+    | ti when FluidToken.isBlank ti && letterStr == " " ->
+        (ast, SamePlace)
+    (* replace blank *)
+    | TBlank id | TPlaceholder (_, id) ->
+        (replaceExpr id ~newExpr ast, RightOne)
+    (* lists *)
+    | TListOpen id when letter = ',' ->
+        (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
+    | TListOpen id ->
+        (insertInList ~index:0 id ~newExpr ast, RightOne)
+    (* lambda *)
+    | TLambdaSymbol id when letter = ',' ->
+        (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
+    | TLambdaVar (id, _, index, _) when letter = ',' ->
+        (insertLambdaVar ~index:(index + 1) id ~name:"" ast, TwoAfterEnd)
+    (* Ignore invalid situations *)
+    | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
+        (ast, SamePlace)
+    | TInteger _
+    | TPatternInteger _
+    | TFloatFraction _
+    | TFloatWhole _
+    | TPatternFloatWhole _
+    | TPatternFloatFraction _
+      when not (isNumber letterStr) ->
+        (ast, SamePlace)
+    | (TInteger _ | TPatternInteger _ | TFloatWhole _ | TPatternFloatWhole _)
+      when '0' = letter && offset = 0 ->
+        (ast, SamePlace)
+    | TVariable _
+    | TPatternVariable _
+    | TLetLHS _
+    | TFieldName _
+    | TLambdaVar _
+    | TRecordField _
+      when not (isIdentifierChar letterStr) ->
+        (ast, SamePlace)
+    | TVariable _
+    | TPatternVariable _
+    | TLetLHS _
+    | TFieldName _
+    | TLambdaVar _
+    | TRecordField _
+      when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
+        (ast, SamePlace)
+    | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
+        (ast, SamePlace)
+    (* Do the insert *)
+    | (TString (_, str) | TStringMLEnd (_, str, _, _))
+      when pos = ti.endPos - 1 && String.length str = 40 ->
+        (* Strings with end quotes *)
+        let s = recordAction ~pos ~ti "string to mlstring" s in
+        (* Inserting at the end of an multi-line segment goes to next segment *)
+        let newAST = replaceStringToken ~f ti.token ast in
+        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+        (newAST, Exactly (newState.newPos + 1))
+    | (TStringMLStart (_, str, _, _) | TStringMLMiddle (_, str, _, _))
+      when pos = ti.endPos && String.length str = 40 ->
+        (* Strings without end quotes *)
+        let s = recordAction ~pos ~ti "extend multiline string" s in
+        (* Inserting at the end of an multi-line segment goes to next segment *)
+        let newAST = replaceStringToken ~f ti.token ast in
+        let newState = moveToNextNonWhitespaceToken ~pos newAST s in
+        (newAST, Exactly (newState.newPos + 1))
+    | TRecordField _
+    | TFieldName _
+    | TVariable _
+    | TPartial _
+    | TRightPartial _
+    | TString _
+    | TStringMLStart _
+    | TStringMLMiddle _
+    | TStringMLEnd _
+    | TPatternString _
+    | TLetLHS _
+    | TTrue _
+    | TFalse _
+    | TPatternTrue _
+    | TPatternFalse _
+    | TNullToken _
+    | TPatternNullToken _
+    | TPatternVariable _
+    | TBinOp _
+    | TLambdaVar _ ->
+        (replaceStringToken ~f ti.token ast, RightOne)
+    | TPatternInteger (_, _, i) | TInteger (_, i) ->
+        let newLength = f i |> coerceStringTo63BitInt |> String.length in
+        let move = if newLength > offset then RightOne else SamePlace in
+        (replaceStringToken ~f ti.token ast, move)
+    | TFloatWhole (id, str) ->
+        (replaceFloatWhole (f str) id ast, RightOne)
+    | TFloatFraction (id, str) ->
+        (replaceFloatFraction (f str) id ast, RightOne)
+    | TFloatPoint id ->
+        (insertAtFrontOfFloatFraction letterStr id ast, RightOne)
+    | TPatternFloatWhole (mID, id, str) ->
+        (replacePatternFloatWhole (f str) mID id ast, RightOne)
+    | TPatternFloatFraction (mID, id, str) ->
+        (replacePatternFloatFraction (f str) mID id ast, RightOne)
+    | TPatternFloatPoint (mID, id) ->
+        (insertAtFrontOfPatternFloatFraction letterStr mID id ast, RightOne)
+    | TPatternConstructorName _ ->
+        (ast, SamePlace)
+    | TPatternBlank (mID, pID) ->
+        let newPat =
+          if letter = '"'
+          then FPString (mID, newID, "")
+          else if isNumber letterStr
+          then FPInteger (mID, newID, letterStr |> coerceStringTo63BitInt)
+          else FPVariable (mID, newID, letterStr)
+        in
+        (replacePattern mID pID ~newPat ast, RightOne)
+    (* do nothing *)
+    | TNewline _
+    | TIfKeyword _
+    | TIfThenKeyword _
+    | TIfElseKeyword _
+    | TFieldOp _
+    | TFnName _
+    | TFnVersion _
+    | TLetKeyword _
+    | TLetAssignment _
+    | TSep _
+    | TListClose _
+    | TListSep _
+    | TIndent _
+    | TRecordOpen _
+    | TRecordClose _
+    | TRecordSep _
+    | TThreadPipe _
+    | TLambdaSymbol _
+    | TLambdaArrow _
+    | TConstructorName _
+    | TLambdaSep _
+    | TMatchSep _
+    | TMatchKeyword _
+    | TPartialGhost _ ->
+        (ast, SamePlace)
+  in
+  let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
+  (newAST, {s with newPos})
 
 
 let doInsert
@@ -3413,7 +3570,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
         (ast, doDown ~pos ast s)
-    | K.Space, _, R (TSep, _) ->
+    | K.Space, _, R (TSep _, _) ->
         (ast, moveOneRight pos s)
     (* comma - add another of the thing *)
     | K.Comma, L (TListOpen _, toTheLeft), _
@@ -3740,12 +3897,14 @@ let trimQuotes s : string =
   |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
 
 
+let clone ~(state : state) (ast : fluidExpr) : fluidExpr =
+  ast |> toExpr ~inThread:false |> AST.clone |> fromExpr state
+
+
 let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     =
-  let ast =
-    (* clone ast to prevent duplicates *)
-    toExpr ast |> AST.clone |> fromExpr state
-  in
+  (* prevent duplicates *)
+  let ast = clone ~state ast in
   (* a few helpers *)
   let toBool_ s =
     if s = "true"
@@ -4728,6 +4887,7 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
+  let currentTokenInfo = getToken state ast in
   List.map l ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
@@ -4749,6 +4909,13 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         let tokenId = Token.tid ti.token in
         let idStr = deID tokenId in
         let idclasses = ["id-" ^ idStr] in
+        let isCursorOn =
+          match currentTokenInfo with
+          | Some currTi ->
+              if currTi = ti then ["cursor-on"] else []
+          | None ->
+              []
+        in
         let errorClasses =
           (* Here we want to find out the dval so we can apply error classes to the token *)
           let id = Token.analysisID ti.token in
@@ -4767,7 +4934,12 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         in
         Html.span
           [ Attrs.class'
-              ( ["fluid-entry"] @ classes @ idclasses @ highlight @ errorClasses
+              ( ["fluid-entry"]
+                @ classes
+                @ idclasses
+                @ highlight
+                @ errorClasses
+                @ isCursorOn
               |> String.join ~sep:" " )
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)

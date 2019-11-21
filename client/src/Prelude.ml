@@ -110,4 +110,4 @@ let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
 let asserT (fn : 'a -> bool) (a : 'a) : unit = ignore (assert_ fn a)
 
 (* Like impossible but with the message TODO *)
-let todo (a : 'a) : 'b = Debug.crash ("TODO: " ^ Js.String.make a)
+let todo (msg : 'a) (val_ : 'b) : 'b = recover ("TODO: " ^ msg) val_
