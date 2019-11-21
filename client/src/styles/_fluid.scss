@@ -347,6 +347,22 @@ since they are essentially both commands just acting upon different things. */
   display: none;
 }
 
+$error-color: saturate($red, 10%);
+
+@keyframes blinkError {
+  from {
+    background-color: $error-color;
+  }
+  to {
+    background-color: desaturate($error-color, 30%);
+  }
+}
+
 .toplevel.selected .fluid-incomplete {
-  border-bottom: 1px dashed saturate($red, 10%);
+  border-bottom: 1px dashed $error-color;
+  opacity: 1;
+
+  &.is-origin:not(.cursor-on) {
+    animation: blinkError 0.3s ease-in-out infinite;
+  }
 }

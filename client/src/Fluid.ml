@@ -4887,7 +4887,27 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
+  let dvalSrc id =
+    if FluidToken.validID id
+    then
+      match Analysis.getLiveValueLoadable vs.analysisStore id with
+      | LoadableSuccess (DIncomplete src) ->
+          src
+      | _ ->
+          SourceNone
+    else SourceNone
+  in
   let currentTokenInfo = getToken state ast in
+  let originIdOfCursor =
+    currentTokenInfo
+    |> Option.andThen ~f:(fun ti ->
+           let curId = Token.analysisID ti.token in
+           match dvalSrc curId with
+           | SourceId id ->
+               Some id
+           | SourceNone ->
+               None )
+  in
   List.map l ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
