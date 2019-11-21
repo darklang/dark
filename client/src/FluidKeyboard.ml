@@ -152,11 +152,19 @@ let fromKeyboardCode
   | 36 ->
       Home
   | 37 ->
-      if osCmdKeyHeld then GoToStartOfLine else if (isMac && alt) ||  ctrl then GoToStartOfWord else Left
+      if meta
+      then GoToStartOfLine
+      else if (isMac && alt) || ctrl
+      then GoToStartOfWord
+      else Left
   | 38 ->
       Up
   | 39 ->
-      if osCmdKeyHeld then GoToEndOfLine else if (isMac && alt) || ctrl then GoToEndOfWord else Right
+      if meta
+      then GoToEndOfLine
+      else if (isMac && alt) || ctrl
+      then GoToEndOfWord
+      else Right
   | 40 ->
       Down
   | 45 ->
