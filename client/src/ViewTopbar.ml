@@ -41,7 +41,7 @@ let html (m : model) =
             [ Html.href
                 "https://darkcommunity.slack.com/archives/CQWEKP85V/p1574372251002600"
             ; ViewUtils.eventNoPropagation
-                ~key:"toggle-fluid"
+                ~key:"send-feedback"
                 "mouseup"
                 (fun _ -> IgnoreMsg ) ]
             [Html.text "(send us feedback!)"]
