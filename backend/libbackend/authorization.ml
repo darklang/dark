@@ -22,9 +22,9 @@ type permission =
    go in order, and None < Some anything, so
    None < Some Read < Some ReadWrite. *)
 
-let permission_to_db p =
-  match p with Read -> Db.String "r" | ReadWrite -> Db.String "rw"
+let permission_to_string p = match p with Read -> "r" | ReadWrite -> "rw"
 
+let permission_to_db p = Db.String (permission_to_string p)
 
 let permission_of_db p =
   match p with
@@ -56,6 +56,45 @@ let set_user_access (user : Uuidm.t) (org : Uuidm.t) (p : permission option) :
         ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
         ~params:[Uuid user; Uuid org; permission_to_db p] ;
       ()
+
+
+(* Returns a list of (username, permission) pairs for a given auth_domain,
+ * denoting who has been granted access to a given domain *)
+let grants_for ~auth_domain : (Account.username * permission) list =
+  Db.fetch
+    ~name:"fetch_grants"
+    "SELECT user_.username, permission FROM access
+     INNER JOIN accounts user_ on access.access_account = user_.id
+     INNER JOIN accounts org on access.organization_account = org.id
+     WHERE org.username = $1"
+    ~params:[String auth_domain]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [username; db_perm] ->
+             (username, permission_of_db db_perm)
+         | _ ->
+             Exception.internal
+               "bad format from Authorization.grants_for#fetch_grants" )
+
+
+(* Returns a list of (organization name, permission) pairs for a given username,
+ * denoting which organizations the user has been granted permissions towards *)
+let orgs_for ~(username : Account.username) : (string * permission) list =
+  Db.fetch
+    ~name:"fetch_orgs"
+    "SELECT org.username, permission
+     FROM access
+     INNER JOIN accounts user_ on access.access_account = user_.id
+     INNER JOIN accounts org on access.organization_account = org.id
+     WHERE user_.username = $1"
+    ~params:[String username]
+  |> List.map ~f:(fun l ->
+         match l with
+         | [org; db_perm] ->
+             (org, permission_of_db db_perm)
+         | _ ->
+             Exception.internal
+               "bad format from Authorization.grants_for#fetch_orgs" )
 
 
 (* If a user has a DB row indicating granted access to this auth_domain,
