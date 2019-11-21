@@ -40,8 +40,7 @@ let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
       ; "renee"
       ; "rockspot"
       ; "stevehind"
-      ; "trown"
-      ]
+      ; "trown" ]
     in
     not (List.member ~value:username exemptUsers)
   in
