@@ -935,7 +935,7 @@ let editorID = "fluid-editor"
 (* Update fluid state *)
 (* -------------------- *)
 let tiSentinel : tokenInfo =
-  { token = TSep (ID "0")
+  { token = TSep (ID "sentinel-token")
   ; startPos = -1000
   ; startRow = -1000
   ; startCol = -1000
