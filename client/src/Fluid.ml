@@ -1449,15 +1449,21 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   in
   (* Finds how many moves to get to first whitespace *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
+    (* Convert token to string *)
     Token.toText tokenInfo.token
+    (* Split characters into list *)
     |> String.split ~on:""
+    (* Find and return the index's of any space, qoute, newline, or tab *)
     |> List.mapi ~f:(fun idx a ->
            if a == " " || a = "\"" || a = "\n" || a = "\t"
            then if idx == tokenInfo.length - 1 then Some idx else Some (idx + 1)
            else None )
+    (* Filter out the None *)
     |> List.filterMap ~f:(fun v -> v)
+    (* Reverse list to loop from back to front(like cursor movement) *)
     |> List.reverse
-    (* Not a position after the cursor, or currently on that space *)
+    (* Find the first possible whitespace index*)
+    (* Make sure it's not a position after the cursor, or where the cursor currently is *)
     |> List.find ~f:(fun x -> not (x + tokenInfo.startPos >= pos))
     |> Option.withDefault ~default:0
   in
@@ -1496,8 +1502,12 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   in
   (* Finds how many moves to get to first whitespace *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
+    (* Convert token to String *)
     Token.toText tokenInfo.token
+    (* Split by characters *)
     |> String.split ~on:""
+    (* Find the first space, qoute, newline or tab in list *)
+    (* Make sure the whitespace index is before the cursor position *)
     |> List.findWithIndex ~f:(fun idx x ->
            tokenInfo.startPos + idx > pos
            && (x == " " || x = "\"" || x = "\n" || x = "\t") )
