@@ -1254,17 +1254,12 @@ and fluidToken =
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
   | TPartialGhost of id * string
-  | TSep
+  (* the id here disambiguates with other separators for reflow *)
+  | TSep of id
   (* Newlines sometimes need to hold context. When there are many things in the
    * id with the newline, the extra context is the index of which one it is.
    * The second id is that of the Newline's parent expression*)
   | TNewline of (id * id * int option) option
-  (* All newlines in the nested tokens start indented to this position. *)
-  | TIndentToHere of fluidToken list
-  (* Increase the level of indentation for all these tokens. *)
-  | TIndented of fluidToken list
-  (* TIndentToHere and TIndented are preprocessed to the right indentation
-   * and turned into TIndents *)
   | TIndent of int
   | TLetKeyword of id * analysisId
   (* Let-expr id * varBind id * varname *)

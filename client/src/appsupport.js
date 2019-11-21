@@ -204,6 +204,10 @@ function getFluidSelectionRange() {
 // If beginIdx == endIdx, it sets the caret position (0-width selection).
 // This function assumes there are no nested DOM nodes, just a flat list of spans.
 function setFluidSelectionRange([beginIdx, endIdx]) {
+  if (beginIdx < endIdx) {
+    // this can crash if we have them in the wrong order
+    [beginIdx, endIdx] = [endIdx, beginIdx];
+  }
   let clamp = function(num, min, max) {
     if (num < min) {
       return min;

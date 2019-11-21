@@ -64,9 +64,10 @@ let tid (t : token) : id =
   | TPatternFloatWhole (_, id, _)
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
+  | TSep id
   | TNewline (Some (id, _, _)) ->
       id
-  | TNewline None | TSep | TIndented _ | TIndent _ | TIndentToHere _ ->
+  | TNewline None | TIndent _ ->
       fakeid
 
 
@@ -132,7 +133,7 @@ let isTextToken token : bool =
   | TListOpen _
   | TListClose _
   | TListSep (_, _)
-  | TSep
+  | TSep _
   | TLetKeyword _
   | TRecordOpen _
   | TRecordClose _
@@ -143,8 +144,6 @@ let isTextToken token : bool =
   | TIfElseKeyword _
   | TFieldOp _
   | TNewline _
-  | TIndented _
-  | TIndentToHere _
   | TIndent _
   | TLambdaSymbol _
   | TLambdaSep _
@@ -272,7 +271,7 @@ let toText (t : token) : string =
       shouldntBeEmpty str
   | TPartialGhost (_, str) ->
       shouldntBeEmpty str
-  | TSep ->
+  | TSep _ ->
       " "
   | TNewline _ ->
       "\n"
@@ -310,10 +309,6 @@ let toText (t : token) : string =
       shouldntBeEmpty (Caml.String.make indent ' ')
   (* We dont want this to be transparent, so have these make their presence
    * known *)
-  | TIndented _ ->
-      "TIndented"
-  | TIndentToHere _ ->
-      "TIndentToHere"
   | TListOpen _ ->
       "["
   | TListClose _ ->
@@ -389,6 +384,21 @@ let toTestText (t : token) : string =
   result
 
 
+let toIndex (t : token) : int option =
+  match t with
+  | TStringMLMiddle (_, _, index, _)
+  | TLambdaVar (_, _, index, _)
+  | TLambdaSep (_, index)
+  | TThreadPipe (_, _, index)
+  | TRecordField (_, _, index, _)
+  | TRecordSep (_, index, _)
+  | TListSep (_, index)
+  | TNewline (Some (_, _, Some index)) ->
+      Some index
+  | _ ->
+      None
+
+
 let toTypeName (t : token) : string =
   match t with
   | TInteger _ ->
@@ -429,12 +439,8 @@ let toTypeName (t : token) : string =
       "let-assignment"
   | TLetLHS _ ->
       "let-lhs"
-  | TSep ->
+  | TSep _ ->
       "sep"
-  | TIndented _ ->
-      "indented"
-  | TIndentToHere _ ->
-      "indent-to-here"
   | TIndent _ ->
       "indent"
   | TNewline _ ->
@@ -517,7 +523,7 @@ let toCategoryName (t : token) : string =
       "integer"
   | TString _ | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ ->
       "string"
-  | TVariable _ | TNewline _ | TSep | TBlank _ | TPlaceholder _ ->
+  | TVariable _ | TNewline _ | TSep _ | TBlank _ | TPlaceholder _ ->
       ""
   | TPartial _ | TRightPartial _ | TPartialGhost _ ->
       "partial"
@@ -531,7 +537,7 @@ let toCategoryName (t : token) : string =
       "function"
   | TLetKeyword _ | TLetAssignment _ | TLetLHS _ ->
       "let"
-  | TIndented _ | TIndentToHere _ | TIndent _ ->
+  | TIndent _ ->
       "indent"
   | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
       "if"
@@ -596,3 +602,14 @@ let show_tokenInfo (ti : tokenInfo) =
     (tid ti.token |> deID)
     (toTypeName ti.token)
     (toDebugInfo ti.token)
+
+
+(* Since tokens don't have unique IDs, it is hard to look at two tokens streams
+ * and find which tokens represent the same thing. You can use toText and ID,
+ * but that doesn't work where the content has changed, which is a thing we
+ * want to check for. *)
+let matches (t1 : token) (t2 : token) : bool =
+  tid t1 = tid t2
+  && toTypeName t1 = toTypeName t2
+  && toIndex t1 = toIndex t2
+  && t1 <> (* Matches too many things *) TNewline None
