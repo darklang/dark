@@ -235,11 +235,16 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
         EMatch (id, f mexpr, pairs)
     | FeatureFlag (msg, cond, casea, caseb) ->
         EFeatureFlag
-          (id, varToName msg, Blank.toID msg, f cond, f casea, f caseb)
+          ( id
+          , varToName msg
+          , Blank.toID msg
+          , f cond
+          , fromExpr ~inThread s casea
+          , fromExpr ~inThread s caseb )
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, f oldExpr)
+        EPartial (id, str, fromExpr ~inThread s oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, f oldExpr) )
+        ERightPartial (id, str, fromExpr ~inThread s oldExpr) )
 
 
 let literalToString
@@ -371,7 +376,10 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       F
         ( id
         , FeatureFlag
-            (F (nameID, name), toExpr cond, toExpr caseA, toExpr caseB) )
+            ( F (nameID, name)
+            , toExpr cond
+            , toExpr ~inThread caseA
+            , toExpr ~inThread caseB ) )
   | EOldExpr expr ->
       expr
 
