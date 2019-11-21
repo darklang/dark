@@ -1250,7 +1250,8 @@ and fluidToken =
   (* When a partial used to be another thing, we want to show the name of the
    * old thing in a non-interactable way *)
   | TPartialGhost of id * string
-  | TSep
+  (* the id here disambiguates with other separators for reflow *)
+  | TSep of id
   (* Newlines sometimes need to hold context. When there are many things in the
    * id with the newline, the extra context is the index of which one it is.
    * The second id is that of the Newline's parent expression*)
