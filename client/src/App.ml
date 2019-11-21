@@ -1915,6 +1915,11 @@ let update_ (msg : msg) (m : model) : modification =
         [ Select (targetExnID, None)
         ; TweakModel
             (fun m ->
+              let selection =
+                Option.orElseLazy
+                  (fun () -> Entry.getFluidSelectionRange ())
+                  selection
+              in
               match selection with
               (* if range width is 0, just change pos *)
               | Some (selBegin, selEnd) when selBegin = selEnd ->
@@ -1932,16 +1937,9 @@ let update_ (msg : msg) (m : model) : modification =
                       ; oldPos = m.fluidState.newPos
                       ; newPos = selEnd } }
               | None ->
-                ( match Entry.getFluidSelectionRange () with
-                | Some (selBegin, selEnd) ->
-                    { m with
-                      fluidState =
-                        { m.fluidState with
-                          newPos = selEnd; selectionStart = Some selBegin } }
-                | None ->
-                    { m with
-                      fluidState = {m.fluidState with selectionStart = None} }
-                ) ) ]
+                  { m with
+                    fluidState = {m.fluidState with selectionStart = None} } )
+        ]
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
