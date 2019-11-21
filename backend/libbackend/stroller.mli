@@ -12,7 +12,7 @@ val segment_track :
   -> event:string
   -> segment_type
   -> Yojson.Safe.t
-  -> unit
+  -> unit Lwt.t
 
 val segment_identify_user : string -> unit
 

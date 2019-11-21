@@ -85,7 +85,7 @@ let _segment_event
     ?execution_id
     ?event
     (msg_type : segment_type)
-    (payload : Yojson.Safe.t) =
+    (payload : Yojson.Safe.t) : unit Lwt.t =
   let log_params =
     _log_params_for_segment ~canvas ~canvas_id ~event ~username
   in
@@ -94,7 +94,8 @@ let _segment_event
   in
   match Config.stroller_port with
   | None ->
-      Log.infO "stroller not configured, skipping segment" ~params:log_params
+      Log.infO "stroller not configured, skipping segment" ~params:log_params ;
+      Lwt.return ()
   | Some port ->
       Log.infO "pushing segment event via stroller" ~params:log_params ;
       let uri =
@@ -110,35 +111,33 @@ let _segment_event
                (msg_type |> show_segment_type)
                (event |> Option.value ~default:(msg_type |> show_segment_type)))
       in
-      Lwt.async (fun () ->
-          try%lwt
-                let%lwt resp, _ =
-                  let payload = payload |> Yojson.Safe.to_string in
-                  Clu.Client.post uri ~body:(Cl.Body.of_string payload)
-                in
-                let code =
-                  resp |> CResponse.status |> Cohttp.Code.code_of_status
-                in
-                Log.infO
-                  "pushed to segment via stroller"
-                  ~jsonparams:[("status", `Int code)]
-                  ~params:log_params ;
-                Lwt.return ()
-          with e ->
-            let bt = Exception.get_backtrace () in
-            let%lwt _ =
-              Rollbar.report_lwt
-                e
-                bt
-                (Segment
-                   ( event
-                   |> Option.value ~default:(msg_type |> show_segment_type) ))
-                ( execution_id
-                |> Option.map ~f:Types.show_id
-                |> Option.value ~default:"no execution_id" )
-            in
-            Lwt.return () ) ;
-      ()
+      ( try%lwt
+              let%lwt resp, _ =
+                let payload = payload |> Yojson.Safe.to_string in
+                Clu.Client.post uri ~body:(Cl.Body.of_string payload)
+              in
+              let code =
+                resp |> CResponse.status |> Cohttp.Code.code_of_status
+              in
+              Log.infO
+                "pushed to segment via stroller"
+                ~jsonparams:[("status", `Int code)]
+                ~params:log_params ;
+              Lwt.return ()
+        with e ->
+          let bt = Exception.get_backtrace () in
+          let%lwt _ =
+            Rollbar.report_lwt
+              e
+              bt
+              (Segment
+                 ( event
+                 |> Option.value ~default:(msg_type |> show_segment_type) ))
+              ( execution_id
+              |> Option.map ~f:Types.show_id
+              |> Option.value ~default:"no execution_id" )
+          in
+          Lwt.return () )
 
 
 let blocking_curl_post (url : string) (body : string) : int * string * string =
@@ -224,7 +223,7 @@ let segment_track
     ~(execution_id : Types.id)
     ~(event : string)
     (msg_type : segment_type)
-    (payload : Yojson.Safe.t) : unit =
+    (payload : Yojson.Safe.t) : unit Lwt.t =
   _segment_event
     ~canvas_id
     ~canvas
