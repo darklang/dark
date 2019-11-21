@@ -164,7 +164,8 @@ val to_url_string_exn : Types.RuntimeT.dval -> string
  * duplicated. *)
 val to_dobj_exn : (string * Types.RuntimeT.dval) list -> Types.RuntimeT.dval
 
-val exception_to_dval : Core_kernel.Exn.t -> Types.RuntimeT.dval
+val exception_to_dval :
+  Core_kernel.Exn.t -> Types.RuntimeT.dval_source -> Types.RuntimeT.dval
 
 (* ------------------------- *)
 (* ErrorRail Functions *)
