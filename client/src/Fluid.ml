@@ -4641,7 +4641,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         (ast, s)
     | FluidKeyPress {key} ->
         let s = {s with lastKey = key} in
-        updateKey key ast s
+        let newAST, newState = updateKey key ast s in
+        (newAST, {newState with selectionStart = None})
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
