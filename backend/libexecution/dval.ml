@@ -255,7 +255,9 @@ let unwrap_from_errorrail (dv : dval) =
   match dv with DErrorRail dv -> dv | other -> other
 
 
-let exception_to_dval exc = DError (SourceNone, Exception.to_string exc)
+let exception_to_dval (exc : Exn.t) (src : dval_source) =
+  DError (src, Exception.to_string exc)
+
 
 (* A dval is a `fake marker` if it is a {DErrorRail, DIncomplete, DError}.
  * These types of values are stand-ins/markers for some static property about the
