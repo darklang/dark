@@ -289,6 +289,11 @@ let rec dval j : dval =
         , dv2 (fun a b -> Response (a, b)) int (list (tuple2 string string)) )
       ]
   in
+  let srcT =
+    variants
+      [ ("SourceNone", dv0 SourceNone)
+      ; ("SourceId", dv1 (fun x -> SourceId x) id) ]
+  in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
     ; ("DFloat", dv1 (fun x -> DFloat x) Json_decode_extended.float)
@@ -298,7 +303,12 @@ let rec dval j : dval =
     ; ("DStr", dv1 (fun x -> DStr x) string)
     ; ("DList", dv1 (fun x -> DList x) (array dd))
     ; ("DObj", dv1 (fun x -> DObj x) (dict dd))
-    ; ("DIncomplete", dv0 DIncomplete)
+    ; ( "DIncomplete"
+        (* catch decoding errors for backwards compatibility. if you see this
+         * comment in master, the withDefault can be removed *)
+      , withDefault
+          (DIncomplete SourceNone)
+          (dv1 (fun x -> DIncomplete x) srcT) )
     ; ("DError", dv1 (fun x -> DError x) string)
     ; ("DBlock", dv0 DBlock)
     ; ("DErrorRail", dv1 (fun x -> DErrorRail x) dd)

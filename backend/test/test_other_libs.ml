@@ -37,10 +37,9 @@ let t_option_stdlibs_work () =
     "map nothing"
     (exec_ast "(Option::map (Nothing) (\\x -> (Int::divide x 2)))")
     (DOption OptNothing) ;
-  check_dval
+  check_incomplete
     "map just incomplete"
-    (exec_ast "(Option::map_v1 _ (\\x -> (x)))")
-    DIncomplete ;
+    (exec_ast "(Option::map_v1 _ (\\x -> (x)))") ;
   check_dval
     "withDefault just"
     (exec_ast "(Option::withDefault (Just 6) 5)")
@@ -116,10 +115,9 @@ let t_result_stdlibs_work () =
     "fromOption nothing"
     (exec_ast "(Result::fromOption (Nothing) 'test')")
     (DResult (ResError test_string)) ;
-  check_dval
+  check_incomplete
     "fromOption_v1 propogates incomplete"
-    (exec_ast "(Result::fromOption_v1 (Just _) 'test')")
-    DIncomplete ;
+    (exec_ast "(Result::fromOption_v1 (Just _) 'test')") ;
   check_dval
     "fromOption_v1 propogates error"
     (exec_ast "(Result::fromOption_v1 (Just (Error 'test')) 'test')")
@@ -132,10 +130,9 @@ let t_result_stdlibs_work () =
     "toOption error"
     (exec_ast "(Result::toOption (Error 'test'))")
     (DOption OptNothing) ;
-  check_dval
+  check_incomplete
     "toOption_v1 propogates incomplete"
-    (exec_ast "(Result::toOption_v1 (Ok _))")
-    DIncomplete ;
+    (exec_ast "(Result::toOption_v1 (Ok _))") ;
   check_dval
     "toOption_v1 propogates errors"
     (exec_ast "(Result::toOption_v1 (Error 'test'))")
@@ -221,11 +218,10 @@ let t_dict_stdlibs_work () =
     (exec_ast
        "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
     (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
-  check_dval
+  check_incomplete
     "dict filter propagates incomplete from lambda"
     (exec_ast
-       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k _)))")
-    DIncomplete ;
+       "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k _)))") ;
   check_dval
     "dict filter ignores incomplete from obj"
     (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))

@@ -113,8 +113,10 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   (* opaque types *)
   | DBlock ->
       ev "DBlock" [null]
-  | DIncomplete ->
-      ev "DIncomplete" []
+  | DIncomplete SourceNone ->
+      ev "DIncomplete" [ev "SourceNone" []]
+  | DIncomplete (SourceId i) ->
+      ev "DIncomplete" [ev "SourceId" [id i]]
   (* user-ish types *)
   | DCharacter c ->
       ev "DCharacter" [string c]

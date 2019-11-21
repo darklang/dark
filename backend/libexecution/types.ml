@@ -399,6 +399,10 @@ module RuntimeT = struct
     | ResOk of dval
     | ResError of dval
 
+  and dval_source =
+    | SourceNone
+    | SourceId of id
+
   and dval =
     (* basic types  *)
     | DInt of Dint.t
@@ -410,7 +414,7 @@ module RuntimeT = struct
     | DList of dval list
     | DObj of dval_map
     (* special types - see notes above *)
-    | DIncomplete
+    | DIncomplete of dval_source
     | DError of string
     | DBlock of dval block
     | DErrorRail of dval

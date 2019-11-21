@@ -192,7 +192,7 @@ let rec exec
           param
       | _ ->
           (* calculate the results inside this regardless *)
-          DIncomplete
+          DIncomplete SourceNone
       (* partial w/ exception, full with dincomplete, or option dval? *)
     in
     trace exp result st ;
@@ -201,9 +201,9 @@ let rec exec
   let value _ =
     match expr with
     | Blank id ->
-        DIncomplete
-    | Partial _ ->
-        DIncomplete
+        DIncomplete (SourceId id)
+    | Partial (id, _) ->
+        DIncomplete (SourceId id)
     | Filled (_, FluidPartial (_, expr))
     | Filled (_, FluidRightPartial (_, expr)) ->
         exe st expr
@@ -234,7 +234,7 @@ let rec exec
                    None
                | v ->
                  ( match exe st v with
-                 | DIncomplete ->
+                 | DIncomplete _ ->
                      None (* ignore unfinished subexpr *)
                  | dv ->
                      Some dv ) )
@@ -246,10 +246,11 @@ let rec exec
                | Filled (_, keyname), v ->
                    let expr = exe st v in
                    trace_blank k expr st ;
-                   if expr = DIncomplete
-                   then (* ignore unfinished subexpr *)
-                     None
-                   else Some (keyname, expr)
+                   ( match expr with
+                   | DIncomplete _ ->
+                       None
+                   | _ ->
+                       Some (keyname, expr) )
                | _, v ->
                    ignore (exe st v) ;
                    None )
@@ -258,14 +259,14 @@ let rec exec
         |> List.map ~f:Tuple.T2.get2
         |> find_derrorrail
         |> Option.value ~default:(Dval.to_dobj_exn ps)
-    | Filled (_, Variable name) ->
+    | Filled (id, Variable name) ->
       ( match (Symtable.get st ~key:name, ctx) with
       | None, Preview ->
           (* The trace is wrong/we have a bug --
            * we guarantee to users that variables they can lookup have been
            * bound. However, we shouldn't crash out here when running analysis
            * because it gives a horrible user experience *)
-          DIncomplete
+          DIncomplete (SourceId id)
       | None, Real ->
           DError ("There is no variable named: " ^ name)
       | Some other, _ ->
@@ -287,8 +288,8 @@ let rec exec
           ( match exe st cond with
           | DBool false | DNull ->
               elseresult
-          | DIncomplete ->
-              DIncomplete
+          | DIncomplete _ as i ->
+              i
           | DError _ ->
               DError "Expected boolean, got error"
           | DErrorRail _ as er ->
@@ -302,8 +303,8 @@ let rec exec
         (* only false and 'null' are falsey *)
         | DBool false | DNull ->
             exe st elsebody
-        | DIncomplete ->
-            DIncomplete
+        | DIncomplete _ as i ->
+            i
         | DError _ ->
             DError "Expected boolean, got error"
         | DErrorRail _ as er ->
@@ -311,23 +312,22 @@ let rec exec
         | _ ->
             exe st ifbody ) )
     | Filled (id, FeatureFlag (_, cond, oldcode, newcode)) ->
-      (* True gives newexpr, unlike in If statements *)
-      
-      (* In If statements, we use a false/null as false, and anything else is
-        * true. But this won't work for feature flags. If statements are built
-        * as you build you code, with no existing users. But feature flags are
-        * created when you have users and don't want to break your code. As a
-        * result, anything that isn't an explicitly signalling to use the new
-        * code, should use the old code:
-        * - errors should be ignored: use old code
-        * - incompletes should be ignored: use old code
-        * - errorrail should not be propaged: use old code
-        * - values which are "truthy" in if statements are not truthy here:
-        * imagine you are writing the FF cond and you get a list or object,
-        * and you're about to do some other work on it. Should we immediately
-        * start serving the new code to all your traffic? No. So only `true`
-        * gets new code.
-        *)
+      (* True gives newexpr, unlike in If statements
+       *
+       * In If statements, we use a false/null as false, and anything else is
+       * true. But this won't work for feature flags. If statements are built
+       * as you build you code, with no existing users. But feature flags are
+       * created when you have users and don't want to break your code. As a
+       * result, anything that isn't an explicitly signalling to use the new
+       * code, should use the old code:
+       * - errors should be ignored: use old code
+       * - incompletes should be ignored: use old code
+       * - errorrail should not be propaged: use old code
+       * - values which are "truthy" in if statements are not truthy here:
+       * imagine you are writing the FF cond and you get a list or object,
+       * and you're about to do some other work on it. Should we immediately
+       * start serving the new code to all your traffic? No. So only `true`
+       * gets new code. *)
       ( match ctx with
       | Preview ->
           (* In the case of a preview trace execution, we want the expression
@@ -344,7 +344,7 @@ let rec exec
           ( match condresult with
           | DBool true ->
               newresult
-          | DIncomplete ->
+          | DIncomplete _ ->
               oldresult
           | DError _ ->
               oldresult
@@ -367,7 +367,7 @@ let rec exec
               exe st newcode
           | DErrorRail _ ->
               exe st oldcode
-          | DIncomplete ->
+          | DIncomplete _ ->
               exe st oldcode
           | DError _ ->
               exe st oldcode
@@ -380,7 +380,9 @@ let rec exec
           * executed. So first we execute with no context to get some
           * live values. *)
           let fake_st =
-            Util.merge_left (Symtable.singleton "var" DIncomplete) st
+            Util.merge_left
+              (Symtable.singleton "var" (DIncomplete SourceNone))
+              st
           in
           ignore (exe fake_st body)
         else () ;
@@ -421,14 +423,14 @@ let rec exec
           List.fold_left es ~init:fst ~f:(fun previous nxt ->
               let result = inject_param_and_execute st previous nxt in
               match result with
-              | DIncomplete ->
+              | DIncomplete _ ->
                   previous
               (* let execution through *)
               (* DErrorRail is handled by inject_param_and_execute *)
               | _ ->
                   result )
       | [] ->
-          DIncomplete )
+          DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
         let rec matches dv (pat, e) =
           let result =
@@ -467,7 +469,7 @@ let rec exec
         let matched = List.filter_map ~f:(matches matchVal) cases in
         ( match matched with
         | [] ->
-            DIncomplete
+            DIncomplete (SourceId id)
         | (e, vars) :: _ ->
             let newVars = DvalMap.from_list vars in
             let newSt = Util.merge_left newVars st in
@@ -478,12 +480,12 @@ let rec exec
           match obj with
           | DObj o ->
             ( match field with
-            | Partial _ | Blank _ ->
-                DIncomplete
+            | Partial (id, _) | Blank id ->
+                DIncomplete (SourceId id)
             | Filled (_, f) ->
               (match Map.find o f with Some v -> v | None -> DNull) )
-          | DIncomplete ->
-              DIncomplete
+          | DIncomplete _ as i ->
+              i
           | DErrorRail _ ->
               obj
           | x ->
@@ -537,7 +539,7 @@ and call_fn
             | Some (result, _ts) ->
                 result
             | inc ->
-                DIncomplete )
+                DIncomplete (SourceId id) )
         | Some fn ->
             (* equalize length *)
             let expected_length = List.length fn.parameters in
@@ -568,8 +570,8 @@ and call_fn
             v
         | DResult (ResOk v) ->
             v
-        | DIncomplete ->
-            DIncomplete
+        | DIncomplete _ as i ->
+            i
         | DError e ->
             DError e
         (* There should only be DOptions and DResults here, but hypothetically we got
@@ -586,7 +588,9 @@ and exec_fn
     (id : id)
     (fn : fn)
     (args : dval_map) : dval =
-  let paramsIncomplete args = List.exists args ~f:(( = ) DIncomplete) in
+  let paramsIncomplete args =
+    List.find args ~f:(function DIncomplete _ -> true | _ -> false)
+  in
   let paramsErroneous args =
     List.exists args ~f:(function
         | DError _ when String.Caseless.equal fnname "Bool::isError" ->
@@ -602,84 +606,89 @@ and exec_fn
     |> List.filter_map ~f:(fun key -> DvalMap.get ~key args)
   in
   let sfr_desc = (state.tlid, fnname, id) in
-  if paramsIncomplete arglist
-  then DIncomplete
-  else if paramsErroneous arglist
-  then DError "Fn called with an error as an argument"
-  else
-    match fn.func with
-    | InProcess f ->
-        if engine.ctx = Preview && not fn.preview_execution_safe
-        then
-          match state.load_fn_result sfr_desc arglist with
-          | Some (result, _ts) ->
-              result
-          | inc ->
-              DIncomplete
-        else
-          let state =
-            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
-          in
-          let result =
-            try f (state, arglist) with
-            | Exception.DarkException de as e when de.tipe = Code ->
-                (* These are exceptions that come from an RT.error, which is all
+  match paramsIncomplete arglist with
+  | Some i ->
+      i
+  | _ ->
+      if paramsErroneous arglist
+      then DError "Fn called with an error as an argument"
+      else (
+        match fn.func with
+        | InProcess f ->
+            if engine.ctx = Preview && not fn.preview_execution_safe
+            then
+              match state.load_fn_result sfr_desc arglist with
+              | Some (result, _ts) ->
+                  result
+              | inc ->
+                  DIncomplete (SourceId id)
+            else
+              let state =
+                {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+              in
+              let result =
+                try f (state, arglist) with
+                | Exception.DarkException de as e when de.tipe = Code ->
+                    (* These are exceptions that come from an RT.error, which is all
             * usercode problems. Non user-code problems should use different
             * exception types.
             *)
-                Dval.exception_to_dval e
-            | e ->
-                (* After the rethrow, this gets eventually caught then shown to the
+                    Dval.exception_to_dval e
+                | e ->
+                    (* After the rethrow, this gets eventually caught then shown to the
             * user as a Dark Internal Exception. It's an internal exception
             * because we didn't anticipate the problem, give it a nice error
             * message, etc. It'll appear in Rollbar as "Unknown Err". To remedy
             * this, give it a nice exception via RT.error.  *)
-                Exception.reraise e
-          in
-          (* there's no point storing data we'll never ask for *)
-          if not fn.preview_execution_safe
-          then state.store_fn_result sfr_desc arglist result ;
-          result
-    | UserCreated (tlid, body) ->
-      ( match
-          Type_checker.check_function_call ~user_tipes:state.user_tipes fn args
-        with
-      | Ok () ->
-          let args_with_dbs =
-            let db_dvals =
-              state.dbs
-              |> List.filter_map ~f:(fun db ->
-                     match db.name with
-                     | Filled (_, name) ->
-                         Some (name, DDB name)
-                     | Partial _ | Blank _ ->
-                         None )
-              |> DvalMap.from_list
-            in
-            Util.merge_left db_dvals args
-          in
-          engine.trace_tlid tlid ;
-          (* Don't execute user functions if it's preview mode and we have a result *)
-          ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
-          | Preview, Some (result, _ts) ->
-              Dval.unwrap_from_errorrail result
-          | _ ->
-              (* It's okay to execute user functions in both Preview and Real contexts,
+                    Exception.reraise e
+              in
+              (* there's no point storing data we'll never ask for *)
+              if not fn.preview_execution_safe
+              then state.store_fn_result sfr_desc arglist result ;
+              result
+        | UserCreated (tlid, body) ->
+          ( match
+              Type_checker.check_function_call
+                ~user_tipes:state.user_tipes
+                fn
+                args
+            with
+          | Ok () ->
+              let args_with_dbs =
+                let db_dvals =
+                  state.dbs
+                  |> List.filter_map ~f:(fun db ->
+                         match db.name with
+                         | Filled (_, name) ->
+                             Some (name, DDB name)
+                         | Partial _ | Blank _ ->
+                             None )
+                  |> DvalMap.from_list
+                in
+                Util.merge_left db_dvals args
+              in
+              engine.trace_tlid tlid ;
+              (* Don't execute user functions if it's preview mode and we have a result *)
+              ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
+              | Preview, Some (result, _ts) ->
+                  Dval.unwrap_from_errorrail result
+              | _ ->
+                  (* It's okay to execute user functions in both Preview and Real contexts,
                * But in Preview we might not have all the data we need *)
-              state.store_fn_arguments tlid args ;
-              let state = {state with tlid} in
-              let result = exec ~engine ~state args_with_dbs body in
-              state.store_fn_result sfr_desc arglist result ;
-              Dval.unwrap_from_errorrail result )
-      | Error errs ->
-          let error_msgs =
-            errs
-            |> List.map ~f:Type_checker.Error.to_string
-            |> String.concat ~sep:", "
-          in
-          DError ("Type error(s) in function parameters: " ^ error_msgs) )
-    | API f ->
-        f args
+                  state.store_fn_arguments tlid args ;
+                  let state = {state with tlid} in
+                  let result = exec ~engine ~state args_with_dbs body in
+                  state.store_fn_result sfr_desc arglist result ;
+                  Dval.unwrap_from_errorrail result )
+          | Error errs ->
+              let error_msgs =
+                errs
+                |> List.map ~f:Type_checker.Error.to_string
+                |> String.concat ~sep:", "
+              in
+              DError ("Type error(s) in function parameters: " ^ error_msgs) )
+        | API f ->
+            f args )
 
 
 (* | TypeError args -> *)

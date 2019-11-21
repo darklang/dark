@@ -9,7 +9,7 @@ module PReq = Parsed_request
 (* Input_vars *)
 (* -------------------- *)
 let input_vars_for_user_fn (ufn : user_fn) : dval_map =
-  let param_to_dval (p : param) : dval = DIncomplete in
+  let param_to_dval (p : param) : dval = DIncomplete SourceNone in
   ufn.metadata.parameters
   |> List.filter_map ~f:ufn_param_to_param
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
@@ -36,7 +36,7 @@ let http_route_input_vars (h : HandlerT.handler) (request_path : string) :
 (* -------------------- *)
 let sample_request_input_vars = [("request", PReq.to_dval PReq.sample_request)]
 
-let sample_event_input_vars = [("event", DIncomplete)]
+let sample_event_input_vars = [("event", DIncomplete SourceNone)]
 
 let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars
@@ -59,7 +59,9 @@ let sample_module_input_vars h : input_vars =
 let sample_route_input_vars (h : HandlerT.handler) : input_vars =
   match Handler.event_name_for h with
   | Some n ->
-      n |> Http.route_variables |> List.map ~f:(fun k -> (k, DIncomplete))
+      n
+      |> Http.route_variables
+      |> List.map ~f:(fun k -> (k, DIncomplete SourceNone))
   | None ->
       []
 
