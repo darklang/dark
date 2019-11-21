@@ -706,7 +706,8 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("canvasPos", pos se.canvasPos)
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
-    ; ("sidebarOpen", bool se.sidebarOpen) ]
+    ; ("sidebarOpen", bool se.sidebarOpen)
+    ; ("showTopbar", bool se.showTopbar) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

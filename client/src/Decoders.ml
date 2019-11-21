@@ -373,7 +373,10 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       withDefault
         Defaults.defaultEditor.sidebarOpen
         (field "sidebarOpen" bool)
-        j }
+        j
+  ; showTopbar =
+      withDefault Defaults.defaultEditor.showTopbar (field "showTopbar" bool) j
+  }
 
 
 and cursorState j =
