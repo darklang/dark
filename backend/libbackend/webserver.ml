@@ -744,17 +744,17 @@ let admin_add_op_handler
                    | _ ->
                        true )
             |> List.iter ~f:(fun op ->
-                   Stroller.segment_track
-                     ~canvas_id
-                     ~canvas:host
-                     ~username
-                     ~execution_id
-                     Track
-                     ~event:(op |> Op.event_name_of_op)
-                     (* currently empty, but we could add annotations -
+                   Lwt.async (fun () ->
+                       Stroller.segment_track
+                         ~canvas_id
+                         ~canvas:host
+                         ~username
+                         ~execution_id
+                         Track
+                         ~event:(op |> Op.event_name_of_op)
+                         (* currently empty, but we could add annotations -
                       * 'properties', in segment's language - later *)
-                     (`Assoc []) ) ;
-            () )
+                         (`Assoc []) ) ) )
       in
       Log.add_log_annotations
         [("op_ctr", `Int params.opCtr)]
@@ -1901,27 +1901,7 @@ let canvas_handler
     (req : CRequest.t) =
   let verb = req |> CRequest.meth in
   (* TODO make sure this resolves before returning *)
-  let segment_promise =
-    Stroller.segment_track
-      ~canvas_id:Uuidm.nil
-      ~canvas
-      ~execution_id (* TODO should username be the canvas owner, or the ip? *)
-      ~username:ip
-      ~event:"canvas_traffic"
-      Track
-      (`Assoc
-        [ ("verb", `String (verb |> Cohttp.Code.string_of_method))
-        ; ("path", `String (uri |> Uri.path))
-        ; ( "useragent"
-          , `String
-              ( req
-              |> CRequest.headers
-              |> fun hs ->
-              Cohttp.Header.get hs Cohttp.Header.user_agent
-              |> Option.value ~default:"" ) )
-        ; ("ip", `String ip) ])
-  in
-  let resp =
+  let%lwt resp, body =
     match verb with
     (* transform HEAD req method to GET, discards body in response*)
     | `HEAD ->
@@ -1937,11 +1917,31 @@ let canvas_handler
         user_page_handler ~execution_id ~canvas ~ip ~uri ~body req
         |> respond_or_redirect
   in
-  (* TODO: 1) this blocks on segment_track returning Lwt.t, not ()
-   * 2) it'd be nice to do these concurrently, instead of waiting for
-   * segment_promise before doing the actual req/resp work *)
-  (* can we use Lwt.join here? *)
-  segment_promise >>= fun () -> resp
+  Lwt.async (fun () ->
+      Stroller.segment_track
+        ~canvas_id:Uuidm.nil
+        ~canvas
+        ~execution_id
+          (* TODO should username be the canvas owner, or the ip? *)
+        ~username:ip
+        ~event:"canvas_traffic"
+        Track
+        (`Assoc
+          [ ("verb", `String (verb |> Cohttp.Code.string_of_method))
+          ; ("path", `String (uri |> Uri.path))
+          ; ( "useragent"
+            , `String
+                ( req
+                |> CRequest.headers
+                |> fun hs ->
+                Cohttp.Header.get hs Cohttp.Header.user_agent
+                |> Option.value ~default:"" ) )
+          ; ("ip", `String ip)
+          ; ( "status"
+            , `Int
+                (resp |> Cohttp.Response.status |> Cohttp.Code.code_of_status)
+            ) ]) ) ;
+  Lwt.return (resp, body)
 
 
 let callback ~k8s_callback ip req body execution_id =
