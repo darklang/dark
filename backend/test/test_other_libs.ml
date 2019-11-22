@@ -441,6 +441,20 @@ let t_sha256hmac_for_aws () =
   ()
 
 
+let t_crypto_sha () =
+  check_dval
+    "Crypto::sha256 produces the correct digest"
+    (Dval.dstr_of_string_exn
+       "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855")
+    (exec_ast "(Bytes::hexEncode (Crypto::sha256 (String::toBytes '')))") ;
+  check_dval
+    "Crypto::sha384 produces the correct digest"
+    (Dval.dstr_of_string_exn
+       "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B")
+    (exec_ast "(Bytes::hexEncode (Crypto::sha384 (String::toBytes '')))") ;
+  ()
+
+
 let t_internal_functions () =
   Libbackend.Account.set_admin "test" true ;
   check_dval
@@ -483,4 +497,5 @@ let suite =
   ; ("Date lib works", `Quick, t_date_functions_work)
   ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
   ; ("Internal functions work", `Quick, t_internal_functions)
+  ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
   ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws) ]
