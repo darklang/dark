@@ -92,8 +92,8 @@ type ast = fluidExpr [@@deriving show]
 
 type state = Types.fluidState
 
-let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
-    fluidExpr =
+let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
+    =
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
@@ -159,8 +159,8 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
         EFieldAccess (id, f expr, Blank.toID field, varToName field)
     | FnCall (name, args, ster) ->
         let args = List.map ~f args in
-        (* add a threadtarget in the front *)
-        let args = if inThread then EPipeTarget (gid ()) :: args else args in
+        (* add a pipetarget in the front *)
+        let args = if inPipe then EPipeTarget (gid ()) :: args else args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
         let fn =
           List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
@@ -177,9 +177,9 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
     | Thread exprs ->
       ( match exprs with
       | head :: tail ->
-          EPipe (id, f head :: List.map ~f:(fromExpr s ~inThread:true) tail)
+          EPipe (id, f head :: List.map ~f:(fromExpr s ~inPipe:true) tail)
       | _ ->
-          recover "empty thread" (newB ()) )
+          recover "empty pipe" (newB ()) )
     | Lambda (varnames, exprs) ->
         ELambda
           ( id
@@ -239,12 +239,12 @@ let rec fromExpr ?(inThread = false) (s : state) (expr : Types.expr) :
           , varToName msg
           , Blank.toID msg
           , f cond
-          , fromExpr ~inThread s casea
-          , fromExpr ~inThread s caseb )
+          , fromExpr ~inPipe s casea
+          , fromExpr ~inPipe s caseb )
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, fromExpr ~inThread s oldExpr)
+        EPartial (id, str, fromExpr ~inPipe s oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, fromExpr ~inThread s oldExpr) )
+        ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
 
 
 let literalToString
@@ -286,9 +286,9 @@ let rec toPattern (p : fluidPattern) : pattern =
       pattern
 
 
-let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
-  (* inThread is whether it's the immediate child of a thread. *)
-  let r = toExpr ~inThread:false in
+let rec toExpr ?(inPipe = false) (expr : fluidExpr) : Types.expr =
+  (* inPipe is whether it's the immediate child of a pipe. *)
+  let r = toExpr ~inPipe:false in
   match expr with
   | EInteger (id, num) ->
       F (id, Value (literalToString (`Int num)))
@@ -308,15 +308,15 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
     ( match args with
-    | EPipeTarget _ :: _ when not inThread ->
-        recover "fn has a thread target but no thread" (Blank.new_ ())
-    | EPipeTarget _ :: args when inThread ->
+    | EPipeTarget _ :: _ when not inPipe ->
+        recover "fn has a pipe target but no pipe" (Blank.new_ ())
+    | EPipeTarget _ :: args when inPipe ->
         F
           ( id
           , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
           )
-    | _nonThreadTarget :: _ when inThread ->
-        recover "fn has a thread but no thread target" (Blank.new_ ())
+    | _nonPipeTarget :: _ when inPipe ->
+        recover "fn has a pipe but no pipe target" (Blank.new_ ())
     | args ->
         F
           ( id
@@ -324,12 +324,12 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
           ) )
   | EBinOp (id, name, arg1, arg2, ster) ->
     ( match arg1 with
-    | EPipeTarget _ when not inThread ->
-        recover "binop has a thread target but no thread" (Blank.new_ ())
-    | EPipeTarget _ when inThread ->
+    | EPipeTarget _ when not inPipe ->
+        recover "binop has a pipe target but no pipe" (Blank.new_ ())
+    | EPipeTarget _ when inPipe ->
         F (id, FnCall (F (ID (deID id ^ "_name"), name), [toExpr arg2], ster))
-    | _nonThreadTarget when inThread ->
-        recover "binop has a thread but no thread target" (Blank.new_ ())
+    | _nonPipeTarget when inPipe ->
+        recover "binop has a pipe but no pipe target" (Blank.new_ ())
     | _ ->
         F
           ( id
@@ -350,9 +350,9 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EIf (id, cond, thenExpr, elseExpr) ->
       F (id, If (toExpr cond, toExpr thenExpr, toExpr elseExpr))
   | EPartial (id, str, oldVal) ->
-      F (id, FluidPartial (str, toExpr ~inThread oldVal))
+      F (id, FluidPartial (str, toExpr ~inPipe oldVal))
   | ERightPartial (id, str, oldVal) ->
-      F (id, FluidRightPartial (str, toExpr ~inThread oldVal))
+      F (id, FluidRightPartial (str, toExpr ~inPipe oldVal))
   | EList (id, exprs) ->
       F (id, ListLiteral (List.map ~f:r exprs))
   | ERecord (id, pairs) ->
@@ -364,7 +364,7 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
   | EPipe (id, exprs) ->
     ( match exprs with
     | head :: tail ->
-        F (id, Thread (r head :: List.map ~f:(toExpr ~inThread:true) tail))
+        F (id, Thread (r head :: List.map ~f:(toExpr ~inPipe:true) tail))
     | [] ->
         Blank id )
   | EConstructor (id, nameID, name, exprs) ->
@@ -373,15 +373,15 @@ let rec toExpr ?(inThread = false) (expr : fluidExpr) : Types.expr =
       let pairs = List.map pairs ~f:(fun (p, e) -> (toPattern p, toExpr e)) in
       F (id, Match (toExpr mexpr, pairs))
   | EPipeTarget _ ->
-      recover "Cant convert threadtargets back to exprs" (Blank.new_ ())
+      recover "Cant convert pipetargets back to exprs" (Blank.new_ ())
   | EFeatureFlag (id, name, nameID, cond, caseA, caseB) ->
       F
         ( id
         , FeatureFlag
             ( F (nameID, name)
             , toExpr cond
-            , toExpr ~inThread caseA
-            , toExpr ~inThread caseB ) )
+            , toExpr ~inPipe caseA
+            , toExpr ~inPipe caseB ) )
   | EOldExpr expr ->
       expr
 
@@ -802,9 +802,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       let length = List.length exprs in
       ( match exprs with
       | [] ->
-          recover "Empty thread found" b
+          recover "Empty pipe found" b
       | [single] ->
-          recover "Thread with single entry found" (fromExpr single b)
+          recover "pipe with single entry found" (fromExpr single b)
       | head :: tail ->
           b
           |> addNested ~f:(fromExpr head)
@@ -1330,7 +1330,7 @@ let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
-  (* If we're putting a thread into another thread, fix it up *)
+  (* If we're putting a pipe into another pipe, fix it up *)
   let id, newExpr =
     match (findParent id ast, newExpr) with
     | Some (EPipe (parentID, oldExprs)), EPipe (newID, newExprs) ->
@@ -2027,9 +2027,9 @@ let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
 
 
 (* ---------------- *)
-(* Threads *)
+(* Pipes *)
 (* ---------------- *)
-let removeThreadPipe (id : id) (ast : ast) (index : int) : ast =
+let removePipe (id : id) (ast : ast) (index : int) : ast =
   let index =
     (* remove expression in front of pipe, not behind it *)
     index + 1
@@ -2568,10 +2568,10 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   | None ->
       (ast, s)
   | Some expr ->
-      let threadChild = newB () in
-      let newExpr = EPipe (gid (), [expr; threadChild]) in
+      let pipeChild = newB () in
+      let newExpr = EPipe (gid (), [expr; pipeChild]) in
       let newAST = replaceExpr (eid expr) ast ~newExpr in
-      (newAST, moveToEndOfTarget (eid threadChild) newAST s)
+      (newAST, moveToEndOfTarget (eid pipeChild) newAST s)
 
 
 let updateFromACItem
@@ -2938,11 +2938,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
               let newState = doLeft ~pos:ti.startPos leftTI s in
               Exactly newState.newPos
           | _ ->
-              recover
-                "TPipe should never occur on first line of AST"
-                SamePlace
+              recover "TPipe should never occur on first line of AST" SamePlace
         in
-        (removeThreadPipe id ast i, newPosition)
+        (removePipe id ast i, newPosition)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
@@ -3078,7 +3076,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPatternBlank _ ->
       (ast, s)
   | TPipe (id, i, length) ->
-      let newAST = removeThreadPipe id ast i in
+      let newAST = removePipe id ast i in
       let s =
         (* index goes from zero and doesn't include first element, while length
          * does. So + 2 correct for both those *)
@@ -3660,8 +3658,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, report ("Unknown action: " ^ K.toName key) s)
   in
   let newAST, newState =
-    (* This is a hack to make Enter create a new entry in matches and threads
-     * at the end of an AST. Matches/Threads generate newlines at the end of
+    (* This is a hack to make Enter create a new entry in matches and pipes
+     * at the end of an AST. Matches/Pipes generate newlines at the end of
      * the canvas: we don't want those newlines to appear in editor, however,
      * we also can't get rid of them because it's a significant challenge to
      * know what to do in those cases without that information. So instead, we
@@ -3815,7 +3813,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
   in
   let newPos = if newPos > lastPos then lastPos else newPos in
   let newPos =
-    (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
+    (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
     match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
@@ -3896,7 +3894,7 @@ let trimQuotes s : string =
 
 
 let clone ~(state : state) (ast : fluidExpr) : fluidExpr =
-  ast |> toExpr ~inThread:false |> AST.clone |> fromExpr state
+  ast |> toExpr ~inPipe:false |> AST.clone |> fromExpr state
 
 
 let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
@@ -4566,7 +4564,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
             collapsedSelStart + String.length (eToString state exprToPaste) }
       )
   (* TODO:
-   * - inserting thread after expression
+   * - inserting pipe after expression
    * - *)
   | _ ->
       (ast, state)

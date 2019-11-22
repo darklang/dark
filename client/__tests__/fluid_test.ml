@@ -1376,7 +1376,7 @@ let () =
         (presses [K.Pipe; K.Pipe; K.Space] 4)
         ("true || __________", 8) ;
       t
-        "piping into newline creates thread"
+        "piping into newline creates pipe"
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
         ("true\n|>___\n", 7) ;
@@ -1596,11 +1596,11 @@ let () =
         (press (K.Letter '\\') 24)
         ("Dict::map _____________ \\key, value -> ___", 25) ;
       t
-        "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
+        "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
         (EPipe (gid (), [b (); b ()]))
         (presses
            (* we have to insert the function with completion here
-            * so the arguments are adjusted based on the thread *)
+            * so the arguments are adjusted based on the pipe *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
         ("___\n|>Dict::map \\key, value -> ___\n", 17) ;
@@ -1962,8 +1962,8 @@ let () =
              (eToString state ast, state.newPos))
           |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
-  describe "Threads" (fun () ->
-      let threadOn expr fns = EPipe (gid (), expr :: fns) in
+  describe "Pipes" (fun () ->
+      let pipeOn expr fns = EPipe (gid (), expr :: fns) in
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
       let aList6 = EList (gid (), [six]) in
@@ -1971,18 +1971,18 @@ let () =
       let listFn args =
         EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
       in
-      let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyThread = EPipe (gid (), [b (); b ()]) in
-      let aLongThread =
-        threadOn
+      let aPipe = pipeOn emptyList [listFn [aList5]; listFn [aList5]] in
+      let emptyPipe = EPipe (gid (), [b (); b ()]) in
+      let aLongPipe =
+        pipeOn
           emptyList
           [ listFn [aListNum "2"]
           ; listFn [aListNum "3"]
           ; listFn [aListNum "4"]
           ; listFn [aListNum "5"] ]
       in
-      let aBinopThread =
-        threadOn
+      let aBinopPipe =
+        pipeOn
           (newB ())
           [ EBinOp
               ( gid ()
@@ -1991,204 +1991,204 @@ let () =
               , EString (gid (), "asd")
               , NoRail ) ]
       in
-      let aThreadInsideIf = EIf (gid (), b (), aLongThread, b ()) in
-      let aNestedThread =
-        threadOn emptyList [listFn [threadOn aList5 [listFn [aList6]]]]
+      let aPipeInsideIf = EIf (gid (), b (), aLongPipe, b ()) in
+      let aNestedPipe =
+        pipeOn emptyList [listFn [pipeOn aList5 [listFn [aList6]]]]
       in
-      (* TODO: add tests for clicking in the middle of a thread pipe (or blank) *)
+      (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
       t
-        "move to the front of thread on line 1"
-        aThread
+        "move to the front of pipe on line 1"
+        aPipe
         (press K.GoToStartOfLine 2)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
       t
-        "move to the end of thread on line 1"
-        aThread
+        "move to the end of pipe on line 1"
+        aPipe
         (press K.GoToEndOfLine 0)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 2) ;
       t
-        "move to the front of thread on line 2"
-        aThread
+        "move to the front of pipe on line 2"
+        aPipe
         (press K.GoToStartOfLine 8)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 5) ;
       t
-        "move to the end of thread on line 2"
-        aThread
+        "move to the end of pipe on line 2"
+        aPipe
         (press K.GoToEndOfLine 5)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 21) ;
       t
-        "move to the front of thread on line 3"
-        aThread
+        "move to the front of pipe on line 3"
+        aPipe
         (press K.GoToStartOfLine 40)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 24) ;
       t
-        "move to the end of thread on line 3"
-        aThread
+        "move to the end of pipe on line 3"
+        aPipe
         (press K.GoToEndOfLine 24)
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 40) ;
       t
-        "threads appear on new lines"
-        aThread
+        "pipes appear on new lines"
+        aPipe
         render
         ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
       t
-        "nested threads will indent"
-        aNestedThread
+        "nested pipes will indent"
+        aNestedPipe
         render
         ("[]\n|>List::append [5]\n               |>List::append [6]\n", 0) ;
       t
-        "backspacing a thread's first pipe works"
-        aLongThread
+        "backspacing a pipe's first pipe works"
+        aLongPipe
         (bs 5)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 2) ;
       t
-        "deleting a thread's first pipe works"
-        aLongThread
+        "deleting a pipe's first pipe works"
+        aLongPipe
         (del 3)
         ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 3) ;
       t
-        "backspacing a thread's second pipe works"
-        aLongThread
+        "backspacing a pipe's second pipe works"
+        aLongPipe
         (bs 24)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 21) ;
       t
-        "deleting a thread's second pipe works"
-        aLongThread
+        "deleting a pipe's second pipe works"
+        aLongPipe
         (del 22)
         ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 22) ;
       t
-        "backspacing a thread's third pipe works"
-        aLongThread
+        "backspacing a pipe's third pipe works"
+        aLongPipe
         (bs 43)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 40) ;
       t
-        "deleting a thread's third pipe works"
-        aLongThread
+        "deleting a pipe's third pipe works"
+        aLongPipe
         (del 41)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 41) ;
       t
-        "backspacing a thread's last pipe works"
-        aLongThread
+        "backspacing a pipe's last pipe works"
+        aLongPipe
         (bs 62)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
       t
-        "deleting a thread's last pipe works"
-        aLongThread
+        "deleting a pipe's last pipe works"
+        aLongPipe
         (del 60)
         ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
       t
-        "backspacing a thread's first pipe that isn't in the first column works"
-        aThreadInsideIf
+        "backspacing a pipe's first pipe that isn't in the first column works"
+        aPipeInsideIf
         (bs 21)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 16 ) ;
       t
-        "deleting a thread's first pipe that isn't in the first column works"
-        aThreadInsideIf
+        "deleting a pipe's first pipe that isn't in the first column works"
+        aPipeInsideIf
         (del 19)
         ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 19 ) ;
       t
-        "backspacing a thread's second pipe that isn't in the first column works"
-        aThreadInsideIf
+        "backspacing a pipe's second pipe that isn't in the first column works"
+        aPipeInsideIf
         (bs 42)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 37 ) ;
       t
-        "deleting a thread's second pipe that isn't in the first column works"
-        aThreadInsideIf
+        "deleting a pipe's second pipe that isn't in the first column works"
+        aPipeInsideIf
         (del 40)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
         , 40 ) ;
       t
-        "backspacing a thread's third pipe that isn't in the first column works"
-        aThreadInsideIf
+        "backspacing a pipe's third pipe that isn't in the first column works"
+        aPipeInsideIf
         (bs 63)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 58 ) ;
       t
-        "deleting a thread's third pipe that isn't in the first column works"
-        aThreadInsideIf
+        "deleting a pipe's third pipe that isn't in the first column works"
+        aPipeInsideIf
         (del 61)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
         , 61 ) ;
       t
-        "backspacing a thread's fourth pipe that isn't in the first column works"
-        aThreadInsideIf
+        "backspacing a pipe's fourth pipe that isn't in the first column works"
+        aPipeInsideIf
         (bs 84)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       t
-        "deleting a thread's fourth pipe that isn't in the first column works"
-        aThreadInsideIf
+        "deleting a pipe's fourth pipe that isn't in the first column works"
+        aPipeInsideIf
         (del 82)
         ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
         , 79 ) ;
       tp
-        "backspacing a thread's first fn works"
-        aLongThread
+        "backspacing a pipe's first fn works"
+        aLongPipe
         (bs 17)
         ( "[]\n|>List::appen@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n"
         , 16 ) ;
       tp
-        "backspacing a thread's first binop works"
-        aBinopThread
+        "backspacing a pipe's first binop works"
+        aBinopPipe
         (bs 8)
         ("___\n|>+@ \"asd\"\n", 7) ;
       t
         "adding infix functions adds the right number of blanks"
-        emptyThread
+        emptyPipe
         (presses [K.Plus; K.Enter] 6)
         ("___\n|>+ _________\n", 8) ;
       t
-        "creating a thread from an fn via a partial works"
+        "creating a pipe from an fn via a partial works"
         (EPartial (gid (), "|>", aFnCall))
         (enter 2)
         (* This really should end in 18, but too much work for now *)
         ("Int::add 5 _________\n|>___\n", 11) ;
       t
-        "enter at the end of a thread expr creates a new entry"
-        aThread
+        "enter at the end of a pipe expr creates a new entry"
+        aPipe
         (enter 21)
         ("[]\n|>List::append [5]\n|>___\n|>List::append [5]\n", 24) ;
       t
         "enter at the end of the opening expr creates a new entry"
-        aThread
+        aPipe
         (enter 2)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 5) ;
       t
         "enter at the start of a line creates a new entry"
-        aThread
+        aPipe
         (enter 3)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 9) ;
       t
         "enter at start of blank (within pipe) creates a new entry"
-        aThread
+        aPipe
         (enter 5)
         ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 11) ;
       t
         "enter at the end of the last expr creates a new entry"
-        aThread
+        aPipe
         (enter 40)
         ("[]\n|>List::append [5]\n|>List::append [5]\n|>___\n", 43) ;
       t
         "enter at the end of the last nested expr creates a new entry"
-        aNestedThread
+        aNestedPipe
         (enter 55)
         ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
         , 73 ) ;
       t
-        "inserting a thread into another thread gives a single thread1"
-        (threadOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
+        "inserting a pipe into another pipe gives a single pipe1"
+        (pipeOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
         (enter 23)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
-        "inserting a thread into another thread gives a single thread2"
-        (threadOn five [listFn [aList5]])
+        "inserting a pipe into another pipe gives a single pipe2"
+        (pipeOn five [listFn [aList5]])
         (press K.ShiftEnter 19)
         ("5\n|>List::append [5]\n|>___\n", 23) ;
       t
-        "inserting a thread into another thread gives a single thread3"
+        "inserting a pipe into another pipe gives a single pipe3"
         five
         (press K.ShiftEnter 1)
         ("5\n|>___\n", 4) ;
@@ -2204,8 +2204,8 @@ let () =
         (press K.ShiftEnter 11)
         ("{\n  f1 : 56\n       |>___\n  f2 : 78\n}", 21) ;
       (* TODO: test for prefix fns *)
-      (* TODO: test for deleting threaded infix fns *)
-      (* TODO: test for deleting threaded prefix fns *)
+      (* TODO: test for deleting pipeed infix fns *)
+      (* TODO: test for deleting pipeed prefix fns *)
       () ) ;
   describe "Ifs" (fun () ->
       t
@@ -2622,27 +2622,27 @@ let () =
         (enter 3)
         ("request", 7) ;
       t
-        "thread moves to right place on blank"
+        "pipe moves to right place on blank"
         (b ())
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         ("___\n|>___\n", 6) ;
       t
-        "thread moves to right place on placeholder"
+        "pipe moves to right place on placeholder"
         aFnCall
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
         ("Int::add 5 _________\n|>___\n", 23) ;
       t
-        "thread moves to right place in if then"
+        "pipe moves to right place in if then"
         emptyIf
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
         ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
       t
-        "thread moves to right place in lambda body"
+        "pipe moves to right place in lambda body"
         aLambda
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
         ("\\*** -> ___\n        |>___\n", 22) ;
       t
-        "thread moves to right place in match body"
+        "pipe moves to right place in match body"
         emptyMatch
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
         ("match ___\n  *** -> ___\n         |>___\n", 34) ;

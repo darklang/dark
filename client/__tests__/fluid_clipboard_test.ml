@@ -169,14 +169,14 @@ let () =
         in
         expect expectedString |> toEqual (eToString newState newAST) )
   in
-  let threadOn expr fns = EPipe (gid (), expr :: fns) in
+  let pipeOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in
   let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
   let listFn args =
     EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
   in
-  let aThread =
-    threadOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
+  let aPipe =
+    pipeOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
   in
   describe "Booleans" (fun () ->
       t
@@ -876,15 +876,15 @@ let () =
         (cut (10, 13))
         ("Int::sqrt ___", "122", 10) ;
       () ) ;
-  describe "Threads" (fun () ->
+  describe "Pipes" (fun () ->
       t
-        "copying first expression of thread adds it to clipboard"
-        aThread
+        "copying first expression of pipe adds it to clipboard"
+        aPipe
         (copy (0, 2))
         ("[]\n|>List::append [5]\n|>List::append [5]\n", "[]", 2) ;
       t
-        "copying thread adds it to clipboard"
-        aThread
+        "copying pipe adds it to clipboard"
+        aPipe
         (copy (0, 41))
         ( "[]\n|>List::append [5]\n|>List::append [5]\n"
         , "[]\n|>List::append [5]\n|>List::append [5]\n"
@@ -995,7 +995,7 @@ let () =
       in
       roundtrip (EBlank (gid ())) ;
       roundtrip (EInteger (gid (), "6")) ;
-      roundtrip aThread ;
+      roundtrip aPipe ;
       roundtrip
         (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
       roundtrip longString ;

@@ -184,7 +184,7 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
+let findCompatiblePipeParam ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
@@ -222,7 +222,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
       None
 
 
-let isThreadMember (tl : toplevel) (ti : tokenInfo) =
+let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   let id = FluidToken.tid ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
@@ -245,16 +245,15 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
   |> Option.withDefault ~default:TAny
 
 
-let matchesTypes
-    (isThreadMemberVal : bool) (paramTipe : tipe) (dv : dval option) :
-    function_ -> bool =
+let matchesTypes (isPipeMemberVal : bool) (paramTipe : tipe) (dv : dval option)
+    : function_ -> bool =
  fun fn ->
   let matchesReturnType = RT.isCompatible fn.fnReturnTipe paramTipe in
   let matchesParamType =
     match dv with
     | Some dval ->
-        if isThreadMemberVal
-        then None <> findCompatibleThreadParam fn (RT.typeOf dval)
+        if isPipeMemberVal
+        then None <> findCompatiblePipeParam fn (RT.typeOf dval)
         else None <> findParamByType fn (RT.typeOf dval)
     | None ->
         true
@@ -470,9 +469,9 @@ let filter
   in
   (* Now split list by type validity *)
   let dbnames = TL.allDBNames m.dbs in
-  let isThreadMemberVal = isThreadMember tl ti in
+  let isPipeMemberVal = isPipeMember tl ti in
   let tipeConstraintOnTarget = paramTipeForTarget a tl ti in
-  let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt dval in
+  let matchTypesOfFn pt = matchesTypes isPipeMemberVal pt dval in
   List.partition
     ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
     allMatches

@@ -488,7 +488,7 @@ let toTypeName (t : token) : string =
   | TConstructorName _ ->
       "constructor-name"
   | TPipe _ ->
-      "thread-pipe"
+      "pipe-symbol"
   | TMatchKeyword _ ->
       "match-keyword"
   | TMatchSep _ ->
@@ -548,7 +548,7 @@ let toCategoryName (t : token) : string =
   | TListOpen _ | TListClose _ | TListSep _ ->
       "list"
   | TPipe _ ->
-      "thread"
+      "pipe"
   | TConstructorName _ ->
       "constructor"
   | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
