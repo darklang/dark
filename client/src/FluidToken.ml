@@ -229,7 +229,8 @@ let isAutocompletable (t : token) : bool =
       false
 
 
-let isErrorable (t : token) : bool =
+(* Is this token something we can highlight as DError or DIncomplete? *)
+let isErrorDisplayable (t : token) : bool =
   isTextToken t && match t with TFnVersion _ -> false | _ -> true
 
 
