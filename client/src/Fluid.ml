@@ -4934,7 +4934,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                sourceOfExprValue analysisId
                |> Option.isSomeEqualTo ~value:analysisId
           in
-          [ ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
+          [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
+          ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
           ; ("fluid-incomplete", isIncomplete)
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
