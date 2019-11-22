@@ -169,11 +169,11 @@ let () =
         in
         expect expectedString |> toEqual (eToString newState newAST) )
   in
-  let threadOn expr fns = EThread (gid (), expr :: fns) in
+  let threadOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in
   let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
   let listFn args =
-    EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+    EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
   in
   let aThread =
     threadOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]

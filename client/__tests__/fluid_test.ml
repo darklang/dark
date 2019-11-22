@@ -1597,7 +1597,7 @@ let () =
         ("Dict::map _____________ \\key, value -> ___", 25) ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside thread"
-        (EThread (gid (), [b (); b ()]))
+        (EPipe (gid (), [b (); b ()]))
         (presses
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the thread *)
@@ -1963,16 +1963,16 @@ let () =
           |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Threads" (fun () ->
-      let threadOn expr fns = EThread (gid (), expr :: fns) in
+      let threadOn expr fns = EPipe (gid (), expr :: fns) in
       let emptyList = EList (gid (), []) in
       let aList5 = EList (gid (), [five]) in
       let aList6 = EList (gid (), [six]) in
       let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
       let listFn args =
-        EFnCall (gid (), "List::append", EThreadTarget (gid ()) :: args, NoRail)
+        EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
       in
       let aThread = threadOn emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyThread = EThread (gid (), [b (); b ()]) in
+      let emptyThread = EPipe (gid (), [b (); b ()]) in
       let aLongThread =
         threadOn
           emptyList
@@ -1987,7 +1987,7 @@ let () =
           [ EBinOp
               ( gid ()
               , "++"
-              , EThreadTarget (gid ())
+              , EPipeTarget (gid ())
               , EString (gid (), "asd")
               , NoRail ) ]
       in
