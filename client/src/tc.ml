@@ -55,7 +55,7 @@ module Option = struct
 
 
   let isSomeEqualTo ~(value : 'a) (o : 'a option) : bool =
-    match o with Some a when a = value -> true | _ -> false
+    Some value = o
 end
 
 module Result = struct
