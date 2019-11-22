@@ -347,6 +347,42 @@ since they are essentially both commands just acting upon different things. */
   display: none;
 }
 
-.toplevel.selected .fluid-incomplete {
-  border-bottom: 1px dashed saturate($red, 10%);
+$error-color: saturate($red, 10%);
+
+@keyframes blinkError {
+  from {
+    background-color: $error-color;
+  }
+  to {
+    background-color: desaturate($error-color, 30%);
+  }
+}
+
+.toplevel.selected .fluid-error {
+  border-bottom: 1px dashed $error-color;
+  position: relative;
+
+  &.is-origin:not(.cursor-on) {
+    animation: blinkError 0.3s ease-in-out infinite;
+
+    &:hover {
+      &:after {
+        @extend .tooltip;
+        background-color: rgba(30, 30, 30, 0.8);
+        padding: 2px;
+        width: max-content;
+        position: absolute;
+        top: -20px;
+        left: -5px;
+      }
+    }
+  }
+
+  &.dark-incomplete.is-origin:not(.cursor-on):hover:after {
+    content: "The Incomplete came from here";
+  }
+
+  &.dark-error.is-origin:not(.cursor-on):hover:after {
+    content: "The Error came from here";
+  }
 }
