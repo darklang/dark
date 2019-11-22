@@ -4925,6 +4925,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             | LoadableSuccess (DIncomplete (SourceId incId))
               when incId = id && not (Token.isNewline ti.token) ->
                 ["fluid-incomplete"]
+            | LoadableSuccess (DError (SourceId incId, _))
+              when incId = id && not (Token.isNewline ti.token) ->
+                ["fluid-incomplete"]
             | _ ->
                 []
           else []
