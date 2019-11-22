@@ -4635,6 +4635,13 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         | Some pos ->
             (ast, {newS with newPos = newS.newPos; selectionStart = Some pos})
         )
+    | FluidKeyPress {key; (* altKey; ctrlKey; metaKey; *) shiftKey = false}
+      when s.selectionStart <> None && (key = K.Right || key = K.Left) ->
+        let newPos = (match s.selectionStart with
+        | Some start -> let (left,right) = if s.newPos < start then (s.newPos, start) else (start, s.newPos) in
+          if key = K.Left then left else right
+        | None -> s.newPos) in
+        (ast, {s with lastKey = key; newPos; selectionStart = None})
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
