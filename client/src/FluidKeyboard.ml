@@ -105,6 +105,7 @@ type key =
   | GoToEndOfLine
   | Undo
   | Redo
+  | SelectAll
 
 and side =
   | LeftHand
@@ -177,7 +178,11 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 57 ->
       if shift then LeftParens else Number '9'
   | 65 ->
-      if ctrl then GoToStartOfLine else Letter (if shift then 'A' else 'a')
+      if osCmdKeyHeld
+      then SelectAll
+      else if ctrl
+      then GoToStartOfLine
+      else Letter (if shift then 'A' else 'a')
   | 66 ->
       Letter (if shift then 'B' else 'b')
   | 67 ->
@@ -438,7 +443,8 @@ let toChar key : char option =
   | GoToStartOfLine
   | GoToEndOfLine
   | Undo
-  | Redo ->
+  | Redo
+  | SelectAll ->
       None
 
 
@@ -602,6 +608,8 @@ let toName (key : key) : string =
       "Undo"
   | Redo ->
       "Redo"
+  | SelectAll ->
+      "SelectAll"
 
 
 let fromChar (char : char) : key =
