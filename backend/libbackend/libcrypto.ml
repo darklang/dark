@@ -77,6 +77,40 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = false
     ; dep = false }
+  ; { pns = ["Crypto::sha256"]
+    ; ins = []
+    ; p = [par "data" TBytes]
+    ; r = TBytes
+    ; d = "Computes the SHA-256 digest of the given `data`."
+    ; f =
+        InProcess
+          (function
+          | _, [DBytes data] ->
+              Cstruct.of_bytes data
+              |> Nocrypto.Hash.SHA256.digest
+              |> digest_to_bytes
+              |> DBytes
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
+  ; { pns = ["Crypto::sha384"]
+    ; ins = []
+    ; p = [par "data" TBytes]
+    ; r = TBytes
+    ; d = "Computes the SHA-384 digest of the given `data`."
+    ; f =
+        InProcess
+          (function
+          | _, [DBytes data] ->
+              Cstruct.of_bytes data
+              |> Nocrypto.Hash.SHA384.digest
+              |> digest_to_bytes
+              |> DBytes
+          | args ->
+              fail args)
+    ; ps = false
+    ; dep = false }
   ; { pns = ["Crypto::sha256hmac"]
     ; ins = []
     ; p = [par "key" TBytes; par "data" TBytes]
