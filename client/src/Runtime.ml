@@ -334,7 +334,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
       wrap s
   | DUuid s ->
       wrap s
-  | DError s ->
+  | DError (_, s) ->
       let open Json_decode_extended in
       let decoder j : exception_ =
         { short = field "short" string j

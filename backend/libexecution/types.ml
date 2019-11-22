@@ -415,7 +415,7 @@ module RuntimeT = struct
     | DObj of dval_map
     (* special types - see notes above *)
     | DIncomplete of dval_source
-    | DError of string
+    | DError of (dval_source * string)
     | DBlock of dval block
     | DErrorRail of dval
     (* user types: awaiting a better type system *)

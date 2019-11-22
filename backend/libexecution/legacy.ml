@@ -34,7 +34,7 @@ module PrettyResponseJsonV0 = struct
         wrap_user_type `Null
     | DCharacter c ->
         wrap_user_str (Unicode_string.Character.to_string c)
-    | DError msg ->
+    | DError (_, msg) ->
         wrap_user_str msg
     | DResp (h, hdv) ->
         wrap_user_type
@@ -97,7 +97,7 @@ module PrettyRequestJsonV0 = struct
         Util.isostring_of_date d
     | DDB dbname ->
         dbname
-    | DError msg ->
+    | DError (_, msg) ->
         msg
     | DUuid uuid ->
         Uuidm.to_string uuid

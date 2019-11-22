@@ -27,6 +27,8 @@ val succeed : 'a -> 'a decoder
 
 val index : int -> 'a decoder -> 'a decoder
 
+val tryDecode2 : 'a decoder -> 'a decoder -> 'a decoder
+
 val dict : 'a decoder -> 'a Tc.StrDict.t decoder
 
 val tcStrSet : Tc.StrSet.t decoder

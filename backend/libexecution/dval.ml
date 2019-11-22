@@ -255,7 +255,9 @@ let unwrap_from_errorrail (dv : dval) =
   match dv with DErrorRail dv -> dv | other -> other
 
 
-let exception_to_dval exc = DError (Exception.to_string exc)
+let exception_to_dval (exc : Exn.t) (src : dval_source) =
+  DError (src, Exception.to_string exc)
+
 
 (* A dval is a `fake marker` if it is a {DErrorRail, DIncomplete, DError}.
  * These types of values are stand-ins/markers for some static property about the
@@ -367,7 +369,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
     | "option" ->
         DOption OptNothing
     | "block" ->
-        DBlock (fun _ -> DError "Can't deserialize blocks")
+        DBlock (fun _ -> DError (SourceNone, "Can't deserialize blocks"))
     | "errorrail" ->
         DErrorRail DNull
     | _ ->
@@ -381,7 +383,7 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
     | "url" ->
         Exception.internal "Deprecated type"
     | "error" ->
-        DError v
+        DError (SourceNone, v)
     | "password" ->
         v |> B64.decode |> Bytes.of_string |> DPassword
     | "datastore" ->
@@ -469,13 +471,13 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       then DOption OptNothing
       else DOption (OptJust (unsafe_dval_of_yojson_v1 dv))
   | `Assoc [("type", `String "block"); ("value", `Null)] ->
-      DBlock (fun _ -> DError "Can't deserialize blocks")
+      DBlock (fun _ -> DError (SourceNone, "Can't deserialize blocks"))
   | `Assoc [("type", `String "errorrail"); ("value", dv)] ->
       DErrorRail (unsafe_dval_of_yojson_v1 dv)
   | `Assoc [("type", `String "date"); ("value", `String v)] ->
       DDate (Util.date_of_isostring v)
   | `Assoc [("type", `String "error"); ("value", `String v)] ->
-      DError v
+      DError (SourceNone, v)
   | `Assoc [("type", `String "password"); ("value", `String v)] ->
       v |> B64.decode |> Bytes.of_string |> DPassword
   | `Assoc [("type", `String "datastore"); ("value", `String v)] ->
@@ -533,7 +535,7 @@ let rec unsafe_dval_to_yojson_v0 ?(redact = true) (dv : dval) : Yojson.Safe.t =
       wrap_user_type `Null
   | DCharacter c ->
       wrap_user_str (Unicode_string.Character.to_string c)
-  | DError msg ->
+  | DError (_, msg) ->
       wrap_user_str msg
   | DResp (h, hdv) ->
       wrap_user_type
@@ -752,7 +754,7 @@ let rec to_enduser_readable_text_v0 dval =
         Uuidm.to_string uuid
     | DDB dbname ->
         "<DB: " ^ dbname ^ ">"
-    | DError msg ->
+    | DError (_, msg) ->
         "Error: " ^ msg
     | DIncomplete _ ->
         "<Incomplete>"
@@ -815,7 +817,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         justtipe
     | DIncomplete _ ->
         justtipe
-    | DError msg ->
+    | DError (_, msg) ->
         wrap msg
     | DDate d ->
         wrap (Util.isostring_of_date d)
@@ -884,7 +886,7 @@ let to_pretty_machine_yojson_v1 dval =
         `Null
     | DCharacter c ->
         `String (Unicode_string.Character.to_string c)
-    | DError msg ->
+    | DError (_, msg) ->
         `Assoc [("Error", `String msg)]
     | DResp (h, hdv) ->
         recurse hdv
@@ -974,7 +976,10 @@ let rec show dv =
       Uuidm.to_string uuid
   | DDB dbname ->
       "<DB: " ^ dbname ^ ">"
-  | DError msg ->
+  | DError (SourceId id, msg) ->
+      (* FIXME(ds) DEBUGGING REMOVE *)
+      Printf.sprintf "<Error(%s): %s>" (string_of_id id) msg
+  | DError (_, msg) ->
       "<Error: " ^ msg ^ ">"
   | DIncomplete SourceNone ->
       "<Incomplete>"
@@ -1061,7 +1066,7 @@ let to_dobj_exn (pairs : (string * dval) list) : dval =
   | Ok ok ->
       DObj ok
   | Error err ->
-      DError err
+      DError (SourceNone, err)
 
 
 let to_string_opt dv : string option =
@@ -1113,7 +1118,7 @@ let rec to_url_string_exn (dv : dval) : string =
       dbname
   | DErrorRail d ->
       to_url_string_exn d
-  | DError msg ->
+  | DError (_, msg) ->
       "error=" ^ msg
   | DUuid uuid ->
       Uuidm.to_string uuid
@@ -1219,7 +1224,7 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) :
       "<incomplete: <incomplete>>" (* Can't be used anyway *)
   | DBlock _ ->
       "<block: <block>>"
-  | DError msg ->
+  | DError (_, msg) ->
       "<error: " ^ msg ^ ">"
   | DDate d ->
       "<date: " ^ Util.isostring_of_date d ^ ">"
