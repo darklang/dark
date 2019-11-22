@@ -371,11 +371,18 @@ $error-color: saturate($red, 10%);
         background-color: rgba(30, 30, 30, 0.8);
         padding: 2px;
         width: max-content;
-        content: " Source of error ";
         position: absolute;
         top: -20px;
         left: -5px;
       }
     }
+  }
+
+  &.dark-incomplete.is-origin:not(.cursor-on):hover:after {
+    content: "The Incomplete came from here";
+  }
+
+  &.dark-error.is-origin:not(.cursor-on):hover:after {
+    content: "The Error came from here";
   }
 }
