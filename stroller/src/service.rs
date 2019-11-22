@@ -99,7 +99,56 @@ pub fn handle(
             *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
         }
-        (&Method::POST, ["", "canvas", uuid, msg_type @ "events", event])
+        | (&Method::POST, ["", "canvas", uuid, msg_type @ "events", event]) => {
+            let msg_type = msg_type.to_string();
+            let uuid = uuid.to_string();
+            let event = event.to_string();
+            let moved_request_id = request_id.clone();
+            let handled = req_body
+                .map(move |req_body| {
+                    let result = match event_type.as_ref() {
+                        "canvas" => {
+                            let msg = PusherMessage::CanvasEvent(
+                                uuid.clone(),
+                                event.clone(),
+                                req_body,
+                                moved_request_id.clone(),
+                            );
+                            pusher_sender.send(msg).map_err(|_| ())
+                        }
+                        "segment" => {
+                            let msg = crate::segment::new_message(
+                                msg_type.to_string(),
+                                uuid.to_string(),
+                                event.clone(),
+                                req_body,
+                                moved_request_id.clone(),
+                            );
+
+                            msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
+                        }
+                        _ => panic!("Unhandled case!"),
+                    };
+
+                    handle_result(result, uuid.to_string(), moved_request_id, event, response)
+                })
+                .or_else(|_| {
+                    error!("Couldn't read request body from client!");
+                    Ok(Response::builder()
+                        .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .body(Body::empty())
+                        .unwrap())
+                });
+            let ms = ms_duration(start);
+            info!("handle(...):";
+               o!(
+            "uri" => uri,
+            "method" => method,
+            "dur (ms)" => ms,
+            "x-request-id" => &request_id
+            ));
+            return Either::B(handled);
+        }
         | (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
             let msg_type = msg_type.to_string();
             let uuid = uuid.to_string();
