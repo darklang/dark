@@ -745,7 +745,7 @@ and keyword =
   | KIf
   | KLambda
   | KMatch
-  | KThread
+  | KPipe
 
 and command =
   { commandName : string
@@ -1215,14 +1215,14 @@ and fluidExpr =
   | EList of id * fluidExpr list
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
-  | EThread of id * fluidExpr list
+  | EPipe of id * fluidExpr list
   (* The 2nd ID is extra for the name *)
   | EConstructor of id * id * fluidName * fluidExpr list
   (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
-  | EThreadTarget of id
+  | EPipeTarget of id
   (* The 2nd id is for the name *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
   | EOldExpr of expr
@@ -1284,7 +1284,7 @@ and fluidToken =
   | TListClose of id
   | TListSep of id * int
   (* 2nd int is the number of pipe segments there are *)
-  | TThreadPipe of id * int * int
+  | TPipe of id * int * int
   | TRecordOpen of id
   | TRecordField of id * analysisId * int * string
   | TRecordSep of id * int * analysisId

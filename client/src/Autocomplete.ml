@@ -101,7 +101,7 @@ let asName (aci : autocompleteItem) : string =
         "lambda"
     | KMatch ->
         "match"
-    | KThread ->
+    | KPipe ->
         "|>" )
   | ACHTTPModifier name ->
       name
@@ -1161,7 +1161,7 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACKeyword KMatch ->
       Some
         "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
-  | ACKeyword KThread ->
+  | ACKeyword KPipe ->
       Some
         "The `|>` (pipe) expression takes the result of this expression, and puts it as the first argument to the next expression. Think of it as method chaining (a.b().c())"
   | ACOmniAction _ ->

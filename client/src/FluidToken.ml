@@ -45,7 +45,7 @@ let tid (t : token) : id =
   | TListOpen id
   | TListClose id
   | TListSep (id, _)
-  | TThreadPipe (id, _, _)
+  | TPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
   | TRecordField (id, _, _, _)
@@ -149,7 +149,7 @@ let isTextToken token : bool =
   | TLambdaSep _
   | TMatchKeyword _
   | TMatchSep _
-  | TThreadPipe _
+  | TPipe _
   | TLambdaArrow _ ->
       false
 
@@ -202,7 +202,7 @@ let isSkippable (token : token) : bool =
 
 let isAtom (t : token) : bool =
   match t with
-  | TMatchSep _ | TThreadPipe _ | TLambdaArrow _ ->
+  | TMatchSep _ | TPipe _ | TLambdaArrow _ ->
       true
   | _ ->
       isKeyword t || isBlank t
@@ -325,7 +325,7 @@ let toText (t : token) : string =
       " : "
   | TConstructorName (_, name) ->
       canBeEmpty name
-  | TThreadPipe _ ->
+  | TPipe _ ->
       "|>"
   | TMatchKeyword _ ->
       "match "
@@ -389,7 +389,7 @@ let toIndex (t : token) : int option =
   | TStringMLMiddle (_, _, index, _)
   | TLambdaVar (_, _, index, _)
   | TLambdaSep (_, index)
-  | TThreadPipe (_, _, index)
+  | TPipe (_, _, index)
   | TRecordField (_, _, index, _)
   | TRecordSep (_, index, _)
   | TListSep (_, index)
@@ -487,7 +487,7 @@ let toTypeName (t : token) : string =
       "record-sep"
   | TConstructorName _ ->
       "constructor-name"
-  | TThreadPipe _ ->
+  | TPipe _ ->
       "thread-pipe"
   | TMatchKeyword _ ->
       "match-keyword"
@@ -547,7 +547,7 @@ let toCategoryName (t : token) : string =
       "lambda"
   | TListOpen _ | TListClose _ | TListSep _ ->
       "list"
-  | TThreadPipe _ ->
+  | TPipe _ ->
       "thread"
   | TConstructorName _ ->
       "constructor"
