@@ -4925,20 +4925,19 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           "fluid-entry" :: ("id-" ^ idStr) :: tokenClasses
           |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
-        (* Conditional classes *)
         let conditionalClasses =
           let isIncomplete =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             Token.isTextToken ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
                sourceOfExprValue analysisId
-               |> Option.someIsValue ~equals:analysisId
+               |> Option.isSomeEqualTo ~value:analysisId
           in
-          [ ("cursor-on", currentTokenInfo |> Option.someIsValue ~equals:ti)
+          [ ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
           ; ("fluid-incomplete", isIncomplete)
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
-            , sourceOfCurrentToken |> Option.someIsValue ~equals:analysisId )
+            , sourceOfCurrentToken |> Option.isSomeEqualTo ~value:analysisId )
           ]
         in
         Html.span
