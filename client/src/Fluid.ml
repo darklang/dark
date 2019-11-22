@@ -4892,18 +4892,20 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     if FluidToken.validID id
     then
       match Analysis.getLiveValueLoadable vs.analysisStore id with
-      | LoadableSuccess (DIncomplete (SourceId id))
+      | LoadableSuccess (DIncomplete (SourceId id)) ->
+          (Some id, "dark-incomplete")
       | LoadableSuccess (DError (SourceId id, _)) ->
-          Some id
+          (Some id, "dark-error")
       | _ ->
-          None
-    else None
+          (None, "")
+    else (None, "")
   in
   let currentTokenInfo = getToken state ast in
   let sourceOfCurrentToken =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
-           Token.analysisID ti.token |> sourceOfExprValue )
+           let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
+           someId )
   in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -4927,16 +4929,17 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
         let conditionalClasses =
+          let sourceId, errorType = sourceOfExprValue analysisId in
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             Token.isTextToken ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
-               sourceOfExprValue analysisId
-               |> Option.isSomeEqualTo ~value:analysisId
+               sourceId |> Option.isSomeEqualTo ~value:analysisId
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
           ; ("fluid-error", isError)
+          ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
             , sourceOfCurrentToken |> Option.isSomeEqualTo ~value:analysisId )
