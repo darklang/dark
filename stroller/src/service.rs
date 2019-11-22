@@ -147,6 +147,7 @@ pub fn handle(
             "dur (ms)" => ms,
             "x-request-id" => &request_id
             ));
+            let handled = Box::new(handled);
             return Either::B(handled);
         }
         | (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
@@ -197,6 +198,7 @@ pub fn handle(
             "dur (ms)" => ms,
             "x-request-id" => &request_id
             ));
+            let handled = Box::new(handled);
             return Either::B(handled);
         }
         _ => {
