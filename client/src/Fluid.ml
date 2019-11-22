@@ -4883,7 +4883,26 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
+  (* Gets the source of a DIncomplete given an expr id *)
+  let sourceOfExprValue id =
+    if FluidToken.validID id
+    then
+      match Analysis.getLiveValueLoadable vs.analysisStore id with
+      | LoadableSuccess (DIncomplete (SourceId id)) ->
+          (Some id, "dark-incomplete")
+      | LoadableSuccess (DError (SourceId id, _)) ->
+          (Some id, "dark-error")
+      | _ ->
+          (None, "")
+    else (None, "")
+  in
   let currentTokenInfo = getToken state ast in
+  let sourceOfCurrentToken =
+    currentTokenInfo
+    |> Option.andThen ~f:(fun ti ->
+           let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
+           someId )
+  in
   List.map l ~f:(fun ti ->
       let dropdown () =
         match state.cp.location with
@@ -4895,48 +4914,35 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             else Vdom.noNode
       in
       let element nested =
-        let content = Token.toText ti.token in
-        let highlight =
-          if List.member ~value:(Token.tid ti.token) vs.hoveringRefs
-          then ["related-change"]
-          else []
-        in
-        let classes = Token.toCssClasses ti.token in
         let tokenId = Token.tid ti.token in
         let idStr = deID tokenId in
-        let idclasses = ["id-" ^ idStr] in
-        let isCursorOn =
-          match currentTokenInfo with
-          | Some currTi ->
-              if currTi = ti then ["cursor-on"] else []
-          | None ->
-              []
+        let content = Token.toText ti.token in
+        let analysisId = Token.analysisID ti.token in
+        (* Apply CSS classes to token *)
+        let tokenClasses = Token.toCssClasses ti.token in
+        let cls =
+          "fluid-entry" :: ("id-" ^ idStr) :: tokenClasses
+          |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
-        let errorClasses =
-          (* Here we want to find out the dval so we can apply error classes to the token *)
-          let id = Token.analysisID ti.token in
-          if FluidToken.validID id
-          then
-            match Analysis.getLiveValueLoadable vs.analysisStore id with
-            | LoadableSuccess (DIncomplete (SourceId incId))
-              when incId = id && not (Token.isNewline ti.token) ->
-                ["fluid-incomplete"]
-            | LoadableSuccess (DError (SourceId incId, _))
-              when incId = id && not (Token.isNewline ti.token) ->
-                ["fluid-incomplete"]
-            | _ ->
-                []
-          else []
+        let conditionalClasses =
+          let sourceId, errorType = sourceOfExprValue analysisId in
+          let isError =
+            (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
+            Token.isTextToken ti.token
+            && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
+               sourceId |> Option.isSomeEqualTo ~value:analysisId
+          in
+          [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
+          ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
+          ; ("fluid-error", isError)
+          ; (errorType, errorType <> "")
+          ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
+            ( "is-origin"
+            , sourceOfCurrentToken |> Option.isSomeEqualTo ~value:analysisId )
+          ]
         in
         Html.span
-          [ Attrs.class'
-              ( ["fluid-entry"]
-                @ classes
-                @ idclasses
-                @ highlight
-                @ errorClasses
-                @ isCursorOn
-              |> String.join ~sep:" " )
+          [ Html.classList (cls @ conditionalClasses)
           ; ViewUtils.eventNeither
               ~key:("fluid-selection-dbl-click" ^ idStr)
               "dblclick"
