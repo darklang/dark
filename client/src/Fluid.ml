@@ -1449,28 +1449,51 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   in
   (* Finds how many moves to get to first whitespace *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    (* Convert token to string *)
-    Token.toText tokenInfo.token
-    (* Split characters into list *)
-    |> String.split ~on:""
-    (* Find and return the index's of any space, qoute, newline, or tab *)
-    |> List.mapi ~f:(fun idx a ->
-           if a == " " || a = "\"" || a = "\n" || a = "\t"
-           then if idx == tokenInfo.length - 1 then Some idx else Some (idx + 1)
-           else None )
-    (* Filter out the None *)
-    |> List.filterMap ~f:(fun v -> v)
-    (* Reverse list to loop from back to front(like cursor movement) *)
-    |> List.reverse
-    (* Find the first possible whitespace index*)
-    (* Make sure it's not a position after the cursor, or where the cursor currently is *)
-    |> List.find ~f:(fun x -> not (x + tokenInfo.startPos >= pos))
-    |> Option.withDefault ~default:0
+    let tokenTostr = Token.toText tokenInfo.token in
+    let posInString = pos - tokenInfo.startPos in
+    let possibleWhiteSpacePos =
+      let offsetPosInString =
+        if posInString == tokenInfo.length || posInString == 1
+        then posInString - 1
+        else posInString - 2
+      in
+      (* Space *)
+      let spaceIdx =
+        String.rindex_from_opt ~pos:offsetPosInString tokenTostr ' '
+      in
+      (* Newline *)
+      let newLineIdx =
+        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\010'
+      in
+      (* Tab *)
+      let tabIdx =
+        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\009'
+      in
+      (* double quote *)
+      let qouteIdx =
+        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\034'
+      in
+      let findLastWhiteSpace =
+        [spaceIdx; newLineIdx; tabIdx; qouteIdx]
+        |> List.filterMap ~f:(fun v -> v)
+        |> List.filter ~f:(fun v -> v != posInString)
+        |> List.sortBy ~f:(fun v -> v)
+        |> List.reverse
+        |> List.head
+      in
+      match findLastWhiteSpace with
+      | Some pos when offsetPosInString != 0 ->
+          if posInString == tokenInfo.length || pos == 1 then pos else pos + 1
+      | _ ->
+          0
+    in
+    possibleWhiteSpacePos
   in
   let newPos =
     let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
     match tokenInfo.token with
-    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
+    | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
+      when pos != tokenInfo.startPos ->
         let offset = findPosOffsetToNextWhiteSpace tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
@@ -1502,21 +1525,43 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   in
   (* Finds how many moves to get to first whitespace *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    (* Convert token to String *)
-    Token.toText tokenInfo.token
-    (* Split by characters *)
-    |> String.split ~on:""
-    (* Find the first space, qoute, newline or tab in list *)
-    (* Make sure the whitespace index is before the cursor position *)
-    |> List.findWithIndex ~f:(fun idx x ->
-           tokenInfo.startPos + idx > pos
-           && (x == " " || x = "\"" || x = "\n" || x = "\t") )
-    |> Option.withDefault ~default:tokenInfo.length
+    let str = Token.toText tokenInfo.token in
+    let posInString =
+      if pos < tokenInfo.startPos then 0 else pos - tokenInfo.startPos
+    in
+    let possibleWhiteSpacePos =
+      let offsetPosInString =
+        if posInString == 0 || posInString == tokenInfo.length - 1
+        then posInString
+        else posInString + 1
+      in
+      (* double quote *)
+      let qouteIdx = String.index_from_opt ~pos:offsetPosInString str '\034' in
+      (* Space *)
+      let spaceIdx = String.index_from_opt ~pos:offsetPosInString str ' ' in
+      (* Newline *)
+      let newLineIdx =
+        String.index_from_opt ~pos:offsetPosInString str '\010'
+      in
+      (* Tab *)
+      let tabIdx = String.index_from_opt ~pos:offsetPosInString str '\009' in
+      let findLastWhiteSpace =
+        [spaceIdx; newLineIdx; tabIdx; qouteIdx]
+        |> List.filterMap ~f:(fun v -> v)
+        |> List.filter ~f:(fun v -> v != posInString)
+        |> List.sortBy ~f:(fun v -> v)
+        |> List.head
+        |> Option.withDefault ~default:tokenInfo.length
+      in
+      findLastWhiteSpace
+    in
+    possibleWhiteSpacePos
   in
   let newPos =
     let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
     match tokenInfo.token with
-    | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
+    | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
+      when pos != tokenInfo.endPos ->
         let offset = findPosOffsetToNextWhiteSpace tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
