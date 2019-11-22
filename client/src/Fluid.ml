@@ -4927,7 +4927,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           |> List.map ~f:(fun s -> ViewUtils.strToBoolType ~condition:true s)
         in
         let conditionalClasses =
-          let isIncomplete =
+          let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             Token.isTextToken ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
@@ -4936,7 +4936,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
-          ; ("fluid-incomplete", isIncomplete)
+          ; ("fluid-error", isError)
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
             , sourceOfCurrentToken |> Option.isSomeEqualTo ~value:analysisId )
