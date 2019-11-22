@@ -47,16 +47,16 @@ let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
 
 let showToplevels tls = tls |> TD.values |> show_list ~f:show_toplevel
 
-let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
+let deOption msg v = match v with Some v -> v | None -> failwith msg
 
 let onlyTL (m : model) : toplevel =
   let tls = TL.all m in
   let len = TD.count tls in
   ignore
     ( if len = 0
-    then Debug.crash "no toplevels"
+    then failwith "no toplevels"
     else if len > 1
-    then Debug.crash ("too many toplevels: " ^ showToplevels tls)
+    then failwith ("too many toplevels: " ^ showToplevels tls)
     else "nothing to see here" ) ;
   tls |> StrDict.values |> List.head |> deOption "onlytl1"
 
@@ -669,7 +669,7 @@ let cant_delete_locked_col (m : model) : testResult =
     m.dbs
     |> fun dbs ->
     if TD.count dbs > 1
-    then Debug.crash "More than one db!"
+    then failwith "More than one db!"
     else
       TD.values dbs
       |> List.head
@@ -1102,4 +1102,4 @@ let trigger (test_name : string) : integrationTestState =
     | "fluid_fieldname_autocomplete_closes" ->
         fluid_fieldname_autocomplete_closes
     | n ->
-        Debug.crash ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
+        failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

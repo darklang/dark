@@ -1,3 +1,4 @@
+open Prelude
 open Tc
 open Json_encode_extended
 
@@ -582,11 +583,12 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   let ev = variant in
   match nexpr with
   | FnCall (F (_, n), exprs, r) ->
-      if r = Rail
-      then ev "FnCallSendToRail" [string n; list e exprs]
-      else ev "FnCall" [string n; list e exprs]
-  | FnCall (Blank _, _, _) ->
-      Debug.crash "fnCall hack used"
+      let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
+      ev op [string n; list e exprs]
+  | FnCall (Blank _, exprs, r) ->
+      let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
+      let encoded = ev op [string "unknown"; list e exprs] in
+      recover "fnCall hack used" encoded
   | Let (lhs, rhs, body) ->
       ev "Let" [blankOr string lhs; e rhs; e body]
   | Lambda (vars, body) ->

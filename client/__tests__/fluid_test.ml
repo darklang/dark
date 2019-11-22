@@ -210,7 +210,7 @@ let () =
       | expr when not wrap ->
           expr
       | expr ->
-          Debug.crash ("the wrapper is broken: " ^ eToString s expr)
+          failwith ("the wrapper is broken: " ^ eToString s expr)
     in
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in
