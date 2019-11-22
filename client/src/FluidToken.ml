@@ -229,6 +229,10 @@ let isAutocompletable (t : token) : bool =
       false
 
 
+let isErrorable (t : token) : bool =
+  isTextToken t && match t with TFnVersion _ -> false | _ -> true
+
+
 let toText (t : token) : string =
   let shouldntBeEmpty name =
     if name = ""
