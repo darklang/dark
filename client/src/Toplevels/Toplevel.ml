@@ -70,9 +70,9 @@ let pos tl =
   | TLGroup g ->
       g.pos
   | TLFunc _ ->
-      Debug.crash "no pos in a func"
+      recover "no pos in a func" {x = 0; y = 0}
   | TLTipe _ ->
-      Debug.crash "no pos in a tipe"
+      recover "no pos in a tipe" {x = 0; y = 0}
 
 
 let remove (m : model) (tl : toplevel) : model =

@@ -301,7 +301,7 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
         then true
         else List.any ~f:(isFunctionInExpr fnName) list
     | FnCall (Blank _, _, _) ->
-        Debug.crash "blank in fncall"
+        recover "blank in fncall" false
     | Constructor (_, args) ->
         List.any ~f:(isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->
