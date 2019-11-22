@@ -4892,7 +4892,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     if FluidToken.validID id
     then
       match Analysis.getLiveValueLoadable vs.analysisStore id with
-      | LoadableSuccess (DIncomplete (SourceId id)) ->
+      | LoadableSuccess (DIncomplete (SourceId id))
+      | LoadableSuccess (DError (SourceId id, _)) ->
           Some id
       | _ ->
           None
