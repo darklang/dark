@@ -598,6 +598,7 @@ let () =
     process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
+  (* Test expecting no partials found and an expected caret position but no selection *)
   let t
       (name : string)
       (initial : fluidExpr)
@@ -622,6 +623,7 @@ let () =
         |> toEqual (insertCursor ((expectedStr, (None, expectedPos)), false))
         )
   in
+  (* Test expecting partials found and an expected caret position but no selection *)
   let tp
       (name : string)
       (initial : fluidExpr)
@@ -637,6 +639,7 @@ let () =
         expect (fn initial)
         |> toEqual ((expectedStr, (None, expectedPos)), true) )
   in
+  (* Test expecting no partials found and an expected resulting selection *)
   let ts
       (name : string)
       (initial : fluidExpr)
