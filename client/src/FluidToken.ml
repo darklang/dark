@@ -385,7 +385,7 @@ let toTestText (t : token) : string =
         if isBlank t then "***" else toText t
   in
   if String.length result <> String.length (toText t)
-  then failwith "wrong length toTestText" ;
+  then recover "wrong length toTestText" () ;
   result
 
 
