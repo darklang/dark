@@ -131,6 +131,17 @@ module String = struct
   let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s :
       string =
     slice ~from:0 ~to_:from s ^ replacement ^ slice ~from:to_ ~to_:(length s) s
+
+
+  (* returns the index of the last occurrence of character c in string s before position i+1 or None if c does not occur in s before position i+1. *)
+  let rindex_from_opt ~(pos : int) (s : string) (c : char) : int option =
+    String.rindex_from_opt s pos c
+
+
+  (* returns the index of the first occurrence of character c in string s after position i or None if c does not occur in s after position i.
+ *)
+  let index_from_opt ~(pos : int) (s : string) (c : char) : int option =
+    String.index_from_opt s pos c
 end
 
 module StrDict = struct
