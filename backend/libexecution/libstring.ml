@@ -491,7 +491,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "Take a string and hash it using SHA384."
+    ; d =
+        "Take a string and hash it using SHA384. Please use Crypto::sha384 instead."
     ; f =
         InProcess
           (function
@@ -501,12 +502,13 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["String::sha256"]
     ; ins = []
     ; p = [par "s" TStr]
     ; r = TStr
-    ; d = "Take a string and hash it using SHA256."
+    ; d =
+        "Take a string and hash it using SHA256. Please use Crypto::sha256 instead."
     ; f =
         InProcess
           (function
@@ -516,7 +518,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
+    ; dep = true }
   ; { pns = ["String::random"]
     ; ins = []
     ; p = [par "length" TInt]
