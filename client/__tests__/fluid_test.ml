@@ -2864,6 +2864,30 @@ let () =
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (52, 48) ) ;
       t
+        "shiftless left aborts left-to-right selection on left"
+        longLets
+        (selectionPress K.Left 4 52)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 4 ) ;
+      t
+        "shiftless left aborts right-to-left selection on left"
+        longLets
+        (selectionPress K.Left 52 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 4 ) ;
+      t
+        "shiftless right aborts left-to-right selection on right"
+        longLets
+        (selectionPress K.Right 4 52)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 52 ) ;
+      t
+        "shiftless right aborts right-to-left selection on right"
+        longLets
+        (selectionPress K.Right 52 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 52 ) ;
+      t
         "selecting an expression pipes from it 1"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
