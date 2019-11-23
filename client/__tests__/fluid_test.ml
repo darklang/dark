@@ -4,6 +4,7 @@ open Tc
 open Types
 open Prelude
 open Fluid
+open Fluid_test_data
 module Regex = Util.Regex
 module B = Blank
 module K = FluidKeyboard
@@ -56,8 +57,6 @@ module K = FluidKeyboard
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
-let b = newB ()
-
 let complexExpr =
   EIf
     ( gid ()
@@ -106,189 +105,6 @@ type shiftState =
   | ShiftNotHeld
 
 let () =
-  let aStr = EString (gid (), "some string") in
-  let emptyStr = EString (gid (), "") in
-  let oneCharStr = EString (gid (), "c") in
-  let aShortInt = EInteger (gid (), "1") in
-  let anInt = EInteger (gid (), "12345") in
-  let aHugeInt = EInteger (gid (), "2000000000000000000") in
-  let aFloat = EFloat (gid (), "123", "456") in
-  let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
-  let aPartialFloat = EFloat (gid (), "1", "") in
-  let trueBool = EBool (gid (), true) in
-  let falseBool = EBool (gid (), false) in
-  let aNull = ENull (gid ()) in
-  let five = EInteger (gid (), "5") in
-  let six = EInteger (gid (), "6") in
-  let fiftySix = EInteger (gid (), "56") in
-  let seventyEight = EInteger (gid (), "78") in
-  let aPartialVar = EPartial (gid (), "req", b) in
-  let completelyEmptyLet = ELet (gid (), gid (), "", b, b) in
-  let emptyLet = ELet (gid (), gid (), "", b, EInteger (gid (), "5")) in
-  let emptyMatch =
-    let mID = gid () in
-    EMatch (mID, b, [(FPBlank (mID, gid ()), b)])
-  in
-  let emptyMatchWithTwoPatterns =
-    let mID = gid () in
-    EMatch (mID, b, [(FPBlank (mID, gid ()), b); (FPBlank (mID, gid ()), b)])
-  in
-  let matchWithPatterns =
-    let mID = gid () in
-    EMatch (mID, b, [(FPInteger (mID, gid (), "3"), b)])
-  in
-  let matchWithConstructorPattern =
-    let mID = gid () in
-    EMatch (mID, b, [(FPConstructor (mID, gid (), "Just", []), b)])
-  in
-  let matchWithBinding (bindingName : string) (expr : fluidExpr) =
-    let mID = gid () in
-    EMatch (mID, b, [(FPVariable (mID, gid (), bindingName), expr)])
-  in
-  let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
-    let mID = gid () in
-    EMatch
-      ( mID
-      , b
-      , [ ( FPConstructor
-              (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
-          , expr ) ] )
-  in
-  let matchWithTwoLets =
-    let mID = gid () in
-    EMatch
-      ( mID
-      , b
-      , [ ( FPBlank (mID, gid ())
-          , ELet
-              ( gid ()
-              , gid ()
-              , "x"
-              , EInteger (gid (), "5")
-              , ELet
-                  (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
-              ) ) ] )
-  in
-  let nestedMatch =
-    let mID = gid () in
-    EMatch (mID, b, [(FPBlank (mID, gid ()), emptyMatch)])
-  in
-  let nonEmptyLetWithBlankEnd =
-    ELet (gid (), gid (), "", EInteger (gid (), "6"), b)
-  in
-  let nonEmptyLet =
-    ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
-  in
-  let twoLets =
-    ELet
-      ( gid ()
-      , gid ()
-      , "x"
-      , EInteger (gid (), "5")
-      , ELet
-          (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
-      )
-  in
-  let longLets =
-    ELet
-      ( gid ()
-      , gid ()
-      , "firstLetName"
-      , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-      , ELet
-          ( gid ()
-          , gid ()
-          , "secondLetName"
-          , EString (gid (), "0123456789")
-          , EString (gid (), "RESULT") ) )
-  in
-  let letWithLhs =
-    ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
-  in
-  let letWithBinding (bindingName : string) (expr : fluidExpr) =
-    ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
-  in
-  let letWithUsedBinding (bindingName : string) =
-    letWithBinding bindingName (EVariable (gid (), bindingName))
-  in
-  let aVar = EVariable (gid (), "variable") in
-  let aShortVar = EVariable (gid (), "v") in
-  let emptyIf = EIf (gid (), b, b, b) in
-  let plainIf =
-    EIf
-      ( gid ()
-      , EInteger (gid (), "5")
-      , EInteger (gid (), "6")
-      , EInteger (gid (), "7") )
-  in
-  let nestedIf =
-    EIf
-      ( gid ()
-      , EInteger (gid (), "5")
-      , EIf
-          ( gid ()
-          , EInteger (gid (), "5")
-          , EInteger (gid (), "6")
-          , EInteger (gid (), "7") )
-      , EInteger (gid (), "7") )
-  in
-  let aLambda = ELambda (gid (), [(gid (), "")], b) in
-  let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
-  let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
-    ELambda (gid (), [(gid (), bindingName)], expr)
-  in
-  let lambdaWithTwoBindings =
-    ELambda (gid (), [(gid (), "x"); (gid (), "y")], b)
-  in
-  let lambdaWithUsedBinding (bindingName : string) =
-    lambdaWithBinding bindingName (EVariable (gid (), bindingName))
-  in
-  let lambdaWithUsed2ndBinding (bindingName : string) =
-    ELambda
-      ( gid ()
-      , [(gid (), "somevar"); (gid (), bindingName)]
-      , EVariable (gid (), bindingName) )
-  in
-  let aFnCall = EFnCall (gid (), "Int::add", [five; b], NoRail) in
-  let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail) in
-  let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail) in
-  let aBinOp = EBinOp (gid (), "==", b, b, NoRail) in
-  (* let aFullBinOp = *)
-  (*   EBinOp *)
-  (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
-  (* in *)
-  let aConstructor = EConstructor (gid (), gid (), "Just", [b]) in
-  let emptyRow = [(gid (), "", b)] in
-  let recordRow1 = (gid (), "f1", fiftySix) in
-  let recordRow2 = (gid (), "f2", seventyEight) in
-  let singleRowRecord = ERecord (gid (), [recordRow1]) in
-  let multiRowRecord = ERecord (gid (), [recordRow1; recordRow2]) in
-  let emptyRowRecord = ERecord (gid (), emptyRow) in
-  let emptyRecord = ERecord (gid (), []) in
-  let aField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-  in
-  let aNestedField =
-    EFieldAccess
-      ( gid ()
-      , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-      , gid ()
-      , "field2" )
-  in
-  let aShortField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
-  in
-  let aBlankField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
-  in
-  let indentedIfElse =
-    ELet
-      ( gid ()
-      , gid ()
-      , "var"
-      , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
-      , EVariable (gid (), "var") )
-  in
   let m =
     let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
         Types.parameter =
