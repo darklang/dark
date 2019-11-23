@@ -236,11 +236,8 @@ let isErrorDisplayable (t : token) : bool =
 
 let toText (t : token) : string =
   let shouldntBeEmpty name =
-    if name = ""
-    then (
-      Js.log2 "shouldn't be empty" (show_fluidToken t) ;
-      "   " )
-    else name
+    asserT "shouldn't be empty" (name = "") t ;
+    name
   in
   let canBeEmpty name = if name = "" then "   " else name in
   match t with
@@ -384,8 +381,10 @@ let toTestText (t : token) : string =
     | _ ->
         if isBlank t then "***" else toText t
   in
-  if String.length result <> String.length (toText t)
-  then recover "wrong length toTestText" () ;
+  asserT
+    "wrong length toTestText"
+    (String.length result <> String.length (toText t))
+    t ;
   result
 
 

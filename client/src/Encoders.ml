@@ -588,7 +588,7 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   | FnCall (Blank _, exprs, r) ->
       let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
       let encoded = ev op [string "unknown"; list e exprs] in
-      recover "fnCall hack used" encoded
+      recover "fnCall hack used" nexpr encoded
   | Let (lhs, rhs, body) ->
       ev "Let" [blankOr string lhs; e rhs; e body]
   | Lambda (vars, body) ->

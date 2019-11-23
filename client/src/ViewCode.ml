@@ -232,7 +232,7 @@ and viewNExpr
         ; kw [] "else"
         ; n [wc "elsebody"] [vExpr 0 elsebody] ]
   | FnCall (Blank _, _, _) ->
-      recover "fn with blank" (n [] [])
+      recover "fn with blank" e (n [] [])
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
       let viewTooWideArg p d_ e_ =
