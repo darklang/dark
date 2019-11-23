@@ -23,6 +23,7 @@ let focusWithOffset id offset =
       let ecb _ignored =
         match Js.Nullable.toOption (Web.Document.getElementById id) with
         | None ->
+            (* Do not report this error, it's not a problem *)
             Js.log ("Attempted to focus a non-existant element of: ", id)
         | Some elem ->
             (* We have to focus after setting range, or the cursor will vanish when the offset is 0 *)
