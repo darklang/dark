@@ -1526,6 +1526,13 @@ let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
   else moveOneLeft (min pos ti.endPos) s
 
 
+let selectAll ~(pos : int) (ast : ast) (s : state) : state =
+  let tokens = toTokens s ast in
+  let last = List.last tokens in
+  let lastPos = match last with Some l -> l.endPos | None -> 0 in
+  {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
+
+
 let doRight
     ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
     state =
@@ -3549,6 +3556,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveToNextBlank ~pos ast s)
     | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
         (ast, moveToPrevBlank ~pos ast s)
+    | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
+        (ast, selectAll ~pos ast s)
     (* TODO: press comma while in an expr in a list *)
     (* TODO: press comma while in an expr in a record *)
     (* TODO: press equals when in a let *)
@@ -3828,7 +3837,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
-  | K.GoToStartOfLine | K.GoToEndOfLine | K.Delete ->
+  | K.GoToStartOfLine | K.GoToEndOfLine | K.Delete | K.SelectAll ->
       false
   | _ ->
       true

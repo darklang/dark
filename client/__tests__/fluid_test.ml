@@ -2875,6 +2875,12 @@ let () =
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
         (selectionPress K.ShiftEnter 5 4)
         ("4 + 5\n    |>___\n", 12) ;
+      ts
+        "cmd+a selects all"
+        longLets
+        (press K.SelectAll 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (0, 89) ) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
