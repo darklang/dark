@@ -424,11 +424,11 @@ let getAstFromTopLevel tl : expr =
   | TLFunc f ->
       f.ufAST
   | TLGroup _ ->
-      recover ("No ASTs in Groups", tl) (B.new_ ())
+      recover "No ASTs in Groups" tl (B.new_ ())
   | TLDB _ ->
-      recover ("No ASTs in DBs", tl) (B.new_ ())
+      recover "No ASTs in DBs" tl (B.new_ ())
   | TLTipe _ ->
-      recover ("No ASTs in Types", tl) (B.new_ ())
+      recover "No ASTs in Types" tl (B.new_ ())
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -588,7 +588,7 @@ let submitACItem
               | TLGroup g ->
                   AddGroup g
               | TLDB _ ->
-                  recover ("no vars in DBs", tl) NoChange
+                  recover "no vars in DBs" tl NoChange
           in
           let saveH h next = save (TLHandler h) next in
           let saveAst ast next =
@@ -598,11 +598,11 @@ let submitACItem
             | TLFunc f ->
                 save (TLFunc {f with ufAST = ast}) next
             | TLDB _ ->
-                recover ("no ASTs in DBs", tl) NoChange
+                recover "no ASTs in DBs" tl NoChange
             | TLTipe _ ->
-                recover ("no ASTs in Tipes", tl) NoChange
+                recover "no ASTs in Tipes" tl NoChange
             | TLGroup _ ->
-                recover ("no ASTs in Groups", tl) NoChange
+                recover "no ASTs in Groups" tl NoChange
           in
           let replace new_ =
             tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -751,7 +751,7 @@ let submitACItem
                            ( F (id_, FieldAccess (lhs, B.newF fieldname))
                            , B.new_ () ))
                   | _ ->
-                      recover ("should be a field", parent) parent
+                      recover "should be a field" parent parent
                 in
                 let new_ = PExpr wrapped in
                 let replacement = TL.replace (PExpr parent) new_ tl in
@@ -834,7 +834,7 @@ let submitACItem
                     ^ ", "
                     ^ Types.show_autocompleteItem item ) ) ) )
     | _ ->
-        recover "Missing tl/pd" NoChange )
+        recover "Missing tl/pd" cursor NoChange )
 
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
@@ -852,7 +852,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
-        recover "Shouldnt allow omniactions here" NoChange
+        recover "Shouldnt allow omniactions here" cursor NoChange
     | Some item ->
         submitACItem m cursor item move
     | _ ->
