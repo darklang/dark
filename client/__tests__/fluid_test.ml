@@ -644,9 +644,9 @@ let () =
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      ((expectedString, (expectedLeft, expectedRight)) : string * (int * int))
-      =
-    let expected = (expectedString, (Some expectedLeft, expectedRight)) in
+      ((expectedString, (expectedSelStart, expectedPos)) :
+        string * (int option * int)) =
+    let expected = (expectedString, (expectedSelStart, expectedPos)) in
     test
       ( name
       ^ " - `"
@@ -2853,19 +2853,25 @@ let () =
         longLets
         (modPresses [(K.Right, ShiftHeld)] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (0, 4) ) ;
+        , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
         (modPresses [(K.Down, ShiftHeld)] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (4, 52) ) ;
+        , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
         (modPresses [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (52, 48) ) ;
+        , (Some 52, 48) ) ;
+      ts
+        "keypress on selection drops selection"
+        longLets
+        (selectionPress K.Left 0 13)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , (None, 12) ) ;
       t
         "shiftless left aborts left-to-right selection on left"
         longLets

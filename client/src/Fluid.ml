@@ -4655,9 +4655,11 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
         (ast, s)
-    | FluidKeyPress {key} ->
+    | FluidKeyPress {key; shiftKey} ->
         let s = {s with lastKey = key} in
-        updateKey key ast s
+        let newAST, newState = updateKey key ast s in
+        let selectionStart = if shiftKey then s.selectionStart else None in
+        (newAST, {newState with selectionStart})
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
         |> Option.withDefault ~default:(ast, s)
