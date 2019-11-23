@@ -1,3 +1,5 @@
+open Prelude
+
 external rollbarConfig : string = "rollbarConfig" [@@bs.val]
 
 let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
@@ -54,13 +56,13 @@ let fetch_
          (* Js.Promise.error is opaque, and we just put this in here *)
          match Obj.magic err with
          | NoneFound ->
-             Js.log "Received no response from fetch" ;
+             reportError "Received no response from fetch" url ;
              resolve (postMessage self (on_missing (Obj.magic err)##message))
          | BadAuthorization resp ->
              Fetch.Response.text resp
              |> then_ (fun body -> resolve (postMessage self (on_failure body)))
          | _ ->
-             Js.log2 "fetch error" err ;
+             reportError "fetch error" (url, err) ;
              resolve (postMessage self (on_failure (Obj.magic err)##message))
      )
 
