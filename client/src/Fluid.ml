@@ -4629,7 +4629,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
          * if there is no selection yet.
          *)
         (* TODO(JULIAN): We need to refactor updateKey and key handling in general so that modifiers compose more easily with shift *)
-        (* TODO(JULIAN): We need to fix left/right arrow behavior without shift in the presence of a selection *)
         (* XXX(JULIAN): We need to be able to use alt and ctrl and meta to change selection! *)
         let ast, newS = updateKey key ast s in
         ( match s.selectionStart with
@@ -4640,6 +4639,18 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         | Some pos ->
             (ast, {newS with newPos = newS.newPos; selectionStart = Some pos})
         )
+    | FluidKeyPress {key; (* altKey; ctrlKey; metaKey; *) shiftKey = false}
+      when s.selectionStart <> None && (key = K.Right || key = K.Left) ->
+        (* Aborting a selection using the left and right arrows should
+         place the caret on the side of the selection in the direction
+         of the pressed arrow key *)
+        let newPos =
+          let left, right =
+            fluidGetSelectionRange s |> orderRangeFromSmallToBig
+          in
+          if key = K.Left then left else right
+        in
+        (ast, {s with lastKey = key; newPos; selectionStart = None})
     | FluidKeyPress {key; metaKey; ctrlKey}
       when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)

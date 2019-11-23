@@ -598,6 +598,7 @@ let () =
     process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
   let blank = "___" in
+  (* Test expecting no partials found and an expected caret position but no selection *)
   let t
       (name : string)
       (initial : fluidExpr)
@@ -622,6 +623,7 @@ let () =
         |> toEqual (insertCursor ((expectedStr, (None, expectedPos)), false))
         )
   in
+  (* Test expecting partials found and an expected caret position but no selection *)
   let tp
       (name : string)
       (initial : fluidExpr)
@@ -637,6 +639,7 @@ let () =
         expect (fn initial)
         |> toEqual ((expectedStr, (None, expectedPos)), true) )
   in
+  (* Test expecting no partials found and an expected resulting selection *)
   let ts
       (name : string)
       (initial : fluidExpr)
@@ -2863,6 +2866,30 @@ let () =
         (modPresses [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (52, 48) ) ;
+      t
+        "shiftless left aborts left-to-right selection on left"
+        longLets
+        (selectionPress K.Left 4 52)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 4 ) ;
+      t
+        "shiftless left aborts right-to-left selection on left"
+        longLets
+        (selectionPress K.Left 52 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 4 ) ;
+      t
+        "shiftless right aborts left-to-right selection on right"
+        longLets
+        (selectionPress K.Right 4 52)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 52 ) ;
+      t
+        "shiftless right aborts right-to-left selection on right"
+        longLets
+        (selectionPress K.Right 52 4)
+        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
+        , 52 ) ;
       t
         "selecting an expression pipes from it 1"
         (EBinOp
