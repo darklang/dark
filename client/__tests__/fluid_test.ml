@@ -996,24 +996,20 @@ let () =
       tc "insert space in blank " aBlankField (space 4) "obj.~***" ;
       () ) ;
   describe "Functions" (fun () ->
-      t
+      tc
         "space on a sep goes to next arg"
         aFnCall
         (space 10)
-        ("Int::add 5 _________", 11) ;
-      tp "bs function renames" aFnCall (bs 8) ("Int::ad@ 5 _________", 7) ;
-      tp
-        "deleting a function renames"
-        aFnCall
-        (del 7)
-        ("Int::ad@ 5 _________", 7) ;
-      t
+        "Int::add 5 ~_________" ;
+      tcp "bs function renames" aFnCall (bs 8) "Int::ad~@ 5 _________" ;
+      tcp "deleting a function renames" aFnCall (del 7) "Int::ad~@ 5 _________" ;
+      tc
         "renaming a function maintains unaligned params in let scope"
         (EPartial
            (gid (), "Int::", EFnCall (gid (), "Int::add", [five; six], NoRail)))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("let b = 6\nInt::sqrt 5", 10) ;
-      t
+        "let b = 6\n~Int::sqrt 5" ;
+      tc
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (EPartial
            ( gid ()
@@ -1024,63 +1020,63 @@ let () =
                , [EVariable (gid (), "a"); EVariable (gid (), "b")]
                , NoRail ) ))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("Int::sqrt a", 10) ;
-      t
+        "Int::sqrt ~a" ;
+      tc
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (EPartial
            (gid (), "Int::", EFnCall (gid (), "Int::add", [b; b], NoRail)))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("Int::sqrt _________", 10) ;
+        "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
          * myFunc arg1 arg2, 6 => Backspace => myFun arg1 arg2, with a ghost and a partial.
          * same with del *)
-      tp
+      tcp
         "del on function with version"
         aFnCallWithVersion
         (del 11)
-        ("DB::getAllv@ ___________________", 11) ;
-      tp
+        "DB::getAllv~@ ___________________" ;
+      tcp
         "bs on function with version"
         aFnCallWithVersion
         (bs 12)
-        ("DB::getAllv@ ___________________", 11) ;
-      tp
+        "DB::getAllv~@ ___________________" ;
+      tcp
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         (del 10)
-        ("DB::getAll1@ ___________________", 10) ;
-      tp
+        "DB::getAll~1@ ___________________" ;
+      tcp
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         (bs 10)
-        ("DB::getAlv1@ ___________________", 9) ;
-      tp
+        "DB::getAl~v1@ ___________________" ;
+      tcp
         "del on function with version in function name"
         aFnCallWithVersion
         (del 7)
-        ("DB::getllv1@ ___________________", 7) ;
-      tp
+        "DB::get~llv1@ ___________________" ;
+      tcp
         "bs on function with version in function name"
         aFnCallWithVersion
         (bs 8)
-        ("DB::getllv1@ ___________________", 7) ;
-      t
+        "DB::get~llv1@ ___________________" ;
+      tc
         "adding function with version goes to the right place"
         b
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
-        ("DB::getAllv1 ___________________", 13) ;
+        "DB::getAllv1 ~___________________" ;
       let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
-      t
+      tc
         "backspacing a fn arg's separator goes to the right place"
         (fn "Int::add" [five; six])
         (bs 11)
-        ("Int::add 5 6", 10) ;
+        "Int::add 5~ 6" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
-      t
+      tc
         "reflows work for functions"
         (fn
            "HttpClient::post_v4"
@@ -1089,36 +1085,31 @@ let () =
            ; emptyRecord
            ; emptyRecord ])
         render
-        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
-        , 0 ) ;
-      t
+        "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}" ;
+      tc
         "reflows work for functions with long strings"
         (fn "HttpClient::post_v4" [EString (gid (), string160); b; b; b])
         render
-        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
-        , 0 ) ;
-      tp
+        "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
+      tcp
         "reflows work for partials too "
         (EPartial
            ( gid ()
            , "TEST"
            , fn "HttpClient::post_v4" [EString (gid (), string160); b; b; b] ))
         render
-        ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
-        , 0 ) ;
-      t
+        "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
+      tc
         "reflows happen for functions whose arguments have newlines"
         (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b; b])
         render
-        ( "HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________"
-        , 0 ) ;
-      t
+        "~HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________" ;
+      tc
         "reflows don't happen for functions whose only newline is in the last argument"
         (fn "HttpClient::post_v4" [emptyStr; b; b; emptyRowRecord])
         render
-        ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
-        , 0 ) ;
-      tp
+        "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
+      tcp
         "reflows put the cursor in the right place on insert"
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
@@ -1130,11 +1121,10 @@ let () =
            ; emptyRecord
            ; EVariable (gid (), justShortEnoughNotToReflow) ])
         (insert ~wrap:false 'x' 120)
-        ( "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x"
-          (* TODO: This should be 129, but reflow puts the cursor in the wrong
-           * place for new partials *)
-        , 121 ) ;
-      tp
+        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
+      (* TODO: This should be 129, but reflow puts the cursor in the wrong
+           * place for new partials *) ;
+      tcp
         "reflows put the cursor in the right place on bs"
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
@@ -1146,10 +1136,9 @@ let () =
            ; emptyRecord
            ; EVariable (gid (), justLongEnoughToReflow) ])
         (bs ~wrap:false 129)
-        ( "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
-          (* TODO: This should be 120, but reflow puts the cursor in the wrong
-           * place for new partials *)
-        , 128 ) ;
+        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
+      (* TODO: This should be 120, but reflow puts the cursor in the wrong
+           * place for new partials *) ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
