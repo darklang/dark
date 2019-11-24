@@ -237,3 +237,9 @@ let indentedIfElse =
     , "var"
     , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
     , EVariable (gid (), "var") )
+
+
+let () =
+  let open Jest in
+  let open Expect in
+  test "empty" (fun _ -> expect () |> toEqual ())
