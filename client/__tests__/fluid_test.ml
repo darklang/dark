@@ -408,7 +408,6 @@ let () =
     let key = K.fromChar char in
     process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
-  let blank = "___" in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
       (name : string)
@@ -2094,260 +2093,261 @@ let () =
             ; EString (gid (), "cd")
             ; EString (gid (), "ef") ] )
       in
-      t "create list" b (press K.LeftSquareBracket 0) ("[]", 1) ;
-      t "insert into empty list inserts" emptyList (insert '5' 1) ("[5]", 2) ;
-      t
+      tc "create list" b (press K.LeftSquareBracket 0) "[~]" ;
+      tc "insert into empty list inserts" emptyList (insert '5' 1) "[5~]" ;
+      tc
         "inserting before the list does nothing"
         emptyList
         (insert '5' 0)
-        ("[]", 0) ;
-      t "insert space into multi list" multi (press K.Space 6) ("[56,78]", 6) ;
-      t "insert space into single list" single (press K.Space 3) ("[56]", 3) ;
-      t "insert into existing list item" single (insert '4' 1) ("[456]", 2) ;
-      t
+        "~[]" ;
+      tc "insert space into multi list" multi (press K.Space 6) "[56,78~]" ;
+      tc "insert space into single list" single (press K.Space 3) "[56~]" ;
+      tc "insert into existing list item" single (insert '4' 1) "[4~56]" ;
+      tc
         "insert separator before item creates blank"
         single
         (insert ',' 1)
-        ("[___,56]", 1) ;
-      t
+        "[~___,56]" ;
+      tc
         "insert separator after item creates blank"
         single
         (insert ',' 3)
-        ("[56,___]", 4) ;
-      t
+        "[56,~___]" ;
+      tc
         "insert separator between items creates blank"
         multi
         (insert ',' 3)
-        ("[56,___,78]", 4) ;
-      (* t "insert separator mid integer makes two items" single (insert ',' 2) *)
+        "[56,~___,78]" ;
+      (* tc "insert separator mid integer makes two items" single (insert ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
-      t
+      tc
         "insert separator mid string does nothing special "
         withStr
         (insert ',' 3)
-        ("[\"a,b\"]", 4) ;
-      t
+        "[\"a,~b\"]" ;
+      tc
         "backspacing open bracket of empty list dels list"
         emptyList
         (bs 1)
-        (blank, 0) ;
-      t
+        "~___" ;
+      tc
         "backspacing close bracket of empty list moves inside list"
         emptyList
         (bs 2)
-        ("[]", 1) ;
-      t
+        "[~]" ;
+      tc
         "deleting open bracket of empty list dels list"
         emptyList
         (del 0)
-        (blank, 0) ;
-      t
+        "~___" ;
+      tc
         "close bracket at end of list is swallowed"
         emptyList
         (press K.RightSquareBracket 1)
-        ("[]", 2) ;
-      t
+        "[]~" ;
+      tc
         "bs on first separator between items dels item after separator"
         multi
         (bs 4)
-        ("[56]", 3) ;
-      t
+        "[56~]" ;
+      tc
         "del before first separator between items dels item after separator"
         multi
         (del 3)
-        ("[56]", 3) ;
-      t
+        "[56~]" ;
+      tc
         "bs on middle separator between items dels item after separator"
         longList
         (bs 10)
-        ("[56,78,56,56,78]", 9) ;
-      t
+        "[56,78,56~,56,78]" ;
+      tc
         "del before middle separator between items dels item after separator"
         longList
         (del 9)
-        ("[56,78,56,56,78]", 9) ;
-      t
+        "[56,78,56~,56,78]" ;
+      tc
         "bs on middle separator between items dels blank after separator"
         listWithBlank
         (bs 7)
-        ("[56,78,56]", 6) ;
-      t
+        "[56,78~,56]" ;
+      tc
         "del before middle separator between items dels blank after separator"
         listWithBlank
         (del 6)
-        ("[56,78,56]", 6) ;
-      t
+        "[56,78~,56]" ;
+      tc
         "bs on last separator between a blank and item dels item after separator"
         listWithBlank
         (bs 11)
-        ("[56,78,___]", 10) ;
-      t
+        "[56,78,___~]" ;
+      tc
         "del before last separator between a blank and item dels item after separator"
         listWithBlank
         (del 10)
-        ("[56,78,___]", 10) ;
-      t
+        "[56,78,___~]" ;
+      tc
         "bs on separator between string items dels item after separator"
         multiWithStrs
         (bs 6)
-        ("[\"ab\",\"ef\"]", 5) ;
-      t
+        "[\"ab\"~,\"ef\"]" ;
+      tc
         "del before separator between string items dels item after separator"
         multiWithStrs
         (del 5)
-        ("[\"ab\",\"ef\"]", 5) ;
+        "[\"ab\"~,\"ef\"]" ;
       () ) ;
   describe "Record" (fun () ->
       (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
-      t "create record" b (press K.LeftCurlyBrace 0) ("{}", 1) ;
-      t
+      tc "create record" b (press K.LeftCurlyBrace 0) "{~}" ;
+      tc
         "inserting before the record does nothing"
         emptyRecord
         (insert '5' 0)
-        ("{}", 0) ;
-      t
+        "~{}" ;
+      tc
         "inserting space between empty record does nothing"
         emptyRecord
         (space 1)
-        ("{}", 1) ;
-      t
+        "{~}" ;
+      tc
         "inserting space in empty record field does nothing"
         emptyRowRecord
         (space 4)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "inserting space in empty record value does nothing"
         emptyRowRecord
         (space 10)
-        ("{\n  *** : ___\n}", 10) ;
-      t
+        "{\n  *** : ~___\n}" ;
+      tc
         "pressing enter in an the start of empty record adds a new line"
         emptyRecord
         (enter 1)
-        ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRowRecord (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc "enter fieldname" emptyRowRecord (insert 'c' 4) "{\n  c~ : ___\n}" ;
+      tc
         "move to the front of an empty record"
         emptyRowRecord
         (press K.GoToStartOfLine 13)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "move to the end of an empty record"
         emptyRowRecord
         (press K.GoToEndOfLine 4)
-        ("{\n  *** : ___\n}", 13) ;
-      t
+        "{\n  *** : ___~\n}" ;
+      tc
         "cant enter invalid fieldname"
         emptyRowRecord
         (insert '^' 4)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "backspacing open brace of empty record dels record"
         emptyRecord
         (bs 1)
-        (blank, 0) ;
-      t
+        "~___" ;
+      tc
         "backspacing close brace of empty record moves inside record"
         emptyRecord
         (bs 2)
-        ("{}", 1) ;
-      t
+        "{~}" ;
+      tc
         "deleting open brace of empty record dels record"
         emptyRecord
         (del 0)
-        (blank, 0) ;
-      t
+        "~___" ;
+      tc
         "close brace at end of record is swallowed"
         emptyRecord
         (press K.RightCurlyBrace 1)
-        ("{}", 2) ;
-      t
+        "{}~" ;
+      tc
         "backspacing empty record field clears entry"
         emptyRowRecord
         (bs 4)
         (* TODO: buggy. Should be 1 *)
-        ("{}", 2) ;
-      t
+        "{}~" ;
+      tc
         "appending to int in expr works"
         singleRowRecord
         (insert '1' 11)
-        ("{\n  f1 : 561\n}", 12) ;
-      t
+        "{\n  f1 : 561~\n}" ;
+      tc
         "appending to int in expr works"
         multiRowRecord
         (insert '1' 21)
-        ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
-      t
+        "{\n  f1 : 56\n  f2 : 781~\n}" ;
+      tc
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
         (press K.GoToStartOfLine 21)
-        ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
-      t
+        "{\n  f1 : 56\n  ~f2 : 78\n}" ;
+      tc
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
         (press K.GoToEndOfLine 14)
-        ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
-      t
+        "{\n  f1 : 56\n  f2 : 78~\n}" ;
+      tc
         "inserting at the end of the key works"
         emptyRowRecord
         (insert 'f' 6)
-        ("{\n  f : ___\n}", 5) ;
-      t
+        "{\n  f~ : ___\n}" ;
+      tc
         "pressing enter at start adds a row"
         multiRowRecord
         (enter 1)
-        ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n  f1 : 56\n  f2 : 78\n}" ;
+      tc
         "pressing enter at the back adds a row"
         multiRowRecord
         (enter 22)
-        ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
-      t
+        "{\n  f1 : 56\n  f2 : 78\n  ~*** : ___\n}" ;
+      tc
         "pressing enter at the start of a field adds a row"
         multiRowRecord
         (enter 14)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
-      t
+        "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
+      tc
         "pressing enter at the end of row adds a row"
         multiRowRecord
         (enter 11)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
-      t
+        "{\n  f1 : 56\n  ~*** : ___\n  f2 : 78\n}" ;
+      tc
         "dont allow weird chars in recordFields"
         emptyRowRecord
         (press K.RightParens 4)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "dont jump in recordFields with infix chars"
         emptyRowRecord
         (press K.Plus 4)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "dont jump in recordFields with infix chars, pt 2"
         singleRowRecord
         (press K.Plus 6)
-        ("{\n  f1 : 56\n}", 6) ;
-      t
+        "{\n  f1~ : 56\n}" ;
+      tc
         "colon should skip over the record colon"
         emptyRowRecord
         (press K.Colon 7)
-        ("{\n  *** : ___\n}", 10) ;
-      t
+        "{\n  *** : ~___\n}" ;
+      tc
         "dont allow key to start with a number"
         emptyRowRecord
         (insert '5' 4)
-        ("{\n  *** : ___\n}", 4) ;
-      t
+        "{\n  ~*** : ___\n}" ;
+      tc
         "dont allow key to start with a number, pt 2"
         singleRowRecord
         (insert '5' 4)
-        ("{\n  f1 : 56\n}", 4) ;
-      t
+        "{\n  ~f1 : 56\n}" ;
+      tc
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
         (insert '5' 6)
-        ("{\n  *** : ___\n}", 6) ;
+        (* TODO: looks wrong *)
+        "{\n  **~* : ___\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
