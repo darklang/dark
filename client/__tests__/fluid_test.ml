@@ -816,95 +816,87 @@ let () =
         ^ "then\n  ___\nelse\n  ___" ) ;
       () ) ;
   describe "Integers" (fun () ->
-      t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
-      t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
-      t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
-      t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
-      t "del start of number" anInt (del 0) ("2345", 0) ;
-      t "bs start of number" anInt (bs 0) ("12345", 0) ;
-      t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
-      t "del end of number" anInt (del 5) ("12345", 5) ;
-      t "bs end of number" anInt (bs 5) ("1234", 4) ;
-      t
+      tc "insert 0 at front " anInt (insert '0' 0) "~12345" ;
+      tc "insert at end of short" aShortInt (insert '2' 1) "12~" ;
+      tc "insert not a number" anInt (insert 'c' 0) "~12345" ;
+      tc "insert start of number" anInt (insert '5' 0) "5~12345" ;
+      tc "del start of number" anInt (del 0) "~2345" ;
+      tc "bs start of number" anInt (bs 0) "~12345" ;
+      tc "insert end of number" anInt (insert '0' 5) "123450~" ;
+      tc "del end of number" anInt (del 5) "12345~" ;
+      tc "bs end of number" anInt (bs 5) "1234~" ;
+      tc
         "insert number at scale"
         aHugeInt
         (insert '9' 5)
-        ("2000090000000000000", 6) ;
-      t
-        "insert number at scale"
-        aHugeInt
-        (insert '9' 0)
-        ("920000000000000000", 1) ;
-      t
+        "200009~0000000000000" ;
+      tc "insert number at scale" aHugeInt (insert '9' 0) "9~20000000000000000" ;
+      tc
         "insert number at scale"
         aHugeInt
         (insert '9' 19)
-        ("2000000000000000000", 19) ;
+        "2000000000000000000~" ;
       (* let max62BitInt = EInteger (gid (), "4611686018427387903") in *)
       let oneShorterThanMax62BitInt =
         EInteger (gid (), "461168601842738790")
       in
-      t
+      tc
         "insert number at scale"
         oneShorterThanMax62BitInt
         (insert '3' 18)
-        ("4611686018427387903", 19) ;
-      t
+        "4611686018427387903~" ;
+      tc
         "insert number at scale"
         oneShorterThanMax62BitInt
         (insert '4' 18)
-        ("461168601842738790", 18) ;
+        "461168601842738790~" ;
       () ) ;
   describe "Floats" (fun () ->
-      t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
-      t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
-      t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
-      t "insert . converts to float - short" aShortInt (insert '.' 1) ("1.", 2) ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
-      t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
-      t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
-      t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
-      t "insert int in whole - end" aFloat (insert '0' 3) ("1230.456", 4) ;
-      t "insert int in fraction - start" aFloat (insert '0' 4) ("123.0456", 5) ;
-      t "insert int in fraction - middle" aFloat (insert '0' 6) ("123.4506", 7) ;
-      t "insert int in fraction - end" aFloat (insert '0' 7) ("123.4560", 8) ;
-      t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
-      t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
-      t "del dot" aFloat (del 3) ("123456", 3) ;
-      t "del dot at scale" aHugeFloat (del 9) ("123456789123456789", 9) ;
+      tc "insert . converts to float - end" anInt (insert '.' 5) "12345.~" ;
+      tc "insert . converts to float - middle" anInt (insert '.' 3) "123.~45" ;
+      tc "insert . converts to float - start" anInt (insert '.' 0) "~12345" ;
+      tc "insert . converts to float - short" aShortInt (insert '.' 1) "1.~" ;
+      tc "continue after adding dot" aPartialFloat (insert '2' 2) "1.2~" ;
+      tc "insert zero in whole - start" aFloat (insert '0' 0) "~123.456" ;
+      tc "insert int in whole - start" aFloat (insert '9' 0) "9~123.456" ;
+      tc "insert int in whole - middle" aFloat (insert '0' 1) "10~23.456" ;
+      tc "insert int in whole - end" aFloat (insert '0' 3) "1230~.456" ;
+      tc "insert int in fraction - start" aFloat (insert '0' 4) "123.0~456" ;
+      tc "insert int in fraction - middle" aFloat (insert '0' 6) "123.450~6" ;
+      tc "insert int in fraction - end" aFloat (insert '0' 7) "123.4560~" ;
+      tc "insert non-int in whole" aFloat (insert 'c' 2) "12~3.456" ;
+      tc "insert non-int in fraction" aFloat (insert 'c' 6) "123.45~6" ;
+      tc "del dot" aFloat (del 3) "123~456" ;
+      tc "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
       let maxPosIntWithDot = EFloat (gid (), "4611686018427387", "903") in
       let maxPosIntPlus1WithDot = EFloat (gid (), "4611686018427387", "904") in
-      t "del dot at limit" maxPosIntWithDot (del 16) ("4611686018427387903", 16) ;
-      t
-        "del dot at limit"
+      tc "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
+      tc
+        "del dot at limit2"
         maxPosIntPlus1WithDot
         (del 16)
-        ("461168601842738790", 16) ;
-      t "del start of whole" aFloat (del 0) ("23.456", 0) ;
-      t "del middle of whole" aFloat (del 1) ("13.456", 1) ;
-      t "del end of whole" aFloat (del 2) ("12.456", 2) ;
-      t "del start of fraction" aFloat (del 4) ("123.56", 4) ;
-      t "del middle of fraction" aFloat (del 5) ("123.46", 5) ;
-      t "del end of fraction" aFloat (del 6) ("123.45", 6) ;
-      t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
-      t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
-      t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("123456789123456789", 9) ;
-      t "bs dot at limit" maxPosIntWithDot (bs 17) ("4611686018427387903", 16) ;
-      t
-        "bs dot at limit"
-        maxPosIntPlus1WithDot
-        (bs 17)
-        ("461168601842738790", 16) ;
-      t "bs start of whole" aFloat (bs 1) ("23.456", 0) ;
-      t "bs middle of whole" aFloat (bs 2) ("13.456", 1) ;
-      t "bs end of whole" aFloat (bs 3) ("12.456", 2) ;
-      t "bs start of fraction" aFloat (bs 5) ("123.56", 4) ;
-      t "bs middle of fraction" aFloat (bs 6) ("123.46", 5) ;
-      t "bs end of fraction" aFloat (bs 7) ("123.45", 6) ;
-      t "bs dot converts to int" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot converts to int, no fraction" aPartialFloat (bs 2) ("1", 1) ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
+        "4611686018427387~90" ;
+      tc "del start of whole" aFloat (del 0) "~23.456" ;
+      tc "del middle of whole" aFloat (del 1) "1~3.456" ;
+      tc "del end of whole" aFloat (del 2) "12~.456" ;
+      tc "del start of fraction" aFloat (del 4) "123.~56" ;
+      tc "del middle of fraction" aFloat (del 5) "123.4~6" ;
+      tc "del end of fraction" aFloat (del 6) "123.45~" ;
+      tc "del dot converts to int" aFloat (del 3) "123~456" ;
+      tc "del dot converts to int, no fraction" aPartialFloat (del 1) "1~" ;
+      tc "bs dot" aFloat (bs 4) "123~456" ;
+      tc "bs dot at scale" aHugeFloat (bs 10) "123456789~123456789" ;
+      tc "bs dot at limit1" maxPosIntWithDot (bs 17) "4611686018427387~903" ;
+      tc "bs dot at limit2" maxPosIntPlus1WithDot (bs 17) "4611686018427387~90" ;
+      tc "bs start of whole" aFloat (bs 1) "~23.456" ;
+      tc "bs middle of whole" aFloat (bs 2) "1~3.456" ;
+      tc "bs end of whole" aFloat (bs 3) "12~.456" ;
+      tc "bs start of fraction" aFloat (bs 5) "123.~56" ;
+      tc "bs middle of fraction" aFloat (bs 6) "123.4~6" ;
+      tc "bs end of fraction" aFloat (bs 7) "123.45~" ;
+      tc "bs dot converts to int" aFloat (bs 4) "123~456" ;
+      tc "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
+      tc "continue after adding dot" aPartialFloat (insert '2' 2) "1.2~" ;
       () ) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
