@@ -471,6 +471,27 @@ let () =
         expect (fn initial)
         |> toEqual ((expectedStr, (None, expectedPos)), true) )
   in
+  let tcp
+      (name : string)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> testResult)
+      (expectedStr : string) =
+    let insertCursor
+        (((str, (_selection, cursor)), res) :
+          (string * (int option * int)) * bool) : string * bool =
+      let cursorString = "~" in
+      match str |> String.splitAt ~index:cursor with a, b ->
+        ([a; b] |> String.join ~sep:cursorString, res)
+    in
+    test
+      ( name
+      ^ " - `"
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ "`" )
+      (fun () ->
+        expect (fn initial |> insertCursor) |> toEqual (expectedStr, true) )
+  in
   (* Test expecting no partials found and an expected resulting selection *)
   let ts
       (name : string)
@@ -899,80 +920,80 @@ let () =
       tc "continue after adding dot" aPartialFloat (insert '2' 2) "1.2~" ;
       () ) ;
   describe "Bools" (fun () ->
-      tp "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      tp "del start of true" trueBool (del 0) ("rue", 0) ;
-      t "bs start of true" trueBool (bs 0) ("true", 0) ;
-      tp "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
-      t "del end of true" trueBool (del 4) ("true", 4) ;
-      tp "bs end of true" trueBool (bs 4) ("tru", 3) ;
-      tp "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      tp "del middle of true" trueBool (del 2) ("tre", 2) ;
-      tp "bs middle of true" trueBool (bs 2) ("tue", 1) ;
-      tp "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
-      tp "del start of false" falseBool (del 0) ("alse", 0) ;
-      t "bs start of false" falseBool (bs 0) ("false", 0) ;
-      tp "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
-      t "del end of false" falseBool (del 5) ("false", 5) ;
-      tp "bs end of false" falseBool (bs 5) ("fals", 4) ;
-      tp "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
-      tp "del middle of false" falseBool (del 2) ("fase", 2) ;
-      tp "bs middle of false" falseBool (bs 2) ("flse", 1) ;
+      tcp "insert start of true" trueBool (insert 'c' 0) "c~true" ;
+      tcp "del start of true" trueBool (del 0) "~rue" ;
+      tc "bs start of true" trueBool (bs 0) "~true" ;
+      tcp "insert end of true" trueBool (insert '0' 4) "true0~" ;
+      tc "del end of true" trueBool (del 4) "true~" ;
+      tcp "bs end of true" trueBool (bs 4) "tru~" ;
+      tcp "insert middle of true" trueBool (insert '0' 2) "tr0~ue" ;
+      tcp "del middle of true" trueBool (del 2) "tr~e" ;
+      tcp "bs middle of true" trueBool (bs 2) "t~ue" ;
+      tcp "insert start of false" falseBool (insert 'c' 0) "c~false" ;
+      tcp "del start of false" falseBool (del 0) "~alse" ;
+      tc "bs start of false" falseBool (bs 0) "~false" ;
+      tcp "insert end of false" falseBool (insert '0' 5) "false0~" ;
+      tc "del end of false" falseBool (del 5) "false~" ;
+      tcp "bs end of false" falseBool (bs 5) "fals~" ;
+      tcp "insert middle of false" falseBool (insert '0' 2) "fa0~lse" ;
+      tcp "del middle of false" falseBool (del 2) "fa~se" ;
+      tcp "bs middle of false" falseBool (bs 2) "f~lse" ;
       () ) ;
   describe "Nulls" (fun () ->
-      tp "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
-      tp "del start of null" aNull (del 0) ("ull", 0) ;
-      t "bs start of null" aNull (bs 0) ("null", 0) ;
-      tp "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
-      t "del end of null" aNull (del 4) ("null", 4) ;
-      tp "bs end of null" aNull (bs 4) ("nul", 3) ;
-      tp "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
-      tp "del middle of null" aNull (del 2) ("nul", 2) ;
-      tp "bs middle of null" aNull (bs 2) ("nll", 1) ;
+      tcp "insert start of null" aNull (insert 'c' 0) "c~null" ;
+      tcp "del start of null" aNull (del 0) "~ull" ;
+      tc "bs start of null" aNull (bs 0) "~null" ;
+      tcp "insert end of null" aNull (insert '0' 4) "null0~" ;
+      tc "del end of null" aNull (del 4) "null~" ;
+      tcp "bs end of null" aNull (bs 4) "nul~" ;
+      tcp "insert middle of null" aNull (insert '0' 2) "nu0~ll" ;
+      tcp "del middle of null" aNull (del 2) "nu~l" ;
+      tcp "bs middle of null" aNull (bs 2) "n~ll" ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" b (insert '"' 3) ("\"\"", 1) ;
-      t "del middle of blank->blank" b (del 3) (blank, 3) ;
-      t "bs middle of blank->blank" b (bs 3) (blank, 0) ;
-      t "insert blank->string" b (insert '"' 0) ("\"\"", 1) ;
-      t "del blank->string" emptyStr (del 0) (blank, 0) ;
-      t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
-      t "insert blank->int" b (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" b (insert '0' 0) ("0", 1) ;
-      t "del int->blank " five (del 0) (blank, 0) ;
-      t "bs int->blank " five (bs 1) (blank, 0) ;
-      t "insert end of blank->int" b (insert '5' 1) ("5", 1) ;
-      tp "insert partial" b (insert 't' 0) ("t", 1) ;
-      t
+      tc "insert middle of blank->string" b (insert '"' 3) "\"~\"" ;
+      tc "del middle of blank->blank" b (del 3) "___~" ;
+      tc "bs middle of blank->blank" b (bs 3) "~___" ;
+      tc "insert blank->string" b (insert '"' 0) "\"~\"" ;
+      tc "del blank->string" emptyStr (del 0) "~___" ;
+      tc "bs blank->string" emptyStr (bs 1) "~___" ;
+      tc "insert blank->int" b (insert '5' 0) "5~" ;
+      tc "insert blank->int" b (insert '0' 0) "0~" ;
+      tc "del int->blank " five (del 0) "~___" ;
+      tc "bs int->blank " five (bs 1) "~___" ;
+      tc "insert end of blank->int" b (insert '5' 1) "5~" ;
+      tcp "insert partial" b (insert 't' 0) "t~" ;
+      tc
         "backspacing your way through a partial finishes"
         trueBool
         (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
-        ("___", 0) ;
-      t "insert blank->space" b (space 0) (blank, 0) ;
+        "~___" ;
+      tc "insert blank->space" b (space 0) "~___" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
-      t
+      tc "insert middle of fieldname" aField (insert 'c' 5) "obj.fc~ield" ;
+      tc
         "cant insert invalid chars fieldname"
         aField
         (insert '$' 5)
-        ("obj.field", 5) ;
-      t "del middle of fieldname" aField (del 5) ("obj.feld", 5) ;
-      t "del fieldname" aShortField (del 4) ("obj.***", 4) ;
-      t "bs fieldname" aShortField (bs 5) ("obj.***", 4) ;
-      t "insert end of fieldname" aField (insert 'c' 9) ("obj.fieldc", 10) ;
-      tp "insert end of varname" aField (insert 'c' 3) ("objc.field", 4) ;
-      t "insert start of fieldname" aField (insert 'c' 4) ("obj.cfield", 5) ;
-      t "insert blank fieldname" aBlankField (insert 'c' 4) ("obj.c", 5) ;
-      t "del fieldop with name" aShortField (del 3) ("obj", 3) ;
-      t "bs fieldop with name" aShortField (bs 4) ("obj", 3) ;
-      t "del fieldop with blank" aBlankField (del 3) ("obj", 3) ;
-      t "bs fieldop with blank" aBlankField (bs 4) ("obj", 3) ;
-      t "del fieldop in nested" aNestedField (del 3) ("obj.field2", 3) ;
-      t "bs fieldop in nested" aNestedField (bs 4) ("obj.field2", 3) ;
-      t "add dot after variable" aVar (insert '.' 8) ("variable.***", 9) ;
-      t "add dot after partial " aPartialVar (insert '.' 3) ("request.***", 8) ;
-      t "add dot after field" aField (insert '.' 9) ("obj.field.***", 10) ;
-      t "insert space in blank " aBlankField (space 4) ("obj.***", 4) ;
+        "obj.f~ield" ;
+      tc "del middle of fieldname" aField (del 5) "obj.f~eld" ;
+      tc "del fieldname" aShortField (del 4) "obj.~***" ;
+      tc "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      tc "insert end of fieldname" aField (insert 'c' 9) "obj.fieldc~" ;
+      tcp "insert end of varname" aField (insert 'c' 3) "objc~.field" ;
+      tc "insert start of fieldname" aField (insert 'c' 4) "obj.c~field" ;
+      tc "insert blank fieldname" aBlankField (insert 'c' 4) "obj.c~" ;
+      tc "del fieldop with name" aShortField (del 3) "obj~" ;
+      tc "bs fieldop with name" aShortField (bs 4) "obj~" ;
+      tc "del fieldop with blank" aBlankField (del 3) "obj~" ;
+      tc "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
+      tc "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
+      tc "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
+      tc "add dot after variable" aVar (insert '.' 8) "variable.~***" ;
+      tc "add dot after partial " aPartialVar (insert '.' 3) "request.~***" ;
+      tc "add dot after field" aField (insert '.' 9) "obj.field.~***" ;
+      tc "insert space in blank " aBlankField (space 4) "obj.~***" ;
       () ) ;
   describe "Functions" (fun () ->
       t
