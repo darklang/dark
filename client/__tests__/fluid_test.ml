@@ -1983,91 +1983,91 @@ let () =
       (* TODO: test for deleting pipeed prefix fns *)
       () ) ;
   describe "Ifs" (fun () ->
-      t
+      tc
         "move over indent 1"
         plainIf
         (press K.Left 12)
-        ("if 5\nthen\n  6\nelse\n  7", 9) ;
-      t
+        "if 5\nthen~\n  6\nelse\n  7" ;
+      tc
         "move over indent 2"
         plainIf
         (press K.Left 21)
-        ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t "bs over indent 1" plainIf (bs 12) ("if 5\nthen\n  6\nelse\n  7", 9) ;
-      t "bs over indent 2" plainIf (bs 21) ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t "bs over empty if" emptyIf (bs 2) ("___", 0) ;
-      t
+        "if 5\nthen\n  6\nelse~\n  7" ;
+      tc "bs over indent 1" plainIf (bs 12) "if 5\nthen~\n  6\nelse\n  7" ;
+      tc "bs over indent 2" plainIf (bs 21) "if 5\nthen\n  6\nelse~\n  7" ;
+      tc "bs over empty if" emptyIf (bs 2) "~___" ;
+      tc
         "move to front of line 1"
         plainIf
         (press K.GoToStartOfLine 4)
-        ("if 5\nthen\n  6\nelse\n  7", 0) ;
-      t
+        "~if 5\nthen\n  6\nelse\n  7" ;
+      tc
         "move to end of line 1"
         plainIf
         (press K.GoToEndOfLine 0)
-        ("if 5\nthen\n  6\nelse\n  7", 4) ;
-      t
+        "if 5~\nthen\n  6\nelse\n  7" ;
+      tc
         "move to front of line 3"
         plainIf
         (press K.GoToStartOfLine 13)
-        ("if 5\nthen\n  6\nelse\n  7", 12) ;
-      t
+        "if 5\nthen\n  ~6\nelse\n  7" ;
+      tc
         "move to end of line 3"
         plainIf
         (press K.GoToEndOfLine 12)
-        ("if 5\nthen\n  6\nelse\n  7", 13) ;
-      t
+        "if 5\nthen\n  6~\nelse\n  7" ;
+      tc
         "move to front of line 5 in nested if"
         nestedIf
         (press K.GoToStartOfLine 16)
-        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 12) ;
-      t
+        "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
+      tc
         "move to end of line 5 in nested if"
         nestedIf
         (press K.GoToEndOfLine 12)
-        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
-      t
+        "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
+      tc
         "try to insert space on blank"
         emptyIf
         (press K.Space 3)
-        ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
-      t
+        "if ~___\nthen\n  ___\nelse\n  ___" ;
+      tc
         "try to insert space on blank indent 2"
         emptyIf
         (press K.Space 14)
-        ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
-      t
+        "if ___\nthen\n  ~___\nelse\n  ___" ;
+      tc
         "enter in front of an if wraps in a let"
         plainIf
         (enter 0)
-        ("let *** = ___\nif 5\nthen\n  6\nelse\n  7", 14) ;
-      t
+        "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
+      tc
         "enter at end of if line does nothing"
         plainIf
         (enter 4)
-        ("if 5\nthen\n  6\nelse\n  7", 5) ;
-      t
+        "if 5\n~then\n  6\nelse\n  7" ;
+      tc
         "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
-        ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
-      t
+        "if 5\nthen\n  let ~*** = ___\n  6\nelse\n  7" ;
+      tc
         "enter at end of then expr line does nothing"
         plainIf
         (enter 13)
-        ("if 5\nthen\n  6\nelse\n  7", 14) ;
-      t
+        "if 5\nthen\n  6\n~else\n  7" ;
+      tc
         "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
          * it's at the front of the line below. *)
         plainIf
         (enter 18)
-        ("if 5\nthen\n  6\nelse\n  let *** = ___\n  7", 25) ;
-      t
+        "if 5\nthen\n  6\nelse\n  let ~*** = ___\n  7" ;
+      tc
         "enter at end of else expr line does nothing"
         plainIf
         (enter 22)
-        ("if 5\nthen\n  6\nelse\n  7", 22) ;
+        "if 5\nthen\n  6\nelse\n  7~" ;
       () ) ;
   describe "Lists" (fun () ->
       let emptyList = EList (gid (), []) in
