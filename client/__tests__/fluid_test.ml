@@ -434,6 +434,27 @@ let () =
         |> toEqual (insertCursor ((expectedStr, (None, expectedPos)), false))
         )
   in
+  let tc
+      (name : string)
+      (initial : fluidExpr)
+      (fn : fluidExpr -> testResult)
+      (expectedStr : string) =
+    let insertCursor
+        (((str, (_selection, cursor)), res) :
+          (string * (int option * int)) * bool) : string * bool =
+      let cursorString = "~" in
+      match str |> String.splitAt ~index:cursor with a, b ->
+        ([a; b] |> String.join ~sep:cursorString, res)
+    in
+    test
+      ( name
+      ^ " - `"
+      ^ ( eToString Defaults.defaultFluidState initial
+        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ "`" )
+      (fun () ->
+        expect (fn initial |> insertCursor) |> toEqual (expectedStr, false) )
+  in
   (* Test expecting partials found and an expected caret position but no selection *)
   let tp
       (name : string)
@@ -467,32 +488,32 @@ let () =
       (fun () -> expect (fn initial) |> toEqual (expected, false))
   in
   describe "Strings" (fun () ->
-      t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
-      t "del mid string" aStr (del 3) ("\"soe string\"", 3) ;
-      t "bs mid string" aStr (bs 4) ("\"soe string\"", 3) ;
-      t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
-      t "del empty string" emptyStr (del 1) (blank, 0) ;
-      t "del empty string from outside" emptyStr (del 0) (blank, 0) ;
-      t "bs empty string" emptyStr (bs 1) (blank, 0) ;
-      t "bs outside empty string" emptyStr (bs 2) ("\"\"", 1) ;
-      t "bs near-empty string" oneCharStr (bs 2) ("\"\"", 1) ;
-      t "del near-empty string" oneCharStr (del 1) ("\"\"", 1) ;
-      t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ;
-      t "del outside string" aStr (del 0) ("\"some string\"", 0) ;
-      t "bs outside string" aStr (bs 0) ("\"some string\"", 0) ;
-      t "insert start of string" aStr (insert 'c' 1) ("\"csome string\"", 2) ;
-      t "del start of string" aStr (del 1) ("\"ome string\"", 1) ;
-      t "bs start of string" aStr (bs 1) ("\"some string\"", 0) ;
-      t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ;
-      t "del end of string" aStr (del 12) ("\"some string\"", 12) ;
-      t "bs end of string" aStr (bs 12) ("\"some strin\"", 11) ;
-      t "insert after end" aStr (insert 'c' 13) ("\"some string\"", 13) ;
-      t "del after end of string" aStr (del 13) ("\"some string\"", 13) ;
-      t "bs after end" aStr (bs 13) ("\"some string\"", 12) ;
-      t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ;
-      t "del space in string" aStr (del 5) ("\"somestring\"", 5) ;
-      t "bs space in string" aStr (bs 6) ("\"somestring\"", 5) ;
-      t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
+      tc "insert mid string" aStr (insert 'c' 3) "\"soc~me string\"" ;
+      tc "del mid string" aStr (del 3) "\"so~e string\"" ;
+      tc "bs mid string" aStr (bs 4) "\"so~e string\"" ;
+      tc "insert empty string" emptyStr (insert 'c' 1) "\"c~\"" ;
+      tc "del empty string" emptyStr (del 1) "~___" ;
+      tc "del empty string from outside" emptyStr (del 0) "~___" ;
+      tc "bs empty string" emptyStr (bs 1) "~___" ;
+      tc "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
+      tc "bs near-empty string" oneCharStr (bs 2) "\"~\"" ;
+      tc "del near-empty string" oneCharStr (del 1) "\"~\"" ;
+      tc "insert outside string" aStr (insert 'c' 0) "~\"some string\"" ;
+      tc "del outside string" aStr (del 0) "~\"some string\"" ;
+      tc "bs outside string" aStr (bs 0) "~\"some string\"" ;
+      tc "insert start of string" aStr (insert 'c' 1) "\"c~some string\"" ;
+      tc "del start of string" aStr (del 1) "\"~ome string\"" ;
+      tc "bs start of string" aStr (bs 1) "~\"some string\"" ;
+      tc "insert end of string" aStr (insert 'c' 12) "\"some stringc~\"" ;
+      tc "del end of string" aStr (del 12) "\"some string~\"" ;
+      tc "bs end of string" aStr (bs 12) "\"some strin~\"" ;
+      tc "insert after end" aStr (insert 'c' 13) "\"some string\"~" ;
+      tc "del after end of string" aStr (del 13) "\"some string\"~" ;
+      tc "bs after end" aStr (bs 13) "\"some string~\"" ;
+      tc "insert space in string" aStr (insert ' ' 3) "\"so ~me string\"" ;
+      tc "del space in string" aStr (del 5) "\"some~string\"" ;
+      tc "bs space in string" aStr (bs 6) "\"some~string\"" ;
+      tc "final quote is swallowed" aStr (insert '"' 12) "\"some string\"~" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       let nums = "123456789_" in
