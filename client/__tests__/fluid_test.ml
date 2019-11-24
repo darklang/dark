@@ -2350,109 +2350,105 @@ let () =
         "{\n  **~* : ___\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
-      t
+      tc
         "space autocompletes correctly"
         (EPartial (gid (), "if", b))
         (space 2)
-        ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
-      t
+        "if ~___\nthen\n  ___\nelse\n  ___" ;
+      tc
         "let moves to right place"
         (EPartial (gid (), "let", b))
         (enter 3)
-        ("let *** = ___\n___", 4) ;
-      t
+        "let ~*** = ___\n___" ;
+      tc
         "autocomplete space moves forward by 1"
         aBinOp
         (presses [K.Letter 'r'; K.Space] 0)
-        ("request == _________", 8) ;
-      t
+        "request ~== _________" ;
+      tc
         "autocomplete enter moves to end of value"
         aBinOp
         (presses [K.Letter 'r'; K.Enter] 0)
-        ("request == _________", 7) ;
-      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
-      t
+        "request~ == _________" ;
+      tc "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
+      tc
         "autocomplete tab moves to next blank"
         aBinOp
         (presses [K.Letter 'r'; K.Tab] 0)
-        ("request == _________", 11) ;
-      t
+        "request == ~_________" ;
+      tc
         "autocomplete enter on bin-op moves to start of first blank"
         b
         (presses [K.Equals; K.Enter] 0)
-        ("_________ == _________", 0) ;
-      t
+        "~_________ == _________" ;
+      tc
         "autocomplete tab on bin-op moves to start of second blank"
         b
         (presses [K.Equals; K.Tab] 0)
-        ("_________ == _________", 13) ;
-      t
+        "_________ == ~_________" ;
+      tc
         "autocomplete space on bin-op moves to start of first blank"
         b
         (presses [K.Equals; K.Space] 0)
-        ("_________ == _________", 0) ;
-      t
+        "~_________ == _________" ;
+      tc
         "variable moves to right place"
         (EPartial (gid (), "req", b))
         (enter 3)
-        ("request", 7) ;
-      t
+        "request~" ;
+      tc
         "pipe moves to right place on blank"
         b
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
-        ("___\n|>___\n", 6) ;
-      t
+        "___\n|>~___\n" ;
+      tc
         "pipe moves to right place on placeholder"
         aFnCall
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 _________\n|>___\n", 23) ;
-      t
+        "Int::add 5 _________\n|>~___\n" ;
+      tc
         "pipe moves to right place in if then"
         emptyIf
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
-        ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
-      t
+        "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
+      tc
         "pipe moves to right place in lambda body"
         aLambda
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
-        ("\\*** -> ___\n        |>___\n", 22) ;
-      t
+        "\\*** -> ___\n        |>~___\n" ;
+      tc
         "pipe moves to right place in match body"
         emptyMatch
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
-        ("match ___\n  *** -> ___\n         |>___\n", 34) ;
-      t
+        "match ___\n  *** -> ___\n         |>~___\n" ;
+      tc
         "autocomplete for Just"
         (EPartial (gid (), "Just", b))
         (enter 4)
-        ("Just ___", 5) ;
-      t
-        "autocomplete for Ok"
-        (EPartial (gid (), "Ok", b))
-        (enter 2)
-        ("Ok ___", 3) ;
-      t
+        "Just ~___" ;
+      tc "autocomplete for Ok" (EPartial (gid (), "Ok", b)) (enter 2) "Ok ~___" ;
+      tc
         "autocomplete for Nothing"
         (EPartial (gid (), "Nothing", b))
         (enter 7)
-        ("Nothing", 7) ;
-      t
+        "Nothing~" ;
+      tc
         "autocomplete for Nothing at end of a line"
         (EIf (gid (), b, EPartial (gid (), "Nothing", b), b))
         (space 21)
-        ("if ___\nthen\n  Nothing\nelse\n  ___", 21) ;
-      t
+        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
+      tc
         "autocomplete for Error"
         (EPartial (gid (), "Error", b))
         (enter 5)
-        ("Error ___", 6) ;
-      t
+        "Error ~___" ;
+      tc
         "autocomplete for field"
         (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
         (enter ~clone:false 10)
-        ("request.body", 12) ;
+        "request.body~" ;
       (* TODO: this doesn't work but should *)
-      (* t *)
+      (* tc *)
       (*   "autocomplete for field in body" *)
       (*   (EMatch *)
       (*      ( gid () *)
@@ -2490,16 +2486,16 @@ let () =
                 posFor ~row ~col tokens )
           in
           expect poses |> toEqual newPoses ) ;
-      t
+      tc
         "right skips over indent when in indent"
         emptyIf
         (press K.Right 12)
-        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
-      t
+        "if ___\nthen\n  ___~\nelse\n  ___" ;
+      tc
         "left skips over indent when in indent"
         emptyIf
         (press K.Left 13)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
       (* length *)
       test "up from first row is zero" (fun () ->
           expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0 ) ;
@@ -2515,37 +2511,36 @@ let () =
           expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130 ) ;
       test "down into indented row goes to first token" (fun () ->
           expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114 ) ;
-      t
+      tc
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
         (enter 16)
         ( "let var = if ___\n"
-          ^ "          then\n"
-          ^ "            6\n"
-          ^ "          else\n"
-          ^ "            7\n"
-          ^ "var"
-        , 27 ) ;
-      t
+        ^ "          ~then\n"
+        ^ "            6\n"
+        ^ "          else\n"
+        ^ "            7\n"
+        ^ "var" ) ;
+      tc
         "end of if-then blank goes up properly"
         emptyIf
         (presses [K.Escape; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
-      t
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
+      tc
         "end of if-then blank goes up properly, twice"
         emptyIf
         (presses [K.Escape; K.Up; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 5) ;
-      t
+        "if __~_\nthen\n  ___\nelse\n  ___" ;
+      tc
         "end of if-then blank goes down properly"
         emptyIf
         (presses [K.Escape; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
-      t
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
+      tc
         "end of if-then blank goes down properly, twice"
         emptyIf
         (presses [K.Escape; K.Down; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
+        "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect
@@ -2581,26 +2576,26 @@ let () =
              | _ ->
                  eToStructure s ast)
           |> toEqual "success" ) ;
-      t
+      tc
         "moving right off a function autocompletes it anyway"
         (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b), b))
         (press K.Right 16)
-        ("let x = Int::add _________ _________\n___", 17) ;
-      tp
+        "let x = Int::add ~_________ _________\n___" ;
+      tcp
         "pressing an infix which could be valid doesn't commit"
         b
         (presses [K.Pipe; K.Pipe] 0)
-        ("||", 2) ;
-      tp
+        "||~" ;
+      tcp
         "pressing an infix after true commits it "
         (EPartial (gid (), "true", b))
         (press K.Plus 4)
-        ("true +", 6) ;
-      t
+        "true +~" ;
+      tc
         "moving left off a function autocompletes it anyway"
         (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b), b))
         (press K.Left 8)
-        ("let x = Int::add _________ _________\n___", 7) ;
+        "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
           expect
             (let ast = b in
@@ -2667,18 +2662,18 @@ let () =
         (selectionPress K.Right 52 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , 52 ) ;
-      t
+      tc
         "selecting an expression pipes from it 1"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
         (selectionPress K.ShiftEnter 4 5)
-        ("4 + 5\n    |>___\n", 12) ;
-      t
+        "4 + 5\n    |>~___\n" ;
+      tc
         "selecting an expression pipes from it 2"
         (EBinOp
            (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
         (selectionPress K.ShiftEnter 5 4)
-        ("4 + 5\n    |>___\n", 12) ;
+        "4 + 5\n    |>~___\n" ;
       ts
         "cmd+a selects all"
         longLets
@@ -2706,53 +2701,53 @@ let () =
                 (L (token, ti), R (token, ti), None)) ) ;
       () ) ;
   describe "Tabs" (fun () ->
-      t
+      tc
         "tab goes to first block in a let"
         emptyLet
         (tab 0)
-        ("let *** = ___\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc
         "tab goes when on blank"
         completelyEmptyLet
         (tab 10)
-        ("let *** = ___\n___", 14) ;
-      t
+        "let *** = ___\n~___" ;
+      tc
         "tab goes to second block in a let"
         emptyLet
         (tab 4)
-        ("let *** = ___\n5", 10) ;
-      t
+        "let *** = ~___\n5" ;
+      tc
         "tab wraps second block in a let"
         emptyLet
         (tab 15)
-        ("let *** = ___\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc
         "shift tab goes to last block in a let"
         emptyLet
         (shiftTab 14)
-        ("let *** = ___\n5", 10) ;
-      t
+        "let *** = ~___\n5" ;
+      tc
         "shift tab goes to previous block in a let"
         emptyLet
         (shiftTab 10)
-        ("let *** = ___\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc
         "shift tab completes autocomplete"
         completelyEmptyLet
         (presses [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
-        ("let *** = ___\nif ___\nthen\n  ___\nelse\n  ___", 10) ;
-      t
+        "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
+      tc
         "shift-tab goes when on blank"
         completelyEmptyLet
         (shiftTab 14)
-        ("let *** = ___\n___", 10) ;
-      t
+        "let *** = ~___\n___" ;
+      tc
         "shift tab wraps from start of let"
         emptyLet
         (shiftTab 4)
-        ("let *** = ___\n5", 10) ;
-      t "cant tab to filled letLHS" letWithLhs (tab 0) ("let n = 6\n5", 0) ;
-      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
-      t "can shift tab to field blank" aBlankField (shiftTab 0) ("obj.***", 4) ;
+        "let *** = ~___\n5" ;
+      tc "cant tab to filled letLHS" letWithLhs (tab 0) "~let n = 6\n5" ;
+      tc "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
+      tc "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
       () ) ;
   ()
