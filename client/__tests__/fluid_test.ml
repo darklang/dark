@@ -11,11 +11,11 @@ module K = FluidKeyboard
 
 (*
  * These tests are all written in a common style: t "del end of whole"
- * aFloat (del 2) ("12.456", 2) ;
+ * aFloat (del 2) ("12~.456") ;
  *
  * This is a test that takes the fluidExpr called aFloat, and does a del on
  * it in position 2. The stringified result is "12.456" and the cursor should
- * be in position 2.
+ * be in position 2 (indicated by the tilde).
  *
  * There are a handful of functions you can call, including press, presses,
  * insert, bs, del, tab, shiftTab, and render.
