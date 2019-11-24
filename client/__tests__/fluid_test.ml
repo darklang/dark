@@ -521,340 +521,299 @@ let () =
       let segment = nums ^ letters ^ nums ^ letters in
       let mlStr = EString (gid (), segment ^ segment ^ nums) in
       let wrapIf e = EIf (gid (), e, newB (), newB ()) in
-      t
+      tc
         "insert into start string"
         mlStr
         (insert 'c' 3)
-        ( "\"12c3456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 4 ) ;
-      t
+        ( "\"12c~3456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
+      tc
         "insert into middle string"
         mlStr
         (insert 'c' 44 (* quote + 2 + newline *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12c3456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 45 ) ;
-      t
+        ^ "12c~3456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
+      tc
         "insert into end string"
         mlStr
         (insert 'c' 85 (* quote + 2 + newline*2 *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12c3456789_\""
-        , 86 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12c~3456789_\"" ) ;
+      tc
         "del mid start string"
         mlStr
         (del 3)
-        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 3 ) ;
-      t
+        ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "del mid middle string"
         mlStr
         (del 44)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 44 ) ;
-      t
+        ^ "12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "del mid end string"
         mlStr
         (del 85)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_\""
-        , 85 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12~456789_\"" ) ;
+      tc
         "bs mid start string"
         mlStr
         (bs 4)
-        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 3 ) ;
-      t
+        ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "bs mid middle string"
         mlStr
         (bs 45)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 44 ) ;
-      t
+        ^ "12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "bs mid end string"
         mlStr
         (bs 86)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_\""
-        , 85 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12~456789_\"" ) ;
+      tc
         "insert outside string"
         mlStr
         (insert 'c' 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
-      t
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "del outside string"
         mlStr
         (del 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
-      t
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "bs outside string"
         mlStr
         (bs 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
-      t
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "insert start of start string"
         mlStr
         (insert 'c' 1)
-        ( "\"c123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 2 ) ;
-      t
+        ( "\"c~123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
+      tc
         "insert start of middle string"
         mlStr
         (insert 'c' 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "c123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 43 ) ;
-      t
+        ^ "c~123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
+      tc
         "insert start of end string"
         mlStr
         (insert 'c' 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "c123456789_\""
-        , 84 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "c~123456789_\"" ) ;
+      tc
         "del start of start string"
         mlStr
         (del 1)
-        ( "\"23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 1 ) ;
-      t
+        ( "\"~23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "del start of middle string"
         mlStr
         (del 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 42 ) ;
-      t
+        ^ "~23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "del start of end string"
         mlStr
         (del 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "23456789_\""
-        , 83 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "~23456789_\"" ) ;
+      tc
         "bs start of start string"
         mlStr
         (bs 1)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
-      t
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "bs start of middle string"
         mlStr
         (bs 42)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 41 ) ;
-      t
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "bs start of end string"
         mlStr
         (bs 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 82 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_\"" ) ;
+      tc
         "insert end of start string"
         mlStr
         (insert 'c' 41)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 43 ) ;
-      t
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc~"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
+      tc
         "insert end of middle string"
         mlStr
         (insert 'c' 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\nc"
-          ^ "123456789_\""
-        , 84 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\nc~"
+        ^ "123456789_\"" ) ;
+      tc
         "insert end of end string"
         mlStr
         (insert 'c' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_c\""
-        , 94 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_c~\"" ) ;
+      tc
         "string converts to ml string"
         (EString (gid (), segment))
         (insert 'c' 41)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\nc\"", 43) ;
-      t
+        "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
+      tc
         "indented string converts to ml string"
         (wrapIf (EString (gid (), segment)))
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 49 ) ;
-      t
+        ^ "   c~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "insert end of indented start string"
         (wrapIf (EString (gid (), segment ^ segment)))
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c123456789_abcdefghi,123456789_abcdefghi\n"
-          ^ "   ,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 49 ) ;
-      t
+        ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
+        ^ "   ,\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "insert end of indented end string"
         (wrapIf (EString (gid (), segment ^ segment)))
         (insert 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 93 ) ;
-      t
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "   c~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "del end of start string"
         mlStr
         (del 41)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 41 ) ;
-      t
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
+      tc
         "del end of middle string"
         mlStr
         (del 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 82 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_\"" ) ;
+      tc
         "del end of end string"
         mlStr
         (del 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 93 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_~\"" ) ;
+      tc
         "bs end of start string"
         mlStr
         (bs 41)
         ( "\"123456789_abcdefghi,123456789_abcdefghi"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 40 ) ;
-      t
+        ^ "~1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
+      tc
         "bs end of middle string"
         mlStr
         (bs 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi"
-          ^ "1\n23456789_\""
-        , 81 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi"
+        ^ "~1\n23456789_\"" ) ;
+      tc
         "bs end of end string"
         mlStr
         (bs 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789\""
-        , 92 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789~\"" ) ;
+      tc
         "insert after end of end string"
         mlStr
         (insert 'c' 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
+      tc
         "del after end of end string"
         mlStr
         (del 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
+      tc
         "bs after end of end string"
         mlStr
         (bs 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 93 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_~\"" ) ;
       (* Skipped insert, del, bs of space, as it doesn't seem interesting *)
-      t
+      tc
         "final quote is swallowed"
         mlStr
         (insert '"' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
-      t
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
+      tc
         "bs, 3 lines to 2, end"
         (wrapIf (EString (gid (), segment ^ segment ^ "c")))
         (bs 93)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 88 ) ;
-      t
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "bs, 2 lines to 1, end"
         (wrapIf (EString (gid (), segment ^ "c")))
         (bs 49)
-        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 44 ) ;
-      t
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "del, 3 lines to 2, end"
         (wrapIf (EString (gid (), segment ^ segment ^ "c")))
         (del 92)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 88 ) ;
-      t
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
+      tc
         "del, 2 lines to 1, end"
         (wrapIf (EString (gid (), segment ^ "c")))
         (del 48)
-        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 44 ) ;
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
