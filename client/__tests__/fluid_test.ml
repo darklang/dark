@@ -1141,93 +1141,93 @@ let () =
            * place for new partials *) ;
       () ) ;
   describe "Binops" (fun () ->
-      tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
-      t
+      tcp "pipe key starts partial" trueBool (press K.Pipe 4) "true |~" ;
+      tc
         "pressing enter completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Enter] 4)
-        ("true || __________", 7) ;
-      t
+        "true ||~ __________" ;
+      tc
         "pressing space completes partial"
         trueBool
         (presses [K.Pipe; K.Down; K.Space] 4)
-        ("true || __________", 8) ;
-      tp
+        "true || ~__________" ;
+      tcp
         "pressing plus key starts partial"
         trueBool
         (press K.Plus 4)
-        ("true +", 6) ;
-      tp
+        "true +~" ;
+      tcp
         "pressing caret key starts partial"
         anInt
         (press K.Caret 5)
-        ("12345 ^", 7) ;
-      t
+        "12345 ^~" ;
+      tc
         "pressing pipe twice then space completes partial"
         trueBool
         (presses [K.Pipe; K.Pipe; K.Space] 4)
-        ("true || __________", 8) ;
-      t
+        "true || ~__________" ;
+      tc
         "piping into newline creates pipe"
         trueBool
         (presses [K.Pipe; K.GreaterThan; K.Space] 4)
-        ("true\n|>___\n", 7) ;
-      t
+        "true\n|>~___\n" ;
+      tc
         "pressing bs to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b, NoRail)))
         (bs 7)
-        ("12345", 5) ;
-      t
+        "12345~" ;
+      tc
         "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
         (bs 12)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "pressing del to clear partial reverts for blank rhs"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b, NoRail)))
         (del 6)
-        ("12345", 5) ;
-      t
+        "12345~" ;
+      tc
         "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start"
         (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
         (del 11)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "using bs to remove an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
         (bs 12)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "using bs to remove an infix with a placeholder goes to right place 2"
         (EPartial (gid (), "|", EBinOp (gid (), "||", five, b, NoRail)))
         (bs 3)
-        ("5", 1) ;
-      t
+        "5~" ;
+      tc
         "pressing bs to clear rightpartial reverts for blank rhs"
         (ERightPartial (gid (), "|", b))
         (bs 5)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "pressing bs on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (bs 7)
-        ("12345", 5) ;
-      t
+        "12345~" ;
+      tc
         "using del to remove an infix with a placeholder goes to right place"
         (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
         (del 11)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "pressing del to clear rightpartial reverts for blank rhs"
         (ERightPartial (gid (), "|", b))
         (del 4)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "pressing del on single digit binop leaves lhs"
         (EBinOp (gid (), "+", anInt, anInt, NoRail))
         (del 6)
-        ("12345", 5) ;
-      t
+        "12345~" ;
+      tc
         "pressing del to remove a string binop combines lhs and rhs"
         (EBinOp
            ( gid ()
@@ -1236,8 +1236,8 @@ let () =
            , EString (gid (), "six")
            , NoRail ))
         (presses [K.Delete; K.Delete] 7)
-        ("\"fivesix\"", 5) ;
-      t
+        "\"five~six\"" ;
+      tc
         "pressing backspace to remove a string binop combines lhs and rhs"
         (EBinOp
            ( gid ()
@@ -1246,44 +1246,44 @@ let () =
            , EString (gid (), "six")
            , NoRail ))
         (presses [K.Backspace; K.Backspace] 9)
-        ("\"fivesix\"", 5) ;
-      t
+        "\"five~six\"" ;
+      tc
         "pressing letters and numbers on a partial completes it"
         b
         (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
-        ("5 + 5", 5) ;
-      tp
+        "5 + 5~" ;
+      tcp
         "pressing pipe while editing a partial works properly"
         (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, anInt, NoRail)))
         (press K.Pipe 7)
-        ("12345 || 12345", 8) ;
-      tp
+        "12345 ||~ 12345" ;
+      tcp
         "pressing = after < should go to partial"
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (press K.Equals 7)
-        ("12345 <= 12345", 8) ;
-      t
+        "12345 <=~ 12345" ;
+      tc
         "changing binop to fn should work"
         (EPartial
            (gid (), "Int::add", EBinOp (gid (), "+", anInt, anInt, NoRail)))
         (presses [K.Enter] 14)
-        ("Int::add 12345 12345", 15) ;
-      t
+        "Int::add 12345 ~12345" ;
+      tc
         "changing fn to binops should work"
         (EPartial
            (gid (), "+", EFnCall (gid (), "Int::add", [anInt; anInt], NoRail)))
         (presses [K.Enter] 1)
-        ("12345 + 12345", 0) ;
-      t
+        "~12345 + 12345" ;
+      tc
         "changing binop should work"
         (EBinOp (gid (), "<", anInt, anInt, NoRail))
         (presses [K.Equals; K.Enter] 7)
-        ("12345 <= 12345", 8) ;
-      tp
+        "12345 <=~ 12345" ;
+      tcp
         "adding binop in `if` works"
         (EIf (gid (), b, b, b))
         (press K.Percent 3)
-        ("if %\nthen\n  ___\nelse\n  ___", 4) ;
+        "if %~\nthen\n  ___\nelse\n  ___" ;
       let aFullBinOp =
         EBinOp
           ( gid ()
@@ -1292,37 +1292,37 @@ let () =
           , EInteger (gid (), "5")
           , NoRail )
       in
-      tp "show ghost partial" aFullBinOp (bs 8) ("myvar |@ 5", 7) ;
+      tcp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
-      tp
+      tcp
         "arguments work in constructors"
         aConstructor
         (insert 't' 5)
-        ("Just t", 6) ;
-      t
+        "Just t~" ;
+      tc
         "int arguments work in constructors"
         aConstructor
         (insert '5' 5)
-        ("Just 5", 6) ;
-      tp
+        "Just 5~" ;
+      tcp
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
         (bs 4)
-        ("Jus@ ___", 3) ;
-      tp
+        "Jus~@ ___" ;
+      tcp
         "del on a constructor converts it to a partial with ghost"
         aConstructor
         (del 0)
-        ("ust@ ___", 0) ;
-      t
+        "~ust@ ___" ;
+      tc
         "space on a constructor blank does nothing"
         aConstructor
         (space 5)
-        ("Just ___", 5) ;
+        "Just ~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -1331,63 +1331,64 @@ let () =
       () ) ;
   describe "Lambdas" (fun () ->
       (* type -> to move through a lambda *)
-      t
+      tc
         "type - after a lambda var to move into a lambda arrow"
         aLambda
         (press Minus 4)
-        ("\\*** -> ___", 6) ;
-      t
+        "\\*** -~> ___" ;
+      tc
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
         (press Minus 5)
-        ("\\*** -> ___", 6) ;
-      t
+        "\\*** -~> ___" ;
+      tc
         "type > inside a lambda arrow to move past it"
         aLambda
         (press GreaterThan 6)
-        ("\\*** -> ___", 8) ;
+        "\\*** -> ~___" ;
       (* end type -> to move through a lambda *)
-      t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
-      t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
-      t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) ("\\*** -> 5", 1) ;
-      t "del lambda symbol" aLambda (del 0) ("___", 0) ;
-      t "del non-empty lambda symbol" nonEmptyLambda (del 0) ("\\*** -> 5", 0) ;
-      t
+      tc "bs over lambda symbol" aLambda (bs 1) "~___" ;
+      tc "insert space in lambda" aLambda (press K.Space 1) "\\~*** -> ___" ;
+      tc "bs non-empty lambda symbol" nonEmptyLambda (bs 1) "\\~*** -> 5" ;
+      tc "del lambda symbol" aLambda (del 0) "~___" ;
+      tc "del non-empty lambda symbol" nonEmptyLambda (del 0) "~\\*** -> 5" ;
+      tc
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
         (insert 'c' 8)
-        ("\\bindingc -> bindingc", 9) ;
-      t
+        "\\bindingc~ -> bindingc" ;
+      tc
         "insert changes occurence of binding 2nd var"
         (lambdaWithUsed2ndBinding "binding")
         (insert 'c' 17)
-        ("\\somevar, bindingc -> bindingc", 18) ;
-      t
+        "\\somevar, bindingc~ -> bindingc" ;
+      tc
         "dont jump in lambdavars with infix chars"
         aLambda
         (press K.Plus 1)
-        ("\\*** -> ___", 1) ;
-      t
+        "\\~*** -> ___" ;
+      tc
         "dont allow name to start with a number"
         aLambda
         (insert '5' 1)
-        ("\\*** -> ___", 1) ;
-      t
+        "\\~*** -> ___" ;
+      tc
         "dont allow name to start with a number, pt 2"
         (lambdaWithBinding "test" five)
         (insert '2' 1)
-        ("\\test -> 5", 1) ;
-      t
+        "\\~test -> 5" ;
+      tc
         "dont allow name to start with a number, pt 3"
         aLambda
         (insert '5' 3)
-        ("\\*** -> ___", 3) ;
-      t
+        (* TODO: this looks wrong *)
+        "\\**~* -> ___" ;
+      tc
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
         (press (K.Letter '\\') 24)
-        ("Dict::map _____________ \\key, value -> ___", 25) ;
-      t
+        "Dict::map _____________ \\~key, value -> ___" ;
+      tc
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
         (EPipe (gid (), [b; b]))
         (presses
@@ -1395,74 +1396,74 @@ let () =
             * so the arguments are adjusted based on the pipe *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
-        ("___\n|>Dict::map \\key, value -> ___\n", 17) ;
-      t
+        "___\n|>Dict::map \\~key, value -> ___\n" ;
+      tc
         "deleting a lambda argument should work"
         lambdaWithTwoBindings
         (del 2)
-        ("\\x -> ___", 2) ;
-      t
+        "\\x~ -> ___" ;
+      tc
         "backspacing a lambda argument should work"
         lambdaWithTwoBindings
         (bs 3)
-        ("\\x -> ___", 2) ;
-      t
+        "\\x~ -> ___" ;
+      tc
         "deleting a lambda argument should update used variable"
         (lambdaWithUsed2ndBinding "x")
         (del 8)
-        ("\\somevar -> ___", 8) ;
-      t
+        "\\somevar~ -> ___" ;
+      tc
         "can add lambda arguments when blank"
         aLambda
         (insert ',' 4)
-        ("\\***, *** -> ___", 6) ;
-      t
+        "\\***, ~*** -> ___" ;
+      tc
         "can add lambda arguments to used binding"
         lambdaWithTwoBindings
         (insert ',' 5)
-        ("\\x, y, *** -> ___", 7) ;
-      t
+        "\\x, y, ~*** -> ___" ;
+      tc
         "can add lambda arguments in middle used binding"
         lambdaWithTwoBindings
         (insert ',' 2)
-        ("\\x, ***, y -> ___", 4) ;
-      t
+        "\\x, ~***, y -> ___" ;
+      tc
         "can add lambda arguments in the front"
         lambdaWithTwoBindings
         (insert ',' 1)
-        ("\\***, x, y -> ___", 1) ;
-      t
+        "\\~***, x, y -> ___" ;
+      tc
         "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
         (insert ',' 4)
-        ("\\x, ***, y -> ___", 4) ;
-      t
+        "\\x, ~***, y -> ___" ;
+      tc
         "cant insert a blank from outside the lambda"
         lambdaWithTwoBindings
         (insert ',' 0)
-        ("\\x, y -> ___", 0) ;
-      t
+        "~\\x, y -> ___" ;
+      tc
         "cant bs a blank from the space in a lambda"
         lambdaWithTwoBindings
         (bs 4)
-        ("\\x, y -> ___", 3) ;
+        "\\x,~ y -> ___" ;
       () ) ;
   describe "Variables" (fun () ->
-      tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
-      tp "del middle of variable" aVar (del 5) ("variale", 5) ;
-      tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
-      t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
-      t "del variable" aShortVar (del 0) (blank, 0) ;
-      tp "del long variable" aVar (del 0) ("ariable", 0) ;
-      tp "del mid variable" aVar (del 6) ("variabe", 6) ;
-      t "bs variable" aShortVar (bs 1) (blank, 0) ;
-      tp "bs mid variable" aVar (bs 8) ("variabl", 7) ;
-      tp "bs mid variable" aVar (bs 6) ("variale", 5) ;
-      t
+      tcp "insert middle of variable" aVar (insert 'c' 5) "variac~ble" ;
+      tcp "del middle of variable" aVar (del 5) "varia~le" ;
+      tcp "insert capital works" aVar (press (K.Letter 'A') 5) "variaA~ble" ;
+      tc "can't insert invalid" aVar (press K.Dollar 5) "varia~ble" ;
+      tc "del variable" aShortVar (del 0) "~___" ;
+      tcp "del long variable" aVar (del 0) "~ariable" ;
+      tcp "del mid variable" aVar (del 6) "variab~e" ;
+      tc "bs variable" aShortVar (bs 1) "~___" ;
+      tcp "bs mid variable" aVar (bs 8) "variabl~" ;
+      tcp "bs mid variable" aVar (bs 6) "varia~le" ;
+      tc
         "variable doesn't override if"
         (ELet (gid (), gid (), "i", b, EPartial (gid (), "i", b)))
         (presses [K.Letter 'f'; K.Enter] 13)
-        ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
+        "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       () ) ;
   describe "Match" (fun () ->
       t
