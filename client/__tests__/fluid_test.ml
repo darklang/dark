@@ -1466,192 +1466,187 @@ let () =
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       () ) ;
   describe "Match" (fun () ->
-      t
+      tc
         "move to the front of match"
         emptyMatch
         (press K.GoToStartOfLine 6)
-        ("match ___\n  *** -> ___\n", 0) ;
-      t
+        "~match ___\n  *** -> ___\n" ;
+      tc
         "move to the end of match"
         emptyMatch
         (press K.GoToEndOfLine 0)
-        ("match ___\n  *** -> ___\n", 9) ;
-      t
+        "match ___~\n  *** -> ___\n" ;
+      tc
         "move to the front of match on line 2"
         emptyMatch
         (press K.GoToStartOfLine 15)
-        ("match ___\n  *** -> ___\n", 12) ;
-      t
+        "match ___\n  ~*** -> ___\n" ;
+      tc
         "move to the end of match on line 2"
         emptyMatch
         (press K.GoToEndOfLine 12)
-        ("match ___\n  *** -> ___\n", 22) ;
-      t
+        "match ___\n  *** -> ___~\n" ;
+      tc
         "move back over match"
         emptyMatch
         (press K.Left 6)
-        ("match ___\n  *** -> ___\n", 0) ;
-      t
+        "~match ___\n  *** -> ___\n" ;
+      tc
         "move forward over match"
         emptyMatch
         (press K.Right 0)
-        ("match ___\n  *** -> ___\n", 6) ;
-      t "bs over empty match" emptyMatch (bs 6) ("___", 0) ;
-      t
+        "match ~___\n  *** -> ___\n" ;
+      tc "bs over empty match" emptyMatch (bs 6) "~___" ;
+      tc
         "bs over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
         (bs 6)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "bs over match with 2 patterns"
         matchWithPatterns
         (bs 6)
-        ("match ___\n  3 -> ___\n", 6) ;
-      t "del over empty match" emptyMatch (del 0) ("___", 0) ;
-      t
+        "match ~___\n  3 -> ___\n" ;
+      tc "del over empty match" emptyMatch (del 0) "~___" ;
+      tc
         "del over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
         (del 0)
-        ("___", 0) ;
-      t
+        "~___" ;
+      tc
         "del over match with 2 patterns"
         matchWithPatterns
         (del 0)
-        ("match ___\n  3 -> ___\n", 0) ;
-      t
+        "~match ___\n  3 -> ___\n" ;
+      tc
         "del constructor in match pattern"
         matchWithConstructorPattern
         (del 12)
-        ("match ___\n  ust -> ___\n", 12) ;
-      t
+        "match ___\n  ~ust -> ___\n" ;
+      tc
         "bs constructor in match pattern"
         matchWithConstructorPattern
         (bs 16)
-        ("match ___\n  Jus -> ___\n", 15) ;
-      t
+        "match ___\n  Jus~ -> ___\n" ;
+      tc
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (EVariable (gid (), "binding")))
         (insert 'c' 19)
-        ("match ___\n  bindingc -> bindingc\n", 20) ;
-      t
+        "match ___\n  bindingc~ -> bindingc\n" ;
+      tc
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
         (insert 'c' 22)
-        ("match ___\n  Ok bindingc -> bindingc\n", 23) ;
-      t
+        "match ___\n  Ok bindingc~ -> bindingc\n" ;
+      tc
         "insert space in blank match"
         emptyMatch
         (press K.Space 6)
-        ("match ___\n  *** -> ___\n", 6) ;
-      t
+        "match ~___\n  *** -> ___\n" ;
+      tc
         "insert space in blank match on line 2"
         emptyMatch
         (press K.Space 12)
-        ("match ___\n  *** -> ___\n", 12) ;
-      t
+        "match ___\n  ~*** -> ___\n" ;
+      tc
         "enter at the end of the cond creates a new row"
         matchWithPatterns
         (enter 9)
-        ("match ___\n  *** -> ___\n  3 -> ___\n", 12) ;
-      t
+        "match ___\n  ~*** -> ___\n  3 -> ___\n" ;
+      tc
         "enter at the end of a row creates a new row"
         emptyMatchWithTwoPatterns
         (enter 22)
-        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___\n", 25) ;
-      t
+        "match ___\n  *** -> ___\n  ~*** -> ___\n  *** -> ___\n" ;
+      tc
         "enter at the end of the last row creates a new row"
         emptyMatchWithTwoPatterns
         (enter 35)
-        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___\n", 38) ;
-      t
+        "match ___\n  *** -> ___\n  *** -> ___\n  ~*** -> ___\n" ;
+      tc
         "enter at the end of the last row in nested match creates a new row"
         nestedMatch
         (enter 50)
-        ( "match ___\n  *** -> match ___\n           *** -> ___\n           *** -> ___\n"
-        , 62 ) ;
-      t
+        "match ___\n  *** -> match ___\n           *** -> ___\n           ~*** -> ___\n" ;
+      tc
         "enter at the start of a row creates a new row"
         matchWithPatterns
         (enter 12)
-        ("match ___\n  *** -> ___\n  3 -> ___\n", 25) ;
-      t
+        "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
+      tc
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
-        ("match ___\n  *** -> ___\n", 9) ;
-      t
+        "match ___~\n  *** -> ___\n" ;
+      tc
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
         (bs 25)
-        ("match ___\n  *** -> ___\n", 22) ;
-      t
+        "match ___\n  *** -> ___~\n" ;
+      tc
         "backspacing only row doesn't delete"
         emptyMatch
         (bs 12)
-        ("match ___\n  *** -> ___\n", 9) ;
+        "match ___~\n  *** -> ___\n" ;
       (* delete row with delete *)
       () ) ;
   describe "Lets" (fun () ->
-      t
+      tc
         "move to the front of let"
         emptyLet
         (press K.GoToStartOfLine 4)
-        ("let *** = ___\n5", 0) ;
-      t
+        "~let *** = ___\n5" ;
+      tc
         "move to the end of let"
         emptyLet
         (press K.GoToEndOfLine 4)
-        ("let *** = ___\n5", 13) ;
-      t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
-      t
-        "move forward over let"
-        emptyLet
-        (press K.Right 0)
-        ("let *** = ___\n5", 4) ;
-      t "bs over empty let" emptyLet (bs 3) ("5", 0) ;
-      t "del empty let" emptyLet (del 0) ("5", 0) ;
-      t "bs over non-empty let" nonEmptyLet (bs 3) ("let *** = 6\n5", 3) ;
-      t "del non-empty let" nonEmptyLet (del 0) ("let *** = 6\n5", 0) ;
-      t
+        "let *** = ___~\n5" ;
+      tc "move back over let" emptyLet (press K.Left 4) "~let *** = ___\n5" ;
+      tc "move forward over let" emptyLet (press K.Right 0) "let ~*** = ___\n5" ;
+      tc "bs over empty let" emptyLet (bs 3) "~5" ;
+      tc "del empty let" emptyLet (del 0) "~5" ;
+      tc "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
+      tc "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
+      tc
         "insert space on blank let"
         emptyLet
         (press K.Space 4)
-        ("let *** = ___\n5", 4) ;
-      t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
-      t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
-      t "bs letlhs" letWithLhs (bs 5) ("let *** = 6\n5", 4) ;
-      t "del letlhs" letWithLhs (del 4) ("let *** = 6\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc "lhs on empty" emptyLet (insert 'c' 4) "let c~ = ___\n5" ;
+      tc "middle of blank" emptyLet (insert 'c' 5) "let c~ = ___\n5" ;
+      tc "bs letlhs" letWithLhs (bs 5) "let ~*** = 6\n5" ;
+      tc "del letlhs" letWithLhs (del 4) "let ~*** = 6\n5" ;
+      tc
         "equals skips over assignment"
         emptyLet
         (presses [K.Letter 'c'; K.Equals] 4)
-        ("let c = ___\n5", 8) ;
-      t
+        "let c = ~___\n5" ;
+      tc
         "equals skips over assignment 1"
         emptyLet
         (press K.Equals 7)
-        ("let *** = ___\n5", 10) ;
-      t
+        "let *** = ~___\n5" ;
+      tc
         "equals skips over assignment 2"
         emptyLet
         (press K.Equals 8)
-        ("let *** = ___\n5", 10) ;
-      t
+        "let *** = ~___\n5" ;
+      tc
         "equals skips over assignment 3"
         emptyLet
         (press K.Equals 9)
-        ("let *** = ___\n5", 10) ;
-      t
+        "let *** = ~___\n5" ;
+      tc
         "bs changes occurence of binding var"
         (letWithUsedBinding "binding")
         (bs 11)
-        ("let bindin = 6\nbindin", 10) ;
-      t
+        "let bindin~ = 6\nbindin" ;
+      tc
         "insert changes occurence of binding var"
         (letWithUsedBinding "binding")
         (insert 'c' 11)
-        ("let bindingc = 6\nbindingc", 12) ;
-      t
+        "let bindingc~ = 6\nbindingc" ;
+      tc
         "insert changes occurence of binding in match nested expr"
         (letWithBinding
            "binding"
@@ -1663,86 +1658,83 @@ let () =
                 ; ( FPInteger (gid (), gid (), "5")
                   , EVariable (gid (), "binding") ) ] )))
         (insert 'c' 11)
-        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n"
-        , 12 ) ;
-      t
+        "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
+      tc
         "insert doesn't change occurence of binding in shadowed lambda expr"
         (letWithBinding
            "binding"
            (ELambda
               (gid (), [(gid (), "binding")], EVariable (gid (), "binding"))))
         (insert 'c' 11)
-        ("let bindingc = 6\n\\binding -> binding", 12) ;
-      t
+        "let bindingc~ = 6\n\\binding -> binding" ;
+      tc
         "insert changes occurence of binding in lambda expr"
         (letWithBinding
            "binding"
            (ELambda
               (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
         (insert 'c' 11)
-        ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
-      t
+        "let bindingc~ = 6\n\\somevar -> bindingc" ;
+      tc
         "dont jump in letlhs with infix chars"
         emptyLet
         (press K.Plus 4)
-        ("let *** = ___\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc
         "dont allow letlhs to start with a number"
         emptyLet
         (insert '5' 4)
-        ("let *** = ___\n5", 4) ;
-      t
+        "let ~*** = ___\n5" ;
+      tc
         "dont allow letlhs to start with a number, pt 2"
         letWithLhs
         (insert '2' 4)
-        ("let n = 6\n5", 4) ;
-      t
+        "let ~n = 6\n5" ;
+      tc
         "dont allow letlhs to start with a number, pt 3"
         emptyLet
         (insert '5' 6)
-        ("let *** = ___\n5", 6) ;
-      t
+        "let **~* = ___\n5" ;
+      tc
         "enter on the end of let goes to blank"
         nonEmptyLetWithBlankEnd
         (enter 11)
-        ("let *** = 6\n___", 12) ;
-      t
+        "let *** = 6\n~___" ;
+      tc
         "enter at the end of a line inserts let if no blank is next"
         nonEmptyLet
         (enter 11)
-        ("let *** = 6\nlet *** = ___\n5", 16) ;
-      t
+        "let *** = 6\nlet ~*** = ___\n5" ;
+      tc
         "enter at the start of a let creates let above"
         twoLets
         (enter 10)
-        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 24) ;
-      t
+        "let x = 5\nlet *** = ___\n~let y = 6\n7" ;
+      tc
         "enter at the start of first let creates let above"
         nonEmptyLet
         (enter 0)
-        ("let *** = ___\nlet *** = 6\n5", 14) ;
-      t
+        "let *** = ___\n~let *** = 6\n5" ;
+      tc
         "enter at the end of a let with a let below inserts new let"
         twoLets
         (enter 9)
-        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 14) ;
-      t
+        "let x = 5\nlet ~*** = ___\nlet y = 6\n7" ;
+      tc
         "enter on the end of first let inserts new let"
         matchWithTwoLets
         (enter 28)
-        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___\n"
-        , 42 ) ;
-      t
+        "match ___\n  *** -> let x = 5\n         let ~*** = ___\n         let y = 6\n         ___\n" ;
+      tc
         "enter on the end of second let goes to blank"
         matchWithTwoLets
         (enter 47)
-        ( "match ___\n  *** -> let x = 5\n         let y = 6\n         ___\n"
-        , 57 ) ;
-      t
+        "match ___\n  *** -> let x = 5\n         let y = 6\n         ~___\n" ;
+      tc
         "enter at the start of a non-let also creates let above"
         anInt
         (enter 0)
-        ("let *** = ___\n12345", 14) ;
+        "let *** = ___\n~12345" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
@@ -1789,213 +1781,203 @@ let () =
         pipeOn emptyList [listFn [pipeOn aList5 [listFn [aList6]]]]
       in
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
-      t
+      tc
         "move to the front of pipe on line 1"
         aPipe
         (press K.GoToStartOfLine 2)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
-      t
+        "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
+      tc
         "move to the end of pipe on line 1"
         aPipe
         (press K.GoToEndOfLine 0)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 2) ;
-      t
+        "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
+      tc
         "move to the front of pipe on line 2"
         aPipe
         (press K.GoToStartOfLine 8)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 5) ;
-      t
+        "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
+      tc
         "move to the end of pipe on line 2"
         aPipe
         (press K.GoToEndOfLine 5)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 21) ;
-      t
+        "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
+      tc
         "move to the front of pipe on line 3"
         aPipe
         (press K.GoToStartOfLine 40)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 24) ;
-      t
+        "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
+      tc
         "move to the end of pipe on line 3"
         aPipe
         (press K.GoToEndOfLine 24)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 40) ;
-      t
+        "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
+      tc
         "pipes appear on new lines"
         aPipe
         render
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
-      t
+        "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
+      tc
         "nested pipes will indent"
         aNestedPipe
         render
-        ("[]\n|>List::append [5]\n               |>List::append [6]\n", 0) ;
-      t
+        "~[]\n|>List::append [5]\n               |>List::append [6]\n" ;
+      tc
         "backspacing a pipe's first pipe works"
         aLongPipe
         (bs 5)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 2) ;
-      t
+        "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
+      tc
         "deleting a pipe's first pipe works"
         aLongPipe
         (del 3)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 3) ;
-      t
+        "[]\n~|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
+      tc
         "backspacing a pipe's second pipe works"
         aLongPipe
         (bs 24)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 21) ;
-      t
+        "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n" ;
+      tc
         "deleting a pipe's second pipe works"
         aLongPipe
         (del 22)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 22) ;
-      t
+        "[]\n|>List::append [2]\n~|>List::append [4]\n|>List::append [5]\n" ;
+      tc
         "backspacing a pipe's third pipe works"
         aLongPipe
         (bs 43)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 40) ;
-      t
+        "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n" ;
+      tc
         "deleting a pipe's third pipe works"
         aLongPipe
         (del 41)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 41) ;
-      t
+        "[]\n|>List::append [2]\n|>List::append [3]\n~|>List::append [5]\n" ;
+      tc
         "backspacing a pipe's last pipe works"
         aLongPipe
         (bs 62)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
-      t
+        "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
+      tc
         "deleting a pipe's last pipe works"
         aLongPipe
         (del 60)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
-      t
+        "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
+      tc
         "backspacing a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 21)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 16 ) ;
-      t
+        "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
+      tc
         "deleting a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
         (del 19)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 19 ) ;
-      t
+        "if ___\nthen\n  []\n  ~|>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
+      tc
         "backspacing a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 42)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 37 ) ;
-      t
+        "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
+      tc
         "deleting a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
         (del 40)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 40 ) ;
-      t
+        "if ___\nthen\n  []\n  |>List::append [2]\n  ~|>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
+      tc
         "backspacing a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 63)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
-        , 58 ) ;
-      t
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___" ;
+      tc
         "deleting a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
         (del 61)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
-        , 61 ) ;
-      t
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  ~|>List::append [5]\nelse\n  ___" ;
+      tc
         "backspacing a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 84)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 79 ) ;
-      t
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
+      tc
         "deleting a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
         (del 82)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 79 ) ;
-      tp
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
+      tcp
         "backspacing a pipe's first fn works"
         aLongPipe
         (bs 17)
-        ( "[]\n|>List::appen@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n"
-        , 16 ) ;
-      tp
+        "[]\n|>List::appen~@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
+      tcp
         "backspacing a pipe's first binop works"
         aBinopPipe
         (bs 8)
-        ("___\n|>+@ \"asd\"\n", 7) ;
-      t
+        "___\n|>+~@ \"asd\"\n" ;
+      tc
         "adding infix functions adds the right number of blanks"
         emptyPipe
         (presses [K.Plus; K.Enter] 6)
-        ("___\n|>+ _________\n", 8) ;
-      t
+        "___\n|>+ ~_________\n" ;
+      tc
         "creating a pipe from an fn via a partial works"
         (EPartial (gid (), "|>", aFnCall))
         (enter 2)
-        (* This really should end in 18, but too much work for now *)
-        ("Int::add 5 _________\n|>___\n", 11) ;
-      t
+        (* TODO: This really should end in 18, but too much work for now *)
+        "Int::add 5 ~_________\n|>___\n" ;
+      tc
         "enter at the end of a pipe expr creates a new entry"
         aPipe
         (enter 21)
-        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]\n", 24) ;
-      t
+        "[]\n|>List::append [5]\n|>~___\n|>List::append [5]\n" ;
+      tc
         "enter at the end of the opening expr creates a new entry"
         aPipe
         (enter 2)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 5) ;
-      t
+        "[]\n|>~___\n|>List::append [5]\n|>List::append [5]\n" ;
+      tc
         "enter at the start of a line creates a new entry"
         aPipe
         (enter 3)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 9) ;
-      t
+        "[]\n|>___\n~|>List::append [5]\n|>List::append [5]\n" ;
+      tc
         "enter at start of blank (within pipe) creates a new entry"
         aPipe
         (enter 5)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 11) ;
-      t
+        "[]\n|>___\n|>~List::append [5]\n|>List::append [5]\n" ;
+      tc
         "enter at the end of the last expr creates a new entry"
         aPipe
         (enter 40)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n|>___\n", 43) ;
-      t
+        "[]\n|>List::append [5]\n|>List::append [5]\n|>~___\n" ;
+      tc
         "enter at the end of the last nested expr creates a new entry"
         aNestedPipe
         (enter 55)
-        ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
-        , 73 ) ;
-      t
+        "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
+      tc
         "inserting a pipe into another pipe gives a single pipe1"
         (pipeOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
         (enter 23)
-        ("5\n|>List::append [5]\n|>___\n", 23) ;
-      t
+        "5\n|>List::append [5]\n|>~___\n" ;
+      tc
         "inserting a pipe into another pipe gives a single pipe2"
         (pipeOn five [listFn [aList5]])
         (press K.ShiftEnter 19)
-        ("5\n|>List::append [5]\n|>___\n", 23) ;
-      t
+        "5\n|>List::append [5]\n|>~___\n" ;
+      tc
         "inserting a pipe into another pipe gives a single pipe3"
         five
         (press K.ShiftEnter 1)
-        ("5\n|>___\n", 4) ;
-      t
+        "5\n|>~___\n" ;
+      tc
         "shift enter at a let's newline creates the pipe on the rhs"
         nonEmptyLet
         (press K.ShiftEnter 11)
-        ("let *** = 6\n          |>___\n5", 24) ;
-      t
+        "let *** = 6\n          |>~___\n5" ;
+      tc
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
         (ERecord
            (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
         (press K.ShiftEnter 11)
-        ("{\n  f1 : 56\n       |>___\n  f2 : 78\n}", 21) ;
+        "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
