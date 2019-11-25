@@ -4928,8 +4928,11 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   let sourceOfCurrentToken =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
-           let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
-           someId )
+           if Token.isBlank ti.token
+           then None
+           else
+             let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
+             someId )
   in
   List.map l ~f:(fun ti ->
       let dropdown () =
