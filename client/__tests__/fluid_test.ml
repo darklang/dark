@@ -788,8 +788,6 @@ let () =
       t "insert non-int in fraction" aFloat (ins 'c' 6) "123.45~6" ;
       t "del dot" aFloat (del 3) "123~456" ;
       t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
-      let maxPosIntWithDot = float' "4611686018427387" "903" in
-      let maxPosIntPlus1WithDot = float' "4611686018427387" "904" in
       t "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
       t
         "del dot at limit2"
@@ -1137,7 +1135,6 @@ let () =
         (if' b b b)
         (key K.Percent 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
-      let aFullBinOp = binop "||" (var "myvar") (int "5") in
       tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)

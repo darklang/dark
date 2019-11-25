@@ -125,6 +125,10 @@ let aHugeFloat = EFloat (gid (), "123456789", "123456789")
 
 let aPartialFloat = EFloat (gid (), "1", "")
 
+let maxPosIntWithDot = float' "4611686018427387" "903"
+
+let maxPosIntPlus1WithDot = float' "4611686018427387" "904"
+
 (* ---------------- *)
 (* Bools *)
 (* ---------------- *)
@@ -329,10 +333,7 @@ let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)
 
 let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
-(* let aFullBinOp = *)
-(*   EBinOp *)
-(*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
-(* in *)
+let aFullBinOp = binop "||" (var "myvar") (int "5")
 
 (* ---------------- *)
 (* Constructors *)
