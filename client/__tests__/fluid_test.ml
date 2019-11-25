@@ -13,7 +13,7 @@ module K = FluidKeyboard
  * aFloat (del 2) ("12~.456") ;
  *
  * This is a test that takes the fluidExpr called aFloat, and does a del on
- * it in position 2. The stringified result is "12.456" and the cursor should
+ * it in position 2. The stringified result is "12.456" and the caret should
  * be in position 2 (indicated by the tilde).
  *
  * There are a handful of functions you can call, including key, keys,
@@ -39,7 +39,7 @@ module K = FluidKeyboard
  *    controlled by FluidToken.toTestText
  *  - Wrap:
  *      When I started writing these tests, I discovered that they kept passing
- *      despite there being a bug. Whenever the cursor went over the end, it
+ *      despite there being a bug. Whenever the caret went over the end, it
  *      would stay in the last place, giving a false pass. To avoid this,
  *      I wrapped all test cases:
  *         ```
@@ -370,12 +370,12 @@ let () =
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
       (expectedStr : string) =
-    let insertCursor
-        (((str, (_selection, cursor)), res) :
+    let insertCaret
+        (((str, (_selection, caret)), res) :
           (string * (int option * int)) * bool) : string * bool =
-      let cursorString = "~" in
-      match str |> String.splitAt ~index:cursor with a, b ->
-        ([a; b] |> String.join ~sep:cursorString, res)
+      let caretString = "~" in
+      match str |> String.splitAt ~index:caret with a, b ->
+        ([a; b] |> String.join ~sep:caretString, res)
     in
     test
       ( name
@@ -384,7 +384,7 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCursor) |> toEqual (expectedStr, false) )
+        expect (fn initial |> insertCaret) |> toEqual (expectedStr, false) )
   in
   (* Test expecting partials found and an expected caret position but no selection *)
   let tp
@@ -392,12 +392,12 @@ let () =
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
       (expectedStr : string) =
-    let insertCursor
-        (((str, (_selection, cursor)), res) :
+    let insertCaret
+        (((str, (_selection, caret)), res) :
           (string * (int option * int)) * bool) : string * bool =
-      let cursorString = "~" in
-      match str |> String.splitAt ~index:cursor with a, b ->
-        ([a; b] |> String.join ~sep:cursorString, res)
+      let caretString = "~" in
+      match str |> String.splitAt ~index:caret with a, b ->
+        ([a; b] |> String.join ~sep:caretString, res)
     in
     test
       ( name
@@ -406,7 +406,7 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCursor) |> toEqual (expectedStr, true) )
+        expect (fn initial |> insertCaret) |> toEqual (expectedStr, true) )
   in
   (* Test expecting no partials found and an expected resulting selection *)
   let ts
@@ -987,7 +987,7 @@ let () =
         render
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       tp
-        "reflows put the cursor in the right place on insert"
+        "reflows put the caret in the right place on insert"
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
          in
@@ -996,10 +996,10 @@ let () =
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
         (ins ~wrap:false 'x' 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
-      (* TODO: This should be 129, but reflow puts the cursor in the wrong
+      (* TODO: This should be 129, but reflow puts the caret in the wrong
            * place for new partials *) ;
       tp
-        "reflows put the cursor in the right place on bs"
+        "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
          in
@@ -1008,7 +1008,7 @@ let () =
            [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
         (bs ~wrap:false 129)
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
-      (* TODO: This should be 120, but reflow puts the cursor in the wrong
+      (* TODO: This should be 120, but reflow puts the caret in the wrong
            * place for new partials *) ;
       () ) ;
   describe "Binops" (fun () ->
