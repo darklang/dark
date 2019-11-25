@@ -393,12 +393,6 @@ let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
 
 let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
 
-let () =
-  let open Jest in
-  let open Expect in
-  test "empty" (fun _ -> expect () |> toEqual ())
-
-
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
@@ -447,3 +441,10 @@ let complexExpr =
           (str "https://localhost:3000")))
     (let' "" b (fn "Http::Forbidden" [int "403"]))
     (fn "Http::Forbidden" [])
+
+
+let () =
+  let open Jest in
+  let open Expect in
+  (* empty test needed to stop jest complaining about this fix *)
+  test "empty" (fun _ -> expect () |> toEqual ())
