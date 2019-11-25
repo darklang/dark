@@ -129,15 +129,15 @@ check_ocamlformat() {
 }
 
 check_prettier () {
-  xargs -0L1 client/node_modules/.bin/prettier --list-different
+  xargs -0 client/node_modules/.bin/prettier --list-different
 }
 
 format_ocamlformat() {
-  xargs -0L1 ocamlformat --inplace 
+  xargs -0 ocamlformat --inplace 
 }
 
 format_prettier() {
-  xargs -0L1 client/node_modules/.bin/prettier --write
+  xargs -0 client/node_modules/.bin/prettier --write
 }
 
 do_ocamlformat() {
