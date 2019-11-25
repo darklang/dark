@@ -5181,11 +5181,19 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         in
         let conditionalClasses =
           let sourceId, errorType = sourceOfExprValue analysisId in
+          let isIncompleteFnCall =
+            match ti.token with
+            | TFnName _ ->
+                errorType = "dark-incomplete"
+            | _ ->
+                false
+          in
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             Token.isErrorDisplayable ti.token
-            && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
-               sourceId |> Option.isSomeEqualTo ~value:analysisId
+            (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
+            && sourceId |> Option.isSomeEqualTo ~value:analysisId
+            && not isIncompleteFnCall
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
