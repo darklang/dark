@@ -4658,7 +4658,13 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     | FluidKeyPress {key; shiftKey} ->
         let s = {s with lastKey = key} in
         let newAST, newState = updateKey key ast s in
-        let selectionStart = if shiftKey then s.selectionStart else None in
+        let selectionStart =
+          if key = K.SelectAll
+          then newState.selectionStart
+          else if shiftKey
+          then s.selectionStart
+          else None
+        in
         (newAST, {newState with selectionStart})
     | FluidAutocompleteClick entry ->
         Option.map (getToken s ast) ~f:(fun ti -> acClick entry ti ast s)
