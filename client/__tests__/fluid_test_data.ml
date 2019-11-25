@@ -1,7 +1,69 @@
+open Tc
 open Types
 open Prelude
 
+(* Shortcuts *)
 let b = Fluid.newB ()
+
+let str (str : string) : fluidExpr = EString (gid (), str)
+
+let int (int : string) : fluidExpr = EInteger (gid (), int)
+
+let bool (b : bool) : fluidExpr = EBool (gid (), b)
+
+let float' (whole : string) (fraction : string) : fluidExpr =
+  EFloat (gid (), whole, fraction)
+
+
+let record (rows : (string * fluidExpr) list) : fluidExpr =
+  ERecord (gid (), List.map rows ~f:(fun (k, v) -> (gid (), k, v)))
+
+
+let list (elems : fluidExpr list) : fluidExpr = EList (gid (), elems)
+
+let pipeTarget = EPipeTarget (gid ())
+
+let fn ?(ster = NoRail) (name : string) (args : fluidExpr list) =
+  EFnCall (gid (), name, args, ster)
+
+
+let binop
+    ?(ster = NoRail) (name : string) (arg0 : fluidExpr) (arg1 : fluidExpr) =
+  EBinOp (gid (), name, arg0, arg1, ster)
+
+
+let partial (str : string) (e : fluidExpr) : fluidExpr =
+  EPartial (gid (), str, e)
+
+
+let rightPartial (str : string) (e : fluidExpr) : fluidExpr =
+  ERightPartial (gid (), str, e)
+
+
+let var (name : string) : fluidExpr = EVariable (gid (), name)
+
+let fieldAccess (expr : fluidExpr) (fieldName : string) : fluidExpr =
+  EFieldAccess (gid (), expr, gid (), fieldName)
+
+
+let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr
+    =
+  EIf (gid (), cond, then', else')
+
+
+let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
+  ELet (gid (), gid (), varName, rhs, body)
+
+
+let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
+  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
+
+
+let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
+  EPipe (gid (), first :: rest)
+
+
+(* test data *)
 
 let aStr = EString (gid (), "some string")
 
