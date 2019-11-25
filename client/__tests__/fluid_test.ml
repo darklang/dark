@@ -2,7 +2,6 @@ open Jest
 open Expect
 open Tc
 open Types
-open Prelude
 open Fluid
 open Fluid_test_data
 module Regex = Util.Regex
@@ -470,10 +469,6 @@ let () =
       t "final quote is swallowed" aStr (insert '"' 12) "\"some string\"~" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
-      let nums = "123456789_" in
-      let letters = "abcdefghi," in
-      let segment = nums ^ letters ^ nums ^ letters in
-      let mlStr = str (segment ^ segment ^ nums) in
       t
         "insert into start string"
         mlStr
@@ -644,19 +639,19 @@ let () =
         ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
-        (str segment)
+        (str mlSegment)
         (insert 'c' 41)
         "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
-        (if' (str segment) b b)
+        (if' (str mlSegment) b b)
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
-        (if' (str (segment ^ segment)) b b)
+        (if' (str (mlSegment ^ mlSegment)) b b)
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
@@ -664,7 +659,7 @@ let () =
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented end string"
-        (if' (str (segment ^ segment)) b b)
+        (if' (str (mlSegment ^ mlSegment)) b b)
         (insert 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
@@ -743,27 +738,27 @@ let () =
         ^ "123456789_\"~" ) ;
       t
         "bs, 3 lines to 2, end"
-        (if' (str (segment ^ segment ^ "c")) b b)
+        (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
         (bs 93)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "bs, 2 lines to 1, end"
-        (if' (str (segment ^ "c")) b b)
+        (if' (str (mlSegment ^ "c")) b b)
         (bs 49)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 3 lines to 2, end"
-        (if' (str (segment ^ segment ^ "c")) b b)
+        (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
         (del 92)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 2 lines to 1, end"
-        (if' (str (segment ^ "c")) b b)
+        (if' (str (mlSegment ^ "c")) b b)
         (del 48)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
@@ -785,8 +780,6 @@ let () =
         aHugeInt
         (insert '9' 19)
         "2000000000000000000~" ;
-      (* let max62BitInt = int "4611686018427387903" in *)
-      let oneShorterThanMax62BitInt = int "461168601842738790" in
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
@@ -1263,7 +1256,7 @@ let () =
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
-        (EPipe (gid (), [b; b]))
+        (pipe b [b])
         (presses
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
@@ -1523,11 +1516,9 @@ let () =
         "insert changes occurence of binding in match nested expr"
         (letWithBinding
            "binding"
-           (EMatch
-              ( gid ()
-              , b
-              , [ (FPVariable (gid (), gid (), "binding"), var "binding")
-                ; (FPInteger (gid (), gid (), "5"), var "binding") ] )))
+           (match'
+              b
+              [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
         (insert 'c' 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
@@ -1613,26 +1604,6 @@ let () =
           |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Pipes" (fun () ->
-      let emptyList = list [] in
-      let aList5 = list [five] in
-      let aList6 = list [six] in
-      let aListNum n = list [int n] in
-      let listFn args = fn "List::append" (pipeTarget :: args) in
-      let aPipe = pipe emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyPipe = pipe b [b] in
-      let aLongPipe =
-        pipe
-          emptyList
-          [ listFn [aListNum "2"]
-          ; listFn [aListNum "3"]
-          ; listFn [aListNum "4"]
-          ; listFn [aListNum "5"] ]
-      in
-      let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")] in
-      let aPipeInsideIf = if' b aLongPipe b in
-      let aNestedPipe =
-        pipe emptyList [listFn [pipe aList5 [listFn [aList6]]]]
-      in
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
       t
         "move to the front of pipe on line 1"
@@ -1922,21 +1893,6 @@ let () =
         "if 5\nthen\n  6\nelse\n  7~" ;
       () ) ;
   describe "Lists" (fun () ->
-      let emptyList = list [] in
-      let single = list [fiftySix] in
-      let multi = list [fiftySix; seventyEight] in
-      let withStr = list [str "ab"] in
-      let longList =
-        list
-          [ fiftySix
-          ; seventyEight
-          ; fiftySix
-          ; seventyEight
-          ; fiftySix
-          ; seventyEight ]
-      in
-      let listWithBlank = list [fiftySix; seventyEight; b; fiftySix] in
-      let multiWithStrs = list [str "ab"; str "cd"; str "ef"] in
       t "create list" b (press K.LeftSquareBracket 0) "[~]" ;
       t "insert into empty list inserts" emptyList (insert '5' 1) "[5~]" ;
       t "inserting before the list does nothing" emptyList (insert '5' 0) "~[]" ;
