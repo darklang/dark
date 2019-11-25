@@ -2417,7 +2417,7 @@ let () =
       ts
         "cmd+a selects all"
         longLets
-        (press K.SelectAll 4)
+        (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
       () ) ;
