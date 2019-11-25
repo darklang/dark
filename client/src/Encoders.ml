@@ -120,8 +120,10 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   (* user-ish types *)
   | DCharacter c ->
       ev "DCharacter" [string c]
-  | DError (_, msg) ->
-      ev "DError" [string msg]
+  | DError (SourceNone, msg) ->
+      ev "DError" [pair (ev "SourceNone") string ([], msg)]
+  | DError (SourceId i, msg) ->
+      ev "DError" [pair (ev "SourceId") string ([id i], msg)]
   | DResp (h, hdv) ->
       ev "DResp" [tuple2 dhttp dval (h, hdv)]
   | DDB name ->
