@@ -2871,7 +2871,7 @@ let () =
         longLets
         (selectionPress K.Left 0 13)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (None, 12) ) ;
+        , (None, 0) ) ;
       t
         "shiftless left aborts left-to-right selection on left"
         longLets
@@ -2913,7 +2913,7 @@ let () =
         longLets
         (press K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , (0, 89) ) ;
+        , (Some 0, 89) ) ;
       () ) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
