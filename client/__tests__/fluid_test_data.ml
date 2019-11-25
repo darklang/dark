@@ -2,7 +2,9 @@ open Tc
 open Types
 open Prelude
 
+(* ---------------- *)
 (* Shortcuts *)
+(* ---------------- *)
 let b = Fluid.newB ()
 
 let str (str : string) : fluidExpr = EString (gid (), str)
@@ -55,6 +57,15 @@ let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
   ELet (gid (), gid (), varName, rhs, body)
 
 
+let match' (cond : fluidExpr) (matches : (fluidPattern * fluidExpr) list) :
+    fluidExpr =
+  EMatch (gid (), cond, matches)
+
+
+let pInt (int : string) : fluidPattern = FPInteger (gid (), gid (), int)
+
+let pVar (name : string) : fluidPattern = FPVariable (gid (), gid (), name)
+
 let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
   ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
 
@@ -63,31 +74,39 @@ let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
   EPipe (gid (), first :: rest)
 
 
+(* ---------------- *)
 (* test data *)
+(* ---------------- *)
 
+(* ---------------- *)
+(* String *)
+(* ---------------- *)
 let aStr = EString (gid (), "some string")
 
 let emptyStr = EString (gid (), "")
 
 let oneCharStr = EString (gid (), "c")
 
+let numSegment = "123456789_"
+
+let letterSegment = "abcdefghi,"
+
+let mlSegment = numSegment ^ letterSegment ^ numSegment ^ letterSegment
+
+let mlStr = str (mlSegment ^ mlSegment ^ numSegment)
+
+(* ---------------- *)
+(* Ints *)
+(* ---------------- *)
 let aShortInt = EInteger (gid (), "1")
 
 let anInt = EInteger (gid (), "12345")
 
 let aHugeInt = EInteger (gid (), "2000000000000000000")
 
-let aFloat = EFloat (gid (), "123", "456")
+let max62BitInt = int "4611686018427387903"
 
-let aHugeFloat = EFloat (gid (), "123456789", "123456789")
-
-let aPartialFloat = EFloat (gid (), "1", "")
-
-let trueBool = EBool (gid (), true)
-
-let falseBool = EBool (gid (), false)
-
-let aNull = ENull (gid ())
+let oneShorterThanMax62BitInt = int "461168601842738790"
 
 let five = EInteger (gid (), "5")
 
@@ -97,12 +116,86 @@ let fiftySix = EInteger (gid (), "56")
 
 let seventyEight = EInteger (gid (), "78")
 
+(* ---------------- *)
+(* Floats *)
+(* ---------------- *)
+let aFloat = EFloat (gid (), "123", "456")
+
+let aHugeFloat = EFloat (gid (), "123456789", "123456789")
+
+let aPartialFloat = EFloat (gid (), "1", "")
+
+(* ---------------- *)
+(* Bools *)
+(* ---------------- *)
+let trueBool = EBool (gid (), true)
+
+let falseBool = EBool (gid (), false)
+
+(* ---------------- *)
+(* Null *)
+(* ---------------- *)
+let aNull = ENull (gid ())
+
+(* ---------------- *)
+(* Partials *)
+(* ---------------- *)
 let aPartialVar = EPartial (gid (), "req", b)
 
+(* ---------------- *)
+(* Lets *)
+(* ---------------- *)
 let completelyEmptyLet = ELet (gid (), gid (), "", b, b)
 
 let emptyLet = ELet (gid (), gid (), "", b, EInteger (gid (), "5"))
 
+let nonEmptyLetWithBlankEnd =
+  ELet (gid (), gid (), "", EInteger (gid (), "6"), b)
+
+
+let nonEmptyLet =
+  ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
+
+
+let twoLets =
+  ELet
+    ( gid ()
+    , gid ()
+    , "x"
+    , EInteger (gid (), "5")
+    , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
+    )
+
+
+let longLets =
+  ELet
+    ( gid ()
+    , gid ()
+    , "firstLetName"
+    , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    , ELet
+        ( gid ()
+        , gid ()
+        , "secondLetName"
+        , EString (gid (), "0123456789")
+        , EString (gid (), "RESULT") ) )
+
+
+let letWithLhs =
+  ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
+
+
+let letWithBinding (bindingName : string) (expr : fluidExpr) =
+  ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
+
+
+let letWithUsedBinding (bindingName : string) =
+  letWithBinding bindingName (EVariable (gid (), bindingName))
+
+
+(* ---------------- *)
+(* Match *)
+(* ---------------- *)
 let emptyMatch =
   let mID = gid () in
   EMatch (mID, b, [(FPBlank (mID, gid ()), b)])
@@ -159,54 +252,17 @@ let nestedMatch =
   EMatch (mID, b, [(FPBlank (mID, gid ()), emptyMatch)])
 
 
-let nonEmptyLetWithBlankEnd =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), b)
-
-
-let nonEmptyLet =
-  ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
-
-
-let twoLets =
-  ELet
-    ( gid ()
-    , gid ()
-    , "x"
-    , EInteger (gid (), "5")
-    , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
-    )
-
-
-let longLets =
-  ELet
-    ( gid ()
-    , gid ()
-    , "firstLetName"
-    , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-    , ELet
-        ( gid ()
-        , gid ()
-        , "secondLetName"
-        , EString (gid (), "0123456789")
-        , EString (gid (), "RESULT") ) )
-
-
-let letWithLhs =
-  ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
-
-
-let letWithBinding (bindingName : string) (expr : fluidExpr) =
-  ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
-
-
-let letWithUsedBinding (bindingName : string) =
-  letWithBinding bindingName (EVariable (gid (), bindingName))
-
+(* ---------------- *)
+(* Variables *)
+(* ---------------- *)
 
 let aVar = EVariable (gid (), "variable")
 
 let aShortVar = EVariable (gid (), "v")
 
+(* ---------------- *)
+(* Ifs *)
+(* ---------------- *)
 let emptyIf = EIf (gid (), b, b, b)
 
 let plainIf =
@@ -229,6 +285,18 @@ let nestedIf =
     , EInteger (gid (), "7") )
 
 
+let indentedIfElse =
+  ELet
+    ( gid ()
+    , gid ()
+    , "var"
+    , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
+    , EVariable (gid (), "var") )
+
+
+(* ---------------- *)
+(* Lambdas *)
+(* ---------------- *)
 let aLambda = ELambda (gid (), [(gid (), "")], b)
 
 let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five)
@@ -250,6 +318,9 @@ let lambdaWithUsed2ndBinding (bindingName : string) =
     , EVariable (gid (), bindingName) )
 
 
+(* ---------------- *)
+(* Functions *)
+(* ---------------- *)
 let aFnCall = EFnCall (gid (), "Int::add", [five; b], NoRail)
 
 let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail)
@@ -262,8 +333,15 @@ let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 (*   EBinOp *)
 (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
 (* in *)
+
+(* ---------------- *)
+(* Constructors *)
+(* ---------------- *)
 let aConstructor = EConstructor (gid (), gid (), "Just", [b])
 
+(* ---------------- *)
+(* Records *)
+(* ---------------- *)
 let emptyRow = [(gid (), "", b)]
 
 let recordRow1 = (gid (), "f1", fiftySix)
@@ -278,6 +356,28 @@ let emptyRowRecord = ERecord (gid (), emptyRow)
 
 let emptyRecord = ERecord (gid (), [])
 
+(* ---------------- *)
+(* Lists *)
+(* ---------------- *)
+let emptyList = list []
+
+let single = list [fiftySix]
+
+let multi = list [fiftySix; seventyEight]
+
+let withStr = list [str "ab"]
+
+let longList =
+  list [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]
+
+
+let listWithBlank = list [fiftySix; seventyEight; b; fiftySix]
+
+let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
+
+(* ---------------- *)
+(* Fields *)
+(* ---------------- *)
 let aField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
 
 let aNestedField =
@@ -292,16 +392,38 @@ let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
 
 let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
 
-let indentedIfElse =
-  ELet
-    ( gid ()
-    , gid ()
-    , "var"
-    , EIf (gid (), b, EInteger (gid (), "6"), EInteger (gid (), "7"))
-    , EVariable (gid (), "var") )
-
-
 let () =
   let open Jest in
   let open Expect in
   test "empty" (fun _ -> expect () |> toEqual ())
+
+
+(* ---------------- *)
+(* Pipes *)
+(* ---------------- *)
+let aList5 = list [five]
+
+let aList6 = list [six]
+
+let aListNum n = list [int n]
+
+let listFn args = fn "List::append" (pipeTarget :: args)
+
+let aPipe = pipe (list []) [listFn [aList5]; listFn [aList5]]
+
+let emptyPipe = pipe b [b]
+
+let aLongPipe =
+  pipe
+    (list [])
+    [ listFn [aListNum "2"]
+    ; listFn [aListNum "3"]
+    ; listFn [aListNum "4"]
+    ; listFn [aListNum "5"] ]
+
+
+let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
+
+let aPipeInsideIf = if' b aLongPipe b
+
+let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
