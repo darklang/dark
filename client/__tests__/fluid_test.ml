@@ -58,42 +58,19 @@ module K = FluidKeyboard
  *)
 
 let complexExpr =
-  EIf
-    ( gid ()
-    , EBinOp
-        ( gid ()
-        , "||"
-        , EBinOp
-            ( gid ()
-            , "=="
-            , EFieldAccess
-                ( gid ()
-                , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), gid (), "headers")
-                , gid ()
-                , "origin" )
-            , EString (gid (), "https://usealtitude.com")
-            , NoRail )
-        , EBinOp
-            ( gid ()
-            , "=="
-            , EFieldAccess
-                ( gid ()
-                , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), gid (), "headers")
-                , gid ()
-                , "origin" )
-            , EString (gid (), "https://localhost:3000")
-            , NoRail )
-        , NoRail )
-    , ELet
-        ( gid ()
-        , gid ()
-        , ""
-        , b
-        , EFnCall
-            (gid (), "Http::Forbidden", [EInteger (gid (), "403")], NoRail) )
-    , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
+  if'
+    (binop
+       "||"
+       (binop
+          "=="
+          (fieldAccess (fieldAccess (var "request") "headers") "origin")
+          (str "https://usealtitude.com"))
+       (binop
+          "=="
+          (fieldAccess (fieldAccess (var "request") "headers") "origin")
+          (str "https://localhost:3000")))
+    (let' "" b (fn "Http::Forbidden" [int "403"]))
+    (fn "Http::Forbidden" [])
 
 
 let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
@@ -224,11 +201,7 @@ let () =
              FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
     in
-    let ast =
-      if wrap
-      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
-      else ast
-    in
+    let ast = if wrap then if' (bool true) ast (int "5") else ast in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
     let addWrapper pos =
@@ -500,8 +473,7 @@ let () =
       let nums = "123456789_" in
       let letters = "abcdefghi," in
       let segment = nums ^ letters ^ nums ^ letters in
-      let mlStr = EString (gid (), segment ^ segment ^ nums) in
-      let wrapIf e = EIf (gid (), e, newB (), newB ()) in
+      let mlStr = str (segment ^ segment ^ nums) in
       t
         "insert into start string"
         mlStr
@@ -672,19 +644,19 @@ let () =
         ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
-        (EString (gid (), segment))
+        (str segment)
         (insert 'c' 41)
         "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
-        (wrapIf (EString (gid (), segment)))
+        (if' (str segment) b b)
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
-        (wrapIf (EString (gid (), segment ^ segment)))
+        (if' (str (segment ^ segment)) b b)
         (insert 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
@@ -692,7 +664,7 @@ let () =
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented end string"
-        (wrapIf (EString (gid (), segment ^ segment)))
+        (if' (str (segment ^ segment)) b b)
         (insert 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
@@ -771,27 +743,27 @@ let () =
         ^ "123456789_\"~" ) ;
       t
         "bs, 3 lines to 2, end"
-        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (if' (str (segment ^ segment ^ "c")) b b)
         (bs 93)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "bs, 2 lines to 1, end"
-        (wrapIf (EString (gid (), segment ^ "c")))
+        (if' (str (segment ^ "c")) b b)
         (bs 49)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 3 lines to 2, end"
-        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (if' (str (segment ^ segment ^ "c")) b b)
         (del 92)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 2 lines to 1, end"
-        (wrapIf (EString (gid (), segment ^ "c")))
+        (if' (str (segment ^ "c")) b b)
         (del 48)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
@@ -813,10 +785,8 @@ let () =
         aHugeInt
         (insert '9' 19)
         "2000000000000000000~" ;
-      (* let max62BitInt = EInteger (gid (), "4611686018427387903") in *)
-      let oneShorterThanMax62BitInt =
-        EInteger (gid (), "461168601842738790")
-      in
+      (* let max62BitInt = int "4611686018427387903" in *)
+      let oneShorterThanMax62BitInt = int "461168601842738790" in
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
@@ -845,8 +815,8 @@ let () =
       t "insert non-int in fraction" aFloat (insert 'c' 6) "123.45~6" ;
       t "del dot" aFloat (del 3) "123~456" ;
       t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
-      let maxPosIntWithDot = EFloat (gid (), "4611686018427387", "903") in
-      let maxPosIntPlus1WithDot = EFloat (gid (), "4611686018427387", "904") in
+      let maxPosIntWithDot = float' "4611686018427387" "903" in
+      let maxPosIntPlus1WithDot = float' "4611686018427387" "904" in
       t "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
       t
         "del dot at limit2"
@@ -961,26 +931,17 @@ let () =
       tp "deleting a function renames" aFnCall (del 7) "Int::ad~@ 5 _________" ;
       t
         "renaming a function maintains unaligned params in let scope"
-        (EPartial
-           (gid (), "Int::", EFnCall (gid (), "Int::add", [five; six], NoRail)))
+        (partial "Int::" (fn "Int::add" [five; six]))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
-        (EPartial
-           ( gid ()
-           , "Int::"
-           , EFnCall
-               ( gid ()
-               , "Int::add"
-               , [EVariable (gid (), "a"); EVariable (gid (), "b")]
-               , NoRail ) ))
+        (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
-        (EPartial
-           (gid (), "Int::", EFnCall (gid (), "Int::add", [b; b], NoRail)))
+        (partial "Int::" (fn "Int::add" [b; b]))
         (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
@@ -1023,7 +984,6 @@ let () =
         b
         (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         "DB::getAllv1 ~___________________" ;
-      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
       t
         "backspacing a fn arg's separator goes to the right place"
         (fn "Int::add" [five; six])
@@ -1036,23 +996,17 @@ let () =
         "reflows work for functions"
         (fn
            "HttpClient::post_v4"
-           [ EString (gid (), string40)
-           ; ERecord (gid (), [(gid (), string80, b)])
-           ; emptyRecord
-           ; emptyRecord ])
+           [str string40; record [(string80, b)]; emptyRecord; emptyRecord])
         render
         "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}" ;
       t
         "reflows work for functions with long strings"
-        (fn "HttpClient::post_v4" [EString (gid (), string160); b; b; b])
+        (fn "HttpClient::post_v4" [str string160; b; b; b])
         render
         "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       tp
         "reflows work for partials too "
-        (EPartial
-           ( gid ()
-           , "TEST"
-           , fn "HttpClient::post_v4" [EString (gid (), string160); b; b; b] ))
+        (partial "TEST" (fn "HttpClient::post_v4" [str string160; b; b; b]))
         render
         "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       t
@@ -1072,10 +1026,7 @@ let () =
          in
          fn
            "HttpClient::post_v4"
-           [ emptyStr
-           ; emptyRecord
-           ; emptyRecord
-           ; EVariable (gid (), justShortEnoughNotToReflow) ])
+           [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
         (insert ~wrap:false 'x' 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
       (* TODO: This should be 129, but reflow puts the cursor in the wrong
@@ -1087,10 +1038,7 @@ let () =
          in
          fn
            "HttpClient::post_v4"
-           [ emptyStr
-           ; emptyRecord
-           ; emptyRecord
-           ; EVariable (gid (), justLongEnoughToReflow) ])
+           [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
         (bs ~wrap:false 129)
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
       (* TODO: This should be 120, but reflow puts the cursor in the wrong
@@ -1122,77 +1070,67 @@ let () =
         "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b, NoRail)))
+        (partial "|" (binop "||" anInt b))
         (bs 7)
         "12345~" ;
       t
         "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
+        (partial "|" (binop "||" b b))
         (bs 12)
         "~___" ;
       t
         "pressing del to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b, NoRail)))
+        (partial "|" (binop "||" anInt b))
         (del 6)
         "12345~" ;
       t
         "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
+        (partial "|" (binop "||" b b))
         (del 11)
         "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
+        (partial "|" (binop "||" b b))
         (bs 12)
         "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place 2"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", five, b, NoRail)))
+        (partial "|" (binop "||" five b))
         (bs 3)
         "5~" ;
       t
         "pressing bs to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", b))
+        (rightPartial "|" b)
         (bs 5)
         "~___" ;
       t
         "pressing bs on single digit binop leaves lhs"
-        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (binop "+" anInt anInt)
         (bs 7)
         "12345~" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b, b, NoRail)))
+        (partial "|" (binop "||" b b))
         (del 11)
         "~___" ;
       t
         "pressing del to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", b))
+        (rightPartial "|" b)
         (del 4)
         "~___" ;
       t
         "pressing del on single digit binop leaves lhs"
-        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (binop "+" anInt anInt)
         (del 6)
         "12345~" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
-        (EBinOp
-           ( gid ()
-           , "++"
-           , EString (gid (), "five")
-           , EString (gid (), "six")
-           , NoRail ))
+        (binop "++" (str "five") (str "six"))
         (presses [K.Delete; K.Delete] 7)
         "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
-        (EBinOp
-           ( gid ()
-           , "++"
-           , EString (gid (), "five")
-           , EString (gid (), "six")
-           , NoRail ))
+        (binop "++" (str "five") (str "six"))
         (presses [K.Backspace; K.Backspace] 9)
         "\"five~six\"" ;
       t
@@ -1202,44 +1140,35 @@ let () =
         "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, anInt, NoRail)))
+        (partial "|" (binop "||" anInt anInt))
         (press K.Pipe 7)
         "12345 ||~ 12345" ;
       tp
         "pressing = after < should go to partial"
-        (EBinOp (gid (), "<", anInt, anInt, NoRail))
+        (binop "<" anInt anInt)
         (press K.Equals 7)
         "12345 <=~ 12345" ;
       t
         "changing binop to fn should work"
-        (EPartial
-           (gid (), "Int::add", EBinOp (gid (), "+", anInt, anInt, NoRail)))
+        (partial "Int::add" (binop "+" anInt anInt))
         (presses [K.Enter] 14)
         "Int::add 12345 ~12345" ;
       t
         "changing fn to binops should work"
-        (EPartial
-           (gid (), "+", EFnCall (gid (), "Int::add", [anInt; anInt], NoRail)))
+        (partial "+" (fn "Int::add" [anInt; anInt]))
         (presses [K.Enter] 1)
         "~12345 + 12345" ;
       t
         "changing binop should work"
-        (EBinOp (gid (), "<", anInt, anInt, NoRail))
+        (binop "<" anInt anInt)
         (presses [K.Equals; K.Enter] 7)
         "12345 <=~ 12345" ;
       tp
         "adding binop in `if` works"
-        (EIf (gid (), b, b, b))
+        (if' b b b)
         (press K.Percent 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
-      let aFullBinOp =
-        EBinOp
-          ( gid ()
-          , "||"
-          , EVariable (gid (), "myvar")
-          , EInteger (gid (), "5")
-          , NoRail )
-      in
+      let aFullBinOp = binop "||" (var "myvar") (int "5") in
       tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
@@ -1405,7 +1334,7 @@ let () =
       tp "bs mid variable" aVar (bs 6) "varia~le" ;
       t
         "variable doesn't override if"
-        (ELet (gid (), gid (), "i", b, EPartial (gid (), "i", b)))
+        (let' "i" b (partial "i" b))
         (presses [K.Letter 'f'; K.Enter] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       () ) ;
@@ -1474,12 +1403,12 @@ let () =
         "match ___\n  Jus~ -> ___\n" ;
       t
         "insert changes occurence of non-shadowed var in case"
-        (matchWithBinding "binding" (EVariable (gid (), "binding")))
+        (matchWithBinding "binding" (var "binding"))
         (insert 'c' 19)
         "match ___\n  bindingc~ -> bindingc\n" ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
-        (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
+        (matchWithConstructorBinding "binding" (var "binding"))
         (insert 'c' 22)
         "match ___\n  Ok bindingc~ -> bindingc\n" ;
       t
@@ -1597,26 +1526,18 @@ let () =
            (EMatch
               ( gid ()
               , b
-              , [ ( FPVariable (gid (), gid (), "binding")
-                  , EVariable (gid (), "binding") )
-                ; ( FPInteger (gid (), gid (), "5")
-                  , EVariable (gid (), "binding") ) ] )))
+              , [ (FPVariable (gid (), gid (), "binding"), var "binding")
+                ; (FPInteger (gid (), gid (), "5"), var "binding") ] )))
         (insert 'c' 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
-        (letWithBinding
-           "binding"
-           (ELambda
-              (gid (), [(gid (), "binding")], EVariable (gid (), "binding"))))
+        (letWithBinding "binding" (lambda ["binding"] (var "binding")))
         (insert 'c' 11)
         "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
-        (letWithBinding
-           "binding"
-           (ELambda
-              (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
+        (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
         (insert 'c' 11)
         "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
@@ -1692,37 +1613,25 @@ let () =
           |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Pipes" (fun () ->
-      let pipeOn expr fns = EPipe (gid (), expr :: fns) in
-      let emptyList = EList (gid (), []) in
-      let aList5 = EList (gid (), [five]) in
-      let aList6 = EList (gid (), [six]) in
-      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
-      let listFn args =
-        EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
-      in
-      let aPipe = pipeOn emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyPipe = EPipe (gid (), [b; b]) in
+      let emptyList = list [] in
+      let aList5 = list [five] in
+      let aList6 = list [six] in
+      let aListNum n = list [int n] in
+      let listFn args = fn "List::append" (pipeTarget :: args) in
+      let aPipe = pipe emptyList [listFn [aList5]; listFn [aList5]] in
+      let emptyPipe = pipe b [b] in
       let aLongPipe =
-        pipeOn
+        pipe
           emptyList
           [ listFn [aListNum "2"]
           ; listFn [aListNum "3"]
           ; listFn [aListNum "4"]
           ; listFn [aListNum "5"] ]
       in
-      let aBinopPipe =
-        pipeOn
-          (newB ())
-          [ EBinOp
-              ( gid ()
-              , "++"
-              , EPipeTarget (gid ())
-              , EString (gid (), "asd")
-              , NoRail ) ]
-      in
-      let aPipeInsideIf = EIf (gid (), b, aLongPipe, b) in
+      let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")] in
+      let aPipeInsideIf = if' b aLongPipe b in
       let aNestedPipe =
-        pipeOn emptyList [listFn [pipeOn aList5 [listFn [aList6]]]]
+        pipe emptyList [listFn [pipe aList5 [listFn [aList6]]]]
       in
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
       t
@@ -1862,7 +1771,7 @@ let () =
         "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
-        (EPartial (gid (), "|>", aFnCall))
+        (partial "|>" aFnCall)
         (enter 2)
         (* TODO: This really should end in 18, but too much work for now *)
         "Int::add 5 ~_________\n|>___\n" ;
@@ -1898,12 +1807,12 @@ let () =
         "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe1"
-        (pipeOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
+        (pipe five [listFn [rightPartial "|>" aList5]])
         (enter 23)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe2"
-        (pipeOn five [listFn [aList5]])
+        (pipe five [listFn [aList5]])
         (press K.ShiftEnter 19)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
@@ -1918,8 +1827,7 @@ let () =
         "let *** = 6\n          |>~___\n5" ;
       t
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
-        (ERecord
-           (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
+        (record [("f1", fiftySix); ("f2", seventyEight)])
         (press K.ShiftEnter 11)
         "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       (* TODO: test for prefix fns *)
@@ -2014,30 +1922,21 @@ let () =
         "if 5\nthen\n  6\nelse\n  7~" ;
       () ) ;
   describe "Lists" (fun () ->
-      let emptyList = EList (gid (), []) in
-      let single = EList (gid (), [fiftySix]) in
-      let multi = EList (gid (), [fiftySix; seventyEight]) in
-      let withStr = EList (gid (), [EString (gid (), "ab")]) in
+      let emptyList = list [] in
+      let single = list [fiftySix] in
+      let multi = list [fiftySix; seventyEight] in
+      let withStr = list [str "ab"] in
       let longList =
-        EList
-          ( gid ()
-          , [ fiftySix
-            ; seventyEight
-            ; fiftySix
-            ; seventyEight
-            ; fiftySix
-            ; seventyEight ] )
+        list
+          [ fiftySix
+          ; seventyEight
+          ; fiftySix
+          ; seventyEight
+          ; fiftySix
+          ; seventyEight ]
       in
-      let listWithBlank =
-        EList (gid (), [fiftySix; seventyEight; b; fiftySix])
-      in
-      let multiWithStrs =
-        EList
-          ( gid ()
-          , [ EString (gid (), "ab")
-            ; EString (gid (), "cd")
-            ; EString (gid (), "ef") ] )
-      in
+      let listWithBlank = list [fiftySix; seventyEight; b; fiftySix] in
+      let multiWithStrs = list [str "ab"; str "cd"; str "ef"] in
       t "create list" b (press K.LeftSquareBracket 0) "[~]" ;
       t "insert into empty list inserts" emptyList (insert '5' 1) "[5~]" ;
       t "inserting before the list does nothing" emptyList (insert '5' 0) "~[]" ;
@@ -2139,7 +2038,6 @@ let () =
         "[\"ab\"~,\"ef\"]" ;
       () ) ;
   describe "Record" (fun () ->
-      (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
       t "create record" b (press K.LeftCurlyBrace 0) "{~}" ;
       t
         "inserting before the record does nothing"
@@ -2293,12 +2191,12 @@ let () =
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
-        (EPartial (gid (), "if", b))
+        (partial "if" b)
         (space 2)
         "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "let moves to right place"
-        (EPartial (gid (), "let", b))
+        (partial "let" b)
         (enter 3)
         "let ~*** = ___\n___" ;
       t
@@ -2332,11 +2230,7 @@ let () =
         b
         (presses [K.Equals; K.Space] 0)
         "~_________ == _________" ;
-      t
-        "variable moves to right place"
-        (EPartial (gid (), "req", b))
-        (enter 3)
-        "request~" ;
+      t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
       t
         "pipe moves to right place on blank"
         b
@@ -2362,30 +2256,18 @@ let () =
         emptyMatch
         (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
-      t
-        "autocomplete for Just"
-        (EPartial (gid (), "Just", b))
-        (enter 4)
-        "Just ~___" ;
-      t "autocomplete for Ok" (EPartial (gid (), "Ok", b)) (enter 2) "Ok ~___" ;
-      t
-        "autocomplete for Nothing"
-        (EPartial (gid (), "Nothing", b))
-        (enter 7)
-        "Nothing~" ;
+      t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
+      t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
+      t "autocomplete for Nothing" (partial "Nothing" b) (enter 7) "Nothing~" ;
       t
         "autocomplete for Nothing at end of a line"
-        (EIf (gid (), b, EPartial (gid (), "Nothing", b), b))
+        (if' b (partial "Nothing" b) b)
         (space 21)
         "if ___\nthen\n  Nothing~\nelse\n  ___" ;
-      t
-        "autocomplete for Error"
-        (EPartial (gid (), "Error", b))
-        (enter 5)
-        "Error ~___" ;
+      t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
+        (fieldAccess (EVariable (ID "12", "request")) "bo")
         (enter ~clone:false 10)
         "request.body~" ;
       (* TODO: this doesn't work but should *)
@@ -2501,9 +2383,7 @@ let () =
           |> toEqual 144 ) ;
       test "clicking away from autocomplete commits" (fun () ->
           expect
-            (let ast =
-               ELet (gid (), gid (), "var", EPartial (gid (), "false", b), b)
-             in
+            (let ast = let' "var" (partial "false" b) b in
              moveTo 14 s
              |> (fun s ->
                   let h = Fluid_utils.h ast in
@@ -2519,7 +2399,7 @@ let () =
           |> toEqual "success" ) ;
       t
         "moving right off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b), b))
+        (let' "x" (partial "Int::add" b) b)
         (press K.Right 16)
         "let x = Int::add ~_________ _________\n___" ;
       tp
@@ -2529,12 +2409,12 @@ let () =
         "||~" ;
       tp
         "pressing an infix after true commits it "
-        (EPartial (gid (), "true", b))
+        (partial "true" b)
         (press K.Plus 4)
         "true +~" ;
       t
         "moving left off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b), b))
+        (let' "x" (partial "Int::add" b) b)
         (press K.Left 8)
         "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
@@ -2601,14 +2481,12 @@ let () =
         "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "selecting an expression pipes from it 1"
-        (EBinOp
-           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (binop "+" (int "4") (int "5"))
         (selectionPress K.ShiftEnter 4 5)
         "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
-        (EBinOp
-           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (binop "+" (int "4") (int "5"))
         (selectionPress K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts
