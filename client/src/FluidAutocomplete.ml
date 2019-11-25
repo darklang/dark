@@ -421,9 +421,7 @@ let generate
     | _ ->
         generateExprs m tl a ti
   in
-  { a with
-    allCompletions = items
-  ; index = Some (a.index |> Option.withDefault ~default:0) }
+  {a with allCompletions = items}
 
 
 let filter

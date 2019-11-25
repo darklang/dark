@@ -2467,7 +2467,7 @@ let acClear (s : state) : state =
 
 let acMaybeShow (ti : tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
-  if isAutocompleting ti s && s.ac.index = None
+  if Token.isAutocompletable ti.token && s.ac.index = None
   then {s with ac = {s.ac with index = Some 0}}
   else s
 
