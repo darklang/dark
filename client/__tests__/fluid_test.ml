@@ -16,7 +16,7 @@ module K = FluidKeyboard
  * it in position 2. The stringified result is "12.456" and the cursor should
  * be in position 2 (indicated by the tilde).
  *
- * There are a handful of functions you can call, including press, presses,
+ * There are a handful of functions you can call, including key, keys,
  * insert, bs, del, tab, shiftTab, and render.
  *
  * There are a few different ways of running a test:
@@ -319,7 +319,7 @@ let () =
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
   in
-  let press
+  let key
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -345,7 +345,7 @@ let () =
       pos
       expr
   in
-  let presses
+  let keys
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -361,7 +361,7 @@ let () =
       pos
       expr
   in
-  let modPresses
+  let modkeys
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -885,7 +885,7 @@ let () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        (keys [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         "~___" ;
       t "insert blank->space" b (space 0) "~___" ;
       () ) ;
@@ -925,17 +925,17 @@ let () =
       t
         "renaming a function maintains unaligned params in let scope"
         (partial "Int::" (fn "Int::add" [five; six]))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
         (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
         (partial "Int::" (fn "Int::add" [b; b]))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
@@ -975,7 +975,7 @@ let () =
       t
         "adding function with version goes to the right place"
         b
-        (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        (keys [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
         "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
@@ -1038,28 +1038,28 @@ let () =
            * place for new partials *) ;
       () ) ;
   describe "Binops" (fun () ->
-      tp "pipe key starts partial" trueBool (press K.Pipe 4) "true |~" ;
+      tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
-        (presses [K.Pipe; K.Down; K.Enter] 4)
+        (keys [K.Pipe; K.Down; K.Enter] 4)
         "true ||~ __________" ;
       t
         "pressing space completes partial"
         trueBool
-        (presses [K.Pipe; K.Down; K.Space] 4)
+        (keys [K.Pipe; K.Down; K.Space] 4)
         "true || ~__________" ;
-      tp "pressing plus key starts partial" trueBool (press K.Plus 4) "true +~" ;
-      tp "pressing caret key starts partial" anInt (press K.Caret 5) "12345 ^~" ;
+      tp "pressing plus key starts partial" trueBool (key K.Plus 4) "true +~" ;
+      tp "pressing caret key starts partial" anInt (key K.Caret 5) "12345 ^~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
-        (presses [K.Pipe; K.Pipe; K.Space] 4)
+        (keys [K.Pipe; K.Pipe; K.Space] 4)
         "true || ~__________" ;
       t
         "piping into newline creates pipe"
         trueBool
-        (presses [K.Pipe; K.GreaterThan; K.Space] 4)
+        (keys [K.Pipe; K.GreaterThan; K.Space] 4)
         "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
@@ -1119,47 +1119,47 @@ let () =
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (presses [K.Delete; K.Delete] 7)
+        (keys [K.Delete; K.Delete] 7)
         "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (presses [K.Backspace; K.Backspace] 9)
+        (keys [K.Backspace; K.Backspace] 9)
         "\"five~six\"" ;
       t
         "pressing letters and numbers on a partial completes it"
         b
-        (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
+        (keys [K.Number '5'; K.Plus; K.Number '5'] 0)
         "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
         (partial "|" (binop "||" anInt anInt))
-        (press K.Pipe 7)
+        (key K.Pipe 7)
         "12345 ||~ 12345" ;
       tp
         "pressing = after < should go to partial"
         (binop "<" anInt anInt)
-        (press K.Equals 7)
+        (key K.Equals 7)
         "12345 <=~ 12345" ;
       t
         "changing binop to fn should work"
         (partial "Int::add" (binop "+" anInt anInt))
-        (presses [K.Enter] 14)
+        (keys [K.Enter] 14)
         "Int::add 12345 ~12345" ;
       t
         "changing fn to binops should work"
         (partial "+" (fn "Int::add" [anInt; anInt]))
-        (presses [K.Enter] 1)
+        (keys [K.Enter] 1)
         "~12345 + 12345" ;
       t
         "changing binop should work"
         (binop "<" anInt anInt)
-        (presses [K.Equals; K.Enter] 7)
+        (keys [K.Equals; K.Enter] 7)
         "12345 <=~ 12345" ;
       tp
         "adding binop in `if` works"
         (if' b b b)
-        (press K.Percent 3)
+        (key K.Percent 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
       let aFullBinOp = binop "||" (var "myvar") (int "5") in
       tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
@@ -1200,21 +1200,21 @@ let () =
       t
         "type - after a lambda var to move into a lambda arrow"
         aLambda
-        (press Minus 4)
+        (key Minus 4)
         "\\*** -~> ___" ;
       t
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
-        (press Minus 5)
+        (key Minus 5)
         "\\*** -~> ___" ;
       t
         "type > inside a lambda arrow to move past it"
         aLambda
-        (press GreaterThan 6)
+        (key GreaterThan 6)
         "\\*** -> ~___" ;
       (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) "~___" ;
-      t "insert space in lambda" aLambda (press K.Space 1) "\\~*** -> ___" ;
+      t "insert space in lambda" aLambda (key K.Space 1) "\\~*** -> ___" ;
       t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) "\\~*** -> 5" ;
       t "del lambda symbol" aLambda (del 0) "~___" ;
       t "del non-empty lambda symbol" nonEmptyLambda (del 0) "~\\*** -> 5" ;
@@ -1231,7 +1231,7 @@ let () =
       t
         "dont jump in lambdavars with infix chars"
         aLambda
-        (press K.Plus 1)
+        (key K.Plus 1)
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number"
@@ -1252,12 +1252,12 @@ let () =
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (press (K.Letter '\\') 24)
+        (key (K.Letter '\\') 24)
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
         (pipe b [b])
-        (presses
+        (keys
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
@@ -1317,8 +1317,8 @@ let () =
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (insert 'c' 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
-      tp "insert capital works" aVar (press (K.Letter 'A') 5) "variaA~ble" ;
-      t "can't insert invalid" aVar (press K.Dollar 5) "varia~ble" ;
+      tp "insert capital works" aVar (key (K.Letter 'A') 5) "variaA~ble" ;
+      t "can't insert invalid" aVar (key K.Dollar 5) "varia~ble" ;
       t "del variable" aShortVar (del 0) "~___" ;
       tp "del long variable" aVar (del 0) "~ariable" ;
       tp "del mid variable" aVar (del 6) "variab~e" ;
@@ -1328,39 +1328,39 @@ let () =
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
-        (presses [K.Letter 'f'; K.Enter] 13)
+        (keys [K.Letter 'f'; K.Enter] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       () ) ;
   describe "Match" (fun () ->
       t
         "move to the front of match"
         emptyMatch
-        (press K.GoToStartOfLine 6)
+        (key K.GoToStartOfLine 6)
         "~match ___\n  *** -> ___\n" ;
       t
         "move to the end of match"
         emptyMatch
-        (press K.GoToEndOfLine 0)
+        (key K.GoToEndOfLine 0)
         "match ___~\n  *** -> ___\n" ;
       t
         "move to the front of match on line 2"
         emptyMatch
-        (press K.GoToStartOfLine 15)
+        (key K.GoToStartOfLine 15)
         "match ___\n  ~*** -> ___\n" ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (press K.GoToEndOfLine 12)
+        (key K.GoToEndOfLine 12)
         "match ___\n  *** -> ___~\n" ;
       t
         "move back over match"
         emptyMatch
-        (press K.Left 6)
+        (key K.Left 6)
         "~match ___\n  *** -> ___\n" ;
       t
         "move forward over match"
         emptyMatch
-        (press K.Right 0)
+        (key K.Right 0)
         "match ~___\n  *** -> ___\n" ;
       t "bs over empty match" emptyMatch (bs 6) "~___" ;
       t
@@ -1407,12 +1407,12 @@ let () =
       t
         "insert space in blank match"
         emptyMatch
-        (press K.Space 6)
+        (key K.Space 6)
         "match ~___\n  *** -> ___\n" ;
       t
         "insert space in blank match on line 2"
         emptyMatch
-        (press K.Space 12)
+        (key K.Space 12)
         "match ___\n  ~*** -> ___\n" ;
       t
         "enter at the end of the cond creates a new row"
@@ -1460,15 +1460,15 @@ let () =
       t
         "move to the front of let"
         emptyLet
-        (press K.GoToStartOfLine 4)
+        (key K.GoToStartOfLine 4)
         "~let *** = ___\n5" ;
       t
         "move to the end of let"
         emptyLet
-        (press K.GoToEndOfLine 4)
+        (key K.GoToEndOfLine 4)
         "let *** = ___~\n5" ;
-      t "move back over let" emptyLet (press K.Left 4) "~let *** = ___\n5" ;
-      t "move forward over let" emptyLet (press K.Right 0) "let ~*** = ___\n5" ;
+      t "move back over let" emptyLet (key K.Left 4) "~let *** = ___\n5" ;
+      t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
       t "bs over empty let" emptyLet (bs 3) "~5" ;
       t "del empty let" emptyLet (del 0) "~5" ;
       t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
@@ -1476,7 +1476,7 @@ let () =
       t
         "insert space on blank let"
         emptyLet
-        (press K.Space 4)
+        (key K.Space 4)
         "let ~*** = ___\n5" ;
       t "lhs on empty" emptyLet (insert 'c' 4) "let c~ = ___\n5" ;
       t "middle of blank" emptyLet (insert 'c' 5) "let c~ = ___\n5" ;
@@ -1485,22 +1485,22 @@ let () =
       t
         "equals skips over assignment"
         emptyLet
-        (presses [K.Letter 'c'; K.Equals] 4)
+        (keys [K.Letter 'c'; K.Equals] 4)
         "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
         emptyLet
-        (press K.Equals 7)
+        (key K.Equals 7)
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 2"
         emptyLet
-        (press K.Equals 8)
+        (key K.Equals 8)
         "let *** = ~___\n5" ;
       t
         "equals skips over assignment 3"
         emptyLet
-        (press K.Equals 9)
+        (key K.Equals 9)
         "let *** = ~___\n5" ;
       t
         "bs changes occurence of binding var"
@@ -1534,7 +1534,7 @@ let () =
       t
         "dont jump in letlhs with infix chars"
         emptyLet
-        (press K.Plus 4)
+        (key K.Plus 4)
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number"
@@ -1608,32 +1608,32 @@ let () =
       t
         "move to the front of pipe on line 1"
         aPipe
-        (press K.GoToStartOfLine 2)
+        (key K.GoToStartOfLine 2)
         "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 1"
         aPipe
-        (press K.GoToEndOfLine 0)
+        (key K.GoToEndOfLine 0)
         "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 2"
         aPipe
-        (press K.GoToStartOfLine 8)
+        (key K.GoToStartOfLine 8)
         "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 2"
         aPipe
-        (press K.GoToEndOfLine 5)
+        (key K.GoToEndOfLine 5)
         "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 3"
         aPipe
-        (press K.GoToStartOfLine 40)
+        (key K.GoToStartOfLine 40)
         "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
       t
         "move to the end of pipe on line 3"
         aPipe
-        (press K.GoToEndOfLine 24)
+        (key K.GoToEndOfLine 24)
         "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
       t
         "pipes appear on new lines"
@@ -1738,7 +1738,7 @@ let () =
       t
         "adding infix functions adds the right number of blanks"
         emptyPipe
-        (presses [K.Plus; K.Enter] 6)
+        (keys [K.Plus; K.Enter] 6)
         "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
@@ -1784,22 +1784,22 @@ let () =
       t
         "inserting a pipe into another pipe gives a single pipe2"
         (pipe five [listFn [aList5]])
-        (press K.ShiftEnter 19)
+        (key K.ShiftEnter 19)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe3"
         five
-        (press K.ShiftEnter 1)
+        (key K.ShiftEnter 1)
         "5\n|>~___\n" ;
       t
         "shift enter at a let's newline creates the pipe on the rhs"
         nonEmptyLet
-        (press K.ShiftEnter 11)
+        (key K.ShiftEnter 11)
         "let *** = 6\n          |>~___\n5" ;
       t
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
         (record [("f1", fiftySix); ("f2", seventyEight)])
-        (press K.ShiftEnter 11)
+        (key K.ShiftEnter 11)
         "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
@@ -1809,12 +1809,12 @@ let () =
       t
         "move over indent 1"
         plainIf
-        (press K.Left 12)
+        (key K.Left 12)
         "if 5\nthen~\n  6\nelse\n  7" ;
       t
         "move over indent 2"
         plainIf
-        (press K.Left 21)
+        (key K.Left 21)
         "if 5\nthen\n  6\nelse~\n  7" ;
       t "bs over indent 1" plainIf (bs 12) "if 5\nthen~\n  6\nelse\n  7" ;
       t "bs over indent 2" plainIf (bs 21) "if 5\nthen\n  6\nelse~\n  7" ;
@@ -1822,42 +1822,42 @@ let () =
       t
         "move to front of line 1"
         plainIf
-        (press K.GoToStartOfLine 4)
+        (key K.GoToStartOfLine 4)
         "~if 5\nthen\n  6\nelse\n  7" ;
       t
         "move to end of line 1"
         plainIf
-        (press K.GoToEndOfLine 0)
+        (key K.GoToEndOfLine 0)
         "if 5~\nthen\n  6\nelse\n  7" ;
       t
         "move to front of line 3"
         plainIf
-        (press K.GoToStartOfLine 13)
+        (key K.GoToStartOfLine 13)
         "if 5\nthen\n  ~6\nelse\n  7" ;
       t
         "move to end of line 3"
         plainIf
-        (press K.GoToEndOfLine 12)
+        (key K.GoToEndOfLine 12)
         "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (press K.GoToStartOfLine 16)
+        (key K.GoToStartOfLine 16)
         "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (press K.GoToEndOfLine 12)
+        (key K.GoToEndOfLine 12)
         "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "try to insert space on blank"
         emptyIf
-        (press K.Space 3)
+        (key K.Space 3)
         "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "try to insert space on blank indent 2"
         emptyIf
-        (press K.Space 14)
+        (key K.Space 14)
         "if ___\nthen\n  ~___\nelse\n  ___" ;
       t
         "enter in front of an if wraps in a let"
@@ -1893,11 +1893,11 @@ let () =
         "if 5\nthen\n  6\nelse\n  7~" ;
       () ) ;
   describe "Lists" (fun () ->
-      t "create list" b (press K.LeftSquareBracket 0) "[~]" ;
+      t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
       t "insert into empty list inserts" emptyList (insert '5' 1) "[5~]" ;
       t "inserting before the list does nothing" emptyList (insert '5' 0) "~[]" ;
-      t "insert space into multi list" multi (press K.Space 6) "[56,78~]" ;
-      t "insert space into single list" single (press K.Space 3) "[56~]" ;
+      t "insert space into multi list" multi (key K.Space 6) "[56,78~]" ;
+      t "insert space into single list" single (key K.Space 3) "[56~]" ;
       t "insert into existing list item" single (insert '4' 1) "[4~56]" ;
       t
         "insert separator before item creates blank"
@@ -1940,7 +1940,7 @@ let () =
       t
         "close bracket at end of list is swallowed"
         emptyList
-        (press K.RightSquareBracket 1)
+        (key K.RightSquareBracket 1)
         "[]~" ;
       t
         "bs on first separator between items dels item after separator"
@@ -1994,7 +1994,7 @@ let () =
         "[\"ab\"~,\"ef\"]" ;
       () ) ;
   describe "Record" (fun () ->
-      t "create record" b (press K.LeftCurlyBrace 0) "{~}" ;
+      t "create record" b (key K.LeftCurlyBrace 0) "{~}" ;
       t
         "inserting before the record does nothing"
         emptyRecord
@@ -2024,12 +2024,12 @@ let () =
       t
         "move to the front of an empty record"
         emptyRowRecord
-        (press K.GoToStartOfLine 13)
+        (key K.GoToStartOfLine 13)
         "{\n  ~*** : ___\n}" ;
       t
         "move to the end of an empty record"
         emptyRowRecord
-        (press K.GoToEndOfLine 4)
+        (key K.GoToEndOfLine 4)
         "{\n  *** : ___~\n}" ;
       t
         "cant enter invalid fieldname"
@@ -2054,7 +2054,7 @@ let () =
       t
         "close brace at end of record is swallowed"
         emptyRecord
-        (press K.RightCurlyBrace 1)
+        (key K.RightCurlyBrace 1)
         "{}~" ;
       t
         "backspacing empty record field clears entry"
@@ -2075,12 +2075,12 @@ let () =
       t
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
-        (press K.GoToStartOfLine 21)
+        (key K.GoToStartOfLine 21)
         "{\n  f1 : 56\n  ~f2 : 78\n}" ;
       t
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
-        (press K.GoToEndOfLine 14)
+        (key K.GoToEndOfLine 14)
         "{\n  f1 : 56\n  f2 : 78~\n}" ;
       t
         "inserting at the end of the key works"
@@ -2110,22 +2110,22 @@ let () =
       t
         "dont allow weird chars in recordFields"
         emptyRowRecord
-        (press K.RightParens 4)
+        (key K.RightParens 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFields with infix chars"
         emptyRowRecord
-        (press K.Plus 4)
+        (key K.Plus 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFields with infix chars, pt 2"
         singleRowRecord
-        (press K.Plus 6)
+        (key K.Plus 6)
         "{\n  f1~ : 56\n}" ;
       t
         "colon should skip over the record colon"
         emptyRowRecord
-        (press K.Colon 7)
+        (key K.Colon 7)
         "{\n  *** : ~___\n}" ;
       t
         "dont allow key to start with a number"
@@ -2158,59 +2158,59 @@ let () =
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (presses [K.Letter 'r'; K.Space] 0)
+        (keys [K.Letter 'r'; K.Space] 0)
         "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (presses [K.Letter 'r'; K.Enter] 0)
+        (keys [K.Letter 'r'; K.Enter] 0)
         "request~ == _________" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (presses [K.Letter 'r'; K.Tab] 0)
+        (keys [K.Letter 'r'; K.Tab] 0)
         "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         b
-        (presses [K.Equals; K.Enter] 0)
+        (keys [K.Equals; K.Enter] 0)
         "~_________ == _________" ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
         b
-        (presses [K.Equals; K.Tab] 0)
+        (keys [K.Equals; K.Tab] 0)
         "_________ == ~_________" ;
       t
         "autocomplete space on bin-op moves to start of first blank"
         b
-        (presses [K.Equals; K.Space] 0)
+        (keys [K.Equals; K.Space] 0)
         "~_________ == _________" ;
       t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
       t
         "pipe moves to right place on blank"
         b
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 2)
         "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 11)
         "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 14)
         "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 8)
         "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
       t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
       t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
@@ -2268,12 +2268,12 @@ let () =
       t
         "right skips over indent when in indent"
         emptyIf
-        (press K.Right 12)
+        (key K.Right 12)
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       t
         "left skips over indent when in indent"
         emptyIf
-        (press K.Left 13)
+        (key K.Left 13)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       (* length *)
       test "up from first row is zero" (fun () ->
@@ -2303,22 +2303,22 @@ let () =
       t
         "end of if-then blank goes up properly"
         emptyIf
-        (presses [K.Escape; K.Up] 17)
+        (keys [K.Escape; K.Up] 17)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes up properly, twice"
         emptyIf
-        (presses [K.Escape; K.Up; K.Up] 17)
+        (keys [K.Escape; K.Up; K.Up] 17)
         "if __~_\nthen\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly"
         emptyIf
-        (presses [K.Escape; K.Down] 5)
+        (keys [K.Escape; K.Down] 5)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly, twice"
         emptyIf
-        (presses [K.Escape; K.Down; K.Down] 5)
+        (keys [K.Escape; K.Down; K.Down] 5)
         "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
@@ -2356,22 +2356,22 @@ let () =
       t
         "moving right off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
-        (press K.Right 16)
+        (key K.Right 16)
         "let x = Int::add ~_________ _________\n___" ;
       tp
         "pressing an infix which could be valid doesn't commit"
         b
-        (presses [K.Pipe; K.Pipe] 0)
+        (keys [K.Pipe; K.Pipe] 0)
         "||~" ;
       tp
         "pressing an infix after true commits it "
         (partial "true" b)
-        (press K.Plus 4)
+        (key K.Plus 4)
         "true +~" ;
       t
         "moving left off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
-        (press K.Left 8)
+        (key K.Left 8)
         "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
           expect
@@ -2394,19 +2394,19 @@ let () =
       ts
         "shift right selects"
         longLets
-        (modPresses [(K.Right, ShiftHeld)] 0)
+        (modkeys [(K.Right, ShiftHeld)] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
-        (modPresses [(K.Down, ShiftHeld)] 4)
+        (modkeys [(K.Down, ShiftHeld)] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
-        (modPresses [(K.Left, ShiftHeld)] 52)
+        (modkeys [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 52, 48) ) ;
       ts
@@ -2497,7 +2497,7 @@ let () =
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (presses [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        (keys [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
         "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
