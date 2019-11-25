@@ -4956,7 +4956,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           let sourceId, errorType = sourceOfExprValue analysisId in
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
-            Token.isTextToken ti.token
+            Token.isErrorDisplayable ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
                sourceId |> Option.isSomeEqualTo ~value:analysisId
           in
