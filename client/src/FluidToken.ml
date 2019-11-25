@@ -236,7 +236,7 @@ let isErrorDisplayable (t : token) : bool =
 
 let toText (t : token) : string =
   let shouldntBeEmpty name =
-    asserT "shouldn't be empty" (name = "") t ;
+    asserT "shouldn't be empty" (name <> "") t ;
     name
   in
   let canBeEmpty name = if name = "" then "   " else name in
@@ -383,7 +383,7 @@ let toTestText (t : token) : string =
   in
   asserT
     "wrong length toTestText"
-    (String.length result <> String.length (toText t))
+    (String.length result = String.length (toText t))
     t ;
   result
 
