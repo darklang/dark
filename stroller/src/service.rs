@@ -63,7 +63,6 @@ pub fn handle(
     let (parts, body) = req.into_parts();
     let path_segments: Vec<&str> = uri.split('/').collect();
     let m = parts.method;
-    let event_type = path_segments[1].to_string();
     let req_body = body.fold(Vec::new(), |mut acc, chunk| {
         acc.extend_from_slice(&*chunk);
         // this horrible type annotation is from an aturon suggestion:
@@ -98,37 +97,19 @@ pub fn handle(
             *response.status_mut() = StatusCode::ACCEPTED;
             *response.body_mut() = Body::from("OK");
         }
-        | (&Method::POST, ["", "canvas", uuid, msg_type @ "events", event]) => {
-            let msg_type = msg_type.to_string();
+        (&Method::POST, ["", "canvas", uuid, "events", event]) => {
             let uuid = uuid.to_string();
             let event = event.to_string();
             let moved_request_id = request_id.clone();
             let handled = req_body
                 .map(move |req_body| {
-                    let result = match event_type.as_ref() {
-                        "canvas" => {
-                            let msg = PusherMessage::CanvasEvent(
-                                uuid.clone(),
-                                event.clone(),
-                                req_body,
-                                moved_request_id.clone(),
-                            );
-                            pusher_sender.send(msg).map_err(|_| ())
-                        }
-                        "segment" => {
-                            let msg = crate::segment::new_message(
-                                msg_type.to_string(),
-                                uuid.to_string(),
-                                event.clone(),
-                                req_body,
-                                moved_request_id.clone(),
-                            );
-
-                            msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
-                        }
-                        _ => panic!("Unhandled case!"),
-                    };
-
+                    let msg = PusherMessage::CanvasEvent(
+                        uuid.clone(),
+                        event.clone(),
+                        req_body,
+                        moved_request_id.clone(),
+                    );
+                    let result = pusher_sender.send(msg).map_err(|_| ());
                     handle_result(result, uuid.to_string(), moved_request_id, event, response)
                 })
                 .or_else(|_| {
@@ -149,36 +130,22 @@ pub fn handle(
             let handled = Box::new(handled);
             return Box::new(handled);
         }
-        | (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
+        (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
             let msg_type = msg_type.to_string();
             let uuid = uuid.to_string();
             let event = event.to_string();
             let moved_request_id = request_id.clone();
             let handled = req_body
                 .map(move |req_body| {
-                    let result = match event_type.as_ref() {
-                        "canvas" => {
-                            let msg = PusherMessage::CanvasEvent(
-                                uuid.clone(),
-                                event.clone(),
-                                req_body,
-                                moved_request_id.clone(),
-                            );
-                            pusher_sender.send(msg).map_err(|_| ())
-                        }
-                        "segment" => {
-                            let msg = crate::segment::new_message(
-                                msg_type.to_string(),
-                                uuid.to_string(),
-                                event.clone(),
-                                req_body,
-                                moved_request_id.clone(),
-                            );
+                    let msg = crate::segment::new_message(
+                        msg_type.to_string(),
+                        uuid.to_string(),
+                        event.clone(),
+                        req_body,
+                        moved_request_id.clone(),
+                    );
 
-                            msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()))
-                        }
-                        _ => panic!("Unhandled case!"),
-                    };
+                    let result = msg.map_or(Ok(()), |msg| segment_sender.send(msg).map_err(|_| ()));
 
                     handle_result(result, uuid.to_string(), moved_request_id, event, response)
                 })
