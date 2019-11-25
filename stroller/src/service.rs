@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use futures::future;
-use futures::future::Either;
 use hyper::header::HeaderValue;
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Method, Request, Response, StatusCode};
@@ -46,7 +45,7 @@ pub fn handle(
     pusher_sender: Sender<PusherMessage>,
     segment_sender: Sender<SegmentMessage>,
     req: Request<Body>,
-) -> impl Future<Item = Response<Body>, Error = hyper::Error> {
+) -> Box<dyn Future<Item = Response<Body>, Error = hyper::Error> + Send> {
     let start = SystemTime::now();
     let mut response = Response::new(Body::empty());
     let request_id = Uuid::new_v4().to_string();
@@ -56,7 +55,7 @@ pub fn handle(
 
     if shutting_down.load(Ordering::Acquire) {
         *response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
-        return Either::A(future::ok(response));
+        return Box::new(future::ok(response));
     }
 
     let uri = req.uri().to_string();
@@ -148,7 +147,7 @@ pub fn handle(
             "x-request-id" => &request_id
             ));
             let handled = Box::new(handled);
-            return Either::B(handled);
+            return Box::new(handled);
         }
         | (&Method::POST, ["", "segment", uuid, msg_type, "event", event]) => {
             let msg_type = msg_type.to_string();
@@ -199,14 +198,14 @@ pub fn handle(
             "x-request-id" => &request_id
             ));
             let handled = Box::new(handled);
-            return Either::B(handled);
+            return Box::new(handled);
         }
         _ => {
             *response.status_mut() = StatusCode::NOT_FOUND;
         }
     }
 
-    Either::A(future::ok(response))
+    Box::new(future::ok(response))
 }
 
 #[cfg(test)]
