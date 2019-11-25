@@ -130,6 +130,14 @@ let t_derror_propagation () =
     "ErrorRail in Error results in ErrorRail"
     (DErrorRail (DOption OptNothing))
     (exec_ast "(Error (`List::last_v1 []))") ;
+  check_error
+    "DError as dict value results in DError"
+    (exec_ast "(let v (+ 1 'a') (obj (k v)))")
+    "Dict contains Error value" ;
+  check_dval
+    "ErrorRail in dict value results in ErrorRail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(obj (err (`List::last_v1 [])))") ;
   ()
 
 

@@ -242,25 +242,39 @@ let rec exec
                      Some dv ) )
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
     | Filled (_, ObjectLiteral pairs) ->
-        pairs
-        |> List.filter_map ~f:(fun (k, v) ->
-               match (k, v) with
-               | Filled (_, keyname), v ->
-                   let expr = exe st v in
-                   trace_blank k expr st ;
-                   ( match expr with
-                   | DIncomplete _ ->
-                       None
-                   | _ ->
-                       Some (keyname, expr) )
-               | _, v ->
-                   ignore (exe st v) ;
-                   None )
-        |> fun ps ->
-        ps
-        |> List.map ~f:Tuple.T2.get2
-        |> find_derrorrail
-        |> Option.value ~default:(Dval.to_dobj_exn ps)
+        (* fold over the pairs, always evaluating the values to produce traces.
+         * In the event we find a DError, the dict as a whole is a DError. If
+         * we find a DIncomplete value or Blank key, skip over it. *)
+        let res =
+          List.fold pairs ~init:(Ok []) ~f:(fun accum (k, v) ->
+              let expr = exe st v in
+              match accum with
+              | Error _ as e ->
+                  e
+              | Ok obj ->
+                ( match (k, v) with
+                | Filled (_, keyname), v ->
+                    trace_blank k expr st ;
+                    ( match expr with
+                    | DError (src, msg) ->
+                        Error (DError (src, "Dict contains Error value"))
+                    | DIncomplete _ ->
+                        Ok obj
+                    | _ ->
+                        Ok ((keyname, expr) :: obj) )
+                | _, v ->
+                    Ok obj ) )
+        in
+        ( match res with
+        | Error e ->
+            e
+        | Ok obj ->
+            obj
+            |> fun ps ->
+            ps
+            |> List.map ~f:Tuple.T2.get2
+            |> find_derrorrail
+            |> Option.value ~default:(Dval.to_dobj_exn ps) )
     | Filled (id, Variable name) ->
       ( match (Symtable.get st ~key:name, ctx) with
       | None, Preview ->
