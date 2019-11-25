@@ -370,7 +370,7 @@ let () =
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug keys None pos expr
   in
-  let insert
+  let ins
       ?(debug = false)
       ?(wrap = true)
       ?(clone = true)
@@ -441,52 +441,52 @@ let () =
       (fun () -> expect (fn initial) |> toEqual (expected, false))
   in
   describe "Strings" (fun () ->
-      t "insert mid string" aStr (insert 'c' 3) "\"soc~me string\"" ;
+      t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;
       t "bs mid string" aStr (bs 4) "\"so~e string\"" ;
-      t "insert empty string" emptyStr (insert 'c' 1) "\"c~\"" ;
+      t "insert empty string" emptyStr (ins 'c' 1) "\"c~\"" ;
       t "del empty string" emptyStr (del 1) "~___" ;
       t "del empty string from outside" emptyStr (del 0) "~___" ;
       t "bs empty string" emptyStr (bs 1) "~___" ;
       t "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
       t "bs near-empty string" oneCharStr (bs 2) "\"~\"" ;
       t "del near-empty string" oneCharStr (del 1) "\"~\"" ;
-      t "insert outside string" aStr (insert 'c' 0) "~\"some string\"" ;
+      t "insert outside string" aStr (ins 'c' 0) "~\"some string\"" ;
       t "del outside string" aStr (del 0) "~\"some string\"" ;
       t "bs outside string" aStr (bs 0) "~\"some string\"" ;
-      t "insert start of string" aStr (insert 'c' 1) "\"c~some string\"" ;
+      t "insert start of string" aStr (ins 'c' 1) "\"c~some string\"" ;
       t "del start of string" aStr (del 1) "\"~ome string\"" ;
       t "bs start of string" aStr (bs 1) "~\"some string\"" ;
-      t "insert end of string" aStr (insert 'c' 12) "\"some stringc~\"" ;
+      t "insert end of string" aStr (ins 'c' 12) "\"some stringc~\"" ;
       t "del end of string" aStr (del 12) "\"some string~\"" ;
       t "bs end of string" aStr (bs 12) "\"some strin~\"" ;
-      t "insert after end" aStr (insert 'c' 13) "\"some string\"~" ;
+      t "insert after end" aStr (ins 'c' 13) "\"some string\"~" ;
       t "del after end of string" aStr (del 13) "\"some string\"~" ;
       t "bs after end" aStr (bs 13) "\"some string~\"" ;
-      t "insert space in string" aStr (insert ' ' 3) "\"so ~me string\"" ;
+      t "insert space in string" aStr (ins ' ' 3) "\"so ~me string\"" ;
       t "del space in string" aStr (del 5) "\"some~string\"" ;
       t "bs space in string" aStr (bs 6) "\"some~string\"" ;
-      t "final quote is swallowed" aStr (insert '"' 12) "\"some string\"~" ;
+      t "final quote is swallowed" aStr (ins '"' 12) "\"some string\"~" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
         "insert into start string"
         mlStr
-        (insert 'c' 3)
+        (ins 'c' 3)
         ( "\"12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into middle string"
         mlStr
-        (insert 'c' 44 (* quote + 2 + newline *))
+        (ins 'c' 44 (* quote + 2 + newline *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert into end string"
         mlStr
-        (insert 'c' 85 (* quote + 2 + newline*2 *))
+        (ins 'c' 85 (* quote + 2 + newline*2 *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "12c~3456789_\"" ) ;
@@ -535,7 +535,7 @@ let () =
       t
         "insert outside string"
         mlStr
-        (insert 'c' 0)
+        (ins 'c' 0)
         ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"" ) ;
@@ -556,21 +556,21 @@ let () =
       t
         "insert start of start string"
         mlStr
-        (insert 'c' 1)
+        (ins 'c' 1)
         ( "\"c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of middle string"
         mlStr
-        (insert 'c' 42)
+        (ins 'c' 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert start of end string"
         mlStr
-        (insert 'c' 83)
+        (ins 'c' 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "c~123456789_\"" ) ;
@@ -619,40 +619,40 @@ let () =
       t
         "insert end of start string"
         mlStr
-        (insert 'c' 41)
+        (ins 'c' 41)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
         ^ "123456789_\"" ) ;
       t
         "insert end of middle string"
         mlStr
-        (insert 'c' 82)
+        (ins 'c' 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\nc~"
         ^ "123456789_\"" ) ;
       t
         "insert end of end string"
         mlStr
-        (insert 'c' 93)
+        (ins 'c' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
         (str mlSegment)
-        (insert 'c' 41)
+        (ins 'c' 41)
         "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
         (if' (str mlSegment) b b)
-        (insert 'c' 44)
+        (ins 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (insert 'c' 44)
+        (ins 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
         ^ "   ,\"\n"
@@ -660,7 +660,7 @@ let () =
       t
         "insert end of indented end string"
         (if' (str (mlSegment ^ mlSegment)) b b)
-        (insert 'c' 88)
+        (ins 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "   c~\"\n"
@@ -710,7 +710,7 @@ let () =
       t
         "insert after end of end string"
         mlStr
-        (insert 'c' 94)
+        (ins 'c' 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
@@ -732,7 +732,7 @@ let () =
       t
         "final quote is swallowed"
         mlStr
-        (insert '"' 93)
+        (ins '"' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_\"~" ) ;
@@ -764,48 +764,44 @@ let () =
         ^ "then\n  ___\nelse\n  ___" ) ;
       () ) ;
   describe "Integers" (fun () ->
-      t "insert 0 at front " anInt (insert '0' 0) "~12345" ;
-      t "insert at end of short" aShortInt (insert '2' 1) "12~" ;
-      t "insert not a number" anInt (insert 'c' 0) "~12345" ;
-      t "insert start of number" anInt (insert '5' 0) "5~12345" ;
+      t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
+      t "insert at end of short" aShortInt (ins '2' 1) "12~" ;
+      t "insert not a number" anInt (ins 'c' 0) "~12345" ;
+      t "insert start of number" anInt (ins '5' 0) "5~12345" ;
       t "del start of number" anInt (del 0) "~2345" ;
       t "bs start of number" anInt (bs 0) "~12345" ;
-      t "insert end of number" anInt (insert '0' 5) "123450~" ;
+      t "insert end of number" anInt (ins '0' 5) "123450~" ;
       t "del end of number" anInt (del 5) "12345~" ;
       t "bs end of number" anInt (bs 5) "1234~" ;
-      t "insert number at scale" aHugeInt (insert '9' 5) "200009~0000000000000" ;
-      t "insert number at scale" aHugeInt (insert '9' 0) "9~20000000000000000" ;
-      t
-        "insert number at scale"
-        aHugeInt
-        (insert '9' 19)
-        "2000000000000000000~" ;
+      t "insert number at scale" aHugeInt (ins '9' 5) "200009~0000000000000" ;
+      t "insert number at scale" aHugeInt (ins '9' 0) "9~20000000000000000" ;
+      t "insert number at scale" aHugeInt (ins '9' 19) "2000000000000000000~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (insert '3' 18)
+        (ins '3' 18)
         "4611686018427387903~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (insert '4' 18)
+        (ins '4' 18)
         "461168601842738790~" ;
       () ) ;
   describe "Floats" (fun () ->
-      t "insert . converts to float - end" anInt (insert '.' 5) "12345.~" ;
-      t "insert . converts to float - middle" anInt (insert '.' 3) "123.~45" ;
-      t "insert . converts to float - start" anInt (insert '.' 0) "~12345" ;
-      t "insert . converts to float - short" aShortInt (insert '.' 1) "1.~" ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) "1.2~" ;
-      t "insert zero in whole - start" aFloat (insert '0' 0) "~123.456" ;
-      t "insert int in whole - start" aFloat (insert '9' 0) "9~123.456" ;
-      t "insert int in whole - middle" aFloat (insert '0' 1) "10~23.456" ;
-      t "insert int in whole - end" aFloat (insert '0' 3) "1230~.456" ;
-      t "insert int in fraction - start" aFloat (insert '0' 4) "123.0~456" ;
-      t "insert int in fraction - middle" aFloat (insert '0' 6) "123.450~6" ;
-      t "insert int in fraction - end" aFloat (insert '0' 7) "123.4560~" ;
-      t "insert non-int in whole" aFloat (insert 'c' 2) "12~3.456" ;
-      t "insert non-int in fraction" aFloat (insert 'c' 6) "123.45~6" ;
+      t "insert . converts to float - end" anInt (ins '.' 5) "12345.~" ;
+      t "insert . converts to float - middle" anInt (ins '.' 3) "123.~45" ;
+      t "insert . converts to float - start" anInt (ins '.' 0) "~12345" ;
+      t "insert . converts to float - short" aShortInt (ins '.' 1) "1.~" ;
+      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
+      t "insert zero in whole - start" aFloat (ins '0' 0) "~123.456" ;
+      t "insert int in whole - start" aFloat (ins '9' 0) "9~123.456" ;
+      t "insert int in whole - middle" aFloat (ins '0' 1) "10~23.456" ;
+      t "insert int in whole - end" aFloat (ins '0' 3) "1230~.456" ;
+      t "insert int in fraction - start" aFloat (ins '0' 4) "123.0~456" ;
+      t "insert int in fraction - middle" aFloat (ins '0' 6) "123.450~6" ;
+      t "insert int in fraction - end" aFloat (ins '0' 7) "123.4560~" ;
+      t "insert non-int in whole" aFloat (ins 'c' 2) "12~3.456" ;
+      t "insert non-int in fraction" aFloat (ins 'c' 6) "123.45~6" ;
       t "del dot" aFloat (del 3) "123~456" ;
       t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
       let maxPosIntWithDot = float' "4611686018427387" "903" in
@@ -836,52 +832,52 @@ let () =
       t "bs end of fraction" aFloat (bs 7) "123.45~" ;
       t "bs dot converts to int" aFloat (bs 4) "123~456" ;
       t "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) "1.2~" ;
+      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
       () ) ;
   describe "Bools" (fun () ->
-      tp "insert start of true" trueBool (insert 'c' 0) "c~true" ;
+      tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
       tp "del start of true" trueBool (del 0) "~rue" ;
       t "bs start of true" trueBool (bs 0) "~true" ;
-      tp "insert end of true" trueBool (insert '0' 4) "true0~" ;
+      tp "insert end of true" trueBool (ins '0' 4) "true0~" ;
       t "del end of true" trueBool (del 4) "true~" ;
       tp "bs end of true" trueBool (bs 4) "tru~" ;
-      tp "insert middle of true" trueBool (insert '0' 2) "tr0~ue" ;
+      tp "insert middle of true" trueBool (ins '0' 2) "tr0~ue" ;
       tp "del middle of true" trueBool (del 2) "tr~e" ;
       tp "bs middle of true" trueBool (bs 2) "t~ue" ;
-      tp "insert start of false" falseBool (insert 'c' 0) "c~false" ;
+      tp "insert start of false" falseBool (ins 'c' 0) "c~false" ;
       tp "del start of false" falseBool (del 0) "~alse" ;
       t "bs start of false" falseBool (bs 0) "~false" ;
-      tp "insert end of false" falseBool (insert '0' 5) "false0~" ;
+      tp "insert end of false" falseBool (ins '0' 5) "false0~" ;
       t "del end of false" falseBool (del 5) "false~" ;
       tp "bs end of false" falseBool (bs 5) "fals~" ;
-      tp "insert middle of false" falseBool (insert '0' 2) "fa0~lse" ;
+      tp "insert middle of false" falseBool (ins '0' 2) "fa0~lse" ;
       tp "del middle of false" falseBool (del 2) "fa~se" ;
       tp "bs middle of false" falseBool (bs 2) "f~lse" ;
       () ) ;
   describe "Nulls" (fun () ->
-      tp "insert start of null" aNull (insert 'c' 0) "c~null" ;
+      tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
       tp "del start of null" aNull (del 0) "~ull" ;
       t "bs start of null" aNull (bs 0) "~null" ;
-      tp "insert end of null" aNull (insert '0' 4) "null0~" ;
+      tp "insert end of null" aNull (ins '0' 4) "null0~" ;
       t "del end of null" aNull (del 4) "null~" ;
       tp "bs end of null" aNull (bs 4) "nul~" ;
-      tp "insert middle of null" aNull (insert '0' 2) "nu0~ll" ;
+      tp "insert middle of null" aNull (ins '0' 2) "nu0~ll" ;
       tp "del middle of null" aNull (del 2) "nu~l" ;
       tp "bs middle of null" aNull (bs 2) "n~ll" ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" b (insert '"' 3) "\"~\"" ;
+      t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
       t "del middle of blank->blank" b (del 3) "___~" ;
       t "bs middle of blank->blank" b (bs 3) "~___" ;
-      t "insert blank->string" b (insert '"' 0) "\"~\"" ;
+      t "insert blank->string" b (ins '"' 0) "\"~\"" ;
       t "del blank->string" emptyStr (del 0) "~___" ;
       t "bs blank->string" emptyStr (bs 1) "~___" ;
-      t "insert blank->int" b (insert '5' 0) "5~" ;
-      t "insert blank->int" b (insert '0' 0) "0~" ;
+      t "insert blank->int" b (ins '5' 0) "5~" ;
+      t "insert blank->int" b (ins '0' 0) "0~" ;
       t "del int->blank " five (del 0) "~___" ;
       t "bs int->blank " five (bs 1) "~___" ;
-      t "insert end of blank->int" b (insert '5' 1) "5~" ;
-      tp "insert partial" b (insert 't' 0) "t~" ;
+      t "insert end of blank->int" b (ins '5' 1) "5~" ;
+      tp "insert partial" b (ins 't' 0) "t~" ;
       t
         "backspacing your way through a partial finishes"
         trueBool
@@ -890,28 +886,24 @@ let () =
       t "insert blank->space" b (space 0) "~___" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (insert 'c' 5) "obj.fc~ield" ;
-      t
-        "cant insert invalid chars fieldname"
-        aField
-        (insert '$' 5)
-        "obj.f~ield" ;
+      t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
+      t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
       t "del middle of fieldname" aField (del 5) "obj.f~eld" ;
       t "del fieldname" aShortField (del 4) "obj.~***" ;
       t "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      t "insert end of fieldname" aField (insert 'c' 9) "obj.fieldc~" ;
-      tp "insert end of varname" aField (insert 'c' 3) "objc~.field" ;
-      t "insert start of fieldname" aField (insert 'c' 4) "obj.c~field" ;
-      t "insert blank fieldname" aBlankField (insert 'c' 4) "obj.c~" ;
+      t "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
+      tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
+      t "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
+      t "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      t "add dot after variable" aVar (insert '.' 8) "variable.~***" ;
-      t "add dot after partial " aPartialVar (insert '.' 3) "request.~***" ;
-      t "add dot after field" aField (insert '.' 9) "obj.field.~***" ;
+      t "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
+      t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
+      t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       () ) ;
   describe "Functions" (fun () ->
@@ -1020,7 +1012,7 @@ let () =
          fn
            "HttpClient::post_v4"
            [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
-        (insert ~wrap:false 'x' 120)
+        (ins ~wrap:false 'x' 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
       (* TODO: This should be 129, but reflow puts the cursor in the wrong
            * place for new partials *) ;
@@ -1168,12 +1160,8 @@ let () =
       (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
-      tp "arguments work in constructors" aConstructor (insert 't' 5) "Just t~" ;
-      t
-        "int arguments work in constructors"
-        aConstructor
-        (insert '5' 5)
-        "Just 5~" ;
+      tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
+      t "int arguments work in constructors" aConstructor (ins '5' 5) "Just 5~" ;
       tp
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
@@ -1221,12 +1209,12 @@ let () =
       t
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
-        (insert 'c' 8)
+        (ins 'c' 8)
         "\\bindingc~ -> bindingc" ;
       t
         "insert changes occurence of binding 2nd var"
         (lambdaWithUsed2ndBinding "binding")
-        (insert 'c' 17)
+        (ins 'c' 17)
         "\\somevar, bindingc~ -> bindingc" ;
       t
         "dont jump in lambdavars with infix chars"
@@ -1236,17 +1224,17 @@ let () =
       t
         "dont allow name to start with a number"
         aLambda
-        (insert '5' 1)
+        (ins '5' 1)
         "\\~*** -> ___" ;
       t
         "dont allow name to start with a number, pt 2"
         (lambdaWithBinding "test" five)
-        (insert '2' 1)
+        (ins '2' 1)
         "\\~test -> 5" ;
       t
         "dont allow name to start with a number, pt 3"
         aLambda
-        (insert '5' 3)
+        (ins '5' 3)
         (* TODO: this looks wrong *)
         "\\**~* -> ___" ;
       t
@@ -1281,32 +1269,32 @@ let () =
       t
         "can add lambda arguments when blank"
         aLambda
-        (insert ',' 4)
+        (ins ',' 4)
         "\\***, ~*** -> ___" ;
       t
         "can add lambda arguments to used binding"
         lambdaWithTwoBindings
-        (insert ',' 5)
+        (ins ',' 5)
         "\\x, y, ~*** -> ___" ;
       t
         "can add lambda arguments in middle used binding"
         lambdaWithTwoBindings
-        (insert ',' 2)
+        (ins ',' 2)
         "\\x, ~***, y -> ___" ;
       t
         "can add lambda arguments in the front"
         lambdaWithTwoBindings
-        (insert ',' 1)
+        (ins ',' 1)
         "\\~***, x, y -> ___" ;
       t
         "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
-        (insert ',' 4)
+        (ins ',' 4)
         "\\x, ~***, y -> ___" ;
       t
         "cant insert a blank from outside the lambda"
         lambdaWithTwoBindings
-        (insert ',' 0)
+        (ins ',' 0)
         "~\\x, y -> ___" ;
       t
         "cant bs a blank from the space in a lambda"
@@ -1315,7 +1303,7 @@ let () =
         "\\x,~ y -> ___" ;
       () ) ;
   describe "Variables" (fun () ->
-      tp "insert middle of variable" aVar (insert 'c' 5) "variac~ble" ;
+      tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
       tp "insert capital works" aVar (key (K.Letter 'A') 5) "variaA~ble" ;
       t "can't insert invalid" aVar (key K.Dollar 5) "varia~ble" ;
@@ -1397,12 +1385,12 @@ let () =
       t
         "insert changes occurence of non-shadowed var in case"
         (matchWithBinding "binding" (var "binding"))
-        (insert 'c' 19)
+        (ins 'c' 19)
         "match ___\n  bindingc~ -> bindingc\n" ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
         (matchWithConstructorBinding "binding" (var "binding"))
-        (insert 'c' 22)
+        (ins 'c' 22)
         "match ___\n  Ok bindingc~ -> bindingc\n" ;
       t
         "insert space in blank match"
@@ -1478,8 +1466,8 @@ let () =
         emptyLet
         (key K.Space 4)
         "let ~*** = ___\n5" ;
-      t "lhs on empty" emptyLet (insert 'c' 4) "let c~ = ___\n5" ;
-      t "middle of blank" emptyLet (insert 'c' 5) "let c~ = ___\n5" ;
+      t "lhs on empty" emptyLet (ins 'c' 4) "let c~ = ___\n5" ;
+      t "middle of blank" emptyLet (ins 'c' 5) "let c~ = ___\n5" ;
       t "bs letlhs" letWithLhs (bs 5) "let ~*** = 6\n5" ;
       t "del letlhs" letWithLhs (del 4) "let ~*** = 6\n5" ;
       t
@@ -1510,7 +1498,7 @@ let () =
       t
         "insert changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (insert 'c' 11)
+        (ins 'c' 11)
         "let bindingc~ = 6\nbindingc" ;
       t
         "insert changes occurence of binding in match nested expr"
@@ -1519,17 +1507,17 @@ let () =
            (match'
               b
               [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
-        (insert 'c' 11)
+        (ins 'c' 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
         (letWithBinding "binding" (lambda ["binding"] (var "binding")))
-        (insert 'c' 11)
+        (ins 'c' 11)
         "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
         (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
-        (insert 'c' 11)
+        (ins 'c' 11)
         "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
         "dont jump in letlhs with infix chars"
@@ -1539,17 +1527,17 @@ let () =
       t
         "dont allow letlhs to start with a number"
         emptyLet
-        (insert '5' 4)
+        (ins '5' 4)
         "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number, pt 2"
         letWithLhs
-        (insert '2' 4)
+        (ins '2' 4)
         "let ~n = 6\n5" ;
       t
         "dont allow letlhs to start with a number, pt 3"
         emptyLet
-        (insert '5' 6)
+        (ins '5' 6)
         "let **~* = ___\n5" ;
       t
         "enter on the end of let goes to blank"
@@ -1894,33 +1882,33 @@ let () =
       () ) ;
   describe "Lists" (fun () ->
       t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
-      t "insert into empty list inserts" emptyList (insert '5' 1) "[5~]" ;
-      t "inserting before the list does nothing" emptyList (insert '5' 0) "~[]" ;
+      t "insert into empty list inserts" emptyList (ins '5' 1) "[5~]" ;
+      t "inserting before the list does nothing" emptyList (ins '5' 0) "~[]" ;
       t "insert space into multi list" multi (key K.Space 6) "[56,78~]" ;
       t "insert space into single list" single (key K.Space 3) "[56~]" ;
-      t "insert into existing list item" single (insert '4' 1) "[4~56]" ;
+      t "insert into existing list item" single (ins '4' 1) "[4~56]" ;
       t
         "insert separator before item creates blank"
         single
-        (insert ',' 1)
+        (ins ',' 1)
         "[~___,56]" ;
       t
         "insert separator after item creates blank"
         single
-        (insert ',' 3)
+        (ins ',' 3)
         "[56,~___]" ;
       t
         "insert separator between items creates blank"
         multi
-        (insert ',' 3)
+        (ins ',' 3)
         "[56,~___,78]" ;
-      (* t "insert separator mid integer makes two items" single (insert ',' 2) *)
+      (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
       t
         "insert separator mid string does nothing special "
         withStr
-        (insert ',' 3)
+        (ins ',' 3)
         "[\"a,~b\"]" ;
       t
         "backspacing open bracket of empty list dels list"
@@ -1998,7 +1986,7 @@ let () =
       t
         "inserting before the record does nothing"
         emptyRecord
-        (insert '5' 0)
+        (ins '5' 0)
         "~{}" ;
       t
         "inserting space between empty record does nothing"
@@ -2020,7 +2008,7 @@ let () =
         emptyRecord
         (enter 1)
         "{\n  ~*** : ___\n}" ;
-      t "enter fieldname" emptyRowRecord (insert 'c' 4) "{\n  c~ : ___\n}" ;
+      t "enter fieldname" emptyRowRecord (ins 'c' 4) "{\n  c~ : ___\n}" ;
       t
         "move to the front of an empty record"
         emptyRowRecord
@@ -2034,7 +2022,7 @@ let () =
       t
         "cant enter invalid fieldname"
         emptyRowRecord
-        (insert '^' 4)
+        (ins '^' 4)
         "{\n  ~*** : ___\n}" ;
       t
         "backspacing open brace of empty record dels record"
@@ -2065,12 +2053,12 @@ let () =
       t
         "appending to int in expr works"
         singleRowRecord
-        (insert '1' 11)
+        (ins '1' 11)
         "{\n  f1 : 561~\n}" ;
       t
         "appending to int in expr works"
         multiRowRecord
-        (insert '1' 21)
+        (ins '1' 21)
         "{\n  f1 : 56\n  f2 : 781~\n}" ;
       t
         "move to the front of a record with multiRowRecordple values"
@@ -2085,7 +2073,7 @@ let () =
       t
         "inserting at the end of the key works"
         emptyRowRecord
-        (insert 'f' 6)
+        (ins 'f' 6)
         "{\n  f~ : ___\n}" ;
       t
         "pressing enter at start adds a row"
@@ -2130,17 +2118,17 @@ let () =
       t
         "dont allow key to start with a number"
         emptyRowRecord
-        (insert '5' 4)
+        (ins '5' 4)
         "{\n  ~*** : ___\n}" ;
       t
         "dont allow key to start with a number, pt 2"
         singleRowRecord
-        (insert '5' 4)
+        (ins '5' 4)
         "{\n  ~f1 : 56\n}" ;
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        (insert '5' 6)
+        (ins '5' 6)
         (* TODO: looks wrong *)
         "{\n  **~* : ___\n}" ;
       () ) ;
