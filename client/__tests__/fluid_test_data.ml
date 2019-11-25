@@ -427,3 +427,22 @@ let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
 let aPipeInsideIf = if' b aLongPipe b
 
 let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
+
+(* ---------------- *)
+(* Complex *)
+(* ---------------- *)
+
+let complexExpr =
+  if'
+    (binop
+       "||"
+       (binop
+          "=="
+          (fieldAccess (fieldAccess (var "request") "headers") "origin")
+          (str "https://usealtitude.com"))
+       (binop
+          "=="
+          (fieldAccess (fieldAccess (var "request") "headers") "origin")
+          (str "https://localhost:3000")))
+    (let' "" b (fn "Http::Forbidden" [int "403"]))
+    (fn "Http::Forbidden" [])

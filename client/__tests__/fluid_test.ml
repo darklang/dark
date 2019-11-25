@@ -56,22 +56,6 @@ module K = FluidKeyboard
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
-let complexExpr =
-  if'
-    (binop
-       "||"
-       (binop
-          "=="
-          (fieldAccess (fieldAccess (var "request") "headers") "origin")
-          (str "https://usealtitude.com"))
-       (binop
-          "=="
-          (fieldAccess (fieldAccess (var "request") "headers") "origin")
-          (str "https://localhost:3000")))
-    (let' "" b (fn "Http::Forbidden" [int "403"]))
-    (fn "Http::Forbidden" [])
-
-
 let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
 
 type testResult = (string * (int option * int)) * bool
