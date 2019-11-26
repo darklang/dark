@@ -4925,11 +4925,14 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     else (None, "")
   in
   let currentTokenInfo = getToken state ast in
-  let sourceOfCurrentToken =
+  let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
-           let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
-           someId )
+           if Token.isBlank ti.token || onTi.startRow = ti.startRow
+           then None
+           else
+             let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
+             someId )
   in
   List.map l ~f:(fun ti ->
       let dropdown () =
@@ -4966,8 +4969,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
-            , sourceOfCurrentToken |> Option.isSomeEqualTo ~value:analysisId )
-          ]
+            , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
+            ) ]
         in
         Html.span
           [ Html.classList (cls @ conditionalClasses)
