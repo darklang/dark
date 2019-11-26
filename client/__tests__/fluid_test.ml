@@ -58,7 +58,11 @@ module K = FluidKeyboard
 
 let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
 
-type testResult = (string * (int option * int)) * bool
+type hasPartial =
+  | NoPartial
+  | ContainsPartial
+
+type testResult = (string * (int option * int)) * hasPartial
 
 type shiftState =
   | ShiftHeld
@@ -250,7 +254,8 @@ let () =
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
-    ((eToString s result, (selPos, finalPos)), partialsFound)
+    ( (eToString s result, (selPos, finalPos))
+    , if partialsFound then ContainsPartial else NoPartial )
   in
   let render (expr : fluidExpr) : testResult =
     process ~wrap:true ~clone:false ~debug:false [] None 0 expr
@@ -372,7 +377,7 @@ let () =
       (expectedStr : string) =
     let insertCaret
         (((str, (_selection, caret)), res) :
-          (string * (int option * int)) * bool) : string * bool =
+          (string * (int option * int)) * hasPartial) : string * hasPartial =
       let caretString = "~" in
       match str |> String.splitAt ~index:caret with a, b ->
         ([a; b] |> String.join ~sep:caretString, res)
@@ -384,7 +389,8 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCaret) |> toEqual (expectedStr, false) )
+        expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial)
+        )
   in
   (* Test expecting partials found and an expected caret position but no selection *)
   let tp
@@ -394,7 +400,7 @@ let () =
       (expectedStr : string) =
     let insertCaret
         (((str, (_selection, caret)), res) :
-          (string * (int option * int)) * bool) : string * bool =
+          (string * (int option * int)) * hasPartial) : string * hasPartial =
       let caretString = "~" in
       match str |> String.splitAt ~index:caret with a, b ->
         ([a; b] |> String.join ~sep:caretString, res)
@@ -406,7 +412,8 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCaret) |> toEqual (expectedStr, true) )
+        expect (fn initial |> insertCaret)
+        |> toEqual (expectedStr, ContainsPartial) )
   in
   (* Test expecting no partials found and an expected resulting selection *)
   let ts
@@ -422,7 +429,7 @@ let () =
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual (expected, false))
+      (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
   in
   describe "Strings" (fun () ->
       t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
