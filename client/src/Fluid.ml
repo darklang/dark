@@ -702,21 +702,19 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> add (TNewline (Some (eid else', id, None)))
       |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
-      let isInPipe = match lexpr with EPipeTarget _ -> true | _ -> false in
       let start b =
-        if isInPipe
-        then b
-        else
-          b
-          |> add (TParenOpen id)
-          |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
-          |> add (TSep (eid lexpr))
+        match lexpr with
+        | EPipeTarget _ ->
+            b
+        | _ ->
+            b
+            |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
+            |> add (TSep (eid lexpr))
       in
       b
       |> start
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
-      |> addIf (not isInPipe) (TParenClose id)
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
       let ghost = ghostPartial id newName oldName in
       let start b =
@@ -812,7 +810,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
           recover "pipe with single entry found" e (fromExpr single b)
       | head :: tail ->
           b
-          |> add (TParenOpen id)
           |> addNested ~f:(fromExpr head)
           |> addNewlineIfNeeded (Some (id, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
@@ -820,7 +817,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
                  |> add (TPipe (id, i, length))
                  |> addNested ~f:(fromExpr e)
                  |> addNewlineIfNeeded (Some (id, id, Some (i + 1))) )
-          |> add (TParenClose id)
           |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EPipeTarget _ ->
       recover "should never be making tokens for EPipeTarget" e b
