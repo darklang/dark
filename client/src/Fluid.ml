@@ -5181,10 +5181,24 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
         in
         let conditionalClasses =
           let sourceId, errorType = sourceOfExprValue analysisId in
-          let isIncompleteFnCall =
+          let isFnCallNotRun =
             match ti.token with
             | TFnName _ ->
-                errorType = "dark-incomplete"
+                let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
+                let fid = Token.analysisID ti.token in
+                fnForToken state ti.token
+                |> Option.map ~f:(fun fn ->
+                       if fn.fnPreviewExecutionSafe || errorType = "dark-error"
+                       then false
+                       else
+                         match
+                           ViewFnExecution.fnExecutionStatus vs fn fid args
+                         with
+                         | Unsafe | Ready | Executing | NoPermission ->
+                             true
+                         | _ ->
+                             false )
+                |> Option.withDefault ~default:false
             | _ ->
                 false
           in
@@ -5193,7 +5207,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             Token.isErrorDisplayable ti.token
             (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
             && sourceId |> Option.isSomeEqualTo ~value:analysisId
-            && not isIncompleteFnCall
+            && not isFnCallNotRun
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
