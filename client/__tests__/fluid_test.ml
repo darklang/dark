@@ -16,8 +16,9 @@ module K = FluidKeyboard
  * it in position 2. The stringified result is "12.456" and the caret should
  * be in position 2 (indicated by the tilde).
  *
- * There are a handful of functions you can call, including key, keys,
- * insert, bs, del, tab, shiftTab, and render.
+ * There are a handful of functions you can call, including modKeys, key,
+ * keys, insert, bs, del, tab, shiftTab, and render.
+ *
  *
  * There are a few different ways of running a test:
  *  - t vs tp:
