@@ -945,6 +945,8 @@ let tiSentinel : tokenInfo =
   ; length = -1000 }
 
 
+(* Returns a new state with the arbitrary string "action" recorded for debugging.
+ * If a ~pos or ~ti (token info) is passed, it will be added to the action. *)
 let recordAction
     ?(pos = -1000) ?(ti = tiSentinel) (action : string) (s : state) : state =
   let action =
@@ -2380,7 +2382,13 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
             (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
         | _ ->
             recover "BinOp doesn't have 2 args" (newB (), 0)
-      else (EFnCall (gid (), fn.fnName, args, r), String.length partialName + 1)
+      else
+        (* functions with arguments should place the caret into the first argument
+         * while functions without should place it just after the function name
+         * List::head |_list_ [vs] List::empty| *)
+        let fnNameLen = String.length partialName in
+        let offset = if List.isEmpty args then fnNameLen else fnNameLen + 1 in
+        (EFnCall (gid (), fn.fnName, args, r), offset)
   | FACKeyword KLet ->
       (ELet (gid (), gid (), "", newB (), newB ()), 4)
   | FACKeyword KIf ->
@@ -3540,12 +3548,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
         |> Option.withDefault ~default:(ast, s)
-    | K.ShiftEnter, _, _ ->
-        let startPos, endPos = fluidGetSelectionRange s in
-        let findParent = startPos = endPos in
-        let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
-        Option.map topmostID ~f:(fun id -> doShiftEnter ~findParent id ast s)
-        |> Option.withDefault ~default:(ast, s)
+    | K.ShiftEnter, left, _ ->
+        let doPipeline ast s =
+          let startPos, endPos = fluidGetSelectionRange s in
+          let findParent = startPos = endPos in
+          let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
+          Option.map topmostID ~f:(fun id -> doShiftEnter ~findParent id ast s)
+          |> Option.withDefault ~default:(ast, s)
+        in
+        ( match left with
+        | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
+            let ast, s = acEnter ti ast s K.Enter in
+            doPipeline ast s
+        | _ ->
+            doPipeline ast s )
     (* Special autocomplete entries *)
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
