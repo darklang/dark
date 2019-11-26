@@ -5107,7 +5107,9 @@ let viewPlayIcon
 let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
-  (* Gets the source of a DIncomplete given an expr id *)
+  (* Gets the source of a DIncomplete given an expr id
+    Feature spec details: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg
+  *)
   let sourceOfExprValue id =
     if FluidToken.validID id
     then
@@ -5206,7 +5208,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
             Token.isErrorDisplayable ti.token
-            (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
+            (* This expression is the source of its own incompleteness. We only add the Subtle Error Signifier for sources of incompletes/errors, not all propagated occurrences.
+            def: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.33xqcy8kdv9a
+            *)
             && sourceId |> Option.isSomeEqualTo ~value:analysisId
             && not isFnCallNotRun
           in
@@ -5214,7 +5218,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
           ; ("fluid-error", isError)
           ; (errorType, errorType <> "")
-          ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
+          ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on. We apply the Loud Error Signifier, def: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.fcwpuuusqf20 *)
             ( "is-origin"
             , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
             ) ]
