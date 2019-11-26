@@ -5184,6 +5184,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           let isFnCallNotRun =
             match ti.token with
             | TFnName _ ->
+                (* Check to see if incomplete created for this function is because it simply has not been run yet *)
                 let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
                 let fid = Token.analysisID ti.token in
                 fnForToken state ti.token
