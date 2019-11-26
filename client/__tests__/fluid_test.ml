@@ -2232,8 +2232,6 @@ let () =
           expect (gridFor ~pos:158 tokens) |> toEqual {row = 5; col = 1} ) ;
       test "gridFor - (reverse) in an indent" (fun () ->
           expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158 ) ;
-      test "gridFor - (reverse) in an indent" (fun () ->
-          expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158 ) ;
       test "gridFor roundtrips" (fun () ->
           let poses = List.range 0 len in
           let newPoses =
