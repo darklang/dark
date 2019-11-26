@@ -1303,6 +1303,8 @@ and fluidToken =
   | TPatternBlank of id * id
   | TRecordClose of id
   | TConstructorName of id * string
+  | TParenOpen of id
+  | TParenClose of id
 
 and fluidTokenInfo =
   { startRow : int
