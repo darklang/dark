@@ -2,22 +2,23 @@ open Jest
 open Expect
 open Tc
 open Types
-open Prelude
 open Fluid
+open Fluid_test_data
 module Regex = Util.Regex
 module B = Blank
 module K = FluidKeyboard
 
 (*
  * These tests are all written in a common style: t "del end of whole"
- * aFloat (del 2) ("12.456", 2) ;
+ * aFloat (del 2) ("12~.456") ;
  *
  * This is a test that takes the fluidExpr called aFloat, and does a del on
- * it in position 2. The stringified result is "12.456" and the cursor should
- * be in position 2.
+ * it in position 2. The stringified result is "12.456" and the caret should
+ * be in position 2 (indicated by the tilde).
  *
- * There are a handful of functions you can call, including press, presses,
- * insert, bs, del, tab, shiftTab, and render.
+ * There are a handful of functions you can call, including modKeys, key,
+ * keys, insert, bs, del, tab, shiftTab, and render.
+ *
  *
  * There are a few different ways of running a test:
  *  - t vs tp:
@@ -39,7 +40,7 @@ module K = FluidKeyboard
  *    controlled by FluidToken.toTestText
  *  - Wrap:
  *      When I started writing these tests, I discovered that they kept passing
- *      despite there being a bug. Whenever the cursor went over the end, it
+ *      despite there being a bug. Whenever the caret went over the end, it
  *      would stay in the last place, giving a false pass. To avoid this,
  *      I wrapped all test cases:
  *         ```
@@ -56,244 +57,19 @@ module K = FluidKeyboard
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
-let b () = newB ()
-
-let complexExpr =
-  EIf
-    ( gid ()
-    , EBinOp
-        ( gid ()
-        , "||"
-        , EBinOp
-            ( gid ()
-            , "=="
-            , EFieldAccess
-                ( gid ()
-                , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), gid (), "headers")
-                , gid ()
-                , "origin" )
-            , EString (gid (), "https://usealtitude.com")
-            , NoRail )
-        , EBinOp
-            ( gid ()
-            , "=="
-            , EFieldAccess
-                ( gid ()
-                , EFieldAccess
-                    (gid (), EVariable (gid (), "request"), gid (), "headers")
-                , gid ()
-                , "origin" )
-            , EString (gid (), "https://localhost:3000")
-            , NoRail )
-        , NoRail )
-    , ELet
-        ( gid ()
-        , gid ()
-        , ""
-        , b ()
-        , EFnCall
-            (gid (), "Http::Forbidden", [EInteger (gid (), "403")], NoRail) )
-    , EFnCall (gid (), "Http::Forbidden", [], NoRail) )
-
-
 let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
 
-type testResult = (string * (int option * int)) * bool
+type hasPartial =
+  | NoPartial
+  | ContainsPartial
+
+type testResult = (string * (int option * int)) * hasPartial
 
 type shiftState =
   | ShiftHeld
   | ShiftNotHeld
 
 let () =
-  let aStr = EString (gid (), "some string") in
-  let emptyStr = EString (gid (), "") in
-  let oneCharStr = EString (gid (), "c") in
-  let aShortInt = EInteger (gid (), "1") in
-  let anInt = EInteger (gid (), "12345") in
-  let aHugeInt = EInteger (gid (), "2000000000000000000") in
-  let aFloat = EFloat (gid (), "123", "456") in
-  let aHugeFloat = EFloat (gid (), "123456789", "123456789") in
-  let aPartialFloat = EFloat (gid (), "1", "") in
-  let trueBool = EBool (gid (), true) in
-  let falseBool = EBool (gid (), false) in
-  let aNull = ENull (gid ()) in
-  let five = EInteger (gid (), "5") in
-  let six = EInteger (gid (), "6") in
-  let fiftySix = EInteger (gid (), "56") in
-  let seventyEight = EInteger (gid (), "78") in
-  let aPartialVar = EPartial (gid (), "req", b ()) in
-  let completelyEmptyLet = ELet (gid (), gid (), "", b (), b ()) in
-  let emptyLet = ELet (gid (), gid (), "", b (), EInteger (gid (), "5")) in
-  let emptyMatch =
-    let mID = gid () in
-    EMatch (mID, b (), [(FPBlank (mID, gid ()), b ())])
-  in
-  let emptyMatchWithTwoPatterns =
-    let mID = gid () in
-    EMatch
-      ( mID
-      , b ()
-      , [(FPBlank (mID, gid ()), b ()); (FPBlank (mID, gid ()), b ())] )
-  in
-  let matchWithPatterns =
-    let mID = gid () in
-    EMatch (mID, b (), [(FPInteger (mID, gid (), "3"), b ())])
-  in
-  let matchWithConstructorPattern =
-    let mID = gid () in
-    EMatch (mID, b (), [(FPConstructor (mID, gid (), "Just", []), b ())])
-  in
-  let matchWithBinding (bindingName : string) (expr : fluidExpr) =
-    let mID = gid () in
-    EMatch (mID, b (), [(FPVariable (mID, gid (), bindingName), expr)])
-  in
-  let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
-    let mID = gid () in
-    EMatch
-      ( mID
-      , b ()
-      , [ ( FPConstructor
-              (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
-          , expr ) ] )
-  in
-  let matchWithTwoLets =
-    let mID = gid () in
-    EMatch
-      ( mID
-      , b ()
-      , [ ( FPBlank (mID, gid ())
-          , ELet
-              ( gid ()
-              , gid ()
-              , "x"
-              , EInteger (gid (), "5")
-              , ELet
-                  (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
-              ) ) ] )
-  in
-  let nestedMatch =
-    let mID = gid () in
-    EMatch (mID, b (), [(FPBlank (mID, gid ()), emptyMatch)])
-  in
-  let nonEmptyLetWithBlankEnd =
-    ELet (gid (), gid (), "", EInteger (gid (), "6"), b ())
-  in
-  let nonEmptyLet =
-    ELet (gid (), gid (), "", EInteger (gid (), "6"), EInteger (gid (), "5"))
-  in
-  let twoLets =
-    ELet
-      ( gid ()
-      , gid ()
-      , "x"
-      , EInteger (gid (), "5")
-      , ELet
-          (gid (), gid (), "y", EInteger (gid (), "6"), EInteger (gid (), "7"))
-      )
-  in
-  let longLets =
-    ELet
-      ( gid ()
-      , gid ()
-      , "firstLetName"
-      , EString (gid (), "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-      , ELet
-          ( gid ()
-          , gid ()
-          , "secondLetName"
-          , EString (gid (), "0123456789")
-          , EString (gid (), "RESULT") ) )
-  in
-  let letWithLhs =
-    ELet (gid (), gid (), "n", EInteger (gid (), "6"), EInteger (gid (), "5"))
-  in
-  let letWithBinding (bindingName : string) (expr : fluidExpr) =
-    ELet (gid (), gid (), bindingName, EInteger (gid (), "6"), expr)
-  in
-  let letWithUsedBinding (bindingName : string) =
-    letWithBinding bindingName (EVariable (gid (), bindingName))
-  in
-  let aVar = EVariable (gid (), "variable") in
-  let aShortVar = EVariable (gid (), "v") in
-  let emptyIf = EIf (gid (), b (), b (), b ()) in
-  let plainIf =
-    EIf
-      ( gid ()
-      , EInteger (gid (), "5")
-      , EInteger (gid (), "6")
-      , EInteger (gid (), "7") )
-  in
-  let nestedIf =
-    EIf
-      ( gid ()
-      , EInteger (gid (), "5")
-      , EIf
-          ( gid ()
-          , EInteger (gid (), "5")
-          , EInteger (gid (), "6")
-          , EInteger (gid (), "7") )
-      , EInteger (gid (), "7") )
-  in
-  let aLambda = ELambda (gid (), [(gid (), "")], b ()) in
-  let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five) in
-  let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
-    ELambda (gid (), [(gid (), bindingName)], expr)
-  in
-  let lambdaWithTwoBindings =
-    ELambda (gid (), [(gid (), "x"); (gid (), "y")], b ())
-  in
-  let lambdaWithUsedBinding (bindingName : string) =
-    lambdaWithBinding bindingName (EVariable (gid (), bindingName))
-  in
-  let lambdaWithUsed2ndBinding (bindingName : string) =
-    ELambda
-      ( gid ()
-      , [(gid (), "somevar"); (gid (), bindingName)]
-      , EVariable (gid (), bindingName) )
-  in
-  let aFnCall = EFnCall (gid (), "Int::add", [five; b ()], NoRail) in
-  let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b ()], NoRail) in
-  let aFnCallWithBlockArg =
-    EFnCall (gid (), "Dict::map", [b (); b ()], NoRail)
-  in
-  let aBinOp = EBinOp (gid (), "==", b (), b (), NoRail) in
-  (* let aFullBinOp = *)
-  (*   EBinOp *)
-  (*     (gid (), "==", EVariable (gid (), "myvar"), EInteger (gid (), 5), NoRail) *)
-  (* in *)
-  let aConstructor = EConstructor (gid (), gid (), "Just", [b ()]) in
-  let emptyRow = [(gid (), "", b ())] in
-  let recordRow1 = (gid (), "f1", fiftySix) in
-  let recordRow2 = (gid (), "f2", seventyEight) in
-  let singleRowRecord = ERecord (gid (), [recordRow1]) in
-  let multiRowRecord = ERecord (gid (), [recordRow1; recordRow2]) in
-  let emptyRowRecord = ERecord (gid (), emptyRow) in
-  let emptyRecord = ERecord (gid (), []) in
-  let aField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-  in
-  let aNestedField =
-    EFieldAccess
-      ( gid ()
-      , EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "field")
-      , gid ()
-      , "field2" )
-  in
-  let aShortField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
-  in
-  let aBlankField =
-    EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
-  in
-  let indentedIfElse =
-    ELet
-      ( gid ()
-      , gid ()
-      , "var"
-      , EIf (gid (), b (), EInteger (gid (), "6"), EInteger (gid (), "7"))
-      , EVariable (gid (), "var") )
-  in
   let m =
     let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
         Types.parameter =
@@ -413,11 +189,7 @@ let () =
              FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
     in
-    let ast =
-      if wrap
-      then EIf (gid (), EBool (gid (), true), ast, EInteger (gid (), "5"))
-      else ast
-    in
+    let ast = if wrap then if' (bool true) ast (int "5") else ast in
     (* See the "Wrap" block comment at the top of the file for an explanation of this *)
     let wrapperOffset = 15 in
     let addWrapper pos =
@@ -483,7 +255,8 @@ let () =
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
       Js.log2 "expr after" (eToStructure newState result) ) ;
-    ((eToString s result, (selPos, finalPos)), partialsFound)
+    ( (eToString s result, (selPos, finalPos))
+    , if partialsFound then ContainsPartial else NoPartial )
   in
   let render (expr : fluidExpr) : testResult =
     process ~wrap:true ~clone:false ~debug:false [] None 0 expr
@@ -536,7 +309,7 @@ let () =
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
   in
-  let press
+  let key
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -562,7 +335,7 @@ let () =
       pos
       expr
   in
-  let presses
+  let keys
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -578,7 +351,7 @@ let () =
       pos
       expr
   in
-  let modPresses
+  let modkeys
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
@@ -587,7 +360,7 @@ let () =
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug keys None pos expr
   in
-  let insert
+  let ins
       ?(debug = false)
       ?(wrap = true)
       ?(clone = true)
@@ -597,20 +370,18 @@ let () =
     let key = K.fromChar char in
     process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
   in
-  let blank = "___" in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      ((expectedStr, expectedPos) : string * int) =
-    let insertCursor
-        (((str, (selection, cursor)), res) :
-          (string * (int option * int)) * bool) :
-        (string * (int option * int)) * bool =
-      let cursorString = "~" in
-      match str |> String.splitAt ~index:cursor with a, b ->
-        (([a; b] |> String.join ~sep:cursorString, (selection, cursor)), res)
+      (expectedStr : string) =
+    let insertCaret
+        (((str, (_selection, caret)), res) :
+          (string * (int option * int)) * hasPartial) : string * hasPartial =
+      let caretString = "~" in
+      match str |> String.splitAt ~index:caret with a, b ->
+        ([a; b] |> String.join ~sep:caretString, res)
     in
     test
       ( name
@@ -619,8 +390,7 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCursor)
-        |> toEqual (insertCursor ((expectedStr, (None, expectedPos)), false))
+        expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial)
         )
   in
   (* Test expecting partials found and an expected caret position but no selection *)
@@ -628,7 +398,14 @@ let () =
       (name : string)
       (initial : fluidExpr)
       (fn : fluidExpr -> testResult)
-      ((expectedStr, expectedPos) : string * int) =
+      (expectedStr : string) =
+    let insertCaret
+        (((str, (_selection, caret)), res) :
+          (string * (int option * int)) * hasPartial) : string * hasPartial =
+      let caretString = "~" in
+      match str |> String.splitAt ~index:caret with a, b ->
+        ([a; b] |> String.join ~sep:caretString, res)
+    in
     test
       ( name
       ^ " - `"
@@ -636,8 +413,8 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial)
-        |> toEqual ((expectedStr, (None, expectedPos)), true) )
+        expect (fn initial |> insertCaret)
+        |> toEqual (expectedStr, ContainsPartial) )
   in
   (* Test expecting no partials found and an expected resulting selection *)
   let ts
@@ -653,580 +430,495 @@ let () =
       ^ ( eToString Defaults.defaultFluidState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual (expected, false))
+      (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
   in
   describe "Strings" (fun () ->
-      t "insert mid string" aStr (insert 'c' 3) ("\"socme string\"", 4) ;
-      t "del mid string" aStr (del 3) ("\"soe string\"", 3) ;
-      t "bs mid string" aStr (bs 4) ("\"soe string\"", 3) ;
-      t "insert empty string" emptyStr (insert 'c' 1) ("\"c\"", 2) ;
-      t "del empty string" emptyStr (del 1) (blank, 0) ;
-      t "del empty string from outside" emptyStr (del 0) (blank, 0) ;
-      t "bs empty string" emptyStr (bs 1) (blank, 0) ;
-      t "bs outside empty string" emptyStr (bs 2) ("\"\"", 1) ;
-      t "bs near-empty string" oneCharStr (bs 2) ("\"\"", 1) ;
-      t "del near-empty string" oneCharStr (del 1) ("\"\"", 1) ;
-      t "insert outside string" aStr (insert 'c' 0) ("\"some string\"", 0) ;
-      t "del outside string" aStr (del 0) ("\"some string\"", 0) ;
-      t "bs outside string" aStr (bs 0) ("\"some string\"", 0) ;
-      t "insert start of string" aStr (insert 'c' 1) ("\"csome string\"", 2) ;
-      t "del start of string" aStr (del 1) ("\"ome string\"", 1) ;
-      t "bs start of string" aStr (bs 1) ("\"some string\"", 0) ;
-      t "insert end of string" aStr (insert 'c' 12) ("\"some stringc\"", 13) ;
-      t "del end of string" aStr (del 12) ("\"some string\"", 12) ;
-      t "bs end of string" aStr (bs 12) ("\"some strin\"", 11) ;
-      t "insert after end" aStr (insert 'c' 13) ("\"some string\"", 13) ;
-      t "del after end of string" aStr (del 13) ("\"some string\"", 13) ;
-      t "bs after end" aStr (bs 13) ("\"some string\"", 12) ;
-      t "insert space in string" aStr (insert ' ' 3) ("\"so me string\"", 4) ;
-      t "del space in string" aStr (del 5) ("\"somestring\"", 5) ;
-      t "bs space in string" aStr (bs 6) ("\"somestring\"", 5) ;
-      t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
+      t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
+      t "del mid string" aStr (del 3) "\"so~e string\"" ;
+      t "bs mid string" aStr (bs 4) "\"so~e string\"" ;
+      t "insert empty string" emptyStr (ins 'c' 1) "\"c~\"" ;
+      t "del empty string" emptyStr (del 1) "~___" ;
+      t "del empty string from outside" emptyStr (del 0) "~___" ;
+      t "bs empty string" emptyStr (bs 1) "~___" ;
+      t "bs outside empty string" emptyStr (bs 2) "\"~\"" ;
+      t "bs near-empty string" oneCharStr (bs 2) "\"~\"" ;
+      t "del near-empty string" oneCharStr (del 1) "\"~\"" ;
+      t "insert outside string" aStr (ins 'c' 0) "~\"some string\"" ;
+      t "del outside string" aStr (del 0) "~\"some string\"" ;
+      t "bs outside string" aStr (bs 0) "~\"some string\"" ;
+      t "insert start of string" aStr (ins 'c' 1) "\"c~some string\"" ;
+      t "del start of string" aStr (del 1) "\"~ome string\"" ;
+      t "bs start of string" aStr (bs 1) "~\"some string\"" ;
+      t "insert end of string" aStr (ins 'c' 12) "\"some stringc~\"" ;
+      t "del end of string" aStr (del 12) "\"some string~\"" ;
+      t "bs end of string" aStr (bs 12) "\"some strin~\"" ;
+      t "insert after end" aStr (ins 'c' 13) "\"some string\"~" ;
+      t "del after end of string" aStr (del 13) "\"some string\"~" ;
+      t "bs after end" aStr (bs 13) "\"some string~\"" ;
+      t "insert space in string" aStr (ins ' ' 3) "\"so ~me string\"" ;
+      t "del space in string" aStr (del 5) "\"some~string\"" ;
+      t "bs space in string" aStr (bs 6) "\"some~string\"" ;
+      t "final quote is swallowed" aStr (ins '"' 12) "\"some string\"~" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
-      let nums = "123456789_" in
-      let letters = "abcdefghi," in
-      let segment = nums ^ letters ^ nums ^ letters in
-      let mlStr = EString (gid (), segment ^ segment ^ nums) in
-      let wrapIf e = EIf (gid (), e, newB (), newB ()) in
       t
         "insert into start string"
         mlStr
-        (insert 'c' 3)
-        ( "\"12c3456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 4 ) ;
+        (ins 'c' 3)
+        ( "\"12c~3456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
       t
         "insert into middle string"
         mlStr
-        (insert 'c' 44 (* quote + 2 + newline *))
+        (ins 'c' 44 (* quote + 2 + newline *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12c3456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 45 ) ;
+        ^ "12c~3456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
       t
         "insert into end string"
         mlStr
-        (insert 'c' 85 (* quote + 2 + newline*2 *))
+        (ins 'c' 85 (* quote + 2 + newline*2 *))
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12c3456789_\""
-        , 86 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12c~3456789_\"" ) ;
       t
         "del mid start string"
         mlStr
         (del 3)
-        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 3 ) ;
+        ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "del mid middle string"
         mlStr
         (del 44)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 44 ) ;
+        ^ "12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "del mid end string"
         mlStr
         (del 85)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_\""
-        , 85 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12~456789_\"" ) ;
       t
         "bs mid start string"
         mlStr
         (bs 4)
-        ( "\"12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 3 ) ;
+        ( "\"12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "bs mid middle string"
         mlStr
         (bs 45)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 44 ) ;
+        ^ "12~456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "bs mid end string"
         mlStr
         (bs 86)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "12456789_\""
-        , 85 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "12~456789_\"" ) ;
       t
         "insert outside string"
         mlStr
-        (insert 'c' 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
+        (ins 'c' 0)
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "del outside string"
         mlStr
         (del 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "bs outside string"
         mlStr
         (bs 0)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "insert start of start string"
         mlStr
-        (insert 'c' 1)
-        ( "\"c123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 2 ) ;
+        (ins 'c' 1)
+        ( "\"c~123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
       t
         "insert start of middle string"
         mlStr
-        (insert 'c' 42)
+        (ins 'c' 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "c123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 43 ) ;
+        ^ "c~123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
       t
         "insert start of end string"
         mlStr
-        (insert 'c' 83)
+        (ins 'c' 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "c123456789_\""
-        , 84 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "c~123456789_\"" ) ;
       t
         "del start of start string"
         mlStr
         (del 1)
-        ( "\"23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 1 ) ;
+        ( "\"~23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "del start of middle string"
         mlStr
         (del 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 42 ) ;
+        ^ "~23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "del start of end string"
         mlStr
         (del 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "23456789_\""
-        , 83 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "~23456789_\"" ) ;
       t
         "bs start of start string"
         mlStr
         (bs 1)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 0 ) ;
+        ( "~\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "bs start of middle string"
         mlStr
         (bs 42)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 41 ) ;
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "bs start of end string"
         mlStr
         (bs 83)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 82 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_\"" ) ;
       t
         "insert end of start string"
         mlStr
-        (insert 'c' 41)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc"
-          ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
-          ^ "123456789_\""
-        , 43 ) ;
+        (ins 'c' 41)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\nc~"
+        ^ "123456789_abcdefghi,123456789_abcdefghi\n,"
+        ^ "123456789_\"" ) ;
       t
         "insert end of middle string"
         mlStr
-        (insert 'c' 82)
+        (ins 'c' 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\nc"
-          ^ "123456789_\""
-        , 84 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\nc~"
+        ^ "123456789_\"" ) ;
       t
         "insert end of end string"
         mlStr
-        (insert 'c' 93)
+        (ins 'c' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_c\""
-        , 94 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_c~\"" ) ;
       t
         "string converts to ml string"
-        (EString (gid (), segment))
-        (insert 'c' 41)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\nc\"", 43) ;
+        (str mlSegment)
+        (ins 'c' 41)
+        "\"123456789_abcdefghi,123456789_abcdefghi,\nc~\"" ;
       t
         "indented string converts to ml string"
-        (wrapIf (EString (gid (), segment)))
-        (insert 'c' 44)
+        (if' (str mlSegment) b b)
+        (ins 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 49 ) ;
+        ^ "   c~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented start string"
-        (wrapIf (EString (gid (), segment ^ segment)))
-        (insert 'c' 44)
+        (if' (str (mlSegment ^ mlSegment)) b b)
+        (ins 'c' 44)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c123456789_abcdefghi,123456789_abcdefghi\n"
-          ^ "   ,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 49 ) ;
+        ^ "   c~123456789_abcdefghi,123456789_abcdefghi\n"
+        ^ "   ,\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "insert end of indented end string"
-        (wrapIf (EString (gid (), segment ^ segment)))
-        (insert 'c' 88)
+        (if' (str (mlSegment ^ mlSegment)) b b)
+        (ins 'c' 88)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   c\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 93 ) ;
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "   c~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del end of start string"
         mlStr
         (del 41)
-        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 41 ) ;
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"" ) ;
       t
         "del end of middle string"
         mlStr
         (del 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 82 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ "123456789_\"" ) ;
       t
         "del end of end string"
         mlStr
         (del 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 93 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_~\"" ) ;
       t
         "bs end of start string"
         mlStr
         (bs 41)
         ( "\"123456789_abcdefghi,123456789_abcdefghi"
-          ^ "1\n23456789_abcdefghi,123456789_abcdefghi,"
-          ^ "1\n23456789_\""
-        , 40 ) ;
+        ^ "~1\n23456789_abcdefghi,123456789_abcdefghi,"
+        ^ "1\n23456789_\"" ) ;
       t
         "bs end of middle string"
         mlStr
         (bs 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi"
-          ^ "1\n23456789_\""
-        , 81 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi"
+        ^ "~1\n23456789_\"" ) ;
       t
         "bs end of end string"
         mlStr
         (bs 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789\""
-        , 92 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789~\"" ) ;
       t
         "insert after end of end string"
         mlStr
-        (insert 'c' 94)
+        (ins 'c' 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
       t
         "del after end of end string"
         mlStr
         (del 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
       t
         "bs after end of end string"
         mlStr
         (bs 94)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 93 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_~\"" ) ;
       (* Skipped insert, del, bs of space, as it doesn't seem interesting *)
       t
         "final quote is swallowed"
         mlStr
-        (insert '"' 93)
+        (ins '"' 93)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "123456789_\""
-        , 94 ) ;
+        ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "123456789_\"~" ) ;
       t
         "bs, 3 lines to 2, end"
-        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
         (bs 93)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 88 ) ;
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "bs, 2 lines to 1, end"
-        (wrapIf (EString (gid (), segment ^ "c")))
+        (if' (str (mlSegment ^ "c")) b b)
         (bs 49)
-        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 44 ) ;
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 3 lines to 2, end"
-        (wrapIf (EString (gid (), segment ^ segment ^ "c")))
+        (if' (str (mlSegment ^ mlSegment ^ "c")) b b)
         (del 92)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ "   123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 88 ) ;
+        ^ "   123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       t
         "del, 2 lines to 1, end"
-        (wrapIf (EString (gid (), segment ^ "c")))
+        (if' (str (mlSegment ^ "c")) b b)
         (del 48)
-        ( "if \"123456789_abcdefghi,123456789_abcdefghi,\"\n"
-          ^ "then\n  ___\nelse\n  ___"
-        , 44 ) ;
+        ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
+        ^ "then\n  ___\nelse\n  ___" ) ;
       () ) ;
   describe "Integers" (fun () ->
-      t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
-      t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
-      t "insert not a number" anInt (insert 'c' 0) ("12345", 0) ;
-      t "insert start of number" anInt (insert '5' 0) ("512345", 1) ;
-      t "del start of number" anInt (del 0) ("2345", 0) ;
-      t "bs start of number" anInt (bs 0) ("12345", 0) ;
-      t "insert end of number" anInt (insert '0' 5) ("123450", 6) ;
-      t "del end of number" anInt (del 5) ("12345", 5) ;
-      t "bs end of number" anInt (bs 5) ("1234", 4) ;
-      t
-        "insert number at scale"
-        aHugeInt
-        (insert '9' 5)
-        ("2000090000000000000", 6) ;
-      t
-        "insert number at scale"
-        aHugeInt
-        (insert '9' 0)
-        ("920000000000000000", 1) ;
-      t
-        "insert number at scale"
-        aHugeInt
-        (insert '9' 19)
-        ("2000000000000000000", 19) ;
-      (* let max62BitInt = EInteger (gid (), "4611686018427387903") in *)
-      let oneShorterThanMax62BitInt =
-        EInteger (gid (), "461168601842738790")
-      in
+      t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
+      t "insert at end of short" aShortInt (ins '2' 1) "12~" ;
+      t "insert not a number" anInt (ins 'c' 0) "~12345" ;
+      t "insert start of number" anInt (ins '5' 0) "5~12345" ;
+      t "del start of number" anInt (del 0) "~2345" ;
+      t "bs start of number" anInt (bs 0) "~12345" ;
+      t "insert end of number" anInt (ins '0' 5) "123450~" ;
+      t "del end of number" anInt (del 5) "12345~" ;
+      t "bs end of number" anInt (bs 5) "1234~" ;
+      t "insert number at scale" aHugeInt (ins '9' 5) "200009~0000000000000" ;
+      t "insert number at scale" aHugeInt (ins '9' 0) "9~20000000000000000" ;
+      t "insert number at scale" aHugeInt (ins '9' 19) "2000000000000000000~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (insert '3' 18)
-        ("4611686018427387903", 19) ;
+        (ins '3' 18)
+        "4611686018427387903~" ;
       t
         "insert number at scale"
         oneShorterThanMax62BitInt
-        (insert '4' 18)
-        ("461168601842738790", 18) ;
+        (ins '4' 18)
+        "461168601842738790~" ;
       () ) ;
   describe "Floats" (fun () ->
-      t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
-      t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
-      t "insert . converts to float - start" anInt (insert '.' 0) ("12345", 0) ;
-      t "insert . converts to float - short" aShortInt (insert '.' 1) ("1.", 2) ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
-      t "insert zero in whole - start" aFloat (insert '0' 0) ("123.456", 0) ;
-      t "insert int in whole - start" aFloat (insert '9' 0) ("9123.456", 1) ;
-      t "insert int in whole - middle" aFloat (insert '0' 1) ("1023.456", 2) ;
-      t "insert int in whole - end" aFloat (insert '0' 3) ("1230.456", 4) ;
-      t "insert int in fraction - start" aFloat (insert '0' 4) ("123.0456", 5) ;
-      t "insert int in fraction - middle" aFloat (insert '0' 6) ("123.4506", 7) ;
-      t "insert int in fraction - end" aFloat (insert '0' 7) ("123.4560", 8) ;
-      t "insert non-int in whole" aFloat (insert 'c' 2) ("123.456", 2) ;
-      t "insert non-int in fraction" aFloat (insert 'c' 6) ("123.456", 6) ;
-      t "del dot" aFloat (del 3) ("123456", 3) ;
-      t "del dot at scale" aHugeFloat (del 9) ("123456789123456789", 9) ;
-      let maxPosIntWithDot = EFloat (gid (), "4611686018427387", "903") in
-      let maxPosIntPlus1WithDot = EFloat (gid (), "4611686018427387", "904") in
-      t "del dot at limit" maxPosIntWithDot (del 16) ("4611686018427387903", 16) ;
+      t "insert . converts to float - end" anInt (ins '.' 5) "12345.~" ;
+      t "insert . converts to float - middle" anInt (ins '.' 3) "123.~45" ;
+      t "insert . converts to float - start" anInt (ins '.' 0) "~12345" ;
+      t "insert . converts to float - short" aShortInt (ins '.' 1) "1.~" ;
+      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
+      t "insert zero in whole - start" aFloat (ins '0' 0) "~123.456" ;
+      t "insert int in whole - start" aFloat (ins '9' 0) "9~123.456" ;
+      t "insert int in whole - middle" aFloat (ins '0' 1) "10~23.456" ;
+      t "insert int in whole - end" aFloat (ins '0' 3) "1230~.456" ;
+      t "insert int in fraction - start" aFloat (ins '0' 4) "123.0~456" ;
+      t "insert int in fraction - middle" aFloat (ins '0' 6) "123.450~6" ;
+      t "insert int in fraction - end" aFloat (ins '0' 7) "123.4560~" ;
+      t "insert non-int in whole" aFloat (ins 'c' 2) "12~3.456" ;
+      t "insert non-int in fraction" aFloat (ins 'c' 6) "123.45~6" ;
+      t "del dot" aFloat (del 3) "123~456" ;
+      t "del dot at scale" aHugeFloat (del 9) "123456789~123456789" ;
+      t "del dot at limit1" maxPosIntWithDot (del 16) "4611686018427387~903" ;
       t
-        "del dot at limit"
+        "del dot at limit2"
         maxPosIntPlus1WithDot
         (del 16)
-        ("461168601842738790", 16) ;
-      t "del start of whole" aFloat (del 0) ("23.456", 0) ;
-      t "del middle of whole" aFloat (del 1) ("13.456", 1) ;
-      t "del end of whole" aFloat (del 2) ("12.456", 2) ;
-      t "del start of fraction" aFloat (del 4) ("123.56", 4) ;
-      t "del middle of fraction" aFloat (del 5) ("123.46", 5) ;
-      t "del end of fraction" aFloat (del 6) ("123.45", 6) ;
-      t "del dot converts to int" aFloat (del 3) ("123456", 3) ;
-      t "del dot converts to int, no fraction" aPartialFloat (del 1) ("1", 1) ;
-      t "bs dot" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot at scale" aHugeFloat (bs 10) ("123456789123456789", 9) ;
-      t "bs dot at limit" maxPosIntWithDot (bs 17) ("4611686018427387903", 16) ;
-      t
-        "bs dot at limit"
-        maxPosIntPlus1WithDot
-        (bs 17)
-        ("461168601842738790", 16) ;
-      t "bs start of whole" aFloat (bs 1) ("23.456", 0) ;
-      t "bs middle of whole" aFloat (bs 2) ("13.456", 1) ;
-      t "bs end of whole" aFloat (bs 3) ("12.456", 2) ;
-      t "bs start of fraction" aFloat (bs 5) ("123.56", 4) ;
-      t "bs middle of fraction" aFloat (bs 6) ("123.46", 5) ;
-      t "bs end of fraction" aFloat (bs 7) ("123.45", 6) ;
-      t "bs dot converts to int" aFloat (bs 4) ("123456", 3) ;
-      t "bs dot converts to int, no fraction" aPartialFloat (bs 2) ("1", 1) ;
-      t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
+        "4611686018427387~90" ;
+      t "del start of whole" aFloat (del 0) "~23.456" ;
+      t "del middle of whole" aFloat (del 1) "1~3.456" ;
+      t "del end of whole" aFloat (del 2) "12~.456" ;
+      t "del start of fraction" aFloat (del 4) "123.~56" ;
+      t "del middle of fraction" aFloat (del 5) "123.4~6" ;
+      t "del end of fraction" aFloat (del 6) "123.45~" ;
+      t "del dot converts to int" aFloat (del 3) "123~456" ;
+      t "del dot converts to int, no fraction" aPartialFloat (del 1) "1~" ;
+      t "bs dot" aFloat (bs 4) "123~456" ;
+      t "bs dot at scale" aHugeFloat (bs 10) "123456789~123456789" ;
+      t "bs dot at limit1" maxPosIntWithDot (bs 17) "4611686018427387~903" ;
+      t "bs dot at limit2" maxPosIntPlus1WithDot (bs 17) "4611686018427387~90" ;
+      t "bs start of whole" aFloat (bs 1) "~23.456" ;
+      t "bs middle of whole" aFloat (bs 2) "1~3.456" ;
+      t "bs end of whole" aFloat (bs 3) "12~.456" ;
+      t "bs start of fraction" aFloat (bs 5) "123.~56" ;
+      t "bs middle of fraction" aFloat (bs 6) "123.4~6" ;
+      t "bs end of fraction" aFloat (bs 7) "123.45~" ;
+      t "bs dot converts to int" aFloat (bs 4) "123~456" ;
+      t "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
+      t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
       () ) ;
   describe "Bools" (fun () ->
-      tp "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
-      tp "del start of true" trueBool (del 0) ("rue", 0) ;
-      t "bs start of true" trueBool (bs 0) ("true", 0) ;
-      tp "insert end of true" trueBool (insert '0' 4) ("true0", 5) ;
-      t "del end of true" trueBool (del 4) ("true", 4) ;
-      tp "bs end of true" trueBool (bs 4) ("tru", 3) ;
-      tp "insert middle of true" trueBool (insert '0' 2) ("tr0ue", 3) ;
-      tp "del middle of true" trueBool (del 2) ("tre", 2) ;
-      tp "bs middle of true" trueBool (bs 2) ("tue", 1) ;
-      tp "insert start of false" falseBool (insert 'c' 0) ("cfalse", 1) ;
-      tp "del start of false" falseBool (del 0) ("alse", 0) ;
-      t "bs start of false" falseBool (bs 0) ("false", 0) ;
-      tp "insert end of false" falseBool (insert '0' 5) ("false0", 6) ;
-      t "del end of false" falseBool (del 5) ("false", 5) ;
-      tp "bs end of false" falseBool (bs 5) ("fals", 4) ;
-      tp "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
-      tp "del middle of false" falseBool (del 2) ("fase", 2) ;
-      tp "bs middle of false" falseBool (bs 2) ("flse", 1) ;
+      tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
+      tp "del start of true" trueBool (del 0) "~rue" ;
+      t "bs start of true" trueBool (bs 0) "~true" ;
+      tp "insert end of true" trueBool (ins '0' 4) "true0~" ;
+      t "del end of true" trueBool (del 4) "true~" ;
+      tp "bs end of true" trueBool (bs 4) "tru~" ;
+      tp "insert middle of true" trueBool (ins '0' 2) "tr0~ue" ;
+      tp "del middle of true" trueBool (del 2) "tr~e" ;
+      tp "bs middle of true" trueBool (bs 2) "t~ue" ;
+      tp "insert start of false" falseBool (ins 'c' 0) "c~false" ;
+      tp "del start of false" falseBool (del 0) "~alse" ;
+      t "bs start of false" falseBool (bs 0) "~false" ;
+      tp "insert end of false" falseBool (ins '0' 5) "false0~" ;
+      t "del end of false" falseBool (del 5) "false~" ;
+      tp "bs end of false" falseBool (bs 5) "fals~" ;
+      tp "insert middle of false" falseBool (ins '0' 2) "fa0~lse" ;
+      tp "del middle of false" falseBool (del 2) "fa~se" ;
+      tp "bs middle of false" falseBool (bs 2) "f~lse" ;
       () ) ;
   describe "Nulls" (fun () ->
-      tp "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
-      tp "del start of null" aNull (del 0) ("ull", 0) ;
-      t "bs start of null" aNull (bs 0) ("null", 0) ;
-      tp "insert end of null" aNull (insert '0' 4) ("null0", 5) ;
-      t "del end of null" aNull (del 4) ("null", 4) ;
-      tp "bs end of null" aNull (bs 4) ("nul", 3) ;
-      tp "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
-      tp "del middle of null" aNull (del 2) ("nul", 2) ;
-      tp "bs middle of null" aNull (bs 2) ("nll", 1) ;
+      tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
+      tp "del start of null" aNull (del 0) "~ull" ;
+      t "bs start of null" aNull (bs 0) "~null" ;
+      tp "insert end of null" aNull (ins '0' 4) "null0~" ;
+      t "del end of null" aNull (del 4) "null~" ;
+      tp "bs end of null" aNull (bs 4) "nul~" ;
+      tp "insert middle of null" aNull (ins '0' 2) "nu0~ll" ;
+      tp "del middle of null" aNull (del 2) "nu~l" ;
+      tp "bs middle of null" aNull (bs 2) "n~ll" ;
       () ) ;
   describe "Blanks" (fun () ->
-      t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
-      t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
-      t "bs middle of blank->blank" (b ()) (bs 3) (blank, 0) ;
-      t "insert blank->string" (b ()) (insert '"' 0) ("\"\"", 1) ;
-      t "del blank->string" emptyStr (del 0) (blank, 0) ;
-      t "bs blank->string" emptyStr (bs 1) (blank, 0) ;
-      t "insert blank->int" (b ()) (insert '5' 0) ("5", 1) ;
-      t "insert blank->int" (b ()) (insert '0' 0) ("0", 1) ;
-      t "del int->blank " five (del 0) (blank, 0) ;
-      t "bs int->blank " five (bs 1) (blank, 0) ;
-      t "insert end of blank->int" (b ()) (insert '5' 1) ("5", 1) ;
-      tp "insert partial" (b ()) (insert 't' 0) ("t", 1) ;
+      t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
+      t "del middle of blank->blank" b (del 3) "___~" ;
+      t "bs middle of blank->blank" b (bs 3) "~___" ;
+      t "insert blank->string" b (ins '"' 0) "\"~\"" ;
+      t "del blank->string" emptyStr (del 0) "~___" ;
+      t "bs blank->string" emptyStr (bs 1) "~___" ;
+      t "insert blank->int" b (ins '5' 0) "5~" ;
+      t "insert blank->int" b (ins '0' 0) "0~" ;
+      t "del int->blank " five (del 0) "~___" ;
+      t "bs int->blank " five (bs 1) "~___" ;
+      t "insert end of blank->int" b (ins '5' 1) "5~" ;
+      tp "insert partial" b (ins 't' 0) "t~" ;
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
-        ("___", 0) ;
-      t "insert blank->space" (b ()) (space 0) (blank, 0) ;
+        (keys [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        "~___" ;
+      t "insert blank->space" b (space 0) "~___" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (insert 'c' 5) ("obj.fcield", 6) ;
-      t
-        "cant insert invalid chars fieldname"
-        aField
-        (insert '$' 5)
-        ("obj.field", 5) ;
-      t "del middle of fieldname" aField (del 5) ("obj.feld", 5) ;
-      t "del fieldname" aShortField (del 4) ("obj.***", 4) ;
-      t "bs fieldname" aShortField (bs 5) ("obj.***", 4) ;
-      t "insert end of fieldname" aField (insert 'c' 9) ("obj.fieldc", 10) ;
-      tp "insert end of varname" aField (insert 'c' 3) ("objc.field", 4) ;
-      t "insert start of fieldname" aField (insert 'c' 4) ("obj.cfield", 5) ;
-      t "insert blank fieldname" aBlankField (insert 'c' 4) ("obj.c", 5) ;
-      t "del fieldop with name" aShortField (del 3) ("obj", 3) ;
-      t "bs fieldop with name" aShortField (bs 4) ("obj", 3) ;
-      t "del fieldop with blank" aBlankField (del 3) ("obj", 3) ;
-      t "bs fieldop with blank" aBlankField (bs 4) ("obj", 3) ;
-      t "del fieldop in nested" aNestedField (del 3) ("obj.field2", 3) ;
-      t "bs fieldop in nested" aNestedField (bs 4) ("obj.field2", 3) ;
-      t "add dot after variable" aVar (insert '.' 8) ("variable.***", 9) ;
-      t "add dot after partial " aPartialVar (insert '.' 3) ("request.***", 8) ;
-      t "add dot after field" aField (insert '.' 9) ("obj.field.***", 10) ;
-      t "insert space in blank " aBlankField (space 4) ("obj.***", 4) ;
+      t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
+      t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
+      t "del middle of fieldname" aField (del 5) "obj.f~eld" ;
+      t "del fieldname" aShortField (del 4) "obj.~***" ;
+      t "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      t "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
+      tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
+      t "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
+      t "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
+      t "del fieldop with name" aShortField (del 3) "obj~" ;
+      t "bs fieldop with name" aShortField (bs 4) "obj~" ;
+      t "del fieldop with blank" aBlankField (del 3) "obj~" ;
+      t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
+      t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
+      t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
+      t "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
+      t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
+      t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
+      t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       () ) ;
   describe "Functions" (fun () ->
       t
         "space on a sep goes to next arg"
         aFnCall
         (space 10)
-        ("Int::add 5 _________", 11) ;
-      tp "bs function renames" aFnCall (bs 8) ("Int::ad@ 5 _________", 7) ;
-      tp
-        "deleting a function renames"
-        aFnCall
-        (del 7)
-        ("Int::ad@ 5 _________", 7) ;
+        "Int::add 5 ~_________" ;
+      tp "bs function renames" aFnCall (bs 8) "Int::ad~@ 5 _________" ;
+      tp "deleting a function renames" aFnCall (del 7) "Int::ad~@ 5 _________" ;
       t
         "renaming a function maintains unaligned params in let scope"
-        (EPartial
-           (gid (), "Int::", EFnCall (gid (), "Int::add", [five; six], NoRail)))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("let b = 6\nInt::sqrt 5", 10) ;
+        (partial "Int::" (fn "Int::add" [five; six]))
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
-        (EPartial
-           ( gid ()
-           , "Int::"
-           , EFnCall
-               ( gid ()
-               , "Int::add"
-               , [EVariable (gid (), "a"); EVariable (gid (), "b")]
-               , NoRail ) ))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("Int::sqrt a", 10) ;
+        (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
-        (EPartial
-           (gid (), "Int::", EFnCall (gid (), "Int::add", [b (); b ()], NoRail)))
-        (presses [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
-        ("Int::sqrt _________", 10) ;
+        (partial "Int::" (fn "Int::add" [b; b]))
+        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        "Int::sqrt ~_________" ;
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
@@ -1236,43 +928,42 @@ let () =
         "del on function with version"
         aFnCallWithVersion
         (del 11)
-        ("DB::getAllv@ ___________________", 11) ;
+        "DB::getAllv~@ ___________________" ;
       tp
         "bs on function with version"
         aFnCallWithVersion
         (bs 12)
-        ("DB::getAllv@ ___________________", 11) ;
+        "DB::getAllv~@ ___________________" ;
       tp
         "del on function with version in between the version and function name"
         aFnCallWithVersion
         (del 10)
-        ("DB::getAll1@ ___________________", 10) ;
+        "DB::getAll~1@ ___________________" ;
       tp
         "bs on function with version in between the version and function name"
         aFnCallWithVersion
         (bs 10)
-        ("DB::getAlv1@ ___________________", 9) ;
+        "DB::getAl~v1@ ___________________" ;
       tp
         "del on function with version in function name"
         aFnCallWithVersion
         (del 7)
-        ("DB::getllv1@ ___________________", 7) ;
+        "DB::get~llv1@ ___________________" ;
       tp
         "bs on function with version in function name"
         aFnCallWithVersion
         (bs 8)
-        ("DB::getllv1@ ___________________", 7) ;
+        "DB::get~llv1@ ___________________" ;
       t
         "adding function with version goes to the right place"
-        (b ())
-        (presses [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
-        ("DB::getAllv1 ___________________", 13) ;
-      let fn ?(ster = NoRail) name args = EFnCall (gid (), name, args, ster) in
+        b
+        (keys [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
         (fn "Int::add" [five; six])
         (bs 11)
-        ("Int::add 5 6", 10) ;
+        "Int::add 5~ 6" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
@@ -1280,260 +971,201 @@ let () =
         "reflows work for functions"
         (fn
            "HttpClient::post_v4"
-           [ EString (gid (), string40)
-           ; ERecord (gid (), [(gid (), string80, b ())])
-           ; emptyRecord
-           ; emptyRecord ])
+           [str string40; record [(string80, b)]; emptyRecord; emptyRecord])
         render
-        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}"
-        , 0 ) ;
+        "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}" ;
       t
         "reflows work for functions with long strings"
-        (fn
-           "HttpClient::post_v4"
-           [EString (gid (), string160); b (); b (); b ()])
+        (fn "HttpClient::post_v4" [str string160; b; b; b])
         render
-        ( "HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
-        , 0 ) ;
+        "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       tp
         "reflows work for partials too "
-        (EPartial
-           ( gid ()
-           , "TEST"
-           , fn
-               "HttpClient::post_v4"
-               [EString (gid (), string160); b (); b (); b ()] ))
+        (partial "TEST" (fn "HttpClient::post_v4" [str string160; b; b; b]))
         render
-        ( "TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________"
-        , 0 ) ;
+        "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       t
         "reflows happen for functions whose arguments have newlines"
-        (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b (); b ()])
+        (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b; b])
         render
-        ( "HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________"
-        , 0 ) ;
+        "~HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________" ;
       t
         "reflows don't happen for functions whose only newline is in the last argument"
-        (fn "HttpClient::post_v4" [emptyStr; b (); b (); emptyRowRecord])
+        (fn "HttpClient::post_v4" [emptyStr; b; b; emptyRowRecord])
         render
-        ( "HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }"
-        , 0 ) ;
+        "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       tp
-        "reflows put the cursor in the right place on insert"
+        "reflows put the caret in the right place on insert"
         (let justShortEnoughNotToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
          in
          fn
            "HttpClient::post_v4"
-           [ emptyStr
-           ; emptyRecord
-           ; emptyRecord
-           ; EVariable (gid (), justShortEnoughNotToReflow) ])
-        (insert ~wrap:false 'x' 120)
-        ( "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01x"
-          (* TODO: This should be 129, but reflow puts the cursor in the wrong
-           * place for new partials *)
-        , 121 ) ;
+           [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
+        (ins ~wrap:false 'x' 120)
+        "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
+      (* TODO: This should be 129, but reflow puts the caret in the wrong
+           * place for new partials *) ;
       tp
-        "reflows put the cursor in the right place on bs"
+        "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
            "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij012"
          in
          fn
            "HttpClient::post_v4"
-           [ emptyStr
-           ; emptyRecord
-           ; emptyRecord
-           ; EVariable (gid (), justLongEnoughToReflow) ])
+           [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
         (bs ~wrap:false 129)
-        ( "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01"
-          (* TODO: This should be 120, but reflow puts the cursor in the wrong
-           * place for new partials *)
-        , 128 ) ;
+        "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
+      (* TODO: This should be 120, but reflow puts the caret in the wrong
+           * place for new partials *) ;
       () ) ;
   describe "Binops" (fun () ->
-      tp "pipe key starts partial" trueBool (press K.Pipe 4) ("true |", 6) ;
+      tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
-        (presses [K.Pipe; K.Down; K.Enter] 4)
-        ("true || __________", 7) ;
+        (keys [K.Pipe; K.Down; K.Enter] 4)
+        "true ||~ __________" ;
       t
         "pressing space completes partial"
         trueBool
-        (presses [K.Pipe; K.Down; K.Space] 4)
-        ("true || __________", 8) ;
-      tp
-        "pressing plus key starts partial"
-        trueBool
-        (press K.Plus 4)
-        ("true +", 6) ;
-      tp
-        "pressing caret key starts partial"
-        anInt
-        (press K.Caret 5)
-        ("12345 ^", 7) ;
+        (keys [K.Pipe; K.Down; K.Space] 4)
+        "true || ~__________" ;
+      tp "pressing plus key starts partial" trueBool (key K.Plus 4) "true +~" ;
+      tp "pressing caret key starts partial" anInt (key K.Caret 5) "12345 ^~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
-        (presses [K.Pipe; K.Pipe; K.Space] 4)
-        ("true || __________", 8) ;
+        (keys [K.Pipe; K.Pipe; K.Space] 4)
+        "true || ~__________" ;
       t
         "piping into newline creates pipe"
         trueBool
-        (presses [K.Pipe; K.GreaterThan; K.Space] 4)
-        ("true\n|>___\n", 7) ;
+        (keys [K.Pipe; K.GreaterThan; K.Space] 4)
+        "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b (), NoRail)))
+        (partial "|" (binop "||" anInt b))
         (bs 7)
-        ("12345", 5) ;
+        "12345~" ;
       t
         "pressing bs to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (partial "|" (binop "||" b b))
         (bs 12)
-        ("___", 0) ;
+        "~___" ;
       t
         "pressing del to clear partial reverts for blank rhs"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, b (), NoRail)))
+        (partial "|" (binop "||" anInt b))
         (del 6)
-        ("12345", 5) ;
+        "12345~" ;
       t
         "pressing del to clear partial reverts for blank rhs, check lhs pos goes to start"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (partial "|" (binop "||" b b))
         (del 11)
-        ("___", 0) ;
+        "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (partial "|" (binop "||" b b))
         (bs 12)
-        ("___", 0) ;
+        "~___" ;
       t
         "using bs to remove an infix with a placeholder goes to right place 2"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", five, b (), NoRail)))
+        (partial "|" (binop "||" five b))
         (bs 3)
-        ("5", 1) ;
+        "5~" ;
       t
         "pressing bs to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", b ()))
+        (rightPartial "|" b)
         (bs 5)
-        ("___", 0) ;
+        "~___" ;
       t
         "pressing bs on single digit binop leaves lhs"
-        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (binop "+" anInt anInt)
         (bs 7)
-        ("12345", 5) ;
+        "12345~" ;
       t
         "using del to remove an infix with a placeholder goes to right place"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", b (), b (), NoRail)))
+        (partial "|" (binop "||" b b))
         (del 11)
-        ("___", 0) ;
+        "~___" ;
       t
         "pressing del to clear rightpartial reverts for blank rhs"
-        (ERightPartial (gid (), "|", b ()))
+        (rightPartial "|" b)
         (del 4)
-        ("___", 0) ;
+        "~___" ;
       t
         "pressing del on single digit binop leaves lhs"
-        (EBinOp (gid (), "+", anInt, anInt, NoRail))
+        (binop "+" anInt anInt)
         (del 6)
-        ("12345", 5) ;
+        "12345~" ;
       t
         "pressing del to remove a string binop combines lhs and rhs"
-        (EBinOp
-           ( gid ()
-           , "++"
-           , EString (gid (), "five")
-           , EString (gid (), "six")
-           , NoRail ))
-        (presses [K.Delete; K.Delete] 7)
-        ("\"fivesix\"", 5) ;
+        (binop "++" (str "five") (str "six"))
+        (keys [K.Delete; K.Delete] 7)
+        "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
-        (EBinOp
-           ( gid ()
-           , "++"
-           , EString (gid (), "five")
-           , EString (gid (), "six")
-           , NoRail ))
-        (presses [K.Backspace; K.Backspace] 9)
-        ("\"fivesix\"", 5) ;
+        (binop "++" (str "five") (str "six"))
+        (keys [K.Backspace; K.Backspace] 9)
+        "\"five~six\"" ;
       t
         "pressing letters and numbers on a partial completes it"
-        (b ())
-        (presses [K.Number '5'; K.Plus; K.Number '5'] 0)
-        ("5 + 5", 5) ;
+        b
+        (keys [K.Number '5'; K.Plus; K.Number '5'] 0)
+        "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
-        (EPartial (gid (), "|", EBinOp (gid (), "||", anInt, anInt, NoRail)))
-        (press K.Pipe 7)
-        ("12345 || 12345", 8) ;
+        (partial "|" (binop "||" anInt anInt))
+        (key K.Pipe 7)
+        "12345 ||~ 12345" ;
       tp
         "pressing = after < should go to partial"
-        (EBinOp (gid (), "<", anInt, anInt, NoRail))
-        (press K.Equals 7)
-        ("12345 <= 12345", 8) ;
+        (binop "<" anInt anInt)
+        (key K.Equals 7)
+        "12345 <=~ 12345" ;
       t
         "changing binop to fn should work"
-        (EPartial
-           (gid (), "Int::add", EBinOp (gid (), "+", anInt, anInt, NoRail)))
-        (presses [K.Enter] 14)
-        ("Int::add 12345 12345", 15) ;
+        (partial "Int::add" (binop "+" anInt anInt))
+        (keys [K.Enter] 14)
+        "Int::add 12345 ~12345" ;
       t
         "changing fn to binops should work"
-        (EPartial
-           (gid (), "+", EFnCall (gid (), "Int::add", [anInt; anInt], NoRail)))
-        (presses [K.Enter] 1)
-        ("12345 + 12345", 0) ;
+        (partial "+" (fn "Int::add" [anInt; anInt]))
+        (keys [K.Enter] 1)
+        "~12345 + 12345" ;
       t
         "changing binop should work"
-        (EBinOp (gid (), "<", anInt, anInt, NoRail))
-        (presses [K.Equals; K.Enter] 7)
-        ("12345 <= 12345", 8) ;
+        (binop "<" anInt anInt)
+        (keys [K.Equals; K.Enter] 7)
+        "12345 <=~ 12345" ;
       tp
         "adding binop in `if` works"
-        (EIf (gid (), b (), b (), b ()))
-        (press K.Percent 3)
-        ("if %\nthen\n  ___\nelse\n  ___", 4) ;
-      let aFullBinOp =
-        EBinOp
-          ( gid ()
-          , "||"
-          , EVariable (gid (), "myvar")
-          , EInteger (gid (), "5")
-          , NoRail )
-      in
-      tp "show ghost partial" aFullBinOp (bs 8) ("myvar |@ 5", 7) ;
+        (if' b b b)
+        (key K.Percent 3)
+        "if %~\nthen\n  ___\nelse\n  ___" ;
+      tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
       () ) ;
   describe "Constructors" (fun () ->
-      tp
-        "arguments work in constructors"
-        aConstructor
-        (insert 't' 5)
-        ("Just t", 6) ;
-      t
-        "int arguments work in constructors"
-        aConstructor
-        (insert '5' 5)
-        ("Just 5", 6) ;
+      tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
+      t "int arguments work in constructors" aConstructor (ins '5' 5) "Just 5~" ;
       tp
         "bs on a constructor converts it to a partial with ghost"
         aConstructor
         (bs 4)
-        ("Jus@ ___", 3) ;
+        "Jus~@ ___" ;
       tp
         "del on a constructor converts it to a partial with ghost"
         aConstructor
         (del 0)
-        ("ust@ ___", 0) ;
+        "~ust@ ___" ;
       t
         "space on a constructor blank does nothing"
         aConstructor
         (space 5)
-        ("Just ___", 5) ;
+        "Just ~___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -1545,414 +1177,397 @@ let () =
       t
         "type - after a lambda var to move into a lambda arrow"
         aLambda
-        (press Minus 4)
-        ("\\*** -> ___", 6) ;
+        (key Minus 4)
+        "\\*** -~> ___" ;
       t
         "type - before a lambda arrow to move into a lambda arrow"
         aLambda
-        (press Minus 5)
-        ("\\*** -> ___", 6) ;
+        (key Minus 5)
+        "\\*** -~> ___" ;
       t
         "type > inside a lambda arrow to move past it"
         aLambda
-        (press GreaterThan 6)
-        ("\\*** -> ___", 8) ;
+        (key GreaterThan 6)
+        "\\*** -> ~___" ;
       (* end type -> to move through a lambda *)
-      t "bs over lambda symbol" aLambda (bs 1) ("___", 0) ;
-      t "insert space in lambda" aLambda (press K.Space 1) ("\\*** -> ___", 1) ;
-      t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) ("\\*** -> 5", 1) ;
-      t "del lambda symbol" aLambda (del 0) ("___", 0) ;
-      t "del non-empty lambda symbol" nonEmptyLambda (del 0) ("\\*** -> 5", 0) ;
+      t "bs over lambda symbol" aLambda (bs 1) "~___" ;
+      t "insert space in lambda" aLambda (key K.Space 1) "\\~*** -> ___" ;
+      t "bs non-empty lambda symbol" nonEmptyLambda (bs 1) "\\~*** -> 5" ;
+      t "del lambda symbol" aLambda (del 0) "~___" ;
+      t "del non-empty lambda symbol" nonEmptyLambda (del 0) "~\\*** -> 5" ;
       t
         "insert changes occurence of binding var"
         (lambdaWithUsedBinding "binding")
-        (insert 'c' 8)
-        ("\\bindingc -> bindingc", 9) ;
+        (ins 'c' 8)
+        "\\bindingc~ -> bindingc" ;
       t
         "insert changes occurence of binding 2nd var"
         (lambdaWithUsed2ndBinding "binding")
-        (insert 'c' 17)
-        ("\\somevar, bindingc -> bindingc", 18) ;
+        (ins 'c' 17)
+        "\\somevar, bindingc~ -> bindingc" ;
       t
         "dont jump in lambdavars with infix chars"
         aLambda
-        (press K.Plus 1)
-        ("\\*** -> ___", 1) ;
+        (key K.Plus 1)
+        "\\~*** -> ___" ;
       t
         "dont allow name to start with a number"
         aLambda
-        (insert '5' 1)
-        ("\\*** -> ___", 1) ;
+        (ins '5' 1)
+        "\\~*** -> ___" ;
       t
         "dont allow name to start with a number, pt 2"
         (lambdaWithBinding "test" five)
-        (insert '2' 1)
-        ("\\test -> 5", 1) ;
+        (ins '2' 1)
+        "\\~test -> 5" ;
       t
         "dont allow name to start with a number, pt 3"
         aLambda
-        (insert '5' 3)
-        ("\\*** -> ___", 3) ;
+        (ins '5' 3)
+        (* TODO: this looks wrong *)
+        "\\**~* -> ___" ;
       t
         "creating lambda in block placeholder should set arguments"
         aFnCallWithBlockArg
-        (press (K.Letter '\\') 24)
-        ("Dict::map _____________ \\key, value -> ___", 25) ;
+        (key (K.Letter '\\') 24)
+        "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
-        (EPipe (gid (), [b (); b ()]))
-        (presses
+        (pipe b [b])
+        (keys
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
            [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
            6)
-        ("___\n|>Dict::map \\key, value -> ___\n", 17) ;
+        "___\n|>Dict::map \\~key, value -> ___\n" ;
       t
         "deleting a lambda argument should work"
         lambdaWithTwoBindings
         (del 2)
-        ("\\x -> ___", 2) ;
+        "\\x~ -> ___" ;
       t
         "backspacing a lambda argument should work"
         lambdaWithTwoBindings
         (bs 3)
-        ("\\x -> ___", 2) ;
+        "\\x~ -> ___" ;
       t
         "deleting a lambda argument should update used variable"
         (lambdaWithUsed2ndBinding "x")
         (del 8)
-        ("\\somevar -> ___", 8) ;
+        "\\somevar~ -> ___" ;
       t
         "can add lambda arguments when blank"
         aLambda
-        (insert ',' 4)
-        ("\\***, *** -> ___", 6) ;
+        (ins ',' 4)
+        "\\***, ~*** -> ___" ;
       t
         "can add lambda arguments to used binding"
         lambdaWithTwoBindings
-        (insert ',' 5)
-        ("\\x, y, *** -> ___", 7) ;
+        (ins ',' 5)
+        "\\x, y, ~*** -> ___" ;
       t
         "can add lambda arguments in middle used binding"
         lambdaWithTwoBindings
-        (insert ',' 2)
-        ("\\x, ***, y -> ___", 4) ;
+        (ins ',' 2)
+        "\\x, ~***, y -> ___" ;
       t
         "can add lambda arguments in the front"
         lambdaWithTwoBindings
-        (insert ',' 1)
-        ("\\***, x, y -> ___", 1) ;
+        (ins ',' 1)
+        "\\~***, x, y -> ___" ;
       t
         "can add lambda arguments in front of middle"
         lambdaWithTwoBindings
-        (insert ',' 4)
-        ("\\x, ***, y -> ___", 4) ;
+        (ins ',' 4)
+        "\\x, ~***, y -> ___" ;
       t
         "cant insert a blank from outside the lambda"
         lambdaWithTwoBindings
-        (insert ',' 0)
-        ("\\x, y -> ___", 0) ;
+        (ins ',' 0)
+        "~\\x, y -> ___" ;
       t
         "cant bs a blank from the space in a lambda"
         lambdaWithTwoBindings
         (bs 4)
-        ("\\x, y -> ___", 3) ;
+        "\\x,~ y -> ___" ;
       () ) ;
   describe "Variables" (fun () ->
-      tp "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
-      tp "del middle of variable" aVar (del 5) ("variale", 5) ;
-      tp "insert capital works" aVar (press (K.Letter 'A') 5) ("variaAble", 6) ;
-      t "can't insert invalid" aVar (press K.Dollar 5) ("variable", 5) ;
-      t "del variable" aShortVar (del 0) (blank, 0) ;
-      tp "del long variable" aVar (del 0) ("ariable", 0) ;
-      tp "del mid variable" aVar (del 6) ("variabe", 6) ;
-      t "bs variable" aShortVar (bs 1) (blank, 0) ;
-      tp "bs mid variable" aVar (bs 8) ("variabl", 7) ;
-      tp "bs mid variable" aVar (bs 6) ("variale", 5) ;
+      tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
+      tp "del middle of variable" aVar (del 5) "varia~le" ;
+      tp "insert capital works" aVar (key (K.Letter 'A') 5) "variaA~ble" ;
+      t "can't insert invalid" aVar (key K.Dollar 5) "varia~ble" ;
+      t "del variable" aShortVar (del 0) "~___" ;
+      tp "del long variable" aVar (del 0) "~ariable" ;
+      tp "del mid variable" aVar (del 6) "variab~e" ;
+      t "bs variable" aShortVar (bs 1) "~___" ;
+      tp "bs mid variable" aVar (bs 8) "variabl~" ;
+      tp "bs mid variable" aVar (bs 6) "varia~le" ;
       t
         "variable doesn't override if"
-        (ELet (gid (), gid (), "i", b (), EPartial (gid (), "i", b ())))
-        (presses [K.Letter 'f'; K.Enter] 13)
-        ("let i = ___\nif ___\nthen\n  ___\nelse\n  ___", 15) ;
+        (let' "i" b (partial "i" b))
+        (keys [K.Letter 'f'; K.Enter] 13)
+        "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       () ) ;
   describe "Match" (fun () ->
       t
         "move to the front of match"
         emptyMatch
-        (press K.GoToStartOfLine 6)
-        ("match ___\n  *** -> ___\n", 0) ;
+        (key K.GoToStartOfLine 6)
+        "~match ___\n  *** -> ___\n" ;
       t
         "move to the end of match"
         emptyMatch
-        (press K.GoToEndOfLine 0)
-        ("match ___\n  *** -> ___\n", 9) ;
+        (key K.GoToEndOfLine 0)
+        "match ___~\n  *** -> ___\n" ;
       t
         "move to the front of match on line 2"
         emptyMatch
-        (press K.GoToStartOfLine 15)
-        ("match ___\n  *** -> ___\n", 12) ;
+        (key K.GoToStartOfLine 15)
+        "match ___\n  ~*** -> ___\n" ;
       t
         "move to the end of match on line 2"
         emptyMatch
-        (press K.GoToEndOfLine 12)
-        ("match ___\n  *** -> ___\n", 22) ;
+        (key K.GoToEndOfLine 12)
+        "match ___\n  *** -> ___~\n" ;
       t
         "move back over match"
         emptyMatch
-        (press K.Left 6)
-        ("match ___\n  *** -> ___\n", 0) ;
+        (key K.Left 6)
+        "~match ___\n  *** -> ___\n" ;
       t
         "move forward over match"
         emptyMatch
-        (press K.Right 0)
-        ("match ___\n  *** -> ___\n", 6) ;
-      t "bs over empty match" emptyMatch (bs 6) ("___", 0) ;
+        (key K.Right 0)
+        "match ~___\n  *** -> ___\n" ;
+      t "bs over empty match" emptyMatch (bs 6) "~___" ;
       t
         "bs over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
         (bs 6)
-        ("___", 0) ;
+        "~___" ;
       t
         "bs over match with 2 patterns"
         matchWithPatterns
         (bs 6)
-        ("match ___\n  3 -> ___\n", 6) ;
-      t "del over empty match" emptyMatch (del 0) ("___", 0) ;
+        "match ~___\n  3 -> ___\n" ;
+      t "del over empty match" emptyMatch (del 0) "~___" ;
       t
         "del over empty match with 2 patterns"
         emptyMatchWithTwoPatterns
         (del 0)
-        ("___", 0) ;
+        "~___" ;
       t
         "del over match with 2 patterns"
         matchWithPatterns
         (del 0)
-        ("match ___\n  3 -> ___\n", 0) ;
+        "~match ___\n  3 -> ___\n" ;
       t
         "del constructor in match pattern"
         matchWithConstructorPattern
         (del 12)
-        ("match ___\n  ust -> ___\n", 12) ;
+        "match ___\n  ~ust -> ___\n" ;
       t
         "bs constructor in match pattern"
         matchWithConstructorPattern
         (bs 16)
-        ("match ___\n  Jus -> ___\n", 15) ;
+        "match ___\n  Jus~ -> ___\n" ;
       t
         "insert changes occurence of non-shadowed var in case"
-        (matchWithBinding "binding" (EVariable (gid (), "binding")))
-        (insert 'c' 19)
-        ("match ___\n  bindingc -> bindingc\n", 20) ;
+        (matchWithBinding "binding" (var "binding"))
+        (ins 'c' 19)
+        "match ___\n  bindingc~ -> bindingc\n" ;
       t
         "insert changes occurence of non-shadowed var in case constructor"
-        (matchWithConstructorBinding "binding" (EVariable (gid (), "binding")))
-        (insert 'c' 22)
-        ("match ___\n  Ok bindingc -> bindingc\n", 23) ;
+        (matchWithConstructorBinding "binding" (var "binding"))
+        (ins 'c' 22)
+        "match ___\n  Ok bindingc~ -> bindingc\n" ;
       t
         "insert space in blank match"
         emptyMatch
-        (press K.Space 6)
-        ("match ___\n  *** -> ___\n", 6) ;
+        (key K.Space 6)
+        "match ~___\n  *** -> ___\n" ;
       t
         "insert space in blank match on line 2"
         emptyMatch
-        (press K.Space 12)
-        ("match ___\n  *** -> ___\n", 12) ;
+        (key K.Space 12)
+        "match ___\n  ~*** -> ___\n" ;
       t
         "enter at the end of the cond creates a new row"
         matchWithPatterns
         (enter 9)
-        ("match ___\n  *** -> ___\n  3 -> ___\n", 12) ;
+        "match ___\n  ~*** -> ___\n  3 -> ___\n" ;
       t
         "enter at the end of a row creates a new row"
         emptyMatchWithTwoPatterns
         (enter 22)
-        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___\n", 25) ;
+        "match ___\n  *** -> ___\n  ~*** -> ___\n  *** -> ___\n" ;
       t
         "enter at the end of the last row creates a new row"
         emptyMatchWithTwoPatterns
         (enter 35)
-        ("match ___\n  *** -> ___\n  *** -> ___\n  *** -> ___\n", 38) ;
+        "match ___\n  *** -> ___\n  *** -> ___\n  ~*** -> ___\n" ;
       t
         "enter at the end of the last row in nested match creates a new row"
         nestedMatch
         (enter 50)
-        ( "match ___\n  *** -> match ___\n           *** -> ___\n           *** -> ___\n"
-        , 62 ) ;
+        "match ___\n  *** -> match ___\n           *** -> ___\n           ~*** -> ___\n" ;
       t
         "enter at the start of a row creates a new row"
         matchWithPatterns
         (enter 12)
-        ("match ___\n  *** -> ___\n  3 -> ___\n", 25) ;
+        "match ___\n  *** -> ___\n  ~3 -> ___\n" ;
       t
         "backspace first row deletes it"
         emptyMatchWithTwoPatterns
         (bs 12)
-        ("match ___\n  *** -> ___\n", 9) ;
+        "match ___~\n  *** -> ___\n" ;
       t
         "backspace second row deletes it"
         emptyMatchWithTwoPatterns
         (bs 25)
-        ("match ___\n  *** -> ___\n", 22) ;
+        "match ___\n  *** -> ___~\n" ;
       t
         "backspacing only row doesn't delete"
         emptyMatch
         (bs 12)
-        ("match ___\n  *** -> ___\n", 9) ;
+        "match ___~\n  *** -> ___\n" ;
       (* delete row with delete *)
       () ) ;
   describe "Lets" (fun () ->
       t
         "move to the front of let"
         emptyLet
-        (press K.GoToStartOfLine 4)
-        ("let *** = ___\n5", 0) ;
+        (key K.GoToStartOfLine 4)
+        "~let *** = ___\n5" ;
       t
         "move to the end of let"
         emptyLet
-        (press K.GoToEndOfLine 4)
-        ("let *** = ___\n5", 13) ;
-      t "move back over let" emptyLet (press K.Left 4) ("let *** = ___\n5", 0) ;
-      t
-        "move forward over let"
-        emptyLet
-        (press K.Right 0)
-        ("let *** = ___\n5", 4) ;
-      t "bs over empty let" emptyLet (bs 3) ("5", 0) ;
-      t "del empty let" emptyLet (del 0) ("5", 0) ;
-      t "bs over non-empty let" nonEmptyLet (bs 3) ("let *** = 6\n5", 3) ;
-      t "del non-empty let" nonEmptyLet (del 0) ("let *** = 6\n5", 0) ;
+        (key K.GoToEndOfLine 4)
+        "let *** = ___~\n5" ;
+      t "move back over let" emptyLet (key K.Left 4) "~let *** = ___\n5" ;
+      t "move forward over let" emptyLet (key K.Right 0) "let ~*** = ___\n5" ;
+      t "bs over empty let" emptyLet (bs 3) "~5" ;
+      t "del empty let" emptyLet (del 0) "~5" ;
+      t "bs over non-empty let" nonEmptyLet (bs 3) "let~ *** = 6\n5" ;
+      t "del non-empty let" nonEmptyLet (del 0) "~let *** = 6\n5" ;
       t
         "insert space on blank let"
         emptyLet
-        (press K.Space 4)
-        ("let *** = ___\n5", 4) ;
-      t "lhs on empty" emptyLet (insert 'c' 4) ("let c = ___\n5", 5) ;
-      t "middle of blank" emptyLet (insert 'c' 5) ("let c = ___\n5", 5) ;
-      t "bs letlhs" letWithLhs (bs 5) ("let *** = 6\n5", 4) ;
-      t "del letlhs" letWithLhs (del 4) ("let *** = 6\n5", 4) ;
+        (key K.Space 4)
+        "let ~*** = ___\n5" ;
+      t "lhs on empty" emptyLet (ins 'c' 4) "let c~ = ___\n5" ;
+      t "middle of blank" emptyLet (ins 'c' 5) "let c~ = ___\n5" ;
+      t "bs letlhs" letWithLhs (bs 5) "let ~*** = 6\n5" ;
+      t "del letlhs" letWithLhs (del 4) "let ~*** = 6\n5" ;
       t
         "equals skips over assignment"
         emptyLet
-        (presses [K.Letter 'c'; K.Equals] 4)
-        ("let c = ___\n5", 8) ;
+        (keys [K.Letter 'c'; K.Equals] 4)
+        "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
         emptyLet
-        (press K.Equals 7)
-        ("let *** = ___\n5", 10) ;
+        (key K.Equals 7)
+        "let *** = ~___\n5" ;
       t
         "equals skips over assignment 2"
         emptyLet
-        (press K.Equals 8)
-        ("let *** = ___\n5", 10) ;
+        (key K.Equals 8)
+        "let *** = ~___\n5" ;
       t
         "equals skips over assignment 3"
         emptyLet
-        (press K.Equals 9)
-        ("let *** = ___\n5", 10) ;
+        (key K.Equals 9)
+        "let *** = ~___\n5" ;
       t
         "bs changes occurence of binding var"
         (letWithUsedBinding "binding")
         (bs 11)
-        ("let bindin = 6\nbindin", 10) ;
+        "let bindin~ = 6\nbindin" ;
       t
         "insert changes occurence of binding var"
         (letWithUsedBinding "binding")
-        (insert 'c' 11)
-        ("let bindingc = 6\nbindingc", 12) ;
+        (ins 'c' 11)
+        "let bindingc~ = 6\nbindingc" ;
       t
         "insert changes occurence of binding in match nested expr"
         (letWithBinding
            "binding"
-           (EMatch
-              ( gid ()
-              , b ()
-              , [ ( FPVariable (gid (), gid (), "binding")
-                  , EVariable (gid (), "binding") )
-                ; ( FPInteger (gid (), gid (), "5")
-                  , EVariable (gid (), "binding") ) ] )))
-        (insert 'c' 11)
-        ( "let bindingc = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n"
-        , 12 ) ;
+           (match'
+              b
+              [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
+        (ins 'c' 11)
+        "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
-        (letWithBinding
-           "binding"
-           (ELambda
-              (gid (), [(gid (), "binding")], EVariable (gid (), "binding"))))
-        (insert 'c' 11)
-        ("let bindingc = 6\n\\binding -> binding", 12) ;
+        (letWithBinding "binding" (lambda ["binding"] (var "binding")))
+        (ins 'c' 11)
+        "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
-        (letWithBinding
-           "binding"
-           (ELambda
-              (gid (), [(gid (), "somevar")], EVariable (gid (), "binding"))))
-        (insert 'c' 11)
-        ("let bindingc = 6\n\\somevar -> bindingc", 12) ;
+        (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
+        (ins 'c' 11)
+        "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
         "dont jump in letlhs with infix chars"
         emptyLet
-        (press K.Plus 4)
-        ("let *** = ___\n5", 4) ;
+        (key K.Plus 4)
+        "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number"
         emptyLet
-        (insert '5' 4)
-        ("let *** = ___\n5", 4) ;
+        (ins '5' 4)
+        "let ~*** = ___\n5" ;
       t
         "dont allow letlhs to start with a number, pt 2"
         letWithLhs
-        (insert '2' 4)
-        ("let n = 6\n5", 4) ;
+        (ins '2' 4)
+        "let ~n = 6\n5" ;
       t
         "dont allow letlhs to start with a number, pt 3"
         emptyLet
-        (insert '5' 6)
-        ("let *** = ___\n5", 6) ;
+        (ins '5' 6)
+        "let **~* = ___\n5" ;
       t
         "enter on the end of let goes to blank"
         nonEmptyLetWithBlankEnd
         (enter 11)
-        ("let *** = 6\n___", 12) ;
+        "let *** = 6\n~___" ;
       t
         "enter at the end of a line inserts let if no blank is next"
         nonEmptyLet
         (enter 11)
-        ("let *** = 6\nlet *** = ___\n5", 16) ;
+        "let *** = 6\nlet ~*** = ___\n5" ;
       t
         "enter at the start of a let creates let above"
         twoLets
         (enter 10)
-        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 24) ;
+        "let x = 5\nlet *** = ___\n~let y = 6\n7" ;
       t
         "enter at the start of first let creates let above"
         nonEmptyLet
         (enter 0)
-        ("let *** = ___\nlet *** = 6\n5", 14) ;
+        "let *** = ___\n~let *** = 6\n5" ;
       t
         "enter at the end of a let with a let below inserts new let"
         twoLets
         (enter 9)
-        ("let x = 5\nlet *** = ___\nlet y = 6\n7", 14) ;
+        "let x = 5\nlet ~*** = ___\nlet y = 6\n7" ;
       t
         "enter on the end of first let inserts new let"
         matchWithTwoLets
         (enter 28)
-        ( "match ___\n  *** -> let x = 5\n         let *** = ___\n         let y = 6\n         ___\n"
-        , 42 ) ;
+        "match ___\n  *** -> let x = 5\n         let ~*** = ___\n         let y = 6\n         ___\n" ;
       t
         "enter on the end of second let goes to blank"
         matchWithTwoLets
         (enter 47)
-        ( "match ___\n  *** -> let x = 5\n         let y = 6\n         ___\n"
-        , 57 ) ;
+        "match ___\n  *** -> let x = 5\n         let y = 6\n         ~___\n" ;
       t
         "enter at the start of a non-let also creates let above"
         anInt
         (enter 0)
-        ("let *** = ___\n12345", 14) ;
+        "let *** = ___\n~12345" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
@@ -1966,246 +1581,203 @@ let () =
           |> toEqual ("let *** = ___\n12345", 14) ) ;
       () ) ;
   describe "Pipes" (fun () ->
-      let pipeOn expr fns = EPipe (gid (), expr :: fns) in
-      let emptyList = EList (gid (), []) in
-      let aList5 = EList (gid (), [five]) in
-      let aList6 = EList (gid (), [six]) in
-      let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
-      let listFn args =
-        EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
-      in
-      let aPipe = pipeOn emptyList [listFn [aList5]; listFn [aList5]] in
-      let emptyPipe = EPipe (gid (), [b (); b ()]) in
-      let aLongPipe =
-        pipeOn
-          emptyList
-          [ listFn [aListNum "2"]
-          ; listFn [aListNum "3"]
-          ; listFn [aListNum "4"]
-          ; listFn [aListNum "5"] ]
-      in
-      let aBinopPipe =
-        pipeOn
-          (newB ())
-          [ EBinOp
-              ( gid ()
-              , "++"
-              , EPipeTarget (gid ())
-              , EString (gid (), "asd")
-              , NoRail ) ]
-      in
-      let aPipeInsideIf = EIf (gid (), b (), aLongPipe, b ()) in
-      let aNestedPipe =
-        pipeOn emptyList [listFn [pipeOn aList5 [listFn [aList6]]]]
-      in
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
       t
         "move to the front of pipe on line 1"
         aPipe
-        (press K.GoToStartOfLine 2)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
+        (key K.GoToStartOfLine 2)
+        "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 1"
         aPipe
-        (press K.GoToEndOfLine 0)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 2) ;
+        (key K.GoToEndOfLine 0)
+        "[]~\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 2"
         aPipe
-        (press K.GoToStartOfLine 8)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 5) ;
+        (key K.GoToStartOfLine 8)
+        "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "move to the end of pipe on line 2"
         aPipe
-        (press K.GoToEndOfLine 5)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 21) ;
+        (key K.GoToEndOfLine 5)
+        "[]\n|>List::append [5]~\n|>List::append [5]\n" ;
       t
         "move to the front of pipe on line 3"
         aPipe
-        (press K.GoToStartOfLine 40)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 24) ;
+        (key K.GoToStartOfLine 40)
+        "[]\n|>List::append [5]\n|>~List::append [5]\n" ;
       t
         "move to the end of pipe on line 3"
         aPipe
-        (press K.GoToEndOfLine 24)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 40) ;
+        (key K.GoToEndOfLine 24)
+        "[]\n|>List::append [5]\n|>List::append [5]~\n" ;
       t
         "pipes appear on new lines"
         aPipe
         render
-        ("[]\n|>List::append [5]\n|>List::append [5]\n", 0) ;
+        "~[]\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "nested pipes will indent"
         aNestedPipe
         render
-        ("[]\n|>List::append [5]\n               |>List::append [6]\n", 0) ;
+        "~[]\n|>List::append [5]\n               |>List::append [6]\n" ;
       t
         "backspacing a pipe's first pipe works"
         aLongPipe
         (bs 5)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 2) ;
+        "[]~\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "deleting a pipe's first pipe works"
         aLongPipe
         (del 3)
-        ("[]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n", 3) ;
+        "[]\n~|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "backspacing a pipe's second pipe works"
         aLongPipe
         (bs 24)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 21) ;
+        "[]\n|>List::append [2]~\n|>List::append [4]\n|>List::append [5]\n" ;
       t
         "deleting a pipe's second pipe works"
         aLongPipe
         (del 22)
-        ("[]\n|>List::append [2]\n|>List::append [4]\n|>List::append [5]\n", 22) ;
+        "[]\n|>List::append [2]\n~|>List::append [4]\n|>List::append [5]\n" ;
       t
         "backspacing a pipe's third pipe works"
         aLongPipe
         (bs 43)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 40) ;
+        "[]\n|>List::append [2]\n|>List::append [3]~\n|>List::append [5]\n" ;
       t
         "deleting a pipe's third pipe works"
         aLongPipe
         (del 41)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [5]\n", 41) ;
+        "[]\n|>List::append [2]\n|>List::append [3]\n~|>List::append [5]\n" ;
       t
         "backspacing a pipe's last pipe works"
         aLongPipe
         (bs 62)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
+        "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
       t
         "deleting a pipe's last pipe works"
         aLongPipe
         (del 60)
-        ("[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]\n", 59) ;
+        "[]\n|>List::append [2]\n|>List::append [3]\n|>List::append [4]~\n" ;
       t
         "backspacing a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 21)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 16 ) ;
+        "if ___\nthen\n  []~\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's first pipe that isn't in the first column works"
         aPipeInsideIf
         (del 19)
-        ( "if ___\nthen\n  []\n  |>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 19 ) ;
+        "if ___\nthen\n  []\n  ~|>List::append [3]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 42)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 37 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]~\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's second pipe that isn't in the first column works"
         aPipeInsideIf
         (del 40)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [4]\n  |>List::append [5]\nelse\n  ___"
-        , 40 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]\n  ~|>List::append [4]\n  |>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 63)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
-        , 58 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]~\n  |>List::append [5]\nelse\n  ___" ;
       t
         "deleting a pipe's third pipe that isn't in the first column works"
         aPipeInsideIf
         (del 61)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [5]\nelse\n  ___"
-        , 61 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  ~|>List::append [5]\nelse\n  ___" ;
       t
         "backspacing a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
         (bs 84)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 79 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
       t
         "deleting a pipe's fourth pipe that isn't in the first column works"
         aPipeInsideIf
         (del 82)
-        ( "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]\nelse\n  ___"
-        , 79 ) ;
+        "if ___\nthen\n  []\n  |>List::append [2]\n  |>List::append [3]\n  |>List::append [4]~\nelse\n  ___" ;
       tp
         "backspacing a pipe's first fn works"
         aLongPipe
         (bs 17)
-        ( "[]\n|>List::appen@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n"
-        , 16 ) ;
+        "[]\n|>List::appen~@ [2]\n|>List::append [3]\n|>List::append [4]\n|>List::append [5]\n" ;
       tp
         "backspacing a pipe's first binop works"
         aBinopPipe
         (bs 8)
-        ("___\n|>+@ \"asd\"\n", 7) ;
+        "___\n|>+~@ \"asd\"\n" ;
       t
         "adding infix functions adds the right number of blanks"
         emptyPipe
-        (presses [K.Plus; K.Enter] 6)
-        ("___\n|>+ _________\n", 8) ;
+        (keys [K.Plus; K.Enter] 6)
+        "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
-        (EPartial (gid (), "|>", aFnCall))
+        (partial "|>" aFnCall)
         (enter 2)
-        (* This really should end in 18, but too much work for now *)
-        ("Int::add 5 _________\n|>___\n", 11) ;
+        (* TODO: This really should end in 18, but too much work for now *)
+        "Int::add 5 ~_________\n|>___\n" ;
       t
         "enter at the end of a pipe expr creates a new entry"
         aPipe
         (enter 21)
-        ("[]\n|>List::append [5]\n|>___\n|>List::append [5]\n", 24) ;
+        "[]\n|>List::append [5]\n|>~___\n|>List::append [5]\n" ;
       t
         "enter at the end of the opening expr creates a new entry"
         aPipe
         (enter 2)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 5) ;
+        "[]\n|>~___\n|>List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at the start of a line creates a new entry"
         aPipe
         (enter 3)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 9) ;
+        "[]\n|>___\n~|>List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at start of blank (within pipe) creates a new entry"
         aPipe
         (enter 5)
-        ("[]\n|>___\n|>List::append [5]\n|>List::append [5]\n", 11) ;
+        "[]\n|>___\n|>~List::append [5]\n|>List::append [5]\n" ;
       t
         "enter at the end of the last expr creates a new entry"
         aPipe
         (enter 40)
-        ("[]\n|>List::append [5]\n|>List::append [5]\n|>___\n", 43) ;
+        "[]\n|>List::append [5]\n|>List::append [5]\n|>~___\n" ;
       t
         "enter at the end of the last nested expr creates a new entry"
         aNestedPipe
         (enter 55)
-        ( "[]\n|>List::append [5]\n               |>List::append [6]\n               |>___\n"
-        , 73 ) ;
+        "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe1"
-        (pipeOn five [listFn [ERightPartial (gid (), "|>", aList5)]])
+        (pipe five [listFn [rightPartial "|>" aList5]])
         (enter 23)
-        ("5\n|>List::append [5]\n|>___\n", 23) ;
+        "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe2"
-        (pipeOn five [listFn [aList5]])
-        (press K.ShiftEnter 19)
-        ("5\n|>List::append [5]\n|>___\n", 23) ;
+        (pipe five [listFn [aList5]])
+        (key K.ShiftEnter 19)
+        "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe3"
         five
-        (press K.ShiftEnter 1)
-        ("5\n|>___\n", 4) ;
+        (key K.ShiftEnter 1)
+        "5\n|>~___\n" ;
       t
         "shift enter at a let's newline creates the pipe on the rhs"
         nonEmptyLet
-        (press K.ShiftEnter 11)
-        ("let *** = 6\n          |>___\n5", 24) ;
+        (key K.ShiftEnter 11)
+        "let *** = 6\n          |>~___\n5" ;
       t
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
-        (ERecord
-           (gid (), [(gid (), "f1", fiftySix); (gid (), "f2", seventyEight)]))
-        (press K.ShiftEnter 11)
-        ("{\n  f1 : 56\n       |>___\n  f2 : 78\n}", 21) ;
+        (record [("f1", fiftySix); ("f2", seventyEight)])
+        (key K.ShiftEnter 11)
+        "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
@@ -2214,471 +1786,423 @@ let () =
       t
         "move over indent 1"
         plainIf
-        (press K.Left 12)
-        ("if 5\nthen\n  6\nelse\n  7", 9) ;
+        (key K.Left 12)
+        "if 5\nthen~\n  6\nelse\n  7" ;
       t
         "move over indent 2"
         plainIf
-        (press K.Left 21)
-        ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t "bs over indent 1" plainIf (bs 12) ("if 5\nthen\n  6\nelse\n  7", 9) ;
-      t "bs over indent 2" plainIf (bs 21) ("if 5\nthen\n  6\nelse\n  7", 18) ;
-      t "bs over empty if" emptyIf (bs 2) ("___", 0) ;
+        (key K.Left 21)
+        "if 5\nthen\n  6\nelse~\n  7" ;
+      t "bs over indent 1" plainIf (bs 12) "if 5\nthen~\n  6\nelse\n  7" ;
+      t "bs over indent 2" plainIf (bs 21) "if 5\nthen\n  6\nelse~\n  7" ;
+      t "bs over empty if" emptyIf (bs 2) "~___" ;
       t
         "move to front of line 1"
         plainIf
-        (press K.GoToStartOfLine 4)
-        ("if 5\nthen\n  6\nelse\n  7", 0) ;
+        (key K.GoToStartOfLine 4)
+        "~if 5\nthen\n  6\nelse\n  7" ;
       t
         "move to end of line 1"
         plainIf
-        (press K.GoToEndOfLine 0)
-        ("if 5\nthen\n  6\nelse\n  7", 4) ;
+        (key K.GoToEndOfLine 0)
+        "if 5~\nthen\n  6\nelse\n  7" ;
       t
         "move to front of line 3"
         plainIf
-        (press K.GoToStartOfLine 13)
-        ("if 5\nthen\n  6\nelse\n  7", 12) ;
+        (key K.GoToStartOfLine 13)
+        "if 5\nthen\n  ~6\nelse\n  7" ;
       t
         "move to end of line 3"
         plainIf
-        (press K.GoToEndOfLine 12)
-        ("if 5\nthen\n  6\nelse\n  7", 13) ;
+        (key K.GoToEndOfLine 12)
+        "if 5\nthen\n  6~\nelse\n  7" ;
       t
         "move to front of line 5 in nested if"
         nestedIf
-        (press K.GoToStartOfLine 16)
-        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 12) ;
+        (key K.GoToStartOfLine 16)
+        "if 5\nthen\n  ~if 5\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "move to end of line 5 in nested if"
         nestedIf
-        (press K.GoToEndOfLine 12)
-        ("if 5\nthen\n  if 5\n  then\n    6\n  else\n    7\nelse\n  7", 16) ;
+        (key K.GoToEndOfLine 12)
+        "if 5\nthen\n  if 5~\n  then\n    6\n  else\n    7\nelse\n  7" ;
       t
         "try to insert space on blank"
         emptyIf
-        (press K.Space 3)
-        ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
+        (key K.Space 3)
+        "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "try to insert space on blank indent 2"
         emptyIf
-        (press K.Space 14)
-        ("if ___\nthen\n  ___\nelse\n  ___", 14) ;
+        (key K.Space 14)
+        "if ___\nthen\n  ~___\nelse\n  ___" ;
       t
         "enter in front of an if wraps in a let"
         plainIf
         (enter 0)
-        ("let *** = ___\nif 5\nthen\n  6\nelse\n  7", 14) ;
+        "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
       t
         "enter at end of if line does nothing"
         plainIf
         (enter 4)
-        ("if 5\nthen\n  6\nelse\n  7", 5) ;
+        "if 5\n~then\n  6\nelse\n  7" ;
       t
         "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
-        ("if 5\nthen\n  let *** = ___\n  6\nelse\n  7", 16) ;
+        "if 5\nthen\n  let ~*** = ___\n  6\nelse\n  7" ;
       t
         "enter at end of then expr line does nothing"
         plainIf
         (enter 13)
-        ("if 5\nthen\n  6\nelse\n  7", 14) ;
+        "if 5\nthen\n  6\n~else\n  7" ;
       t
         "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
          * it's at the front of the line below. *)
         plainIf
         (enter 18)
-        ("if 5\nthen\n  6\nelse\n  let *** = ___\n  7", 25) ;
+        "if 5\nthen\n  6\nelse\n  let ~*** = ___\n  7" ;
       t
         "enter at end of else expr line does nothing"
         plainIf
         (enter 22)
-        ("if 5\nthen\n  6\nelse\n  7", 22) ;
+        "if 5\nthen\n  6\nelse\n  7~" ;
       () ) ;
   describe "Lists" (fun () ->
-      let emptyList = EList (gid (), []) in
-      let single = EList (gid (), [fiftySix]) in
-      let multi = EList (gid (), [fiftySix; seventyEight]) in
-      let withStr = EList (gid (), [EString (gid (), "ab")]) in
-      let longList =
-        EList
-          ( gid ()
-          , [ fiftySix
-            ; seventyEight
-            ; fiftySix
-            ; seventyEight
-            ; fiftySix
-            ; seventyEight ] )
-      in
-      let listWithBlank =
-        EList (gid (), [fiftySix; seventyEight; b (); fiftySix])
-      in
-      let multiWithStrs =
-        EList
-          ( gid ()
-          , [ EString (gid (), "ab")
-            ; EString (gid (), "cd")
-            ; EString (gid (), "ef") ] )
-      in
-      t "create list" (b ()) (press K.LeftSquareBracket 0) ("[]", 1) ;
-      t "insert into empty list inserts" emptyList (insert '5' 1) ("[5]", 2) ;
-      t
-        "inserting before the list does nothing"
-        emptyList
-        (insert '5' 0)
-        ("[]", 0) ;
-      t "insert space into multi list" multi (press K.Space 6) ("[56,78]", 6) ;
-      t "insert space into single list" single (press K.Space 3) ("[56]", 3) ;
-      t "insert into existing list item" single (insert '4' 1) ("[456]", 2) ;
+      t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
+      t "insert into empty list inserts" emptyList (ins '5' 1) "[5~]" ;
+      t "inserting before the list does nothing" emptyList (ins '5' 0) "~[]" ;
+      t "insert space into multi list" multi (key K.Space 6) "[56,78~]" ;
+      t "insert space into single list" single (key K.Space 3) "[56~]" ;
+      t "insert into existing list item" single (ins '4' 1) "[4~56]" ;
       t
         "insert separator before item creates blank"
         single
-        (insert ',' 1)
-        ("[___,56]", 1) ;
+        (ins ',' 1)
+        "[~___,56]" ;
       t
         "insert separator after item creates blank"
         single
-        (insert ',' 3)
-        ("[56,___]", 4) ;
+        (ins ',' 3)
+        "[56,~___]" ;
       t
         "insert separator between items creates blank"
         multi
-        (insert ',' 3)
-        ("[56,___,78]", 4) ;
-      (* t "insert separator mid integer makes two items" single (insert ',' 2) *)
+        (ins ',' 3)
+        "[56,~___,78]" ;
+      (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
       t
         "insert separator mid string does nothing special "
         withStr
-        (insert ',' 3)
-        ("[\"a,b\"]", 4) ;
+        (ins ',' 3)
+        "[\"a,~b\"]" ;
       t
         "backspacing open bracket of empty list dels list"
         emptyList
         (bs 1)
-        (blank, 0) ;
+        "~___" ;
       t
         "backspacing close bracket of empty list moves inside list"
         emptyList
         (bs 2)
-        ("[]", 1) ;
+        "[~]" ;
       t
         "deleting open bracket of empty list dels list"
         emptyList
         (del 0)
-        (blank, 0) ;
+        "~___" ;
       t
         "close bracket at end of list is swallowed"
         emptyList
-        (press K.RightSquareBracket 1)
-        ("[]", 2) ;
+        (key K.RightSquareBracket 1)
+        "[]~" ;
       t
         "bs on first separator between items dels item after separator"
         multi
         (bs 4)
-        ("[56]", 3) ;
+        "[56~]" ;
       t
         "del before first separator between items dels item after separator"
         multi
         (del 3)
-        ("[56]", 3) ;
+        "[56~]" ;
       t
         "bs on middle separator between items dels item after separator"
         longList
         (bs 10)
-        ("[56,78,56,56,78]", 9) ;
+        "[56,78,56~,56,78]" ;
       t
         "del before middle separator between items dels item after separator"
         longList
         (del 9)
-        ("[56,78,56,56,78]", 9) ;
+        "[56,78,56~,56,78]" ;
       t
         "bs on middle separator between items dels blank after separator"
         listWithBlank
         (bs 7)
-        ("[56,78,56]", 6) ;
+        "[56,78~,56]" ;
       t
         "del before middle separator between items dels blank after separator"
         listWithBlank
         (del 6)
-        ("[56,78,56]", 6) ;
+        "[56,78~,56]" ;
       t
         "bs on last separator between a blank and item dels item after separator"
         listWithBlank
         (bs 11)
-        ("[56,78,___]", 10) ;
+        "[56,78,___~]" ;
       t
         "del before last separator between a blank and item dels item after separator"
         listWithBlank
         (del 10)
-        ("[56,78,___]", 10) ;
+        "[56,78,___~]" ;
       t
         "bs on separator between string items dels item after separator"
         multiWithStrs
         (bs 6)
-        ("[\"ab\",\"ef\"]", 5) ;
+        "[\"ab\"~,\"ef\"]" ;
       t
         "del before separator between string items dels item after separator"
         multiWithStrs
         (del 5)
-        ("[\"ab\",\"ef\"]", 5) ;
+        "[\"ab\"~,\"ef\"]" ;
       () ) ;
   describe "Record" (fun () ->
-      (* let withStr = EList (gid (), [EString (gid (), "ab")]) in *)
-      t "create record" (b ()) (press K.LeftCurlyBrace 0) ("{}", 1) ;
+      t "create record" b (key K.LeftCurlyBrace 0) "{~}" ;
       t
         "inserting before the record does nothing"
         emptyRecord
-        (insert '5' 0)
-        ("{}", 0) ;
+        (ins '5' 0)
+        "~{}" ;
       t
         "inserting space between empty record does nothing"
         emptyRecord
         (space 1)
-        ("{}", 1) ;
+        "{~}" ;
       t
         "inserting space in empty record field does nothing"
         emptyRowRecord
         (space 4)
-        ("{\n  *** : ___\n}", 4) ;
+        "{\n  ~*** : ___\n}" ;
       t
         "inserting space in empty record value does nothing"
         emptyRowRecord
         (space 10)
-        ("{\n  *** : ___\n}", 10) ;
+        "{\n  *** : ~___\n}" ;
       t
         "pressing enter in an the start of empty record adds a new line"
         emptyRecord
         (enter 1)
-        ("{\n  *** : ___\n}", 4) ;
-      t "enter fieldname" emptyRowRecord (insert 'c' 4) ("{\n  c : ___\n}", 5) ;
+        "{\n  ~*** : ___\n}" ;
+      t "enter fieldname" emptyRowRecord (ins 'c' 4) "{\n  c~ : ___\n}" ;
       t
         "move to the front of an empty record"
         emptyRowRecord
-        (press K.GoToStartOfLine 13)
-        ("{\n  *** : ___\n}", 4) ;
+        (key K.GoToStartOfLine 13)
+        "{\n  ~*** : ___\n}" ;
       t
         "move to the end of an empty record"
         emptyRowRecord
-        (press K.GoToEndOfLine 4)
-        ("{\n  *** : ___\n}", 13) ;
+        (key K.GoToEndOfLine 4)
+        "{\n  *** : ___~\n}" ;
       t
         "cant enter invalid fieldname"
         emptyRowRecord
-        (insert '^' 4)
-        ("{\n  *** : ___\n}", 4) ;
+        (ins '^' 4)
+        "{\n  ~*** : ___\n}" ;
       t
         "backspacing open brace of empty record dels record"
         emptyRecord
         (bs 1)
-        (blank, 0) ;
+        "~___" ;
       t
         "backspacing close brace of empty record moves inside record"
         emptyRecord
         (bs 2)
-        ("{}", 1) ;
+        "{~}" ;
       t
         "deleting open brace of empty record dels record"
         emptyRecord
         (del 0)
-        (blank, 0) ;
+        "~___" ;
       t
         "close brace at end of record is swallowed"
         emptyRecord
-        (press K.RightCurlyBrace 1)
-        ("{}", 2) ;
+        (key K.RightCurlyBrace 1)
+        "{}~" ;
       t
         "backspacing empty record field clears entry"
         emptyRowRecord
         (bs 4)
         (* TODO: buggy. Should be 1 *)
-        ("{}", 2) ;
+        "{}~" ;
       t
         "appending to int in expr works"
         singleRowRecord
-        (insert '1' 11)
-        ("{\n  f1 : 561\n}", 12) ;
+        (ins '1' 11)
+        "{\n  f1 : 561~\n}" ;
       t
         "appending to int in expr works"
         multiRowRecord
-        (insert '1' 21)
-        ("{\n  f1 : 56\n  f2 : 781\n}", 22) ;
+        (ins '1' 21)
+        "{\n  f1 : 56\n  f2 : 781~\n}" ;
       t
         "move to the front of a record with multiRowRecordple values"
         multiRowRecord
-        (press K.GoToStartOfLine 21)
-        ("{\n  f1 : 56\n  f2 : 78\n}", 14) ;
+        (key K.GoToStartOfLine 21)
+        "{\n  f1 : 56\n  ~f2 : 78\n}" ;
       t
         "move to the end of a record with multiRowRecordple values"
         multiRowRecord
-        (press K.GoToEndOfLine 14)
-        ("{\n  f1 : 56\n  f2 : 78\n}", 21) ;
+        (key K.GoToEndOfLine 14)
+        "{\n  f1 : 56\n  f2 : 78~\n}" ;
       t
         "inserting at the end of the key works"
         emptyRowRecord
-        (insert 'f' 6)
-        ("{\n  f : ___\n}", 5) ;
+        (ins 'f' 6)
+        "{\n  f~ : ___\n}" ;
       t
         "pressing enter at start adds a row"
         multiRowRecord
         (enter 1)
-        ("{\n  *** : ___\n  f1 : 56\n  f2 : 78\n}", 4) ;
+        "{\n  ~*** : ___\n  f1 : 56\n  f2 : 78\n}" ;
       t
         "pressing enter at the back adds a row"
         multiRowRecord
         (enter 22)
-        ("{\n  f1 : 56\n  f2 : 78\n  *** : ___\n}", 24) ;
+        "{\n  f1 : 56\n  f2 : 78\n  ~*** : ___\n}" ;
       t
         "pressing enter at the start of a field adds a row"
         multiRowRecord
         (enter 14)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 26) ;
+        "{\n  f1 : 56\n  *** : ___\n  ~f2 : 78\n}" ;
       t
         "pressing enter at the end of row adds a row"
         multiRowRecord
         (enter 11)
-        ("{\n  f1 : 56\n  *** : ___\n  f2 : 78\n}", 14) ;
+        "{\n  f1 : 56\n  ~*** : ___\n  f2 : 78\n}" ;
       t
         "dont allow weird chars in recordFields"
         emptyRowRecord
-        (press K.RightParens 4)
-        ("{\n  *** : ___\n}", 4) ;
+        (key K.RightParens 4)
+        "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFields with infix chars"
         emptyRowRecord
-        (press K.Plus 4)
-        ("{\n  *** : ___\n}", 4) ;
+        (key K.Plus 4)
+        "{\n  ~*** : ___\n}" ;
       t
         "dont jump in recordFields with infix chars, pt 2"
         singleRowRecord
-        (press K.Plus 6)
-        ("{\n  f1 : 56\n}", 6) ;
+        (key K.Plus 6)
+        "{\n  f1~ : 56\n}" ;
       t
         "colon should skip over the record colon"
         emptyRowRecord
-        (press K.Colon 7)
-        ("{\n  *** : ___\n}", 10) ;
+        (key K.Colon 7)
+        "{\n  *** : ~___\n}" ;
       t
         "dont allow key to start with a number"
         emptyRowRecord
-        (insert '5' 4)
-        ("{\n  *** : ___\n}", 4) ;
+        (ins '5' 4)
+        "{\n  ~*** : ___\n}" ;
       t
         "dont allow key to start with a number, pt 2"
         singleRowRecord
-        (insert '5' 4)
-        ("{\n  f1 : 56\n}", 4) ;
+        (ins '5' 4)
+        "{\n  ~f1 : 56\n}" ;
       t
         "dont allow key to start with a number, pt 3"
         emptyRowRecord
-        (insert '5' 6)
-        ("{\n  *** : ___\n}", 6) ;
+        (ins '5' 6)
+        (* TODO: looks wrong *)
+        "{\n  **~* : ___\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
-        (EPartial (gid (), "if", b ()))
+        (partial "if" b)
         (space 2)
-        ("if ___\nthen\n  ___\nelse\n  ___", 3) ;
+        "if ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "let moves to right place"
-        (EPartial (gid (), "let", b ()))
+        (partial "let" b)
         (enter 3)
-        ("let *** = ___\n___", 4) ;
+        "let ~*** = ___\n___" ;
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (presses [K.Letter 'r'; K.Space] 0)
-        ("request == _________", 8) ;
+        (keys [K.Letter 'r'; K.Space] 0)
+        "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (presses [K.Letter 'r'; K.Enter] 0)
-        ("request == _________", 7) ;
-      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
+        (keys [K.Letter 'r'; K.Enter] 0)
+        "request~ == _________" ;
+      t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (presses [K.Letter 'r'; K.Tab] 0)
-        ("request == _________", 11) ;
+        (keys [K.Letter 'r'; K.Tab] 0)
+        "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
-        (b ())
-        (presses [K.Equals; K.Enter] 0)
-        ("_________ == _________", 0) ;
+        b
+        (keys [K.Equals; K.Enter] 0)
+        "~_________ == _________" ;
       t
         "autocomplete tab on bin-op moves to start of second blank"
-        (b ())
-        (presses [K.Equals; K.Tab] 0)
-        ("_________ == _________", 13) ;
+        b
+        (keys [K.Equals; K.Tab] 0)
+        "_________ == ~_________" ;
       t
         "autocomplete space on bin-op moves to start of first blank"
-        (b ())
-        (presses [K.Equals; K.Space] 0)
-        ("_________ == _________", 0) ;
-      t
-        "variable moves to right place"
-        (EPartial (gid (), "req", b ()))
-        (enter 3)
-        ("request", 7) ;
+        b
+        (keys [K.Equals; K.Space] 0)
+        "~_________ == _________" ;
+      t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
       t
         "pipe moves to right place on blank"
-        (b ())
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 2)
-        ("___\n|>___\n", 6) ;
+        b
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 11)
-        ("Int::add 5 _________\n|>___\n", 23) ;
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 14)
-        ("if ___\nthen\n  ___\n  |>___\nelse\n  ___", 22) ;
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 8)
-        ("\\*** -> ___\n        |>___\n", 22) ;
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (presses [K.Letter '|'; K.Letter '>'; K.Enter] 19)
-        ("match ___\n  *** -> ___\n         |>___\n", 34) ;
-      t
-        "autocomplete for Just"
-        (EPartial (gid (), "Just", b ()))
-        (enter 4)
-        ("Just ___", 5) ;
-      t
-        "autocomplete for Ok"
-        (EPartial (gid (), "Ok", b ()))
-        (enter 2)
-        ("Ok ___", 3) ;
-      t
-        "autocomplete for Nothing"
-        (EPartial (gid (), "Nothing", b ()))
-        (enter 7)
-        ("Nothing", 7) ;
+        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        "match ___\n  *** -> ___\n         |>~___\n" ;
+      t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
+      t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
+      t "autocomplete for Nothing" (partial "Nothing" b) (enter 7) "Nothing~" ;
       t
         "autocomplete for Nothing at end of a line"
-        (EIf (gid (), b (), EPartial (gid (), "Nothing", b ()), b ()))
+        (if' b (partial "Nothing" b) b)
         (space 21)
-        ("if ___\nthen\n  Nothing\nelse\n  ___", 21) ;
-      t
-        "autocomplete for Error"
-        (EPartial (gid (), "Error", b ()))
-        (enter 5)
-        ("Error ___", 6) ;
+        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
+      t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo"))
+        (fieldAccess (EVariable (ID "12", "request")) "bo")
         (enter ~clone:false 10)
-        ("request.body", 12) ;
+        "request.body~" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -2721,13 +2245,13 @@ let () =
       t
         "right skips over indent when in indent"
         emptyIf
-        (press K.Right 12)
-        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
+        (key K.Right 12)
+        "if ___\nthen\n  ___~\nelse\n  ___" ;
       t
         "left skips over indent when in indent"
         emptyIf
-        (press K.Left 13)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
+        (key K.Left 13)
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
       (* length *)
       test "up from first row is zero" (fun () ->
           expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0 ) ;
@@ -2748,32 +2272,31 @@ let () =
         indentedIfElse
         (enter 16)
         ( "let var = if ___\n"
-          ^ "          then\n"
-          ^ "            6\n"
-          ^ "          else\n"
-          ^ "            7\n"
-          ^ "var"
-        , 27 ) ;
+        ^ "          ~then\n"
+        ^ "            6\n"
+        ^ "          else\n"
+        ^ "            7\n"
+        ^ "var" ) ;
       t
         "end of if-then blank goes up properly"
         emptyIf
-        (presses [K.Escape; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
+        (keys [K.Escape; K.Up] 17)
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes up properly, twice"
         emptyIf
-        (presses [K.Escape; K.Up; K.Up] 17)
-        ("if ___\nthen\n  ___\nelse\n  ___", 5) ;
+        (keys [K.Escape; K.Up; K.Up] 17)
+        "if __~_\nthen\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly"
         emptyIf
-        (presses [K.Escape; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 11) ;
+        (keys [K.Escape; K.Down] 5)
+        "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly, twice"
         emptyIf
-        (presses [K.Escape; K.Down; K.Down] 5)
-        ("if ___\nthen\n  ___\nelse\n  ___", 17) ;
+        (keys [K.Escape; K.Down; K.Down] 5)
+        "if ___\nthen\n  ___~\nelse\n  ___" ;
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect
@@ -2793,10 +2316,7 @@ let () =
           |> toEqual 144 ) ;
       test "clicking away from autocomplete commits" (fun () ->
           expect
-            (let ast =
-               ELet
-                 (gid (), gid (), "var", EPartial (gid (), "false", b ()), b ())
-             in
+            (let ast = let' "var" (partial "false" b) b in
              moveTo 14 s
              |> (fun s ->
                   let h = Fluid_utils.h ast in
@@ -2812,27 +2332,27 @@ let () =
           |> toEqual "success" ) ;
       t
         "moving right off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b ()), b ()))
-        (press K.Right 16)
-        ("let x = Int::add _________ _________\n___", 17) ;
+        (let' "x" (partial "Int::add" b) b)
+        (key K.Right 16)
+        "let x = Int::add ~_________ _________\n___" ;
       tp
         "pressing an infix which could be valid doesn't commit"
-        (b ())
-        (presses [K.Pipe; K.Pipe] 0)
-        ("||", 2) ;
+        b
+        (keys [K.Pipe; K.Pipe] 0)
+        "||~" ;
       tp
         "pressing an infix after true commits it "
-        (EPartial (gid (), "true", b ()))
-        (press K.Plus 4)
-        ("true +", 6) ;
+        (partial "true" b)
+        (key K.Plus 4)
+        "true +~" ;
       t
         "moving left off a function autocompletes it anyway"
-        (ELet (gid (), gid (), "x", EPartial (gid (), "Int::add", b ()), b ()))
-        (press K.Left 8)
-        ("let x = Int::add _________ _________\n___", 7) ;
+        (let' "x" (partial "Int::add" b) b)
+        (key K.Left 8)
+        "let x =~ Int::add _________ _________\n___" ;
       test "escape hides autocomplete" (fun () ->
           expect
-            (let ast = b () in
+            (let ast = b in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
@@ -2840,7 +2360,7 @@ let () =
           |> toEqual None ) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
-            (let ast = b () in
+            (let ast = b in
              moveTo 0 s
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
@@ -2851,19 +2371,19 @@ let () =
       ts
         "shift right selects"
         longLets
-        (modPresses [(K.Right, ShiftHeld)] 0)
+        (modkeys [(K.Right, ShiftHeld)] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
-        (modPresses [(K.Down, ShiftHeld)] 4)
+        (modkeys [(K.Down, ShiftHeld)] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
-        (modPresses [(K.Left, ShiftHeld)] 52)
+        (modkeys [(K.Left, ShiftHeld)] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 52, 48) ) ;
       ts
@@ -2876,42 +2396,36 @@ let () =
         "shiftless left aborts left-to-right selection on left"
         longLets
         (selectionPress K.Left 4 52)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , 4 ) ;
+        "let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless left aborts right-to-left selection on left"
         longLets
         (selectionPress K.Left 52 4)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , 4 ) ;
+        "let ~firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless right aborts left-to-right selection on right"
         longLets
         (selectionPress K.Right 4 52)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , 52 ) ;
+        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "shiftless right aborts right-to-left selection on right"
         longLets
         (selectionPress K.Right 52 4)
-        ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
-        , 52 ) ;
+        "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet ~secondLetName = \"0123456789\"\n\"RESULT\"" ;
       t
         "selecting an expression pipes from it 1"
-        (EBinOp
-           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (binop "+" (int "4") (int "5"))
         (selectionPress K.ShiftEnter 4 5)
-        ("4 + 5\n    |>___\n", 12) ;
+        "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
-        (EBinOp
-           (gid (), "+", EInteger (gid (), "4"), EInteger (gid (), "5"), NoRail))
+        (binop "+" (int "4") (int "5"))
         (selectionPress K.ShiftEnter 5 4)
-        ("4 + 5\n    |>___\n", 12) ;
+        "4 + 5\n    |>~___\n" ;
       ts
         "cmd+a selects all"
         longLets
-        (press K.SelectAll 4)
+        (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
       () ) ;
@@ -2935,53 +2449,45 @@ let () =
                 (L (token, ti), R (token, ti), None)) ) ;
       () ) ;
   describe "Tabs" (fun () ->
-      t
-        "tab goes to first block in a let"
-        emptyLet
-        (tab 0)
-        ("let *** = ___\n5", 4) ;
+      t "tab goes to first block in a let" emptyLet (tab 0) "let ~*** = ___\n5" ;
       t
         "tab goes when on blank"
         completelyEmptyLet
         (tab 10)
-        ("let *** = ___\n___", 14) ;
+        "let *** = ___\n~___" ;
       t
         "tab goes to second block in a let"
         emptyLet
         (tab 4)
-        ("let *** = ___\n5", 10) ;
-      t
-        "tab wraps second block in a let"
-        emptyLet
-        (tab 15)
-        ("let *** = ___\n5", 4) ;
+        "let *** = ~___\n5" ;
+      t "tab wraps second block in a let" emptyLet (tab 15) "let ~*** = ___\n5" ;
       t
         "shift tab goes to last block in a let"
         emptyLet
         (shiftTab 14)
-        ("let *** = ___\n5", 10) ;
+        "let *** = ~___\n5" ;
       t
         "shift tab goes to previous block in a let"
         emptyLet
         (shiftTab 10)
-        ("let *** = ___\n5", 4) ;
+        "let ~*** = ___\n5" ;
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (presses [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
-        ("let *** = ___\nif ___\nthen\n  ___\nelse\n  ___", 10) ;
+        (keys [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
         completelyEmptyLet
         (shiftTab 14)
-        ("let *** = ___\n___", 10) ;
+        "let *** = ~___\n___" ;
       t
         "shift tab wraps from start of let"
         emptyLet
         (shiftTab 4)
-        ("let *** = ___\n5", 10) ;
-      t "cant tab to filled letLHS" letWithLhs (tab 0) ("let n = 6\n5", 0) ;
-      t "can tab to lambda blank" aLambda (tab 0) ("\\*** -> ___", 1) ;
-      t "can shift tab to field blank" aBlankField (shiftTab 0) ("obj.***", 4) ;
+        "let *** = ~___\n5" ;
+      t "cant tab to filled letLHS" letWithLhs (tab 0) "~let n = 6\n5" ;
+      t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
+      t "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
       () ) ;
   ()
