@@ -3307,7 +3307,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TMatchSep _
     | TMatchKeyword _
     | TPartialGhost _
-    | TParenOpen _ (* TODO(JULIAN): Is this reasonable? *)
+    | TParenOpen _
     | TParenClose _ ->
         (ast, SamePlace)
   in
