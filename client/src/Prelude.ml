@@ -107,21 +107,29 @@ let recoverOpt (msg : 'msg) ~(default : 'a) (x : 'a option) : 'a =
       recover ("Got None but expected something: " ^ msg) x default
 
 
+(* Assert that `f a` returns true, passing the value back as a result. All
+ * assertion functions report to rollbar if they fail. *)
 let assertFn (msg : 'msg) ~(f : 'a -> bool) (a : 'a) : 'a =
   if f a then a else recover ("assertion failure", msg) a a
 
 
+(* Assert that `f a` returns true, as a statement. All assertion functions
+ * report to rollbar if they fail. *)
 let asserTFn (msg : 'msg) ~(f : 'a -> bool) (val_ : 'a) : unit =
   ignore (assertFn ~f msg val_)
 
 
+(* Assert `cond`, returning val either way.  All assertion functions report
+ * to rollbar if they fail.  *)
 let assert_ (msg : 'msg) (cond : bool) (val_ : 'a) : 'a =
   if cond then val_ else recover ("assertion failure", msg) val_ val_
 
 
+(* Assert `cond` as a statement.  All assertion functions report to rollbar
+ * if they fail.  *)
 let asserT (msg : 'msg) (cond : bool) (val_ : 'a) : unit =
   ignore (assert_ msg cond val_)
 
 
-(* Like impossible but with the message TODO *)
-let todo (msg : 'a) (val_ : 'b) : 'b = recover ("TODO: " ^ msg) val_
+(* Like recover but with the message TODO *)
+let todo (msg : 'a) (recoveryVal : 'b) : 'b = recover "TODO" msg recoveryVal
