@@ -118,7 +118,8 @@ let find (id : id) (expr : expr) : pointerData option =
   expr
   |> allData
   |> List.filter ~f:(fun d -> id = P.toID d)
-  |> assert_ (fun r -> List.length r <= 1)
+  |> assertFn ("no data with ID found", expr, id) ~f:(fun r ->
+         List.length r <= 1 )
   (* guard against dups *)
   |> List.head
 
@@ -205,7 +206,7 @@ let rec replace_
         in
         B.replace sId repl_ expr
     | _ ->
-        recover ("cannot occur", replacement) expr
+        recover "cannot occur" replacement expr
   else
     let renameVariable currentName newName target =
       let toPointer name = PExpr (F (gid (), Variable name)) in
@@ -668,9 +669,9 @@ let addObjectLiteralBlanks (id : id) (expr : expr) : id * id * expr =
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newKey, B.toID newExpr, replacement)
     | _ ->
-        recover ("key parent must be object", id, expr) recoverResult )
+        recover "key parent must be object" (id, expr) recoverResult )
   | _ ->
-      recover ("must add to key", id, expr) recoverResult
+      recover "must add to key" (id, expr) recoverResult
 
 
 (* Extend the object literal automatically, only if it's the last key in *)
@@ -741,9 +742,9 @@ let addPatternBlanks (id : id) (expr : expr) : id * id * expr =
         let replacement = replace (PExpr old) (PExpr new_) expr in
         (B.toID newPat, B.toID newExpr, replacement)
     | _ ->
-        recover ("pattern parent must be match", id, expr) recoverResult )
+        recover "pattern parent must be match" (id, expr) recoverResult )
   | _ ->
-      recover ("must add to pattern", id, expr) recoverResult
+      recover "must add to pattern" (id, expr) recoverResult
 
 
 let maybeExtendPatternAt (pd : pointerData) (ast : expr) : expr =

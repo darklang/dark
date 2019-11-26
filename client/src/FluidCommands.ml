@@ -60,7 +60,7 @@ let executeCommand
   | Some (tl, Some pd) ->
       cmd.action m tl pd
   | _ ->
-      recover "No pd for the command" NoChange
+      recover "No pd for the command" (tlid, token, cmd) NoChange
 
 
 let runCommand (m : model) (cmd : command) : modification =

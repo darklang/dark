@@ -1,3 +1,4 @@
+open Prelude
 open Tc
 open Types
 
@@ -460,9 +461,8 @@ let cronIntervalValidator (name : string) : string option =
 
 
 let assertValid pattern value : string =
-  if Regex.exactly ~re:pattern value
-  then value
-  else Debug.crash ("Failed validator: " ^ pattern ^ ", " ^ value)
+  asserT "Failed validator" (Regex.exactly ~re:pattern value) (pattern, value) ;
+  value
 
 
 let validateHttpNameValidVarnames (httpName : string) =
@@ -745,9 +745,9 @@ let tlGotoName (tl : toplevel) : string =
       "Jump to Group: "
       ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"Undefined")
   | TLFunc _ ->
-      Debug.crash "cannot happen"
+      recover "can't goto function" tl "<invalid state>"
   | TLTipe _ ->
-      Debug.crash "cannot happen"
+      recover "can't goto tipe " tl "<invalid state>"
 
 
 let tlDestinations (m : model) : autocompleteItem list =
