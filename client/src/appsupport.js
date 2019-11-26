@@ -224,7 +224,8 @@ function getFluidSelectionRange() {
 // If beginIdx == endIdx, it sets the caret position (0-width selection).
 // This function assumes we never want to place the selection within a
 // nested DOM node (it crawls siblings).
-// See getFluidSelectionRange for the counterpart.
+// See getFluidSelectionRange for the counterpart. Note that it is not
+// strictly symmetrical with it, so there might be future edge-cases.
 function setFluidSelectionRange([beginIdx, endIdx]) {
   let clamp = function(num, min, max) {
     if (num < min) {
