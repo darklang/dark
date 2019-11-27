@@ -161,6 +161,7 @@ let allCompletions (a : autocomplete) : autocompleteItem list =
   a.completions @ a.invalidCompletions
 
 
+(* gets the autocompleteItem that is highlighted (at a.index position in the list). *)
 let highlighted (a : autocomplete) : autocompleteItem option =
   Option.andThen a.index ~f:(fun index -> List.getAt ~index (allCompletions a))
 

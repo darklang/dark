@@ -147,6 +147,20 @@ let () =
               "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "List::append"
+          ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
+          ; fnReturnTipe = TList
+          ; fnDescription = "append list"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
+          ; fnInfix = false }
+        ; { fnName = "List::empty"
+          ; fnParameters = []
+          ; fnReturnTipe = TList
+          ; fnDescription = "empty list"
+          ; fnPreviewExecutionSafe = true
+          ; fnDeprecated = false
           ; fnInfix = false } ] }
   in
   let processMsg
@@ -2154,6 +2168,16 @@ let () =
         (keys [K.Equals; K.Enter] 0)
         "~_________ == _________" ;
       t
+        "autocomplete enter on function with parameters moves to start of first blank"
+        (partial "sqrt" b)
+        (enter 4)
+        "Int::sqrt ~_________" ;
+      t
+        "autocomplete enter on niladic function moves to end of function"
+        (partial "empty" b)
+        (enter 5)
+        "List::empty~" ;
+      t
         "autocomplete tab on bin-op moves to start of second blank"
         b
         (keys [K.Equals; K.Tab] 0)
@@ -2189,6 +2213,16 @@ let () =
         emptyMatch
         (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
+      t
+        "shift enter autocompletes and creates pipe"
+        (partial "empty" b)
+        (key K.ShiftEnter 5)
+        "List::empty\n|>~___\n" ;
+      t
+        "shift enter in pipe autocompletes and creates pipe"
+        (pipe (list []) [partial "appe" b])
+        (key ~wrap:false K.ShiftEnter 9)
+        "[]\n|>List::append ___________\n|>~___\n" ;
       t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
       t "autocomplete for Ok" (partial "Ok" b) (enter 2) "Ok ~___" ;
       t "autocomplete for Nothing" (partial "Nothing" b) (enter 7) "Nothing~" ;
