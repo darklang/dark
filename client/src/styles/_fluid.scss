@@ -437,30 +437,29 @@ $error-color: saturate($red, 10%);
   border-bottom: 1px dashed $error-color;
   position: relative;
 
-  &.is-origin {
-    /* Show tooltip on hover */
-    &:not(.cursor-on) {
-      animation: blinkError 0.3s ease-in-out infinite;
+  /* Show tooltip on hover */
+  &.is-origin:not(.cursor-on) {
+    animation: blinkError 0.3s ease-in-out infinite;
 
-      &:hover::after {
-        @include error-tooltip;
-      }
-    }
-
-    &.jumped-to:after {
+    &:hover::after {
       @include error-tooltip;
-      opacity: 1;
-      animation: 1s fadeOut 0.5s;
     }
   }
 
+  /* Briefly show tooltip about originating from here before fading */
+  &.jumped-to:after {
+    @include error-tooltip;
+    opacity: 1;
+    animation: 1.5s fadeOut 0.5s;
+  }
+
   &.dark-incomplete.is-origin:not(.cursor-on):hover:after,
-  &.dark-incomplete.is-origin.jumped-to:after {
+  &.dark-incomplete.jumped-to:after {
     content: "The Incomplete came from here";
   }
 
   &.dark-error.is-origin:not(.cursor-on):hover:after,
-  &.dark-error.is-origin.jumped-to:after {
+  &.dark-error.jumped-to:after {
     content: "The Error came from here";
   }
 }
