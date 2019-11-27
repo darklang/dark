@@ -2,6 +2,24 @@
 // Fluid
 //*************
 
+/* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
+$prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
+@mixin precedence($depth) {
+  .precedence-#{$depth} {
+    background-color: nth($prec-colors, $depth);
+  }
+  .fluid-category-paren .fluid-inner.precedence-#{$depth} {
+    color: nth($prec-colors, $depth);
+  }
+}
+
+.fluid-paren-open .fluid-inner {
+  border-radius: 8px 0 0 8px;
+}
+.fluid-paren-close .fluid-inner {
+  border-radius: 0 8px 8px 0;
+}
+
 .fluid-variant .live-values {
   display: none;
   position: absolute;
@@ -88,12 +106,17 @@ https://github.com/chriskempson/tomorrow-theme */
 
   font-family: monaco, monospace;
 
-  .fluid-newline {
-    display: block;
+  .fluid-entry {
+    display: inline-block;
+    white-space: pre;
+
+    &.fluid-newline {
+      white-space: nowrap;
+    }
   }
 
-  .fluid-indent {
-    white-space: pre;
+  .fluid-newline {
+    display: block;
   }
 
   .fluid-category-string {
@@ -107,16 +130,6 @@ https://github.com/chriskempson/tomorrow-theme */
     }
     white-space: pre;
     color: $string-color;
-  }
-
-  // The cursor disappears when the element it should appear
-  // in has no size. To make it have size, we need all of this.
-  // https://stackoverflow.com/questions/25897883/
-  .fluid-sep,
-  .fluid-empty {
-    display: inline-block;
-    white-space: pre;
-    margin-left: 1px;
   }
 
   // Part of the same problem, making space for it.
@@ -227,7 +240,8 @@ https://github.com/chriskempson/tomorrow-theme */
   .fluid-pipe-symbol {
     color: $blue;
     font-size: 10px;
-    top: -1px;
+    padding-top: 3px;
+    padding-bottom: 1px;
   }
 
   /* Will style more later. Cmd palette should look like a smaller version of omnibox
@@ -322,6 +336,11 @@ since they are essentially both commands just acting upon different things. */
   flex-direction: row;
   justify-content: space-between;
   width: 100%;
+
+  @include precedence(1);
+  @include precedence(2);
+  @include precedence(3);
+  @include precedence(4);
 }
 
 .fluid-error-rail {

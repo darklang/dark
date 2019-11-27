@@ -65,6 +65,8 @@ let tid (t : token) : id =
   | TPatternFloatPoint (_, id)
   | TPatternFloatFraction (_, id, _)
   | TSep id
+  | TParenOpen id
+  | TParenClose id
   | TNewline (Some (id, _, _)) ->
       id
   | TNewline None | TIndent _ ->
@@ -150,7 +152,9 @@ let isTextToken token : bool =
   | TMatchKeyword _
   | TMatchSep _
   | TPipe _
-  | TLambdaArrow _ ->
+  | TLambdaArrow _
+  | TParenOpen _
+  | TParenClose _ ->
       false
 
 
@@ -236,11 +240,8 @@ let isErrorDisplayable (t : token) : bool =
 
 let toText (t : token) : string =
   let shouldntBeEmpty name =
-    if name = ""
-    then (
-      Js.log2 "shouldn't be empty" (show_fluidToken t) ;
-      "   " )
-    else name
+    asserT "shouldn't be empty" (name <> "") t ;
+    name
   in
   let canBeEmpty name = if name = "" then "   " else name in
   match t with
@@ -358,6 +359,10 @@ let toText (t : token) : string =
       canBeEmpty name
   | TPatternConstructorName (_, _, name) ->
       canBeEmpty name
+  | TParenOpen _ ->
+      "("
+  | TParenClose _ ->
+      ")"
 
 
 let toTestText (t : token) : string =
@@ -384,8 +389,10 @@ let toTestText (t : token) : string =
     | _ ->
         if isBlank t then "***" else toText t
   in
-  if String.length result <> String.length (toText t)
-  then failwith "wrong length toTestText" ;
+  asserT
+    "wrong length toTestText"
+    (String.length result = String.length (toText t))
+    t ;
   result
 
 
@@ -520,6 +527,10 @@ let toTypeName (t : token) : string =
       "pattern-float-point"
   | TPatternFloatFraction _ ->
       "pattern-float-fraction"
+  | TParenOpen _ ->
+      "paren-open"
+  | TParenClose _ ->
+      "paren-close"
 
 
 let toCategoryName (t : token) : string =
@@ -572,6 +583,8 @@ let toCategoryName (t : token) : string =
   | TPatternFloatPoint _
   | TPatternFloatFraction _ ->
       "pattern"
+  | TParenOpen _ | TParenClose _ ->
+      "paren"
 
 
 let toDebugInfo (t : token) : string =

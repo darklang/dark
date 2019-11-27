@@ -57,7 +57,7 @@ module K = FluidKeyboard
  *  There are more tests in fluid_pattern_tests for match patterns.
  *)
 
-let deOption msg v = match v with Some v -> v | None -> Debug.crash msg
+let deOption msg v = match v with Some v -> v | None -> failwith msg
 
 type hasPartial =
   | NoPartial
@@ -224,7 +224,7 @@ let () =
       | expr when not wrap ->
           expr
       | expr ->
-          Debug.crash ("the wrapper is broken: " ^ eToString s expr)
+          failwith ("the wrapper is broken: " ^ eToString s expr)
     in
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in
@@ -2264,8 +2264,6 @@ let () =
           expect (gridFor ~pos:130 tokens) |> toEqual {row = 3; col = 0} ) ;
       test "gridFor - in an indent" (fun () ->
           expect (gridFor ~pos:158 tokens) |> toEqual {row = 5; col = 1} ) ;
-      test "gridFor - (reverse) in an indent" (fun () ->
-          expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158 ) ;
       test "gridFor - (reverse) in an indent" (fun () ->
           expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158 ) ;
       test "gridFor roundtrips" (fun () ->
