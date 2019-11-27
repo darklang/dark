@@ -1307,10 +1307,20 @@ and fluidToken =
   | TParenClose of id
 
 (* An astRef represents a reference to a specific part of an AST node,
-   such as a specific Record Fieldname rather than just the record. *)
-and astRef = ARRecordFieldname of id * int
-
-(* index of the fieldname,value pair in the record *)
+   such as a specific Record Fieldname rather than just the record,
+   or an offset into a specific string.
+   Why not use a fluidToken for this purpose?
+   A single construct such as a string might map to multiple fluidTokens,
+   but when describing a part of the ast (for example with caretTarget),
+   we often don't want to care about the details of the tokenization;
+   we can represent concepts like "the caret position at the end of this
+   string" without needing to know if it is a TString relative to a combination
+   of TStringMLStart, TStringMLMiddle, TStringMLEnd. *)
+and astRef =
+  | ARRecordFieldname of
+      (* AST node id, index of the <fieldname,value> pair in the record *)
+      id
+      * int
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
