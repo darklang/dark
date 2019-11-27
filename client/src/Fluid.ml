@@ -4937,6 +4937,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidClearDvSrc ->
       FluidSetState {m.fluidState with dvSrc = SourceNone}
   | FluidFocusOn id ->
+      (* Spec for Focus on expresssion: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
       |> Option.andThen ~f:(fun tl ->
