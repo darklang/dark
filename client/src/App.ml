@@ -222,13 +222,23 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     | _ ->
         Cmd.none
   in
+  let fluidState =
+    if VariantTesting.isFluid m.tests
+    then
+      match (tlidOf m.cursorState, Fluid.fluidDataFromModel m) with
+      | Some tlid, Some (state, expr) ->
+          Fluid.updateAutocomplete m tlid expr state
+      | _ ->
+          m.fluidState
+    else m.fluidState
+  in
   ( if m.integrationTestState <> NoIntegrationTest
   then
     let val_ = AC.getValue complete in
     Debug.loG
       "autocompletemod result: "
       (string_of_int complete.index ^ " => '" ^ val_ ^ "'") ) ;
-  ({m with complete}, focus)
+  ({m with complete; fluidState}, focus)
 
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
