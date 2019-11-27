@@ -795,7 +795,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
                addIter fields b ~f:(fun i (aid, fname, expr) b ->
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
-                   |> add (TRecordField (id, aid, i, fname))
+                   |> add (TRecordFieldname (id, aid, i, fname))
                    |> add (TRecordSep (id, i, aid))
                    |> addNested ~f:(fromExpr expr) ) )
         |> addMany
@@ -2096,7 +2096,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordField (id, _, index, str) ->
+  | TRecordFieldname (id, _, index, str) ->
       replaceRecordField ~index (f str) id ast
   | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
@@ -2737,6 +2737,37 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* Code entering/interaction *)
 (* -------------------- *)
 
+(* posFromCaretTarget returns the position in the token stream corresponding to
+   the passed caretTarget within the passed ast. We expect to succeed in finding
+   the target. If we cannot, we `recover` and return the current caret pos
+   as a fallback.
+   
+   This is useful for determining the precise position to which the caret should
+   jump after a transformation. *)
+let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
+  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
+     that makes the mapping easier. *)
+  let tokens = toTokens s ast in
+  let tokenInfo =
+    List.find tokens ~f:(fun ti ->
+        match (ti.token, ct.astRef) with
+        | ( TRecordFieldname (id, _, tIndex, _)
+          , ARRecordFieldname (targetId, fieldIndex) )
+          when id = targetId && tIndex = fieldIndex ->
+            true
+        | _ ->
+            false )
+  in
+  match tokenInfo with
+  | Some ti ->
+      ti.startPos + min ct.offset ti.length
+  | None ->
+      recover
+        "We expected to find the given caretTarget in the token stream but couldn't."
+        ct
+        s.newPos
+
+
 type newPosition =
   | RightOne
   | RightTwo
@@ -2858,7 +2889,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TRecordField (id, _, i, "") when pos = ti.startPos ->
+    | TRecordFieldname (id, _, i, "") when pos = ti.startPos ->
         (removeRecordField id i ast, LeftThree)
     | TPatternBlank (mID, id) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
@@ -2910,7 +2941,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TStringMLMiddle _
     | TStringMLEnd _
     | TPatternString _
-    | TRecordField _
+    | TRecordFieldname _
     | TInteger _
     | TTrue _
     | TFalse _
@@ -3058,7 +3089,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TBinOp (_, str) when String.length str = 1 ->
       let ast, targetID = deleteBinOp ti ast in
       (ast, moveToEndOfTarget targetID ast s)
-  | TRecordField _
+  | TRecordFieldname _
   | TInteger _
   | TPatternInteger _
   | TTrue _
@@ -3212,7 +3243,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TLetLHS _
     | TFieldName _
     | TLambdaVar _
-    | TRecordField _
+    | TRecordFieldname _
       when not (isIdentifierChar letterStr) ->
         (ast, SamePlace)
     | TVariable _
@@ -3220,7 +3251,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TLetLHS _
     | TFieldName _
     | TLambdaVar _
-    | TRecordField _
+    | TRecordFieldname _
       when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
         (ast, SamePlace)
     | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
@@ -3242,7 +3273,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         let newAST = replaceStringToken ~f ti.token ast in
         let newState = moveToNextNonWhitespaceToken ~pos newAST s in
         (newAST, Exactly (newState.newPos + 1))
-    | TRecordField _
+    | TRecordFieldname _
     | TFieldName _
     | TVariable _
     | TPartial _
@@ -3448,7 +3479,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | TLetLHS _
       | TLetAssignment _
       | TFieldName _
-      | TRecordField _
+      | TRecordFieldname _
       | TRecordSep _
       | TLambdaSep _
       | TLambdaArrow _
@@ -3501,10 +3532,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordField (_, _, _, ""), _)
+    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    | K.Backspace, _, R (TRecordField (_, _, _, ""), ti) ->
+    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank (_, _), _)
       when Option.isSome s.selectionStart ->
@@ -3617,7 +3648,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Record-specific insertions *)
     | K.Enter, L (TRecordOpen id, _), _ ->
         let newAST = addRecordRowAt 0 id ast in
-        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
+        let newPos =
+          posFromCaretTarget
+            s
+            newAST
+            {astRef = ARRecordFieldname (id, 0); offset = 0}
+        in
+        (newAST, {s with newPos})
     | K.Enter, _, R (TRecordClose id, _) ->
         let newAST = addRecordRowToBack id ast in
         (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
@@ -4245,7 +4282,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
           tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordField (_, _, index, newKey) ->
+                 | TRecordFieldname (_, _, index, newKey) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:

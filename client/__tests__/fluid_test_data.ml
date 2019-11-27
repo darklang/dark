@@ -357,6 +357,10 @@ let emptyRowRecord = ERecord (gid (), emptyRow)
 
 let emptyRecord = ERecord (gid (), [])
 
+let functionWrappedEmptyRecord =
+  fn "HttpClient::get_v4" [emptyStr; emptyRecord; emptyRecord]
+
+
 (* ---------------- *)
 (* Lists *)
 (* ---------------- *)

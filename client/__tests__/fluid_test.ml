@@ -2054,6 +2054,11 @@ let () =
         (* TODO: buggy. Should be 1 *)
         "{}~" ;
       t
+        "pressing enter at start to insert field places the caret correctly"
+        functionWrappedEmptyRecord
+        (enter 22)
+        "HttpClient::getv4\n  \"\"\n  {\n    ~*** : ___\n  }\n  {}" ;
+      t
         "appending to int in expr works"
         singleRowRecord
         (ins '1' 11)
@@ -2099,17 +2104,17 @@ let () =
         (enter 11)
         "{\n  f1 : 56\n  ~*** : ___\n  f2 : 78\n}" ;
       t
-        "dont allow weird chars in recordFields"
+        "dont allow weird chars in recordFieldnames"
         emptyRowRecord
         (key K.RightParens 4)
         "{\n  ~*** : ___\n}" ;
       t
-        "dont jump in recordFields with infix chars"
+        "dont jump in recordFieldnames with infix chars"
         emptyRowRecord
         (key K.Plus 4)
         "{\n  ~*** : ___\n}" ;
       t
-        "dont jump in recordFields with infix chars, pt 2"
+        "dont jump in recordFieldnames with infix chars, pt 2"
         singleRowRecord
         (key K.Plus 6)
         "{\n  f1~ : 56\n}" ;

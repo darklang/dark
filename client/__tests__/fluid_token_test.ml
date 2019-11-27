@@ -10,9 +10,9 @@ let () =
           let leftLetToken = TLetLHS (ID "1", ID "2", "a") in
           expect (analysisID leftLetToken) |> toEqual (ID "2") ) ;
       test
-        "returns id of record field name if token is TRecordField "
+        "returns id of record field name if token is TRecordFieldname "
         (fun () ->
-          let leftLetToken = TRecordField (ID "1", ID "2", 1, "name") in
+          let leftLetToken = TRecordFieldname (ID "1", ID "2", 1, "name") in
           expect (analysisID leftLetToken) |> toEqual (ID "2") ) ;
       test "return ids of" (fun () ->
           let lambdaVar = TLambdaVar (ID "1", ID "2", 1, "var") in
