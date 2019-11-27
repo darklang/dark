@@ -1564,7 +1564,7 @@ let admin_ui_handler
   let html_hdrs =
     [ ("Content-type", "text/html; charset=utf-8")
       (* Don't allow any other websites to put this in an iframe;
-       this prevents "clickjacking" at tacks.
+       this prevents "clickjacking" attacks.
        https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
        It would be nice to use CSP to limit where we can load scripts etc from,
        but right now we load from CDNs, <script> tags, etc. So the only thing
