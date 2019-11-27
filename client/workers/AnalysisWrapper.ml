@@ -1,3 +1,5 @@
+open Prelude
+
 external rollbarConfig : string = "rollbarConfig" [@@bs.val]
 
 let () = Rollbar.init (Json.parseOrRaise rollbarConfig)
@@ -63,7 +65,7 @@ let () =
                   ^ ")"
                 else msg
               in
-              Js.logMany [|"An execution failure occurred in a handler"; msg|] ;
+              reportError "An execution failure occurred in a handler" msg ;
               Belt.Result.Error
                 (Types.AnalysisExecutionError (event##data, msg))
         | AnalyzeFunction fParams ->
@@ -75,7 +77,7 @@ let () =
             if success = "success"
             then Belt.Result.Ok msg
             else (
-              Js.logMany [|"An execution failure occurred in a function"; msg|] ;
+              reportError "An execution failure occurred in a function" msg ;
               Belt.Result.Error
                 (Types.AnalysisExecutionError (event##data, msg)) )
       in
@@ -91,6 +93,7 @@ let () =
                 |> Js.Exn.message
                 |> Tc.Option.withDefault ~default:"Unknown parse error"
               in
+              reportError "Parse error in analysisWrapper" msg ;
               Belt.Result.Error (Types.AnalysisParseError msg) )
           result
       in

@@ -79,35 +79,57 @@ let idOf (s : cursorState) : id option =
 (* -------------------------------------- *)
 (* Crashing *)
 (* -------------------------------------- *)
-
-(* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
-let recover (msg : 'a) (val_ : 'b) : 'b =
+let reportError (msg : 'msg) (msgVal : 'b) : unit =
   let error =
     "An unexpected but recoverable error happened. "
     ^ "Message: "
     ^ Js.String.make msg
     ^ ", Value: "
-    ^ Js.String.make val_
+    ^ Js.String.make msgVal
   in
-  Js.log error ;
+  Js.log3 "An unexpected but recoverable error happened: " msg msgVal ;
   Js.Console.trace () ;
   Native.Rollbar.send error None Js.Json.null ;
-  val_
+  ()
 
 
-let recoverOpt (msg : string) ~(default : 'a) (x : 'a option) : 'a =
+(* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
+let recover (msg : 'msg) (msgVal : 'b) (recoveryVal : 'c) : 'c =
+  reportError msg msgVal ;
+  recoveryVal
+
+
+let recoverOpt (msg : 'msg) ~(default : 'a) (x : 'a option) : 'a =
   match x with
   | Some y ->
       y
   | None ->
-      recover ("Got None but expected something: " ^ msg) default
+      recover ("Got None but expected something: " ^ msg) x default
 
 
-let assert_ (fn : 'a -> bool) (a : 'a) : 'a =
-  if fn a then a else recover "assertion failure" a
+(* Assert that `f a` returns true, passing the value back as a result. All
+ * assertion functions report to rollbar if they fail. *)
+let assertFn (msg : 'msg) ~(f : 'a -> bool) (a : 'a) : 'a =
+  if f a then a else recover ("assertion failure", msg) a a
 
 
-let asserT (fn : 'a -> bool) (a : 'a) : unit = ignore (assert_ fn a)
+(* Assert that `f a` returns true, as a statement. All assertion functions
+ * report to rollbar if they fail. *)
+let asserTFn (msg : 'msg) ~(f : 'a -> bool) (val_ : 'a) : unit =
+  ignore (assertFn ~f msg val_)
 
-(* Like impossible but with the message TODO *)
-let todo (msg : 'a) (val_ : 'b) : 'b = recover ("TODO: " ^ msg) val_
+
+(* Assert `cond`, returning val either way.  All assertion functions report
+ * to rollbar if they fail.  *)
+let assert_ (msg : 'msg) (cond : bool) (val_ : 'a) : 'a =
+  if cond then val_ else recover ("assertion failure", msg) val_ val_
+
+
+(* Assert `cond` as a statement.  All assertion functions report to rollbar
+ * if they fail.  *)
+let asserT (msg : 'msg) (cond : bool) (val_ : 'a) : unit =
+  ignore (assert_ msg cond val_)
+
+
+(* Like recover but with the message TODO *)
+let todo (msg : 'a) (recoveryVal : 'b) : 'b = recover "TODO" msg recoveryVal

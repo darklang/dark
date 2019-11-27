@@ -72,7 +72,7 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         db.dbTLID
     | _ ->
-        recover "No other toplevel should be in a group" (TLID "fake-id")
+        recover "No other toplevel should be in a group" tl (TLID "fake-id")
   in
   let event =
     ViewUtils.eventNoPropagation

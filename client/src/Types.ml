@@ -1303,6 +1303,8 @@ and fluidToken =
   | TPatternBlank of id * id
   | TRecordClose of id
   | TConstructorName of id * string
+  | TParenOpen of id
+  | TParenClose of id
 
 and fluidTokenInfo =
   { startRow : int
@@ -1464,7 +1466,8 @@ and serializableEditor =
   ; handlerProps : handlerProp TLIDDict.t
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
-  ; sidebarOpen : bool }
+  ; sidebarOpen : bool
+  ; showTopbar : bool }
 [@@deriving show {with_path = false}]
 
 and permission =

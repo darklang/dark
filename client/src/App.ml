@@ -436,10 +436,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | IntegrationTestFinished _ ->
               recover
                 "Attempted to end integration test but one ran + was already finished"
+                m.integrationTestState
                 (fun _ -> IntegrationTest.fail "Already finished" )
           | NoIntegrationTest ->
               recover
                 "Attempted to end integration test but none was running"
+                m.integrationTestState
                 (fun _ -> IntegrationTest.fail "Not running" )
         in
         let result = expectationFn m in
@@ -1022,11 +1024,18 @@ let toggleTimers (m : model) : model =
 
 
 let findCenter (m : model) : pos =
-  match m.currentPage with
-  | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-      Viewport.toCenter m.canvasProps.offset
-  | _ ->
-      Defaults.centerPos
+  let {x; y} =
+    match m.currentPage with
+    | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
+        Viewport.toCenter m.canvasProps.offset
+    | _ ->
+        Defaults.centerPos
+  in
+  (* if the sidebar is open, the users can't see the livevalues, which
+   * confused new users. Given we can't get z-index to work, moving it to the
+   * side a little seems the best solution for now. *)
+  let xOffset = if m.sidebarOpen then 160 else 0 in
+  {x = x + xOffset; y}
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1885,7 +1894,7 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg FluidCut
   | FluidMsg (FluidPaste _)
   | FluidMsg (FluidMouseClick _) ->
-      recover "Fluid functions should not happen here" NoChange
+      recover "Fluid functions should not happen here" msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
         (fun m ->

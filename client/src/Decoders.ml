@@ -1,9 +1,10 @@
 open Tc
 open Types
 open Json_decode_extended
-module TL = Toplevel
+open Prelude
 
 (* Dark *)
+module TL = Toplevel
 module RT = Runtime
 
 external stringify : Js.Json.t -> string = "JSON.stringify" [@@bs.val]
@@ -376,7 +377,10 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       withDefault
         Defaults.defaultEditor.sidebarOpen
         (field "sidebarOpen" bool)
-        j }
+        j
+  ; showTopbar =
+      withDefault Defaults.defaultEditor.showTopbar (field "showTopbar" bool) j
+  }
 
 
 and cursorState j =
@@ -832,7 +836,7 @@ let exception_ j : exception_ =
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
   try Ok (fn (Json.parseOrRaise j)) with e ->
-    Js.log2 "unexpected json" j ;
+    reportError "unexpected json" j ;
     ( match e with
     | DecodeError e | Json.ParseError e ->
         Error e
@@ -845,7 +849,7 @@ let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
       try Tea_result.Ok (fn value) with e ->
-        Js.log2 "undecodable json" value ;
+        reportError "undecodable json" value ;
         ( match e with
         | DecodeError e | Json.ParseError e ->
             Tea_result.Error e
