@@ -2728,7 +2728,12 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr, length = acToExpr entry in
       let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
       let length = length + 1 in
-      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      let newState =
+        s
+        |> moveTo (ti.startPos + length)
+        (* Always show autocomplete after starting a fieldname *)
+        |> fun s -> {s with ac = {s.ac with index = Some 0}}
+      in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
 
