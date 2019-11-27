@@ -967,6 +967,7 @@ and modification =
   | StartFluidMouseSelecting of tlid
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
+  | FluidSetState of fluidState
 
 (* ------------------- *)
 (* Msgs *)
@@ -989,6 +990,8 @@ and fluidMsg =
   | FluidCommandsClick of command
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidUpdateDropdownIndex of int
+  | FluidFocusOn of id
+  | FluidClearDvSrc
 
 and msg =
   | GlobalClick of mouseEvent
@@ -1365,7 +1368,8 @@ and fluidState =
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
   ; selectionStart : int option
-  (* The selection ends at newPos *) }
+  (* The selection ends at newPos *)
+  ; dvSrc : dval_source }
 
 (* Avatars *)
 and avatar =
