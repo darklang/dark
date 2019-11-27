@@ -2719,8 +2719,8 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
-let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
-  let s = recordAction ~ti "acCompleteField" s in
+let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let s = recordAction ~ti "acStartField" s in
   match AC.highlighted s.ac with
   | None ->
       (ast, s)
@@ -3602,7 +3602,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
-        acCompleteField ti ast s
+        acStartField ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
