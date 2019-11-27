@@ -833,6 +833,7 @@ let rtCacheKey m =
   , m.environment
   , m.timersEnabled
   , m.error
+  , m.permission
   , m.currentPage )
 
 
