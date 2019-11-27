@@ -2040,6 +2040,11 @@ let () =
         (* TODO: buggy. Should be 1 *)
         "{}~" ;
       t
+        "pressing enter at start to insert field places the caret correctly"
+        functionWrappedEmptyRecord
+        (enter 22)
+        "HttpClient::getv4\n  \"\"\n  {\n    ~*** : ___\n  }\n  {}" ;
+      t
         "appending to int in expr works"
         singleRowRecord
         (ins '1' 11)
