@@ -496,9 +496,9 @@ let refilter
   in
   let isField = match ti.token with TFieldName _ -> true | _ -> false in
   let index =
-    (* If escape was pressed *)
+    (* If escape was pressed, don't show anything *)
     if old.temporarilyDisabled
-    then None (* Always show autocomplete for fields *)
+    then None (* Always show autocomplete for fields, even with no text *)
     else if isField
     then
       match oldHighlightNewIndex with
@@ -507,7 +507,7 @@ let refilter
       | None ->
           Some 0
     else if queryString = "" || newCount = 0
-    then (* Do nothing if no queryString or autocomplete list *)
+    then (* No AC values if no text or autocomplete list *)
       None
     else if oldQueryString = queryString
     then
