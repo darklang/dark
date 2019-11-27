@@ -4936,8 +4936,37 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearDvSrc ->
       FluidSetState {m.fluidState with dvSrc = SourceNone}
-  | FluidFocusOn _id ->
-      NoChange
+  | FluidFocusOn id ->
+      tlidOf m.cursorState
+      |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
+      |> Option.andThen ~f:(fun tl ->
+             (* We do this wrap, so we want to have one single stream of success Option chains, and one single place at the very end to define the fallback value if any of these options fail. *)
+             match TL.getAST tl with
+             | Some expr ->
+                 Some (tl, expr)
+             | None ->
+                 None )
+      |> Option.map ~f:(fun (tl, expr) ->
+             let ast = fromExpr s expr in
+             let fluidState =
+               let fs = moveToEndOfTarget id ast s in
+               {fs with dvSrc = SourceId id}
+             in
+             let moveMod =
+               match Viewport.moveToToken id tl with
+               | Some dx, Some dy ->
+                   MoveCanvasTo ({x = dx; y = dy}, true)
+               | Some dx, None ->
+                   MoveCanvasTo ({x = dx; y = m.canvasProps.offset.y}, true)
+               | None, Some dy ->
+                   MoveCanvasTo ({x = m.canvasProps.offset.x; y = dy}, true)
+               | None, None ->
+                   NoChange
+             in
+             if moveMod = NoChange
+             then FluidSetState fluidState
+             else Many [moveMod; FluidSetState fluidState] )
+      |> Option.withDefault ~default:NoChange
   | FluidStartSelection _
   | FluidKeyPress _
   | FluidCopy
