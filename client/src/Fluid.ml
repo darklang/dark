@@ -2736,17 +2736,29 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
    
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
-let posFromCaretTarget (s: state) (ast: ast) (ct: caretTarget) : int =
+let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
   (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
      that makes the mapping easier. *)
   let tokens = toTokens s ast in
-  let tokenInfo = List.find tokens ~f:(fun ti -> match (ti.token, ct.astRef) with
-    | (TRecordFieldname (id, _, tIndex, _)), ARRecordFieldname (targetId, fieldIndex)
-      when (id = targetId && tIndex = fieldIndex) -> true
-    | _ -> false) in
+  let tokenInfo =
+    List.find tokens ~f:(fun ti ->
+        match (ti.token, ct.astRef) with
+        | ( TRecordFieldname (id, _, tIndex, _)
+          , ARRecordFieldname (targetId, fieldIndex) )
+          when id = targetId && tIndex = fieldIndex ->
+            true
+        | _ ->
+            false )
+  in
   match tokenInfo with
-  | Some ti -> ti.startPos + (min ct.offset ti.length)
-  | None -> recover "We expected to find the given caretTarget in the token stream but couldn't." ct s.newPos
+  | Some ti ->
+      ti.startPos + min ct.offset ti.length
+  | None ->
+      recover
+        "We expected to find the given caretTarget in the token stream but couldn't."
+        ct
+        s.newPos
+
 
 type newPosition =
   | RightOne
@@ -3620,7 +3632,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Record-specific insertions *)
     | K.Enter, L (TRecordOpen id, _), _ ->
         let newAST = addRecordRowAt 0 id ast in
-        let newPos = posFromCaretTarget s newAST { astRef = ARRecordFieldname (id, 0); offset = 0 } in
+        let newPos =
+          posFromCaretTarget
+            s
+            newAST
+            {astRef = ARRecordFieldname (id, 0); offset = 0}
+        in
         (newAST, {s with newPos})
     | K.Enter, _, R (TRecordClose id, _) ->
         let newAST = addRecordRowToBack id ast in

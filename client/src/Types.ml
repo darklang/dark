@@ -1308,8 +1308,9 @@ and fluidToken =
 
 (* An astRef represents a reference to a specific part of an AST node,
    such as a specific Record Fieldname rather than just the record. *)
-and astRef =
-  | ARRecordFieldname of id * int (* index of the fieldname,value pair in the record *)
+and astRef = ARRecordFieldname of id * int
+
+(* index of the fieldname,value pair in the record *)
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
@@ -1317,9 +1318,8 @@ and astRef =
    for the caret to jump during AST transformations, even ones that
    drastically change the token stream. *)
 and caretTarget =
-  { astRef: astRef
-  ; offset: int
-  }
+  { astRef : astRef
+  ; offset : int }
 
 and fluidTokenInfo =
   { startRow : int
