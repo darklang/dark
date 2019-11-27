@@ -1,4 +1,5 @@
 open Types
+open Tc
 module TL = Toplevel
 
 let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
@@ -22,7 +23,7 @@ let moveCanvasBy (m : model) (x : int) (y : int) : modification =
   in
   let offset = m.canvasProps.offset in
   let pos = addPos offset {x = dx; y = dy} in
-  MoveCanvasTo pos
+  MoveCanvasTo (pos, false)
 
 
 let pageUp (m : model) : modification =
@@ -49,7 +50,7 @@ let moveLeft (m : model) : modification =
 
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
-let moveToOrigin : modification = MoveCanvasTo Defaults.origin
+let moveToOrigin : modification = MoveCanvasTo (Defaults.origin, false)
 
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
   Default values (when we can't find get elements from dom) are based on
@@ -71,3 +72,48 @@ let centerCanvasOn (tl : toplevel) : pos =
   let availWidth = (windowWidth - tlWidth) / 3 in
   let offsetLeft = sidebarWidth + availWidth in
   {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
+
+
+let moveToToken (id : id) (tl : toplevel) : int option * int option =
+  let tokenSelector = ".id-" ^ Prelude.deID id in
+  let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
+  match Native.Ext.querySelector tokenSelector with
+  | Some tokenDom ->
+      let sidebarWidth =
+        Native.Ext.querySelector "#sidebar-left"
+        |> Option.map ~f:(fun e -> Native.Ext.clientWidth e)
+        |> Option.withDefault ~default:320
+      in
+      let viewport : Native.rect =
+        { id = "#canvas"
+        ; top = 0
+        ; left = sidebarWidth
+        ; right = Native.Window.viewportWidth
+        ; bottom = Native.Window.viewportHeight }
+      in
+      let tokenBox = Native.Ext.getBoundingClient tokenDom tokenSelector in
+      let tlBox =
+        Native.Ext.querySelector tlSelector
+        |> Option.map ~f:(fun dom ->
+               Native.Ext.getBoundingClient dom tlSelector )
+        |> Option.valueExn
+      in
+      let tlPos = TL.pos tl in
+      (* We separate the dx, dy so we can minimize the amount your eye has move and hunt for the expression, if it it out of viewport. Sometimes you might have both dx and dy, but in most cases I anticipate your code is above the top fold and we are likely going to be moving dy *)
+      let dx =
+        if tokenBox.right > viewport.left && tokenBox.left < viewport.right
+        then None
+        else
+          let offsetLeft = tokenBox.left - tlBox.left in
+          Some (tlPos.x - (sidebarWidth + offsetLeft))
+      in
+      let dy =
+        if tokenBox.bottom > viewport.top && tokenBox.top < viewport.bottom
+        then None
+        else
+          let offsetTop = tokenBox.top - tlBox.top in
+          Some (tlPos.y - (50 + offsetTop))
+      in
+      (dx, dy)
+  | None ->
+      (None, None)
