@@ -2382,7 +2382,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : fluidExpr * int =
         | [lhs; rhs] ->
             (EBinOp (gid (), fn.fnName, lhs, rhs, r), 0)
         | _ ->
-            recover "BinOp doesn't have 2 args" (newB (), 0)
+            recover "BinOp doesn't have 2 args" args (newB (), 0)
       else
         (* functions with arguments should place the caret into the first argument
          * while functions without should place it just after the function name
