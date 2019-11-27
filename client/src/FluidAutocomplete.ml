@@ -494,8 +494,19 @@ let refilter
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
+  let isField = match ti.token with TFieldName _ -> true | _ -> false in
   let index =
-    if queryString = "" || newCount = 0
+    (* If escape was pressed *)
+    if old.temporarilyDisabled
+    then None (* Always show autocomplete for fields *)
+    else if isField
+    then
+      match oldHighlightNewIndex with
+      | Some newIndex ->
+          Some newIndex
+      | None ->
+          Some 0
+    else if queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
       None
     else if oldQueryString = queryString

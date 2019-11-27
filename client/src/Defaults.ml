@@ -41,6 +41,7 @@ let defaultFluidState : fluidState =
   ; lastKey = FluidKeyboard.Escape
   ; ac =
       { functions = []
+      ; temporarilyDisabled = false
       ; index = None
       ; query = None
       ; completions = []

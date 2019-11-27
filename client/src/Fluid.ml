@@ -2461,18 +2461,22 @@ let isAutocompleting (ti : tokenInfo) (s : state) : bool =
 
 let acSetIndex (i : int) (s : state) : state =
   let s = recordAction "acSetIndex" s in
-  {s with ac = {s.ac with index = Some i}; upDownCol = None}
+  { s with
+    ac = {s.ac with index = Some i; temporarilyDisabled = false}
+  ; upDownCol = None }
 
 
 let acClear (s : state) : state =
   let s = recordAction "acClear" s in
-  {s with ac = {s.ac with index = None}}
+  {s with ac = {s.ac with index = None; temporarilyDisabled = true}}
 
 
 let acMaybeShow (ti : tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
-  if Token.isAutocompletable ti.token && s.ac.index = None
-  then {s with ac = {s.ac with index = Some 0}}
+  if Token.isAutocompletable ti.token
+  then
+    let index = Option.withDefault ~default:0 s.ac.index in
+    acSetIndex index s
   else s
 
 
@@ -2732,7 +2736,7 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
         s
         |> moveTo (ti.startPos + length)
         (* Always show autocomplete after starting a fieldname *)
-        |> fun s -> {s with ac = {s.ac with index = Some 0}}
+        |> acMaybeShow ti
       in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)

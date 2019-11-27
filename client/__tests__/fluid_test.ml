@@ -2240,20 +2240,24 @@ let () =
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (fieldAccess (EVariable (ID "12", "request")) "bo")
+        (fieldAccess (var ~id:(ID "12") "request") "bo")
         (enter ~clone:false 10)
         "request.body~" ;
-      (* TODO: this doesn't work but should *)
-      (* t *)
-      (*   "autocomplete for field in body" *)
-      (*   (EMatch *)
-      (*      ( gid () *)
-      (*      , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo") *)
-      (*      , [] )) *)
-      (*   (enter 18) *)
-      (*   ("match request.body", 18) ; *)
-      (* test "backspacing on variable reopens autocomplete" (fun () -> *)
-      (*     expect (bs (EVariable (5, "request"))). *)
+      t
+        "autocomplete for field when empty"
+        (fieldAccess (var ~id:(ID "12") "request") "")
+        (enter ~clone:false 8)
+        "request.body~" ;
+      t
+        "autocomplete for field is shown after backspace"
+        (fieldAccess (var ~id:(ID "12") "request") "x")
+        (keys ~clone:false [K.Backspace; K.Enter] 9)
+        "request.body~" ;
+      t
+        "autocomplete for field immediately after creation"
+        (var ~id:(ID "12") "request")
+        (keys ~clone:false [K.Period; K.Enter] 7)
+        "request.body~" ;
       () ) ;
   describe "Movement" (fun () ->
       let tokens = toTokens m.fluidState complexExpr in

@@ -1353,7 +1353,11 @@ and fluidAutocompleteState =
     (* state *)
     (* ------------------------------- *)
     functions : function_ list
-  ; index : int option
+  ; index :
+      (* None means we're not showing autocomplete. this is typically the default, as we dont show the autocomplete until you've pressed something, except in a few cases. *)
+      int option
+  ; temporarilyDisabled :
+      (* We support pressing escape to cancel autocomplete. *) bool
   ; query :
       (* We need to refer back to the previous one *)
       (tlid * fluidTokenInfo) option
