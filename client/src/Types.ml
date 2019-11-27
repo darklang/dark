@@ -1286,6 +1286,7 @@ and fluidToken =
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of id * int * int
   | TRecordOpen of id
+  (* TODO(JULIAN): This is a "Key" -- let's rename *)
   | TRecordField of id * analysisId * int * string
   | TRecordSep of id * int * analysisId
   | TMatchKeyword of id
@@ -1305,6 +1306,21 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
+
+(* An astRef represents a reference to a specific part of an AST node,
+   such as a specific Record field name rather than just the record. *)
+and astRef =
+  | ARRecordKey of id * int (* index of the kv pair in the record *)
+
+(* A caretTarget represents a distinct caret location within the AST.
+   By combining a reference to part of the AST and a caret offset
+   into that part of the AST, we can uniquely represent a place
+   for the caret to jump during AST transformations, even ones that
+   drastically change the token stream. *)
+and caretTarget =
+  { astRef: astRef
+  ; offset: int
+  }
 
 and fluidTokenInfo =
   { startRow : int
