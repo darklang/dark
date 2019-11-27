@@ -28,7 +28,8 @@ let defaultEditor : serializableEditor =
   ; handlerProps = TLIDDict.empty
   ; canvasPos = origin
   ; lastReload = None
-  ; sidebarOpen = true }
+  ; sidebarOpen = true
+  ; showTopbar = true }
 
 
 let defaultFluidState : fluidState =
