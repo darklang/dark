@@ -55,6 +55,11 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
       opacity: 0.85;
     }
   }
+
+  .jump-src:hover {
+    color: $blue;
+    cursor: pointer;
+  }
 }
 
 #fluid-status {
@@ -418,31 +423,44 @@ $error-color: saturate($red, 10%);
   }
 }
 
+@mixin error-tooltip {
+  @extend .tooltip;
+  background-color: rgba(30, 30, 30, 0.8);
+  padding: 2px;
+  width: max-content;
+  position: absolute;
+  top: -20px;
+  left: -5px;
+}
+
 .toplevel.selected .fluid-error {
   border-bottom: 1px dashed $error-color;
   position: relative;
 
-  &.is-origin:not(.cursor-on) {
-    animation: blinkError 0.3s ease-in-out infinite;
+  &.is-origin {
+    /* Show tooltip on hover */
+    &:not(.cursor-on) {
+      animation: blinkError 0.3s ease-in-out infinite;
 
-    &:hover {
-      &:after {
-        @extend .tooltip;
-        background-color: rgba(30, 30, 30, 0.8);
-        padding: 2px;
-        width: max-content;
-        position: absolute;
-        top: -20px;
-        left: -5px;
+      &:hover::after {
+        @include error-tooltip;
       }
+    }
+
+    &.jumped-to:after {
+      @include error-tooltip;
+      opacity: 1;
+      animation: 1s fadeOut 0.5s;
     }
   }
 
-  &.dark-incomplete.is-origin:not(.cursor-on):hover:after {
+  &.dark-incomplete.is-origin:not(.cursor-on):hover:after,
+  &.dark-incomplete.is-origin.jumped-to:after {
     content: "The Incomplete came from here";
   }
 
-  &.dark-error.is-origin:not(.cursor-on):hover:after {
+  &.dark-error.is-origin:not(.cursor-on):hover:after,
+  &.dark-error.is-origin.jumped-to:after {
     content: "The Error came from here";
   }
 }

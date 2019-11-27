@@ -5276,7 +5276,13 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
             , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
-            ) ]
+            )
+          ; ( "jumped-to"
+            , match state.dvSrc with
+              | SourceNone ->
+                  false
+              | SourceId id ->
+                  id = tokenId ) ]
         in
         let clickHandlers =
           [ ViewUtils.eventNeither
@@ -5339,7 +5345,12 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
-                    IgnoreMsg ) ]
+                    IgnoreMsg )
+          ; ViewUtils.onAnimationEnd
+              ~key:("anim-end" ^ idStr)
+              ~listener:(fun msg ->
+                if msg = "fadeOut" then FluidMsg FluidClearDvSrc else IgnoreMsg
+            ) ]
         in
         let innerNode =
           match innerNestingClass with
@@ -5391,17 +5402,52 @@ let viewLiveValue
                ->
                  let text = Option.withDefault ~default:"" fnText in
                  ([Html.text text], true, ti.startRow)
+             | None, LoadableSuccess (DIncomplete src) ->
+                 let text, targetId =
+                   match src with
+                   | SourceId srcId when srcId <> id ->
+                       ("<Incomplete: Click to locate source>", Some srcId)
+                   | _ ->
+                       ("<Incomplete>", None)
+                 in
+                 let dom =
+                   targetId
+                   |> Option.map ~f:(fun tid ->
+                          Html.div
+                            [ ViewUtils.eventNoPropagation
+                                ~key:("lv-src-" ^ deID tid)
+                                "click"
+                                (fun _ -> FluidMsg (FluidFocusOn tid))
+                            ; Html.class' "jump-src" ]
+                            [Html.text text] )
+                   |> Option.withDefault ~default:(Html.text text)
+                 in
+                 ([dom], true, ti.startRow)
+             | None, LoadableSuccess (DError (src, msg)) ->
+                 let text, targetId =
+                   match src with
+                   | SourceId srcId when srcId <> id ->
+                       ("<Error: Click to locate source>", Some srcId)
+                   | _ ->
+                       ("<Error: " ^ msg ^ ">", None)
+                 in
+                 let dom =
+                   targetId
+                   |> Option.map ~f:(fun tid ->
+                          Html.div
+                            [ ViewUtils.eventNoPropagation
+                                ~key:("lv-src-" ^ deID tid)
+                                "click"
+                                (fun _ -> FluidMsg (FluidFocusOn tid))
+                            ; Html.class' "jump-src" ]
+                            [Html.text text] )
+                   |> Option.withDefault ~default:(Html.text text)
+                 in
+                 ([dom], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
                  let text = Runtime.toRepr dval in
-                 let copyBtn =
-                   match dval with
-                   | DIncomplete _ | DError _ ->
-                       Vdom.noNode
-                   | _ ->
-                       viewCopyButton tlid text
-                 in
-                 ([Html.text text; copyBtn], true, ti.startRow)
+                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              | Some _, _ ->
                  none
              | None, LoadableNotInitialized | None, LoadableLoading _ ->
