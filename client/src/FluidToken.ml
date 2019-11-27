@@ -48,7 +48,7 @@ let tid (t : token) : id =
   | TPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
-  | TRecordField (id, _, _, _)
+  | TRecordFieldname (id, _, _, _)
   | TRecordSep (id, _, _)
   | TMatchSep id
   | TMatchKeyword id
@@ -78,7 +78,7 @@ let analysisID (t : token) : id =
   | TLetLHS (_, id, _)
   | TLetKeyword (_, id)
   | TLetAssignment (_, id)
-  | TRecordField (_, id, _, _)
+  | TRecordFieldname (_, id, _, _)
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
   | TFieldName (_, id, _) ->
@@ -108,7 +108,7 @@ let isTextToken token : bool =
   | TPartial _
   | TRightPartial _
   | TPartialGhost _
-  | TRecordField _
+  | TRecordFieldname _
   | TString _
   | TStringMLStart _
   | TStringMLMiddle _
@@ -175,7 +175,7 @@ let isBlank t =
   match t with
   | TBlank _
   | TPlaceholder _
-  | TRecordField (_, _, _, "")
+  | TRecordFieldname (_, _, _, "")
   | TVariable (_, "")
   | TFieldName (_, _, "")
   | TLetLHS (_, _, "")
@@ -325,7 +325,7 @@ let toText (t : token) : string =
       "{"
   | TRecordClose _ ->
       "}"
-  | TRecordField (_, _, _, name) ->
+  | TRecordFieldname (_, _, _, name) ->
       canBeEmpty name
   | TRecordSep _ ->
       " : "
@@ -402,7 +402,7 @@ let toIndex (t : token) : int option =
   | TLambdaVar (_, _, index, _)
   | TLambdaSep (_, index)
   | TPipe (_, _, index)
-  | TRecordField (_, _, index, _)
+  | TRecordFieldname (_, _, index, _)
   | TRecordSep (_, index, _)
   | TListSep (_, index)
   | TNewline (Some (_, _, Some index)) ->
@@ -493,7 +493,7 @@ let toTypeName (t : token) : string =
       "record-open"
   | TRecordClose _ ->
       "record-close"
-  | TRecordField _ ->
+  | TRecordFieldname _ ->
       "record-field"
   | TRecordSep _ ->
       "record-sep"
@@ -567,7 +567,7 @@ let toCategoryName (t : token) : string =
       "pipe"
   | TConstructorName _ ->
       "constructor"
-  | TRecordOpen _ | TRecordClose _ | TRecordField _ | TRecordSep _ ->
+  | TRecordOpen _ | TRecordClose _ | TRecordFieldname _ | TRecordSep _ ->
       "record"
   | TMatchKeyword _ | TMatchSep _ ->
       "match"
