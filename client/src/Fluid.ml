@@ -305,8 +305,8 @@ let rec toExpr ?(inPipe = false) (expr : fluidExpr) : Types.expr =
       F (id, Value (literalToString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
-  | EFieldAccess (id, obj, _, "") ->
-      F (id, FieldAccess (toExpr obj, Blank.new_ ()))
+  | EFieldAccess (id, obj, fieldID, "") ->
+      F (id, FieldAccess (toExpr obj, Blank fieldID))
   | EFieldAccess (id, obj, fieldID, fieldname) ->
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
