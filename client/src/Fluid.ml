@@ -4934,6 +4934,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidClearDvSrc ->
+      FluidSetState {m.fluidState with dvSrc = SourceNone}
+  | FluidFocusOn _id ->
+      NoChange
   | FluidStartSelection _
   | FluidKeyPress _
   | FluidCopy
