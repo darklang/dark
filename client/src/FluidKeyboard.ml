@@ -103,6 +103,8 @@ type key =
   | Unknown of string
   | GoToStartOfLine
   | GoToEndOfLine
+  | DeleteToStartOfLine
+  | DeleteToEndOfLine
   | Undo
   | Redo
   | SelectAll
@@ -116,9 +118,10 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
     key =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
+  let isMacCmdHeld = isMac && meta in
   match code with
   | 8 ->
-      Backspace
+      if isMacCmdHeld then DeleteToStartOfLine else Backspace
   | 9 ->
       if shift then ShiftTab else Tab
   | 13 ->
@@ -156,7 +159,7 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 45 ->
       Insert
   | 46 ->
-      Delete
+      if isMacCmdHeld then DeleteToEndOfLine else Delete
   | 48 ->
       if shift then RightParens else Number '0'
   | 49 ->
@@ -442,6 +445,8 @@ let toChar key : char option =
   | Unknown _
   | GoToStartOfLine
   | GoToEndOfLine
+  | DeleteToStartOfLine
+  | DeleteToEndOfLine
   | Undo
   | Redo
   | SelectAll ->
@@ -604,6 +609,10 @@ let toName (key : key) : string =
       "GoToStartOfLine"
   | GoToEndOfLine ->
       "GoToEndOfLine"
+  | DeleteToStartOfLine ->
+      "DeleteToStartOfLine"
+  | DeleteToEndOfLine ->
+      "DeleteToEndOfLine"
   | Undo ->
       "Undo"
   | Redo ->
