@@ -68,9 +68,10 @@ function isHandledByFluid(event) {
   // Keys specifically handled by fluid
   var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
   var isAltFluidKeyPress = event.altKey && event.keyCode == 88; // Alt-x
+  var isMacMetaFluidKeyPress = isMac && event.metaKey && [8 /* Backspace */, 37/* Left */, 39 /* Right */, 46 /* Delete */].includes(event.keyCode);
   var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
 
-  return !knownPlatform || isCtrlFluidKeyPress || isAltFluidKeyPress || isFluidKeyPress;
+  return !knownPlatform || (isCtrlFluidKeyPress || isAltFluidKeyPress || isFluidKeyPress || isMacMetaFluidKeyPress);
 }
 
 function fluidStopKeys(event) {
