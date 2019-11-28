@@ -965,7 +965,11 @@ let recordAction
 let setPosition ?(resetUD = false) (s : state) (pos : int) : state =
   let s = recordAction ~pos "setPosition" s in
   let upDownCol = if resetUD then None else s.upDownCol in
-  {s with newPos = pos; selectionStart = None; upDownCol}
+  { s with
+    newPos = pos
+  ; selectionStart = None
+  ; upDownCol
+  ; ac = {s.ac with temporarilyDisabled = false} }
 
 
 let report (e : string) (s : state) =
