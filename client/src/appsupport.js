@@ -70,7 +70,7 @@ function isHandledByFluid(event) {
   var isAltFluidKeyPress = event.altKey && event.keyCode == 88; // Alt-x
   var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
 
-  return !knownPlatform || (isCtrlFluidKeyPress || isAltFluidKeyPress || isFluidKeyPress);
+  return !knownPlatform || isCtrlFluidKeyPress || isAltFluidKeyPress || isFluidKeyPress;
 }
 
 function fluidStopKeys(event) {
