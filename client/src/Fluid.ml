@@ -48,7 +48,9 @@ let removeCharAt str offset : string =
 
 let isNumber (str : string) = Js.Re.test_ [%re "/[0-9]+/"] str
 
-let isIdentifierChar (str : string) = Js.Re.test_ [%re "/[_a-zA-Z0-9]+/"] str
+let isRecordFieldNameChar (str : string) =
+  Js.Re.test_ [%re "/[_a-zA-Z0-9-]+/"] str
+
 
 let isFnNameChar str =
   Js.Re.test_ [%re "/[_:a-zA-Z0-9]/"] str && String.length str = 1
@@ -3244,7 +3246,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TFieldName _
     | TLambdaVar _
     | TRecordFieldname _
-      when not (isIdentifierChar letterStr) ->
+      when not (isRecordFieldNameChar letterStr) ->
         (ast, SamePlace)
     | TVariable _
     | TPatternVariable _
