@@ -4679,7 +4679,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       | None ->
           (* We reset the fluidState to prevent the selection and/or cursor position from persisting
            * when a user switched handlers *)
-          (ast, Defaults.defaultFluidState) )
+          (ast, s |> acClear) )
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
