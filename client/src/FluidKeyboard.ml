@@ -149,11 +149,11 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 36 ->
       Home
   | 37 ->
-      if osCmdKeyHeld then GoToStartOfLine else Left
+      if isMacCmdHeld then GoToStartOfLine else Left
   | 38 ->
       Up
   | 39 ->
-      if osCmdKeyHeld then GoToEndOfLine else Right
+      if isMacCmdHeld then GoToEndOfLine else Right
   | 40 ->
       Down
   | 45 ->
