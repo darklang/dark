@@ -976,45 +976,71 @@ let trigger_handler ~(execution_id : Types.id) (host : string) body :
 
 let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     (Cohttp.Response.t * Cohttp_lwt__.Body.t) Lwt.t =
-  try
-    let t1, params =
-      time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
-    in
-    let tlid = params.tlid in
-    let trace_id = params.trace_id in
-    let t2, c =
-      time "2-load-saved-ops" (fun _ ->
-          C.load_only_tlids ~tlids:[params.tlid] host []
-          |> Result.map_error ~f:(String.concat ~sep:", ")
-          |> Prelude.Result.ok_or_internal_exception "Failed to load canvas" )
-    in
-    let t3, mht =
-      time "3-handler-analyses" (fun _ ->
-          !c.handlers
-          |> Types.IDMap.data
-          |> List.hd
-          |> Option.bind ~f:TL.as_handler
-          |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id) )
-    in
-    let t4, mft =
-      time "4-user-fn-analyses" (fun _ ->
-          !c.user_functions
-          |> Types.IDMap.data
-          |> List.find ~f:(fun f -> tlid = f.tlid)
-          |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id) )
-    in
-    let t5, result =
-      time "5-to-frontend" (fun _ ->
-          Option.first_some mft mht
-          |> Option.map ~f:(Analysis.to_get_trace_data_rpc_result !c) )
-    in
-    let resp_headers = server_timing [t1; t2; t3; t4; t5] in
+  let t1, params =
+    time "1-read-api-tlids" (fun _ -> Api.to_get_trace_data_rpc_params body)
+  in
+  let tlid = params.tlid in
+  let trace_id = params.trace_id in
+  let t2, c =
+    time "2-load-saved-ops" (fun _ ->
+        C.load_only_tlids ~tlids:[params.tlid] host []
+        |> Result.map_error ~f:(String.concat ~sep:", ") )
+  in
+  let t3, mht =
+    time "3-handler-analyses" (fun _ ->
+        c
+        |> Result.map ~f:(fun c ->
+               !c.handlers
+               |> Types.IDMap.data
+               |> List.hd
+               |> Option.bind ~f:TL.as_handler
+               |> Option.map ~f:(fun h -> Analysis.handler_trace !c h trace_id)
+           ) )
+  in
+  let t4, mft =
+    time "4-user-fn-analyses" (fun _ ->
+        c
+        |> Result.map ~f:(fun c ->
+               !c.user_functions
+               |> Types.IDMap.data
+               |> List.find ~f:(fun f -> tlid = f.tlid)
+               |> Option.map ~f:(fun f -> Analysis.user_fn_trace !c f trace_id)
+           ) )
+  in
+  let t5, result =
+    time "5-to-frontend" (fun _ ->
+        c
+        |> Result.bind ~f:(fun c ->
+               Result.all [mft; mht]
+               |> Result.map ~f:(fun traces ->
+                      traces
+                      |> Option.all
+                      |> Option.bind ~f:List.hd
+                      |> Option.map
+                           ~f:(Analysis.to_get_trace_data_rpc_result !c) ) ) )
+  in
+  let resp_headers = server_timing [t1; t2; t3; t4; t5] in
+  let new_log_items =
     match result with
-    | Some str ->
-        respond ~execution_id ~resp_headers `OK str
-    | None ->
-        respond ~execution_id ~resp_headers `Not_found ""
-  with e -> raise e
+    | Ok (Some _) ->
+        []
+    | Ok None ->
+        [ ( "warning"
+          , `String
+              ("no handler or userfn found for tlid " ^ Types.string_of_id tlid)
+          )
+        ; ("tlid", `String (Types.string_of_id tlid)) ]
+    | Error e ->
+        [("error", `String e); ("tlid", `String (Types.string_of_id tlid))]
+  in
+  Log.add_log_annotations new_log_items (fun _ ->
+      match result with
+      | Ok (Some str) ->
+          respond ~execution_id ~resp_headers `OK str
+      | Error _ ->
+          respond ~execution_id ~resp_headers `Not_found ""
+      | Ok None ->
+          respond ~execution_id ~resp_headers `Not_found "" )
 
 
 let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
