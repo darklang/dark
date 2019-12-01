@@ -260,6 +260,10 @@ jobs:
       - run: scripts/builder --compile-backend --test
       - run-background-container
       - wait-for-container
+        # For speed optimization, we could put this in a faster job; it doesn't
+        # need to be run post-build, it just needs the container running. But it
+        # takes <1s to run, so this is the more "logical" location.
+      - run: scripts/ocaml-find-unused backend/test
       - assert-clean-worktree
       - run:
           name: Reduce size of esy cache
