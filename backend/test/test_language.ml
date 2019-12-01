@@ -461,4 +461,5 @@ let suite =
     , `Quick
     , t_unicode_string_regex_replace_works_with_emojis )
   ; ("DError propagation", `Quick, t_derror_propagation)
-  ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1) ]
+  ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
+  ; ("t_int_functions_works", `Quick, t_int_functions_works) ]
