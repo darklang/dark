@@ -1025,10 +1025,8 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
     | Ok (Some _) ->
         []
     | Ok None ->
-        [ ( "warning"
-          , `String
-              ("no handler or userfn found for tlid " ^ Types.string_of_id tlid)
-          )
+        [ ("warning", `String "no handler or userfn found")
+        ; ("trace_id", `String (Uuidm.to_string trace_id))
         ; ("tlid", `String (Types.string_of_id tlid)) ]
     | Error e ->
         [("error", `String e); ("tlid", `String (Types.string_of_id tlid))]
