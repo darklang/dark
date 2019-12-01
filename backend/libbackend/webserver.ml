@@ -1014,8 +1014,8 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
                Result.all [mft; mht]
                |> Result.map ~f:(fun traces ->
                       traces
-                      |> Option.all
-                      |> Option.bind ~f:List.hd
+                      (* take the first trace that is Some 'a, not None *)
+                      |> List.find_map ~f:(fun x -> x)
                       |> Option.map
                            ~f:(Analysis.to_get_trace_data_rpc_result !c) ) ) )
   in
@@ -1037,8 +1037,8 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
       match result with
       | Ok (Some str) ->
           respond ~execution_id ~resp_headers `OK str
-      | Error _ ->
-          respond ~execution_id ~resp_headers `Not_found ""
+      | Error err ->
+          Exception.internal ~info:[("error", err)] "Failed to load canvas"
       | Ok None ->
           respond ~execution_id ~resp_headers `Not_found "" )
 
