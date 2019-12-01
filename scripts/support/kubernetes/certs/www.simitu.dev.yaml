@@ -1,0 +1,10 @@
+apiVersion: networking.gke.io/v1beta1
+kind: ManagedCertificate
+metadata:
+  name: www.simitu.dev-cert
+spec:
+  domains:
+    # NB: Per https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs,
+    # domains can _only_ have one entry, we cannot have both www.kiksht.com and
+    # kiksht.com, nor can we have wildcards
+    - www.simitu.dev
