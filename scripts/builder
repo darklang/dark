@@ -136,6 +136,7 @@ fi
 echo "Run the build"
 
 $FSWATCH | docker run \
+             --init \
              --rm \
              -i \
              --privileged \
