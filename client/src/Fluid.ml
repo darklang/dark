@@ -3639,18 +3639,32 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
     | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
-      ->
-        let ast, state = deleteSelection ~state:s ~ast in
-        deleteCaretRange
-          ~state
-          ~ast
-          (state.newPos, getStartOfLineCaretPos ast ti state)
+  ->
+      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+           The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
+           For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
+           K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getStartOfLineCaretPos ast ti s) )
     | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
-        let ast, state = deleteSelection ~state:s ~ast in
-        deleteCaretRange
-          ~state
-          ~ast
-          (state.newPos, getEndOfLineCaretPos ast ti state)
+      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+           The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
+           For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
+           This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getEndOfLineCaretPos ast ti s) )
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
