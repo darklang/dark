@@ -2460,7 +2460,7 @@ let () =
         (selectionPress K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts
-        "cmd+a selects all"
+        "K.SelectAll selects all"
         longLets
         (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
