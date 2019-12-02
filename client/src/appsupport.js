@@ -78,7 +78,10 @@ function isHandledByFluid(event) {
 
   return (
     !knownPlatform ||
-    isCtrlFluidKeyPress || isAltFluidKeyPress || isFluidKeyPress || isMacMetaFluidKeyPress
+    isCtrlFluidKeyPress ||
+    isAltFluidKeyPress ||
+    isFluidKeyPress ||
+    isMacMetaFluidKeyPress
   );
 }
 
