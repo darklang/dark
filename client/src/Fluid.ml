@@ -1388,15 +1388,16 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
-let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToStartOfLine" s in
+(* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
+ caret pos at the start of the line containing the given tokenInfo *)
+let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
              match info.token with
-             (* To prevent the cursor from being put in TPipes or TIndents token *)
+             (* To prevent the result pos from being set inside TPipe or TIndent tokens *)
              | TPipe _ | TIndent _ ->
                  false
              | _ ->
@@ -1404,27 +1405,41 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
            else false )
     |> Option.withDefault ~default:ti
   in
-  let newPos = token.startPos in
-  setPosition s newPos
+  token.startPos
 
 
-let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToEndOfLine" s in
+(* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
+ caret pos at the end of the line containing the given tokenInfo *)
+let getEndOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
   in
-  let newPos =
+  let pos =
     match token.token with
-    (* To prevent the cursor from going to the end of an indent or to a new line *)
+    (* To prevent the result pos from being set to the end of an indent or to a new line *)
     | TNewline _ | TIndent _ ->
         token.startPos
     | _ ->
         token.endPos
   in
-  setPosition s newPos
+  pos
+
+
+(* moveToStartOfLine moves the caret to the first desirable (excluding indents, pipes, and newline tokens)
+ caret pos at the start of the line containing the given tokenInfo *)
+let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToStartOfLine" s in
+  setPosition s (getStartOfLineCaretPos ast ti s)
+
+
+(* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
+ caret pos at the end of the line containing the given tokenInfo *)
+let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToEndOfLine" s in
+  setPosition s (getEndOfLineCaretPos ast ti s)
 
 
 let moveToEnd (ti : tokenInfo) (s : state) : state =
