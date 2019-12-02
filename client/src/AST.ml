@@ -118,8 +118,7 @@ let find (id : id) (expr : expr) : pointerData option =
   expr
   |> allData
   |> List.filter ~f:(fun d -> id = P.toID d)
-  |> assertFn ("no data with ID found", expr, id) ~f:(fun r ->
-         List.length r <= 1 )
+  |> assertFn ("no data with ID found", expr, id) ~f:(( <> ) [])
   (* guard against dups *)
   |> List.head
 
