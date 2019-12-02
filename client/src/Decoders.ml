@@ -217,8 +217,6 @@ and nExpr j : nExpr =
   let dv3 = variant3 in
   let dv2 = variant2 in
   let dv1 = variant1 in
-  (* In order to ignore the server for now, we tweak from one format *)
-  (* to the other. *)
   variants
     [ ("Let", dv3 (fun a b c -> Let (a, b, c)) (blankOr string) de de)
     ; ("Value", dv1 (fun x -> Value x) string)
