@@ -3895,7 +3895,12 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
 
 let shouldDoDefaultAction (key : K.key) : bool =
   match key with
-  | K.GoToStartOfLine | K.GoToEndOfLine | K.Delete | K.SelectAll ->
+  | K.GoToStartOfLine
+  | K.GoToEndOfLine
+  | K.Delete
+  | K.SelectAll
+  | K.DeleteToEndOfLine
+  | K.DeleteToStartOfLine ->
       false
   | _ ->
       true
