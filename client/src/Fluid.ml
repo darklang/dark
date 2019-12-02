@@ -3638,6 +3638,19 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveToStartOfLine ast ti s)
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
+    | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
+      ->
+        let ast, state = deleteSelection ~state:s ~ast in
+        deleteCaretRange
+          ~state
+          ~ast
+          (state.newPos, getStartOfLineCaretPos ast ti state)
+    | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
+        let ast, state = deleteSelection ~state:s ~ast in
+        deleteCaretRange
+          ~state
+          ~ast
+          (state.newPos, getEndOfLineCaretPos ast ti state)
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
@@ -3815,10 +3828,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-and deleteSelection ~state ~ast : ast * fluidState =
-  let rangeStart, rangeEnd =
-    fluidGetSelectionRange state |> orderRangeFromSmallToBig
-  in
+(* deleteCaretRange is equivalent to pressing backspace starting from the larger of the two caret positions
+   until the caret reaches the smaller of the caret positions or can no longer move.
+   XXX(JULIAN): This actually moves the caret to the larger side of the range and backspaces until the
+   beginning, which means this hijacks the caret in the state. *)
+and deleteCaretRange ~state ~ast (caretRange : int * int) : ast * fluidState =
+  let rangeStart, rangeEnd = caretRange |> orderRangeFromSmallToBig in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
@@ -3837,6 +3852,12 @@ and deleteSelection ~state ~ast : ast * fluidState =
          then (false, ast, state)
          else (true, newAst, newState) )
   |> fun (_, ast, state) -> (ast, state)
+
+
+(* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
+   forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
+and deleteSelection ~state ~ast : ast * fluidState =
+  fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
