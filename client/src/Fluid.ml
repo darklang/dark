@@ -1390,8 +1390,17 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
 (* updateExpr searches `ast` for an expression `e` with the given `id` and when
  * found replaces `e` with `f e`. *)
 let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
-  let rec run e = if id = eid e then f e else recurse ~f:run e in
-  run ast
+  let found = ref false in
+  let rec run e =
+    if id = eid e
+    then (
+      found := true ;
+      f e )
+    else recurse ~f:run e
+  in
+  let finished = run ast in
+  asserT "didn't find the id in the expression to update" !found (id, ast) ;
+  finished
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
