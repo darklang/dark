@@ -1388,15 +1388,16 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
   setPosition ~resetUD:true s newPos
 
 
-let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToStartOfLine" s in
+(* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
+ caret pos at the start of the line containing the given tokenInfo *)
+let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
              match info.token with
-             (* To prevent the cursor from being put in TPipes or TIndents token *)
+             (* To prevent the result pos from being set inside TPipe or TIndent tokens *)
              | TPipe _ | TIndent _ ->
                  false
              | _ ->
@@ -1404,27 +1405,41 @@ let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
            else false )
     |> Option.withDefault ~default:ti
   in
-  let newPos = token.startPos in
-  setPosition s newPos
+  token.startPos
 
 
-let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
-  let s = recordAction "moveToEndOfLine" s in
+(* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
+ caret pos at the end of the line containing the given tokenInfo *)
+let getEndOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
   in
-  let newPos =
+  let pos =
     match token.token with
-    (* To prevent the cursor from going to the end of an indent or to a new line *)
+    (* To prevent the result pos from being set to the end of an indent or to a new line *)
     | TNewline _ | TIndent _ ->
         token.startPos
     | _ ->
         token.endPos
   in
-  setPosition s newPos
+  pos
+
+
+(* moveToStartOfLine moves the caret to the first desirable (excluding indents, pipes, and newline tokens)
+ caret pos at the start of the line containing the given tokenInfo *)
+let moveToStartOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToStartOfLine" s in
+  setPosition s (getStartOfLineCaretPos ast ti s)
+
+
+(* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
+ caret pos at the end of the line containing the given tokenInfo *)
+let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
+  let s = recordAction "moveToEndOfLine" s in
+  setPosition s (getEndOfLineCaretPos ast ti s)
 
 
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
@@ -3708,6 +3723,33 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (ast, moveToStartOfLine ast ti s)
     | K.GoToEndOfLine, _, R (_, ti) ->
         (ast, moveToEndOfLine ast ti s)
+    | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
+  ->
+      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+           The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
+           For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
+           K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getStartOfLineCaretPos ast ti s) )
+    | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
+      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+           The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
+           For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
+           This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          deleteCaretRange
+            ~state:s
+            ~ast
+            (s.newPos, getEndOfLineCaretPos ast ti s) )
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
@@ -3885,28 +3927,34 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (newAST, newState)
 
 
-and deleteSelection ~state ~ast : ast * fluidState =
-  let rangeStart, rangeEnd =
-    fluidGetSelectionRange state |> orderRangeFromSmallToBig
-  in
+(* deleteCaretRange is equivalent to pressing backspace starting from the larger of the two caret positions
+   until the caret reaches the smaller of the caret positions or can no longer move.
+   XXX(JULIAN): This actually moves the caret to the larger side of the range and backspaces until the
+   beginning, which means this hijacks the caret in the state. *)
+and deleteCaretRange ~state ~ast (caretRange : int * int) : ast * fluidState =
+  let rangeStart, rangeEnd = caretRange |> orderRangeFromSmallToBig in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
-  (* repeat deletion operation over range, starting from last position till first *)
-  Array.range ~from:rangeStart rangeEnd
-  |> Array.toList
-  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
-         let newAst, newState = updateKey K.Backspace ast state in
-         if not continue
-         then (false, ast, state)
-         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
-                 newState.newPos = state.newPos
-         then (false, ast, state)
-         else if (* stop deleting if we reach range start*)
-                 newState.newPos < rangeStart
-         then (false, ast, state)
-         else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, state)
+  let currAst, currState = (ref ast, ref state) in
+  let nothingChanged = ref false in
+  while (not !nothingChanged) && !currState.newPos > rangeStart do
+    let newAst, newState = updateKey K.Backspace !currAst !currState in
+    if newState.newPos = !currState.newPos && newAst = !currAst
+    then
+      (* stop if nothing changed--guarantees loop termination *)
+      nothingChanged := true
+    else (
+      currAst := newAst ;
+      currState := newState )
+  done ;
+  (!currAst, !currState)
+
+
+(* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
+   forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
+and deleteSelection ~state ~ast : ast * fluidState =
+  fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
