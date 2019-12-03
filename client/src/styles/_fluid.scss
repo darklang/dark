@@ -2,6 +2,8 @@
 // Fluid
 //*************
 
+$blanks: lighten($toplevel-background, 5%);
+
 /* The amount of nestings before repeat is defined in toHtml of Fluid.ml */
 $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 @mixin precedence($depth) {
@@ -123,7 +125,6 @@ https://github.com/chriskempson/tomorrow-theme */
   $black: #1d1f21;
   $background: transparent;
   $selected-background: #2d2d2d;
-  $blanks: lighten($toplevel-background, 5%);
   $currentline: $black3;
   $selection: $grey3;
   $foreground: $white2;
@@ -423,6 +424,24 @@ $error-color: saturate($red, 10%);
   }
 }
 
+@keyframes flashError {
+  from {
+    background-color: $error-color;
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes flashIncomplete {
+  from {
+    background-color: $error-color;
+  }
+  to {
+    background-color: lighten($blanks, 10%);
+  }
+}
+
 @mixin error-tooltip {
   @extend .tooltip;
   background-color: rgba(30, 30, 30, 0.8);
@@ -446,22 +465,25 @@ $error-color: saturate($red, 10%);
     }
   }
 
-  /* Briefly show tooltip about originating from here before fading */
-  &.jumped-to:after {
-    @include error-tooltip;
-    opacity: 1;
-    animation: 1.5s fadeOut 0.5s;
+  /* Briefly flash red background before fading */
+  &.jumped-to {
+    background-color: $error-color;
+    animation: 1.5s flashError 0.5s;
+
+    &.fluid-blank,
+    &.fluid-empty,
+    &.fluid-placeholder {
+      animation: 1.5s flashIncomplete 0.5s;
+    }
   }
 
   /* Tooltip message for sources of the incomplete */
-  &.dark-incomplete.is-origin:not(.cursor-on):hover:after,
-  &.dark-incomplete.jumped-to:after {
+  &.dark-incomplete.is-origin:not(.cursor-on):hover:after {
     content: "The Incomplete came from here";
   }
 
   /* Tooltip message for sources of the error */
-  &.dark-error.is-origin:not(.cursor-on):hover:after,
-  &.dark-error.jumped-to:after {
+  &.dark-error.is-origin:not(.cursor-on):hover:after {
     content: "The Error came from here";
   }
 }
