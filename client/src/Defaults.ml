@@ -55,7 +55,7 @@ let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
   ; lastOffset = None
-  ; panAnimation = false
+  ; panAnimation = DontAnimateTransition
   ; minimap = None }
 
 

@@ -61,7 +61,11 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
     then Viewport.centerCanvasOn tl
     else m.canvasProps.offset
   in
-  let panAnimation = offset <> m.canvasProps.offset in
+  let panAnimation =
+    if offset <> m.canvasProps.offset
+    then AnimateTransition
+    else DontAnimateTransition
+  in
   let boId =
     let idInToplevel id =
       match TL.find tl id with Some _ -> Some id | None -> None
