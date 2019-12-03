@@ -2,6 +2,7 @@ open Jest
 open Expect
 open Tc
 open Types
+open Prelude
 open Fluid
 open Fluid_test_data
 module Regex = Util.Regex
@@ -261,7 +262,7 @@ let () =
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
-          | TRightPartial _ | TPartial _ ->
+          | TRightPartial _ | TPartial _ | TFieldPartial _ ->
               true
           | _ ->
               false )
@@ -1260,24 +1261,24 @@ let () =
         "___~" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
+      tp "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
       t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
-      t "del middle of fieldname" aField (del 5) "obj.f~eld" ;
-      t "del fieldname" aShortField (del 4) "obj.~***" ;
-      t "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      t "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
+      tp "del middle of fieldname" aField (del 5) "obj.f~eld@" ;
+      tp "del fieldname" aShortField (del 4) "obj.~***" ;
+      tp "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      tp "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
       tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
-      t "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
-      t "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
+      tp "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
+      tp "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      t "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
-      t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
-      t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
+      tp "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
+      tp "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
+      tp "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
@@ -2941,7 +2942,11 @@ let () =
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (fieldAccess (EVariable (ID "12", "request")) "bo")
+        (EPartial
+           ( gid ()
+           , "bo"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
         (enter ~clone:false 10)
         "request.body~" ;
       (* TODO: this doesn't work but should *)
