@@ -4383,7 +4383,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   else
     match (toTheLeft, toTheRight) with
     | L (TPartial (_, str), ti), _
+    | L (TFieldPartial (_, _, str), ti), _
     | _, R (TPartial (_, str), ti)
+    | _, R (TFieldPartial (_, _, str), ti)
     (* When pressing an infix character, it's hard to tell whether to commit or
      * not.  If the partial is an int, or a function that returns one, pressing
      * +, -, etc  should lead to committing and then doing the action.
