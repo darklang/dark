@@ -1460,13 +1460,11 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   in
   let newPos =
     let tokenInfo = previousToken |> Option.withDefault ~default:ti in
-    match tokenInfo.token with
-    | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
-      when pos != tokenInfo.startPos ->
-        let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
-        tokenInfo.startPos + offset
-    | _ ->
-        tokenInfo.startPos
+    if Token.isStringToken tokenInfo.token && pos != tokenInfo.startPos
+    then
+      let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
+      tokenInfo.startPos + offset
+    else tokenInfo.startPos
   in
   setPosition s newPos
 
@@ -1499,13 +1497,11 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   in
   let newPos =
     let tokenInfo = nextToken |> Option.withDefault ~default:ti in
-    match tokenInfo.token with
-    | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
-      when pos != tokenInfo.endPos ->
-        let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
-        tokenInfo.startPos + offset
-    | _ ->
-        tokenInfo.endPos
+    if Token.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+    then
+      let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
+      tokenInfo.startPos + offset
+    else tokenInfo.endPos
   in
   setPosition s newPos
 
