@@ -65,7 +65,7 @@ let centerCanvasOn (tl : toplevel) : pos =
   let sidebarWidth =
     Native.Ext.querySelector "#sidebar-left"
     |> Option.map ~f:Native.Ext.clientWidth
-    |> recoverOpt "can't find sidebar HTML body" ~default:320
+    |> Option.withDefault ~default:320
   in
   let tlWidth =
     let tle =
