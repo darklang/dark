@@ -876,11 +876,15 @@ and toast =
   { toastMessage : string option
   ; toastPos : vPos option }
 
+and isTransitionAnimated =
+  | AnimateTransition
+  | DontAnimateTransition
+
 and canvasProps =
   { offset : pos
   ; enablePan : bool
   ; lastOffset : pos option
-  ; panAnimation : bool
+  ; panAnimation : isTransitionAnimated
   ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -939,8 +943,7 @@ and modification =
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
-  | MoveCanvasTo of pos * bool
-  (* panAnimation:bool *)
+  | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of

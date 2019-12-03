@@ -4956,11 +4956,13 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              let moveMod =
                match Viewport.moveToToken id tl with
                | Some dx, Some dy ->
-                   MoveCanvasTo ({x = dx; y = dy}, true)
+                   MoveCanvasTo ({x = dx; y = dy}, AnimateTransition)
                | Some dx, None ->
-                   MoveCanvasTo ({x = dx; y = m.canvasProps.offset.y}, true)
+                   MoveCanvasTo
+                     ({x = dx; y = m.canvasProps.offset.y}, AnimateTransition)
                | None, Some dy ->
-                   MoveCanvasTo ({x = m.canvasProps.offset.x; y = dy}, true)
+                   MoveCanvasTo
+                     ({x = m.canvasProps.offset.x; y = dy}, AnimateTransition)
                | None, None ->
                    NoChange
              in

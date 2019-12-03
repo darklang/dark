@@ -941,7 +941,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ( { m with
               canvasProps =
                 { m.canvasProps with
-                  offset = Viewport.centerCanvasOn tl; panAnimation = true } }
+                  offset = Viewport.centerCanvasOn tl
+                ; panAnimation = AnimateTransition } }
           , Cmd.none )
       | None ->
           (m, Cmd.none) )
@@ -1883,7 +1884,9 @@ let update_ (msg : msg) (m : model) : modification =
   | CanvasPanAnimationEnd ->
       TweakModel
         (fun m ->
-          {m with canvasProps = {m.canvasProps with panAnimation = false}} )
+          { m with
+            canvasProps =
+              {m.canvasProps with panAnimation = DontAnimateTransition} } )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->

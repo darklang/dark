@@ -23,7 +23,7 @@ let moveCanvasBy (m : model) (x : int) (y : int) : modification =
   in
   let offset = m.canvasProps.offset in
   let pos = addPos offset {x = dx; y = dy} in
-  MoveCanvasTo (pos, false)
+  MoveCanvasTo (pos, DontAnimateTransition)
 
 
 let pageUp (m : model) : modification =
@@ -50,7 +50,9 @@ let moveLeft (m : model) : modification =
 
 let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 
-let moveToOrigin : modification = MoveCanvasTo (Defaults.origin, false)
+let moveToOrigin : modification =
+  MoveCanvasTo (Defaults.origin, DontAnimateTransition)
+
 
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
   Default values (when we can't find get elements from dom) are based on
