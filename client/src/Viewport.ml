@@ -1,5 +1,6 @@
 open Types
 open Tc
+open Prelude
 module TL = Toplevel
 
 let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
@@ -62,8 +63,9 @@ let moveToOrigin : modification =
 let centerCanvasOn (tl : toplevel) : pos =
   let windowWidth = Native.Window.viewportWidth in
   let sidebarWidth =
-    let sidebar = Native.Ext.querySelector "#sidebar-left" in
-    match sidebar with Some e -> Native.Ext.clientWidth e | None -> 320
+    Native.Ext.querySelector "#sidebar-left"
+    |> Option.map ~f:Native.Ext.clientWidth
+    |> recoverOpt "can't find sidebar HTML body" ~default:320
   in
   let tlWidth =
     let tle =
@@ -83,8 +85,8 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
   | Some tokenDom ->
       let sidebarWidth =
         Native.Ext.querySelector "#sidebar-left"
-        |> Option.map ~f:(fun e -> Native.Ext.clientWidth e)
-        |> Option.withDefault ~default:320
+        |> Option.map ~f:Native.Ext.clientWidth
+        |> recoverOpt "can't find sidebar HTML body" ~default:320
       in
       let viewport : Native.rect =
         { id = "#canvas"
