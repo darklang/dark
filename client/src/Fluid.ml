@@ -3859,8 +3859,9 @@ and deleteCaretRange ~state ~ast (caretRange : int * int) : ast * fluidState =
     then
       (* stop if nothing changed--guarantees loop termination *)
       nothingChanged := true
-    else currAst := newAst ;
-    currState := newState
+    else (
+      currAst := newAst ;
+      currState := newState )
   done ;
   (!currAst, !currState)
 
