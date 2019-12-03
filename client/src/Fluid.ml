@@ -1445,7 +1445,10 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
       |> String.split ~on:""
       |> List.reverse
       |> List.find ~f:(fun a ->
-             if (a == " " || a = "\"" || a = "\n" || a = "\t")
+             if ( a == " "
+                || (a = "\"" && !index != tokenInfo.length)
+                || a = "\n"
+                || a = "\t" )
                 && !index < posInString
              then true
              else (
@@ -1484,7 +1487,7 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
       Token.toText tokenInfo.token
       |> String.split ~on:""
       |> List.find ~f:(fun a ->
-             if (a == " " || a = "\"" || a = "\n" || a = "\t")
+             if (a == " " || (a = "\"" && !index > 0) || a = "\n" || a = "\t")
                 && !index > posInString
              then true
              else (
