@@ -103,6 +103,7 @@ type key =
   | Unknown of string
   | GoToStartOfLine
   | GoToEndOfLine
+  | DeleteWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
   | GoToStartOfWord
@@ -124,7 +125,11 @@ let fromKeyboardCode
   let isMacCmdHeld = isMac && meta in
   match code with
   | 8 ->
-      if isMacCmdHeld then DeleteToStartOfLine else Backspace
+      if isMacCmdHeld
+      then DeleteToStartOfLine
+      else if alt
+      then DeleteWord
+      else Backspace
   | 9 ->
       if shift then ShiftTab else Tab
   | 13 ->
@@ -460,6 +465,7 @@ let toChar key : char option =
   | Unknown _
   | GoToStartOfLine
   | GoToEndOfLine
+  | DeleteWord
   | DeleteToStartOfLine
   | DeleteToEndOfLine
   | GoToStartOfWord
@@ -626,6 +632,8 @@ let toName (key : key) : string =
       "GoToStartOfLine"
   | GoToEndOfLine ->
       "GoToEndOfLine"
+  | DeleteWord ->
+      "DeleteWord"
   | DeleteToStartOfLine ->
       "DeleteToStartOfLine"
   | DeleteToEndOfLine ->
