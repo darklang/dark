@@ -414,6 +414,11 @@ let aShortField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "f")
 
 let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
 
+let aPartialField =
+  EPartial
+    (gid (), "", EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), ""))
+
+
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
