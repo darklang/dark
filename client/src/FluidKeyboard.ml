@@ -155,6 +155,8 @@ let fromKeyboardCode
       if meta
       then GoToStartOfLine
       else if (isMac && alt) || ctrl
+              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
       then GoToStartOfWord
       else Left
   | 38 ->
@@ -163,6 +165,8 @@ let fromKeyboardCode
       if meta
       then GoToEndOfLine
       else if (isMac && alt) || ctrl
+              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
       then GoToEndOfWord
       else Right
   | 40 ->
