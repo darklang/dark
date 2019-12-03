@@ -300,6 +300,29 @@ let () =
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
   in
+  let ctrlLeft
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.GoToStartOfWord, ShiftNotHeld)]
+      None
+      pos
+      expr
+  in
+  let ctrlRight
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process ~wrap ~clone ~debug [(K.GoToEndOfWord, ShiftNotHeld)] None pos expr
+  in
   let shiftTab
       ?(wrap = true)
       ?(debug = false)
@@ -474,6 +497,26 @@ let () =
       t "del space in string" aStr (del 5) "\"some~string\"" ;
       t "bs space in string" aStr (bs 6) "\"some~string\"" ;
       t "final quote is swallowed" aStr (ins '"' 12) "\"some string\"~" ;
+      t
+        "ctrl+left from mid string goes front of word in string"
+        aStr
+        (ctrlLeft 12)
+        "\"some ~string\"" ;
+      t
+        "ctrl+right from mid string goes end of word in string"
+        aStr
+        (ctrlRight 2)
+        "\"some~ string\"" ;
+      t
+        "ctrl+left from beg of string goes front of next word in string"
+        aStr
+        (ctrlLeft 6)
+        "\"~some string\"" ;
+      t
+        "ctrl+right goes end of word in string"
+        aStr
+        (ctrlRight 5)
+        "\"some string~\"" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
@@ -769,6 +812,48 @@ let () =
         (del 48)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
+      t
+        "ctrl+left at beg of start string moves to beg"
+        mlStrWSpace
+        (ctrlLeft 6)
+        ( "\"~123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "ctrl+left at beg of middle string moves to beg"
+        mlStrWSpace
+        (ctrlLeft 54)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " ~123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "ctrl+left at beg of end string moves to beg"
+        mlStrWSpace
+        (ctrlLeft 76)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, ~123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "ctrl+right at beg of start string moves to end"
+        mlStrWSpace
+        (ctrlRight 0)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "ctrl+right at beg of middle string moves to end"
+        mlStrWSpace
+        (ctrlRight 46)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_~ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "ctrl+right at beg of end string moves to end"
+        mlStrWSpace
+        (ctrlRight 76)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
+        ^ "ghi,\"" ) ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
@@ -792,6 +877,16 @@ let () =
         "insert number at scale"
         oneShorterThanMax62BitInt
         (ins '4' 18)
+        "461168601842738790~" ;
+      t
+        "ctrl+left go to beg of int moves to beg"
+        oneShorterThanMax62BitInt
+        (ctrlLeft 11)
+        "~461168601842738790" ;
+      t
+        "ctrl+right go to end of int moves to end"
+        oneShorterThanMax62BitInt
+        (ctrlRight 11)
         "461168601842738790~" ;
       () ) ;
   describe "Floats" (fun () ->
@@ -838,6 +933,47 @@ let () =
       t "bs dot converts to int" aFloat (bs 4) "123~456" ;
       t "bs dot converts to int, no fraction" aPartialFloat (bs 2) "1~" ;
       t "continue after adding dot" aPartialFloat (ins '2' 2) "1.2~" ;
+      t "ctrl+left start of whole moves to beg" aFloat (ctrlLeft 0) "~123.456" ;
+      t "ctrl+left middle of whole moves to beg" aFloat (ctrlLeft 1) "~123.456" ;
+      t "ctrl+left end of whole moves to beg" aFloat (ctrlLeft 2) "~123.456" ;
+      t
+        "ctrl+left start of fraction moves to beg"
+        aFloat
+        (ctrlLeft 4)
+        "123~.456" ;
+      t
+        "ctrl+left middle of fraction moves to beg"
+        aFloat
+        (ctrlLeft 5)
+        "123.~456" ;
+      t "ctrl+left end of fraction moves to beg" aFloat (ctrlLeft 6) "123.~456" ;
+      t
+        "ctrl+right start of whole moves to end"
+        aFloat
+        (ctrlRight 0)
+        "123~.456" ;
+      t
+        "ctrl+right middle of whole moves to end"
+        aFloat
+        (ctrlRight 1)
+        "123~.456" ;
+      t "ctrl+right end of whole moves to end" aFloat (ctrlRight 2) "123~.456" ;
+      t "ctrl+right end of whole moves to end" aFloat (ctrlRight 3) "123.~456" ;
+      t
+        "ctrl+right start of fraction moves to end"
+        aFloat
+        (ctrlRight 4)
+        "123.456~" ;
+      t
+        "ctrl+right middle of fraction moves to end"
+        aFloat
+        (ctrlRight 5)
+        "123.456~" ;
+      t
+        "ctrl+right end of fraction moves to end"
+        aFloat
+        (ctrlRight 6)
+        "123.456~" ;
       () ) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
@@ -858,22 +994,54 @@ let () =
       tp "insert middle of false" falseBool (ins '0' 2) "fa0~lse" ;
       tp "del middle of false" falseBool (del 2) "fa~se" ;
       tp "bs middle of false" falseBool (bs 2) "f~lse" ;
+      t "ctrl+left start of true doesnt move" trueBool (ctrlLeft 0) "~true" ;
+      t "ctrl+right start of true moves to beg" trueBool (ctrlRight 0) "true~" ;
+      t "ctrl+left middle of true moves to beg" trueBool (ctrlLeft 2) "~true" ;
+      t "ctrl+left end of true moves to bed" trueBool (ctrlLeft 4) "~true" ;
+      t "ctrl+right end of true doesnt move" trueBool (ctrlRight 4) "true~" ;
+      t "ctrl+right middle of true moves to end" trueBool (ctrlRight 2) "true~" ;
+      t "ctrl+left start of false doesnt move" falseBool (ctrlLeft 0) "~false" ;
+      t
+        "ctrl+right start of false moves to end"
+        falseBool
+        (ctrlRight 0)
+        "false~" ;
+      t "ctrl+left end of false moves to beg" falseBool (ctrlLeft 5) "~false" ;
+      t "ctrl+right end of false moves to end" falseBool (ctrlRight 5) "false~" ;
+      t
+        "ctrl+left middle of false moves to beg"
+        falseBool
+        (ctrlLeft 2)
+        "~false" ;
+      t
+        "ctrl+right middle of false moves to end"
+        falseBool
+        (ctrlRight 2)
+        "false~" ;
       () ) ;
   describe "Nulls" (fun () ->
       tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
       tp "del start of null" aNull (del 0) "~ull" ;
       t "bs start of null" aNull (bs 0) "~null" ;
+      t "ctrl+left start of null doesnt move" aNull (ctrlLeft 0) "~null" ;
+      t "ctrl+right start of null moves to end" aNull (ctrlRight 0) "null~" ;
       tp "insert end of null" aNull (ins '0' 4) "null0~" ;
       t "del end of null" aNull (del 4) "null~" ;
       tp "bs end of null" aNull (bs 4) "nul~" ;
+      t "ctrl+left end of null doesnt move" aNull (ctrlLeft 4) "~null" ;
+      t "ctrl+right end of null moves to beg" aNull (ctrlRight 4) "null~" ;
       tp "insert middle of null" aNull (ins '0' 2) "nu0~ll" ;
       tp "del middle of null" aNull (del 2) "nu~l" ;
       tp "bs middle of null" aNull (bs 2) "n~ll" ;
+      t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
+      t "ctrl+right middle of null moves to end" aNull (ctrlRight 2) "null~" ;
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
       t "del middle of blank->blank" b (del 3) "___~" ;
       t "bs middle of blank->blank" b (bs 3) "~___" ;
+      t "ctrl+left middle of null moves to beg" b (ctrlLeft 2) "~___" ;
+      t "ctrl+right middle of null moves to end" b (ctrlRight 2) "___~" ;
       t "insert blank->string" b (ins '"' 0) "\"~\"" ;
       t "del blank->string" emptyStr (del 0) "~___" ;
       t "bs blank->string" emptyStr (bs 1) "~___" ;
@@ -910,6 +1078,36 @@ let () =
       t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
       t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
+      t
+        "ctrl+left in name moves to beg of name"
+        aShortField
+        (ctrlLeft 2)
+        "~obj.f" ;
+      t
+        "ctrl+right in name moves to end of name"
+        aShortField
+        (ctrlRight 2)
+        "obj~.f" ;
+      t
+        "ctrl+left in beg of fieldname moves to beg of fieldname"
+        aNestedField
+        (ctrlLeft 4)
+        "~obj.field.field2" ;
+      t
+        "ctrl+right in beg of fieldname moves to the end of fieldname"
+        aNestedField
+        (ctrlRight 4)
+        "obj.field~.field2" ;
+      t
+        "ctrl+left in middle of fieldname moves to end of fieldname"
+        aNestedField
+        (ctrlLeft 5)
+        "obj.~field.field2" ;
+      t
+        "ctrl+right in middle of fieldname moves to beg of fieldname"
+        aNestedField
+        (ctrlRight 5)
+        "obj.field~.field2" ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -1033,6 +1231,26 @@ let () =
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
       (* TODO: This should be 120, but reflow puts the caret in the wrong
            * place for new partials *) ;
+      t
+        "ctrl+left on function in middle of version moves to beg of version"
+        aFnCallWithVersion
+        (ctrlLeft 11)
+        "DB::getAll~v1 ___________________" ;
+      t
+        "ctrl+right on function in middle of version moves to end of version"
+        aFnCallWithVersion
+        (ctrlRight 11)
+        "DB::getAllv1~ ___________________" ;
+      t
+        "ctrl+left on function in middle of function name moves to beg of fn name"
+        aFnCallWithVersion
+        (ctrlLeft 7)
+        "~DB::getAllv1 ___________________" ;
+      t
+        "ctrl+right on function in middle of function name moves to end of fn name"
+        aFnCallWithVersion
+        (ctrlRight 7)
+        "DB::getAll~v1 ___________________" ;
       () ) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
@@ -1159,6 +1377,26 @@ let () =
         (key K.Percent 3)
         "if %~\nthen\n  ___\nelse\n  ___" ;
       tp "show ghost partial" aFullBinOp (bs 8) "myvar |~@ 5" ;
+      t
+        "ctrl+left from end of < moves to front of <"
+        (binop "<" anInt anInt)
+        (ctrlLeft 7)
+        "12345 ~< 12345" ;
+      t
+        "ctrl+right from end of < moves to end of second int"
+        (binop "<" anInt anInt)
+        (ctrlRight 7)
+        "12345 < 12345~" ;
+      t
+        "ctrl+left from beg of < moves to front of first int"
+        (binop "<" anInt anInt)
+        (ctrlLeft 6)
+        "~12345 < 12345" ;
+      t
+        "ctrl+right from beg of < moves to end of <"
+        (binop "<" anInt anInt)
+        (ctrlRight 6)
+        "12345 <~ 12345" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
@@ -1181,6 +1419,16 @@ let () =
         aConstructor
         (space 5)
         "Just ~___" ;
+      t
+        "ctrl+left mid constructor moves to beg"
+        aConstructor
+        (ctrlLeft 2)
+        "~Just ___" ;
+      t
+        "ctrl+left mid constructor moves to end"
+        aConstructor
+        (ctrlRight 2)
+        "Just~ ___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -1305,6 +1553,26 @@ let () =
         lambdaWithTwoBindings
         (bs 4)
         "\\x,~ y -> ___" ;
+      t
+        "ctrl+left twice over lamda from beg moves to beg of first param"
+        lambdaWithTwoBindings
+        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 1)
+        "~\\x, y -> ___" ;
+      t
+        "ctrl+right twice over lamda from beg moves to last blank"
+        lambdaWithTwoBindings
+        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 1)
+        "\\x, y~ -> ___" ;
+      t
+        "ctrl+left twice over lamda from end moves to end of second param"
+        lambdaWithTwoBindings
+        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 12)
+        "\\x, ~y -> ___" ;
+      t
+        "ctrl+right twice over lamda from end doesnt move"
+        lambdaWithTwoBindings
+        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 12)
+        "\\x, y -> ___~" ;
       () ) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
@@ -1322,6 +1590,26 @@ let () =
         (let' "i" b (partial "i" b))
         (keys [K.Letter 'f'; K.Enter] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
+      t
+        "ctrl+left from beg of variable doesnt move"
+        aVar
+        (ctrlLeft 0)
+        "~variable" ;
+      t
+        "ctrl+right from beg of variable moves to end"
+        aVar
+        (ctrlRight 0)
+        "variable~" ;
+      t
+        "ctrl+left from end of variable moves to beg"
+        aVar
+        (ctrlLeft 8)
+        "~variable" ;
+      t
+        "ctrl+right from end of variable doesnt move"
+        aVar
+        (ctrlRight 8)
+        "variable~" ;
       () ) ;
   describe "Match" (fun () ->
       t
@@ -1446,6 +1734,36 @@ let () =
         emptyMatch
         (bs 12)
         "match ___~\n  *** -> ___\n" ;
+      t
+        "ctrl+left 2 times from end moves to first blank"
+        emptyMatch
+        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 22)
+        "match ___\n  ~*** -> ___\n" ;
+      t
+        "ctrl+right 2 times from end doesnt move"
+        emptyMatch
+        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 22)
+        "match ___\n  *** -> ___\n~" ;
+      t
+        "ctrl+left 2 times from beg doesnt move"
+        emptyMatch
+        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 0)
+        "~match ___\n  *** -> ___\n" ;
+      t
+        "ctrl+right 2 times from beg moves to last blank"
+        emptyMatch
+        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 0)
+        "match ___\n  ***~ -> ___\n" ;
+      t
+        "ctrl+left from mid moves to previous blank "
+        emptyMatch
+        (ctrlLeft 15)
+        "match ___\n  ~*** -> ___\n" ;
+      t
+        "ctrl+right from mid moves to next blank"
+        emptyMatch
+        (ctrlRight 15)
+        "match ___\n  *** -> ___~\n" ;
       (* delete row with delete *)
       () ) ;
   describe "Lets" (fun () ->
@@ -1583,6 +1901,16 @@ let () =
         anInt
         (enter 0)
         "let *** = ___\n~12345" ;
+      t
+        "Ctrl+left in front of a varname moves to previous editable text"
+        matchWithTwoLets
+        (ctrlLeft 23)
+        "match ___\n  ~*** -> let x = 5\n         let y = 6\n         ___\n" ;
+      t
+        "Ctrl+right in front of a varname moves to next editable text"
+        matchWithTwoLets
+        (ctrlRight 15)
+        "match ___\n  *** -> let x~ = 5\n         let y = 6\n         ___\n" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
@@ -1793,6 +2121,16 @@ let () =
         (record [("f1", fiftySix); ("f2", seventyEight)])
         (key K.ShiftEnter 11)
         "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
+      t
+        "ctrl+left moves to front of thread "
+        aPipe
+        (ctrlLeft 19)
+        "[]\n|>~List::append [5]\n|>List::append [5]\n" ;
+      t
+        "ctrl+right moves to end of next thread "
+        aPipe
+        (ctrlRight 20)
+        "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
@@ -1883,6 +2221,16 @@ let () =
         plainIf
         (enter 22)
         "if 5\nthen\n  6\nelse\n  7~" ;
+      t
+        "ctrl+left from value moves to condition "
+        plainIf
+        (ctrlLeft 12)
+        "if ~5\nthen\n  6\nelse\n  7" ;
+      t
+        "ctrl+right from condition moves to value "
+        plainIf
+        (ctrlRight 4)
+        "if 5\nthen\n  6~\nelse\n  7" ;
       () ) ;
   describe "Lists" (fun () ->
       t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
@@ -1984,6 +2332,16 @@ let () =
         multiWithStrs
         (del 5)
         "[\"ab\"~,\"ef\"]" ;
+      t
+        "ctrl+left at the beg of list item moves to beg of next list item"
+        longList
+        (ctrlLeft 10)
+        "[56,78,~56,78,56,78]" ;
+      t
+        "ctrl+right at the end of list item moves to end of next list item"
+        longList
+        (ctrlRight 12)
+        "[56,78,56,78,56~,78]" ;
       () ) ;
   describe "Record" (fun () ->
       t "create record" b (key K.LeftCurlyBrace 0) "{~}" ;
@@ -2140,6 +2498,16 @@ let () =
         (ins '5' 6)
         (* TODO: looks wrong *)
         "{\n  **~* : ___\n}" ;
+      t
+        "ctrl+left at beg of value movese to beg of key"
+        multiRowRecord
+        (ctrlLeft 9)
+        "{\n  ~f1 : 56\n  f2 : 78\n}" ;
+      t
+        "ctrl+right at end of key moves to end of value"
+        multiRowRecord
+        (ctrlRight 6)
+        "{\n  f1 : 56~\n  f2 : 78\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
       t

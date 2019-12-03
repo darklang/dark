@@ -93,6 +93,9 @@ let parentExprID (t : token) : id =
 
 let validID id = id <> fakeid
 
+(* Tokens that are 'editable' are considered text tokens
+ * If the cursor is to the left of a text token, then pressing a character
+ * will append to the end of that token *)
 let isTextToken token : bool =
   match token with
   | TInteger _
@@ -155,6 +158,14 @@ let isTextToken token : bool =
   | TLambdaArrow _
   | TParenOpen _
   | TParenClose _ ->
+      false
+
+
+let isStringToken token : bool =
+  match token with
+  | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
+      true
+  | _ ->
       false
 
 
