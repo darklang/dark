@@ -31,8 +31,9 @@ module K = FluidKeyboard
  *      flag.
  * There are also certain conventions in the display of text in the output:
  *  - TBlanks are displayed as `___`
- *  - TPlaceHolders are displayed as normal but with underscores: for example
- *    `_a_:_Int_`
+ *  - TPlaceHolders are displayed as underscores of the original length:
+ *  for example if the original is " a : Int " then we show
+ *    `_________`
  *  - TPartials are displayed as text - to detect their presence,
  *    see "t vs tp" above.
  *  - TGhostPartials are displayed as multiple @ signs

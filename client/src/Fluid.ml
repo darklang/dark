@@ -305,8 +305,8 @@ let rec toExpr ?(inPipe = false) (expr : fluidExpr) : Types.expr =
       F (id, Value (literalToString `Null))
   | EVariable (id, var) ->
       F (id, Variable var)
-  | EFieldAccess (id, obj, _, "") ->
-      F (id, FieldAccess (toExpr obj, Blank.new_ ()))
+  | EFieldAccess (id, obj, fieldID, "") ->
+      F (id, FieldAccess (toExpr obj, Blank fieldID))
   | EFieldAccess (id, obj, fieldID, fieldname) ->
       F (id, FieldAccess (toExpr obj, F (fieldID, fieldname)))
   | EFnCall (id, name, args, ster) ->
@@ -2719,8 +2719,10 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
-let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
-  let s = recordAction ~ti "acCompleteField" s in
+(* Convert the expression at ti into a FieldAccess, using the currently
+ * selected Autocomplete value *)
+let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
+  let s = recordAction ~ti "acStartField" s in
   match AC.highlighted s.ac with
   | None ->
       (ast, s)
@@ -2728,7 +2730,7 @@ let acCompleteField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr, length = acToExpr entry in
       let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
       let length = length + 1 in
-      let newState = moveTo (ti.startPos + length) (acClear s) in
+      let newState = s |> moveTo (ti.startPos + length) |> acClear in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
 
@@ -3602,7 +3604,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
-        acCompleteField ti ast s
+        acStartField ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
@@ -4675,7 +4677,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       | None ->
           (* We reset the fluidState to prevent the selection and/or cursor position from persisting
            * when a user switched handlers *)
-          (ast, Defaults.defaultFluidState) )
+          (ast, s |> acClear) )
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
