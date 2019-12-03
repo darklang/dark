@@ -2454,6 +2454,23 @@ let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
   (newAST, newState)
 
 
+let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
+  let s = recordAction "wrapInLet" s in
+  let id = Token.tid ti.token in
+  match findExpr id ast with
+  | Some expr ->
+      let newExpr = ELet (gid (), gid (), "", expr, EBlank (gid ())) in
+      let newAST = replaceExpr ~newExpr id ast in
+      let tokens = toTokens s newAST in
+      ( match List.last tokens with
+      | Some lastTi ->
+          (newAST, moveToStart lastTi s)
+      | None ->
+          (ast, s) )
+  | None ->
+      (ast, s)
+
+
 (* -------------------- *)
 (* Autocomplete *)
 (* -------------------- *)
@@ -3871,6 +3888,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
+    | K.Enter, L (_, ti), No ->
+        wrapInLet ti ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
