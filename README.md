@@ -87,7 +87,7 @@ scripts/run-in-docker backend/_build/default/bin/add_admin.exe --prompt-for-pass
 which will prompt you for your password (this can be the same as the one in prod),
 username, email, and name.
 
-This will output 
+This will output
 ```
   upsert_admin_exn
       { username = "YOURNAME"
@@ -230,16 +230,35 @@ any other env var.
 
 ## Setting up your editor
 
-Ideally, you'd be able to use merlin inside the container.
-We have this kinda working, but not fully. You can use ocamlmerlin in
-the container, but it needs some vim/emacs scripts locally, which
-require the whole toolchain to get installed unless you want to hack it.
+Merlin is an OCaml language server that provides things like autocompletion,
+type information, and go-to-definition functionality. Because all OCaml
+libraries are installed inside the container and not on your local machine,
+merlin needs to be running inside the container. Unfortunately, this install is
+not completely isolated and we still need some supporting things installed on
+your host.
 
+The way this works is that you'll need merlin on your host to get the editor
+support files and then you'll point those at the `scripts/ocamlmerlin` wrapper
+to execute the actual process inside the container. This means that you need
+those scripts first in your `$PATH`.
+
+- `export $PATH=$DARKDIR/scripts:$PATH` in your shell config
 - Install merlin:
   - `brew install opam`
-  - `opam init`
-    - copy snippet to your bashrc/shell config
-  - `opam install merlin`
+  - `opam init -c 4.06.1`
+    - grep the `Dockerfile` for `OCAML_SWITCH` to ensure the version matches
+    - copy snippet to your bashrc/shell config. DO NOT DO THIS FOR zsh. SEE BELOW.
+  - `opam install merlin.3.2.2`
+- Install editor integration:
+  - vim+plug: `Plug '~/.opam/default/share/merlin', { 'for': ['ocaml', 'merlin' ], 'rtp': 'vim' }`
+  - others: ??
+
+CAVEAT: If you install the zsh config that merlin recommends, it will
+automatically execute the equivalent of `eval $(opam env)` after every command.
+This command mucks with your `$PATH`, which means that you will never execute
+the `scripts/` wrappers you want. Do not use the shell integration. Instead
+call `eval $(opam env)` and then `export $PATH=$DARKDIR/scripts:$PATH` (put
+this in an alias or something).
 
 You will also want to support ocamlformat. For emacs, see [the
 readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
@@ -248,14 +267,14 @@ readme](https://github.com/ocaml-ppx/ocamlformat#emacs-setup). For vim:
 ```
 set rtp+=~/[path to dark]/dark/scripts/ocamlformat
 let g:ale_javascript_prettier_executable= '/Users/YOURUSERNAME/YOURPATH/dark/scripts/prettier'
-let g:ale_fixers = 
-\ {'rust': ['rustfmt'], 
-\  'ocaml':['ocamlformat'], 
-\  'javascript': ['prettier'], 
-\  'js': ['prettier'], 
+let g:ale_fixers =
+\ {'rust': ['rustfmt'],
+\  'ocaml':['ocamlformat'],
+\  'javascript': ['prettier'],
+\  'js': ['prettier'],
 \  'html': ['prettier'],
-\  'css': ['prettier'], 
-\  'scss': ['prettier']} 
+\  'css': ['prettier'],
+\  'scss': ['prettier']}
 ```
 
 ### Pre-commit hook
