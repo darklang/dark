@@ -161,6 +161,14 @@ let isTextToken token : bool =
       false
 
 
+let isStringToken token : bool =
+  match token with
+  | TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _ ->
+      true
+  | _ ->
+      false
+
+
 (* if the cursor is at the end of this token, we take it as editing this
 * token, rather than writing the next token. *)
 let isAppendable token : bool =
