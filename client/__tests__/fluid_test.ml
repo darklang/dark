@@ -217,7 +217,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "expr before" (eToStructure s ast) ) ;
+      Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
@@ -272,7 +272,7 @@ let () =
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState result) ) ;
+      Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
     ( (eToString s result, (selPos, finalPos))
     , if partialsFound then ContainsPartial else NoPartial )
   in

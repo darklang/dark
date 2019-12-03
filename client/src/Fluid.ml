@@ -956,11 +956,16 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure (s : state) (e : fluidExpr) : string =
+let eToStructure ?(includeIDs = false) (s : state) (e : fluidExpr) : string =
   e
   |> toTokens s
   |> List.map ~f:(fun ti ->
-         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+         "<"
+         ^ Token.toTypeName ti.token
+         ^ (if includeIDs then "(" ^ (Token.tid ti.token |> deID) ^ ")" else "")
+         ^ ":"
+         ^ Token.toText ti.token
+         ^ ">" )
   |> String.join ~sep:""
 
 
