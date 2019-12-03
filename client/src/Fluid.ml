@@ -4935,7 +4935,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
   | FluidClearDvSrc ->
-      FluidSetState {m.fluidState with dvSrc = SourceNone}
+      FluidSetState {m.fluidState with errorDvSrc = SourceNone}
   | FluidFocusOn id ->
       (* Spec for Focus on expresssion: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
@@ -4951,7 +4951,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              let ast = fromExpr s expr in
              let fluidState =
                let fs = moveToEndOfTarget id ast s in
-               {fs with dvSrc = SourceId id}
+               {fs with errorDvSrc = SourceId id}
              in
              let moveMod =
                match Viewport.moveToToken id tl with
@@ -5281,7 +5281,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
             )
           ; ( "jumped-to"
-            , match state.dvSrc with
+            , match state.errorDvSrc with
               | SourceNone ->
                   false
               | SourceId id ->
