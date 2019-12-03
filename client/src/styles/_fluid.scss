@@ -453,11 +453,13 @@ $error-color: saturate($red, 10%);
     animation: 1.5s fadeOut 0.5s;
   }
 
+  /* Tooltip message for sources of the incomplete */
   &.dark-incomplete.is-origin:not(.cursor-on):hover:after,
   &.dark-incomplete.jumped-to:after {
     content: "The Incomplete came from here";
   }
 
+  /* Tooltip message for sources of the error */
   &.dark-error.is-origin:not(.cursor-on):hover:after,
   &.dark-error.jumped-to:after {
     content: "The Error came from here";
