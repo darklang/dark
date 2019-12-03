@@ -786,19 +786,18 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany versionToken
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id args
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let oldText = ViewUtils.partialName oldName in
+      let ghost = ghostPartial id newText oldText in
+      b |> add partial |> addMany ghost |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
-      let ghost = ghostPartial id newName oldName in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id exprs
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldName in
+      b |> add partial |> addMany ghost |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
@@ -807,11 +806,12 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
            ; TFieldName (id, fieldID, fieldname) ]
   | EPartial (id, newFieldname, EFieldAccess (_, expr, fieldID, oldFieldname))
     ->
-      let ghost = ghostPartial id newFieldname oldFieldname in
+      let partial = TFieldPartial (id, fieldID, newFieldname) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldFieldname in
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany
-           [TFieldOp (id, eid expr); TFieldPartial (id, fieldID, newFieldname)]
+      |> addMany [TFieldOp (id, eid expr); partial]
       |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
