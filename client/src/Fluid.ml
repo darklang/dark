@@ -3851,21 +3851,18 @@ and deleteCaretRange ~state ~ast (caretRange : int * int) : ast * fluidState =
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
   in
-  (* repeat deletion operation over range, starting from last position till first *)
-  Array.range ~from:rangeStart rangeEnd
-  |> Array.toList
-  |> List.foldl ~init:(true, ast, state) ~f:(fun _ (continue, ast, state) ->
-         let newAst, newState = updateKey K.Backspace ast state in
-         if not continue
-         then (false, ast, state)
-         else if (* stop deleting if newPos doesn't change to prevent infinite recursion*)
-                 newState.newPos = state.newPos
-         then (false, ast, state)
-         else if (* stop deleting if we reach range start*)
-                 newState.newPos < rangeStart
-         then (false, ast, state)
-         else (true, newAst, newState) )
-  |> fun (_, ast, state) -> (ast, state)
+  let currAst, currState = (ref ast, ref state) in
+  let nothingChanged = ref false in
+  while (not !nothingChanged) && !currState.newPos > rangeStart do
+    let newAst, newState = updateKey K.Backspace !currAst !currState in
+    if newState.newPos = !currState.newPos && newAst = !currAst
+    then
+      (* stop if nothing changed--guarantees loop termination *)
+      nothingChanged := true
+    else currAst := newAst ;
+    currState := newState
+  done ;
+  (!currAst, !currState)
 
 
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
