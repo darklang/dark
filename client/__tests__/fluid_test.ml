@@ -811,49 +811,48 @@ let () =
         (del 48)
         ( "if \"123456789_abcdefghi,123456789_abcdefghi,~\"\n"
         ^ "then\n  ___\nelse\n  ___" ) ;
-      (* t
+      t
         "ctrl+left at beg of start string moves to beg"
         mlStrWSpace
         (ctrlLeft 6)
-        "\"~abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\"";
-          (*  *)
+        ("\"~123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+          ^ "ghi,\"");
       t
         "ctrl+left at beg of middle string moves to beg"
         mlStrWSpace
-        (ctrlLeft 45)
-        "\"abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\"";
+        (ctrlLeft 54)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ " ~123456789_ abcdefghi, 123456789_ abcdef\n"
+          ^ "ghi,\"");
       t
         "ctrl+left at beg of end string moves to beg"
         mlStrWSpace
-        (ctrlLeft 87)
-        "\"abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\"";
+        (ctrlLeft 76)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ " 123456789_ abcdefghi, ~123456789_ abcdef\n"
+          ^ "ghi,\"");
       t
         "ctrl+right at beg of start string moves to end"
         mlStrWSpace
         (ctrlRight 0)
-        "\"abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\"";
+        ("\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+          ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+          ^ "ghi,\"");
       t
         "ctrl+right at beg of middle string moves to end"
         mlStrWSpace
-        (ctrlRight 42)
-        "\"abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\"";
+        (ctrlRight 46)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ " 123456789_~ abcdefghi, 123456789_ abcdef\n"
+          ^ "ghi,\"");
       t
         "ctrl+right at beg of end string moves to end"
         mlStrWSpace
-        (ctrlRight 83)
-        "\"abcdef ghijkl mnopqr stuvqx yz! abcdef g\n"
-          ^ "hijkl mnopqr stuvqx yz! abcdef ghijkl mn\n"
-          ^ "opqr stuvqx yz! 123456789_\""; *)
+        (ctrlRight 76)
+        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
+          ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
+          ^ "ghi,\"");
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
