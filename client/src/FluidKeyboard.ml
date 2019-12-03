@@ -105,6 +105,8 @@ type key =
   | GoToEndOfLine
   | DeleteToStartOfLine
   | DeleteToEndOfLine
+  | GoToStartOfWord
+  | GoToEndOfWord
   | Undo
   | Redo
   | SelectAll
@@ -114,8 +116,9 @@ and side =
   | RightHand
 [@@deriving show]
 
-let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
-    key =
+let fromKeyboardCode
+    (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) (code : int) : key
+    =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
@@ -149,11 +152,23 @@ let fromKeyboardCode (shift : bool) (ctrl : bool) (meta : bool) (code : int) :
   | 36 ->
       Home
   | 37 ->
-      if isMacCmdHeld then GoToStartOfLine else Left
+      if meta
+      then GoToStartOfLine
+      else if (isMac && alt) || ctrl
+              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      then GoToStartOfWord
+      else Left
   | 38 ->
       Up
   | 39 ->
-      if isMacCmdHeld then GoToEndOfLine else Right
+      if meta
+      then GoToEndOfLine
+      else if (isMac && alt) || ctrl
+              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      then GoToEndOfWord
+      else Right
   | 40 ->
       Down
   | 45 ->
@@ -447,6 +462,8 @@ let toChar key : char option =
   | GoToEndOfLine
   | DeleteToStartOfLine
   | DeleteToEndOfLine
+  | GoToStartOfWord
+  | GoToEndOfWord
   | Undo
   | Redo
   | SelectAll ->
@@ -613,6 +630,10 @@ let toName (key : key) : string =
       "DeleteToStartOfLine"
   | DeleteToEndOfLine ->
       "DeleteToEndOfLine"
+  | GoToStartOfWord ->
+      "GoToStartOfWord"
+  | GoToEndOfWord ->
+      "GoToEndOfWord"
   | Undo ->
       "Undo"
   | Redo ->
@@ -690,7 +711,8 @@ let keyEvent j =
   let ctrl = field "ctrlKey" bool j in
   let shift = field "shiftKey" bool j in
   let meta = field "metaKey" bool j in
-  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta
+  let alt = field "altKey" bool j in
+  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta alt
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
