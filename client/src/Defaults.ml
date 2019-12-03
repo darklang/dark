@@ -48,7 +48,7 @@ let defaultFluidState : fluidState =
       ; allCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
-  ; dvSrc = SourceNone }
+  ; errorDvSrc = SourceNone }
 
 
 let defaultCanvasProps : canvasProps =

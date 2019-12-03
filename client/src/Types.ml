@@ -1372,7 +1372,9 @@ and fluidState =
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
   ; selectionStart : int option (* The selection ends at newPos *)
-  ; dvSrc : dval_source }
+  ; errorDvSrc : dval_source
+  (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
+  }
 
 (* Avatars *)
 and avatar =
