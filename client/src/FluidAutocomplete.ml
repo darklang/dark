@@ -207,7 +207,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let traceID = Analysis.getSelectedTraceID m tlid in
   let id =
     match ti.token with
-    | TFieldName (_, fieldID, _) ->
+    | TFieldPartial (_, fieldID, _) | TFieldName (_, fieldID, _) ->
         fieldID
     | _ ->
         FluidToken.tid ti.token
@@ -421,7 +421,7 @@ let generate
     match ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
         generatePatterns ti a queryString
-    | TFieldName _ ->
+    | TFieldName _ | TFieldPartial _ ->
         generateFields dval
     | _ ->
         generateExprs m tl a ti
