@@ -2457,8 +2457,7 @@ let () =
            ; emptyRecord ])
         (key K.DeleteToEndOfLine 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}" ;
-      (* TODO(JULIAN): Enable this test once deleting a selection at the end of a string works *)
-      (* t
+      t
         "K.DeleteToStartOfLine deletes up to line start at the end of a wrapping string"
         (let veryLongString =
            "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyz"
@@ -2470,7 +2469,7 @@ let () =
            ; emptyRecord
            ; emptyRecord ])
         (key K.DeleteToStartOfLine 163)
-        "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ; *)
+        "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
       () ) ;
   describe "Selection Movement" (fun () ->
       ts
