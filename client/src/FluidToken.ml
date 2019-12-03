@@ -35,6 +35,7 @@ let tid (t : token) : id =
   | TBinOp (id, _)
   | TFieldOp (id, _)
   | TFieldName (id, _, _)
+  | TFieldPartial (id, _, _)
   | TVariable (id, _)
   | TFnName (id, _, _, _, _)
   | TFnVersion (id, _, _, _)
@@ -102,6 +103,7 @@ let isTextToken token : bool =
   | TLetLHS _
   | TBinOp _
   | TFieldName _
+  | TFieldPartial _
   | TVariable _
   | TConstructorName _
   | TFnName _
@@ -189,6 +191,7 @@ let isBlank t =
   | TRecordFieldname (_, _, _, "")
   | TVariable (_, "")
   | TFieldName (_, _, "")
+  | TFieldPartial (_, _, "")
   | TLetLHS (_, _, "")
   | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
@@ -235,8 +238,8 @@ let isAutocompletable (t : token) : bool =
   match t with
   | TBlank _
   | TPlaceholder _
-  | TFieldName _
   | TPartial _
+  | TFieldPartial _
   | TRightPartial _
   | TPatternBlank _
   (* since patterns have no partial but commit as variables
@@ -312,8 +315,10 @@ let toText (t : token) : string =
       shouldntBeEmpty op
   | TFieldOp _ ->
       "."
-  | TFieldName (_, _, name) ->
+  | TFieldPartial (_, _, name) ->
       canBeEmpty name
+  | TFieldName (_, _, name) ->
+      shouldntBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
   | TFnName (_, _, displayName, _, _) | TFnVersion (_, _, displayName, _) ->
@@ -484,6 +489,8 @@ let toTypeName (t : token) : string =
       "field-op"
   | TFieldName _ ->
       "field-name"
+  | TFieldPartial _ ->
+      "field-partial"
   | TVariable _ ->
       "variable"
   | TFnName _ ->
@@ -572,7 +579,7 @@ let toCategoryName (t : token) : string =
       "indent"
   | TIfKeyword _ | TIfThenKeyword _ | TIfElseKeyword _ ->
       "if"
-  | TFieldOp _ | TFieldName _ ->
+  | TFieldOp _ | TFieldName _ | TFieldPartial _ ->
       "field"
   | TLambdaVar _ | TLambdaSymbol _ | TLambdaArrow _ | TLambdaSep _ ->
       "lambda"

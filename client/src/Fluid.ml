@@ -609,7 +609,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
   let open Builder in
   let ghostPartial id newName oldName =
-    let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
@@ -757,7 +756,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName oldName in
+      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
       let start b =
         match lexpr with
         | EPipeTarget _ ->
@@ -787,7 +786,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany versionToken
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let ghost = ghostPartial id newName oldName in
+      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
       b
       |> add (TPartial (id, newName))
       |> addMany ghost
@@ -806,6 +805,14 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany
            [ TFieldOp (id, (* lhs *) eid expr)
            ; TFieldName (id, fieldID, fieldname) ]
+  | EPartial (id, newFieldname, EFieldAccess (_, expr, fieldID, oldFieldname))
+    ->
+      let ghost = ghostPartial id newFieldname oldFieldname in
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany
+           [TFieldOp (id, eid expr); TFieldPartial (id, fieldID, newFieldname)]
+      |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
@@ -2111,20 +2118,25 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
 let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (id, expr, fieldID, _) ->
-          EFieldAccess (id, expr, fieldID, str)
+      | EPartial (id, _, (EFieldAccess _ as fa)) ->
+          EPartial (id, str, fa)
+      | EFieldAccess _ ->
+          EPartial (id, str, e)
       | _ ->
           recover "not a field in replaceFieldName" ~debug:e e )
 
 
 let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
+  updateExpr id ast ~f:(fun e ->
+      EPartial (gid (), "", EFieldAccess (fieldID, e, gid (), "")) )
 
 
 let removeField (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
+          faExpr
+      | EPartial (_, _, EFieldAccess (_, faExpr, _, _)) ->
           faExpr
       | _ ->
           recover "not a fieldAccess in removeField" ~debug:e e )
@@ -2263,6 +2275,9 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       then EString (gid (), String.slice ~from:1 ~to_:(-1) str)
       else
         match e with
+        | EPartial (_, _, (EFieldAccess _ as oldVal)) ->
+            (* This is allowed to be the empty string. *)
+            EPartial (id, str, oldVal)
         | EPartial (id, _, oldVal) ->
             asserT
               ~debug:str
@@ -2557,6 +2572,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TRightPartial (id, str) ->
       replaceWithRightPartial (f str) id ast
   | TFieldName (id, _, str) ->
+      replaceFieldName (f str) id ast
+  | TFieldPartial (id, _, str) ->
       replaceFieldName (f str) id ast
   | TTrue id ->
       replaceWithPartial (f "true") id ast
@@ -3038,8 +3055,10 @@ let updateFromACItem
         let newExpr = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = replaceExpr ~newExpr id ast in
         (newAST, String.length name)
-    | ( TFieldName _
-      , Some (EFieldAccess (faID, labelid, expr, _))
+    | ( (TFieldName _ | TFieldPartial _)
+      , Some
+          ( EFieldAccess (faID, labelid, expr, _)
+          | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
       , _
       , EFieldAccess (_, _, _, newname) ) ->
         let newExpr = EFieldAccess (faID, labelid, expr, newname) in
@@ -3101,7 +3120,9 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       (ast, s)
   | Some entry ->
       let newExpr, length = acToExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
+      let newExpr =
+        EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
+      in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
@@ -3300,6 +3321,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TNullToken _
     | TVariable _
     | TFieldName _
+    | TFieldPartial _
     | TLetLHS _
     | TPatternInteger _
     | TPatternNullToken _
@@ -3449,6 +3471,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TRightPartial _
   | TFieldName _
+  | TFieldPartial _
   | TLetLHS _
   | TPatternNullToken _
   | TPatternTrue _
@@ -3557,7 +3580,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let newAST, newPosition =
     match ti.token with
-    | (TFieldName (id, _, _) | TVariable (id, _))
+    | (TFieldName (id, _, _) | TVariable (id, _) | TFieldPartial (id, _, _))
       when pos = ti.endPos && letter = '.' ->
         let fieldID = gid () in
         (exprToFieldAccess id fieldID ast, RightOne)
@@ -3595,6 +3618,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when not (isIdentifierChar letterStr) ->
@@ -3603,6 +3627,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
@@ -3628,6 +3653,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (newAST, Exactly (newState.newPos + 1))
     | TRecordFieldname _
     | TFieldName _
+    | TFieldPartial _
     | TVariable _
     | TPartial _
     | TRightPartial _
