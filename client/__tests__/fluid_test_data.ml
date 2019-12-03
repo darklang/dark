@@ -95,7 +95,18 @@ let mlSegment = numSegment ^ letterSegment ^ numSegment ^ letterSegment
 
 let mlStr = str (mlSegment ^ mlSegment ^ numSegment)
 
-let mlStrWSpace = str (mlSegment ^ " " ^ numSegment ^ " " ^ letterSegment ^ " " ^ numSegment ^ " " ^ letterSegment)
+let mlStrWSpace =
+  str
+    ( mlSegment
+    ^ " "
+    ^ numSegment
+    ^ " "
+    ^ letterSegment
+    ^ " "
+    ^ numSegment
+    ^ " "
+    ^ letterSegment )
+
 
 (* ---------------- *)
 (* Ints *)
