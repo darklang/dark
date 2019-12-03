@@ -1343,6 +1343,20 @@ let () =
         (key K.DeleteNextWord 4)
         "obj.~***.field2" ;
       tp
+        "insert dot to complete partial field"
+        (EPartial
+           ( gid ()
+           , "body"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
+        (ins ~clone:false '.' 11)
+        "request.body.~***" ;
+      tp
+        "insert dot even when no content in the field"
+        (EVariable (ID "12", "request"))
+        (keys ~clone:false [K.Period; K.Period] 7)
+        "request.body.~***" ;
+      tp
         "bs fieldpartial character"
         (partial "a" (fieldAccess b ""))
         (bs 5)
@@ -2975,8 +2989,18 @@ let () =
                )
            , EBlank (gid ()) ))
         (* Right should make it commit *)
-        (keys ~clone:false [K.Right] 20)
+        (key ~clone:false K.Right 20)
         "let x = request.body\n~___" ;
+      tp
+        "autocomplete for field is committed by dot"
+        (EPartial
+           ( gid ()
+           , "bod"
+           , EFieldAccess
+               (gid (), EVariable (ID "12", "request"), gid (), "longfield") ))
+        (* Dot should select the autocomplete *)
+        (key ~clone:false K.Period 11)
+        "request.body.~***" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
