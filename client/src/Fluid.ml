@@ -5377,6 +5377,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
 let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
+  let goToSrcView text tid =
+    Html.div
+      [ ViewUtils.eventNoPropagation
+          ~key:("lv-src-" ^ deID tid)
+          "click"
+          (fun _ -> FluidMsg (FluidFocusOn tid))
+      ; Html.class' "jump-src" ]
+      [Html.text text]
+  in
   let liveValue, show, offset =
     let none = ([Vdom.noNode], false, 0) in
     getToken state ast
@@ -5401,52 +5410,25 @@ let viewLiveValue
                Analysis.getLiveValueLoadable vs.analysisStore id
              in
              match (AC.highlighted state.ac, loadable) with
+             | None, LoadableSuccess (DIncomplete (SourceId srcId))
+               when srcId <> id ->
+                 ( [goToSrcView "<Incomplete> Click to locate source" srcId]
+                 , true
+                 , ti.startRow )
              | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
                ->
                  let text = Option.withDefault ~default:"" fnText in
                  ([Html.text text], true, ti.startRow)
-             | None, LoadableSuccess (DIncomplete src) ->
-                 let text, targetId =
-                   match src with
-                   | SourceId srcId when srcId <> id ->
-                       ("<Incomplete: Click to locate source>", Some srcId)
-                   | _ ->
-                       ("<Incomplete>", None)
-                 in
-                 let dom =
-                   targetId
-                   |> Option.map ~f:(fun tid ->
-                          Html.div
-                            [ ViewUtils.eventNoPropagation
-                                ~key:("lv-src-" ^ deID tid)
-                                "click"
-                                (fun _ -> FluidMsg (FluidFocusOn tid))
-                            ; Html.class' "jump-src" ]
-                            [Html.text text] )
-                   |> Option.withDefault ~default:(Html.text text)
-                 in
-                 ([dom], true, ti.startRow)
-             | None, LoadableSuccess (DError (src, msg)) ->
-                 let text, targetId =
-                   match src with
-                   | SourceId srcId when srcId <> id ->
-                       ("<Error: Click to locate source>", Some srcId)
-                   | _ ->
-                       ("<Error: " ^ msg ^ ">", None)
-                 in
-                 let dom =
-                   targetId
-                   |> Option.map ~f:(fun tid ->
-                          Html.div
-                            [ ViewUtils.eventNoPropagation
-                                ~key:("lv-src-" ^ deID tid)
-                                "click"
-                                (fun _ -> FluidMsg (FluidFocusOn tid))
-                            ; Html.class' "jump-src" ]
-                            [Html.text text] )
-                   |> Option.withDefault ~default:(Html.text text)
-                 in
-                 ([dom], true, ti.startRow)
+             | None, LoadableSuccess (DIncomplete _) ->
+                 ([Html.text "<Incomplete>"], true, ti.startRow)
+             | None, LoadableSuccess (DError (SourceId srcId, _))
+               when srcId <> id ->
+                 (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
+                 ( [goToSrcView "<Error> Click to locate source" srcId]
+                 , true
+                 , ti.startRow )
+             | None, LoadableSuccess (DError (_, msg)) ->
+                 ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
                  let text = Runtime.toRepr dval in
