@@ -506,7 +506,15 @@ let refilter
     match ti.token with TFieldPartial _ -> true | _ -> false
   in
   let index =
-    if (queryString = "" && not isFieldPartial) || newCount = 0
+    if isFieldPartial && newCount > 0
+    then
+      (* If we didn't change anything, don't change anything *)
+      match oldHighlightNewIndex with
+      | Some newIndex ->
+          Some newIndex
+      | None ->
+          Some 0
+    else if queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
       None
     else if oldQueryString = queryString
