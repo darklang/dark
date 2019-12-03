@@ -1429,68 +1429,33 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
-  let optionTokenInfo =
-    let tokens = toTokens s ast in
-    let rec findToken (tokenInfo : fluidTokenInfo option) =
-      (* Finds the closest white space before the current cursor position *)
-      match tokenInfo with
-      | Some ti ->
-          (* If the token is editable, we want to place the cursor in that token *)
-          if Token.isTextToken ti.token && pos != ti.startPos
-          then Some ti
-          else
-            (* If not, we want to try the previous token *)
-            let mPrev, _, _ = getTokensAtPosition ~pos:ti.startPos tokens in
-            findToken mPrev
-      | None ->
-          None
-    in
-    findToken (Some ti)
+  (* We want to find the closest editable token that is before the current cursor position 
+  * so the cursor always lands in a position where a user is able to type *)
+  let previousToken =
+    toTokens s ast
+    |> List.reverse
+    |> List.find ~f:(fun t -> Token.isTextToken t.token && pos > t.startPos)
   in
-  (* Finds how many moves to get to first whitespace *)
+  (* Finds how many moves to get to previous whitespace in a string *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    let tokenTostr = Token.toText tokenInfo.token in
     let posInString = pos - tokenInfo.startPos in
-    let possibleWhiteSpacePos =
-      let offsetPosInString =
-        if posInString == tokenInfo.length || posInString == 1
-        then posInString - 1
-        else posInString - 2
-      in
-      (* Space *)
-      let spaceIdx =
-        String.rindex_from_opt ~pos:offsetPosInString tokenTostr ' '
-      in
-      (* Newline *)
-      let newLineIdx =
-        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\010'
-      in
-      (* Tab *)
-      let tabIdx =
-        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\009'
-      in
-      (* double quote *)
-      let qouteIdx =
-        String.rindex_from_opt ~pos:offsetPosInString tokenTostr '\034'
-      in
-      let findLastWhiteSpace =
-        [spaceIdx; newLineIdx; tabIdx; qouteIdx]
-        |> List.filterMap ~f:(fun v -> v)
-        |> List.filter ~f:(fun v -> v != posInString)
-        |> List.sortBy ~f:(fun v -> v)
-        |> List.reverse
-        |> List.head
-      in
-      match findLastWhiteSpace with
-      | Some pos when offsetPosInString != 0 ->
-          if posInString == tokenInfo.length || pos == 1 then pos else pos + 1
-      | _ ->
-          0
+    let index : int ref = ref tokenInfo.length in
+    let _ =
+      Token.toText tokenInfo.token
+      |> String.split ~on:""
+      |> List.reverse
+      |> List.find ~f:(fun a ->
+             if (a == " " || a = "\"" || a = "\n" || a = "\t")
+                && !index < posInString
+             then true
+             else (
+               index := !index - 1 ;
+               false ) )
     in
-    possibleWhiteSpacePos
+    !index
   in
   let newPos =
-    let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
+    let tokenInfo = previousToken |> Option.withDefault ~default:ti in
     match tokenInfo.token with
     | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
       when pos != tokenInfo.startPos ->
@@ -1505,60 +1470,31 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     =
   let s = recordAction "goToEndOfWord" s in
-  let optionTokenInfo =
-    let tokens = toTokens s ast in
-    (* Finds the next whitespace after the current cursor position *)
-    let rec findToken (tokenInfo : fluidTokenInfo option) =
-      match tokenInfo with
-      | Some ti ->
-          (* If the token is editable, we want to place the cursor in that token *)
-          if Token.isTextToken ti.token
-          then Some ti
-          else
-            (* If not, we want to try the next token *)
-            let _, _, mNext = getTokensAtPosition ~pos:ti.startPos tokens in
-            findToken mNext
-      | None ->
-          None
-    in
-    findToken (Some ti)
+  (* We want to find the closest editable token that is after the current cursor position 
+  * so the cursor always lands in a position where a user is able to type *)
+  let nextToken =
+    toTokens s ast
+    |> List.find ~f:(fun t -> Token.isTextToken t.token && pos < t.endPos)
   in
-  (* Finds how many moves to get to first whitespace *)
+  (* Finds how many moves to get to next whitespace in a string *)
   let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    let str = Token.toText tokenInfo.token in
-    let posInString =
-      if pos < tokenInfo.startPos then 0 else pos - tokenInfo.startPos
+    let posInString = pos - tokenInfo.startPos in
+    let index : int ref = ref 0 in
+    let _ =
+      Token.toText tokenInfo.token
+      |> String.split ~on:""
+      |> List.find ~f:(fun a ->
+             if (a == " " || a = "\"" || a = "\n" || a = "\t")
+                && !index > posInString
+             then true
+             else (
+               index := !index + 1 ;
+               false ) )
     in
-    let possibleWhiteSpacePos =
-      let offsetPosInString =
-        if posInString == 0 || posInString == tokenInfo.length - 1
-        then posInString
-        else posInString + 1
-      in
-      (* double quote *)
-      let qouteIdx = String.index_from_opt ~pos:offsetPosInString str '\034' in
-      (* Space *)
-      let spaceIdx = String.index_from_opt ~pos:offsetPosInString str ' ' in
-      (* Newline *)
-      let newLineIdx =
-        String.index_from_opt ~pos:offsetPosInString str '\010'
-      in
-      (* Tab *)
-      let tabIdx = String.index_from_opt ~pos:offsetPosInString str '\009' in
-      let findLastWhiteSpace =
-        [spaceIdx; newLineIdx; tabIdx; qouteIdx]
-        |> List.filterMap ~f:(fun v -> v)
-        |> List.filter ~f:(fun v -> v != posInString)
-        |> List.sortBy ~f:(fun v -> v)
-        |> List.head
-        |> Option.withDefault ~default:tokenInfo.length
-      in
-      findLastWhiteSpace
-    in
-    possibleWhiteSpacePos
+    !index
   in
   let newPos =
-    let tokenInfo = optionTokenInfo |> Option.withDefault ~default:ti in
+    let tokenInfo = nextToken |> Option.withDefault ~default:ti in
     match tokenInfo.token with
     | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
       when pos != tokenInfo.endPos ->
