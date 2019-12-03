@@ -257,7 +257,9 @@ let () =
       else newState.newPos
     in
     let selPos =
-      Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      if wrap
+      then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      else newState.selectionStart
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
