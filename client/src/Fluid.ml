@@ -5352,8 +5352,9 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ViewUtils.onAnimationEnd
               ~key:("anim-end" ^ idStr)
               ~listener:(fun msg ->
-                if msg = "fadeOut" then FluidMsg FluidClearDvSrc else IgnoreMsg
-            ) ]
+                if msg = "flashError" || msg = "flashIncomplete"
+                then FluidMsg FluidClearDvSrc
+                else IgnoreMsg ) ]
         in
         let innerNode =
           match innerNestingClass with
