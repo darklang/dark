@@ -1340,6 +1340,16 @@ let () =
         aNestedField
         (key K.DeleteNextWord 4)
         "obj.~***.field2" ;
+      tp
+        "bs fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (bs 5)
+        "___.~***" ;
+      tp
+        "del fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (del 4)
+        "___.~***" ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -2949,6 +2959,22 @@ let () =
            ))
         (enter ~clone:false 10)
         "request.body~" ;
+      t
+        "autocomplete for field autocommits"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "x"
+           , EPartial
+               ( gid ()
+               , "body"
+               , EFieldAccess
+                   (gid (), EVariable (ID "12", "request"), gid (), "longfield")
+               )
+           , EBlank (gid ()) ))
+        (* Right should make it commit *)
+        (keys ~clone:false [K.Right] 20)
+        "let x = request.body\n~___" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
