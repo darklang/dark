@@ -815,44 +815,44 @@ let () =
         "ctrl+left at beg of start string moves to beg"
         mlStrWSpace
         (ctrlLeft 6)
-        ("\"~123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
-          ^ "ghi,\"");
+        ( "\"~123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
       t
         "ctrl+left at beg of middle string moves to beg"
         mlStrWSpace
         (ctrlLeft 54)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ " ~123456789_ abcdefghi, 123456789_ abcdef\n"
-          ^ "ghi,\"");
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " ~123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
       t
         "ctrl+left at beg of end string moves to beg"
         mlStrWSpace
         (ctrlLeft 76)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ " 123456789_ abcdefghi, ~123456789_ abcdef\n"
-          ^ "ghi,\"");
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, ~123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of start string moves to end"
         mlStrWSpace
         (ctrlRight 0)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,~\n"
-          ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
-          ^ "ghi,\"");
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of middle string moves to end"
         mlStrWSpace
         (ctrlRight 46)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ " 123456789_~ abcdefghi, 123456789_ abcdef\n"
-          ^ "ghi,\"");
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_~ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
       t
         "ctrl+right at beg of end string moves to end"
         mlStrWSpace
         (ctrlRight 76)
-        ("\"123456789_abcdefghi,123456789_abcdefghi,\n"
-          ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
-          ^ "ghi,\"");
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
+        ^ "ghi,\"" ) ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;

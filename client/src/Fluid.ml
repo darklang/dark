@@ -1429,6 +1429,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
+  let s = recordAction "goToStartOfWord" s in
   (* We want to find the closest editable token that is before the current cursor position 
   * so the cursor always lands in a position where a user is able to type *)
   let previousToken =
@@ -1437,32 +1438,32 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos > t.startPos)
   in
   (* Finds how many moves to get to previous whitespace in a string *)
-  let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    let posInString = pos - tokenInfo.startPos in
-    let index : int ref = ref tokenInfo.length in
+  let findPosOffsetToNextWhiteSpaceInStr (tokenInfo : fluidTokenInfo) : int =
+    let posInToken = pos - tokenInfo.startPos in
+    let offset : int ref = ref tokenInfo.length in
     let _ =
       Token.toText tokenInfo.token
       |> String.split ~on:""
       |> List.reverse
       |> List.find ~f:(fun a ->
              if ( a == " "
-                || (a = "\"" && !index != tokenInfo.length)
+                || (a = "\"" && !offset != tokenInfo.length)
                 || a = "\n"
                 || a = "\t" )
-                && !index < posInString
+                && !offset < posInToken
              then true
              else (
-               index := !index - 1 ;
+               offset := !offset - 1 ;
                false ) )
     in
-    !index
+    !offset
   in
   let newPos =
     let tokenInfo = previousToken |> Option.withDefault ~default:ti in
     match tokenInfo.token with
     | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
       when pos != tokenInfo.startPos ->
-        let offset = findPosOffsetToNextWhiteSpace tokenInfo in
+        let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
         tokenInfo.startPos
@@ -1480,28 +1481,28 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos < t.endPos)
   in
   (* Finds how many moves to get to next whitespace in a string *)
-  let findPosOffsetToNextWhiteSpace (tokenInfo : fluidTokenInfo) : int =
-    let posInString = pos - tokenInfo.startPos in
-    let index : int ref = ref 0 in
+  let findPosOffsetToNextWhiteSpaceInStr (tokenInfo : fluidTokenInfo) : int =
+    let posInToken = pos - tokenInfo.startPos in
+    let offset : int ref = ref 0 in
     let _ =
       Token.toText tokenInfo.token
       |> String.split ~on:""
       |> List.find ~f:(fun a ->
-             if (a == " " || (a = "\"" && !index > 0) || a = "\n" || a = "\t")
-                && !index > posInString
+             if (a == " " || (a = "\"" && !offset > 0) || a = "\n" || a = "\t")
+                && !offset > posInToken
              then true
              else (
-               index := !index + 1 ;
+               offset := !offset + 1 ;
                false ) )
     in
-    !index
+    !offset
   in
   let newPos =
     let tokenInfo = nextToken |> Option.withDefault ~default:ti in
     match tokenInfo.token with
     | (TStringMLStart _ | TStringMLMiddle _ | TStringMLEnd _ | TString _)
       when pos != tokenInfo.endPos ->
-        let offset = findPosOffsetToNextWhiteSpace tokenInfo in
+        let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
         tokenInfo.startPos + offset
     | _ ->
         tokenInfo.endPos
