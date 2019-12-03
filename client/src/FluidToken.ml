@@ -35,7 +35,7 @@ let tid (t : token) : id =
   | TBinOp (id, _)
   | TFieldOp (id, _)
   | TFieldName (id, _, _)
-  | TFieldPartial (id, _, _)
+  | TFieldPartial (id, _, _, _)
   | TVariable (id, _)
   | TFnName (id, _, _, _, _)
   | TFnVersion (id, _, _, _)
@@ -191,7 +191,7 @@ let isBlank t =
   | TRecordFieldname (_, _, _, "")
   | TVariable (_, "")
   | TFieldName (_, _, "")
-  | TFieldPartial (_, _, "")
+  | TFieldPartial (_, _, _, "")
   | TLetLHS (_, _, "")
   | TLambdaVar (_, _, _, "")
   | TPartial (_, "")
@@ -315,7 +315,7 @@ let toText (t : token) : string =
       shouldntBeEmpty op
   | TFieldOp _ ->
       "."
-  | TFieldPartial (_, _, name) ->
+  | TFieldPartial (_, _, _, name) ->
       canBeEmpty name
   | TFieldName (_, _, name) ->
       (* Although we typically use TFieldPartial for empty fields, when
