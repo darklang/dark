@@ -2135,7 +2135,7 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
       | EPartial (id, _, (EFieldAccess _ as fa)) ->
           EPartial (id, str, fa)
       | EFieldAccess _ ->
-          EPartial (id, str, e)
+          EPartial (gid (), str, e)
       | _ ->
           recover "not a field in replaceFieldName" ~debug:e e )
 
