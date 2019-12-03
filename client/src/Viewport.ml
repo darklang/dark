@@ -78,6 +78,8 @@ let centerCanvasOn (tl : toplevel) : pos =
   {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
 
 
+(* Checks to see is the token's dom element within viewport,
+if not returns the new targetX and/or targetY coordindates we should transform the canvas by *)
 let moveToToken (id : id) (tl : toplevel) : int option * int option =
   let tokenSelector = ".id-" ^ Prelude.deID id in
   let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
@@ -103,21 +105,21 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
         |> Option.valueExn
       in
       let tlPos = TL.pos tl in
-      (* We separate the dx, dy so we can minimize the amount your eye has move and hunt for the expression, if it it out of viewport. Sometimes you might have both dx and dy, but in most cases I anticipate your code is above the top fold and we are likely going to be moving dy *)
-      let dx =
+      (* If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis. *)
+      let xTarget =
         if tokenBox.right > viewport.left && tokenBox.left < viewport.right
         then None
         else
           let offsetLeft = tokenBox.left - tlBox.left in
           Some (tlPos.x - (sidebarWidth + offsetLeft))
       in
-      let dy =
+      let yTarget =
         if tokenBox.bottom > viewport.top && tokenBox.top < viewport.bottom
         then None
         else
           let offsetTop = tokenBox.top - tlBox.top in
           Some (tlPos.y - (50 + offsetTop))
       in
-      (dx, dy)
+      (xTarget, yTarget)
   | None ->
       (None, None)
