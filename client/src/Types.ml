@@ -994,7 +994,7 @@ and fluidMsg =
   | FluidCommandsClick of command
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidUpdateDropdownIndex of int
-  | FluidFocusOn of id
+  | FluidShowToken of id
   | FluidClearDvSrc
 
 and msg =

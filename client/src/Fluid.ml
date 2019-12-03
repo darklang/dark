@@ -4936,12 +4936,12 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidFocusOn id ->
-      (* Spec for Focus on expresssion: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
+  | FluidShowToken id ->
+      (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
       |> Option.andThen ~f:(fun tl ->
-             (* We do this wrap, so we want to have one single stream of success Option chains, and one single place at the very end to define the fallback value if any of these options fail. *)
+             (* In Option chains, we ideally want to have one fallthrought at the every end. Since we will need both toplevel and ast in the next step, so if getAST returns None, it falls throught to the Option.withDefault at the very end. Otherwise if getAST is Some, we wrap both in a Some tuple to pass on to the next step. *)
              match TL.getAST tl with
              | Some expr ->
                  Some (tl, expr)
@@ -5382,7 +5382,7 @@ let viewLiveValue
       [ ViewUtils.eventNoPropagation
           ~key:("lv-src-" ^ deID tid)
           "click"
-          (fun _ -> FluidMsg (FluidFocusOn tid))
+          (fun _ -> FluidMsg (FluidShowToken tid))
       ; Html.class' "jump-src" ]
       [Html.text text]
   in
