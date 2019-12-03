@@ -804,9 +804,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany
            [ TFieldOp (id, (* lhs *) eid expr)
            ; TFieldName (id, fieldID, fieldname) ]
-  | EPartial (id, newFieldname, EFieldAccess (_, expr, fieldID, oldFieldname))
-    ->
-      let partial = TFieldPartial (id, fieldID, newFieldname) in
+  | EPartial
+      (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname)) ->
+      let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
       let newText = Token.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b
@@ -2587,8 +2587,9 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithRightPartial (f str) id ast
   | TFieldName (id, _, str) ->
       replaceFieldName (f str) id ast
-  | TFieldPartial (id, _, str) ->
-      replaceFieldName (f str) id ast
+  | TFieldPartial (id, _, _, str) ->
+      (* replace the partial's name, not the field's *)
+      replaceWithPartial (f str) id ast
   | TTrue id ->
       replaceWithPartial (f "true") id ast
   | TFalse id ->
@@ -3069,7 +3070,7 @@ let updateFromACItem
         let newExpr = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = replaceExpr ~newExpr id ast in
         (newAST, String.length name)
-    | ( (TFieldName _ | TFieldPartial _)
+    | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
           ( EFieldAccess (faID, labelid, expr, _)
           | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
@@ -3125,14 +3126,19 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
-(* Convert the expression at ti into a FieldAccess, using the currently
+(* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
 let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction ~ti "acStartField" s in
-  match AC.highlighted s.ac with
-  | None ->
-      (ast, s)
-  | Some entry ->
+  match (AC.highlighted s.ac, ti.token) with
+  | Some (FACField fieldname as entry), TFieldName (faID, _, _)
+  | Some (FACField fieldname as entry), TFieldPartial (_, faID, _, _) ->
+      let ast, s = updateFromACItem entry ti ast s K.Enter in
+      let newAST = exprToFieldAccess faID (gid ()) ast in
+      let length = String.length fieldname + 1 in
+      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      (newAST, newState)
+  | Some entry, _ ->
       let newExpr, length = acToExpr entry in
       let newExpr =
         EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
@@ -3141,6 +3147,8 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
+  | _ ->
+      (ast, s)
 
 
 (* -------------------- *)
@@ -3594,7 +3602,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
   in
   let newAST, newPosition =
     match ti.token with
-    | (TFieldName (id, _, _) | TVariable (id, _) | TFieldPartial (id, _, _))
+    | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
         let fieldID = gid () in
         (exprToFieldAccess id fieldID ast, RightOne)
@@ -4042,6 +4050,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
+    | K.Period, L (TFieldPartial _, ti), _
+      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
+        acStartField ti ast s
+    | K.Period, _, R (TFieldPartial _, ti)
+      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
+        acStartField ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
@@ -4397,9 +4411,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   else
     match (toTheLeft, toTheRight) with
     | L (TPartial (_, str), ti), _
-    | L (TFieldPartial (_, _, str), ti), _
+    | L (TFieldPartial (_, _, _, str), ti), _
     | _, R (TPartial (_, str), ti)
-    | _, R (TFieldPartial (_, _, str), ti)
+    | _, R (TFieldPartial (_, _, _, str), ti)
     (* When pressing an infix character, it's hard to tell whether to commit or
      * not.  If the partial is an int, or a function that returns one, pressing
      * +, -, etc  should lead to committing and then doing the action.

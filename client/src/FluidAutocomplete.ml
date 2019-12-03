@@ -139,6 +139,10 @@ let isVariable (aci : autocompleteItem) : bool =
   match aci with FACVariable _ -> true | _ -> false
 
 
+let isField (aci : autocompleteItem) : bool =
+  match aci with FACField _ -> true | _ -> false
+
+
 (* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)
@@ -207,7 +211,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let traceID = Analysis.getSelectedTraceID m tlid in
   let id =
     match ti.token with
-    | TFieldPartial (_, fieldID, _) | TFieldName (_, fieldID, _) ->
+    | TFieldPartial (_, _, fieldID, _) | TFieldName (_, fieldID, _) ->
         fieldID
     | _ ->
         FluidToken.tid ti.token
