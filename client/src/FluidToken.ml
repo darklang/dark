@@ -318,7 +318,9 @@ let toText (t : token) : string =
   | TFieldPartial (_, _, name) ->
       canBeEmpty name
   | TFieldName (_, _, name) ->
-      shouldntBeEmpty name
+      (* Although we typically use TFieldPartial for empty fields, when
+       * there's a new field we won't have a fieldname for it. *)
+      canBeEmpty name
   | TVariable (_, name) ->
       canBeEmpty name
   | TFnName (_, _, displayName, _, _) | TFnVersion (_, _, displayName, _) ->
