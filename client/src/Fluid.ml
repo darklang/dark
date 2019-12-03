@@ -1408,6 +1408,26 @@ let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   token.startPos
 
 
+(* getBegOfWordInStrCaretPos returns the closest whitespace position before the 
+ * current cursor position in a string  *)
+let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
+  let posInString = pos - ti.startPos in
+  let nextPos : int ref = ref ti.length in
+  let _ =
+    Token.toText ti.token
+    |> String.split ~on:""
+    |> List.reverse
+    |> List.find ~f:(fun a ->
+           if (a == " " || a = "\"" || a = "\n" || a = "\t")
+              && !nextPos < posInString
+           then true
+           else (
+             nextPos := !nextPos - 1 ;
+             false ) )
+  in
+  ti.startPos + !nextPos
+
+
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
 let getEndOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
@@ -1452,33 +1472,10 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     |> List.reverse
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos > t.startPos)
   in
-  (* Finds how many moves to get to previous whitespace in a string *)
-  let findPosOffsetToNextWhiteSpaceInStr (tokenInfo : fluidTokenInfo) : int =
-    let posInToken = pos - tokenInfo.startPos in
-    let offset : int ref = ref tokenInfo.length in
-    let _ =
-      Token.toText tokenInfo.token
-      |> String.split ~on:""
-      |> List.reverse
-      |> List.find ~f:(fun a ->
-             if ( a == " "
-                || (a = "\"" && !offset != tokenInfo.length)
-                || a = "\n"
-                || a = "\t" )
-                && !offset < posInToken
-             then true
-             else (
-               offset := !offset - 1 ;
-               false ) )
-    in
-    !offset
-  in
   let newPos =
     let tokenInfo = previousToken |> Option.withDefault ~default:ti in
     if Token.isStringToken tokenInfo.token && pos != tokenInfo.startPos
-    then
-      let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
-      tokenInfo.startPos + offset
+    then getBegOfWordInStrCaretPos ~pos tokenInfo
     else tokenInfo.startPos
   in
   setPosition s newPos
@@ -3750,6 +3747,17 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             ~state:s
             ~ast
             (s.newPos, getEndOfLineCaretPos ast ti s) )
+    | K.DeleteWord, L (_, ti), _ ->
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          let rangeStart =
+            if Token.isStringToken ti.token && pos != ti.startPos
+            then getBegOfWordInStrCaretPos ~pos ti
+            else ti.startPos
+          in
+          deleteCaretRange ~state:s ~ast (rangeStart, pos) )
     | K.Up, _, _ ->
         (ast, doUp ~pos ast s)
     | K.Down, _, _ ->
@@ -4035,7 +4043,8 @@ let shouldDoDefaultAction (key : K.key) : bool =
   | K.DeleteToEndOfLine
   | K.DeleteToStartOfLine
   | K.GoToStartOfWord
-  | K.GoToEndOfWord ->
+  | K.GoToEndOfWord
+  | K.DeleteWord ->
       false
   | _ ->
       true

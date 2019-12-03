@@ -64,10 +64,10 @@ function isHandledByFluid(event) {
   var isMac = window.navigator.platform == "MacIntel";
   var isLinux = window.navigator.platform.includes("Linux");
   var knownPlatform = isMac || isLinux;
-
   // Keys specifically handled by fluid
   var isCtrlFluidKeyPress = event.ctrlKey && ["a", "e", "d"].includes(event.key);
-  var isAltFluidKeyPress = event.altKey && event.keyCode == 88; // Alt-x
+  var isAltFluidKeyPress =
+    event.altKey && [88 /* x */, 8 /* Backspace */].includes(event.keyCode);
   var isMacMetaFluidKeyPress =
     isMac &&
     event.metaKey &&
@@ -75,7 +75,6 @@ function isHandledByFluid(event) {
       event.keyCode,
     );
   var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
-
   return (
     !knownPlatform ||
     isCtrlFluidKeyPress ||
