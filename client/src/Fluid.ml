@@ -2719,6 +2719,8 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
+(* Convert the expression at ti into a FieldAccess, using the currently
+ * selected Autocomplete value *)
 let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction ~ti "acStartField" s in
   match AC.highlighted s.ac with
