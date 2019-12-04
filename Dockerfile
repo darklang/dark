@@ -301,6 +301,8 @@ RUN sudo apt install -y bash-completion \
 # Esy packages need makeinfo
 RUN sudo apt update && DEBIAN_FRONTEND=noninteractive sudo -E apt install -y texinfo
 
+RUN pip install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+
 ############################
 # Finish
 ############################
