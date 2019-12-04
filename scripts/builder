@@ -135,6 +135,12 @@ fi
 # --------------
 echo "Run the build"
 
+# --init here keeps orphaned processes (`<defunct>`, in ps) from
+# hanging around forever; see https://tech.fpcomplete.com/rust/pid1
+# (above the fold) for a description of the process 1 problem in
+# docker, and
+# https://docs.docker.com/engine/reference/run/#specify-an-init-process
+# for documentation of --init.
 $FSWATCH | docker run \
              --init \
              --rm \
