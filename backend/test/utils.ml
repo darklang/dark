@@ -153,6 +153,9 @@ let check_exception ?(check = fun _ -> true) ~(f : unit -> dval) msg =
   AT.check (AT.option AT.string) msg None e
 
 
+(* Keep scripts/ocaml-find-unused happy *)
+let _ = check_exception
+
 let check_error_contains (name : string) (result : dval) (substring : string) =
   let strresult = Dval.to_developer_repr_v0 result in
   AT.(check bool)
@@ -197,7 +200,13 @@ let coltypeid2 = Int63.of_int 14
 
 let colnameid3 = Int63.of_int 15
 
+(* Keep scripts/ocaml-find-unused happy *)
+let _ = colnameid3
+
 let coltypeid3 = Int63.of_int 16
+
+(* Keep scripts/ocaml-find-unused happy *)
+let _ = coltypeid3
 
 let nameid = Int63.of_int 17
 

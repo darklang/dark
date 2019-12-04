@@ -364,6 +364,9 @@ let suite =
   ; ( "Passwords serialize correctly and redact (or not) correctly"
     , `Quick
     , t_password_serialization )
+  ; ( "Passwords serialize correctly and redact (or not) correctly (when put through object)"
+    , `Quick
+    , t_password_serialization2 )
   ; ( "Passwords in objects roundtrip correctly"
     , `Quick
     , t_password_serialization )
