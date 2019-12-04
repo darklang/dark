@@ -1,0 +1,132 @@
+#!/bin/bash
+
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -eou pipefail
+
+PATH=~/.local/bin:$PATH
+
+HELP="$(cat <<EOF
+Usage: $0 DOMAIN CANVAS
+
+Creates files necessary to set up a custom domain for a user.
+
+Note: DOMAIN must _not_ be an apex - foo.com - but must be www.foo.com,
+app.foo.com, api.foo.com, etc. See docs/custom-domains.md for why.
+EOF
+)"
+
+if [[ $# -ne 2 ]]; then
+    echo "$HELP"
+    exit 1
+fi
+
+DOMAIN=$1
+CANVAS=$2
+# Apex is "the domain minus /^.*\./". We'll verify below that APEX contains exactly one '.'
+APEX=${DOMAIN#*.}
+
+# shellcheck disable=SC2000
+if [[ "$(echo "${DOMAIN}" | awk -F"." '{print NF-1}')" -ne 2 ]]; then
+    echo "We expected DOMAIN to be a domain with 3 parts (www.foo.com), but it was ${DOMAIN}."
+    exit 1
+fi
+
+# Verify we've not yet added this domain
+cert_file="scripts/support/kubernetes/certs/${DOMAIN}-cert.yaml"
+if [[ -f $cert_file ]]; then
+    echo "You've already got a cert for this domain - $cert_file."
+    exit 1
+fi
+
+# Create cert yaml
+cat <<EOF > "${cert_file}"
+apiVersion: networking.gke.io/v1beta1
+kind: ManagedCertificate
+metadata:
+  name: ${DOMAIN}-cert
+spec:
+  domains:
+    # NB: Per https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs,
+    # domains can _only_ have one entry, we cannot have both www and
+    # the apex, nor can we have wildcards
+    - ${DOMAIN}
+EOF
+
+# update ingress yaml - add the new cert to the list of managed-certificates
+# served on the ingress
+# NB: "This annotation is a comma-separated list of ManagedCertificate
+# resources, cert1,cert2,cert3 for example.": https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs
+# Using sed instead of yq here because yq will lose any comments :(
+sed -i -e "s/\(networking.gke.io.managed-certificates: \)\(.*\)/&,${DOMAIN}-cert/" scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml
+
+# Verify # of certs used in ingress yaml.
+# We can't have > 15 on an ingress: https://cloud.google.com/load-balancing/docs/ssl-certificates#ssl-certificate-limits
+# Note re count: the number of commas in managed-certificates is one too low,
+# but we get an extra char for the \n, so it works out.
+# shellcheck disable=SC2002
+managed_cert_count=$(cat scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml \
+    | yq -r \
+        '.metadata.annotations."networking.gke.io/managed-certificates"' \
+    | sed -e 's/[^,]*//g' \
+    | wc -c)
+# shellcheck disable=SC2002
+spec_cert_count=$(cat scripts/support/kubernetes/builtwithdark/bwd-ingress.yaml \
+    | yq -r '.spec.tls | length')
+cert_count="$(echo "$managed_cert_count" + "$spec_cert_count" | bc)"
+if [[ $cert_count -gt 15 ]]; then
+    echo "Google only supports 15 certs per LB, cannot continue."
+    exit 1
+else
+    echo "NOTE: cert count is now ${cert_count}, we have a hard limit of 15."
+fi
+
+# Nginx apex->www redirect
+cat <<EOF >> scripts/support/nginx.conf
+
+server {
+  listen 8000;
+  server_name $APEX;
+  return 301 \$http_x_forwarded_proto://${DOMAIN}\$request_uri;
+}
+EOF
+
+# This takes foo.com and www.foo.com and transforms them into
+# '| ["foo"; "com"] | ["www"; "foo"; "com"]`, which we can then put into
+# webserver.ml, and let ocamlformat fix the formatting.
+# shellcheck disable=SC2001
+new_apex_string="|[\"$(echo "$APEX" | sed -e 's/\./"; "/g')\"]"
+# shellcheck disable=SC2001
+new_domain_string="|[\"$(echo "$DOMAIN" | sed -e 's/\./"; "/g')\"]"
+new_webserver_match="${new_apex_string} ${new_domain_string}"
+
+# Note: perl below b/c I'd initially intended to do multiline matching; I ended
+# up not doing that, but don't care to remember how to translate perl regex back
+# into sed regex.
+# Add to the "should_use_https" match
+perl -i -pe "s/(\| \[\"www\"; \"kiksht\"; \"com\"\]) ->/\1 ${new_webserver_match} ->/s" backend/libbackend/webserver.ml
+
+# Add to the "route_host" match
+perl -i -pe "s/(Some \(Canvas \"alex\"\))/\1 ${new_webserver_match} -> Some (Canvas \"${CANVAS}\")/" backend/libbackend/webserver.ml
+
+# Fix formatting after the above two regexes
+scripts/format format > /dev/null
+
+# Instructions
+cat <<EOF
+
+Congrats! You've created the code needed to host ${DOMAIN} at
+${CANVAS}.builtwithdark.com. Before proceeding, a CNAME _must_ be set up from
+${DOMAIN} -> ${CANVAS}.builtwithdark.com.
+
+To check this, run \`dig ${DOMAIN}\`.
+
+Once it resolves, deploy the new ManagedCertificate:
+\`kubectl apply -f scripts/support/kubernetes/cert/${DOMAIN}-cert.yaml\`
+and wait for its Status/Certificate Status
+(in \`kubectl describe managedcertificate ${DOMAIN}-cert\`) to change from
+Provisioning to Active. This should take <15m.
+
+Once it's Active, you can merge the code this script generated, which will hook
+up routing (in nginx and our webserver) and you're done!
+EOF
