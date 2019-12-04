@@ -52,6 +52,19 @@ i.fa-spinner {
   }
 }
 
+@keyframes fadeInOut {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0.6;
+  }
+
+}
+
 @keyframes showToast {
   0% {
     opacity: 0;

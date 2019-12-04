@@ -367,6 +367,7 @@ since they are essentially both commands just acting upon different things. */
 }
 
 $error-color: saturate($red, 10%);
+$unrun-color: $yellow;
 
 @keyframes blinkError {
   from {
@@ -376,32 +377,57 @@ $error-color: saturate($red, 10%);
     background-color: desaturate($error-color, 30%);
   }
 }
+@keyframes blinkExeBtn {
+  0% {
+    font-size: 100%;
+  }
+
+  50% {
+    font-size: 150%;
+  }
+
+  100% {
+    font-size: 100%;
+  }
+}
 
 .toplevel.selected .fluid-error {
   border-bottom: 1px dashed $error-color;
   position: relative;
 
-  &.is-origin:not(.cursor-on) {
-    animation: blinkError 0.3s ease-in-out infinite;
+  &.fluid-unrun {
+    border-bottom: 0;
+    // opacity: 0.5;
 
-    &:hover {
-      &:after {
-        @extend .tooltip;
-        background-color: rgba(30, 30, 30, 0.8);
-        padding: 2px;
-        width: max-content;
-        position: absolute;
-        top: -20px;
-        left: -5px;
-      }
-    }
+    // &.is-origin {
+    //   animation: fadeInOut 0.3s ease-in-out infinite;
+    // }
   }
 
-  &.dark-incomplete.is-origin:not(.cursor-on):hover:after {
+  &.is-origin:not(.cursor-on.fluid-unrun) {
+    animation: blinkError 0.3s ease-in-out infinite;
+  }
+
+  &.is-origin:hover:after {
+      @extend .tooltip;
+      background-color: rgba(30, 30, 30, 0.8);
+      padding: 2px;
+      width: max-content;
+      position: absolute;
+      top: -20px;
+      left: -5px;    
+  }
+
+  &.dark-incomplete.is-origin:hover:after {
     content: "The Incomplete came from here";
   }
 
-  &.dark-error.is-origin:not(.cursor-on):hover:after {
+  &.dark-error.is-origin:hover:after {
     content: "The Error came from here";
   }
 }
+
+.fluid-entry.dark-incomplete.is-origin .execution-button .fa-play {
+    animation: blinkExeBtn 0.8s ease-in-out infinite;
+}
+
