@@ -5212,11 +5212,11 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             def: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.33xqcy8kdv9a
             *)
             && sourceId |> Option.isSomeEqualTo ~value:analysisId
+            && not isFnCallNotRun
           in
           [ ("related-change", List.member ~value:tokenId vs.hoveringRefs)
           ; ("cursor-on", currentTokenInfo |> Option.isSomeEqualTo ~value:ti)
           ; ("fluid-error", isError)
-          ; ("fluid-unrun", isFnCallNotRun)
           ; (errorType, errorType <> "")
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on. We apply the Loud Error Signifier, def: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.fcwpuuusqf20 *)
             ( "is-origin"

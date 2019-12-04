@@ -379,15 +379,15 @@ $unrun-color: $yellow;
 }
 @keyframes blinkExeBtn {
   0% {
-    font-size: 100%;
+    color: green;
   }
 
   50% {
-    font-size: 150%;
+    color: desaturate(green, 50%);
   }
 
   100% {
-    font-size: 100%;
+    color: green;
   }
 }
 
@@ -395,27 +395,18 @@ $unrun-color: $yellow;
   border-bottom: 1px dashed $error-color;
   position: relative;
 
-  &.fluid-unrun {
-    border-bottom: 0;
-    // opacity: 0.5;
-
-    // &.is-origin {
-    //   animation: fadeInOut 0.3s ease-in-out infinite;
-    // }
-  }
-
-  &.is-origin:not(.cursor-on.fluid-unrun) {
+  &.is-origin:not(.cursor-on) {
     animation: blinkError 0.3s ease-in-out infinite;
   }
 
   &.is-origin:hover:after {
-      @extend .tooltip;
-      background-color: rgba(30, 30, 30, 0.8);
-      padding: 2px;
-      width: max-content;
-      position: absolute;
-      top: -20px;
-      left: -5px;    
+    @extend .tooltip;
+    background-color: rgba(30, 30, 30, 0.8);
+    padding: 2px;
+    width: max-content;
+    position: absolute;
+    top: -20px;
+    left: -5px;
   }
 
   &.dark-incomplete.is-origin:hover:after {
@@ -428,6 +419,5 @@ $unrun-color: $yellow;
 }
 
 .fluid-entry.dark-incomplete.is-origin .execution-button .fa-play {
-    animation: blinkExeBtn 0.8s ease-in-out infinite;
+  animation: blinkExeBtn 0.5s ease-in-out infinite;
 }
-
