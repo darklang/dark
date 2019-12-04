@@ -1083,8 +1083,13 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        NoChange
+    | FocusedFn tlid | FocusedType tlid ->
+      ( match unwrapCursorState m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          (* If we click away from an entry box, submit it -- and select the whole toplevel *)
+          Many [Entry.submit m cursor Entry.StayHere; Select (tlid, None)]
+      | _ ->
+          Select (tlid, None) )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
@@ -1093,6 +1098,8 @@ let update_ (msg : msg) (m : model) : modification =
               Many
                 [ AutocompleteMod ACReset
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+          | Entering (Filling _ as cursor) ->
+              Many [Entry.submit m cursor Entry.StayHere; Deselect]
           | _ ->
               Deselect
         else NoChange )
@@ -1199,7 +1206,10 @@ let update_ (msg : msg) (m : model) : modification =
       | Filling (_, fillingID) ->
           if fillingID = targetID
           then NoChange
-          else Select (targetExnID, Some targetID)
+          else
+            Many
+              [ Entry.submit m cursor Entry.StayHere
+              ; Select (targetExnID, Some targetID) ]
       | _ ->
           Select (targetExnID, Some targetID) )
     | Selecting (_, _) ->
@@ -1234,9 +1244,16 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelClick (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
-        Many
+        let targetMods =
           [ Select (targetExnID, None)
           ; Fluid.update m (FluidMouseClick targetExnID) ]
+        in
+        match m.cursorState with
+        (* We're entering some text box that's not owned by a FluidEntering editor *)
+        | Entering (Filling _ as cursor) ->
+            Many (Entry.submit m cursor Entry.StayHere :: targetMods)
+        | _ ->
+            Many targetMods
       else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
@@ -1928,7 +1945,13 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
-      Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+    ( match m.cursorState with
+    | Entering (Filling _ as cursor) ->
+        Many [Entry.submit m cursor Entry.StayHere; Select (targetExnID, None)]
+    | FluidEntering _ ->
+        Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+    | _ ->
+        Select (targetExnID, None) )
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
