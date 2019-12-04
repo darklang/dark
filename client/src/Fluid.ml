@@ -3557,7 +3557,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   in
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
-   * that face based on the _next_ token *)
+   * that fact based on the _next_ token *)
   let wrappableInBinop rightNeighbour =
     match rightNeighbour with
     | L _ ->
