@@ -74,7 +74,8 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
     padding: 3px;
   }
 
-  dt, dd {
+  dt,
+  dd {
     margin-top: 3px;
   }
 
@@ -88,7 +89,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   dd {
     flex-basis: 14ch;
-    flex-grow:1;
+    flex-grow: 1;
     dl {
       padding: 0;
     }
@@ -109,7 +110,6 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
       margin-left: 4ch;
     }
   }
-
 }
 
 #fluid-editor {
