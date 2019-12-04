@@ -1819,20 +1819,24 @@ let removeField (id : id) (ast : ast) : ast =
       | _ ->
           recover "not a fieldAccess in removeField" e e )
 
+
 (* removeFieldProvidingParent takes an ast and the id of a field access
    and produces the "parent" that was accessed and a newAST without that field access.
    For eample, given the id of .baz in ((foo).bar).baz, it returns ((foo).bar), newAST without .baz *)
-let removeFieldProvidingParent (id : id) (ast : ast) : (fluidExpr * ast) =
+let removeFieldProvidingParent (id : id) (ast : ast) : fluidExpr * ast =
   let parentExpr = ref ast in
-  let newAst = (updateExpr id ast ~f:(fun e ->
-      match e with
-      | EFieldAccess (_, faExpr, _, _) ->
-          parentExpr := faExpr;
-          faExpr
-      | _ ->
-          (parentExpr := e;
-          recover "not a fieldAccess in removeFieldProvidingParent" e e ))) in
+  let newAst =
+    updateExpr id ast ~f:(fun e ->
+        match e with
+        | EFieldAccess (_, faExpr, _, _) ->
+            parentExpr := faExpr ;
+            faExpr
+        | _ ->
+            parentExpr := e ;
+            recover "not a fieldAccess in removeFieldProvidingParent" e e )
+  in
   (!parentExpr, newAst)
+
 
 (* ---------------- *)
 (* Lambdas *)
@@ -2865,13 +2869,10 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
           , ARRecord (targetId, RPFieldname fieldIndex) )
           when id = targetId && tIndex = fieldIndex ->
             true
-        | ( TFieldName (id, _, _)
-          , ARFieldAccess (targetId, FAPFieldname) )
+        | TFieldName (id, _, _), ARFieldAccess (targetId, FAPFieldname)
           when id = targetId ->
             true
-        | ( TVariable (id, _)
-          , ARVariable targetId )
-          when id = targetId ->
+        | TVariable (id, _), ARVariable targetId when id = targetId ->
             true
         | _ ->
             false )
@@ -2885,14 +2886,23 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
         ct
         s.newPos
 
+
 (* getCaretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget corresponding to the "very end"
   of that fluidExpr. The concept of "very end" is related to an understanding of the tokenization of the expr,
   even though this function doesn't explicitly depend on any tokenization functions. *)
-let getCaretTargetForLastPartOfExpr (expr: fluidExpr) : caretTarget = 
+let getCaretTargetForLastPartOfExpr (expr : fluidExpr) : caretTarget =
   match expr with
-    | EVariable (id, str) -> {astRef=ARVariable id; offset=String.length str}
-    | EFieldAccess (id, _, _, fieldName) -> {astRef=ARFieldAccess (id, FAPFieldname); offset=String.length fieldName}
-    | _ -> recover "we don't yet support getCaretTargetForLastPartOfExpr for this" expr { astRef=ARNull (ID "unhandled"); offset=0 }
+  | EVariable (id, str) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | EFieldAccess (id, _, _, fieldName) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | _ ->
+      recover
+        "we don't yet support getCaretTargetForLastPartOfExpr for this"
+        expr
+        {astRef = ARNull (ID "unhandled"); offset = 0}
+
 
 type newPosition =
   | RightOne
@@ -2981,7 +2991,7 @@ let adjustPosForReflow
       oldTI.endPos + 2
   | TwoAfterEnd, Some newTI ->
       newTI.endPos + 2
-  | AtTarget target, _->
+  | AtTarget target, _ ->
       posFromCaretTarget state newAST target
 
 
@@ -3042,7 +3052,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TNewline _ ->
         (ast, Exactly ti.startPos)
     | TFieldOp id ->
-        let (parent, newAst) = removeFieldProvidingParent id ast in
+        let parent, newAst = removeFieldProvidingParent id ast in
         (newAst, AtTarget (getCaretTargetForLastPartOfExpr parent))
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)

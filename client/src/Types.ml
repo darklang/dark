@@ -1513,8 +1513,8 @@ type astBinOpPart =
 
 type astLambdaPart =
   | LPKeyword
-  | LPVarName of (* index of the var *)int
-  | LPSeparator of (* index of the var *)int
+  | LPVarName of (* index of the var *) int
+  | LPSeparator of (* index of the var *) int
   | LPArrow
   | LPBody
 
@@ -1578,13 +1578,15 @@ type astRef =
   | ARList of
       (* TODO(JULIAN): This might need an open and close part... *)
       (* AST node id, index of the element in the list *)
-      id * int
+      id
+      * int
   | ARRecord of id * astRecordPart
   | ARPipe of id * astPipePart
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
-  (* | ARFeatureFlag is not yet supported *)
-  (* | ARPattern is not yet supported *)
+
+(* | ARFeatureFlag is not yet supported *)
+(* | ARPattern is not yet supported *)
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
