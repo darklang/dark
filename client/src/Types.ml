@@ -1274,7 +1274,7 @@ and fluidToken =
   | TIfElseKeyword of id
   | TBinOp of id * string
   | TFieldOp of id
-  | TFieldName of id * id * string
+  | TFieldName of id * analysisId * string
   | TVariable of id * string
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of id * string * string * string * sendToRail
