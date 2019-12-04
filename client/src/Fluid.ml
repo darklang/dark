@@ -5382,15 +5382,19 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   let tokens = toTokens s ast in
-  let posDiv =
+  let ddText txt = Html.dd [] [Html.text txt] in
+  let dtText txt = Html.dt [] [Html.text txt] in
+  let posData =
     let oldGrid = gridFor ~pos:s.oldPos tokens in
     let newGrid = gridFor ~pos:s.newPos tokens in
-    [ Html.div
+    [ dtText "pos"
+    ; Html.dd
         []
         [ Html.text (string_of_int s.oldPos)
         ; Html.text " -> "
         ; Html.text (string_of_int s.newPos) ]
-    ; Html.div
+    ; dtText "grid"
+    ; Html.dd
         []
         [ Html.text (oldGrid.col |> string_of_int)
         ; Html.text ","
@@ -5399,86 +5403,80 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
         ; Html.text (newGrid.col |> string_of_int)
         ; Html.text ","
         ; Html.text (newGrid.row |> string_of_int) ]
-    ; Html.div
+    ; dtText "acIndex"
+    ; Html.dd
         []
-        [ Html.text "acIndex: "
-        ; Html.text
+        [ Html.text
             ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
-    ; Html.div
+    ; dtText "upDownCol"
+    ; Html.dd
         []
-        [ Html.text "upDownCol: "
-        ; Html.text
+        [ Html.text
             ( s.upDownCol
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
-    ; Html.div
+    ; dtText "lastKey"
+    ; Html.dd
         []
-        [ Html.text "lastKey: "
-        ; Html.text
+        [ Html.text
             ( K.toName s.lastKey
             ^ ", "
             ^ ( K.toChar s.lastKey
               |> Option.map ~f:String.fromChar
               |> Option.withDefault ~default:"" ) ) ]
-    ; Html.div
+    ; dtText "selection"
+    ; Html.dd
         []
-        [ Html.text "selection: "
-        ; Html.text
+        [ Html.text
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"" ) ] ]
+            |> Option.withDefault ~default:"None" ) ] ]
   in
-  let tokenDiv =
+  let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
-    let l =
+    let tokenInfo tkn =
+      Html.dd [Attrs.class' "tokenInfo"] [Token.show_tokenInfo tkn]
+    in
+    let ddLeft =
       match left with
       | L (_, left) ->
-          Token.show_tokenInfo left
+          tokenInfo left
       | R (_, _) ->
-          "right"
+          ddText "Right"
       | No ->
-          "none"
+          ddText "None"
     in
-    let r =
+    let ddRight =
       match right with
       | L (_, _) ->
-          "left"
+          ddText "Left"
       | R (_, right) ->
-          Token.show_tokenInfo right
+          tokenInfo right
       | No ->
-          "none"
+          ddText "None"
     in
-    let n =
-      match next with Some next -> Token.show_tokenInfo next | None -> "none"
+    let ddNext =
+      match next with Some next -> tokenInfo next | None -> ddText "None"
     in
-    [ Html.text ("left: " ^ l)
-    ; Html.br []
-    ; Html.text ("right: " ^ r)
-    ; Html.br []
-    ; Html.text ("next: " ^ n) ]
+    [dtText "left"; ddLeft; dtText "right"; ddRight; dtText "next"; ddNext]
   in
   let actions =
-    [ Html.div
-        []
-        ( [Html.text "Actions: "]
-        @ ( s.actions
-          |> List.map ~f:(fun action -> [action; ", "])
-          |> List.concat
-          |> List.dropRight ~count:1
-          |> List.map ~f:Html.text ) ) ]
+    [ Html.dt [] [Html.text "actions"]
+    ; Html.dd
+        [Attrs.class' "actions"]
+        [ Html.ul
+            []
+            (List.map s.actions ~f:(fun txt -> Html.li [] [Html.text txt])) ]
+    ]
   in
   let error =
-    [ Html.div
-        []
-        [ Html.text
-            ( Option.map s.error ~f:(fun e -> "Errors: " ^ e)
-            |> Option.withDefault ~default:"none" ) ] ]
+    [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
   in
-  let status = List.concat [posDiv; tokenDiv; actions; error] in
-  Html.div [Attrs.id "fluid-status"] status
+  let status = List.concat [posData; error; tokenData; actions] in
+  Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
 
 
 (* -------------------- *)
