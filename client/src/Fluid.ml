@@ -2848,7 +2848,7 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
     List.find tokens ~f:(fun ti ->
         match (ti.token, ct.astRef) with
         | ( TRecordFieldname (id, _, tIndex, _)
-          , ARRecordFieldname (targetId, fieldIndex) )
+          , ARRecord (targetId, RPFieldname fieldIndex) )
           when id = targetId && tIndex = fieldIndex ->
             true
         | _ ->
@@ -3784,7 +3784,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           posFromCaretTarget
             s
             newAST
-            {astRef = ARRecordFieldname (id, 0); offset = 0}
+            {astRef = ARRecord (id, RPFieldname 0); offset = 0}
         in
         (newAST, {s with newPos})
     | K.Enter, _, R (TRecordClose id, _) ->
