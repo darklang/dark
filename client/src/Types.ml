@@ -1256,9 +1256,10 @@ and fluidToken =
   | TPartialGhost of id * string
   (* the id here disambiguates with other separators for reflow *)
   | TSep of id
-  (* Newlines sometimes need to hold context. When there are many things in the
-   * id with the newline, the extra context is the index of which one it is.
-   * The second id is that of the Newline's parent expression*)
+  (* The first id is the id of the expression directly associated with the
+   * newline. The second id is the id of that expression's parent. In an
+   * expression with potentially many newlines (ie, a pipeline), the int holds
+   * the relative line number (index) of this newline. *)
   | TNewline of (id * id * int option) option
   | TIndent of int
   | TLetKeyword of id * analysisId

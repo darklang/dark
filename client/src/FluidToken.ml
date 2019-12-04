@@ -603,9 +603,9 @@ let toDebugInfo (t : token) : string =
   | TStringMLStart (_, _, offset, _)
   | TStringMLMiddle (_, _, offset, _)
   | TStringMLEnd (_, _, offset, _) ->
-      string_of_int offset
-  | TNewline (Some (owner, _, Some index)) ->
-      "owner " ^ deID owner ^ " index " ^ string_of_int index
+      "offset=" ^ string_of_int offset
+  | TNewline (Some (_, pid, Some index)) ->
+      "parent=" ^ deID pid ^ " index=" ^ string_of_int index
   | _ ->
       ""
 
@@ -622,15 +622,18 @@ let toCssClasses (t : token) : string list =
 
 
 let show_tokenInfo (ti : tokenInfo) =
-  Printf.sprintf
-    "(%d, %d), '%s', %s (%s, %s)"
-    ti.startPos
-    ti.endPos
-    (* ti.length *)
-    (toText ti.token)
-    (tid ti.token |> deID)
-    (toTypeName ti.token)
-    (toDebugInfo ti.token)
+  Html.dl
+    []
+    [ Html.dt [] [Html.text "pos"]
+    ; Html.dd [] [Html.text (Printf.sprintf "(%d, %d)" ti.startPos ti.endPos)]
+    ; Html.dt [] [Html.text "tok"]
+    ; Html.dd [] [Html.text (toText ti.token)]
+    ; Html.dt [] [Html.text "id"]
+    ; Html.dd [] [Html.text (tid ti.token |> deID)]
+    ; Html.dt [] [Html.text "type"]
+    ; Html.dd [] [Html.text (toTypeName ti.token)]
+    ; Html.dt [] [Html.text "debug"]
+    ; Html.dd [] [Html.text (toDebugInfo ti.token)] ]
 
 
 (* Since tokens don't have unique IDs, it is hard to look at two tokens streams
