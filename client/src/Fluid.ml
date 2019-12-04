@@ -2459,10 +2459,12 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   let id = Token.tid ti.token in
   match findExpr id ast with
   | Some expr ->
-      let newExpr = ELet (gid (), gid (), "", expr, EBlank (gid ())) in
+      let bodyId = gid () in
+      let newExpr = ELet (gid (), gid (), "", expr, EBlank bodyId) in
       let newAST = replaceExpr ~newExpr id ast in
       let tokens = toTokens s newAST in
-      ( match List.last tokens with
+      let lastToken = tokens |> List.find ~f:(fun ti -> Token.tid ti.token = bodyId) in
+      ( match lastToken with
       | Some lastTi ->
           (newAST, moveToStart lastTi s)
       | None ->
@@ -3888,7 +3890,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
-    | K.Enter, L (_, ti), No ->
+    | K.Enter, L (token, ti), _ when not (Token.isLet token) ->
         wrapInLet ti ast s
     (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
