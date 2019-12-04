@@ -66,6 +66,50 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   font-size: 10pt;
   background: white;
   color: black;
+
+  dl {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: start;
+    padding: 3px;
+  }
+
+  dt,
+  dd {
+    margin-top: 3px;
+  }
+
+  dt {
+    flex-basis: 10.5ch;
+    color: $grey1;
+    &:after {
+      content: ": ";
+    }
+  }
+
+  dd {
+    flex-basis: 14ch;
+    flex-grow: 1;
+    dl {
+      padding: 0;
+    }
+    dt {
+      margin: 0;
+      flex-basis: 6.5ch;
+    }
+    dd {
+      margin: 0;
+      flex-basis: 18ch;
+    }
+    &.tokenInfo {
+      flex-basis: 30ch;
+      margin-left: 2ch;
+    }
+    &.actions {
+      flex-basis: 30ch;
+      margin-left: 4ch;
+    }
+  }
 }
 
 #fluid-editor {
