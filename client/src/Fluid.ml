@@ -2874,6 +2874,9 @@ type newPosition =
   | SamePlace
   | TwoAfterEnd
   | Exactly of int
+  (* The hope is that we can migrate everything to
+     AtTarget and then remove this entirely *)
+  | AtTarget of caretTarget
 
 let adjustPosForReflow
     ~state
@@ -2948,6 +2951,8 @@ let adjustPosForReflow
       oldTI.endPos + 2
   | TwoAfterEnd, Some newTI ->
       newTI.endPos + 2
+  | AtTarget target, _->
+      posFromCaretTarget state newAST target
 
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
