@@ -2186,6 +2186,11 @@ let () =
         matchWithTwoLets
         (ctrlRight 15)
         "match ___\n  *** -> let x~ = 5\n         let y = 6\n         ___\n" ;
+      t
+        "enter at the end of a non-let wraps expression in let"
+        aShortInt
+        (enter 1 ~wrap:false)
+        "let *** = 1\n~___" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
