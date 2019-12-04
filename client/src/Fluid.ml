@@ -1235,6 +1235,12 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
   in
   findParent' ~parent:None id ast
 
+let isIfCondition (t : token) (ast : ast) : bool =
+  let id = Token.tid t in
+  match findParent id ast with
+  | Some (EIf (_, cond, _, _)) when (eid cond) = id ->
+    true
+  | _ -> false
 
 (* ------------- *)
 (* Replacing expressions *)
@@ -3882,22 +3888,24 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
     | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
+        Debug.loG "^@^" "K.Enter, _, R (TNewline (Some (id, _, index)), ti)";
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
+    | K.Enter, L (lt, lti), R (TNewline None, rti) when not (Token.isLet lt) && not (isAutocompleting rti s) && not (isIfCondition lt ast) ->
+        wrapInLet lti ast s
     | K.Enter, _, R (TNewline None, ti) ->
+        Debug.loG "^@^" "K.Enter, _, R (TNewline None, ti)";
         (ast, doRight ~pos ~next:mNext ti s)
     | K.Enter, L (TPipe (id, index, _), _), _ ->
+        Debug.loG "^@^" "K.Enter, L (TPipe (id, index, _), _), _";
         let newAST, newState = addEntryAbove id (Some index) ast s in
         (newAST, {newState with newPos = newState.newPos + 2})
     | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
+        Debug.loG "^@^" "K.Enter, L (TNewline (Some (id, _, index)), _), _";
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
     | K.Enter, L (token, ti), No when not (Token.isLet token) ->
         wrapInLet ti ast s
-    (* | K.Enter, L (ltoken, lti), R (TNewline _, rti)
-      when not (Token.isLet ltoken) && not (isAutocompleting rti s) ->
-      wrapInLet lti ast s *)
-    (* Int to float *)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)

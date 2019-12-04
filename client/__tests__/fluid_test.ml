@@ -2189,7 +2189,7 @@ let () =
       t
         "enter at the end of a non-let wraps expression in let"
         aShortInt
-        (enter 1 ~wrap:false)
+        (enter 1)
         "let *** = 1\n~___" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
@@ -2474,7 +2474,7 @@ let () =
         plainIf
         (enter 0)
         "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
-      t
+      (* TODO(alice) find out the motivation of this behavior *) t
         "enter at end of if line does nothing"
         plainIf
         (enter 4)
@@ -2484,11 +2484,6 @@ let () =
         plainIf
         (enter 9)
         "if 5\nthen\n  let ~*** = ___\n  6\nelse\n  7" ;
-      t
-        "enter at end of then expr line does nothing"
-        plainIf
-        (enter 13)
-        "if 5\nthen\n  6\n~else\n  7" ;
       t
         "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
