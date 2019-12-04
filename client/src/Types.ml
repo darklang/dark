@@ -1216,7 +1216,11 @@ and fluidExpr =
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
-  (* The 2nd ID is extra for the name *)
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
+    In practice the expr list is currently always length 1 (for `Just` and `Error`) or
+    length 0 (for `Ok` and `Nothing`).
+    The 2nd ID here is the id of the blankOr for the constructor's name.
+   *)
   | EConstructor of id * id * fluidName * fluidExpr list
   (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
