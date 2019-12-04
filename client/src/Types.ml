@@ -995,7 +995,7 @@ and fluidMsg =
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidUpdateDropdownIndex of int
   | FluidShowToken of id
-  | FluidClearDvSrc
+  | FluidClearErrorDvSrc
 
 and msg =
   | GlobalClick of mouseEvent

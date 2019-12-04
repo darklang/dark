@@ -4934,14 +4934,13 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
-  | FluidClearDvSrc ->
+  | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
   | FluidShowToken id ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
       |> Option.andThen ~f:(fun tl ->
-             (* In Option chains, we ideally want to have one fallthrought at the every end. Since we will need both toplevel and ast in the next step, so if getAST returns None, it falls throught to the Option.withDefault at the very end. Otherwise if getAST is Some, we wrap both in a Some tuple to pass on to the next step. *)
              match TL.getAST tl with
              | Some expr ->
                  Some (tl, expr)
@@ -5353,7 +5352,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
               ~key:("anim-end" ^ idStr)
               ~listener:(fun msg ->
                 if msg = "flashError" || msg = "flashIncomplete"
-                then FluidMsg FluidClearDvSrc
+                then FluidMsg FluidClearErrorDvSrc
                 else IgnoreMsg ) ]
         in
         let innerNode =
