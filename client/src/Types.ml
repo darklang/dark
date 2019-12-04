@@ -1520,7 +1520,7 @@ type astLambdaPart =
 
 type astFieldAccessPart =
   | FAPParent
-  | FAPField
+  | FAPFieldname
 
 type astFnCallPart =
   | FCPFnName
@@ -1570,7 +1570,7 @@ type astRef =
   | ARLet of id * astLetPart
   | ARIf of id * astIfPart
   | ARBinOp of id * astBinOpPart
-  | ARFieldAcces of id * astFieldAccessPart
+  | ARFieldAccess of id * astFieldAccessPart
   | ARVariable of id
   | ARFnCall of id
   | ARPartial of id
