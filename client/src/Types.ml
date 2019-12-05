@@ -1519,7 +1519,7 @@ type astLambdaPart =
   | LPBody
 
 type astFieldAccessPart =
-  | FAPParent
+  | FAPLHS
   | FAPFieldname
 
 type astFnCallPart =
