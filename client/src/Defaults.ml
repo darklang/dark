@@ -47,14 +47,15 @@ let defaultFluidState : fluidState =
       ; invalidCompletions = []
       ; allCompletions = [] }
   ; cp = {index = 0; commands = []; location = None; filter = None}
-  ; selectionStart = None }
+  ; selectionStart = None
+  ; errorDvSrc = SourceNone }
 
 
 let defaultCanvasProps : canvasProps =
   { offset = origin
   ; enablePan = true
   ; lastOffset = None
-  ; panAnimation = false
+  ; panAnimation = DontAnimateTransition
   ; minimap = None }
 
 

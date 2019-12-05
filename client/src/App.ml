@@ -929,8 +929,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           List.filter ~f:isComplete m.executingFunctions
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
-    | MoveCanvasTo pos ->
-        let newCanvasProps = {m.canvasProps with offset = pos} in
+    | MoveCanvasTo (offset, panAnimation) ->
+        let newCanvasProps =
+          { m.canvasProps with
+            offset; panAnimation; lastOffset = Some m.canvasProps.offset }
+        in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
       ( match TL.get m tlid with
@@ -938,7 +941,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ( { m with
               canvasProps =
                 { m.canvasProps with
-                  offset = Viewport.centerCanvasOn tl; panAnimation = true } }
+                  offset = Viewport.centerCanvasOn tl
+                ; panAnimation = AnimateTransition } }
           , Cmd.none )
       | None ->
           (m, Cmd.none) )
@@ -1012,6 +1016,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value )
         in
         ({m with searchCache}, Cmd.none)
+    | FluidSetState fluidState ->
+        ({m with fluidState}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1878,13 +1884,13 @@ let update_ (msg : msg) (m : model) : modification =
   | CanvasPanAnimationEnd ->
       TweakModel
         (fun m ->
-          {m with canvasProps = {m.canvasProps with panAnimation = false}} )
+          { m with
+            canvasProps =
+              {m.canvasProps with panAnimation = DontAnimateTransition} } )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
       Introspect.setHoveringReferences tlid ids
-  | FluidMsg (FluidKeyPress _ as msg) ->
-      Fluid.update m msg
   | TriggerSendPresenceCallback (Ok _) ->
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
@@ -1953,6 +1959,9 @@ let update_ (msg : msg) (m : model) : modification =
                   { m with
                     fluidState = {m.fluidState with selectionStart = None} } )
         ]
+  | FluidMsg msg ->
+      (* Handle all other messages *)
+      Fluid.update m msg
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

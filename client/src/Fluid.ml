@@ -4934,6 +4934,41 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
+  | FluidClearErrorDvSrc ->
+      FluidSetState {m.fluidState with errorDvSrc = SourceNone}
+  | FluidFocusOnToken id ->
+      (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
+      tlidOf m.cursorState
+      |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
+      |> Option.andThen ~f:(fun tl ->
+             match TL.getAST tl with
+             | Some expr ->
+                 Some (tl, expr)
+             | None ->
+                 None )
+      |> Option.map ~f:(fun (tl, expr) ->
+             let ast = fromExpr s expr in
+             let fluidState =
+               let fs = moveToEndOfTarget id ast s in
+               {fs with errorDvSrc = SourceId id}
+             in
+             let moveMod =
+               match Viewport.moveToToken id tl with
+               | Some dx, Some dy ->
+                   MoveCanvasTo ({x = dx; y = dy}, AnimateTransition)
+               | Some dx, None ->
+                   MoveCanvasTo
+                     ({x = dx; y = m.canvasProps.offset.y}, AnimateTransition)
+               | None, Some dy ->
+                   MoveCanvasTo
+                     ({x = m.canvasProps.offset.x; y = dy}, AnimateTransition)
+               | None, None ->
+                   NoChange
+             in
+             if moveMod = NoChange
+             then FluidSetState fluidState
+             else Many [moveMod; FluidSetState fluidState] )
+      |> Option.withDefault ~default:NoChange
   | FluidStartSelection _
   | FluidKeyPress _
   | FluidCopy
@@ -5243,7 +5278,13 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; (* This expression is the source of an incomplete propogated into another   expression, where the cursor is currently on *)
             ( "is-origin"
             , sourceOfCurrentToken ti |> Option.isSomeEqualTo ~value:analysisId
-            ) ]
+            )
+          ; ( "jumped-to"
+            , match state.errorDvSrc with
+              | SourceNone ->
+                  false
+              | SourceId id ->
+                  id = tokenId ) ]
         in
         let clickHandlers =
           [ ViewUtils.eventNeither
@@ -5306,7 +5347,13 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)
-                    IgnoreMsg ) ]
+                    IgnoreMsg )
+          ; ViewUtils.onAnimationEnd
+              ~key:("anim-end" ^ idStr)
+              ~listener:(fun msg ->
+                if msg = "flashError" || msg = "flashIncomplete"
+                then FluidMsg FluidClearErrorDvSrc
+                else IgnoreMsg ) ]
         in
         let innerNode =
           match innerNestingClass with
@@ -5330,6 +5377,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
 let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
+  let goToSrcView text tid =
+    Html.div
+      [ ViewUtils.eventNoPropagation
+          ~key:("lv-src-" ^ deID tid)
+          "click"
+          (fun _ -> FluidMsg (FluidFocusOnToken tid))
+      ; Html.class' "jump-src" ]
+      [Html.text text]
+  in
   let liveValue, show, offset =
     let none = ([Vdom.noNode], false, 0) in
     getToken state ast
@@ -5358,17 +5414,25 @@ let viewLiveValue
                ->
                  let text = Option.withDefault ~default:"" fnText in
                  ([Html.text text], true, ti.startRow)
+             | None, LoadableSuccess (DIncomplete (SourceId srcId))
+               when srcId <> id ->
+                 ( [goToSrcView "<Incomplete> Click to locate source" srcId]
+                 , true
+                 , ti.startRow )
+             | None, LoadableSuccess (DIncomplete _) ->
+                 ([Html.text "<Incomplete>"], true, ti.startRow)
+             | None, LoadableSuccess (DError (SourceId srcId, _))
+               when srcId <> id ->
+                 (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
+                 ( [goToSrcView "<Error> Click to locate source" srcId]
+                 , true
+                 , ti.startRow )
+             | None, LoadableSuccess (DError (_, msg)) ->
+                 ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
              | Some (FACVariable (_, Some dval)), _
              | None, LoadableSuccess dval ->
                  let text = Runtime.toRepr dval in
-                 let copyBtn =
-                   match dval with
-                   | DIncomplete _ | DError _ ->
-                       Vdom.noNode
-                   | _ ->
-                       viewCopyButton tlid text
-                 in
-                 ([Html.text text; copyBtn], true, ti.startRow)
+                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              | Some _, _ ->
                  none
              | None, LoadableNotInitialized | None, LoadableLoading _ ->

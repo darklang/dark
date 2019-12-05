@@ -344,7 +344,9 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let styles =
     [ ( "transition"
-      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
+      , if m.canvasProps.panAnimation = AnimateTransition
+        then "transform 0.5s"
+        else "unset" )
     ; canvasTransform ]
   in
   let overlay =
