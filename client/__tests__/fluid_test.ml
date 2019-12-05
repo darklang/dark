@@ -2479,7 +2479,6 @@ let () =
         plainIf
         (enter 0)
         "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
-      (* TODO(alice) find out the motivation of this behavior *)
       t
         "enter at end of if line does nothing"
         plainIf
@@ -2497,11 +2496,6 @@ let () =
         plainIf
         (enter 18)
         "if 5\nthen\n  6\nelse\n  let ~*** = ___\n  7" ;
-      t
-        "enter at end of else expr line does nothing"
-        plainIf
-        (enter 22)
-        "if 5\nthen\n  6\nelse\n  7~" ;
       t
         "ctrl+left from value moves to condition "
         plainIf
