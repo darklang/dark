@@ -987,6 +987,8 @@ and fluidMsg =
   | FluidUpdateSelection of tlid * (int * int) option
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
+  (* Index of the dropdown(autocomplete or command palette) item *)
+  | FluidUpdateDropdownIndex of int
 
 and msg =
   | GlobalClick of mouseEvent
