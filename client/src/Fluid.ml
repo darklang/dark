@@ -2877,18 +2877,24 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
 (* getCaretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget corresponding to the "very end"
   of that fluidExpr. The concept of "very end" is related to an understanding of the tokenization of the expr,
   even though this function doesn't explicitly depend on any tokenization functions. *)
-let getCaretTargetForLastPartOfExpr (expr : fluidExpr option) : caretTarget =
+let getCaretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
   match expr with
   | Some (EVariable (id, str)) ->
       {astRef = ARVariable id; offset = String.length str}
   | Some (EFieldAccess (id, _, _, fieldName)) ->
       { astRef = ARFieldAccess (id, FAPFieldname)
       ; offset = String.length fieldName }
+  | None ->
+      recover
+        "getCaretTargetForLastPartOfExpr got an id outside of the AST"
+        id
+        {astRef = ARInvalid; offset = 0}
   | _ ->
       recover
         "we don't yet support getCaretTargetForLastPartOfExpr for this"
         expr
-        {astRef = ARNull (ID "unhandled"); offset = 0}
+        {astRef = ARInvalid; offset = 0}
 
 
 type newPosition =
@@ -3040,8 +3046,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
     | TFieldOp (id, lhsId) ->
         let newAst = removeField id ast in
-        let lhsExpr = findExpr lhsId newAst in
-        (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsExpr))
+        (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsId newAst))
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)
     | TPatternFloatPoint (mID, id) ->
