@@ -1235,12 +1235,15 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
   in
   findParent' ~parent:None id ast
 
+
 let isIfCondition (t : token) (ast : ast) : bool =
   let id = Token.tid t in
   match findParent id ast with
-  | Some (EIf (_, cond, _, _)) when (eid cond) = id ->
-    true
-  | _ -> false
+  | Some (EIf (_, cond, _, _)) when eid cond = id ->
+      true
+  | _ ->
+      false
+
 
 (* ------------- *)
 (* Replacing expressions *)
@@ -2398,8 +2401,7 @@ let addEntryBelow
         | Some index, EPipe (id, exprs) ->
             EPipe (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
         | Some _, e ->
-          ELet (gid (), gid (), "", e, newB ())
-        )
+            ELet (gid (), gid (), "", e, newB ()) )
   in
   let newState =
     match !cursor with
@@ -2628,7 +2630,7 @@ let acMoveBasedOnKey
   newState
 
 
-let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
+let rec findAppropriateExtractionParent (oldExpr : fluidExpr) (ast : ast) :
     fluidExpr option =
   let child = oldExpr in
   let parent = findParent (eid oldExpr) ast in
@@ -2657,10 +2659,10 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
         Some child
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
-        findAppropriatePipingParent parent ast
+        findAppropriateExtractionParent parent ast
     (* These are wrappers of the current expr. *)
     | EPartial _ | ERightPartial _ ->
-        findAppropriatePipingParent parent ast )
+        findAppropriateExtractionParent parent ast )
   | None ->
       (* If we get to the root *)
       Some child
@@ -2671,7 +2673,7 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriatePipingParent e ast else Some e )
+           if findParent then findAppropriateExtractionParent e ast else Some e )
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
@@ -2716,7 +2718,7 @@ let updateFromACItem
          * to say the largest expression that doesn't break a line. *)
         let newAST =
           let exprToReplace =
-            findAppropriatePipingParent oldExpr ast
+            findAppropriateExtractionParent oldExpr ast
             |> Option.map ~f:extractSubexprFromPartial
           in
           match exprToReplace with
@@ -3501,6 +3503,7 @@ let doInsert
   | Some letter ->
       doInsert' ~pos letter ti ast s
 
+
 let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   let s = recordAction "wrapInLet" s in
   let id = Token.tid ti.token in
@@ -3508,13 +3511,19 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   | Some expr ->
       let bodyId = gid () in
       let exprToWrap =
-        match findAppropriatePipingParent expr ast with Some e -> e | None -> expr
+        match findAppropriateExtractionParent expr ast with
+        | Some e ->
+            e
+        | None ->
+            expr
       in
       let eid = eid exprToWrap in
       let newExpr = ELet (gid (), gid (), "", exprToWrap, EBlank bodyId) in
       let newAST = replaceExpr ~newExpr eid ast in
       let tokens = toTokens s newAST in
-      let lastToken = tokens |> List.find ~f:(fun ti -> ti.token = TBlank bodyId) in
+      let lastToken =
+        tokens |> List.find ~f:(fun ti -> ti.token = TBlank bodyId)
+      in
       ( match lastToken with
       | Some lastTi ->
           (newAST, moveToStart lastTi s)
@@ -3522,6 +3531,7 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
           (ast, s) )
   | None ->
       (ast, s)
+
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getCurrentToken tokens =
@@ -3888,19 +3898,18 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         doInsert ~pos keyChar toTheLeft ast s
     (* End of line *)
     | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
-        Debug.loG "^@^" "K.Enter, _, R (TNewline (Some (id, _, index)), ti)";
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
-    | K.Enter, L (lt, lti), R (TNewline None, rti) when not (Token.isLet lt) && not (isAutocompleting rti s) && not (isIfCondition lt ast) ->
+    | K.Enter, L (lt, lti), R (TNewline None, rti)
+      when (not (Token.isLet lt))
+           && (not (isAutocompleting rti s))
+           && not (isIfCondition lt ast) ->
         wrapInLet lti ast s
     | K.Enter, _, R (TNewline None, ti) ->
-        Debug.loG "^@^" "K.Enter, _, R (TNewline None, ti)";
         (ast, doRight ~pos ~next:mNext ti s)
     | K.Enter, L (TPipe (id, index, _), _), _ ->
-        Debug.loG "^@^" "K.Enter, L (TPipe (id, index, _), _), _";
         let newAST, newState = addEntryAbove id (Some index) ast s in
         (newAST, {newState with newPos = newState.newPos + 2})
     | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
-        Debug.loG "^@^" "K.Enter, L (TNewline (Some (id, _, index)), _), _";
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s

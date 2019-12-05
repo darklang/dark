@@ -2191,10 +2191,11 @@ let () =
         aShortInt
         (enter 1)
         "let *** = 1\n~___" ;
-      t "enter at the end of a non-let wraps fncall in let"
+      t
+        "enter at the end of a non-let wraps fncall in let"
         aFullFnCall
         (enter 12)
-        "let *** = Int::add 5 5\n~___";
+        "let *** = Int::add 5 5\n~___" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
@@ -2478,7 +2479,8 @@ let () =
         plainIf
         (enter 0)
         "let *** = ___\n~if 5\nthen\n  6\nelse\n  7" ;
-      (* TODO(alice) find out the motivation of this behavior *) t
+      (* TODO(alice) find out the motivation of this behavior *)
+      t
         "enter at end of if line does nothing"
         plainIf
         (enter 4)
