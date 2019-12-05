@@ -379,15 +379,18 @@ $unrun-color: $yellow;
 }
 @keyframes blinkExeBtn {
   0% {
-    color: green;
+    //color: green;
+    font-size: 100%;
   }
 
   50% {
-    color: desaturate(green, 50%);
+    //color: desaturate(green, 50%);
+    font-size: 150%;
   }
 
   100% {
-    color: green;
+    //color: green;
+    font-size: 100%;
   }
 }
 
@@ -416,6 +419,10 @@ $unrun-color: $yellow;
   &.dark-error.is-origin:hover:after {
     content: "The Error came from here";
   }
+}
+
+.fluid-entry.fluid-fn-name.dark-incomplete {
+  color: $grey2 !important;
 }
 
 .fluid-entry.dark-incomplete.is-origin .execution-button .fa-play {
