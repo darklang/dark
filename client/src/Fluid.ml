@@ -4878,6 +4878,12 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
+  | FluidUpdateDropdownIndex index when FluidCommands.isOpened m.fluidState.cp
+    ->
+      FluidCommands.cpSetIndex m index s
+  | FluidUpdateDropdownIndex index ->
+      let newState = acSetIndex index s in
+      Types.TweakModel (fun m -> {m with fluidState = newState})
   | FluidKeyPress {key} when key = K.Undo ->
       KeyPress.undo_redo m false
   | FluidKeyPress {key} when key = K.Redo ->
@@ -4994,7 +5000,11 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                FluidMsg (FluidAutocompleteClick item) ) ]
+                FluidMsg (FluidAutocompleteClick item) )
+          ; ViewUtils.eventBoth
+              ~key:("ac-mouseover" ^ name)
+              "mouseover"
+              (fun _ -> FluidMsg (FluidUpdateDropdownIndex i) ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
