@@ -2485,6 +2485,16 @@ let () =
         (enter 4)
         "if 5\n~then\n  6\nelse\n  7" ;
       t
+        "enter at the end of then line wraps expr in let"
+        plainIf
+        (enter 13)
+        "if 5\nthen\n  let _ = 6\n  ~___\nelse\n  7" ;
+      t
+        "enter at the end of else line wraps expr in let"
+        plainIf
+        (enter 22)
+        "if 5\nthen\n  6\nelse\n  let _ = 7\n  ~___" ;
+      t
         "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
