@@ -1428,6 +1428,23 @@ let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   ti.startPos + !nextPos
 
 
+let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
+  let posInString = pos - ti.startPos in
+  let nextPos : int ref = ref 0 in
+  let _ =
+    Token.toText ti.token
+    |> String.split ~on:""
+    |> List.find ~f:(fun a ->
+           if (a == " " || (a = "\"" && !nextPos > 0) || a = "\n" || a = "\t")
+              && !nextPos > posInString
+           then true
+           else (
+             nextPos := !nextPos + 1 ;
+             false ) )
+  in
+  ti.startPos + !nextPos
+
+
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
 let getEndOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
@@ -3747,6 +3764,17 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             ~state:s
             ~ast
             (s.newPos, getEndOfLineCaretPos ast ti s) )
+    | K.DeleteNextWord, _, R (_, ti) ->
+      ( match fluidGetOptionalSelectionRange s with
+      | Some selRange ->
+          deleteCaretRange ~state:s ~ast selRange
+      | None ->
+          let rangeStart =
+            if Token.isStringToken ti.token && pos != ti.endPos
+            then getEndOfWordInStrCaretPos ~pos ti
+            else ti.endPos
+          in
+          deleteCaretRange ~state:s ~ast (rangeStart, pos) )
     | K.DeletePrevWord, L (_, ti), _ ->
       ( match fluidGetOptionalSelectionRange s with
       | Some selRange ->
@@ -4044,7 +4072,8 @@ let shouldDoDefaultAction (key : K.key) : bool =
   | K.DeleteToStartOfLine
   | K.GoToStartOfWord
   | K.GoToEndOfWord
-  | K.DeletePrevWord ->
+  | K.DeletePrevWord
+  | K.DeleteNextWord ->
       false
   | _ ->
       true
