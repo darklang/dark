@@ -1428,6 +1428,8 @@ let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   ti.startPos + !nextPos
 
 
+(* getEndOfWordInStrCaretPos returns the closest whitespace position after the 
+ * current caret position in a string  *)
 let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
   let nextPos : int ref = ref 0 in
@@ -1507,29 +1509,10 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     toTokens s ast
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos < t.endPos)
   in
-  (* Finds how many moves to get to next whitespace in a string *)
-  let findPosOffsetToNextWhiteSpaceInStr (tokenInfo : fluidTokenInfo) : int =
-    let posInToken = pos - tokenInfo.startPos in
-    let offset : int ref = ref 0 in
-    let _ =
-      Token.toText tokenInfo.token
-      |> String.split ~on:""
-      |> List.find ~f:(fun a ->
-             if (a == " " || (a = "\"" && !offset > 0) || a = "\n" || a = "\t")
-                && !offset > posInToken
-             then true
-             else (
-               offset := !offset + 1 ;
-               false ) )
-    in
-    !offset
-  in
   let newPos =
     let tokenInfo = nextToken |> Option.withDefault ~default:ti in
     if Token.isStringToken tokenInfo.token && pos != tokenInfo.endPos
-    then
-      let offset = findPosOffsetToNextWhiteSpaceInStr tokenInfo in
-      tokenInfo.startPos + offset
+    then getEndOfWordInStrCaretPos ~pos tokenInfo
     else tokenInfo.endPos
   in
   setPosition s newPos
