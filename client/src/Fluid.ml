@@ -1236,15 +1236,6 @@ let findParent (id : id) (ast : ast) : fluidExpr option =
   findParent' ~parent:None id ast
 
 
-let isIfCondition (t : token) (ast : ast) : bool =
-  let id = Token.tid t in
-  match findParent id ast with
-  | Some (EIf (_, cond, _, _)) when eid cond = id ->
-      true
-  | _ ->
-      false
-
-
 (* ------------- *)
 (* Replacing expressions *)
 (* ------------- *)
@@ -2673,7 +2664,8 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriateExtractionParent e ast else Some e )
+           if findParent then findAppropriateExtractionParent e ast else Some e
+       )
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
@@ -3674,6 +3666,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   let keyIsInfix = List.member ~value:key infixKeys in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
+  (* If this expression token is on the same line as an if-condition *)
+  let isOnIfConditionLine exprti =
+    tokens
+    |> List.any ~f:(fun ti ->
+           if ti.startRow = exprti.startRow
+           then match ti.token with TIfKeyword _ -> true | _ -> false
+           else false )
+  in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
      * inconsistent about whether it looks left/right and also about what
@@ -3900,9 +3900,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     | K.Enter, L (lt, lti), R (TNewline None, rti)
-      when (not (Token.isLet lt))
-           && (not (isAutocompleting rti s))
-           && not (isIfCondition lt ast) ->
+      when not
+             ( Token.isLet lt
+             || isAutocompleting rti s
+             || isOnIfConditionLine lti ) ->
         wrapInLet lti ast s
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
