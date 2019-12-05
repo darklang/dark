@@ -1021,15 +1021,16 @@ let get_trace_data ~(execution_id : Types.id) (host : string) (body : string) :
   in
   let resp_headers = server_timing [t1; t2; t3; t4; t5] in
   let new_log_items =
+    [ ("trace_id", `String (Uuidm.to_string trace_id))
+    ; ("tlid", `String (Types.string_of_id tlid)) ]
+    @
     match result with
     | Ok (Some _) ->
         []
     | Ok None ->
-        [ ("warning", `String "no handler or userfn found")
-        ; ("trace_id", `String (Uuidm.to_string trace_id))
-        ; ("tlid", `String (Types.string_of_id tlid)) ]
+        [("warning", `String "no handler or userfn found")]
     | Error e ->
-        [("error", `String e); ("tlid", `String (Types.string_of_id tlid))]
+        [("error", `String e)]
   in
   Log.add_log_annotations new_log_items (fun _ ->
       match result with
