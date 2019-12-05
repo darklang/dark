@@ -1744,8 +1744,12 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         (function TFloatWhole (id', _) -> id = id' | _ -> false)
     | ARFloat (id, FPDecimal) ->
         (function TFloatFraction (id', _) -> id = id' | _ -> false)
-    | ARFnCall id ->
+    | ARFnCall (id, FCPFnName) ->
         (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
+    | ARFnCall (id, FCPArg _idx) ->
+        (* FIXME no way to get function arg by index *)
+        (function
+        | e -> Token.tid e = id)
     | ARIf (id, IPIfKeyword) ->
         (function TIfKeyword id' -> id = id' | _ -> false)
     | ARIf (id, IPThenKeyword) ->
