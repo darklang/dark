@@ -1601,7 +1601,7 @@ type astRef =
   | ARConstructor of id * astConstructorPart
   | ARFieldAccess of id * astFieldAccessPart
   | ARFloat of id * astFloatPart
-  | ARFnCall of id
+  | ARFnCall of id * astFnCallPart
   | ARIf of id * astIfPart
   | ARInteger of id
   | ARLet of id * astLetPart
