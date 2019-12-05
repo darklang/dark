@@ -1584,6 +1584,8 @@ type astRef =
   | ARPipe of id * astPipePart
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
+  (* for use if something that should never happen happened *)
+  | ARInvalid
 
 (* | ARFeatureFlag is not yet supported *)
 (* | ARPattern is not yet supported *)

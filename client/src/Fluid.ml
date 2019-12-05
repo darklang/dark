@@ -2858,6 +2858,9 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
             true
         | TVariable (id, _), ARVariable targetId when id = targetId ->
             true
+        | _, ARInvalid ->
+            (* If this happens, there's a bug *)
+            false
         | _ ->
             false )
   in
