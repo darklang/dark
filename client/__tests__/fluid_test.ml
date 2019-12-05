@@ -2190,12 +2190,12 @@ let () =
         "enter at the end of a non-let wraps literal expr in let"
         aShortInt
         (enter 1)
-        "let *** = 1\n~___" ;
+        "let _ = 1\n~___" ;
       t
         "enter at the end of a non-let wraps fncall in let"
         aFullFnCall
         (enter 12)
-        "let *** = Int::add 5 5\n~___" ;
+        "let _ = Int::add 5 5\n~___" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect

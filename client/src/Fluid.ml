@@ -2391,8 +2391,10 @@ let addEntryBelow
                   ~value:(FPBlank (gid (), gid ()), newB ()) )
         | Some index, EPipe (id, exprs) ->
             EPipe (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
-        | Some _, e ->
-            ELet (gid (), gid (), "", e, newB ()) )
+        | _ ->
+          cursor := `NextToken ;
+          e
+        )
   in
   let newState =
     match !cursor with
@@ -2620,8 +2622,9 @@ let acMoveBasedOnKey
   let newState = moveTo newPos (acClear s) in
   newState
 
-
-let rec findAppropriateExtractionParent (oldExpr : fluidExpr) (ast : ast) :
+(* Used for piping and wrapping line in let.  For both we are often at the last argument of a function call. We want to perform the operation on the entire expression om the last line, not just the expression present in the token at the end of the line. This function helps us find the whole expression that we would want to perform it on.
+*)
+let rec findAppropriateParentToWrap (oldExpr : fluidExpr) (ast : ast) :
     fluidExpr option =
   let child = oldExpr in
   let parent = findParent (eid oldExpr) ast in
@@ -2650,10 +2653,10 @@ let rec findAppropriateExtractionParent (oldExpr : fluidExpr) (ast : ast) :
         Some child
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
-        findAppropriateExtractionParent parent ast
+        findAppropriateParentToWrap parent ast
     (* These are wrappers of the current expr. *)
     | EPartial _ | ERightPartial _ ->
-        findAppropriateExtractionParent parent ast )
+        findAppropriateParentToWrap parent ast )
   | None ->
       (* If we get to the root *)
       Some child
@@ -2664,7 +2667,7 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriateExtractionParent e ast else Some e
+           if findParent then findAppropriateParentToWrap e ast else Some e
        )
     |> Option.map ~f:extractSubexprFromPartial
   in
@@ -2710,7 +2713,7 @@ let updateFromACItem
          * to say the largest expression that doesn't break a line. *)
         let newAST =
           let exprToReplace =
-            findAppropriateExtractionParent oldExpr ast
+            findAppropriateParentToWrap oldExpr ast
             |> Option.map ~f:extractSubexprFromPartial
           in
           match exprToReplace with
@@ -3495,7 +3498,6 @@ let doInsert
   | Some letter ->
       doInsert' ~pos letter ti ast s
 
-
 let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   let s = recordAction "wrapInLet" s in
   let id = Token.tid ti.token in
@@ -3503,7 +3505,7 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   | Some expr ->
       let bodyId = gid () in
       let exprToWrap =
-        match findAppropriateExtractionParent expr ast with
+        match findAppropriateParentToWrap expr ast with
         | Some e ->
             e
         | None ->
@@ -3523,7 +3525,6 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
           (ast, s) )
   | None ->
       (ast, s)
-
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getCurrentToken tokens =
