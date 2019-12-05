@@ -4936,7 +4936,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       FluidCommands.updateCmds m ke
   | FluidClearErrorDvSrc ->
       FluidSetState {m.fluidState with errorDvSrc = SourceNone}
-  | FluidShowToken id ->
+  | FluidFocusOnToken id ->
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
@@ -5382,7 +5382,7 @@ let viewLiveValue
       [ ViewUtils.eventNoPropagation
           ~key:("lv-src-" ^ deID tid)
           "click"
-          (fun _ -> FluidMsg (FluidShowToken tid))
+          (fun _ -> FluidMsg (FluidFocusOnToken tid))
       ; Html.class' "jump-src" ]
       [Html.text text]
   in
@@ -5410,15 +5410,15 @@ let viewLiveValue
                Analysis.getLiveValueLoadable vs.analysisStore id
              in
              match (AC.highlighted state.ac, loadable) with
+             | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
+               ->
+                 let text = Option.withDefault ~default:"" fnText in
+                 ([Html.text text], true, ti.startRow)
              | None, LoadableSuccess (DIncomplete (SourceId srcId))
                when srcId <> id ->
                  ( [goToSrcView "<Incomplete> Click to locate source" srcId]
                  , true
                  , ti.startRow )
-             | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
-               ->
-                 let text = Option.withDefault ~default:"" fnText in
-                 ([Html.text text], true, ti.startRow)
              | None, LoadableSuccess (DIncomplete _) ->
                  ([Html.text "<Incomplete>"], true, ti.startRow)
              | None, LoadableSuccess (DError (SourceId srcId, _))
