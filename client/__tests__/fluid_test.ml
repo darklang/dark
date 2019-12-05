@@ -2187,10 +2187,14 @@ let () =
         (ctrlRight 15)
         "match ___\n  *** -> let x~ = 5\n         let y = 6\n         ___\n" ;
       t
-        "enter at the end of a non-let wraps expression in let"
+        "enter at the end of a non-let wraps literal expr in let"
         aShortInt
         (enter 1)
         "let *** = 1\n~___" ;
+      t "enter at the end of a non-let wraps fncall in let"
+        aFullFnCall
+        (enter 12)
+        "let *** = Int::add 5 5\n~___";
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
