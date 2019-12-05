@@ -876,11 +876,15 @@ and toast =
   { toastMessage : string option
   ; toastPos : vPos option }
 
+and isTransitionAnimated =
+  | AnimateTransition
+  | DontAnimateTransition
+
 and canvasProps =
   { offset : pos
   ; enablePan : bool
   ; lastOffset : pos option
-  ; panAnimation : bool
+  ; panAnimation : isTransitionAnimated
   ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -939,7 +943,7 @@ and modification =
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
-  | MoveCanvasTo of pos
+  | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
@@ -967,6 +971,7 @@ and modification =
   | StartFluidMouseSelecting of tlid
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
+  | FluidSetState of fluidState
 
 (* ------------------- *)
 (* Msgs *)
@@ -989,6 +994,8 @@ and fluidMsg =
   | FluidCommandsClick of command
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidUpdateDropdownIndex of int
+  | FluidFocusOnToken of id
+  | FluidClearErrorDvSrc
 
 and msg =
   | GlobalClick of mouseEvent
@@ -1364,8 +1371,10 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selectionStart : int option
-  (* The selection ends at newPos *) }
+  ; selectionStart : int option (* The selection ends at newPos *)
+  ; errorDvSrc : dval_source
+  (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
+  }
 
 (* Avatars *)
 and avatar =
