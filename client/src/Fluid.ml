@@ -762,7 +762,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany [TFieldOp id; TFieldName (id, fieldID, fieldname)]
+      |> addMany
+           [ TFieldOp (id, (* lhs *) eid expr)
+           ; TFieldName (id, fieldID, fieldname) ]
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
@@ -2848,9 +2850,17 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
     List.find tokens ~f:(fun ti ->
         match (ti.token, ct.astRef) with
         | ( TRecordFieldname (id, _, tIndex, _)
-          , ARRecordFieldname (targetId, fieldIndex) )
+          , ARRecord (targetId, RPFieldname fieldIndex) )
           when id = targetId && tIndex = fieldIndex ->
             true
+        | TFieldName (id, _, _), ARFieldAccess (targetId, FAPFieldname)
+          when id = targetId ->
+            true
+        | TVariable (id, _), ARVariable targetId when id = targetId ->
+            true
+        | _, ARInvalid ->
+            (* If this happens, there's a bug *)
+            false
         | _ ->
             false )
   in
@@ -2864,6 +2874,29 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
         s.newPos
 
 
+(* getCaretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget corresponding to the "very end"
+  of that fluidExpr. The concept of "very end" is related to an understanding of the tokenization of the expr,
+  even though this function doesn't explicitly depend on any tokenization functions. *)
+let getCaretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
+  match expr with
+  | Some (EVariable (id, str)) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | Some (EFieldAccess (id, _, _, fieldName)) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | None ->
+      recover
+        "getCaretTargetForLastPartOfExpr got an id outside of the AST"
+        id
+        {astRef = ARInvalid; offset = 0}
+  | _ ->
+      recover
+        "we don't yet support getCaretTargetForLastPartOfExpr for this"
+        expr
+        {astRef = ARInvalid; offset = 0}
+
+
 type newPosition =
   | RightOne
   | RightTwo
@@ -2874,6 +2907,9 @@ type newPosition =
   | SamePlace
   | TwoAfterEnd
   | Exactly of int
+  (* The hope is that we can migrate everything to
+     AtTarget and then remove this entirely *)
+  | AtTarget of caretTarget
 
 let adjustPosForReflow
     ~state
@@ -2948,6 +2984,8 @@ let adjustPosForReflow
       oldTI.endPos + 2
   | TwoAfterEnd, Some newTI ->
       newTI.endPos + 2
+  | AtTarget target, _ ->
+      posFromCaretTarget state newAST target
 
 
 let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
@@ -3006,8 +3044,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, LeftOne)
     | TNewline _ ->
         (ast, Exactly ti.startPos)
-    | TFieldOp id ->
-        (removeField id ast, LeftOne)
+    | TFieldOp (id, lhsId) ->
+        let newAst = removeField id ast in
+        (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsId newAst))
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)
     | TPatternFloatPoint (mID, id) ->
@@ -3136,7 +3175,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
-  | TFieldOp id ->
+  | TFieldOp (id, _) ->
       (removeField id ast, s)
   | TString (id, str) ->
       let target s =
@@ -3557,7 +3596,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   in
   (* This expresses whether or not the expression to the left of
    * the insert should be wrapped in a binary operator, and determines
-   * that face based on the _next_ token *)
+   * that fact based on the _next_ token *)
   let wrappableInBinop rightNeighbour =
     match rightNeighbour with
     | L _ ->
@@ -3779,7 +3818,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           posFromCaretTarget
             s
             newAST
-            {astRef = ARRecordFieldname (id, 0); offset = 0}
+            {astRef = ARRecord (id, RPFieldname 0); offset = 0}
         in
         (newAST, {s with newPos})
     | K.Enter, _, R (TRecordClose id, _) ->

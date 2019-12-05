@@ -1216,7 +1216,11 @@ and fluidExpr =
   (* The ID in the list is extra for the fieldname *)
   | ERecord of id * (id * fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
-  (* The 2nd ID is extra for the name *)
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
+    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
+    length 0 (for `Nothing`).
+    The 2nd ID here is the id of the blankOr for the constructor's name.
+   *)
   | EConstructor of id * id * fluidName * fluidExpr list
   (* TODO: add ID for fluidPattern *)
   | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
@@ -1270,8 +1274,8 @@ and fluidToken =
   | TIfThenKeyword of id
   | TIfElseKeyword of id
   | TBinOp of id * string
-  | TFieldOp of id
-  | TFieldName of id * id * string
+  | TFieldOp of (* fieldAccess *) id * (* lhs *) id
+  | TFieldName of id * analysisId * string
   | TVariable of id * string
   (* id, Partial name (The TFnName display name + TFnVersion display name ex:'DB::getAllv3'), Display name (the name that should be displayed ex:'DB::getAll'), fnName (Name for backend, Includes the underscore ex:'DB::getAll_v3'), sendToRail *)
   | TFnName of id * string * string * string * sendToRail
@@ -1306,31 +1310,6 @@ and fluidToken =
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
-
-(* An astRef represents a reference to a specific part of an AST node,
-   such as a specific Record Fieldname rather than just the record,
-   or an offset into a specific string.
-   Why not use a fluidToken for this purpose?
-   A single construct such as a string might map to multiple fluidTokens,
-   but when describing a part of the ast (for example with caretTarget),
-   we often don't want to care about the details of the tokenization;
-   we can represent concepts like "the caret position at the end of this
-   string" without needing to know if it is a TString relative to a combination
-   of TStringMLStart, TStringMLMiddle, TStringMLEnd. *)
-and astRef =
-  | ARRecordFieldname of
-      (* AST node id, index of the <fieldname,value> pair in the record *)
-      id
-      * int
-
-(* A caretTarget represents a distinct caret location within the AST.
-   By combining a reference to part of the AST and a caret offset
-   into that part of the AST, we can uniquely represent a place
-   for the caret to jump during AST transformations, even ones that
-   drastically change the token stream. *)
-and caretTarget =
-  { astRef : astRef
-  ; offset : int }
 
 and fluidTokenInfo =
   { startRow : int
@@ -1500,3 +1479,123 @@ and permission =
   | Read
   | ReadWrite
 [@@deriving show eq ord]
+
+(* ----------------------------- *)
+(* Referencing parts of an AST *)
+(* at the caret level *)
+(* ----------------------------- *)
+
+(* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
+   based on which specific parts of the AST we actually want to represent via astRef *)
+
+type astFloatPart =
+  | FPWhole
+  | FPDecimal
+
+type astLetPart =
+  | LPKeyword
+  | LPVarName
+  | LPAssignment
+  | LPValue
+  | LPBody
+
+type astIfPart =
+  | IPIfKeyword
+  | IPCondition
+  | IPThenKeyword
+  | IPThenBody
+  | IPElseKeyword
+  | IPElseBody
+
+type astBinOpPart =
+  | BOPLHS
+  | BOPOperator
+  | BOPRHS
+
+type astLambdaPart =
+  | LPKeyword
+  | LPVarName of (* index of the var *) int
+  | LPSeparator of (* index of the var *) int
+  | LPArrow
+  | LPBody
+
+type astFieldAccessPart =
+  | FAPLHS
+  | FAPFieldname
+
+type astFnCallPart =
+  | FCPFnName
+  | FCPArg of (* index of the argument *) int
+
+type astRecordPart =
+  | RPOpen
+  | RPFieldname of (* index of the <fieldname,value> pair *) int
+  | RPFieldSep of (* index of the <fieldname,value> pair *) int
+  | RPFieldValue of (* index of the <fieldname,value> pair *) int
+  | RPClose
+
+type astPipePart =
+  | PPPipeKeyword of (* index of the pipe *) int
+  | PPPipedExpr of (* index of the pipe *) int
+
+type astConstructorPart =
+  | CPName
+  | CPValue of int
+
+type astMatchPart =
+  | MPKeyword
+  | MPMatchExpr
+  | MPBranchPattern of (* index of the branch *) int
+  | MPBranchSep of (* index of the branch *) int
+  | MPBranchValue of (* index of the branch *) int
+
+(* An astRef represents a reference to a specific part of an AST node,
+   such as a specific Record Fieldname rather than just the record.
+   Why not use a fluidToken for this purpose?
+   A single construct such as a string might map to multiple fluidTokens,
+   but when describing a part of the ast (for example with caretTarget),
+   we often don't want to care about the details of the tokenization;
+   we can represent concepts like "the caret position at the end of this
+   string" without needing to know if it is a TString relative to a combination
+   of TStringMLStart, TStringMLMiddle, TStringMLEnd.
+   
+   The IDs below all refer to the AST node id
+    *)
+type astRef =
+  | ARInteger of id
+  | ARBool of id
+  | ARString of id
+  | ARFloat of id * astFloatPart
+  | ARNull of id
+  | ARBlank of id
+  | ARLet of id * astLetPart
+  | ARIf of id * astIfPart
+  | ARBinOp of id * astBinOpPart
+  | ARFieldAccess of id * astFieldAccessPart
+  | ARVariable of id
+  | ARFnCall of id
+  | ARPartial of id
+  | ARRightPartial of id
+  | ARList of
+      (* TODO(JULIAN): This might need an open and close part... *)
+      (* AST node id, index of the element in the list *)
+      id
+      * int
+  | ARRecord of id * astRecordPart
+  | ARPipe of id * astPipePart
+  | ARConstructor of id * astConstructorPart
+  | ARMatch of id * astMatchPart
+  (* for use if something that should never happen happened *)
+  | ARInvalid
+
+(* | ARFeatureFlag is not yet supported *)
+(* | ARPattern is not yet supported *)
+
+(* A caretTarget represents a distinct caret location within the AST.
+   By combining a reference to part of the AST and a caret offset
+   into that part of the AST, we can uniquely represent a place
+   for the caret to jump during AST transformations, even ones that
+   drastically change the token stream. *)
+type caretTarget =
+  { astRef : astRef
+  ; offset : int }
