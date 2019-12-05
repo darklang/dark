@@ -475,21 +475,65 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
     | Select (tlid, p) ->
-        let cursorState =
+        let ( (cursorState : cursorState)
+            , (maybeNewFluidState : fluidState option) ) =
           if VariantTesting.isFluid m.tests
           then
             match p with
             | None ->
-                FluidEntering tlid
+                (FluidEntering tlid, None)
             | Some id ->
               ( match TL.getPD m tlid id with
               | Some pd ->
                   if P.astOwned (P.typeOf pd)
-                  then FluidEntering tlid
-                  else Selecting (tlid, p)
+                  then
+                    let maybeFluidAstAndState =
+                      TL.get m tlid
+                      |> Option.andThen ~f:TL.getAST
+                      |> Option.map ~f:(fun genericAst ->
+                             let state =
+                               if Toplevel.selectedAST m = Some genericAst
+                               then
+                                 m.fluidState
+                                 (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
+                      I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
+                      remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
+                      between handler-specific and global fluid state. *)
+                               else m.fluidState
+                             in
+                             (Fluid.fromExpr state genericAst, state) )
+                    in
+                    let maybeNewFluidState =
+                      match maybeFluidAstAndState with
+                      | Some (ast, state) ->
+                          Fluid.findExpr id ast
+                          |> Option.andThen ~f:(fun (expr : Types.fluidExpr) ->
+                                 ( let maybeCaretTarget : caretTarget option =
+                                     match expr with
+                                     | EFnCall (_, fnName, _, _) ->
+                                         Some
+                                           { astRef = ARFnCall (id, FCPFnName)
+                                           ; offset = String.length fnName }
+                                     | _ ->
+                                         None
+                                   in
+                                   maybeCaretTarget
+                                   |> Option.map ~f:(fun caretTarget ->
+                                          Fluid.setPosition
+                                            state
+                                            (Fluid.posFromCaretTarget
+                                               state
+                                               ast
+                                               caretTarget) )
+                                   : fluidState option ) )
+                      | None ->
+                          None
+                    in
+                    (FluidEntering tlid, maybeNewFluidState)
+                  else (Selecting (tlid, p), None)
               | None ->
-                  Deselected )
-          else Selecting (tlid, p)
+                  (Deselected, None) )
+          else (Selecting (tlid, p), None)
         in
         let m, hashcmd =
           match TL.get m tlid with
@@ -500,7 +544,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | _ ->
               (m, Cmd.none)
         in
-        let m = {m with cursorState} in
+        let m =
+          { m with
+            cursorState
+          ; fluidState =
+              maybeNewFluidState |> Option.withDefault ~default:m.fluidState }
+        in
         let m, acCmd =
           match Option.andThen p ~f:(TL.getPD m tlid) with
           | Some pd ->
@@ -1258,6 +1307,7 @@ let update_ (msg : msg) (m : model) : modification =
         | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
+      (* TODO(JULIAN): provide caretTarget to Select here, since that's where we actually know where we want to place the caret! *)
       Many
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionRPC (tlid, id, name)
