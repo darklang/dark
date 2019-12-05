@@ -1195,33 +1195,55 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
-  | BlankOrClick (targetExnID, targetID, _) ->
-    ( match m.cursorState with
-    | Deselected ->
-        Select (targetExnID, Some targetID)
-    | Dragging (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
-    | Entering cursor ->
-      ( match cursor with
-      | Filling (_, fillingID) ->
-          if fillingID = targetID
-          then NoChange
-          else
-            Many
-              [ Entry.submit m cursor Entry.StayHere
-              ; Select (targetExnID, Some targetID) ]
-      | _ ->
-          Select (targetExnID, Some targetID) )
-    | Selecting (_, _) ->
-        Select (targetExnID, Some targetID)
-    | SelectingCommand (_, scID) ->
-        if scID = targetID
-        then NoChange
-        else Select (targetExnID, Some targetID)
-    | FluidEntering _ ->
-        Select (targetExnID, Some targetID)
-    | FluidMouseSelecting _ ->
-        StartFluidMouseSelecting targetExnID )
+  | BlankOrClick (targetExnID, targetID, event) ->
+      let select tlid id =
+        if VariantTesting.isFluid m.tests
+        then
+          let offset =
+            match
+              Js.Nullable.toOption
+                (Web_document.getElementById (showID targetID))
+            with
+            | Some elem ->
+                let rect = elem##getBoundingClientRect () in
+                if event.mePos.vy >= int_of_float rect##top
+                   && event.mePos.vy <= int_of_float rect##bottom
+                   && event.mePos.vx >= int_of_float rect##left
+                   && event.mePos.vx <= int_of_float rect##right
+                then Some ((event.mePos.vx - int_of_float rect##left) / 8)
+                else None
+            | None ->
+                None
+          in
+          (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
+           * as double clicks to automatically enter them. *)
+          Selection.dblclick m targetExnID targetID offset
+        else Select (tlid, Some id)
+      in
+      ( match m.cursorState with
+      | Deselected ->
+          select targetExnID targetID
+      | Dragging (_, _, _, origCursorState) ->
+          SetCursorState origCursorState
+      | Entering cursor ->
+        ( match cursor with
+        | Filling (_, fillingID) ->
+            if fillingID = targetID
+            then NoChange
+            else
+              Many
+                [ Entry.submit m cursor Entry.StayHere
+                ; select targetExnID targetID ]
+        | _ ->
+            select targetExnID targetID )
+      | Selecting (_, _) ->
+          select targetExnID targetID
+      | SelectingCommand (_, scID) ->
+          if scID = targetID then NoChange else select targetExnID targetID
+      | FluidEntering _ ->
+          select targetExnID targetID
+      | FluidMouseSelecting _ ->
+          StartFluidMouseSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       (* TODO: switch to ranges to get actual character offset
        * rather than approximating *)
