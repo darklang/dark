@@ -5467,39 +5467,44 @@ let viewLiveValue
            in
            if FluidToken.validID id
            then
-             let loadable =
-               Analysis.getLiveValueLoadable vs.analysisStore id
+             let lvHtml dval =
+               let text = Runtime.toRepr dval in
+               ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              in
-             match (AC.highlighted state.ac, loadable) with
-             | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
-               ->
-                 let text = Option.withDefault ~default:"" fnText in
-                 ([Html.text text], true, ti.startRow)
-             | None, LoadableSuccess (DIncomplete (SourceId srcId))
-               when srcId <> id ->
-                 ( [goToSrcView "<Incomplete> Click to locate source" srcId]
-                 , true
-                 , ti.startRow )
-             | None, LoadableSuccess (DIncomplete _) ->
-                 ([Html.text "<Incomplete>"], true, ti.startRow)
-             | None, LoadableSuccess (DError (SourceId srcId, _))
-               when srcId <> id ->
-                 (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
-                 ( [goToSrcView "<Error> Click to locate source" srcId]
-                 , true
-                 , ti.startRow )
-             | None, LoadableSuccess (DError (_, msg)) ->
-                 ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
-             | Some (FACVariable (_, Some dval)), _
-             | None, LoadableSuccess dval ->
-                 let text = Runtime.toRepr dval in
-                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
-             | Some _, _ ->
+             match AC.highlighted state.ac with
+             | Some (FACVariable (_, Some dval)) ->
+                 lvHtml dval
+             | Some _ ->
+                 (* Showing a livevalue when the autocomplete is showing
+                  * is confusing, except in particular situations. *)
                  none
-             | None, LoadableNotInitialized | None, LoadableLoading _ ->
-                 ([ViewUtils.fontAwesome "spinner"], true, row)
-             | None, LoadableError err ->
-                 ([Html.text ("Error loading live value: " ^ err)], true, row)
+             | None ->
+               ( match Analysis.getLiveValueLoadable vs.analysisStore id with
+               | LoadableSuccess (DIncomplete _) when Option.isSome fnText ->
+                   let text = Option.withDefault ~default:"" fnText in
+                   ([Html.text text], true, ti.startRow)
+               | LoadableSuccess (DIncomplete (SourceId srcId))
+                 when srcId <> id ->
+                   ( [goToSrcView "<Incomplete> Click to locate source" srcId]
+                   , true
+                   , ti.startRow )
+               | LoadableSuccess (DIncomplete _) ->
+                   ([Html.text "<Incomplete>"], true, ti.startRow)
+               | LoadableSuccess (DError (SourceId srcId, _)) when srcId <> id
+                 ->
+                   (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
+                   ( [goToSrcView "<Error> Click to locate source" srcId]
+                   , true
+                   , ti.startRow )
+               | LoadableSuccess (DError (_, msg)) ->
+                   ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
+               | LoadableSuccess dval ->
+                   lvHtml dval
+               | LoadableNotInitialized | LoadableLoading _ ->
+                   ([ViewUtils.fontAwesome "spinner"], true, row)
+               | LoadableError err ->
+                   ([Html.text ("Error loading live value: " ^ err)], true, row)
+               )
            else none )
     |> Option.withDefault ~default:none
   in
