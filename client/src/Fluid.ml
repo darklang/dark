@@ -1409,7 +1409,7 @@ let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
 
 
 (* getBegOfWordInStrCaretPos returns the closest whitespace position before the 
- * current cursor position in a string  *)
+ * current caret position in a string  *)
 let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
   let nextPos : int ref = ref ti.length in
@@ -3747,7 +3747,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             ~state:s
             ~ast
             (s.newPos, getEndOfLineCaretPos ast ti s) )
-    | K.DeleteWord, L (_, ti), _ ->
+    | K.DeletePrevWord, L (_, ti), _ ->
       ( match fluidGetOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
@@ -4044,7 +4044,7 @@ let shouldDoDefaultAction (key : K.key) : bool =
   | K.DeleteToStartOfLine
   | K.GoToStartOfWord
   | K.GoToEndOfWord
-  | K.DeleteWord ->
+  | K.DeletePrevWord ->
       false
   | _ ->
       true

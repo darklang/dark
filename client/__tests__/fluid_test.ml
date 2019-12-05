@@ -329,7 +329,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.DeleteWord, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [(K.DeletePrevWord, ShiftNotHeld)] None pos expr
   in
   let shiftTab
       ?(wrap = true)
@@ -1031,17 +1031,17 @@ let () =
         (optionDelete 6)
         "123.~6" ;
       t
-        "option+delete in the middle of an whole deletes all the nums in front of cursor"
+        "option+delete in the middle of a whole deletes all the nums in front of cursor"
         aFloat
         (optionDelete 2)
         "~3.456" ;
       t
-        "option+delete in the end of an fraction deletes all the nums in up to the ."
+        "option+delete in the end of a fraction deletes all the nums in up to the ."
         aFloat
         (optionDelete 7)
         "123.~" ;
       t
-        "option+delete in the end of an whole deletes all the nums in front of cursor"
+        "option+delete in the end of a whole deletes all the nums in front of cursor"
         aFloat
         (optionDelete 3)
         "~.456" ;
