@@ -3518,7 +3518,7 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
             expr
       in
       let eid = eid exprToWrap in
-      let newExpr = ELet (gid (), gid (), "", exprToWrap, EBlank bodyId) in
+      let newExpr = ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId) in
       let newAST = replaceExpr ~newExpr eid ast in
       let tokens = toTokens s newAST in
       let lastToken =
