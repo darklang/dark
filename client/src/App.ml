@@ -1925,36 +1925,6 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
       Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
-  | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
-      Many
-        [ Select (targetExnID, None)
-        ; TweakModel
-            (fun m ->
-              let selection =
-                Option.orElseLazy
-                  (fun () -> Entry.getFluidSelectionRange ())
-                  selection
-              in
-              match selection with
-              (* if range width is 0, just change pos *)
-              | Some (selBegin, selEnd) when selBegin = selEnd ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        oldPos = m.fluidState.newPos
-                      ; newPos = selEnd
-                      ; selectionStart = None } }
-              | Some (selBegin, selEnd) ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        selectionStart = Some selBegin
-                      ; oldPos = m.fluidState.newPos
-                      ; newPos = selEnd } }
-              | None ->
-                  { m with
-                    fluidState = {m.fluidState with selectionStart = None} } )
-        ]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg

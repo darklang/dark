@@ -4112,6 +4112,7 @@ let updateAutocomplete m tlid ast s : fluidState =
 
 let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     ast * fluidState =
+  (* TODO: if mouseclick on blank put cursor at beginning of it *)
   let tokens = toTokens s ast in
   let lastPos =
     tokens
@@ -4131,7 +4132,27 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
         newPos
   in
   let newAST = acMaybeCommit newPos ast s in
+  let s = acClear s in
   (newAST, setPosition s newPos)
+
+
+let updateMouseSelection
+    (selection : (int * int) option) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let selection =
+    Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
+  in
+  match selection with
+  (* if range width is 0, just change pos *)
+  | Some (selBegin, selEnd) when selBegin = selEnd ->
+      updateMouseClick selBegin ast s
+  | Some (selBegin, selEnd) ->
+      ( ast
+      , { s with
+          selectionStart = Some selBegin; oldPos = s.newPos; newPos = selEnd }
+      )
+  | None ->
+      (ast, {s with selectionStart = None})
 
 
 let shouldDoDefaultAction (key : K.key) : bool =
@@ -4913,7 +4934,6 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let newAST, newState =
     match msg with
     | FluidMouseClick _ ->
-      (* TODO: if mouseclick on blank put cursor at beginning of it *)
       ( match Entry.getFluidCaretPos () with
       | Some newPos ->
           updateMouseClick newPos ast s
@@ -4921,6 +4941,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           (* We reset the fluidState to prevent the selection and/or cursor position from persisting
            * when a user switched handlers *)
           (ast, s |> acClear) )
+    | FluidUpdateSelection (_, sel) ->
+        updateMouseSelection sel ast s
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5046,7 +5068,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidUpdateSelection _ ->
       let tlid =
         match msg with
-        | FluidMouseClick tlid ->
+        | FluidMouseClick tlid | FluidUpdateSelection (tlid, _) ->
             Some tlid
         | _ ->
             tlidOf m.cursorState
