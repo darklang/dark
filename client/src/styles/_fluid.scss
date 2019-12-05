@@ -467,13 +467,16 @@ $error-color: saturate($red, 10%);
 
   /* Briefly flash red background before fading */
   &.jumped-to {
-    background-color: $error-color;
-    animation: 1.5s flashError 0.5s;
+    animation-name: flashError;
+    animation-delay: 0.5s;
+    animation-duration: 0.3s;
+    animation-iteration-count: 3;
+    animation-direction: alternate;
 
     &.fluid-blank,
     &.fluid-empty,
     &.fluid-placeholder {
-      animation: 1.5s flashIncomplete 0.5s;
+      animation-name: flashIncomplete;
     }
   }
 
