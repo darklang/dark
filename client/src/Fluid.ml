@@ -763,7 +763,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany
-           [ TFieldOp {fieldAccess = id; lhs = eid expr}
+           [ TFieldOp (id, (* lhs *) eid expr)
            ; TFieldName (id, fieldID, fieldname) ]
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
@@ -3035,7 +3035,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, LeftOne)
     | TNewline _ ->
         (ast, Exactly ti.startPos)
-    | TFieldOp {fieldAccess = id; lhs = lhsId} ->
+    | TFieldOp (id, lhsId) ->
         let newAst = removeField id ast in
         let lhsExpr = findExpr lhsId newAst in
         (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsExpr))
@@ -3167,7 +3167,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
-  | TFieldOp {fieldAccess = id; _} ->
+  | TFieldOp (id, _) ->
       (removeField id ast, s)
   | TString (id, str) ->
       let target s =
