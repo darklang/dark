@@ -1217,8 +1217,8 @@ and fluidExpr =
   | ERecord of id * (id * fluidName * fluidExpr) list
   | EPipe of id * fluidExpr list
   (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
-    In practice the expr list is currently always length 1 (for `Just` and `Error`) or
-    length 0 (for `Ok` and `Nothing`).
+    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
+    length 0 (for `Nothing`).
     The 2nd ID here is the id of the blankOr for the constructor's name.
    *)
   | EConstructor of id * id * fluidName * fluidExpr list
