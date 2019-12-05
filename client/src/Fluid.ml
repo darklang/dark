@@ -3754,18 +3754,19 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | None ->
           let rangeEnd, newPos =
             if Token.isStringToken ti.token && pos != ti.endPos
-            then (
+            then
               if ti.length == 2
               then (ti.startPos, ti.startPos)
               else
                 let endPos = getEndOfWordInStrCaretPos ~pos ti in
-                let newPos = match ti.token with 
-                | TString _ | TStringMLStart _ when pos == ti.startPos ->
-                  pos + 1
-                | _ ->
-                  pos
+                let newPos =
+                  match ti.token with
+                  | (TString _ | TStringMLStart _) when pos == ti.startPos ->
+                      pos + 1
+                  | _ ->
+                      pos
                 in
-                (endPos, newPos) )
+                (endPos, newPos)
             else (ti.endPos, pos)
           in
           let newAst, newState =

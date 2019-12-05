@@ -128,10 +128,8 @@ let fromKeyboardCode
   | 8 ->
       if isMacCmdHeld
       then DeleteToStartOfLine
-      else if isMac && alt
+      else if (isMac && alt) || ((not isMac) && ctrl)
       then DeletePrevWord
-      else if (not isMac) && ctrl
-      then DeleteNextWord
       else Backspace
   | 9 ->
       if shift then ShiftTab else Tab
@@ -184,9 +182,7 @@ let fromKeyboardCode
   | 46 ->
       if isMacCmdHeld
       then DeleteToEndOfLine
-      else if (not isMac) && ctrl
-      then DeletePrevWord
-      else if isMac && alt
+      else if (isMac && alt) || ((not isMac) && ctrl)
       then DeleteNextWord
       else Delete
   | 48 ->
