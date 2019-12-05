@@ -29,7 +29,7 @@ let defaultEditor : serializableEditor =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = true }
+  ; showTopbar = false }
 
 
 let defaultFluidState : fluidState =
