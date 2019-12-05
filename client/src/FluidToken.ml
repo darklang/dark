@@ -33,7 +33,7 @@ let tid (t : token) : id =
   | TIfThenKeyword id
   | TIfElseKeyword id
   | TBinOp (id, _)
-  | TFieldOp id
+  | TFieldOp (id, _)
   | TFieldName (id, _, _)
   | TVariable (id, _)
   | TFnName (id, _, _, _, _)
