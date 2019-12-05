@@ -78,8 +78,7 @@ let centerCanvasOn (tl : toplevel) : pos =
   {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
 
 
-(* Checks to see is the token's dom element within viewport,
-if not returns the new targetX and/or targetY coordindates we should apply the to the canvas transform *)
+(* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
 let moveToToken (id : id) (tl : toplevel) : int option * int option =
   let tokenSelector = ".id-" ^ Prelude.deID id in
   let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
