@@ -762,7 +762,9 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany [TFieldOp id; TFieldName (id, fieldID, fieldname)]
+      |> addMany
+           [ TFieldOp {fieldAccess = id; lhs = eid expr}
+           ; TFieldName (id, fieldID, fieldname) ]
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
@@ -1820,24 +1822,6 @@ let removeField (id : id) (ast : ast) : ast =
           recover "not a fieldAccess in removeField" e e )
 
 
-(* removeFieldProvidingParent takes an ast and the id of a field access
-   and produces the "parent" that was accessed and a newAST without that field access.
-   For eample, given the id of .baz in ((foo).bar).baz, it returns ((foo).bar), newAST without .baz *)
-let removeFieldProvidingParent (id : id) (ast : ast) : fluidExpr * ast =
-  let parentExpr = ref ast in
-  let newAst =
-    updateExpr id ast ~f:(fun e ->
-        match e with
-        | EFieldAccess (_, faExpr, _, _) ->
-            parentExpr := faExpr ;
-            faExpr
-        | _ ->
-            parentExpr := e ;
-            recover "not a fieldAccess in removeFieldProvidingParent" e e )
-  in
-  (!parentExpr, newAst)
-
-
 (* ---------------- *)
 (* Lambdas *)
 (* ---------------- *)
@@ -2890,11 +2874,11 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
 (* getCaretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget corresponding to the "very end"
   of that fluidExpr. The concept of "very end" is related to an understanding of the tokenization of the expr,
   even though this function doesn't explicitly depend on any tokenization functions. *)
-let getCaretTargetForLastPartOfExpr (expr : fluidExpr) : caretTarget =
+let getCaretTargetForLastPartOfExpr (expr : fluidExpr option) : caretTarget =
   match expr with
-  | EVariable (id, str) ->
+  | Some (EVariable (id, str)) ->
       {astRef = ARVariable id; offset = String.length str}
-  | EFieldAccess (id, _, _, fieldName) ->
+  | Some (EFieldAccess (id, _, _, fieldName)) ->
       { astRef = ARFieldAccess (id, FAPFieldname)
       ; offset = String.length fieldName }
   | _ ->
@@ -3051,9 +3035,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, LeftOne)
     | TNewline _ ->
         (ast, Exactly ti.startPos)
-    | TFieldOp id ->
-        let parent, newAst = removeFieldProvidingParent id ast in
-        (newAst, AtTarget (getCaretTargetForLastPartOfExpr parent))
+    | TFieldOp {fieldAccess = id; lhs = lhsId} ->
+        let newAst = removeField id ast in
+        let lhsExpr = findExpr lhsId newAst in
+        (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsExpr))
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)
     | TPatternFloatPoint (mID, id) ->
@@ -3182,7 +3167,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TFnVersion (id, str, _, _) ->
       let f str = removeCharAt str offset in
       (replaceWithPartial (f str) id ast, s)
-  | TFieldOp id ->
+  | TFieldOp {fieldAccess = id; _} ->
       (removeField id ast, s)
   | TString (id, str) ->
       let target s =
