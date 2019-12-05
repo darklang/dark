@@ -56,7 +56,6 @@ let fetch_
          (* Js.Promise.error is opaque, and we just put this in here *)
          match Obj.magic err with
          | NoneFound ->
-             reportError "Received no response from fetch" url ;
              resolve (postMessage self (on_missing (Obj.magic err)##message))
          | BadAuthorization resp ->
              Fetch.Response.text resp
