@@ -1293,20 +1293,24 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordFieldname of id * analysisId * int * string
   | TRecordSep of id * int * analysisId
-  | TMatchKeyword of id
-  | TMatchSep of id
-  | TPatternVariable of id * id * string
-  | TPatternConstructorName of id * id * string
-  | TPatternInteger of id * id * string
-  | TPatternString of id * id * string
-  | TPatternTrue of id * id
-  | TPatternFalse of id * id
-  | TPatternNullToken of id * id
-  | TPatternFloatWhole of id * id * string
-  | TPatternFloatPoint of id * id
-  | TPatternFloatFraction of id * id * string
-  | TPatternBlank of id * id
   | TRecordClose of id
+  | TMatchKeyword of id
+  (* for all these match-related tokens:
+   * - the first id is the match id
+   * - the second id is the pattern id
+   * - the int is the index of the (pattern -> expr) *)
+  | TMatchSep of id * int
+  | TPatternVariable of id * id * string * int
+  | TPatternConstructorName of id * id * string * int
+  | TPatternInteger of id * id * string * int
+  | TPatternString of id * id * string * int
+  | TPatternTrue of id * id * int
+  | TPatternFalse of id * id * int
+  | TPatternNullToken of id * id * int
+  | TPatternFloatWhole of id * id * string * int
+  | TPatternFloatPoint of id * id * int
+  | TPatternFloatFraction of id * id * string * int
+  | TPatternBlank of id * id * int
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
@@ -1487,19 +1491,18 @@ and permission =
 
 (* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
    based on which specific parts of the AST we actually want to represent via astRef *)
-
-type astFloatPart =
+and astFloatPart =
   | FPWhole
   | FPDecimal
 
-type astLetPart =
+and astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
   | LPValue
   | LPBody
 
-type astIfPart =
+and astIfPart =
   | IPIfKeyword
   | IPCondition
   | IPThenKeyword
@@ -1507,42 +1510,42 @@ type astIfPart =
   | IPElseKeyword
   | IPElseBody
 
-type astBinOpPart =
+and astBinOpPart =
   | BOPLHS
   | BOPOperator
   | BOPRHS
 
-type astLambdaPart =
+and astLambdaPart =
   | LPKeyword
   | LPVarName of (* index of the var *) int
   | LPSeparator of (* index of the var *) int
   | LPArrow
   | LPBody
 
-type astFieldAccessPart =
+and astFieldAccessPart =
   | FAPLHS
   | FAPFieldname
 
-type astFnCallPart =
+and astFnCallPart =
   | FCPFnName
   | FCPArg of (* index of the argument *) int
 
-type astRecordPart =
+and astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
   | RPFieldSep of (* index of the <fieldname,value> pair *) int
   | RPFieldValue of (* index of the <fieldname,value> pair *) int
   | RPClose
 
-type astPipePart =
+and astPipePart =
   | PPPipeKeyword of (* index of the pipe *) int
   | PPPipedExpr of (* index of the pipe *) int
 
-type astConstructorPart =
+and astConstructorPart =
   | CPName
   | CPValue of int
 
-type astMatchPart =
+and astMatchPart =
   | MPKeyword
   | MPMatchExpr
   | MPBranchPattern of (* index of the branch *) int
@@ -1558,10 +1561,10 @@ type astMatchPart =
    we can represent concepts like "the caret position at the end of this
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
-   
+
    The IDs below all refer to the AST node id
     *)
-type astRef =
+and astRef =
   | ARInteger of id
   | ARBool of id
   | ARString of id
@@ -1596,6 +1599,20 @@ type astRef =
    into that part of the AST, we can uniquely represent a place
    for the caret to jump during AST transformations, even ones that
    drastically change the token stream. *)
-type caretTarget =
+and caretTarget =
   { astRef : astRef
   ; offset : int }
+
+and newPosition =
+  | RightOne
+  | RightTwo
+  | LeftOne
+  | LeftThree
+  | MoveToStart
+  | MoveToTokenEnd of id * (* offset *) int
+  | SamePlace
+  | TwoAfterEnd
+  | Exactly of int
+  (* The hope is that we can migrate everything to
+     AtTarget and then remove this entirely *)
+  | AtTarget of caretTarget

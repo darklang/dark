@@ -396,7 +396,7 @@ let generatePatterns ti a queryString =
     else [FACPattern (FPAVariable (mid, gid (), queryString))]
   in
   match ti.token with
-  | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
+  | TPatternBlank (mid, _, _) | TPatternVariable (mid, _, _, _) ->
       newQueryVariable mid @ newStandardPatterns mid
   | _ ->
       []
