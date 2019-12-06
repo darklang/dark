@@ -911,5 +911,9 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
             else DisplayError "Invalid input" ) )
 
 
-(* Do a submission, but don't move the cursor *)
+(* Submit, but don't move the cursor
+ *
+ * This was added to to cleanly express "commit the state of an input box when I click away",
+ * but is more generally intended to express "commit the state and I'll handle the cursor"
+ * *)
 let commit (m : model) (cursor : entryCursor) = submit m cursor StayHere
