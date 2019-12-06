@@ -183,6 +183,7 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
     margin-left: 1ch;
 
     .entry #autocomplete-holder {
+      min-width: 160px;
       width: max-content;
 
       span.types {
