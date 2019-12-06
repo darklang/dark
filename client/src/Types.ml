@@ -1295,11 +1295,12 @@ and fluidToken =
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
-  (* for all these match-related tokens:
+  (* match id, index of match row *)
+  | TMatchSep of id * int
+  (* for all these TPattern* variants:
    * - the first id is the match id
    * - the second id is the pattern id
-   * - the int is the index of the (pattern -> expr) *)
-  | TMatchSep of id * int
+   * - the final int is the index of the (pattern -> expr) *)
   | TPatternVariable of id * id * string * int
   | TPatternConstructorName of id * id * string * int
   | TPatternInteger of id * id * string * int

@@ -608,6 +608,8 @@ let toDebugInfo (t : token) : string =
       "parent=" ^ deID pid ^ " idx=" ^ string_of_int idx
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
+  | TMatchSep (_, idx) ->
+      "idx=" ^ string_of_int idx
   | TPatternBlank (mid, _, idx)
   | TPatternInteger (mid, _, _, idx)
   | TPatternVariable (mid, _, _, idx)
