@@ -29,8 +29,7 @@ let string_match ~(regex : string) (str : string) : string list Or_error.t =
   |> Result.map ~f:(List.map ~f:(Option.value ~default:""))
 
 
-let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8 ]
-    =
+let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8] =
   let canonicalize s = s |> String.strip |> String.lowercase in
   headers
   |> List.map ~f:(Tuple.T2.map_fst ~f:canonicalize)

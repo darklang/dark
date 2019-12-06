@@ -47,4 +47,4 @@ val push_worker_states :
   -> Event_queue.Worker_states.t
   -> unit
 
-val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string ] Lwt.t
+val status : unit -> [> `Healthy | `Unconfigured | `Unhealthy of string] Lwt.t

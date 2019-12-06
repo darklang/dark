@@ -848,8 +848,7 @@ and clipboardEvent =
 and clipboardContents =
   [ `Text of string
   | `Json of (Js.Json.t[@opaque])
-  | `None
-  ]
+  | `None ]
 
 (* ------------------- *)
 (* Modifications *)
@@ -983,7 +982,7 @@ and fluidMsg =
   | FluidKeyPress of FluidKeyboard.keyEvent
   | FluidMouseClick of tlid
   | FluidCut
-  | FluidPaste of [ `Json of Js.Json.t | `Text of string | `None ]
+  | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
       [@printer opaque "FluidPaste"]
   (* The int*int here represents the selection beginning + end (the selection may be left->right or right->left)
    * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.

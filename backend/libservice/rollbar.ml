@@ -5,8 +5,7 @@ open Lwt
 type result =
   [ `Success
   | `Failure
-  | `Disabled
-  ]
+  | `Disabled ]
 
 type request_data =
   { body : string

@@ -18,8 +18,7 @@ type deploy_status =
 type static_asset_error =
   [ `GcloudAuthError of string
   | `FailureUploadingStaticAsset of string
-  | `FailureDeletingStaticAsset of string
-  ]
+  | `FailureDeletingStaticAsset of string ]
 
 type static_deploy =
   { deploy_hash : string
@@ -40,7 +39,7 @@ let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
     ; ("status", deploy_status_to_yojson sd.status) ]
 
 
-let oauth2_token () : (string, [> static_asset_error ]) Lwt_result.t =
+let oauth2_token () : (string, [> static_asset_error]) Lwt_result.t =
   ignore
     ( match Config.gcloud_application_credentials with
     | Some s ->
@@ -114,7 +113,7 @@ let upload_to_bucket
     (filename : string)
     (body : string)
     (canvas_id : Uuidm.t)
-    (deploy_hash : string) : (unit, [> static_asset_error ]) Lwt_result.t =
+    (deploy_hash : string) : (unit, [> static_asset_error]) Lwt_result.t =
   let uri =
     Uri.make
       ()

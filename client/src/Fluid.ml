@@ -100,8 +100,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
       | `Int of string
       | `Null
       | `Float of string * string
-      | `Unknown
-      ] =
+      | `Unknown ] =
     let asBool =
       if str = "true"
       then Some (`Bool true)
@@ -253,8 +252,8 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
 
 let literalToString
     (v :
-      [> `Bool of bool | `Int of string | `Null | `Float of string * string ])
-    : string =
+      [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
+    string =
   match v with
   | `Int i ->
       i

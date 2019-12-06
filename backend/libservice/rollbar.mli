@@ -10,8 +10,7 @@ type request_data =
 type result =
   [ `Success
   | `Failure
-  | `Disabled
-  ]
+  | `Disabled ]
 
 type err_ctx =
   | Remote of request_data

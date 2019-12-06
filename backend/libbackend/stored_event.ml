@@ -37,7 +37,7 @@ let store_event
 
 
 let list_events
-    ~(limit : [ `All | `Since of RTT.time ]) ~(canvas_id : Uuidm.t) () :
+    ~(limit : [`All | `Since of RTT.time]) ~(canvas_id : Uuidm.t) () :
     event_record list =
   let timestamp_constraint =
     match limit with

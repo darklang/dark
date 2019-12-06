@@ -14,8 +14,7 @@ type level =
   | `Info
   | `Success
   | `Debug
-  | `All
-  ]
+  | `All ]
 
 let logkey : (string * Yojson.Safe.t) list Lwt.key ref =
   (* This key doesn't need to be unique across threads - it's thread-local. The
@@ -183,8 +182,7 @@ let should_log (user_level : level) : bool =
 (* ----------------- *)
 type format =
   [ `Json
-  | `DecoratedJson
-  ]
+  | `DecoratedJson ]
 
 let format : format ref = ref `Json
 
