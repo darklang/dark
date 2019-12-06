@@ -181,6 +181,14 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
 
   .handler-type .modifier {
     margin-left: 1ch;
+
+    .entry #autocomplete-holder {
+      width: max-content;
+
+      span.types {
+        margin-left: 4ch;
+      }
+    }
   }
 
   .handler-trigger {
@@ -236,18 +244,6 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
         /* duration timing-fn delay fill-mode animation-name */
         animation: 0.5s linear 2.25s forwards fadeIn;
       }
-    }
-  }
-
-  .modifier {
-    div.blankOr,
-    div.blank {
-      display: inline;
-    }
-
-    .external {
-      margin-left: 4px;
-      color: $green;
     }
   }
 
