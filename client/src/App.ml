@@ -1969,11 +1969,13 @@ let update_ (msg : msg) (m : model) : modification =
   | FluidMsg (FluidStartSelection targetExnID) ->
     ( match m.cursorState with
     | Entering (Filling _ as cursor) ->
-        Many [Entry.submit m cursor Entry.StayHere; Select (targetExnID, None)]
-    | FluidEntering _ ->
-        Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+        Many
+          [ Entry.submit m cursor Entry.StayHere
+          ; Select (targetExnID, None)
+          ; StartFluidMouseSelecting targetExnID ]
     | _ ->
-        Select (targetExnID, None) )
+        Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+    )
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
