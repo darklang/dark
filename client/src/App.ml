@@ -1205,20 +1205,7 @@ let update_ (msg : msg) (m : model) : modification =
         if VariantTesting.isFluid m.tests
         then
           let offset =
-            match
-              Js.Nullable.toOption
-                (Web_document.getElementById (showID targetID))
-            with
-            | Some elem ->
-                let rect = elem##getBoundingClientRect () in
-                if event.mePos.vy >= int_of_float rect##top
-                   && event.mePos.vy <= int_of_float rect##bottom
-                   && event.mePos.vx >= int_of_float rect##left
-                   && event.mePos.vx <= int_of_float rect##right
-                then Some ((event.mePos.vx - int_of_float rect##left) / 8)
-                else None
-            | None ->
-                None
+            Native.OffsetEstimator.estimateClickOffset (showID targetID) event
           in
           (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
            * as double clicks to automatically enter them. *)
@@ -1250,22 +1237,8 @@ let update_ (msg : msg) (m : model) : modification =
       | FluidMouseSelecting _ ->
           StartFluidMouseSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
-      (* TODO: switch to ranges to get actual character offset
-       * rather than approximating *)
       let offset =
-        match
-          Js.Nullable.toOption (Web_document.getElementById (showID targetID))
-        with
-        | Some elem ->
-            let rect = elem##getBoundingClientRect () in
-            if event.mePos.vy >= int_of_float rect##top
-               && event.mePos.vy <= int_of_float rect##bottom
-               && event.mePos.vx >= int_of_float rect##left
-               && event.mePos.vx <= int_of_float rect##right
-            then Some ((event.mePos.vx - int_of_float rect##left) / 8)
-            else None
-        | None ->
-            None
+        Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
