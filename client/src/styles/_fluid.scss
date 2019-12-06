@@ -375,6 +375,16 @@ since they are essentially both commands just acting upon different things. */
         }
       }
     }
+    ul:hover {
+      .fluid-selected,
+      li {
+        background: transparent;
+        &:hover {
+          background-color: $highlight-color;
+          color: darken(white, 5%);
+        }
+      }
+    }
   }
 }
 
