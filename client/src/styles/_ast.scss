@@ -168,11 +168,21 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
   @include handler-type(worker, $queue-color);
   @include handler-type(repl, $repl-color);
 
-  .name,
-  .modifier,
-  .space {
+  .handler-type,
+  .handler-actions,
+  .handler-name {
     margin: 0;
+    display: inline-block;
   }
+
+  .handler-type div {
+    display: inline-block;
+  }
+
+  .handler-type .modifier {
+    margin-left: 1ch;
+  }
+
   .handler-trigger {
     display: inline;
     margin-left: 4px;
