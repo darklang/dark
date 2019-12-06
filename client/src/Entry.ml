@@ -909,3 +909,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
             if m.complete.value = ""
             then NoChange
             else DisplayError "Invalid input" ) )
+
+
+(* Do a submission, but don't move the cursor *)
+let commit (m : model) (cursor : entryCursor) = submit m cursor StayHere
