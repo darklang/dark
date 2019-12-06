@@ -119,6 +119,32 @@ module Ext = struct
     [@@bs.val] [@@bs.scope "window", "location"]
 end
 
+module OffsetEstimator = struct
+  (* Takes a mouse event, ostensibly a `click` inside an BlankOr with id `elementID`
+   * and produces an 0-based integer offset from the beginning of the BlankOrs content where
+   * the click occurred on the DOM.
+   *
+   * ie. if the DOM element has "foobar" and the user clicks between the `o` and the `b`
+   * the return value should be `4`.
+   *
+   * TODO: It's a super hacky estimate based on our common screen size at Dark and the default
+   * font size and should be replaced with a proper implementation. But it's done us
+   * okay so far.  *)
+  let estimateClickOffset (elementID : string) (event : Types.mouseEvent) :
+      int option =
+    match Js.Nullable.toOption (Web_document.getElementById elementID) with
+    | Some elem ->
+        let rect = elem##getBoundingClientRect () in
+        if event.mePos.vy >= int_of_float rect##top
+           && event.mePos.vy <= int_of_float rect##bottom
+           && event.mePos.vx >= int_of_float rect##left
+           && event.mePos.vx <= int_of_float rect##right
+        then Some ((event.mePos.vx - int_of_float rect##left) / 8)
+        else None
+    | None ->
+        None
+end
+
 module Random = struct
   let random () : int = Js_math.random_int 0 2147483647
 
