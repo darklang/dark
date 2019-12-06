@@ -56,7 +56,7 @@ let fetch_
          (* Js.Promise.error is opaque, and we just put this in here *)
          match Obj.magic err with
          | NoneFound ->
-           (* Note: there's no user facing error here, we just want to try
+             (* Note: there's no user facing error here, we just want to try
             * again, which is triggered by on_missing. So we don't want a
             * reportError call here - that'll cause a rollbar flood. See comment
             * above re: 404s. *)
