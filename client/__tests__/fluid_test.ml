@@ -1686,22 +1686,22 @@ let () =
         (ctrlRight 2)
         "Just~ ___" ;
       t
-        "DeletePrevWord at end of contructor deletes to beg "
+        "DeletePrevWord at end of constructor deletes to beg "
         aConstructor
         (key K.DeletePrevWord 4)
         "~___" ;
       tp
-        "DeletePrevWord mid contructor deletes to beg "
+        "DeletePrevWord mid constructor deletes to beg "
         aConstructor
         (key K.DeletePrevWord 2)
         "~st@@ ___" ;
       t
-        "DeleteNextWord at end of contructor moves to blank "
+        "DeleteNextWord at end of constructor moves to blank "
         aConstructor
         (key K.DeleteNextWord 4)
         "Just ~___" ;
       tp
-        "DeleteNextWord mid contructor deletes to end "
+        "DeleteNextWord mid constructor deletes to end "
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
