@@ -1079,18 +1079,30 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        NoChange
+    | FocusedFn tlid | FocusedType tlid ->
+        (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+        let defaultBehaviour = Select (tlid, None) in
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Filling _ as cursor) ->
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            Many [Entry.commit m cursor; defaultBehaviour]
+        | _ ->
+            defaultBehaviour )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
+          (* Clicking on the canvas should deselect the current selection on the main canvas *)
+          let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+          | Entering (Filling _ as cursor) ->
+              (* If we click away from an entry box, commit it before doing the default behaviour *)
+              Many [Entry.commit m cursor; defaultBehaviour]
           | _ ->
-              Deselect
+              defaultBehaviour
         else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
@@ -1184,55 +1196,60 @@ let update_ (msg : msg) (m : model) : modification =
         | _ ->
             NoChange
       else NoChange
-  | BlankOrClick (targetExnID, targetID, _) ->
-    ( match m.cursorState with
-    | Deselected ->
-        Select (targetExnID, Some targetID)
-    | Dragging (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
-    | Entering cursor ->
-      ( match cursor with
-      | Filling (_, fillingID) ->
-          if fillingID = targetID
-          then NoChange
-          else Select (targetExnID, Some targetID)
-      | _ ->
-          Select (targetExnID, Some targetID) )
-    | Selecting (_, _) ->
-        Select (targetExnID, Some targetID)
-    | SelectingCommand (_, scID) ->
-        if scID = targetID
-        then NoChange
-        else Select (targetExnID, Some targetID)
-    | FluidEntering _ ->
-        Select (targetExnID, Some targetID)
-    | FluidMouseSelecting _ ->
-        StartFluidMouseSelecting targetExnID )
+  | BlankOrClick (targetExnID, targetID, event) ->
+      let select tlid id =
+        if VariantTesting.isFluid m.tests
+        then
+          let offset =
+            Native.OffsetEstimator.estimateClickOffset (showID targetID) event
+          in
+          (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
+           * as double clicks to automatically enter them. *)
+          Selection.dblclick m targetExnID targetID offset
+        else Select (tlid, Some id)
+      in
+      ( match m.cursorState with
+      | Deselected ->
+          select targetExnID targetID
+      | Dragging (_, _, _, origCursorState) ->
+          SetCursorState origCursorState
+      | Entering cursor ->
+          let defaultBehaviour = select targetExnID targetID in
+          ( match cursor with
+          | Filling (_, fillingID) ->
+              if fillingID = targetID
+              then
+                NoChange
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+              else Many [Entry.commit m cursor; defaultBehaviour]
+          | _ ->
+              defaultBehaviour )
+      | Selecting (_, _) ->
+          select targetExnID targetID
+      | SelectingCommand (_, scID) ->
+          if scID = targetID then NoChange else select targetExnID targetID
+      | FluidEntering _ ->
+          select targetExnID targetID
+      | FluidMouseSelecting _ ->
+          StartFluidMouseSelecting targetExnID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
-      (* TODO: switch to ranges to get actual character offset
-       * rather than approximating *)
       let offset =
-        match
-          Js.Nullable.toOption (Web_document.getElementById (showID targetID))
-        with
-        | Some elem ->
-            let rect = elem##getBoundingClientRect () in
-            if event.mePos.vy >= int_of_float rect##top
-               && event.mePos.vy <= int_of_float rect##bottom
-               && event.mePos.vx >= int_of_float rect##left
-               && event.mePos.vx <= int_of_float rect##right
-            then Some ((event.mePos.vx - int_of_float rect##left) / 8)
-            else None
-        | None ->
-            None
+        Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
-        Many
+        let defaultBehaviour =
           [ Select (targetExnID, None)
           ; Fluid.update m (FluidMouseClick targetExnID) ]
+        in
+        match m.cursorState with
+        (* If we click away from an entry box, commit it before doing the default behaviour *)
+        | Entering (Filling _ as cursor) ->
+            Many (Entry.commit m cursor :: defaultBehaviour)
+        | _ ->
+            Many defaultBehaviour
       else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
@@ -1924,7 +1941,16 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
-      Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+      let defaultBehaviour =
+        [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+      in
+      ( match m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          Many
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            (Entry.commit m cursor :: defaultBehaviour)
+      | _ ->
+          Many defaultBehaviour )
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)

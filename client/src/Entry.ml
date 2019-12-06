@@ -556,8 +556,11 @@ let submitACItem
     ( match TL.getTLAndPD m tlid id with
     | Some (tl, Some pd) ->
       ( match validate tl pd stringValue with
-      | Some result ->
-          DisplayError result
+      | Some error ->
+          (* We submit when users click away from an input, but they might not have typed anything! We
+           * don't want to adjust the validators to allow empty strings where they are not allowed, but we
+           * also don't want to display an error when they were not responsible for it! *)
+          if stringValue = "" then NoChange else DisplayError error
       | None ->
           let wrap ops next =
             let wasEditing = P.isBlank pd |> not in
@@ -901,4 +904,16 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
         | Some acItem ->
             submitACItem m cursor acItem move
         | None ->
-            DisplayError "Invalid input" ) )
+            (* There's no good error message when the user submits an empty string, but just not doing anything
+             * shows that it's not a valid input *)
+            if m.complete.value = ""
+            then NoChange
+            else DisplayError "Invalid input" ) )
+
+
+(* Submit, but don't move the cursor
+ *
+ * This was added to to cleanly express "commit the state of an input box when I click away",
+ * but is more generally intended to express "commit the state and I'll handle the cursor"
+ * *)
+let commit (m : model) (cursor : entryCursor) = submit m cursor StayHere
