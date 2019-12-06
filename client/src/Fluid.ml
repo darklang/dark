@@ -2937,6 +2937,21 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* -------------------- *)
 (* Code entering/interaction *)
 (* -------------------- *)
+
+type newPosition =
+  | RightOne
+  | RightTwo
+  | LeftOne
+  | LeftThree
+  | MoveToStart
+  | MoveToTokenEnd of id * (* offset *) int
+  | SamePlace
+  | TwoAfterEnd
+  | Exactly of int
+  (* The hope is that we can migrate everything to
+     AtTarget and then remove this entirely *)
+  | AtTarget of caretTarget
+
 let adjustPosForReflow
     ~state
     (newAST : fluidExpr)
