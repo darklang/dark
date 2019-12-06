@@ -3752,33 +3752,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
-          let rangeEnd, newPos =
-            if Token.isStringToken ti.token && pos != ti.endPos
-            then
-              if ti.length == 2
-              then (ti.startPos, ti.startPos)
-              else
-                let endPos = getEndOfWordInStrCaretPos ~pos ti in
-                let newPos =
-                  match ti.token with
-                  | (TString _ | TStringMLStart _) when pos == ti.startPos ->
-                      pos + 1
-                  | _ ->
-                      pos
-                in
-                (endPos, newPos)
-            else
-              let newPos =
-                if Token.isTextToken ti.token && not (Token.isBlank ti.token)
-                then pos
-                else ti.endPos
-              in
-              (ti.endPos, newPos)
-          in
+          let movedState = goToEndOfWord ~pos ast ti s in
           let newAst, newState =
-            deleteCaretRange ~state:s ~ast (pos, rangeEnd)
+            deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
           in
-          (newAst, {newState with newPos}) )
+          if newAst = ast && newState.newPos = pos
+          then (newAst, movedState)
+          else (newAst, newState) )
     | K.DeletePrevWord, L (_, ti), _ ->
       ( match fluidGetOptionalSelectionRange s with
       | Some selRange ->
