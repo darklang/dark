@@ -4908,8 +4908,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           if key = K.Left then left else right
         in
         (ast, {s with lastKey = key; newPos; selectionStart = None})
-    | FluidKeyPress {key; metaKey; ctrlKey}
-      when (metaKey || ctrlKey) && shouldDoDefaultAction key ->
+    | FluidKeyPress {key; altKey; metaKey; ctrlKey}
+      when (altKey || metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
         (ast, s)
     | FluidKeyPress {key; shiftKey} ->
