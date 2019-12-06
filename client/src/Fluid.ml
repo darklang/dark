@@ -3768,7 +3768,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
                 in
                 (endPos, newPos)
             else
-              let newPos = if Token.isTextToken ti.token && (not (Token.isBlank ti.token)) then pos else ti.endPos in
+              let newPos =
+                if Token.isTextToken ti.token && not (Token.isBlank ti.token)
+                then pos
+                else ti.endPos
+              in
               (ti.endPos, newPos)
           in
           let newAst, newState =
