@@ -229,15 +229,13 @@ let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
     ~params:
       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
       ; Db.Int op_ctr
-      ; Db.Uuid canvas_id
-      ] ;
+      ; Db.Uuid canvas_id ] ;
   Db.exists
     ~name:"check-if-op_ctr-is-latest"
     "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
     ~params:
       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-      ; Db.Int op_ctr
-      ]
+      ; Db.Int op_ctr ]
 
 
 (* filter down to only those ops which can be applied out of order

@@ -30,7 +30,7 @@ type htmlConfig =
 
 let wc (s : string) : htmlConfig = WithClass s
 
-let idConfigs : htmlConfig list = [ ClickSelect; Mouseover ]
+let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
 
 let atom : htmlConfig = wc "atom"
 
@@ -54,9 +54,8 @@ let viewFeatureFlag : msg Html.html =
     [ Html.class' "flag"
     ; Html.title "Clone and feature flag this expression"
     ; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ ->
-          StartFeatureFlag)
-    ]
-    [ ViewUtils.fontAwesome "flag" ]
+          StartFeatureFlag) ]
+    [ViewUtils.fontAwesome "flag"]
 
 
 let viewCopyButton tlid value : msg Html.html =
@@ -67,9 +66,8 @@ let viewCopyButton tlid value : msg Html.html =
     ; ViewUtils.eventNoPropagation
         "click"
         ~key:("copylivevalue-" ^ showTLID tlid)
-        (fun m -> ClipboardCopyLivevalue (value, m.mePos))
-    ]
-    [ ViewUtils.fontAwesome "copy" ]
+        (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
+    [ViewUtils.fontAwesome "copy"]
 
 
 let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
@@ -77,10 +75,9 @@ let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
   Html.a
     [ Html.class' "edit-fn"
     ; Html.title "Extract this expression into a function"
-    ; Vdom.styles [ ("right", rightOffset) ]
-    ; Html.href (Url.urlFor (FocusedFn tlid))
-    ]
-    [ ViewUtils.fontAwesome "edit" ]
+    ; Vdom.styles [("right", rightOffset)]
+    ; Html.href (Url.urlFor (FocusedFn tlid)) ]
+    [ViewUtils.fontAwesome "edit"]
 
 
 let viewCreateFn : msg Html.html =
@@ -88,13 +85,13 @@ let viewCreateFn : msg Html.html =
     [ Html.class' "exfun"
     ; ViewUtils.eventNoPropagation ~key:"ef" "click" (fun _ -> ExtractFunction)
     ]
-    [ ViewUtils.svgIconFn "white" ]
+    [ViewUtils.svgIconFn "white"]
 
 
 let viewParamName (name : string) : msg Html.html =
   let leftOffset = String.length name + 1 in
-  let styles = [ ("margin-left", "-" ^ string_of_int leftOffset ^ "ch") ] in
-  Html.div [ Html.class' "param-name"; Vdom.styles styles ] [ Html.text name ]
+  let styles = [("margin-left", "-" ^ string_of_int leftOffset ^ "ch")] in
+  Html.div [Html.class' "param-name"; Vdom.styles styles] [Html.text name]
 
 
 (* Create a Html.div for this ID, incorporating all ID-related data, *)
@@ -155,16 +152,16 @@ let div
       mouseoverAs = Option.map ~f:Tuple2.second vs.hovering
       && Option.isSome mouseoverAs
     in
-    if targetted then [ "mouseovered-selectable" ] else []
+    if targetted then ["mouseovered-selectable"] else []
   in
   let idClasses =
-    match thisID with Some id -> [ "blankOr"; "id-" ^ deID id ] | _ -> []
+    match thisID with Some id -> ["blankOr"; "id-" ^ deID id] | _ -> []
   in
   let allClasses =
     classes
     @ idClasses
-    @ (if selected then [ "selected" ] else [])
-    @ (if isCommandTarget then [ "commandTarget" ] else [])
+    @ (if selected then ["selected"] else [])
+    @ (if isCommandTarget then ["commandTarget"] else [])
     @ mouseoverClass
   in
   let classAttr = Html.class' (String.join ~sep:" " allClasses) in
@@ -187,12 +184,11 @@ let div
         ; ViewUtils.eventNoPropagation
             "mouseleave"
             ~key:("ml-" ^ showTLID tlid ^ "-" ^ showID id)
-            (fun x -> BlankOrMouseLeave (tlid, id, x))
-        ]
+            (fun x -> BlankOrMouseLeave (tlid, id, x)) ]
     | _ ->
         (* Rather than relying on property lengths changing, we should use
          * noProp to indicate that the property at idx N has changed. *)
-        [ Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp ]
+        [Vdom.noProp; Vdom.noProp; Vdom.noProp; Vdom.noProp]
   in
   let liveValueHtml =
     let displayLivevalue =
@@ -206,8 +202,8 @@ let div
     if displayLivevalue
     then
       Html.div
-        [ Html.class' "live-value" ]
-        [ Html.text liveValueString; viewCopyButton tlid liveValueString ]
+        [Html.class' "live-value"]
+        [Html.text liveValueString; viewCopyButton tlid liveValueString]
     else Vdom.noNode
   in
   let leftSideHtml = liveValueHtml :: showParamName in
@@ -226,7 +222,7 @@ let div
 
 let text (vs : ViewUtils.viewState) (c : htmlConfig list) (str : string) :
     msg Html.html =
-  div vs c [ Html.text str ]
+  div vs c [Html.text str]
 
 
 let keyword (vs : ViewUtils.viewState) (c : htmlConfig list) (name : string) :
@@ -241,7 +237,7 @@ let tipe (vs : ViewUtils.viewState) (c : htmlConfig list) (t : tipe) :
 
 let withFeatureFlag (vs : ViewUtils.viewState) (v : 'a blankOr) :
     htmlConfig list =
-  if idOf vs.cursorState = Some (B.toID v) then [ WithFF ] else []
+  if idOf vs.cursorState = Some (B.toID v) then [WithFF] else []
 
 
 let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
@@ -252,7 +248,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
     | F (_, FnCall (F (_, name), _, _)) ->
       ( match List.find ~f:(Functions.sameName name) vs.ufns with
       | Some fn ->
-          [ WithEditFn fn.ufTLID ]
+          [WithEditFn fn.ufTLID]
       | _ ->
           [] )
     | _ ->
@@ -261,7 +257,7 @@ let withEditFn (vs : ViewUtils.viewState) (v : nExpr blankOr) : htmlConfig list
 
 
 let withROP (rail : sendToRail) : htmlConfig list =
-  if rail = Rail then [ WithROP ] else []
+  if rail = Rail then [WithROP] else []
 
 
 let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
@@ -353,15 +349,14 @@ let viewBlankOr
     (vs : ViewUtils.viewState)
     (c : htmlConfig list)
     (bo : 'a blankOr) : msg Html.html =
-  let wID id = [ WithID id ] in
+  let wID id = [WithID id] in
   let drawBlank id =
     div
       vs
-      ([ WithClass "blank" ] @ c @ wID id)
+      ([WithClass "blank"] @ c @ wID id)
       [ Html.div
-          [ Html.class' "blank-entry" ]
-          [ Html.text (placeHolderFor vs id pt) ]
-      ]
+          [Html.class' "blank-entry"]
+          [Html.text (placeHolderFor vs id pt)] ]
   in
   let drawFilled id fill =
     let configs = wID id @ c in
@@ -400,7 +395,7 @@ let viewBlankOr
               match valFor with Some v -> Runtime.toRepr v | None -> ""
             in
             if vs.ac.visible && Option.isSome valFor
-            then Html.div [ Html.class' "live-value ac" ] [ Html.text valStr ]
+            then Html.div [Html.class' "live-value ac"] [Html.text valStr]
             else Vdom.noNode
           in
           div
@@ -411,22 +406,20 @@ let viewBlankOr
                 allowStringEntry
                 stringEntryWidth
                 placeholder
-                vs.ac
-            ]
+                vs.ac ]
         else Html.text vs.ac.value
       else thisText
   | SelectingCommand (_, id) ->
       if id = B.toID bo
       then
         Html.div
-          [ Html.class' "selecting-command" ]
+          [Html.class' "selecting-command"]
           [ thisText
           ; ViewEntry.entryHtml
               StringEntryNotAllowed
               StringEntryNormalWidth
               "command"
-              vs.ac
-          ]
+              vs.ac ]
       else thisText
   | _ ->
       thisText

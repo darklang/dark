@@ -38,8 +38,7 @@ let fetch_
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList
                [ ("Content-Type", "application/json")
-               ; ("X-CSRF-TOKEN", context.csrfToken)
-               ]))
+               ; ("X-CSRF-TOKEN", context.csrfToken) ]))
        ())
   |> then_ (fun (resp : Fetch.response) ->
          (* The result not be there because we haven't saved the handler yet.

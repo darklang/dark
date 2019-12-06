@@ -76,7 +76,7 @@ let bind_route_variables ~(route : string) (request_path : string) :
             List.split_n split_path (List.length split_route - 1)
           in
           let after_str = String.concat ~sep:"/" after in
-          List.append before [ after_str ]
+          List.append before [after_str]
         in
         do_binding split_route munged_path
       else None
@@ -170,8 +170,8 @@ let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
   match ordered_pages with
   | [] ->
       []
-  | [ a ] ->
-      [ a ]
+  | [a] ->
+      [a]
   | a :: rest ->
       let same_specificity =
         List.filter

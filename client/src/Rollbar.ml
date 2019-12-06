@@ -10,8 +10,7 @@ let customContext (e : apiError) (state : cursorState) : Js.Json.t =
   Json_encode_extended.object_
     [ ("httpResponse", Encoders.httpError e.originalError)
     ; ("parameters", parameters)
-    ; ("cursorState", Encoders.cursorState state)
-    ]
+    ; ("cursorState", Encoders.cursorState state) ]
 
 
 let sendApiError (m : model) (e : apiError) : unit =

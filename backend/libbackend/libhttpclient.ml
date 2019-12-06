@@ -7,10 +7,10 @@ module Dint = Libexecution.Dint
 module Unicode_string = Libexecution.Unicode_string
 
 let params =
-  [ par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj ]
+  [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
 
 
-let params_no_body = [ par "uri" TStr; par "query" TObj; par "headers" TObj ]
+let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
 
 type headers = (string * string) list
 
@@ -77,8 +77,7 @@ let send_request
           |> Dval.dstr_of_string
           |> Option.value
                ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
-      ; ("code", DInt (Dint.of_int code))
-      ]
+      ; ("code", DInt (Dint.of_int code)) ]
   in
   if code >= 200 && code <= 299
   then DResult (ResOk obj)
@@ -109,7 +108,7 @@ let encode_basic_auth u p =
 let call verb json_fn =
   InProcess
     (function
-    | _, [ DStr uri; body; query; headers ] ->
+    | _, [DStr uri; body; query; headers] ->
         send_request
           (Unicode_string.to_string uri)
           verb
@@ -124,7 +123,7 @@ let call verb json_fn =
 let call_no_body verb json_fn =
   InProcess
     (function
-    | _, [ DStr uri; query; headers ] ->
+    | _, [DStr uri; query; headers] ->
         send_request
           (Unicode_string.to_string uri)
           verb
@@ -137,7 +136,7 @@ let call_no_body verb json_fn =
 
 
 let fns : shortfn list =
-  [ { pns = [ "HttpClient::post" ]
+  [ { pns = ["HttpClient::post"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -149,7 +148,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::put" ]
+  ; { pns = ["HttpClient::put"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -161,7 +160,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::get" ]
+  ; { pns = ["HttpClient::get"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -173,7 +172,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::delete" ]
+  ; { pns = ["HttpClient::delete"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -185,7 +184,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::options" ]
+  ; { pns = ["HttpClient::options"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -197,7 +196,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::head" ]
+  ; { pns = ["HttpClient::head"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -209,7 +208,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::patch" ]
+  ; { pns = ["HttpClient::patch"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -221,7 +220,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::post_v1" ]
+  ; { pns = ["HttpClient::post_v1"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -233,7 +232,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::put_v1" ]
+  ; { pns = ["HttpClient::put_v1"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -245,7 +244,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::get_v1" ]
+  ; { pns = ["HttpClient::get_v1"]
     ; ins = []
     ; p = params_no_body
     ; r = TObj
@@ -257,7 +256,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::delete_v1" ]
+  ; { pns = ["HttpClient::delete_v1"]
     ; ins =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -272,7 +271,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::options_v1" ]
+  ; { pns = ["HttpClient::options_v1"]
     ; ins = []
     ; p = params_no_body
     ; r = TObj
@@ -284,7 +283,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::head_v1" ]
+  ; { pns = ["HttpClient::head_v1"]
     ; ins = []
     ; p = params_no_body
     ; r = TObj
@@ -296,7 +295,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::patch_v1" ]
+  ; { pns = ["HttpClient::patch_v1"]
     ; ins = []
     ; p = params
     ; r = TObj
@@ -308,7 +307,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::post_v2" ]
+  ; { pns = ["HttpClient::post_v2"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -321,7 +320,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::put_v2" ]
+  ; { pns = ["HttpClient::put_v2"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -334,7 +333,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::get_v2" ]
+  ; { pns = ["HttpClient::get_v2"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -347,7 +346,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::delete_v2" ]
+  ; { pns = ["HttpClient::delete_v2"]
     ; ins =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -363,7 +362,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::options_v2" ]
+  ; { pns = ["HttpClient::options_v2"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -376,7 +375,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::head_v2" ]
+  ; { pns = ["HttpClient::head_v2"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -389,7 +388,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::patch_v2" ]
+  ; { pns = ["HttpClient::patch_v2"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -402,7 +401,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::post_v3" ]
+  ; { pns = ["HttpClient::post_v3"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -415,7 +414,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::put_v3" ]
+  ; { pns = ["HttpClient::put_v3"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -428,7 +427,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::get_v3" ]
+  ; { pns = ["HttpClient::get_v3"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -441,7 +440,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::delete_v3" ]
+  ; { pns = ["HttpClient::delete_v3"]
     ; ins =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -457,7 +456,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::options_v3" ]
+  ; { pns = ["HttpClient::options_v3"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -470,7 +469,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::head_v3" ]
+  ; { pns = ["HttpClient::head_v3"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -483,7 +482,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::patch_v3" ]
+  ; { pns = ["HttpClient::patch_v3"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -496,7 +495,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "HttpClient::post_v4" ]
+  ; { pns = ["HttpClient::post_v4"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -506,7 +505,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::put_v4" ]
+  ; { pns = ["HttpClient::put_v4"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -516,7 +515,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::get_v4" ]
+  ; { pns = ["HttpClient::get_v4"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -526,7 +525,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::delete_v4" ]
+  ; { pns = ["HttpClient::delete_v4"]
     ; ins =
         []
         (* https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/DELETE
@@ -539,7 +538,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::options_v4" ]
+  ; { pns = ["HttpClient::options_v4"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -549,7 +548,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::head_v4" ]
+  ; { pns = ["HttpClient::head_v4"]
     ; ins = []
     ; p = params_no_body
     ; r = TResult
@@ -559,7 +558,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::patch_v4" ]
+  ; { pns = ["HttpClient::patch_v4"]
     ; ins = []
     ; p = params
     ; r = TResult
@@ -569,16 +568,16 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "HttpClient::basicAuth" ]
+  ; { pns = ["HttpClient::basicAuth"]
     ; ins = []
-    ; p = [ par "username" TStr; par "password" TStr ]
+    ; p = [par "username" TStr; par "password" TStr]
     ; r = TObj
     ; d =
         "Returns an object with 'Authorization' created using HTTP basic auth"
     ; f =
         InProcess
           (function
-          | _, [ DStr u; DStr p ] ->
+          | _, [DStr u; DStr p] ->
               DObj
                 (DvalMap.singleton
                    "Authorization"
@@ -587,5 +586,4 @@ let fns : shortfn list =
               fail args)
     ; ps = false
     ; dep = false
-    }
-  ]
+    } ]

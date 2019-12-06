@@ -6,9 +6,9 @@ module NewStaticDeployPush = struct
     let open Tea.Json.Decoder in
     let decodeStatus v =
       match Obj.magic v with
-      | [ "Deploying" ] ->
+      | ["Deploying"] ->
           Tea_result.Ok Deploying
-      | [ "Deployed" ] ->
+      | ["Deployed"] ->
           Tea_result.Ok Deployed
       | _ ->
           Tea_result.Error "Unable to decode deployStatus"

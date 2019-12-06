@@ -31,7 +31,7 @@ let () =
       in
       let model hs =
         { D.defaultModel with
-          builtInFunctions = [ f1; f2 ]
+          builtInFunctions = [f1; f2]
         ; handlers = Handlers.fromList hs
         }
       in
@@ -50,7 +50,7 @@ let () =
       in
       let init fnName fnRail =
         let h, pd = handlerWithPointer fnName fnRail in
-        let m = model [ h ] in
+        let m = model [h] in
         (m, h, pd)
       in
       test "toggles any fncall off rail" (fun () ->
@@ -58,7 +58,7 @@ let () =
           let op = Refactor.takeOffRail m (TLHandler h) pd in
           let res =
             match op with
-            | RPC ([ SetHandler (_, _, h) ], _) ->
+            | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | F (_, FnCall (F (_, "Int::notResulty"), [], NoRail)) ->
                   true
@@ -73,7 +73,7 @@ let () =
           let op = Refactor.putOnRail m (TLHandler h) pd in
           let res =
             match op with
-            | RPC ([ SetHandler (_, _, h) ], _) ->
+            | RPC ([SetHandler (_, _, h)], _) ->
               ( match h.ast with
               | F (_, FnCall (F (_, "Result::resulty"), [], Rail)) ->
                   true
@@ -125,15 +125,15 @@ let () =
           in
           let model =
             { D.defaultModel with
-              dbs = DB.fromList [ db0 ]
-            ; handlers = Handlers.fromList [ h ]
-            ; userFunctions = Functions.fromList [ f ]
+              dbs = DB.fromList [db0]
+            ; handlers = Handlers.fromList [h]
+            ; userFunctions = Functions.fromList [f]
             }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           let res =
             match List.sortBy ~f:Encoders.tlidOf ops with
-            | [ SetHandler (_, _, h); SetFunction f ] ->
+            | [SetHandler (_, _, h); SetFunction f] ->
               ( match (h.ast, f.ufAST) with
               | F (_, Variable "WeirdCode"), F (_, Variable "WeirdCode") ->
                   true
@@ -157,8 +157,8 @@ let () =
           in
           let model =
             { D.defaultModel with
-              dbs = DB.fromList [ db0 ]
-            ; handlers = Handlers.fromList [ h ]
+              dbs = DB.fromList [db0]
+            ; handlers = Handlers.fromList [h]
             }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
@@ -191,8 +191,7 @@ let () =
                 ; ("date", DDate "2019-07-10T20:42:11Z")
                 ; ("datestr", DStr "2019-07-10T20:42:11Z")
                 ; ("uuid", DUuid "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
-                ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b")
-                ]
+                ; ("uuidstr", DStr "0a18ca77-9bae-4dfb-816f-0d12cb81c17b") ]
               |> StrDict.fromList )
           in
           let expectedFields =
@@ -209,7 +208,7 @@ let () =
             ; ("uuidstr", TStr)
               (* for now, TStr; in future, maybe we coerce to
                                    TUuid *)
-            ]
+             ]
             |> List.map ~f:(fun (k, v) -> (Some k, Some v))
             (* sortBy here because the dobj gets sorted - not sure exactly
                where, but order doesn't matter except in this test *)
@@ -246,7 +245,7 @@ let () =
       in
       let builtInFunctions =
         [ { fnName = "Int::add"
-          ; fnParameters = [ par "a" TInt; par "b" TInt ]
+          ; fnParameters = [par "a" TInt; par "b" TInt]
           ; fnDescription = ""
           ; fnReturnTipe = TInt
           ; fnPreviewExecutionSafe = true
@@ -255,7 +254,7 @@ let () =
           }
         ; { fnName = "Dict::map"
           ; fnParameters =
-              [ par "dict" TObj; par "f" TBlock ~args:[ "key"; "value" ] ]
+              [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
           ; fnDescription = ""
           ; fnReturnTipe = TObj
           ; fnPreviewExecutionSafe = true
@@ -263,14 +262,13 @@ let () =
           ; fnInfix = false
           }
         ; { fnName = "DB::set_v1"
-          ; fnParameters = [ par "val" TObj; par "key" TStr; par "table" TDB ]
+          ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
           ; fnDescription = ""
           ; fnReturnTipe = TObj
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
           ; fnInfix = false
-          }
-        ]
+          } ]
       in
       let modelAndTl (ast : expr) =
         let hTLID = TLID "handler1" in
@@ -288,7 +286,7 @@ let () =
         let model =
           { D.defaultModel with
             builtInFunctions
-          ; handlers = [ (hTLID, tl) ] |> TLIDDict.fromList
+          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList
           }
         in
         (model, TLHandler tl)
@@ -310,7 +308,7 @@ let () =
             B.newF
               (FnCall
                  ( B.newF "Int::add"
-                 , [ B.newF (Variable "b"); B.newF (Value "4") ]
+                 , [B.newF (Variable "b"); B.newF (Value "4")]
                  , NoRail ))
           in
           let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
@@ -325,9 +323,8 @@ let () =
                     (FieldAccess (B.newF (Variable "request"), B.newF "body"))
                 ; B.newF
                     (FnCall
-                       (B.newF "toString", [ B.newF (Variable "id") ], NoRail))
-                ; B.new_ ()
-                ]
+                       (B.newF "toString", [B.newF (Variable "id")], NoRail))
+                ; B.new_ () ]
               , NoRail )
             |> B.newF
           in
@@ -335,10 +332,10 @@ let () =
             B.newF
               (FnCall
                  ( B.newF "Dict::set"
-                 , [ B.newF (Value "\"id\""); B.newF (Variable "id") ]
+                 , [B.newF (Value "\"id\""); B.newF (Variable "id")]
                  , NoRail ))
           in
-          let exprInThread = Thread [ expr; threadedExpr ] |> B.newF in
+          let exprInThread = Thread [expr; threadedExpr] |> B.newF in
           let ast =
             Let
               ( B.newF "id"

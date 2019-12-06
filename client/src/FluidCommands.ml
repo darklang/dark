@@ -161,33 +161,30 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       [ Attrs.classList
           [ ("autocomplete-item", true)
           ; ("fluid-selected", highlighted)
-          ; ("valid", true)
-          ]
+          ; ("valid", true) ]
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewEntry.defaultPasteHandler
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
             FluidMsg (FluidCommandsClick item))
       ; ViewUtils.eventBoth ~key:("-mouseover" ^ name) "mouseover" (fun _ ->
-            FluidMsg (FluidUpdateDropdownIndex i))
-      ]
-      [ Html.text name ]
+            FluidMsg (FluidUpdateDropdownIndex i)) ]
+      [Html.text name]
   in
   let filterInput =
     Html.input'
       [ Attrs.id filterInputID
       ; Vdom.attribute "" "spellcheck" "false"
       ; Attrs.autocomplete false
-      ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query))
-      ]
+      ; Events.onInput (fun query -> FluidMsg (FluidCommandsFilter query)) ]
       []
   in
   let cmdsView =
     Html.div
-      [ Attrs.id "fluid-dropdown" ]
-      [ Html.ul [] (List.indexedMap ~f:viewCommands cp.commands) ]
+      [Attrs.id "fluid-dropdown"]
+      [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
   in
-  Html.div [ Html.class' "command-palette" ] [ filterInput; cmdsView ]
+  Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
 
 
 let cpSetIndex (_m : Types.model) (i : int) (s : Types.fluidState) :
@@ -195,7 +192,7 @@ let cpSetIndex (_m : Types.model) (i : int) (s : Types.fluidState) :
   let newState = { s with cp = { s.cp with index = i }; upDownCol = None } in
   let cmd = Types.MakeCmd (focusItem i) in
   let m = Types.TweakModel (fun m -> { m with fluidState = newState }) in
-  Types.Many [ m; cmd ]
+  Types.Many [m; cmd]
 
 
 let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
@@ -207,7 +204,7 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
     | Some (tlid, token) ->
       ( match highlighted s.cp with
       | Some cmd ->
-          Many [ executeCommand m tlid token cmd; FluidCommandsClose ]
+          Many [executeCommand m tlid token cmd; FluidCommandsClose]
       | None ->
           NoChange )
     | _ ->
@@ -218,14 +215,14 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
       let m =
         Types.TweakModel (fun m -> { m with fluidState = { s with cp } })
       in
-      Types.Many [ m; cmd ]
+      Types.Many [m; cmd]
   | K.Down ->
       let cp = moveDown s.cp in
       let cmd = Types.MakeCmd (focusItem cp.index) in
       let m =
         Types.TweakModel (fun m -> { m with fluidState = { s with cp } })
       in
-      Types.Many [ m; cmd ]
+      Types.Many [m; cmd]
   | K.Escape ->
       FluidCommandsClose
   | _ ->

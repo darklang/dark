@@ -16,7 +16,7 @@ let allData (t : userTipe) : pointerData list =
         List.foldl
           ~init:[]
           ~f:(fun f acc ->
-            acc @ [ PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe ])
+            acc @ [PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe])
           fields
   in
   namePointer :: definitionPointers
@@ -100,7 +100,7 @@ let extend (tipe : userTipe) : userTipe =
   match tipe.utDefinition with
   | UTRecord fields ->
       let newFields =
-        fields @ [ { urfName = B.new_ (); urfTipe = B.new_ () } ]
+        fields @ [{ urfName = B.new_ (); urfTipe = B.new_ () }]
       in
       { tipe with utDefinition = UTRecord newFields }
 

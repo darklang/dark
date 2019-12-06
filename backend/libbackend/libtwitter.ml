@@ -51,7 +51,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   else
     let header = Twitter.authorization_header auth url verb authargs in
     let headers =
-      Dval.to_dobj_exn [ ("Authorization", Dval.dstr_of_string_exn header) ]
+      Dval.to_dobj_exn [("Authorization", Dval.dstr_of_string_exn header)]
     in
     match verb with
     | "GET" ->
@@ -129,7 +129,7 @@ let fns =
          api.operations
          |> List.head
          |> Option.map ~f:(fun (op : Swagger.operation) ->
-                { pns = [ "Twitter::" ^ twurl2name api.path ]
+                { pns = ["Twitter::" ^ twurl2name api.path]
                 ; ins = []
                 ; r = TAny
                 ; f = API (call api.path op.httpMethod)

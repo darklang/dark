@@ -4,7 +4,7 @@ open Types
 let msgLink ~(key : string) (content : msg Html.html) (handler : msg) :
     msg Html.html =
   let event = ViewUtils.eventNeither ~key "mouseup" (fun _ -> handler) in
-  Html.a [ event; Html.class' "" ] [ content ]
+  Html.a [event; Html.class' ""] [content]
 
 
 let html (_m : model) =
@@ -23,16 +23,13 @@ let html (_m : model) =
       loc.protocol ^ "//" ^ loc.host ^ loc.pathname ^ loc.search ^ loc.hash
     in
     [ Html.div
-        [ Html.styles []; Html.classList [ ("topbar", true) ] ]
+        [Html.styles []; Html.classList [("topbar", true)]]
         [ Html.a
             [ Html.href url
             ; ViewUtils.eventNoPropagation
                 ~key:"toggle-topbar"
                 "mouseup"
-                (fun _ -> IgnoreMsg)
-            ]
-            [ Html.text "Fill in message here" ]
-        ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar
-        ]
-    ]
+                (fun _ -> IgnoreMsg) ]
+            [Html.text "Fill in message here"]
+        ; msgLink ~key:"hide-topbar" (Html.text "(hide)") HideTopbar ] ]
   else []

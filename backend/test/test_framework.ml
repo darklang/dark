@@ -82,7 +82,7 @@ let t_stored_event_roundtrip () =
   AT.check
     (AT.list at_trace_id)
     "list host events"
-    (List.sort ~compare [ t1; t3; t4 ])
+    (List.sort ~compare [t1; t3; t4])
     (List.sort ~compare (List.map ~f:to_trace_id listed)) ;
   let loaded =
     SE.load_event_ids ~canvas_id:id2 desc4 |> List.map ~f:Tuple.T2.get1
@@ -90,46 +90,44 @@ let t_stored_event_roundtrip () =
   AT.check
     (AT.list at_trace_id)
     "list desc events"
-    (List.sort ~compare [ t6 ])
+    (List.sort ~compare [t6])
     (List.sort ~compare loaded) ;
   let loaded1 = SE.load_events ~canvas_id:id1 desc1 |> List.map ~f:t4_get4th in
   check_dval_list
     "load GET events"
-    [ Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1" ]
+    [Dval.dstr_of_string_exn "2"; Dval.dstr_of_string_exn "1"]
     loaded1 ;
   let loaded2 = SE.load_events ~canvas_id:id1 desc3 |> List.map ~f:t4_get4th in
-  check_dval_list "load POST events" [ Dval.dstr_of_string_exn "3" ] loaded2 ;
+  check_dval_list "load POST events" [Dval.dstr_of_string_exn "3"] loaded2 ;
   let loaded3 = SE.load_events ~canvas_id:id2 desc3 |> List.map ~f:t4_get4th in
   check_dval_list "load no host2 events" [] loaded3 ;
   let loaded4 = SE.load_events ~canvas_id:id2 desc2 |> List.map ~f:t4_get4th in
-  check_dval_list "load host2 events" [ Dval.dstr_of_string_exn "3" ] loaded4 ;
+  check_dval_list "load host2 events" [Dval.dstr_of_string_exn "3"] loaded4 ;
   ()
 
 
 let t_trace_data_json_format_redacts_passwords () =
   let id = fid () in
   let trace_data : Analysis_types.trace_data =
-    { input = [ ("event", DPassword (PasswordBytes.of_string "redactme1")) ]
+    { input = [("event", DPassword (PasswordBytes.of_string "redactme1"))]
     ; timestamp = Time.epoch
     ; function_results =
         [ ( "Password::hash"
           , id
           , "foobar"
           , 0
-          , DPassword (PasswordBytes.of_string "redactme2") )
-        ]
+          , DPassword (PasswordBytes.of_string "redactme2") ) ]
     }
   in
   let expected : Analysis_types.trace_data =
-    { input = [ ("event", DPassword (PasswordBytes.of_string "Redacted")) ]
+    { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
     ; timestamp = Time.epoch
     ; function_results =
         [ ( "Password::hash"
           , id
           , "foobar"
           , 0
-          , DPassword (PasswordBytes.of_string "Redacted") )
-        ]
+          , DPassword (PasswordBytes.of_string "Redacted") ) ]
     }
   in
   trace_data
@@ -148,9 +146,9 @@ let t_route_variables_work_with_stored_events () =
   (* set up test *)
   clear_test_data () ;
   let host = "test-route_variables_works" in
-  let oplist = [ Op.SetHandler (tlid, pos, http_route_handler ()) ] in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ())] in
   let c = ops2c_exn host oplist in
-  Canvas.serialize_only [ tlid ] !c ;
+  Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", http_request_path, "GET") in
   let route = ("HTTP", http_route, "GET") in
@@ -166,13 +164,13 @@ let t_route_variables_work_with_stored_events () =
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list
     "load GET events"
-    [ Dval.dstr_of_string_exn "1" ]
+    [Dval.dstr_of_string_exn "1"]
     (loaded1 |> List.map ~f:t4_get4th) ;
   AT.check
     (AT.list AT.string)
     "path returned correctly"
     (loaded1 |> List.map ~f:t4_get1st)
-    [ http_request_path ] ;
+    [http_request_path] ;
 
   (* check that the event is not in the 404s *)
   let f404s = Analysis.get_404s ~since:Time.epoch !c in
@@ -187,9 +185,9 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
   let route = "/api/create_token" in
   let request_path = "/api/create-token" in
   (* note hyphen vs undeerscore *)
-  let oplist = [ Op.SetHandler (tlid, pos, http_route_handler ~route ()) ] in
+  let oplist = [Op.SetHandler (tlid, pos, http_route_handler ~route ())] in
   let c = ops2c_exn host oplist in
-  Canvas.serialize_only [ tlid ] !c ;
+  Canvas.serialize_only [tlid] !c ;
   let t1 = Util.create_uuid () in
   let desc = ("HTTP", request_path, "GET") in
   let route = ("HTTP", route, "GET") in
@@ -216,7 +214,7 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
 let t_event_queue_roundtrip () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(let date (Date::now) 123)") in
-  let c = ops2c_exn "test-event_queue" [ hop h ] in
+  let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
     "CRON"
@@ -256,7 +254,7 @@ let t_event_queue_roundtrip () =
 let t_cron_sanity () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c_exn "test-cron_works" [ hop h ] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let should_run = Cron.should_execute !c.id handler execution_id in
   AT.check AT.bool "should_run should be true" should_run true ;
@@ -266,7 +264,7 @@ let t_cron_sanity () =
 let t_cron_just_ran () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c_exn "test-cron_works" [ hop h ] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler ;
   let should_run = Cron.should_execute !c.id handler execution_id in
@@ -318,7 +316,7 @@ let t_function_traces_are_stored () =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let trace_id = Util.create_uuid () in
-  let _ = execute_ops ~trace_id [ fop f; hop h ] in
+  let _ = execute_ops ~trace_id [fop f; hop h] in
   (* get the trace for the execution *)
   AT.check
     AT.int
@@ -348,5 +346,4 @@ let suite =
   ; ("Cron should run sanity", `Quick, t_cron_sanity)
   ; ("Cron just ran", `Quick, t_cron_just_ran)
   ; ("Dark code can't curl file:// urls", `Quick, t_curl_file_urls)
-  ; ("Function traces are stored", `Quick, t_function_traces_are_stored)
-  ]
+  ; ("Function traces are stored", `Quick, t_function_traces_are_stored) ]

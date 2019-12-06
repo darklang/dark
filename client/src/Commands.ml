@@ -33,7 +33,7 @@ let executeCommand
 
 
 let endCommandExecution (tlid : tlid) (id : id) : modification =
-  Many [ AutocompleteMod ACReset; Select (tlid, Some id) ]
+  Many [AutocompleteMod ACReset; Select (tlid, Some id)]
 
 
 let commands : command list =
@@ -95,10 +95,9 @@ let commands : command list =
           match tipe with
           | Ok tipe ->
               let nameId = Blank.toID tipe.utName in
-              RPC ([ SetType tipe ], FocusNext (tipe.utTLID, Some nameId))
+              RPC ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
               DisplayError ("Can't create-type: " ^ s))
     ; doc = "Create a type from a live value"
     ; shortcut = ""
-    }
-  ]
+    } ]

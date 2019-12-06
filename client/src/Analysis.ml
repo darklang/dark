@@ -24,8 +24,7 @@ let getTraces (m : model) (tlid : tlid) : trace list =
                ~name:(deTLID tlid)
                ~namespace:(`Uuid "00000000-0000-0000-0000-000000000000")
              |> BsUuid.Uuid.V5.toString
-           , None )
-         ]
+           , None ) ]
 
 
 let getTrace (m : model) (tlid : tlid) (traceID : traceID) : trace option =
@@ -72,9 +71,8 @@ let replaceFunctionResult
                     , Some
                         { input = StrDict.empty
                         ; timestamp = ""
-                        ; functionResults = [ newResult ]
-                        } )
-                  ]
+                        ; functionResults = [newResult]
+                        } ) ]
            |> List.map ~f:(fun ((tid, tdata) as t) ->
                   if tid = traceID
                   then
@@ -322,7 +320,7 @@ let updateDBStats m (TLID tlid) =
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, DbStatsFetch { dbStatsTlids = [ TLID tlid ] })))
+           (contextFromModel m, DbStatsFetch { dbStatsTlids = [TLID tlid] })))
 
 
 let getWorkerStats m (TLID tlid) =

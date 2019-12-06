@@ -44,10 +44,9 @@ let banned_usernames : string list =
   ; "usenet"
   ; "uucp"
   ; "webmaster"
-  ; "wpad"
-  ]
+  ; "wpad" ]
   @ (* original to us *)
-    [ "billing"; "dev" ]
+    ["billing"; "dev"]
 
 
 type username = string [@@deriving yojson]
@@ -125,8 +124,7 @@ let upsert_account ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String (Password.to_bytes account.password)
-          ])
+          ; String (Password.to_bytes account.password) ])
 
 
 let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
@@ -154,8 +152,7 @@ let upsert_admin ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String (Password.to_bytes account.password)
-          ])
+          ; String (Password.to_bytes account.password) ])
 
 
 let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
@@ -172,7 +169,7 @@ let username_of_id id =
     ~subject:(Uuidm.to_string id)
     "SELECT username from accounts
      WHERE accounts.id = $1"
-    ~params:[ Uuid id ]
+    ~params:[Uuid id]
   |> Option.map ~f:List.hd_exn
 
 
@@ -182,7 +179,7 @@ let id_of_username username : Uuidm.t option =
     ~subject:username
     "SELECT id from accounts
      WHERE accounts.username = $1"
-    ~params:[ String username ]
+    ~params:[String username]
   |> Option.map ~f:List.hd_exn
   |> fun x -> match x with Some sid -> Uuidm.of_string sid | None -> None
 
@@ -193,9 +190,9 @@ let get_user username =
     ~subject:username
     "SELECT name, email, admin from accounts
      WHERE accounts.username = $1"
-    ~params:[ String username ]
+    ~params:[String username]
   |> Option.bind ~f:(function
-         | [ name; email; admin ] ->
+         | [name; email; admin] ->
              Some { username; name; admin = admin = "t"; email }
          | _ ->
              None)
@@ -207,9 +204,9 @@ let get_user_and_created_at username =
     ~subject:username
     "SELECT name, email, admin, created_at from accounts
      WHERE accounts.username = $1"
-    ~params:[ String username ]
+    ~params:[String username]
   |> Option.bind ~f:(function
-         | [ name; email; admin; created_at ] ->
+         | [name; email; admin; created_at] ->
              Some
                { username
                ; name
@@ -231,9 +228,9 @@ let get_user_by_email email =
     ~subject:email
     "SELECT name, username, admin from accounts
      WHERE accounts.email = $1"
-    ~params:[ String email ]
+    ~params:[String email]
   |> Option.bind ~f:(function
-         | [ name; username; admin ] ->
+         | [name; username; admin] ->
              Some { username; name; admin = admin = "t"; email }
          | _ ->
              None)
@@ -251,7 +248,7 @@ let is_admin ~username : bool =
     "SELECT 1 from accounts
      WHERE accounts.username = $1
        AND accounts.admin = true"
-    ~params:[ String username ]
+    ~params:[String username]
 
 
 (* Any external calls to this should also call Stroller.segment_identify_user;
@@ -261,7 +258,7 @@ let set_admin ~username (admin : bool) : unit =
     ~name:"set_admin"
     ~subject:username
     "UPDATE accounts SET admin = $1 where username = $2"
-    ~params:[ Bool admin; String username ]
+    ~params:[Bool admin; String username]
 
 
 let valid_user ~(username : username) ~(password : string) : bool =
@@ -271,11 +268,11 @@ let valid_user ~(username : username) ~(password : string) : bool =
       ~subject:username
       "SELECT password from accounts
            WHERE accounts.username = $1"
-      ~params:[ String username ]
+      ~params:[String username]
   with
   | None ->
       false
-  | Some [ db_password ] ->
+  | Some [db_password] ->
       password
       |> Bytes.of_string
       |> Hash.wipe_to_password
@@ -300,7 +297,7 @@ let owner ~(auth_domain : string) : Uuidm.t option =
       ~subject:auth_domain
       "SELECT id from accounts
      WHERE accounts.username = $1"
-      ~params:[ String auth_domain ]
+      ~params:[String auth_domain]
     |> Option.map ~f:List.hd_exn
     |> Option.bind ~f:Uuidm.of_string
 

@@ -89,7 +89,7 @@ module List = struct
       match l with
       | [] ->
           []
-      | [ _ ] ->
+      | [_] ->
           []
       | _ :: rest ->
           dropLeft ~count:(count - 1) rest
@@ -125,7 +125,7 @@ module String = struct
 
   let rec segment ~(size : int) (s : string) : string list =
     let front, back = splitAt ~index:size s in
-    if back = "" then [ front ] else front :: segment ~size back
+    if back = "" then [front] else front :: segment ~size back
 
 
   let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s :

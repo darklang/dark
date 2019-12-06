@@ -63,8 +63,7 @@ let oauth_params (auth : auth) url verb (args : (string * string) list) :
     ; ("oauth_signature_method", "HMAC-SHA1")
     ; ("oauth_version", "1.0")
     ; ("oauth_timestamp", ts ())
-    ; ("oauth_token", auth.access_token)
-    ]
+    ; ("oauth_token", auth.access_token) ]
   in
   let signature =
     sign
@@ -74,7 +73,7 @@ let oauth_params (auth : auth) url verb (args : (string * string) list) :
       verb
       (List.append initial_params args)
   in
-  [ ("oauth_signature", signature) ]
+  [("oauth_signature", signature)]
   |> List.append initial_params
   |> List.sort ~compare:(fun (a, _) (b, _) -> compare a b)
 

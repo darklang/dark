@@ -20,9 +20,9 @@ let usage () : unit =
 
 let validate_row (table : string) (values : string list) : unit =
   match values with
-  | [ canvas_name; value; trace_id ] ->
+  | [canvas_name; value; trace_id] ->
       let params =
-        [ ("table", table); ("canvas", canvas_name); ("trace_id", trace_id) ]
+        [("table", table); ("canvas", canvas_name); ("trace_id", trace_id)]
       in
       ( try
           let (_ : RTT.dval) = Dval.of_internal_roundtrippable_v0 value in
@@ -38,7 +38,7 @@ let () =
   ( match (Array.length Sys.argv, Array.to_list Sys.argv) with
   | 1, _ ->
       ()
-  | 2, [ _; "-h" ] | _ ->
+  | 2, [_; "-h"] | _ ->
       usage () ) ;
   Log.infO "Next: get_stored_events" ;
   Db.iter_with_cursor
@@ -70,13 +70,13 @@ let () =
     "SELECT name from canvases"
     ~params:[]
     ~f:(function
-      | [ h ] ->
+      | [h] ->
         ( try
             ignore
               ( Canvas.load_all h []
               |> Result.map_error ~f:(String.concat ~sep:", ")
               |> Prelude.Result.ok_or_internal_exception "Canvas load error" ) ;
-            Log.infO "successful canvas load" ~params:[ ("host", h) ]
+            Log.infO "successful canvas load" ~params:[("host", h)]
           with e ->
             Log.erroR
               "failed canvas load"
@@ -94,7 +94,7 @@ let () =
     "SELECT name FROM canvases"
     ~params:[]
     ~f:(function
-      | [ host ] ->
+      | [host] ->
           let c =
             Canvas.load_all host []
             |> Result.map_error ~f:(String.concat ~sep:", ")
@@ -127,17 +127,14 @@ let () =
                  in
                  try
                    ignore (Libbackend.User_db.get_all ~state db) ;
-                   Log.infO
-                     "user data"
-                     ~params:[ ("db", dbname); ("host", host) ]
+                   Log.infO "user data" ~params:[("db", dbname); ("host", host)]
                  with e ->
                    Log.erroR
                      "failed to load user_data"
                      ~params:
                        [ ("db", dbname)
                        ; ("host", host)
-                       ; ("exn", Exception.to_string e)
-                       ])
+                       ; ("exn", Exception.to_string e) ])
       | _ ->
           Exception.internal "bad db result") ;
   ()

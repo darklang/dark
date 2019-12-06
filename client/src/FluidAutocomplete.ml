@@ -339,8 +339,7 @@ let generateExprs m (tl : toplevel) a ti =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
     ; FACConstructorName ("Ok", 1)
-    ; FACConstructorName ("Error", 1)
-    ]
+    ; FACConstructorName ("Error", 1) ]
   in
   let id = FluidToken.tid ti.token in
   let varnames =
@@ -350,10 +349,10 @@ let generateExprs m (tl : toplevel) a ti =
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
-    List.map ~f:(fun x -> FACKeyword x) [ KLet; KIf; KLambda; KMatch; KPipe ]
+    List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
   in
   let literals =
-    List.map ~f:(fun x -> FACLiteral x) [ "true"; "false"; "null" ]
+    List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
   in
   varnames @ constructors @ literals @ keywords @ functions
 
@@ -372,19 +371,18 @@ let generatePatterns ti a queryString =
     else
       [ FPABool (mid, gid (), true)
       ; FPABool (mid, gid (), false)
-      ; FPAConstructor (mid, gid (), "Just", [ FPBlank (mid, gid ()) ])
+      ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
       ; FPAConstructor (mid, gid (), "Nothing", [])
-      ; FPAConstructor (mid, gid (), "Ok", [ FPBlank (mid, gid ()) ])
-      ; FPAConstructor (mid, gid (), "Error", [ FPBlank (mid, gid ()) ])
-      ; FPANull (mid, gid ())
-      ]
+      ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
+      ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
+      ; FPANull (mid, gid ()) ]
       |> List.map ~f:(fun p -> FACPattern p) )
     |> List.filter ~f:(fun c ->
            (* filter out old query string variable *)
            match c with FACPattern (FPAVariable _) -> false | _ -> true)
   in
   let isInvalidPatternVar str =
-    [ ""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null" ]
+    [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null"]
     |> List.member ~value:str
     || str
        |> String.dropRight ~count:(String.length str - 1)
@@ -395,7 +393,7 @@ let generatePatterns ti a queryString =
      * constructor or boolean name *)
     if isInvalidPatternVar queryString
     then []
-    else [ FACPattern (FPAVariable (mid, gid (), queryString)) ]
+    else [FACPattern (FPAVariable (mid, gid (), queryString))]
   in
   match ti.token with
   | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
@@ -465,7 +463,7 @@ let filter
       notSubstring
   in
   let allMatches =
-    [ startsWith; startsWithCI; substring; substringCI; stringMatch ]
+    [startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
   (* Now split list by type validity *)

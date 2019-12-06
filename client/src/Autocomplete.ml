@@ -688,33 +688,32 @@ let toDynamicItems
         ; qFunction q
         ; qWorkerHandler q
         ; qCronHandler q
-        ; qReplHandler q
-        ]
+        ; qReplHandler q ]
         @ qSearch m q
       in
       (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
       let all =
         if VariantTesting.variantIsActive m GroupVariant
-        then standard @ [ qGroup q ]
+        then standard @ [qGroup q]
         else standard
       in
       List.map ~f:(fun o -> ACOmniAction o) all
   | Some (_, PExpr _) ->
-      Option.values [ qLiteral q ]
+      Option.values [qLiteral q]
   | Some (_, PField _) ->
-      if q = "" then [] else [ ACField q ]
+      if q = "" then [] else [ACField q]
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
-        [ ACHTTPRoute (cleanHTTPname q) ]
+        [ACHTTPRoute (cleanHTTPname q)]
     | Some HSCron ->
-        if q = "" then [] else [ ACCronName (cleanEventName q) ]
+        if q = "" then [] else [ACCronName (cleanEventName q)]
     | Some HSRepl ->
-        if q = "" then [] else [ ACReplName (cleanEventName q) ]
+        if q = "" then [] else [ACReplName (cleanEventName q)]
     | _ ->
-        if q = "" then [] else [ ACWorkerName (cleanEventName q) ] )
+        if q = "" then [] else [ACWorkerName (cleanEventName q)] )
   | Some (_, PDBName _) ->
-      if q == "" then [] else [ ACDBName (cleanDBName q) ]
+      if q == "" then [] else [ACDBName (cleanDBName q)]
   | _ ->
       []
 
@@ -836,8 +835,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     [ ACConstructorName "Just"
     ; ACConstructorName "Nothing"
     ; ACConstructorName "Ok"
-    ; ACConstructorName "Error"
-    ]
+    ; ACConstructorName "Error" ]
   in
   let extras =
     match a.target with
@@ -851,16 +849,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACHTTPModifier "POST"
             ; ACHTTPModifier "PUT"
             ; ACHTTPModifier "DELETE"
-            ; ACHTTPModifier "PATCH"
-            ]
+            ; ACHTTPModifier "PATCH" ]
         | Some HSCron ->
             [ ACCronTiming "Daily"
             ; ACCronTiming "Weekly"
             ; ACCronTiming "Fortnightly"
             ; ACCronTiming "Every 1hr"
             ; ACCronTiming "Every 12hrs"
-            ; ACCronTiming "Every 1min"
-            ]
+            ; ACCronTiming "Every 1min" ]
         | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
             [] )
       | EventName ->
@@ -883,8 +879,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           [ ACEventSpace "HTTP"
           ; ACEventSpace "CRON"
           ; ACEventSpace "WORKER"
-          ; ACEventSpace "REPL"
-          ]
+          ; ACEventSpace "REPL" ]
       | DBColType ->
           let builtins =
             [ "String"
@@ -894,8 +889,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; "Password"
             ; "Date"
             ; "UUID"
-            ; "Dict"
-            ]
+            ; "Dict" ]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
@@ -915,8 +909,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe TBlock
           ; ACParamTipe TPassword
           ; ACParamTipe TUuid
-          ; ACParamTipe TList
-          ]
+          ; ACParamTipe TList ]
           @ userTypes
       | TypeFieldTipe ->
           [ ACTypeFieldTipe TStr
@@ -925,14 +918,13 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TFloat
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
-          ; ACTypeFieldTipe TUuid
-          ]
+          ; ACTypeFieldTipe TUuid ]
       | Pattern ->
         ( match dval with
         | Some dv when RT.typeOf dv = TResult ->
-            [ ACConstructorName "Ok"; ACConstructorName "Error" ]
+            [ACConstructorName "Ok"; ACConstructorName "Error"]
         | Some dv when RT.typeOf dv = TOption ->
-            [ ACConstructorName "Just"; ACConstructorName "Nothing" ]
+            [ACConstructorName "Just"; ACConstructorName "Nothing"]
         | _ ->
             constructors )
       | _ ->
@@ -947,7 +939,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames
       in
       let keywords =
-        List.map ~f:(fun x -> ACKeyword x) [ KLet; KIf; KLambda; KMatch ]
+        List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
       in
       varnames @ constructors @ keywords @ functions
     else []
@@ -1008,7 +1000,7 @@ let filter
       notSubstring
   in
   let allMatches =
-    [ dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch ]
+    [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
   (* Now split list by type validity *)

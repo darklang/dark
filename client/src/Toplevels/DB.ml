@@ -28,7 +28,7 @@ let astsFor (db : db) : expr list =
   | None ->
       []
   | Some am ->
-      [ am.rollforward; am.rollback ]
+      [am.rollforward; am.rollback]
 
 
 let allData (db : db) : pointerData list =
@@ -37,13 +37,13 @@ let allData (db : db) : pointerData list =
     | Some migra ->
         ( db.cols @ migra.cols
         , List.concat
-            [ AST.allData migra.rollforward; AST.allData migra.rollback ] )
+            [AST.allData migra.rollforward; AST.allData migra.rollback] )
     | None ->
         (db.cols, [])
   in
   let colpointers =
     cols
-    |> List.map ~f:(fun (lhs, rhs) -> [ PDBColName lhs; PDBColType rhs ])
+    |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
     |> List.concat
   in
   let name = PDBName db.dbName in
@@ -83,7 +83,7 @@ let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   in
   let rb = B.new_ () in
   let rf = B.new_ () in
-  RPC ([ CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols) ], FocusSame)
+  RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
 
 
 let generateDBName (_ : unit) : string =

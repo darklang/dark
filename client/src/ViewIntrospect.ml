@@ -10,16 +10,15 @@ let dbColsView (cols : dbColumn list) : msg Html.html =
     | F (_, nm), F (_, ty) ->
         let html =
           Html.div
-            [ Html.class' "field" ]
-            [ Html.div [ Html.class' "name" ] [ Html.text nm ]
-            ; Html.div [ Html.class' "type" ] [ Html.text ty ]
-            ]
+            [Html.class' "field"]
+            [ Html.div [Html.class' "name"] [Html.text nm]
+            ; Html.div [Html.class' "type"] [Html.text ty] ]
         in
         Some html
     | _ ->
         None
   in
-  Html.div [ Html.class' "fields" ] (List.filterMap ~f:colView cols)
+  Html.div [Html.class' "fields"] (List.filterMap ~f:colView cols)
 
 
 let fnParamsView (params : userFunctionParameter list) : msg Html.html =
@@ -27,26 +26,23 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
     let name =
       Html.span
         [ Html.classList
-            [ ("name", true); ("has-blanks", Blank.isBlank p.ufpName) ]
-        ]
-        [ Html.text (Blank.valueWithDefault "no name" p.ufpName) ]
+            [("name", true); ("has-blanks", Blank.isBlank p.ufpName)] ]
+        [Html.text (Blank.valueWithDefault "no name" p.ufpName)]
     in
     let ptype =
       Html.span
         [ Html.classList
-            [ ("type", true); ("has-blanks", Blank.isBlank p.ufpTipe) ]
-        ]
+            [("type", true); ("has-blanks", Blank.isBlank p.ufpTipe)] ]
         [ Html.text
             ( match p.ufpTipe with
             | F (_, v) ->
                 Runtime.tipe2str v
             | Blank _ ->
-                "no type" )
-        ]
+                "no type" ) ]
     in
-    Html.div [ Html.class' "field" ] [ name; ptype ]
+    Html.div [Html.class' "field"] [name; ptype]
   in
-  Html.div [ Html.class' "fields" ] (List.map ~f:paramView params)
+  Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
 let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string)
@@ -58,8 +54,7 @@ let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string)
   ; ViewUtils.eventNoPropagation
       ~key:(key ^ "-out_" ^ showTLID originTLID)
       "mouseleave"
-      (fun _ -> SetHoveringReferences (originTLID, []))
-  ]
+      (fun _ -> SetHoveringReferences (originTLID, [])) ]
 
 
 let dbView
@@ -74,16 +69,13 @@ let dbView
       ; ViewUtils.eventNoPropagation
           ~key:("ref-db-link" ^ showTLID tlid)
           "click"
-          (fun _ -> GoTo (FocusedDB (tlid, true)))
-      ]
+          (fun _ -> GoTo (FocusedDB (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-db-hover" )
     [ Html.div
-        [ Html.class' "dbheader" ]
+        [Html.class' "dbheader"]
         [ ViewUtils.fontAwesome "database"
-        ; Html.span [ Html.class' "dbname" ] [ Html.text name ]
-        ]
-    ; dbColsView cols
-    ]
+        ; Html.span [Html.class' "dbname"] [Html.text name] ]
+    ; dbColsView cols ]
 
 
 let handlerView
@@ -99,20 +91,18 @@ let handlerView
     | Some "_" | None ->
         Vdom.noNode
     | Some m ->
-        Html.div [ Html.class' "spec" ] [ Html.text m ]
+        Html.div [Html.class' "spec"] [Html.text m]
   in
   Html.div
     ( [ Html.class' ("ref-block handler " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-handler-link" ^ showTLID tlid)
           "click"
-          (fun _ -> GoTo (FocusedHandler (tlid, true)))
-      ]
+          (fun _ -> GoTo (FocusedHandler (tlid, true))) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-handler-hover" )
-    [ Html.div [ Html.class' "spec space" ] [ Html.text space ]
-    ; Html.div [ Html.class' "spec" ] [ Html.text name ]
-    ; modifier_
-    ]
+    [ Html.div [Html.class' "spec space"] [Html.text space]
+    ; Html.div [Html.class' "spec"] [Html.text name]
+    ; modifier_ ]
 
 
 let fnView
@@ -123,19 +113,17 @@ let fnView
     (params : userFunctionParameter list)
     (direction : string) : msg Html.html =
   let header =
-    [ Html.div [ Html.class' "fnicon" ] [ ViewUtils.svgIconFn "#599ab2" ]
-    ; Html.span [ Html.class' "fnname" ] [ Html.text name ]
-    ]
+    [ Html.div [Html.class' "fnicon"] [ViewUtils.svgIconFn "#599ab2"]
+    ; Html.span [Html.class' "fnname"] [Html.text name] ]
   in
   Html.div
     ( [ Html.class' ("ref-block fn " ^ direction)
       ; ViewUtils.eventNoPropagation
           ~key:("ref-fn-link" ^ showTLID tlid)
           "click"
-          (fun _ -> GoTo (FocusedFn tlid))
-      ]
+          (fun _ -> GoTo (FocusedFn tlid)) ]
     @ hoveringRefProps originTLID originIDs ~key:"ref-fn-hover" )
-    [ Html.div [ Html.class' "fnheader" ] header; fnParamsView params ]
+    [Html.div [Html.class' "fnheader"] header; fnParamsView params]
 
 
 let renderView originalTLID direction (tl, originalIDs) =

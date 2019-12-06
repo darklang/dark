@@ -48,7 +48,7 @@ module Result = struct
     | Ok a ->
         a
     | Error err ->
-        Exception.internal ~info:[ ("error", err) ] msg
+        Exception.internal ~info:[("error", err)] msg
 end
 
 module StrDict = struct
@@ -99,7 +99,7 @@ module StrDict = struct
         if old = None then Some value else old)
 
 
-  let singleton k v = from_list [ (k, v) ]
+  let singleton k v = from_list [(k, v)]
 
   let is_empty = Base.Map.is_empty
 

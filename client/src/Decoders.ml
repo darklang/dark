@@ -146,8 +146,7 @@ let blankOr d =
   variants
     [ ("Filled", variant2 (fun id v -> F (id, v)) id d)
     ; ("Blank", variant1 (fun id -> Blank id) id)
-    ; ("Partial", variant2 (fun id _ -> Blank id) id string)
-    ]
+    ; ("Partial", variant2 (fun id _ -> Blank id) id string) ]
 
 
 let rec tipe j : tipe =
@@ -174,8 +173,7 @@ let rec tipe j : tipe =
     ; ("TOption", dv0 TOption)
     ; ("TErrorRail", dv0 TErrorRail)
     ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
-    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int)
-    ]
+    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
     j
 
 
@@ -190,8 +188,7 @@ and nPattern j : nPattern =
     [ ("PVariable", variant1 (fun a -> PVariable a) string)
     ; ("PLiteral", variant1 (fun a -> PLiteral a) string)
     ; ( "PConstructor"
-      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) )
-    ]
+      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) ) ]
     j
 
 
@@ -205,8 +202,7 @@ let rec expr j : expr =
         , variant2
             (fun id name -> F (id, FluidPartial (name, Blank.new_ ())))
             id
-            string )
-      ]
+            string ) ]
   in
   match blankOrExpr j with
   | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
@@ -267,8 +263,7 @@ let pointerData j : pointerData =
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
-    ; ("PPattern", dv1 (fun x -> PPattern x) pattern)
-    ]
+    ; ("PPattern", dv1 (fun x -> PPattern x) pattern) ]
     j
 
 
@@ -279,15 +274,12 @@ let rec dval j : dval =
   let dd = dval in
   let optionT =
     variants
-      [ ("OptJust", dv1 (fun x -> OptJust x) dd)
-      ; ("OptNothing", dv0 OptNothing)
-      ]
+      [("OptJust", dv1 (fun x -> OptJust x) dd); ("OptNothing", dv0 OptNothing)]
   in
   let resultT =
     variants
       [ ("ResOk", dv1 (fun x -> ResOk x) dd)
-      ; ("ResError", dv1 (fun x -> ResError x) dd)
-      ]
+      ; ("ResError", dv1 (fun x -> ResError x) dd) ]
   in
   let dhttp =
     variants
@@ -299,8 +291,7 @@ let rec dval j : dval =
   let srcT =
     variants
       [ ("SourceNone", dv0 SourceNone)
-      ; ("SourceId", dv1 (fun x -> SourceId x) id)
-      ]
+      ; ("SourceId", dv1 (fun x -> SourceId x) id) ]
   in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
@@ -335,8 +326,7 @@ let rec dval j : dval =
           (fun x ->
             let x = x |> bytes_from_base64url in
             DBytes x)
-          string )
-    ]
+          string ) ]
     j
 
 
@@ -347,8 +337,7 @@ and handlerState j : handlerState =
        ; ("HandlerPrepCollapse", variant0 HandlerPrepCollapse)
        ; ("HandlerCollapsing", variant0 HandlerCollapsing)
        ; ("HandlerCollapsed", variant0 HandlerCollapsed)
-       ; ("HandlerExpanding", variant0 HandlerExpanding)
-       ]
+       ; ("HandlerExpanding", variant0 HandlerExpanding) ]
 
 
 and exeState j : exeState =
@@ -356,8 +345,7 @@ and exeState j : exeState =
   |> variants
        [ ("Idle", variant0 Idle)
        ; ("Executing", variant0 Executing)
-       ; ("Complete", variant0 Complete)
-       ]
+       ; ("Complete", variant0 Complete) ]
 
 
 and handlerProp j : handlerProp =
@@ -411,8 +399,7 @@ and cursorState j =
     ; ("Deselected", dv0 Deselected)
     ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
-    ; ("FluidMouseSelecting", dv1 (fun a -> FluidMouseSelecting a) tlid)
-    ]
+    ; ("FluidMouseSelecting", dv1 (fun a -> FluidMouseSelecting a) tlid) ]
     j
 
 
@@ -421,8 +408,7 @@ and entering j =
   let dv2 = variant2 in
   variants
     [ ("Creating", dv1 (fun x -> Creating x) pos)
-    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id)
-    ]
+    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
     j
 
 
@@ -432,8 +418,7 @@ and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
     ; ("LoadableNotInitialized", variant0 LoadableNotInitialized)
     ; ( "LoadableLoading"
       , variant1 (fun a -> LoadableLoading a) (optional decoder) )
-    ; ("LoadableError", variant1 (fun a -> LoadableError a) string)
-    ]
+    ; ("LoadableError", variant1 (fun a -> LoadableError a) string) ]
     j
 
 
@@ -474,8 +459,7 @@ let dbMigrationState j : dbMigrationState =
   let dv0 = variant0 in
   variants
     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
-    ; ("DBMigrationInitialized", dv0 DBMigrationInitialized)
-    ]
+    ; ("DBMigrationInitialized", dv0 DBMigrationInitialized) ]
     j
 
 
@@ -505,8 +489,7 @@ let toplevel j : toplevel =
   let variant =
     variants
       [ ("Handler", variant1 (fun x -> TLHandler x) (handler pos))
-      ; ("DB", variant1 (fun x -> TLDB x) (db pos))
-      ]
+      ; ("DB", variant1 (fun x -> TLDB x) (db pos)) ]
   in
   field "data" variant j
 
@@ -547,7 +530,7 @@ let fof j : fourOhFour =
 
 let deployStatus j : deployStatus =
   let sumtypes =
-    [ ("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying) ]
+    [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
   in
   j |> variants sumtypes
 
@@ -606,7 +589,7 @@ let userRecordField j =
 
 let userTipeDefinition j =
   variants
-    [ ("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField)) ]
+    [("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField))]
     j
 
 
@@ -619,7 +602,7 @@ let userTipe j =
 
 
 let permission j =
-  variants [ ("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite) ] j
+  variants [("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite)] j
 
 
 let op j : op =
@@ -697,8 +680,7 @@ let op j : op =
     ; ("DeleteTLForever", variant1 (fun t -> DeleteTLForever t) tlid)
     ; ("SetType", variant1 (fun t -> SetType t) userTipe)
     ; ("DeleteType", variant1 (fun t -> DeleteType t) tlid)
-    ; ("DeleteTypeForever", variant1 (fun t -> DeleteTypeForever t) tlid)
-    ]
+    ; ("DeleteTypeForever", variant1 (fun t -> DeleteTypeForever t) tlid) ]
     j
 
 
@@ -821,16 +803,15 @@ let parseBasicDval str : dval =
     ; map (fun x -> DFloat x) Json_decode_extended.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
-    ; map (fun x -> DStr x) string
-    ]
+    ; map (fun x -> DStr x) string ]
     str
 
 
 (* Ported directly from Dval.parse in the backend *)
 let parseDvalLiteral (str : string) : dval option =
   match String.toList str with
-  | [ '\''; c; '\'' ] ->
-      Some (DCharacter (String.fromList [ c ]))
+  | ['\''; c; '\''] ->
+      Some (DCharacter (String.fromList [c]))
   | '"' :: rest ->
       if List.last rest = Some '"'
       then

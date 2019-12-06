@@ -17,21 +17,17 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
   match schedule with
   | "pause" ->
       Html.div
-        [ ViewUtils.eventNoPropagation
-            ~key:("run-" ^ strTLID)
-            "click"
-            (fun _ -> RunWorker name)
+        [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
+              RunWorker name)
         ; Html.class' "restart-worker"
-        ; Html.title "Run worker"
-        ]
-        [ ViewUtils.fontAwesome "play-circle" ]
+        ; Html.title "Run worker" ]
+        [ViewUtils.fontAwesome "play-circle"]
   | "block" ->
       Html.div
         [ Html.class' "blocked-worker"
         ; Html.title
-            "Worker disabled by Dark. Please get in touch to discuss why."
-        ]
-        [ ViewUtils.fontAwesome "ban" ]
+            "Worker disabled by Dark. Please get in touch to discuss why." ]
+        [ViewUtils.fontAwesome "ban"]
   | "run" ->
       Html.div
         [ ViewUtils.eventNoPropagation
@@ -39,9 +35,8 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
             "click"
             (fun _ -> PauseWorker name)
         ; Html.class' "pause-worker"
-        ; Html.title "Pause worker"
-        ]
-        [ ViewUtils.fontAwesome "pause-circle" ]
+        ; Html.title "Pause worker" ]
+        [ViewUtils.fontAwesome "pause-circle"]
   | _ ->
       Vdom.noNode
 
@@ -68,8 +63,7 @@ let viewInput
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
           TraceMouseEnter (tlid, traceID, x))
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tlid, traceID, x))
-    ]
+          TraceMouseLeave (tlid, traceID, x)) ]
   in
   let valueDiv, valueStr =
     match value with
@@ -82,7 +76,7 @@ let viewInput
           then "No input parameters"
           else asString
         in
-        (Html.div [ Vdom.noProp ] [ Html.text asString ], "")
+        (Html.div [Vdom.noProp] [Html.text asString], "")
   in
   let timestampDiv =
     match timestamp with
@@ -93,7 +87,7 @@ let viewInput
           Js.Date.now () -. Js.Date.parseAsFloat ts
           |> Util.humanReadableTimeElapsed
         in
-        Html.div [ Html.title ts ] [ Html.text ("Made " ^ human ^ " ago") ]
+        Html.div [Html.title ts] [Html.text ("Made " ^ human ^ " ago")]
   in
   (* Fixes: https://trello.com/c/Vv8mMOls/1595-top-request-cursor-is-unselectable-10-6 *)
   (* viewKey contains the:
@@ -103,11 +97,11 @@ let viewInput
   let viewKey = traceID ^ classes ^ valueStr in
   let dotHtml =
     if isHover && not isActive
-    then [ Html.div [ Html.class' "empty-dot" ] [ Vdom.noNode ] ]
-    else [ Html.div [ Vdom.noProp ] [ Html.text {js|•|js} ] ]
+    then [Html.div [Html.class' "empty-dot"] [Vdom.noNode]]
+    else [Html.div [Vdom.noProp] [Html.text {js|•|js}]]
   in
-  let viewData = Html.div [ Html.class' "data" ] [ timestampDiv; valueDiv ] in
-  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [ viewData ])
+  let viewData = Html.div [Html.class' "data"] [timestampDiv; valueDiv] in
+  Html.li ~key:viewKey (Html.class' classes :: events) (dotHtml @ [viewData])
 
 
 let viewInputs (vs : ViewUtils.viewState) (astID : id) : msg Html.html list =
@@ -150,12 +144,11 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
         |> Option.withDefault ~default:0
       in
       Html.div
-        [ Html.class' "worker-stats" ]
-        [ Html.span [ Html.class' "label" ] [ Html.text "Pending events" ]
+        [Html.class' "worker-stats"]
+        [ Html.span [Html.class' "label"] [Html.text "Pending events"]
         ; Html.span
-            [ Html.classList [ ("count", true); ("active", count > 0) ] ]
-            [ Html.text (string_of_int count) ]
-        ]
+            [Html.classList [("count", true); ("active", count > 0)]]
+            [Html.text (string_of_int count)] ]
     else Vdom.noNode
   in
   let maxHeight =
@@ -191,12 +184,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
       [ Html.classList
           [ ("view-data", true)
           ; ("show-worker-stats", showWorkerStats)
-          ; ("live-view-selection-active", selectedValue <> None)
-          ]
-      ; Html.style "max-height" maxHeight
-      ]
-      [ pauseBtn
-      ; workQStats
-      ; Html.ul [ Html.class' "request-cursor" ] requestEls
-      ]
+          ; ("live-view-selection-active", selectedValue <> None) ]
+      ; Html.style "max-height" maxHeight ]
+      [pauseBtn; workQStats; Html.ul [Html.class' "request-cursor"] requestEls]
   ]

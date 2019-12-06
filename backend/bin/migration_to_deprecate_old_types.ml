@@ -16,7 +16,7 @@ let () =
   ( match (Array.length Sys.argv, Array.to_list Sys.argv) with
   | 1, _ ->
       ()
-  | 2, [ _; "-h" ] | _ ->
+  | 2, [_; "-h"] | _ ->
       usage () ) ;
   Db.iter_with_cursor
     ~name:"migrate id to string"
@@ -24,7 +24,7 @@ let () =
     "SELECT user_data.key, data FROM user_data CROSS JOIN LATERAL jsonb_each(data) sub WHERE
 value @> '{\"type\": \"id\"}' LIMIT 100"
     ~f:(function
-      | [ key; data ] ->
+      | [key; data] ->
           let parsed_data = data |> Yojson.Safe.from_string in
           (* if a pair has an id value = `{"type": "id", ...}` - then make it a
            * string instead *)
@@ -33,7 +33,7 @@ value @> '{\"type\": \"id\"}' LIMIT 100"
             let key, value = pair in
             let new_value =
               match value with
-              | `Assoc [ ("type", `String "id"); ("value", `String value) ] ->
+              | `Assoc [("type", `String "id"); ("value", `String value)] ->
                   `String value
               | _ ->
                   value
@@ -48,7 +48,7 @@ value @> '{\"type\": \"id\"}' LIMIT 100"
                 parsed_data
           in
           if parsed_data <> transformed_data
-          then Log.infO "update_id_to_string" ~params:[ ("key", key) ] ;
+          then Log.infO "update_id_to_string" ~params:[("key", key)] ;
           Db.run
             ~name:"update ids in user_data to be strings"
             ~params:
@@ -57,8 +57,7 @@ value @> '{\"type\": \"id\"}' LIMIT 100"
                   |> Uuidm.of_string
                   |> (Option.value_exn : Uuidm.t option -> Uuidm.t) )
               ; Db.String data
-              ; Db.String (transformed_data |> Yojson.Safe.to_string)
-              ]
+              ; Db.String (transformed_data |> Yojson.Safe.to_string) ]
             (* AND data = $2 to guard against race conditions *)
             "UPDATE user_data SET data = $3 WHERE key = $1 AND data = $2"
       | _ ->

@@ -34,11 +34,9 @@ let http_route_input_vars (h : HandlerT.handler) (request_path : string) :
 (* -------------------- *)
 (* Sample input vars *)
 (* -------------------- *)
-let sample_request_input_vars =
-  [ ("request", PReq.to_dval PReq.sample_request) ]
+let sample_request_input_vars = [("request", PReq.to_dval PReq.sample_request)]
 
-
-let sample_event_input_vars = [ ("event", DIncomplete SourceNone) ]
+let sample_event_input_vars = [("event", DIncomplete SourceNone)]
 
 let sample_unknown_handler_input_vars =
   sample_request_input_vars @ sample_event_input_vars

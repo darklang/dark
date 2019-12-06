@@ -35,7 +35,7 @@ let clear_test_data () : unit =
   let owner = Account.for_host_exn "test" in
   let canvas_ids =
     Db.fetch
-      ~params:[ Uuid owner ]
+      ~params:[Uuid owner]
       ~name:"clear_test_data"
       "SELECT id
        FROM canvases
@@ -44,35 +44,35 @@ let clear_test_data () : unit =
     |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
   in
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_events_test_data"
     "DELETE FROM events where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_stored_events_test_data"
     "DELETE FROM stored_events_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_results_test_data"
     "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_user_data_test_data"
     "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_cron_records_test_data"
     "DELETE FROM cron_records where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_toplevel_oplists_test_data"
     "DELETE FROM toplevel_oplists WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_function_arguments"
     "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[ List canvas_ids; String Db.array_separator ]
+    ~params:[List canvas_ids; String Db.array_separator]
     ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
   ()
@@ -416,7 +416,7 @@ let exec_handler ?(ops = []) (prog : string) : dval =
   (* |> Log.pp ~f:show_expr *)
   |> handler
   |> hop
-  |> fun h -> execute_ops (ops @ [ h ])
+  |> fun h -> execute_ops (ops @ [h])
 
 
 let exec_ast ?(canvas_name = "test") (prog : string) : dval =
@@ -429,7 +429,7 @@ let exec_userfn (prog : string) : dval =
   let name = "test_function" in
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
-  let c, state, _ = test_execution_data [ SetFunction fn ] in
+  let c, state, _ = test_execution_data [SetFunction fn] in
   let result, _ = Ast.execute_fn state name execution_id [] in
   result
 
@@ -452,18 +452,17 @@ let sample_dvals =
   ; ("null", DNull)
   ; ("datastore", DDB "Visitors")
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
-  ; ("list", DList [ Dval.dint 4 ])
+  ; ("list", DList [Dval.dint 4])
   ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj
         (DvalMap.from_list
-           [ ("type", Dval.dstr_of_string_exn "weird"); ("value", DNull) ]) )
+           [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
   ; ( "obj3"
     , DObj
         (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
-           ; ("value", Dval.dstr_of_string_exn "x")
-           ]) )
+           ; ("value", Dval.dstr_of_string_exn "x") ]) )
   ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError (SourceNone, "some error string"))
   ; ("block", DBlock (fun _args -> DNull))
@@ -482,13 +481,12 @@ let sample_dvals =
   ; ("result", DResult (ResOk (Dval.dint 15)))
   ; ( "result2"
     , DResult
-        (ResError
-           (DList [ Dval.dstr_of_string_exn "dunno if really supported" ])) )
+        (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
+    )
   ; ("result3", DResult (ResOk (Dval.dstr_of_string_exn "a string")))
   ; ("bytes", DBytes ("JyIoXCg=" |> B64.decode |> RawBytes.of_string))
   ; ( "bytes2"
     , DBytes
         (* use image bytes here to test for any weird bytes forms *)
         (RawBytes.of_string
-           (File.readfile ~root:Testdata "sample_image_bytes.png")) )
-  ]
+           (File.readfile ~root:Testdata "sample_image_bytes.png")) ) ]

@@ -76,7 +76,7 @@ let user_tipe_list_to_type_env (tipes : user_tipe list) : type_env =
           map)
 
 
-let error err = Error [ err ]
+let error err = Error [err]
 
 let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
     (unit, Error.t list) Result.t =

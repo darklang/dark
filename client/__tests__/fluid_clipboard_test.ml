@@ -46,8 +46,8 @@ let () =
     let h = Fluid_utils.h ast in
     let m =
       { Defaults.defaultModel with
-        tests = [ FluidVariant ]
-      ; handlers = Handlers.fromList [ h ]
+        tests = [FluidVariant]
+      ; handlers = Handlers.fromList [h]
       ; cursorState = FluidEntering h.hTLID
       }
     in
@@ -110,7 +110,7 @@ let () =
       let cursorString = "~" in
       ( match str |> String.splitAt ~index:pos with
       | a, b ->
-          [ a; b ] |> String.join ~sep:cursorString )
+          [a; b] |> String.join ~sep:cursorString )
       |> fun s -> (s, clipboardStr, pos)
     in
     test
@@ -144,8 +144,8 @@ let () =
         let h = Fluid_utils.h ast in
         let m =
           { Defaults.defaultModel with
-            tests = [ FluidVariant ]
-          ; handlers = Handlers.fromList [ h ]
+            tests = [FluidVariant]
+          ; handlers = Handlers.fromList [h]
           ; cursorState = FluidEntering h.hTLID
           }
         in
@@ -177,12 +177,12 @@ let () =
   in
   let pipeOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in
-  let aListNum n = EList (gid (), [ EInteger (gid (), n) ]) in
+  let aListNum n = EList (gid (), [EInteger (gid (), n)]) in
   let listFn args =
     EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
   in
   let aPipe =
-    pipeOn emptyList [ listFn [ aListNum "5" ]; listFn [ aListNum "5" ] ]
+    pipeOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
   in
   describe "Booleans" (fun () ->
       t
@@ -192,7 +192,7 @@ let () =
         ("true", "true", 4) ;
       t
         "copying a bool adds an EBool to clipboard 2"
-        (EFnCall (gid (), "Bool::not", [ EBool (gid (), true) ], NoRail))
+        (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
         (copy (10, 14))
         ("Bool::not true", "true", 14) ;
       t
@@ -202,7 +202,7 @@ let () =
         ("___", "false", 0) ;
       t
         "cutting a bool adds an EBool to clipboard 2"
-        (EFnCall (gid (), "Bool::not", [ EBool (gid (), true) ], NoRail))
+        (EFnCall (gid (), "Bool::not", [EBool (gid (), true)], NoRail))
         (cut (10, 14))
         ("Bool::not ___", "true", 10) ;
       t
@@ -219,7 +219,7 @@ let () =
         ("null", "null", 4) ;
       t
         "copying a null adds an ENull to clipboard 2"
-        (EFnCall (gid (), "Bool::isNull", [ ENull (gid ()) ], NoRail))
+        (EFnCall (gid (), "Bool::isNull", [ENull (gid ())], NoRail))
         (copy (13, 17))
         ("Bool::isNull null", "null", 17) ;
       t
@@ -229,7 +229,7 @@ let () =
         ("___", "null", 0) ;
       t
         "cutting a null adds an ENull to clipboard 2"
-        (EFnCall (gid (), "Bool::isNull", [ ENull (gid ()) ], NoRail))
+        (EFnCall (gid (), "Bool::isNull", [ENull (gid ())], NoRail))
         (cut (13, 17))
         ("Bool::isNull ___", "null", 13) ;
       t
@@ -246,7 +246,7 @@ let () =
         ("1000", "1000", 4) ;
       t
         "copying an int adds an EInteger to clipboard 2"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "1000") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (copy (10, 14))
         ("Int::sqrt 1000", "1000", 14) ;
       t
@@ -261,7 +261,7 @@ let () =
         ("___", "1000", 0) ;
       t
         "cutting an int adds an EInteger to clipboard and leaves a blank 2"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "1000") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (cut (10, 14))
         ("Int::sqrt ___", "1000", 10) ;
       t
@@ -336,7 +336,7 @@ let () =
         (EFnCall
            ( gid ()
            , "String::reverse"
-           , [ EString (gid (), "abcd EFGH ijkl 1234") ]
+           , [EString (gid (), "abcd EFGH ijkl 1234")]
            , NoRail ))
         (copy (16, 37))
         ( "String::reverse \"abcd EFGH ijkl 1234\""
@@ -357,7 +357,7 @@ let () =
         (EFnCall
            ( gid ()
            , "String::reverse"
-           , [ EString (gid (), "abcd EFGH ijkl 1234") ]
+           , [EString (gid (), "abcd EFGH ijkl 1234")]
            , NoRail ))
         (cut (16, 37))
         ("String::reverse ___", "\"abcd EFGH ijkl 1234\"", 16) ;
@@ -424,7 +424,7 @@ let () =
         "pasting an ERecord with a single key & no value in a string should paste key"
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
-           ~clipboard:(ERecord (gid (), [ (gid (), "key1", EBlank (gid ())) ]))
+           ~clipboard:(ERecord (gid (), [(gid (), "key1", EBlank (gid ()))]))
            (11, 15))
         ("\"abcd EFGH key1 1234\"", "{\n  key1 : ___\n}", 15) ;
       t
@@ -432,7 +432,7 @@ let () =
         (EString (gid (), "abcd EFGH ijkl 1234"))
         (paste
            ~clipboard:
-             (ERecord (gid (), [ (gid (), "key1", EInteger (gid (), "9876")) ]))
+             (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "9876"))]))
            (11, 15))
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
       ()) ;
@@ -445,7 +445,7 @@ let () =
       t
         "copying a float adds an EFloat to clipboard 2"
         (EFnCall
-           (gid (), "Float::round", [ EFloat (gid (), "1234", "5678") ], NoRail))
+           (gid (), "Float::round", [EFloat (gid (), "1234", "5678")], NoRail))
         (copy (13, 22))
         ("Float::round 1234.5678", "1234.5678", 22) ;
       t
@@ -481,7 +481,7 @@ let () =
       t
         "cutting a float adds an EFloat to clipboard 2"
         (EFnCall
-           (gid (), "Float::round", [ EFloat (gid (), "1234", "5678") ], NoRail))
+           (gid (), "Float::round", [EFloat (gid (), "1234", "5678")], NoRail))
         (cut (13, 22))
         ("Float::round ___", "1234.5678", 13) ;
       t
@@ -849,38 +849,37 @@ let () =
   describe "Functions" (fun () ->
       t
         "copying a function name adds an EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 9))
         ("Int::sqrt 122", "Int::sqrt ___", 9) ;
       t
         "copying a function name with a version adds an EFnCall, not a partial"
-        (EFnCall
-           (gid (), "HttpClient::post_v4", [ EString (gid (), "") ], NoRail))
+        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail))
         (copy (0, 18))
         ("HttpClient::postv4 \"\"", "HttpClient::postv4 ___", 18) ;
       t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (0, 4))
         ("Int::sqrt 122", "Int:@sqr@ ___", 4) ;
       t
         "copying a function's argument adds the argument's expression to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (copy (10, 13))
         ("Int::sqrt 122", "122", 13) ;
       t
         "cutting a function name adds an EFnCall w blank arguments to clipboard and leaves a blank"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 9))
         ("___", "Int::sqrt ___", 0) ;
       t
         "cutting part of a fn name adds a partial EFnCall w blank arguments to clipboard and leaves a partial"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 4))
         (":sqrt@qr@ 122", "Int:@sqr@ ___", 0) ;
       t
         "cutting a function's argument adds the argument's expression to clipboard and leaves a blank there"
-        (EFnCall (gid (), "Int::sqrt", [ EInteger (gid (), "122") ], NoRail))
+        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (10, 13))
         ("Int::sqrt ___", "122", 10) ;
       ()) ;
@@ -911,8 +910,7 @@ let () =
            ( gid ()
            , [ EInteger (gid (), "123")
              ; EInteger (gid (), "456")
-             ; EInteger (gid (), "789")
-             ] ))
+             ; EInteger (gid (), "789") ] ))
         (copy (5, 12))
         ("[123,456,789]", "[456,789]", 12) ;
       t
@@ -921,8 +919,7 @@ let () =
            ( gid ()
            , [ EInteger (gid (), "123")
              ; EInteger (gid (), "456")
-             ; EInteger (gid (), "789")
-             ] ))
+             ; EInteger (gid (), "789") ] ))
         (cut (5, 12))
         ("[123,___]", "[456,789]", 5) ;
 
@@ -944,52 +941,51 @@ let () =
            ( gid ()
            , [ EInteger (gid (), "123")
              ; EInteger (gid (), "456")
-             ; EInteger (gid (), "789")
-             ] ))
+             ; EInteger (gid (), "789") ] ))
         (paste ~clipboard:(EInteger (gid (), "9000")) (5, 12))
         ("[123,9000]", "9000", 9) ;
       ()) ;
   describe "Records" (fun () ->
       t
         "copying opening bracket adds empty record expr to clipboard"
-        (ERecord (gid (), [ (gid (), "key1", EInteger (gid (), "1234")) ]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (0, 1))
         ("{\n  key1 : 1234\n}", "{}", 1) ;
       t
         "copying a single key adds record w single key to clipboard"
-        (ERecord (gid (), [ (gid (), "key1", EInteger (gid (), "1234")) ]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (4, 8))
         ("{\n  key1 : 1234\n}", "{\n  key1 : ___\n}", 8) ;
       t
         "cutting a single key adds record w single key to clipboard and leaves blank in it's place"
-        (ERecord (gid (), [ (gid (), "key1", EInteger (gid (), "1234")) ]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (cut (4, 8))
         ("{\n  *** : 1234\n}", "{\n  key1 : ___\n}", 4) ;
       t
         "copying a single k-v pair adds record w single k-v pair to clipboard"
-        (ERecord (gid (), [ (gid (), "key1", EInteger (gid (), "1234")) ]))
+        (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
       ()) ;
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [ EInteger (gid (), "100") ]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 8))
         ("Just 100", "Just 100", 8) ;
       t
         "copying part adds partial EConstructor to clipboard"
-        (EConstructor (gid (), gid (), "Just", [ EInteger (gid (), "100") ]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (copy (0, 3))
         ("Just 100", "Jus@ ___", 3) ;
       t
         "cutting adds EConstructor to clipboard and leaves blank"
-        (EConstructor (gid (), gid (), "Just", [ EInteger (gid (), "100") ]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 8))
         ("___", "Just 100", 0) ;
       t
         "cutting part adds partial EConstructor to clipboard and leaves partial"
-        (EConstructor (gid (), gid (), "Just", [ EInteger (gid (), "100") ]))
+        (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 3))
         ("t@s@ 100", "Jus@ ___", 0) ;
       ()) ;
@@ -1009,8 +1005,7 @@ let () =
       roundtrip (EInteger (gid (), "6")) ;
       roundtrip aPipe ;
       roundtrip
-        (EFnCall
-           (gid (), "HttpClient::post_v4", [ EString (gid (), "") ], NoRail)) ;
+        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
       roundtrip longString ;
       roundtrip (ELet (gid (), gid (), "myVariable", longString, newB ())) ;
       ())

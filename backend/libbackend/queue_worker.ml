@@ -60,8 +60,7 @@ let dequeue_and_process execution_id :
                           ; ("event_space", `String event.space)
                           ; ("event_name", `String event.name)
                           ; ("event_modifier", `String event.modifier)
-                          ; ("retries", `Int event.retries)
-                          ]
+                          ; ("retries", `Int event.retries) ]
                           (fun _ ->
                             try
                               let event_timestamp =
@@ -87,8 +86,7 @@ let dequeue_and_process execution_id :
                                     ~params:
                                       [ ("host", host)
                                       ; ("event", Log.dump desc)
-                                      ; ("event_id", string_of_int event.id)
-                                      ] ;
+                                      ; ("event_id", string_of_int event.id) ] ;
                                   let space, name, modifier = desc in
                                   Stroller.push_new_404
                                     ~execution_id
@@ -112,14 +110,13 @@ let dequeue_and_process execution_id :
                                       ; ("host", host)
                                       ; ("event_id", string_of_int event.id)
                                       ; ( "handler_id"
-                                        , Types.string_of_id h.tlid )
-                                      ] ;
+                                        , Types.string_of_id h.tlid ) ] ;
                                   let result, touched_tlids =
                                     Execution.execute_handler
                                       h
                                       ~execution_id
                                       ~tlid:h.tlid
-                                      ~input_vars:[ ("event", event.value) ]
+                                      ~input_vars:[("event", event.value)]
                                       ~dbs:(TL.dbs !c.dbs)
                                       ~user_tipes:(!c.user_tipes |> IDMap.data)
                                       ~user_fns:
@@ -164,8 +161,7 @@ let dequeue_and_process execution_id :
                                       ; ("event_id", string_of_int event.id)
                                       ; ( "handler_id"
                                         , Types.string_of_id h.tlid )
-                                      ; ("result_type", result_tipe result)
-                                      ] ;
+                                      ; ("result_type", result_tipe result) ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
                             with e ->
@@ -190,5 +186,5 @@ let run (execution_id : Types.id) :
     Ok None )
   else
     Log.add_log_annotations
-      [ ("start_timer", `Float (Unix.gettimeofday () *. 1000.0)) ]
+      [("start_timer", `Float (Unix.gettimeofday () *. 1000.0))]
       (fun _ -> dequeue_and_process execution_id)

@@ -123,7 +123,7 @@ let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
     id option =
   let dir = if direction = Up then -1.0 else 1.0 in
   match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
-  | [ this ] ->
+  | [this] ->
       sizes
       |> List.filter ~f:(fun o ->
              o.centerY <> this.centerY
@@ -149,7 +149,7 @@ let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
   (* that moveLeft passes Right and moveRight passes Left. Whoops. *)
   let dir = if direction = Left then -1.0 else 1.0 in
   match List.filter ~f:(fun (o : htmlSizing) -> o.id = id) sizes with
-  | [ this ] ->
+  | [this] ->
       sizes
       |> List.filter ~f:(fun o ->
              o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX)
@@ -214,8 +214,7 @@ let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
           (ACSetQuery
              ( pd
              |> Option.andThen ~f:P.toContent
-             |> Option.withDefault ~default:"" ))
-      ]
+             |> Option.withDefault ~default:"" )) ]
   in
   match pd with
   | Some (PDBName _) ->
@@ -465,22 +464,22 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
             let newTL = TL.replace pd (PVarBind (F (newID, ""))) tl in
             ( match newTL with
             | TLHandler h ->
-                RPC ([ SetHandler (tlid, h.pos, h) ], focus)
+                RPC ([SetHandler (tlid, h.pos, h)], focus)
             | TLFunc f ->
-                RPC ([ SetFunction f ], focus)
+                RPC ([SetFunction f], focus)
             | TLTipe _ | TLDB _ | TLGroup _ ->
                 recover "pointer type mismatch" (newTL, pd) NoChange )
         | DBName | FnName | TypeName | GroupName ->
-            Many [ Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "") ]
+            Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
         | _ ->
             let newTL = TL.delete tl pd newID in
             ( match newTL with
             | TLHandler h ->
-                RPC ([ SetHandler (tlid, h.pos, h) ], focus)
+                RPC ([SetHandler (tlid, h.pos, h)], focus)
             | TLFunc f ->
-                RPC ([ SetFunction f ], focus)
+                RPC ([SetFunction f], focus)
             | TLTipe t ->
-                RPC ([ SetType t ], focus)
+                RPC ([SetType t], focus)
             | TLGroup _ ->
                 NoChange
             | TLDB _ ->

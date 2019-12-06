@@ -31,8 +31,7 @@ let store_event
       ; String module_
       ; String path
       ; String modifier
-      ; RoundtrippableDval event
-      ]
+      ; RoundtrippableDval event ]
   |> List.hd_exn
   |> Util.date_of_isostring
 
@@ -62,9 +61,9 @@ let list_events
      WHERE canvas_id = $1"
     ^ timestamp_constraint
   in
-  Db.fetch sql ~name:"list_events" ~params:[ Db.Uuid canvas_id ]
+  Db.fetch sql ~name:"list_events" ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
-         | [ module_; path; modifier; timestamp; trace_id ] ->
+         | [module_; path; modifier; timestamp; trace_id] ->
              let trace_id =
                trace_id
                |> Uuidm.of_string
@@ -93,9 +92,9 @@ let load_events
       AND modifier = $4
     ORDER BY timestamp DESC
     LIMIT 10"
-    ~params:[ Uuid canvas_id; String module_; String route; String modifier ]
+    ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
-         | [ request_path; dval; ts; trace_id ] ->
+         | [request_path; dval; ts; trace_id] ->
              let trace_id = Util.uuid_of_string trace_id in
              ( request_path
              , trace_id
@@ -113,10 +112,10 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
     WHERE canvas_id = $1
       AND trace_id = $2
     LIMIT 1"
-    ~params:[ Uuid canvas_id; Uuid trace_id ]
+    ~params:[Uuid canvas_id; Uuid trace_id]
   |> List.hd
   |> Option.map ~f:(function
-         | [ request_path; dval; timestamp ] ->
+         | [request_path; dval; timestamp] ->
              ( request_path
              , Util.date_of_isostring timestamp
              , Dval.of_internal_roundtrippable_v0 dval )
@@ -148,9 +147,9 @@ let load_event_ids
       AND modifier = $4
     ORDER BY timestamp DESC
     LIMIT 10"
-    ~params:[ Uuid canvas_id; String module_; String route; String modifier ]
+    ~params:[Uuid canvas_id; String module_; String route; String modifier]
   |> List.map ~f:(function
-         | [ trace_id; path ] ->
+         | [trace_id; path] ->
              (Util.uuid_of_string trace_id, path)
          | _ ->
              Exception.internal "Bad DB format for stored_events")
@@ -161,7 +160,7 @@ let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
     ~name:"stored_event.clear_events"
     "DELETE FROM stored_events_v2
      WHERE canvas_id = $1"
-    ~params:[ Uuid canvas_id ]
+    ~params:[Uuid canvas_id]
 
 
 let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
@@ -175,9 +174,9 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
        AND modifier = $4
      ORDER BY timestamp DESC
      LIMIT 10"
-    ~params:[ Uuid canvas_id; String module_; String path; String modifier ]
+    ~params:[Uuid canvas_id; String module_; String path; String modifier]
   |> List.filter_map ~f:(function
-         | [ trace_id ] ->
+         | [trace_id] ->
              if trace_id = ""
              then None
              else Some (Util.uuid_of_string trace_id)

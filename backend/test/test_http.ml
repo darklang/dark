@@ -36,14 +36,13 @@ let t_route_variables_work () =
   AT.check
     (AT.list AT.string)
     "Variables are as expected"
-    [ "userid"; "cardid" ]
+    ["userid"; "cardid"]
     (Http.route_variables "/user/:userid/card/:cardid") ;
   AT.check
     (AT.list (AT.pair AT.string at_dval))
     "Variables are bound as expected"
     [ ("cardid", Dval.dstr_of_string_exn "0")
-    ; ("userid", Dval.dstr_of_string_exn "myid")
-    ]
+    ; ("userid", Dval.dstr_of_string_exn "myid") ]
     (Http.bind_route_variables_exn
        "/user/myid/card/0"
        ~route:"/user/:userid/card/:cardid") ;
@@ -67,50 +66,42 @@ let t_concrete_over_wild () =
   let wild = http_route_handler ~route:"/:foo" () in
   let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
   let ordered =
-    Http.filter_matching_handlers_by_specificity [ concrete; wild ]
+    Http.filter_matching_handlers_by_specificity [concrete; wild]
   in
-  AT.check (AT.list testable_handler) "concrete over wild" [ concrete ] ordered
+  AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
 
 
 let t_wild_over_nothing () =
   let wild = http_route_handler ~route:"/a/:foo" () in
   let nothing = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [ wild; nothing ]
-  in
-  AT.check (AT.list testable_handler) "wild over nothing" [ wild ] ordered
+  let ordered = Http.filter_matching_handlers_by_specificity [wild; nothing] in
+  AT.check (AT.list testable_handler) "wild over nothing" [wild] ordered
 
 
 let t_differing_wildcards () =
   let single = http_route_handler ~route:"/:first" () in
   let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
   let ordered =
-    Http.filter_matching_handlers_by_specificity [ single; double ]
+    Http.filter_matching_handlers_by_specificity [single; double]
   in
-  AT.check (AT.list testable_handler) "differing wildcards" [ double ] ordered
+  AT.check (AT.list testable_handler) "differing wildcards" [double] ordered
 
 
 let t_lengthy_abcdef_wildcard () =
   let more = http_route_handler ~route:"/:a/b/c/d/:e/:f" () in
   let earlier = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c/:d/e/f" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [ more; earlier ]
-  in
-  AT.check
-    (AT.list testable_handler)
-    "lengthy abcdef wildcard"
-    [ more ]
-    ordered
+  let ordered = Http.filter_matching_handlers_by_specificity [more; earlier] in
+  AT.check (AT.list testable_handler) "lengthy abcdef wildcard" [more] ordered
 
 
 let t_same_length_abc_diff_wildcards () =
   let a = http_route_handler ~route:"/a/:b/:c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/:a/b/c" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [ a; b ] in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b] in
   AT.check
     (AT.list testable_handler)
     "same length abc route with diff # wildcards"
-    [ a ]
+    [a]
     ordered
 
 
@@ -118,11 +109,11 @@ let t_same_length_abc_same_wildcards () =
   let a = http_route_handler ~route:"/:a/b/c" () in
   let b = http_route_handler ~tlid:tlid2 ~route:"/a/:b/c" () in
   let c = http_route_handler ~tlid:tlid3 ~route:"/a/b/:c" () in
-  let ordered = Http.filter_matching_handlers_by_specificity [ a; b; c ] in
+  let ordered = Http.filter_matching_handlers_by_specificity [a; b; c] in
   AT.check
     (AT.list testable_handler)
     "same length abc routes with same # wildcards"
-    [ c ]
+    [c]
     ordered
 
 
@@ -133,18 +124,18 @@ let t_same_specificity_are_returned () =
   let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
   let double2 = http_route_handler ~tlid:tlid3 ~route:"/:foo/:bar" () in
   let ordered =
-    Http.filter_matching_handlers_by_specificity [ single; double; double2 ]
+    Http.filter_matching_handlers_by_specificity [single; double; double2]
   in
   AT.check
     (AT.list testable_handler)
     "multiple specificity are returned"
-    [ double2; double ]
+    [double2; double]
     ordered
 
 
 let t_mismatch_is_filtered () =
   let single = http_route_handler ~route:"/:first" () in
-  let filtered = Http.filter_invalid_handler_matches ~path:"/" [ single ] in
+  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single] in
   AT.check (AT.list testable_handler) "mismatch is filtered out" [] filtered
 
 
@@ -152,12 +143,12 @@ let t_mismatch_filtering_leaves_root () =
   let single = http_route_handler ~route:"/:first" () in
   let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
   let filtered =
-    Http.filter_invalid_handler_matches ~path:"/" [ single; root ]
+    Http.filter_invalid_handler_matches ~path:"/" [single; root]
   in
   AT.check
     (AT.list testable_handler)
     "mismatch is filtered out but root is left"
-    [ root ]
+    [root]
     filtered
 
 
@@ -168,7 +159,7 @@ let t_route_equals_path () =
   AT.check
     (AT.option (AT.list testable_string_dval_pair))
     "route binds to path when they're same length"
-    (Some [ ("b", Dval.dstr_of_string_exn "pickmeup") ])
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup")])
     bound
 
 
@@ -179,7 +170,7 @@ let t_route_lt_path_with_wildcard () =
   AT.check
     (AT.option (AT.list testable_string_dval_pair))
     "len(route) < len(path) with a trailing wildcard should succeed in binding all of the remaining path bits"
-    (Some [ ("b", Dval.dstr_of_string_exn "pickmeup/c/d") ])
+    (Some [("b", Dval.dstr_of_string_exn "pickmeup/c/d")])
     bound
 
 
@@ -243,7 +234,7 @@ let t_route_non_prefix_colon_does_not_denote_variable () =
 
 let t_query_params_with_duplicate_keys () =
   let parsed =
-    Parsed_request.parsed_query_string [ ("a", [ "b" ]); ("a", [ "c" ]) ]
+    Parsed_request.parsed_query_string [("a", ["b"]); ("a", ["c"])]
   in
   check_dval
     "parsed_query_string"
@@ -254,7 +245,7 @@ let t_query_params_with_duplicate_keys () =
     parsed ;
   check_dval
     "query_to_dval"
-    (Dval.query_to_dval [ ("a", [ "b" ]); ("a", [ "c" ]) ])
+    (Dval.query_to_dval [("a", ["b"]); ("a", ["c"])])
     (DObj (DvalMap.singleton "a" (Dval.dstr_of_string_exn "c"))) ;
   ()
 
@@ -273,11 +264,11 @@ let t_path_gt_route_does_not_crash () =
 let t_incomplete_handler_doesnt_throw () =
   let filled = http_route_handler ~route:"/:foo" () in
   let empty = handler (ast_for "5") in
-  let ordered = Http.filter_matching_handlers "/a" [ filled; empty ] in
+  let ordered = Http.filter_matching_handlers "/a" [filled; empty] in
   AT.check
     (AT.list testable_handler)
     "incomplete handler is filtered out without throwing"
-    [ filled ]
+    [filled]
     ordered
 
 
@@ -292,7 +283,7 @@ let t_parsed_request_cookies () =
     | _ ->
         failwith "didn't end up with 'cookies' in the DObj"
   in
-  let with_cookies c = with_headers [ ("cookie", c) ] in
+  let with_cookies c = with_headers [("cookie", c)] in
   AT.check
     (AT.list at_dval)
     "Parsed_request.from_request parses cookies correctly."
@@ -303,22 +294,17 @@ let t_parsed_request_cookies () =
     ; with_cookies "a=b"
     ; with_cookies "a=b;"
     ; with_cookies "a=b; c=d"
-    ; with_cookies "a=b; c=d;"
-    ]
+    ; with_cookies "a=b; c=d;" ]
     [ Dval.to_dobj_exn []
     ; Dval.to_dobj_exn []
     ; Dval.to_dobj_exn []
-    ; Dval.to_dobj_exn [ ("a", Dval.dstr_of_string_exn "") ]
-    ; Dval.to_dobj_exn [ ("a", Dval.dstr_of_string_exn "b") ]
-    ; Dval.to_dobj_exn [ ("a", Dval.dstr_of_string_exn "b") ]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
+    ; Dval.to_dobj_exn [("a", Dval.dstr_of_string_exn "b")]
     ; Dval.to_dobj_exn
-        [ ("a", Dval.dstr_of_string_exn "b")
-        ; ("c", Dval.dstr_of_string_exn "d")
-        ]
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
     ; Dval.to_dobj_exn
-        [ ("a", Dval.dstr_of_string_exn "b")
-        ; ("c", Dval.dstr_of_string_exn "d")
-        ]
+        [("a", Dval.dstr_of_string_exn "b"); ("c", Dval.dstr_of_string_exn "d")]
     ]
 
 
@@ -327,7 +313,7 @@ let t_parsed_request_bodies () =
   let jsonHeader = ("content-type", "application/json") in
   let parse header body =
     let response =
-      Parsed_request.from_request (Uri.of_string "test") [ header ] [] body
+      Parsed_request.from_request (Uri.of_string "test") [header] [] body
       |> Parsed_request.to_dval
     in
     match response with
@@ -338,7 +324,7 @@ let t_parsed_request_bodies () =
         Exception.internal "wrong shape"
   in
   let expectedObj =
-    Dval.to_dobj_exn [ ("field1", Dval.dstr_of_string_exn "value1") ]
+    Dval.to_dobj_exn [("field1", Dval.dstr_of_string_exn "value1")]
   in
   AT.check
     (AT.pair at_dval at_dval)
@@ -405,5 +391,4 @@ let suite =
   ; ("Bodies are parsed correctly", `Quick, t_parsed_request_bodies)
   ; ( "Incomplete handler is filtered out safely"
     , `Quick
-    , t_incomplete_handler_doesnt_throw )
-  ]
+    , t_incomplete_handler_doesnt_throw ) ]

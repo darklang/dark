@@ -50,17 +50,17 @@ let _payload_for_segment_event
       `Assoc
         ( orig_payload_items
         @ ( canvas
-          |> Option.map ~f:(fun c -> [ ("canvas", `String c) ])
+          |> Option.map ~f:(fun c -> [("canvas", `String c)])
           |> Option.value ~default:[] )
         @ ( canvas_id
           |> Option.map ~f:(fun c ->
-                 [ ("canvas_id", `String (c |> Uuidm.to_string)) ])
+                 [("canvas_id", `String (c |> Uuidm.to_string))])
           |> Option.value ~default:[] )
         @ ( execution_id
           |> Option.map ~f:(fun eid ->
-                 [ ("execution_id", `String (eid |> Types.string_of_id)) ])
+                 [("execution_id", `String (eid |> Types.string_of_id))])
           |> Option.value ~default:[] )
-        @ [ ("timestamp", `String timestamp) ] )
+        @ [("timestamp", `String timestamp)] )
   | _ ->
       Exception.internal
         "Expected payload to be an `Assoc list, was some other kind of Yojson.Safe.t"
@@ -71,8 +71,7 @@ let _log_params_for_segment ~canvas ~canvas_id ~event ~username :
   [ ("canvas", canvas)
   ; ("canvas_id", canvas_id |> Option.map ~f:Uuidm.to_string)
   ; ("event", event)
-  ; ("username", Some username)
-  ]
+  ; ("username", Some username) ]
   |> List.filter_map ~f:(fun (k, v) ->
          match v with Some v -> Some (k, v) | _ -> None)
 
@@ -118,7 +117,7 @@ let _segment_event
           let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
           Log.infO
             "pushed to segment via stroller"
-            ~jsonparams:[ ("status", `Int code) ]
+            ~jsonparams:[("status", `Int code)]
             ~params:log_params ;
           Lwt.return ()
         with e ->
@@ -162,8 +161,7 @@ let blocking_curl_post (url : string) (body : string) : int * string * string =
       [ ("url", url)
       ; ("error", Curl.strerror curl_code)
       ; ("curl_code", string_of_int code)
-      ; ("response", Buffer.contents responsebuf)
-      ]
+      ; ("response", Buffer.contents responsebuf) ]
     in
     Log.erroR
       ("Internal HTTP error in blocking_curl_post: " ^ strerror curl_code)
@@ -204,12 +202,12 @@ let segment_event_blocking
       | 202 ->
           Log.infO
             "pushed to segment via stroller"
-            ~jsonparams:[ ("status", `Int code) ]
+            ~jsonparams:[("status", `Int code)]
             ~params:log_params
       | _ ->
           Log.erroR
             "failed to push to segment via stroller"
-            ~jsonparams:[ ("status", `Int code) ]
+            ~jsonparams:[("status", `Int code)]
             ~params:log_params ) ;
       ()
 
@@ -253,7 +251,7 @@ let push
     (payload : string) : unit =
   let canvas_id_str = Uuidm.to_string canvas_id in
   let log_params =
-    [ ("canvas_id", canvas_id_str); ("event", event); ("payload", payload) ]
+    [("canvas_id", canvas_id_str); ("event", event); ("payload", payload)]
   in
   match Config.stroller_port with
   | None ->
@@ -278,7 +276,7 @@ let push
             in
             Log.infO
               "pushed via stroller"
-              ~jsonparams:[ ("status", `Int code) ]
+              ~jsonparams:[("status", `Int code)]
               ~params:log_params ;
             Lwt.return ()
           with e ->

@@ -8,11 +8,11 @@ let t_stdlib_works () =
   check_dval
     "uniqueBy1"
     (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
-    (DList [ Dval.dint 1; Dval.dint 3; Dval.dint 4 ]) ;
+    (DList [Dval.dint 1; Dval.dint 3; Dval.dint 4]) ;
   check_dval
     "uniqueBy2"
     (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> x))")
-    (DList [ Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4 ]) ;
+    (DList [Dval.dint 1; Dval.dint 2; Dval.dint 3; Dval.dint 4]) ;
   check_error_contains
     "base64decode"
     (exec_ast "(String::base64Decode 'random string')")
@@ -177,11 +177,11 @@ let t_dict_stdlibs_work () =
   check_dval
     "dict keys"
     (exec_ast "(Dict::keys (obj (key1 'val1')))")
-    (DList [ dstr "key1" ]) ;
+    (DList [dstr "key1"]) ;
   check_dval
     "dict values"
     (exec_ast "(Dict::values (obj (key1 'val1')))")
-    (DList [ dstr "val1" ]) ;
+    (DList [dstr "val1"]) ;
   check_dval
     "dict get"
     (exec_ast "(Dict::get_v1 (obj (key1 'val1')) 'key1')")
@@ -192,19 +192,18 @@ let t_dict_stdlibs_work () =
        "(Dict::foreach (obj (key1 'val1') (key2 'val2')) (\\x -> (++ x '_append')))")
     (DObj
        (DvalMap.from_list
-          [ ("key1", dstr "val1_append"); ("key2", dstr "val2_append") ])) ;
+          [("key1", dstr "val1_append"); ("key2", dstr "val2_append")])) ;
   check_dval
     "dict map"
     (exec_ast
        "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))")
     (DObj
-       (DvalMap.from_list
-          [ ("key1", dstr "key1val1"); ("key2", dstr "key2val2") ])) ;
+       (DvalMap.from_list [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
   check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
   check_dval
     "dict merge"
     (exec_ast "(Dict::merge (obj (key1 'val1')) (obj (key2 'val2')))")
-    (DObj (DvalMap.from_list [ ("key1", dstr "val1"); ("key2", dstr "val2") ])) ;
+    (DObj (DvalMap.from_list [("key1", dstr "val1"); ("key2", dstr "val2")])) ;
   check_dval
     "dict toJSON"
     (exec_ast "(Dict::toJSON (obj (key1 'val1') (key2 'val2')))")
@@ -213,19 +212,19 @@ let t_dict_stdlibs_work () =
     "dict filter keeps val"
     (exec_ast
        "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== v 'val1')))")
-    (DObj (DvalMap.from_list [ ("key1", dstr "val1") ])) ;
+    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
   check_dval
     "dict filter keeps key"
     (exec_ast
        "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k 'key1')))")
-    (DObj (DvalMap.from_list [ ("key1", dstr "val1") ])) ;
+    (DObj (DvalMap.from_list [("key1", dstr "val1")])) ;
   check_incomplete
     "dict filter propagates incomplete from lambda"
     (exec_ast
        "(Dict::filter_v1 (obj (key1 'val1') (key2 'val2')) (\\k v -> (== k _)))") ;
   check_dval
     "dict filter ignores incomplete from obj"
-    (DObj (DvalMap.from_list [ ("key1", dint 1); ("key3", dint 3) ]))
+    (DObj (DvalMap.from_list [("key1", dint 1); ("key3", dint 3)]))
     (exec_ast
        "(Dict::filter_v1 (obj (key1 1) (key2 _) (key3 3)) (\\k v -> (> v 0)))") ;
   ()
@@ -317,32 +316,26 @@ MlHbmVv9QMY5UetA9o05uPaAXH4BCCw+SqhEEJqES4V+Y6WEfFWZTmvWv0GV+i/p
   check_dval
     "JWT::verifyAndExtract works on output of JWT::signAndEncodeWithheaders"
     ( [ ( "payload"
-        , DObj (DvalMap.from_list [ ("abc", Dval.dstr_of_string_exn "def") ])
-        )
+        , DObj (DvalMap.from_list [("abc", Dval.dstr_of_string_exn "def")]) )
       ; ( "header"
         , DObj
             (DvalMap.from_list
                [ ("type", Dval.dstr_of_string_exn "JWT")
                ; ("alg", Dval.dstr_of_string_exn "RS256")
-               ; ("ghi", Dval.dstr_of_string_exn "jkl")
-               ]) )
-      ]
+               ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
     |> fun x -> DOption (OptJust (DObj x)) )
     (exec_ast (ast_v0 privatekey publickey)) ;
   check_dval
     "JWT::verifyAndExtract_v1 works on output of JWT::signAndEncodeWithheaders"
     ( [ ( "payload"
-        , DObj (DvalMap.from_list [ ("abc", Dval.dstr_of_string_exn "def") ])
-        )
+        , DObj (DvalMap.from_list [("abc", Dval.dstr_of_string_exn "def")]) )
       ; ( "header"
         , DObj
             (DvalMap.from_list
                [ ("type", Dval.dstr_of_string_exn "JWT")
                ; ("alg", Dval.dstr_of_string_exn "RS256")
-               ; ("ghi", Dval.dstr_of_string_exn "jkl")
-               ]) )
-      ]
+               ; ("ghi", Dval.dstr_of_string_exn "jkl") ]) ) ]
     |> DvalMap.from_list
     |> DObj )
     (exec_ast (ast_v1 privatekey publickey)) ;
@@ -506,5 +499,4 @@ let suite =
   ; ("Functions deprecated correctly", `Quick, t_old_functions_deprecated)
   ; ("Internal functions work", `Quick, t_internal_functions)
   ; ("Crypto::sha digest functions work", `Quick, t_crypto_sha)
-  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws)
-  ]
+  ; ("Crypto::sha256hmac works for AWS", `Quick, t_sha256hmac_for_aws) ]

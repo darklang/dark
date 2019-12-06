@@ -27,13 +27,13 @@ let run ~shutdown ~execution_id =
           Log.infO
             "shutdown"
             ~data:"Received shutdown request - shutting down"
-            ~params:[ ("execution_id", Int63.to_string execution_id) ] ;
+            ~params:[("execution_id", Int63.to_string execution_id)] ;
           Server.respond_string ~status:`OK ~body:"Terminated" () )
         else (
           Log.infO
             "shutdown"
             ~data:"Received redundant shutdown request - already shutting down"
-            ~params:[ ("execution_id", Int63.to_string execution_id) ] ;
+            ~params:[("execution_id", Int63.to_string execution_id)] ;
           Server.respond_string ~status:`OK ~body:"Terminated" () )
     | _ ->
         Server.respond_string ~status:`Not_found ~body:"Not found" ()

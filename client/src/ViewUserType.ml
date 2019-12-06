@@ -19,10 +19,10 @@ let enterable = ViewBlankOr.Enterable
 
 let viewTipeName (vs : viewState) (t : userTipe) : msg Html.html =
   let nameField =
-    let c = (enterable :: idConfigs) @ [ wc "ut-name" ] in
+    let c = (enterable :: idConfigs) @ [wc "ut-name"] in
     ViewBlankOr.viewText TypeName vs c t.utName
   in
-  Html.div [ Html.class' "typetitle" ] [ nameField ]
+  Html.div [Html.class' "typetitle"] [nameField]
 
 
 let viewFieldName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
@@ -47,9 +47,8 @@ let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
           ^ "-"
           ^ (field.urfName |> B.toID |> showID) )
         "click"
-        (fun _ -> DeleteUserTypeField (t.utTLID, field))
-    ]
-    [ fontAwesome "times-circle" ]
+        (fun _ -> DeleteUserTypeField (t.utTLID, field)) ]
+    [fontAwesome "times-circle"]
 
 
 let viewTipeField
@@ -63,12 +62,11 @@ let viewTipeField
     else Vdom.noNode
   in
   let row =
-    [ viewFieldName vs [ wc "name" ] field.urfName
-    ; viewFieldType vs [ wc "type" ] field.urfTipe
-    ; button
-    ]
+    [ viewFieldName vs [wc "name"] field.urfName
+    ; viewFieldType vs [wc "type"] field.urfTipe
+    ; button ]
   in
-  Html.div [ Html.class' "field" ] row
+  Html.div [Html.class' "field"] row
 
 
 let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
@@ -78,7 +76,7 @@ let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
       let fieldDivs =
         let fieldCount = List.length fields in
         Html.div
-          [ Html.class' "fields" ]
+          [Html.class' "fields"]
           (List.map ~f:(viewTipeField vs t fieldCount) fields)
       in
-      Html.div [ Html.class' "user-type" ] [ nameDiv; fieldDivs ]
+      Html.div [Html.class' "user-type"] [nameDiv; fieldDivs]

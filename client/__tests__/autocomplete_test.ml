@@ -25,8 +25,7 @@ let sampleFunctions : function_ list =
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
   ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult)
-  ]
+  ; ("Result::catchError", TResult) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -35,8 +34,7 @@ let sampleFunctions : function_ list =
                ; paramBlock_args = []
                ; paramOptional = false
                ; paramDescription = ""
-               }
-             ]
+               } ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
@@ -120,7 +118,7 @@ let aDB
     () : db =
   { dbTLID = tlid
   ; dbName = B.newF name
-  ; cols = [ (Blank fieldid, Blank typeid) ]
+  ; cols = [(Blank fieldid, Blank typeid)]
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
@@ -145,7 +143,7 @@ let enteringDBField
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([ aDB () ] @ dbs)
+    ~dbs:([aDB ()] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -157,7 +155,7 @@ let enteringDBType
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([ aDB ~fieldid:defaultID2 ~typeid:defaultID () ] @ dbs)
+    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -165,13 +163,13 @@ let enteringDBType
 
 
 let enteringHandler ?(space : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[ aHandler ~space () ] ()
+  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~space ()] ()
 
 
 let enteringEventNameHandler ?(space : string option = None) () : model =
   let handler = aHandler ~space () in
   let id = B.toID handler.spec.name in
-  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[ handler ] ()
+  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[handler] ()
 
 
 let creatingOmni : model =
@@ -256,8 +254,7 @@ let () =
                   ; ufpBlock_args = []
                   ; ufpOptional = false
                   ; ufpDescription = ""
-                  }
-                ]
+                  } ]
               ()
             |> TL.ufToTL
           in
@@ -303,7 +300,7 @@ let () =
                 |> setQuery m "lis"
                 |> (fun x -> x.completions)
                 |> List.map ~f:asName )
-              |> toEqual [ "List::head" ]) ;
+              |> toEqual ["List::head"]) ;
           test "search finds multiple results for prefix" (fun () ->
               expect
                 ( acFor m
@@ -312,10 +309,7 @@ let () =
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
               |> toEqual
-                   [ "Twit::somefunc"
-                   ; "Twit::someOtherFunc"
-                   ; "Twit::yetAnother"
-                   ]) ;
+                   ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]) ;
           test "search finds only prefixed" (fun () ->
               expect
                 ( acFor m
@@ -323,7 +317,7 @@ let () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual [ "Twit::yetAnother" ]) ;
+              |> toEqual ["Twit::yetAnother"]) ;
           test "search works anywhere in term" (fun () ->
               expect
                 ( acFor m
@@ -331,7 +325,7 @@ let () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual [ "Twit::yetAnother" ]) ;
+              |> toEqual ["Twit::yetAnother"]) ;
           test "show results when the only option is the setQuery m" (fun () ->
               expect
                 ( acFor m
@@ -433,8 +427,7 @@ let () =
                    [ "withLower"
                    ; "withlower"
                    ; "SomeModule::withLower"
-                   ; "SomeOtherModule::withlower"
-                   ]) ;
+                   ; "SomeOtherModule::withlower" ]) ;
           test "typing literals works" (fun () ->
               expect
                 ( acFor m
@@ -498,9 +491,8 @@ let () =
                    |> itemPresent (ACVariable ("request", None))
                  ; ac
                    |> setQuery m "event"
-                   |> itemPresent (ACVariable ("event", None))
-                 ])
-              |> toEqual [ true; true ]) ;
+                   |> itemPresent (ACVariable ("event", None)) ])
+              |> toEqual [true; true]) ;
           test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = Blank blankid in
@@ -510,14 +502,14 @@ let () =
                   ~tlid:fntlid
                   ~expr:
                     (B.newF
-                       (FnCall (B.newF "DB::deleteAll", [ dbNameBlank ], NoRail)))
+                       (FnCall (B.newF "DB::deleteAll", [dbNameBlank], NoRail)))
                   ()
               in
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid:fntlid ~id:blankid ())
-                  ~dbs:[ aDB ~tlid:(TLID "db123") () ]
-                  ~userFunctions:[ fn ]
+                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ~userFunctions:[fn]
                   ()
               in
               let target = Some (fntlid, PExpr dbNameBlank) in
@@ -551,12 +543,12 @@ let () =
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ())
-                  ~dbs:[ aDB ~tlid:(TLID "db123") () ]
+                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
                   ()
               in
               let ac = acFor m in
               let _valid, invalid =
-                filter m ac [ ACVariable ("MyDB", None) ] ""
+                filter m ac [ACVariable ("MyDB", None)] ""
               in
               expect (List.member ~value:(ACVariable ("MyDB", None)) invalid)
               |> toEqual true) ;
@@ -564,8 +556,7 @@ let () =
             [ ACConstructorName "Just"
             ; ACConstructorName "Nothing"
             ; ACConstructorName "Ok"
-            ; ACConstructorName "Error"
-            ]
+            ; ACConstructorName "Error" ]
           in
           test "Only Just and Nothing are allowed in Option-blankOr" (fun () ->
               let param1id = ID "123" in
@@ -573,12 +564,12 @@ let () =
                 B.newF
                   (FnCall
                      ( B.newF "Option::withDefault"
-                     , [ Blank param1id; Blank.new_ () ]
+                     , [Blank param1id; Blank.new_ ()]
                      , NoRail ))
               in
               let m =
                 defaultModel
-                  ~handlers:[ aHandler ~expr () ]
+                  ~handlers:[aHandler ~expr ()]
                   ~cursorState:(fillingCS ~id:param1id ())
                   ()
               in
@@ -597,12 +588,12 @@ let () =
                 B.newF
                   (FnCall
                      ( B.newF "Result::catchError"
-                     , [ Blank param1id; Blank.new_ () ]
+                     , [Blank param1id; Blank.new_ ()]
                      , NoRail ))
               in
               let m =
                 defaultModel
-                  ~handlers:[ aHandler ~expr () ]
+                  ~handlers:[aHandler ~expr ()]
                   ~cursorState:(fillingCS ~id:param1id ())
                   ()
               in
@@ -816,8 +807,8 @@ let () =
           let cursorState = creatingCS in
           let m =
             defaultModel
-              ~handlers:[ http; repl ]
-              ~userFunctions:[ fn ]
+              ~handlers:[http; repl]
+              ~userFunctions:[fn]
               ~cursorState
               ()
           in
@@ -832,7 +823,7 @@ let () =
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with
-                | [ Goto (FocusedFn _, tlid, "Found in function fn1", true) ]
+                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
@@ -842,7 +833,7 @@ let () =
           test "find string literal" (fun () ->
               let foundActions =
                 match qSearch m "hello" with
-                | [ Goto (FocusedFn _, tlid, "Found in function fn1", true) ]
+                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
@@ -856,8 +847,7 @@ let () =
                       ( FocusedHandler _
                       , tlid
                       , "Found in HTTP::/hello - GET"
-                      , true )
-                  ]
+                      , true ) ]
                   when tlid = http.hTLID ->
                     true
                 | _ ->
@@ -871,8 +861,7 @@ let () =
                       ( FocusedHandler _
                       , tlid
                       , "Found in REPL::findingDori"
-                      , true )
-                  ]
+                      , true ) ]
                   when tlid = repl.hTLID ->
                     true
                 | _ ->

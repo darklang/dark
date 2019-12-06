@@ -12,9 +12,7 @@ let () =
           let ast =
             Blank.newF
               (FnCall
-                 ( F (gid (), "Int::add_v0")
-                 , [ Blank id; Blank.new_ () ]
-                 , NoRail ))
+                 (F (gid (), "Int::add_v0"), [Blank id; Blank.new_ ()], NoRail))
           in
           let tlFunc =
             TLFunc

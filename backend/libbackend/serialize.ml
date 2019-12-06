@@ -79,13 +79,13 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
   strs
   |> List.map ~f:(fun results ->
          match results with
-         | [ data ] ->
+         | [data] ->
              data
          | _ ->
              Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
          let ops : Op.oplist =
-           try_multiple str ~fs:[ ("oplist", Op.oplist_of_string) ]
+           try_multiple str ~fs:[("oplist", Op.oplist_of_string)]
          in
          (* there must be at least one op *)
          let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
@@ -97,7 +97,7 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
     ~name:"load_all_from_db"
     "SELECT data FROM toplevel_oplists
      WHERE canvas_id = $1"
-    ~params:[ Uuid canvas_id ]
+    ~params:[Uuid canvas_id]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -110,8 +110,7 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
     "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
       AND tlid = ANY (string_to_array($2, $3)::bigint[])"
-    ~params:
-      [ Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator ]
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -126,8 +125,7 @@ let load_with_context
       WHERE canvas_id = $1
         AND (tlid = ANY (string_to_array($2, $3)::bigint[])
              OR tipe <> 'handler'::toplevel_type)"
-    ~params:
-      [ Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator ]
+    ~params:[Db.Uuid canvas_id; Db.List tlid_params; String Db.array_separator]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -138,7 +136,7 @@ let load_all_dbs ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
     "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
         AND tipe = 'db'::toplevel_type"
-    ~params:[ Db.Uuid canvas_id ]
+    ~params:[Db.Uuid canvas_id]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -156,7 +154,7 @@ let load_for_http
               AND $2 like name
               AND modifier = $3)
               OR tipe <> 'handler'::toplevel_type)"
-    ~params:[ Db.Uuid canvas_id; String path; String verb ]
+    ~params:[Db.Uuid canvas_id; String path; String verb]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -169,7 +167,7 @@ let load_for_cron ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
     "SELECT data FROM toplevel_oplists
       WHERE canvas_id = $1
         AND module = 'CRON'"
-    ~params:[ Db.Uuid canvas_id ]
+    ~params:[Db.Uuid canvas_id]
     ~result:BinaryResult
   |> strs2tlid_oplists
 
@@ -219,8 +217,7 @@ let save_toplevel_oplist
       ; string_option name
       ; string_option module_
       ; string_option modifier
-      ; Binary (Op.oplist_to_string ops)
-      ]
+      ; Binary (Op.oplist_to_string ops) ]
 
 
 (* ------------------------- *)
@@ -231,7 +228,7 @@ let load_json_from_disk
     Op.tlid_oplists =
   Log.infO
     "serialization"
-    ~params:[ ("load", "disk"); ("format", "json"); ("host", host) ] ;
+    ~params:[("load", "disk"); ("format", "json"); ("host", host)] ;
   let filename = json_filename host in
   File.maybereadjsonfile
     ~root
@@ -246,7 +243,7 @@ let save_json_to_disk ~root (filename : string) (ops : Op.tlid_oplists) : unit
     =
   Log.infO
     "serialization"
-    ~params:[ ("save_to", "disk"); ("format", "json"); ("filename", filename) ] ;
+    ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;
   ops
   |> Op.tlid_oplists2oplist
   |> Op.oplist_to_yojson
@@ -270,8 +267,7 @@ let tier_one_hosts () : string list =
   ; "paul-slackermuse"
   ; "listo"
   ; "ellen-battery2"
-  ; "julius-tokimeki-unfollow"
-  ]
+  ; "julius-tokimeki-unfollow" ]
 
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
@@ -285,7 +281,7 @@ let fetch_canvas_id (owner : Uuidm.t) (host : string) : Uuidm.t =
     Db.fetch_one
       ~name:"fetch_canvas_id"
       "SELECT canvas_id($1, $2, $3)"
-      ~params:[ Uuid (Util.create_uuid ()); Uuid owner; String host ]
+      ~params:[Uuid (Util.create_uuid ()); Uuid owner; String host]
     |> List.hd_exn
     |> Uuidm.of_string
     |> Option.value_exn

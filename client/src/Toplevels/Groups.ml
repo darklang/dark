@@ -34,7 +34,7 @@ let addToGroup (m : model) (gTLID : tlid) (tlid : tlid) : model * msg Cmd.t =
   let group = TD.get ~tlid:gTLID m.groups in
   match group with
   | Some g ->
-      let newGroup = { g with members = [ tlid ] @ g.members } in
+      let newGroup = { g with members = [tlid] @ g.members } in
       let newMod = upsert m newGroup in
       (newMod, Cmd.none)
   | None ->
@@ -61,7 +61,7 @@ let createEmptyGroup (name : string option) (pos : pos) : modification =
   let tlid = Prelude.gtlid () in
   let nameid = Prelude.gid () in
   let group = { gName = F (nameid, name); members = []; gTLID = tlid; pos } in
-  Many [ AddGroup group; Deselect ]
+  Many [AddGroup group; Deselect]
 
 
 let isInGroup (tlid : tlid) (groups : group TLIDDict.t) : bool =
@@ -148,4 +148,4 @@ let replace (old : pointerData) (new_ : pointerData) (group : group) : group =
 
 let allData (g : group) : pointerData list =
   let namePointer = PGroupName g.gName in
-  [ namePointer ]
+  [namePointer]

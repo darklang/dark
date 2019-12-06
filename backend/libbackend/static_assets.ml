@@ -38,8 +38,7 @@ let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
           (Core.Time.to_string_iso8601_basic
              sd.last_update
              ~zone:Core.Time.Zone.utc) )
-    ; ("status", deploy_status_to_yojson sd.status)
-    ]
+    ; ("status", deploy_status_to_yojson sd.status) ]
 
 
 let oauth2_token () : (string, [> static_asset_error ]) Lwt_result.t =
@@ -51,7 +50,7 @@ let oauth2_token () : (string, [> static_asset_error ]) Lwt_result.t =
           s
     | None ->
         () ) ;
-  let scopes = [ "https://www.googleapis.com/auth/devstorage.read_write" ] in
+  let scopes = ["https://www.googleapis.com/auth/devstorage.read_write"] in
   let r = Gcloud.Auth.get_access_token ~scopes () in
   match%lwt r with
   | Ok token_info ->
@@ -88,8 +87,7 @@ let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
     [ "https:/"
     ; Canvas.name_for_id canvas_id ^ domain
     ; app_hash canvas_id
-    ; deploy_hash
-    ]
+    ; deploy_hash ]
 
 
 (* TODO [polish] could instrument this to error on bad deploy hash, maybe also
@@ -109,7 +107,7 @@ let latest_deploy_hash (canvas_id : Uuidm.t) : string =
     WHERE canvas_id=$1 AND branch=$2 AND live_at IS NOT NULL
     ORDER BY created_at desc
     LIMIT 1"
-    ~params:[ Uuid canvas_id; String branch ]
+    ~params:[Uuid canvas_id; String branch]
   |> List.hd_exn
 
 
@@ -128,9 +126,9 @@ let upload_to_bucket
         ^ (Config.static_assets_bucket |> Option.value_exn)
         ^ "/o" )
       ~query:
-        [ ("uploadType", [ "multipart" ])
-        ; ("contentEncoding", [ "gzip" ])
-        ; ("name", [ app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename ])
+        [ ("uploadType", ["multipart"])
+        ; ("contentEncoding", ["gzip"])
+        ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
         ]
   in
   let ct = Magic_mime.lookup filename in
@@ -172,8 +170,7 @@ Content-type: %s
     Cohttp.Header.of_list
       [ ("Authorization", "Bearer " ^ token)
       ; ("Content-type", "multipart/related; boundary=" ^ boundary)
-      ; ("Content-length", body |> String.length |> string_of_int)
-      ]
+      ; ("Content-length", body |> String.length |> string_of_int) ]
   in
   headers
   >|= (fun headers ->
@@ -215,7 +212,7 @@ let start_static_asset_deploy
         (canvas_id, branch, deploy_hash, uploaded_by_account_id)
         VALUES ($1, $2, $3, $4) RETURNING created_at"
       ~params:
-        [ Uuid canvas_id; String branch; String deploy_hash; Uuid account_id ]
+        [Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
     |> List.hd_exn
     |> Db.date_of_sqlstring
   in
@@ -232,7 +229,7 @@ let delete_assets_for_ellens_demo (canvas_id : Uuidm.t) : unit =
     ~name:"delete_ellens_assets"
     ~subject:(Uuidm.to_string canvas_id)
     "DELETE FROM static_asset_deploys where canvas_id = $1"
-    ~params:[ Uuid canvas_id ]
+    ~params:[Uuid canvas_id]
   |> ignore
 
 
@@ -259,8 +256,7 @@ let delete_static_asset_deploy
     ~subject:deploy_hash
     "DELETE FROM static_asset_deploys
     WHERE canvas_id=$1 AND branch=$2 AND deploy_hash=$3 AND uploaded_by_account_id=$4"
-    ~params:
-      [ Uuid canvas_id; String branch; String deploy_hash; Uuid account_id ]
+    ~params:[Uuid canvas_id; String branch; String deploy_hash; Uuid account_id]
 
 
 let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
@@ -272,7 +268,7 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
       "UPDATE static_asset_deploys
       SET live_at = NOW()
       WHERE canvas_id = $1 AND deploy_hash = $2 RETURNING live_at"
-      ~params:[ Uuid canvas_id; String deploy_hash ]
+      ~params:[Uuid canvas_id; String deploy_hash]
     |> List.hd_exn
     |> Db.date_of_sqlstring
   in
@@ -288,9 +284,9 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
     ~name:"all static_asset_deploys by canvas"
     "SELECT deploy_hash, created_at, live_at FROM static_asset_deploys
     WHERE canvas_id=$1 ORDER BY created_at DESC LIMIT 25"
-    ~params:[ Uuid canvas_id ]
+    ~params:[Uuid canvas_id]
   |> List.map ~f:(function
-         | [ deploy_hash; created_at; live_at ] ->
+         | [deploy_hash; created_at; live_at] ->
              let isLive = live_at <> "" in
              let last_update =
                Db.date_of_sqlstring (if isLive then live_at else created_at)

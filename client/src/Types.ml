@@ -69,7 +69,7 @@ module Pair (K1 : Key) (K2 : Key) = struct
 
   let fromString (str : string) : t =
     match String.split ~on:separator str with
-    | [ v1; v2 ] ->
+    | [v1; v2] ->
         (K1.fromString v1, K2.fromString v2)
     | _ ->
         failwith

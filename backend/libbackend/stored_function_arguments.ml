@@ -13,8 +13,7 @@ let store ~canvas_id ~trace_id tlid args =
     "INSERT INTO function_arguments
      (canvas_id, trace_id, tlid, timestamp, arguments_json)
      VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4)"
-    ~params:
-      [ Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args ]
+    ~params:[Uuid canvas_id; Uuid trace_id; ID tlid; RoundtrippableDvalmap args]
 
 
 let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
@@ -31,10 +30,10 @@ let load_for_analysis ~canvas_id tlid (trace_id : Uuidm.t) :
       ) AS q
       ORDER BY timestamp DESC
       LIMIT 1"
-    ~params:[ Db.Uuid canvas_id; Db.ID tlid; Db.Uuid trace_id ]
+    ~params:[Db.Uuid canvas_id; Db.ID tlid; Db.Uuid trace_id]
   |> List.hd
   |> Option.map ~f:(function
-         | [ args; timestamp ] ->
+         | [args; timestamp] ->
              ( args
                |> Dval.of_internal_roundtrippable_v0
                |> Dval.to_dval_pairs_exn
@@ -57,9 +56,9 @@ let load_traceids ~(canvas_id : Uuidm.t) (tlid : Types.tlid) : Uuidm.t list =
       ) AS q
       ORDER BY timestamp DESC
       LIMIT 10"
-    ~params:[ Db.Uuid canvas_id; Db.ID tlid ]
+    ~params:[Db.Uuid canvas_id; Db.ID tlid]
   |> List.map ~f:(function
-         | [ trace_id ] ->
+         | [trace_id] ->
              Util.uuid_of_string trace_id
          | _ ->
              Exception.internal

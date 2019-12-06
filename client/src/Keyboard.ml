@@ -215,7 +215,7 @@ let fromCode (keyCode : int) : key =
   | 90 ->
       Z
   | 91 ->
-      Ambiguous [ Windows; Command; ChromeSearch ]
+      Ambiguous [Windows; Command; ChromeSearch]
   | 96 ->
       NumpadZero
   | 97 ->
@@ -397,7 +397,7 @@ let code (key : key) : int option =
   | Ambiguous choices ->
       if List.all
            ~f:(fun value ->
-             List.member ~value [ Windows; Command; ChromeSearch ])
+             List.member ~value [Windows; Command; ChromeSearch])
            choices
       then Some 91
       else None

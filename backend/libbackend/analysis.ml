@@ -62,7 +62,7 @@ let worker_stats (c : canvas) (tlid : tlid) : worker_stat =
       WHERE TL.tlid = $1
       AND TL.canvas_id = $2
       AND E.status IN('new', 'scheduled')"
-      ~params:[ Db.ID tlid; Db.Uuid c.id ]
+      ~params:[Db.ID tlid; Db.Uuid c.id]
     |> List.hd_exn
     |> int_of_string
   in
@@ -80,9 +80,9 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
           AND name IS NOT NULL
           AND modifier IS NOT NULL
           AND tipe = 'handler'::toplevel_type"
-      ~params:[ Db.Uuid c.id ]
+      ~params:[Db.Uuid c.id]
     |> List.map ~f:(function
-           | [ modu; n; modi ] ->
+           | [modu; n; modi] ->
                (modu, n, modi)
            | _ ->
                Exception.internal "Bad DB format for get404s")
@@ -109,7 +109,7 @@ let delete_404s
       AND module = $2
       AND path = $3
       AND modifier = $4"
-    ~params:[ Db.Uuid cid; Db.String space; Db.String path; Db.String modifier ]
+    ~params:[Db.Uuid cid; Db.String space; Db.String path; Db.String modifier]
 
 
 (* ------------------------- *)
@@ -120,7 +120,7 @@ let saved_input_vars
     input_vars =
   match Handler.module_type h with
   | `Http ->
-      let with_r = [ ("request", event) ] in
+      let with_r = [("request", event)] in
       let bound =
         match Handler.event_name_for h with
         | Some route ->
@@ -138,7 +138,7 @@ let saved_input_vars
       in
       with_r @ bound
   | `Worker ->
-      [ ("event", event) ]
+      [("event", event)]
   | `Cron ->
       []
   | `Repl ->
@@ -206,11 +206,10 @@ let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
                (* Don't use HTTP filtering stack for non-HTTP traces *)
                Some trace_id)
       (* If there's no matching traces, add the default trace *)
-      |> (function
-      | [] -> [ Uuidm.v5 Uuidm.nil (string_of_id h.tlid) ] | x -> x)
+      |> (function [] -> [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)] | x -> x)
   | None ->
       (* If the event description isn't complete, add the default trace *)
-      [ Uuidm.v5 Uuidm.nil (string_of_id h.tlid) ]
+      [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)]
 
 
 let traceids_for_user_fn (c : canvas) (fn : RTT.user_fn) : traceid list =

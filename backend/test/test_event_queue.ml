@@ -13,7 +13,7 @@ open Libcommon
 let t_event_queue_roundtrip () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(let date (Date::now) 123)") in
-  let c = ops2c_exn "test-event_queue" [ hop h ] in
+  let c = ops2c_exn "test-event_queue" [hop h] in
   Canvas.save_all !c ;
   Event_queue.enqueue
     "CRON"
@@ -51,7 +51,7 @@ let t_event_queue_is_fifo () =
   clear_test_data () ;
   let apple = worker "apple" (ast_for "event") in
   let banana = worker "banana" (ast_for "event") in
-  let c = ops2c_exn "test-worker-fifo" [ hop apple; hop banana ] in
+  let c = ops2c_exn "test-worker-fifo" [hop apple; hop banana] in
   Canvas.save_all !c ;
   let enqueue name i =
     E.enqueue
@@ -96,7 +96,7 @@ let t_event_queue_is_fifo () =
 let t_cron_sanity () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c_exn "test-cron_works" [ hop h ] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let should_run = Cron.should_execute !c.id handler execution_id in
   AT.check AT.bool "should_run should be true" should_run true ;
@@ -106,7 +106,7 @@ let t_cron_sanity () =
 let t_cron_just_ran () =
   clear_test_data () ;
   let h = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c_exn "test-cron_works" [ hop h ] in
+  let c = ops2c_exn "test-cron_works" [hop h] in
   let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler ;
   let should_run = Cron.should_execute !c.id handler execution_id in
@@ -124,9 +124,7 @@ let t_get_worker_schedules_for_canvas () =
   let banana = worker "banana" (ast_for "1") in
   let cherry = worker "cherry" (ast_for "1") in
   let c =
-    ops2c_exn
-      "test-worker-scheduling-rules"
-      [ hop apple; hop banana; hop cherry ]
+    ops2c_exn "test-worker-scheduling-rules" [hop apple; hop banana; hop cherry]
   in
   Canvas.save_all !c ;
   let open Event_queue in
@@ -155,5 +153,4 @@ let suite =
   ; ("Event queue is FIFO per worker", `Quick, t_event_queue_is_fifo)
   ; ( "get_worker_schedules_for_canvas"
     , `Quick
-    , t_get_worker_schedules_for_canvas )
-  ]
+    , t_get_worker_schedules_for_canvas ) ]

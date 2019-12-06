@@ -3,15 +3,15 @@ open Runtime
 open Lib
 
 let fns : Lib.shortfn list =
-  [ { pns = [ "Http::respond" ]
+  [ { pns = ["Http::respond"]
     ; ins = []
-    ; p = [ par "response" TAny; par "code" TInt ]
+    ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d = "Respond with HTTP status `code` and `response` body"
     ; f =
         InProcess
           (function
-          | _, [ dv; DInt code ] ->
+          | _, [dv; DInt code] ->
               DResp (Response (Dint.to_int_exn code, []), dv)
           | args ->
               fail args)
@@ -22,16 +22,16 @@ let fns : Lib.shortfn list =
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
    *)
-    { pns = [ "Http::respondWithHeaders" ]
+    { pns = ["Http::respondWithHeaders"]
     ; ins = []
-    ; p = [ par "response" TAny; par "headers" TObj; par "code" TInt ]
+    ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; r = TResp
     ; d =
         "Respond with HTTP status `code` and `response` body and `headers` headers"
     ; f =
         InProcess
           (function
-          | _, [ dv; (DObj _ as obj); DInt code ] ->
+          | _, [dv; (DObj _ as obj); DInt code] ->
               let pairs = Dval.to_string_pairs_exn obj in
               DResp (Response (Dint.to_int_exn code, pairs), dv)
           | args ->
@@ -39,107 +39,107 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::success" ]
+  ; { pns = ["Http::success"]
     ; ins = []
-    ; p = [ par "response" TAny ]
+    ; p = [par "response" TAny]
     ; r = TResp
     ; d = "Respond with HTTP status 200 and `response` body"
     ; f =
         InProcess
           (function
-          | _, [ dv ] -> DResp (Response (200, []), dv) | args -> fail args)
+          | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::respondWithHtml" ]
+  ; { pns = ["Http::respondWithHtml"]
     ; ins = []
-    ; p = [ par "response" TAny; par "code" TInt ]
+    ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
         "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
     ; f =
         InProcess
           (function
-          | _, [ dv; DInt code ] ->
+          | _, [dv; DInt code] ->
               DResp
                 ( Response
-                    (Dint.to_int_exn code, [ ("Content-Type", "text/html") ])
+                    (Dint.to_int_exn code, [("Content-Type", "text/html")])
                 , dv )
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::respondWithText" ]
+  ; { pns = ["Http::respondWithText"]
     ; ins = []
-    ; p = [ par "response" TAny; par "code" TInt ]
+    ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
         "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\""
     ; f =
         InProcess
           (function
-          | _, [ dv; DInt code ] ->
+          | _, [dv; DInt code] ->
               DResp
                 ( Response
-                    (Dint.to_int_exn code, [ ("Content-Type", "text/plain") ])
+                    (Dint.to_int_exn code, [("Content-Type", "text/plain")])
                 , dv )
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::respondWithJson" ]
+  ; { pns = ["Http::respondWithJson"]
     ; ins = []
-    ; p = [ par "response" TAny; par "code" TInt ]
+    ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
         "Respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
     ; f =
         InProcess
           (function
-          | _, [ dv; DInt code ] ->
+          | _, [dv; DInt code] ->
               DResp
                 ( Response
                     ( Dint.to_int_exn code
-                    , [ ("Content-Type", "application/json") ] )
+                    , [("Content-Type", "application/json")] )
                 , dv )
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::redirectTo" ]
+  ; { pns = ["Http::redirectTo"]
     ; ins = []
-    ; p = [ par "url" TStr ]
+    ; p = [par "url" TStr]
     ; r = TResp
     ; d = "Redirect to url"
     ; f =
         InProcess
           (function
-          | _, [ DStr url ] ->
+          | _, [DStr url] ->
               DResp (Redirect (Unicode_string.to_string url), DNull)
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::badRequest" ]
+  ; { pns = ["Http::badRequest"]
     ; ins = []
-    ; p = [ par "error" TStr ]
+    ; p = [par "error" TStr]
     ; r = TResp
     ; d = "Respond with a 400 and an error message"
     ; f =
         InProcess
           (function
-          | _, [ DStr msg ] ->
+          | _, [DStr msg] ->
               DResp (Response (400, []), DStr msg)
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::notFound" ]
+  ; { pns = ["Http::notFound"]
     ; ins = []
     ; p = []
     ; r = TResp
@@ -151,7 +151,7 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::unauthorized" ]
+  ; { pns = ["Http::unauthorized"]
     ; ins = []
     ; p = []
     ; r = TResp
@@ -163,7 +163,7 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::forbidden" ]
+  ; { pns = ["Http::forbidden"]
     ; ins = []
     ; p = []
     ; r = TResp
@@ -175,16 +175,16 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "Http::setCookie" ]
+  ; { pns = ["Http::setCookie"]
     ; ins = []
-    ; p = [ par "name" TStr; par "value" TStr; par "params" TObj ]
+    ; p = [par "name" TStr; par "value" TStr; par "params" TObj]
     ; r = TObj
     ; d =
         "Generate an HTTP Set-Cookie header Object suitable for Http::respondWithHeaders given a cookie name, a string value for it, and an Object of Set-Cookie parameters."
     ; f =
         InProcess
           (function
-          | _, [ DStr name; DStr value; DObj o ] ->
+          | _, [DStr name; DStr value; DObj o] ->
               o
               (* Transform a DOBj into a cookie list of individual cookie params *)
               |> Map.to_alist
@@ -192,7 +192,7 @@ let fns : Lib.shortfn list =
                      match (String.lowercase x, y) with
                      (* Single boolean set-cookie params *)
                      | "secure", DBool b | "httponly", DBool b ->
-                         if b then [ x ] else []
+                         if b then [x] else []
                      (* X=y set-cookie params *)
                      | "path", DStr str
                      | "domain", DStr str
@@ -200,10 +200,9 @@ let fns : Lib.shortfn list =
                          [ Format.sprintf
                              "%s=%s"
                              x
-                             (Unicode_string.to_string str)
-                         ]
+                             (Unicode_string.to_string str) ]
                      | "max-age", DInt i | "expires", DInt i ->
-                         [ Format.sprintf "%s=%s" x (Dint.to_string i) ]
+                         [Format.sprintf "%s=%s" x (Dint.to_string i)]
                      (* Throw if there's not a good way to transform the k/v pair *)
                      | _ ->
                          y
@@ -217,10 +216,9 @@ let fns : Lib.shortfn list =
                    (Uri.pct_encode (Unicode_string.to_string name))
                    (Uri.pct_encode (Unicode_string.to_string value))
               |> Dval.dstr_of_string_exn
-              |> fun x -> Dval.to_dobj_exn [ ("Set-Cookie", x) ]
+              |> fun x -> Dval.to_dobj_exn [("Set-Cookie", x)]
           | args ->
               fail args)
     ; ps = true
     ; dep = false
-    }
-  ]
+    } ]

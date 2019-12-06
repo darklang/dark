@@ -62,13 +62,12 @@ let rec query ~state db query_obj : (string * dval) list =
       ; Int db.version
       ; Int current_dark_version
       ; Uuid state.canvas_id
-      ; QueryableDval query_obj
-      ]
+      ; QueryableDval query_obj ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
-         | [ key; data ] ->
-             (key, to_obj db [ data ])
+         | [key; data] ->
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in fetch_all")
 
@@ -82,7 +81,7 @@ and
  * row info provided *)
     to_obj db (db_strings : string list) : dval =
   match db_strings with
-  | [ obj ] ->
+  | [obj] ->
       let p_obj =
         match Dval.of_internal_queryable_v1 obj with
         | DObj o ->
@@ -211,8 +210,7 @@ and set ~state ~upsert (db : db) (key : string) (vals : dval_map) : Uuidm.t =
       ; Int db.version
       ; Int current_dark_version
       ; String key
-      ; QueryableDvalmap merged
-      ] ;
+      ; QueryableDvalmap merged ] ;
   id
 
 
@@ -233,8 +231,7 @@ and get ~state (db : db) (key : string) : dval =
       ; Uuid state.canvas_id
       ; Int db.version
       ; Int current_dark_version
-      ; String key
-      ]
+      ; String key ]
   |> to_obj db
 
 
@@ -256,13 +253,12 @@ and get_many ~state (db : db) (keys : string list) : (string * dval) list =
       ; Int db.version
       ; Int current_dark_version
       ; List (List.map ~f:(fun s -> String s) keys)
-      ; String Db.array_separator
-      ]
+      ; String Db.array_separator ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
-         | [ key; data ] ->
-             (key, to_obj db [ data ])
+         | [key; data] ->
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_many")
 
@@ -286,13 +282,12 @@ and get_many_with_keys ~state (db : db) (keys : string list) :
       ; Int db.version
       ; Int current_dark_version
       ; List (List.map ~f:(fun s -> String s) keys)
-      ; String Db.array_separator
-      ]
+      ; String Db.array_separator ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
-         | [ key; data ] ->
-             (key, to_obj db [ data ])
+         | [key; data] ->
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_many_with_keys")
 
@@ -312,13 +307,12 @@ let get_all ~state (db : db) : (string * dval) list =
       ; Uuid state.account_id
       ; Uuid state.canvas_id
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
   |> List.map ~f:(fun return_val ->
          match return_val with
          (* TODO(ian): change `to_obj` to just take a string *)
-         | [ key; data ] ->
-             (key, to_obj db [ data ])
+         | [key; data] ->
+             (key, to_obj db [data])
          | _ ->
              Exception.internal "bad format received in get_all")
 
@@ -338,11 +332,10 @@ let get_all_keys ~state (db : db) : string list =
       ; Uuid state.account_id
       ; Uuid state.canvas_id
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
   |> List.map ~f:(fun return_val ->
          match return_val with
-         | [ key ] ->
+         | [key] ->
              key
          | _ ->
              Exception.internal "bad format received in get_all_keys")
@@ -363,8 +356,7 @@ let count ~state (db : db) : int =
       ; Uuid state.account_id
       ; Uuid state.canvas_id
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
@@ -387,8 +379,7 @@ let delete ~state (db : db) (key : string) =
       ; Uuid state.canvas_id
       ; ID db.tlid
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
 
 
 let delete_all ~state (db : db) =
@@ -406,8 +397,7 @@ let delete_all ~state (db : db) =
       ; Uuid state.canvas_id
       ; ID db.tlid
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
 
 
 (* ------------------------- *)
@@ -431,13 +421,12 @@ let stats_pluck ~account_id ~canvas_id (db : db) : (dval * string) option =
         ; Uuid account_id
         ; Uuid canvas_id
         ; Int db.version
-        ; Int current_dark_version
-        ]
+        ; Int current_dark_version ]
     |> List.hd
   in
   match latest with
-  | Some [ data; key ] ->
-      Some (to_obj db [ data ], key)
+  | Some [data; key] ->
+      Some (to_obj db [data], key)
   | _ ->
       None
 
@@ -457,8 +446,7 @@ let stats_count ~account_id ~canvas_id (db : db) : int =
       ; Uuid account_id
       ; Uuid canvas_id
       ; Int db.version
-      ; Int current_dark_version
-      ]
+      ; Int current_dark_version ]
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
@@ -483,8 +471,7 @@ let unlocked canvas_id account_id (dbs : db list) : db list =
             [ Int db.version
             ; Int current_dark_version
             ; Uuid canvas_id
-            ; Uuid account_id
-            ]
+            ; Uuid account_id ]
         |> List.concat
         |> List.map ~f:id_of_string
       in
@@ -523,7 +510,7 @@ let rename_db (n : string) (db : db) : db =
 
 
 let add_col colid typeid (db : db) =
-  { db with cols = db.cols @ [ (Blank colid, Blank typeid) ] }
+  { db with cols = db.cols @ [(Blank colid, Blank typeid)] }
 
 
 let set_col_name id name db =
@@ -616,7 +603,7 @@ let add_col_to_migration nameid typeid db =
   | Some migration ->
       let mutated_migration =
         { migration with
-          cols = migration.cols @ [ (Blank nameid, Blank typeid) ]
+          cols = migration.cols @ [(Blank nameid, Blank typeid)]
         }
       in
       { db with active_migration = Some mutated_migration }
@@ -669,7 +656,7 @@ let abandon_migration db =
         { migration with state = DBMigrationAbandoned }
       in
       let db2 =
-        { db with old_migrations = db.old_migrations @ [ mutated_migration ] }
+        { db with old_migrations = db.old_migrations @ [mutated_migration] }
       in
       { db2 with active_migration = None }
 

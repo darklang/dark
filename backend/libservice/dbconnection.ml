@@ -8,7 +8,7 @@ let rec rec_con depth =
     let db = Config.postgres_settings in
     Log.infO
       "Connecting to postgres"
-      ~params:[ ("host", db.host); ("dbname", db.dbname); ("user", db.user) ] ;
+      ~params:[("host", db.host); ("dbname", db.dbname); ("user", db.user)] ;
     let c =
       new PG.connection
         ~host:db.host
@@ -23,7 +23,7 @@ let rec rec_con depth =
   with e ->
     Log.infO
       "Couldn't connect to postgres"
-      ~jsonparams:[ ("attempt", `Int depth) ] ;
+      ~jsonparams:[("attempt", `Int depth)] ;
     if depth < 10
     then (
       (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'

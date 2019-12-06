@@ -171,19 +171,18 @@ let newHandler m space name modifier pos =
       let s = m.fluidState in
       let newS = { s with newPos = 0 } in
       [ TweakModel (fun m -> { m with fluidState = newS })
-      ; SetCursorState (FluidEntering tlid)
-      ]
+      ; SetCursorState (FluidEntering tlid) ]
     else []
   in
   let pageChanges =
     match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
-        [ SetPage (FocusedHandler (tlid, true)) ]
+        [SetPage (FocusedHandler (tlid, true))]
     | _ ->
         []
   in
   let rpc =
-    RPC ([ SetHandler (tlid, pos, handler) ], FocusNext (tlid, Some spaceid))
+    RPC ([SetHandler (tlid, pos, handler)], FocusNext (tlid, Some spaceid))
   in
   Many (rpc :: (pageChanges @ fluidMods))
 
@@ -196,21 +195,20 @@ let newDB (name : string) (pos : pos) (m : model) : modification =
   let pageChanges =
     match m.currentPage with
     | FocusedFn _ | FocusedType _ ->
-        [ SetPage (FocusedDB (tlid, true)) ]
+        [SetPage (FocusedDB (tlid, true))]
     | _ ->
         []
   in
   let rpcCalls =
     [ CreateDBWithBlankOr (tlid, pos, Prelude.gid (), name)
-    ; AddDBCol (tlid, next, Prelude.gid ())
-    ]
+    ; AddDBCol (tlid, next, Prelude.gid ()) ]
   in
   (* This is not _strictly_ correct, as there's no guarantee that the new DB
    * doesn't share a name with an old DB in a weird state that still has
    * data in the user_data table. But it's 99.999% correct, which of course
    * is the best type of correct *)
   Many
-    ( AppendUnlockedDBs (StrSet.fromList [ deTLID tlid ])
+    ( AppendUnlockedDBs (StrSet.fromList [deTLID tlid])
     :: RPC (rpcCalls, FocusExact (tlid, next))
     :: pageChanges )
 
@@ -237,9 +235,8 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
             blankfn
       in
       Many
-        [ RPC ([ SetFunction newfn ], FocusNothing)
-        ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID))
-        ]
+        [ RPC ([SetFunction newfn], FocusNothing)
+        ; MakeCmd (Url.navigateTo (FocusedFn newfn.ufTLID)) ]
   | NewHTTPHandler route ->
       newHandler m "HTTP" route None pos
   | NewWorkerHandler name ->
@@ -257,7 +254,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewGroup name ->
       Groups.createEmptyGroup name pos
   | Goto (page, tlid, _, _) ->
-      Many [ SetPage page; Select (tlid, None) ]
+      Many [SetPage page; Select (tlid, None)]
 
 
 type nextMove =
@@ -276,13 +273,13 @@ let parseAst
   let b3 = B.new_ () in
   match item with
   | ACConstructorName "Just" ->
-      Some (F (eid, Constructor (B.newF "Just", [ b1 ])))
+      Some (F (eid, Constructor (B.newF "Just", [b1])))
   | ACConstructorName "Nothing" ->
       Some (F (eid, Constructor (B.newF "Nothing", [])))
   | ACConstructorName "Ok" ->
-      Some (F (eid, Constructor (B.newF "Ok", [ b1 ])))
+      Some (F (eid, Constructor (B.newF "Ok", [b1])))
   | ACConstructorName "Error" ->
-      Some (F (eid, Constructor (B.newF "Error", [ b1 ])))
+      Some (F (eid, Constructor (B.newF "Error", [b1])))
   | ACKeyword KIf ->
       Some (F (eid, If (b1, b2, b3)))
   | ACKeyword KLet ->
@@ -290,7 +287,7 @@ let parseAst
   | ACKeyword KLambda ->
     ( match (complete.target, ast) with
     | _, Blank _ | None, _ ->
-        Some (F (eid, Lambda ([ B.newF "var" ], b2)))
+        Some (F (eid, Lambda ([B.newF "var"], b2)))
     | Some (_, pd), _ ->
         let parent = ast |> AST.findParentOfWithin (P.toID pd) in
         (* Function name and param index *)
@@ -312,14 +309,14 @@ let parseAst
           |> (function
                | None | Some { paramBlock_args = [] } ->
                    (* add default value if empty or not found*)
-                   [ "var" ]
+                   ["var"]
                | Some { paramBlock_args } ->
                    paramBlock_args)
           |> List.map ~f:(fun str -> B.newF str)
         in
         Some (F (eid, Lambda (lambdaArgs, b2))) )
   | ACKeyword KMatch ->
-      Some (F (eid, Match (b1, [ (b2, b3) ])))
+      Some (F (eid, Match (b1, [(b2, b3)])))
   | ACLiteral str ->
       Some (F (eid, Value str))
   | ACFunction fn ->
@@ -330,16 +327,16 @@ let parseAst
       (* TODO: remove all these cases, replacing them with autocomplete options *)
       let firstWord = String.split ~on:" " str in
       ( match firstWord with
-      | [ "" ] ->
+      | [""] ->
           Some b1
-      | [ "[]" ] ->
-          Some (F (eid, ListLiteral [ B.new_ () ]))
-      | [ "[" ] ->
-          Some (F (eid, ListLiteral [ B.new_ () ]))
-      | [ "{}" ] ->
-          Some (F (eid, ObjectLiteral [ (B.new_ (), B.new_ ()) ]))
-      | [ "{" ] ->
-          Some (F (eid, ObjectLiteral [ (B.new_ (), B.new_ ()) ]))
+      | ["[]"] ->
+          Some (F (eid, ListLiteral [B.new_ ()]))
+      | ["["] ->
+          Some (F (eid, ListLiteral [B.new_ ()]))
+      | ["{}"] ->
+          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
+      | ["{"] ->
+          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
       | _ ->
           None )
 
@@ -400,11 +397,11 @@ let parsePattern (str : string) : pattern option =
   | "Nothing" ->
       Some (B.newF (PConstructor ("Nothing", [])))
   | "Just" ->
-      Some (B.newF (PConstructor ("Just", [ B.new_ () ])))
+      Some (B.newF (PConstructor ("Just", [B.new_ ()])))
   | "Ok" ->
-      Some (B.newF (PConstructor ("Ok", [ B.new_ () ])))
+      Some (B.newF (PConstructor ("Ok", [B.new_ ()])))
   | "Error" ->
-      Some (B.newF (PConstructor ("Error", [ B.new_ () ])))
+      Some (B.newF (PConstructor ("Error", [B.new_ ()])))
   | _ ->
       let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
       if Runtime.isStringLiteral str
@@ -583,11 +580,11 @@ let submitACItem
             else
               match newtl with
               | TLHandler h ->
-                  wrapNew [ SetHandler (tlid, h.pos, h) ] next
+                  wrapNew [SetHandler (tlid, h.pos, h)] next
               | TLFunc f ->
-                  wrapNew [ SetFunction f ] next
+                  wrapNew [SetFunction f] next
               | TLTipe t ->
-                  wrapNew [ SetType t ] next
+                  wrapNew [SetType t] next
               | TLGroup g ->
                   AddGroup g
               | TLDB _ ->
@@ -630,27 +627,25 @@ let submitACItem
               then
                 wrapID
                   [ SetDBColTypeInDBMigration (tlid, id, value)
-                  ; AddDBColToDBMigration (tlid, gid (), gid ())
-                  ]
+                  ; AddDBColToDBMigration (tlid, gid (), gid ()) ]
               else if B.isBlank ct
               then
                 wrapID
                   [ SetDBColType (tlid, id, value)
-                  ; AddDBCol (tlid, gid (), gid ())
-                  ]
-              else wrapID [ ChangeDBColType (tlid, id, value) ]
+                  ; AddDBCol (tlid, gid (), gid ()) ]
+              else wrapID [ChangeDBColType (tlid, id, value)]
           | PDBColName cn, ACDBColName value, TLDB db ->
               if B.asF cn = Some value
               then Select (tlid, Some id)
               else if DB.isMigrationCol db id
-              then wrapID [ SetDBColNameInDBMigration (tlid, id, value) ]
+              then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
               else if DB.hasCol db value
               then
                 DisplayError
                   ("Can't have two DB fields with the same name: " ^ value)
               else if B.isBlank cn
-              then wrapID [ SetDBColName (tlid, id, value) ]
-              else wrapID [ ChangeDBColName (tlid, id, value) ]
+              then wrapID [SetDBColName (tlid, id, value)]
+              else wrapID [ChangeDBColName (tlid, id, value)]
           | PVarBind _, ACVarBind varName, _ ->
               replace (PVarBind (B.newF varName))
           | PEventName _, ACCronName value, _
@@ -675,8 +670,7 @@ let submitACItem
                   (* generated by filtering through the unused HTTP handlers *)
                   Many
                     [ saveH { h with spec = specInfo } (PEventName new_)
-                    ; Delete404 f404
-                    ]
+                    ; Delete404 f404 ]
               | None ->
                   replace (PEventName (B.newF value)) )
           (* allow arbitrary HTTP modifiers *)

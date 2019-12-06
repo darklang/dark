@@ -20,15 +20,15 @@ let urlFor (page : page) : string =
     | Architecture ->
         []
     | FocusedFn tlid ->
-        [ ("fn", deTLID tlid) ]
+        [("fn", deTLID tlid)]
     | FocusedHandler (tlid, _) ->
-        [ ("handler", deTLID tlid) ]
+        [("handler", deTLID tlid)]
     | FocusedDB (tlid, _) ->
-        [ ("db", deTLID tlid) ]
+        [("db", deTLID tlid)]
     | FocusedType tlid ->
-        [ ("type", deTLID tlid) ]
+        [("type", deTLID tlid)]
     | FocusedGroup (tlid, _) ->
-        [ ("group", deTLID tlid) ]
+        [("group", deTLID tlid)]
   in
   hashUrlParams args
 
@@ -43,7 +43,7 @@ let updateUrl (page : page) : msg Cmd.t =
 
 let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
     msg Html.html =
-  Html.a [ Html.href (urlFor page); Html.class' class_ ] content
+  Html.a [Html.href (urlFor page); Html.class' class_] content
 
 
 let parseLocation (loc : Web.Location.location) : page option =
@@ -53,7 +53,7 @@ let parseLocation (loc : Web.Location.location) : page option =
     |> String.split ~on:"&"
     |> List.map ~f:(String.split ~on:"=")
     |> List.filterMap ~f:(fun arr ->
-           match arr with [ a; b ] -> Some (String.toLower a, b) | _ -> None)
+           match arr with [a; b] -> Some (String.toLower a, b) | _ -> None)
     |> StrDict.fromList
   in
   let architecture () = Some Architecture in
@@ -123,9 +123,9 @@ let splitOnEquals (s : string) : (string * bool) option =
   match String.split ~on:"=" s with
   | [] ->
       None
-  | [ name ] ->
+  | [name] ->
       Some (name, true)
-  | [ name; value ] ->
+  | [name; value] ->
       Some (name, value <> "0" && value <> "false")
   | _ ->
       None

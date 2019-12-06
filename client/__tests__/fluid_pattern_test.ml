@@ -45,12 +45,12 @@ let () =
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
-  let aConstructor = FPConstructor (mID, gid (), "Just", [ b () ]) in
+  let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
   let m = Defaults.defaultModel in
   let process
       ~(debug : bool) (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
-    let ast = EMatch (mID, EBlank (gid ()), [ (pat, EBlank (gid ())) ]) in
+    let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
     let extra = 12 in
     let pos = pos + extra in
     let s =
@@ -66,7 +66,7 @@ let () =
       Js.log2 "pattern before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
-      let m = { m with handlers = Handlers.fromList [ h ] } in
+      let m = { m with handlers = Handlers.fromList [h] } in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
@@ -83,7 +83,7 @@ let () =
     in
     let result =
       match newAST with
-      | EMatch (_, _, [ (pat, _) ]) ->
+      | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
           failwith ("can't match: " ^ eToString s newAST)
@@ -95,13 +95,13 @@ let () =
     (pToString result, max 0 (newState.newPos - extra))
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [ K.Delete ] pos pat
+    process ~debug [K.Delete] pos pat
   in
   let bs ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [ K.Backspace ] pos pat
+    process ~debug [K.Backspace] pos pat
   in
   let space ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [ K.Space ] pos pat
+    process ~debug [K.Space] pos pat
   in
   (* let tab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.Tab] pos pat *)
@@ -111,7 +111,7 @@ let () =
   (* in *)
   let press ?(debug = false) (key : K.key) (pos : int) (pat : fluidPattern) :
       string * int =
-    process ~debug [ key ] pos pat
+    process ~debug [key] pos pat
   in
   let presses
       ?(debug = false) (keys : K.key list) (pos : int) (pat : fluidPattern) :
@@ -121,7 +121,7 @@ let () =
   let insert ?(debug = false) (char : char) (pos : int) (pat : fluidPattern) :
       string * int =
     let key = K.fromChar char in
-    process ~debug [ key ] pos pat
+    process ~debug [key] pos pat
   in
   let blank = "***" in
   let t
@@ -307,9 +307,7 @@ let () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (presses
-           [ K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left ]
-           4)
+        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         ("***", 0) ;
       t "insert blank->space" (b ()) (press K.Space 0) (blank, 0) ;
       ()) ;

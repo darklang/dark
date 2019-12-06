@@ -178,7 +178,7 @@ let rec exec
           let result = exe st exp in
           ( match result with
           | DBlock blk ->
-              blk [ param ]
+              blk [param]
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
@@ -439,20 +439,20 @@ let rec exec
             | Filled (_, PLiteral l) when Dval.parse_literal l = Some dv ->
                 Some (e, [])
             | Filled (_, PVariable v) ->
-                Some (e, [ (v, dv) ])
-            | Filled (_, PConstructor ("Just", [ p ])) ->
+                Some (e, [(v, dv)])
+            | Filled (_, PConstructor ("Just", [p])) ->
               ( match dv with
               | DOption (OptJust v) ->
                   matches v (p, e)
               | _ ->
                   None )
-            | Filled (_, PConstructor ("Ok", [ p ])) ->
+            | Filled (_, PConstructor ("Ok", [p])) ->
               ( match dv with
               | DResult (ResOk v) ->
                   matches v (p, e)
               | _ ->
                   None )
-            | Filled (_, PConstructor ("Error", [ p ])) ->
+            | Filled (_, PConstructor ("Error", [p])) ->
               ( match dv with
               | DResult (ResError v) ->
                   matches v (p, e)
@@ -502,11 +502,11 @@ let rec exec
       ( match (name, args) with
       | Filled (_, "Nothing"), [] ->
           DOption OptNothing
-      | Filled (_, "Just"), [ arg ] ->
+      | Filled (_, "Just"), [arg] ->
           Dval.to_opt_just (exe st arg)
-      | Filled (_, "Ok"), [ arg ] ->
+      | Filled (_, "Ok"), [arg] ->
           Dval.to_res_ok (exe st arg)
-      | Filled (_, "Error"), [ arg ] ->
+      | Filled (_, "Error"), [arg] ->
           Dval.to_res_err (exe st arg)
       | _ ->
           DError (SourceId id, "Invalid construction option") )

@@ -175,11 +175,11 @@ let isDeprecatedCustomHandler (tl : toplevel) : bool =
 let toOp (tl : toplevel) : op list =
   match tl with
   | TLHandler h ->
-      [ SetHandler (h.hTLID, h.pos, h) ]
+      [SetHandler (h.hTLID, h.pos, h)]
   | TLFunc fn ->
-      [ SetFunction fn ]
+      [SetFunction fn]
   | TLTipe t ->
-      [ SetType t ]
+      [SetType t]
   | TLGroup _ ->
       recover "Groups are front end only" (id tl) []
   | TLDB _ ->
@@ -493,11 +493,11 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
   else
     match newTL with
     | TLHandler h ->
-        [ SetHandler (h.hTLID, h.pos, h) ]
+        [SetHandler (h.hTLID, h.pos, h)]
     | TLFunc f ->
-        [ SetFunction f ]
+        [SetFunction f]
     | TLTipe t ->
-        [ SetType t ]
+        [SetType t]
     | TLDB _ ->
         recover "no vars in DBs" tl []
     | TLGroup _ ->
@@ -598,9 +598,9 @@ let setSelectedAST (m : model) (ast : expr) : modification =
   | Some tl ->
     ( match tl with
     | TLHandler h ->
-        RPC ([ SetHandler (id tl, h.pos, { h with ast }) ], FocusNoChange)
+        RPC ([SetHandler (id tl, h.pos, { h with ast })], FocusNoChange)
     | TLFunc f ->
-        RPC ([ SetFunction { f with ufAST = ast } ], FocusNoChange)
+        RPC ([SetFunction { f with ufAST = ast }], FocusNoChange)
     | TLTipe _ ->
         recover "no ast in Tipes" tl NoChange
     | TLDB _ ->

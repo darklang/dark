@@ -16,7 +16,7 @@ let cron_checker execution_id =
         Libcommon.Log.erroR
           "cron_checker"
           ~data:"Uncaught error"
-          ~params:[ ("exn", Libexecution.Exception.exn_to_string e) ] ;
+          ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e
@@ -28,8 +28,7 @@ let cron_checker execution_id =
   Lwt_main.run
     (Log.add_log_annotations
        [ ( "execution_id"
-         , `String (Libexecution.Types.string_of_id execution_id) )
-       ]
+         , `String (Libexecution.Types.string_of_id execution_id) ) ]
        (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker))
 
 

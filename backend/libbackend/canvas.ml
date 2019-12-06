@@ -254,8 +254,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
       ~params:
         [ ("host", !c.host)
         ; ("op", Op.show_op op)
-        ; ("exn", Exception.to_string e)
-        ] ;
+        ; ("exn", Exception.to_string e) ] ;
     Exception.reraise e
 
 
@@ -321,7 +320,7 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
   Db.fetch_one
     ~name:"fetch_cors_setting"
     "SELECT cors_setting FROM canvases WHERE id = $1"
-    ~params:[ Uuid id ]
+    ~params:[Uuid id]
   |> List.hd_exn
   |> cors_setting_of_db_string
 
@@ -356,7 +355,7 @@ let name_for_id (id : Uuidm.t) : string =
   Db.fetch_one
     ~name:"fetch_canvas_name"
     "SELECT name FROM canvases WHERE id = $1"
-    ~params:[ Uuid id ]
+    ~params:[Uuid id]
   |> List.hd_exn
 
 
@@ -364,7 +363,7 @@ let id_for_name (name : string) : Uuidm.t =
   Db.fetch_one
     ~name:"fetch_canvas_id"
     "SELECT id FROM canvases WHERE name = $1"
-    ~params:[ String name ]
+    ~params:[String name]
   |> List.hd_exn
   |> Uuidm.of_string
   |> Option.value_exn
@@ -390,7 +389,7 @@ let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
     "UPDATE canvases
      SET cors_setting = $1
      WHERE id = $2"
-    ~params:[ cors_setting_to_db setting; Uuid !c.id ] ;
+    ~params:[cors_setting_to_db setting; Uuid !c.id] ;
   c := { !c with cors_setting = setting } ;
   ()
 
@@ -604,10 +603,7 @@ let save_test (c : canvas) : string =
 let validate_op host op =
   if Op.is_deprecated op
   then
-    Exception.internal
-      "bad op"
-      ~info:[ ("host", host) ]
-      ~actual:(Op.show_op op)
+    Exception.internal "bad op" ~info:[("host", host)] ~actual:(Op.show_op op)
 
 
 let validate_host host =
@@ -618,7 +614,7 @@ let validate_host host =
   | Error errs ->
       Exception.internal
         "Bad canvas state"
-        ~info:[ ("errors", String.concat ~sep:", " errs); ("host", host) ]
+        ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
 
 
 (* just load, don't save -- also don't validate the ops don't
@@ -634,7 +630,7 @@ let check_tier_one_hosts () : unit =
           ()
       | Error errs ->
           Exception.internal
-            ~info:[ ("errors", String.concat ~sep:", " errs); ("host", host) ]
+            ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
             "Bad canvas state")
 
 
@@ -681,8 +677,7 @@ let cleanup_old_traces () : float =
       ; ("stored_events_time", `Float stored_events_time)
       ; ("function_results_time", `Float function_results_time)
       ; ("function_arguments_time", `Float function_arguments_time)
-      ; ("total_time", `Float total_time)
-      ] ;
+      ; ("total_time", `Float total_time) ] ;
   total_time
 
 
@@ -707,15 +702,15 @@ let to_string (host : string) : string =
   in
   String.concat
     ~sep:"\n\n\n"
-    ( [ " ------------- Handlers ------------- " ]
+    ( [" ------------- Handlers ------------- "]
     @ handlers
-    @ [ " ------------- DBs ------------- " ]
+    @ [" ------------- DBs ------------- "]
     @ dbs
-    @ [ " ------------- Functions ------------- " ]
+    @ [" ------------- Functions ------------- "]
     @ user_fns
-    @ [ " ------------- Deleted Handlers ------------- " ]
+    @ [" ------------- Deleted Handlers ------------- "]
     @ deleted_handlers
-    @ [ " ------------- Deleted DBs ------------- " ]
+    @ [" ------------- Deleted DBs ------------- "]
     @ deleted_dbs
-    @ [ " ------------- Deleted Functions ------------- " ]
+    @ [" ------------- Deleted Functions ------------- "]
     @ deleted_user_functions )

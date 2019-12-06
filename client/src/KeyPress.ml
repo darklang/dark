@@ -42,8 +42,8 @@ let undo_redo (m : model) (redo : bool) : modification =
   | Some tlid ->
       let undo =
         if redo
-        then RPC ([ RedoTL tlid ], FocusSame)
-        else RPC ([ UndoTL tlid ], FocusSame)
+        then RPC ([RedoTL tlid], FocusSame)
+        else RPC ([UndoTL tlid], FocusSame)
       in
       ( match TL.get m tlid |> Option.andThen ~f:TL.asDB with
       | Some _ ->
@@ -66,7 +66,7 @@ let undo_redo (m : model) (redo : bool) : modification =
 let openOmnibox (m : model) : modification =
   match m.currentPage with
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-      Many [ Deselect; Entry.openOmnibox m ]
+      Many [Deselect; Entry.openOmnibox m]
   | FocusedFn _ | FocusedType _ ->
       Entry.openOmnibox m
 
@@ -116,14 +116,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Some (PTypeFieldName _)
           | Some (PTypeFieldTipe _) ->
               let replacement = UserTypes.extend t in
-              RPC ([ SetType replacement ], FocusNext (tlid, Some id))
+              RPC ([SetType replacement], FocusNext (tlid, Some id))
           | _ ->
               NoChange )
         | None ->
             NoChange )
       | Key.Enter, Some (TLDB _) when event.shiftKey ->
           let blankid = gid () in
-          RPC ([ AddDBCol (tlid, blankid, gid ()) ], FocusExact (tlid, blankid))
+          RPC ([AddDBCol (tlid, blankid, gid ())], FocusExact (tlid, blankid))
       | Key.Enter, Some (TLHandler h as tl) when event.shiftKey ->
         ( match mId with
         | Some id ->
@@ -135,14 +135,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then NoChange
               else
                 RPC
-                  ( [ SetHandler (tlid, h.pos, { h with ast = replacement }) ]
+                  ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
                   , FocusExact (tlid, B.toID blank) )
           | Some (PVarBind _) ->
             ( match AST.findParentOfWithin_ id h.ast with
             | Some (F (_, Lambda (_, _))) ->
                 let replacement = AST.addLambdaBlank id h.ast in
                 RPC
-                  ( [ SetHandler (tlid, h.pos, { h with ast = replacement }) ]
+                  ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
                   , FocusNext (tlid, Some id) )
             | _ ->
                 NoChange )
@@ -151,12 +151,12 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 AST.addObjectLiteralBlanks id h.ast
               in
               RPC
-                ( [ SetHandler (tlid, h.pos, { h with ast = replacement }) ]
+                ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
                 , FocusExact (tlid, nextid) )
           | Some (PPattern _) ->
               let nextid, _, replacement = AST.addPatternBlanks id h.ast in
               RPC
-                ( [ SetHandler (tlid, h.pos, { h with ast = replacement }) ]
+                ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
                 , FocusExact (tlid, nextid) )
           | _ ->
               NoChange )
@@ -173,14 +173,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then NoChange
               else
                 RPC
-                  ( [ SetFunction { f with ufAST = replacement } ]
+                  ( [SetFunction { f with ufAST = replacement }]
                   , FocusExact (tlid, B.toID blank) )
           | Some (PVarBind _) ->
             ( match AST.findParentOfWithin_ id f.ufAST with
             | Some (F (_, Lambda (_, _))) ->
                 let replacement = AST.addLambdaBlank id f.ufAST in
                 RPC
-                  ( [ SetFunction { f with ufAST = replacement } ]
+                  ( [SetFunction { f with ufAST = replacement }]
                   , FocusNext (tlid, Some id) )
             | _ ->
                 NoChange )
@@ -189,7 +189,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 AST.addObjectLiteralBlanks id f.ufAST
               in
               RPC
-                ( [ SetFunction { f with ufAST = replacement } ]
+                ( [SetFunction { f with ufAST = replacement }]
                 , FocusExact (tlid, nextid) )
           | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
               Refactor.addFunctionParameter m f id
@@ -321,8 +321,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               Many
                 [ SelectCommand (tlid, id)
                 ; AutocompleteMod (ACSetVisible true)
-                ; AutocompleteMod (ACSetQuery ":")
-                ]
+                ; AutocompleteMod (ACSetQuery ":") ]
             else NoChange )
       | _ ->
           NoChange )
@@ -339,8 +338,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then
                 Many
                   [ AutocompleteMod (ACAppendQuery "\n")
-                  ; MakeCmd (Entry.focusEntry m)
-                  ]
+                  ; MakeCmd (Entry.focusEntry m) ]
               else if AC.isLargeStringEntry m.complete
               then Entry.submit m cursor Entry.StayHere
               else NoChange
@@ -438,25 +436,23 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Key.Escape ->
             ( match cursor with
             | Creating _ ->
-                Many [ Deselect; AutocompleteMod ACReset ]
+                Many [Deselect; AutocompleteMod ACReset]
             | Filling (tlid, p) ->
                 let tl = TL.get m tlid in
                 ( match tl with
                 | Some (TLHandler h) ->
                     let replacement = AST.closeBlanks h.ast in
                     if replacement = h.ast
-                    then Many [ Select (tlid, Some p); AutocompleteMod ACReset ]
+                    then Many [Select (tlid, Some p); AutocompleteMod ACReset]
                     else
                       (* TODO: in this case, when filling a keyname on an
                            * object, nothing happens which is unexpected *)
                       RPC
                         ( [ SetHandler
-                              (tlid, h.pos, { h with ast = replacement })
-                          ]
+                              (tlid, h.pos, { h with ast = replacement }) ]
                         , FocusNext (tlid, None) )
                 | _ ->
-                    Many [ Select (tlid, Some p); AutocompleteMod ACReset ] )
-            )
+                    Many [Select (tlid, Some p); AutocompleteMod ACReset] ) )
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->
@@ -485,8 +481,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 [ AutocompleteMod (ACSetVisible true)
                 ; AutocompleteMod (ACSetQuery v)
                 ; AutocompleteMod (ACSetVisible true)
-                ; MakeCmd (Entry.focusEntry m)
-                ]
+                ; MakeCmd (Entry.focusEntry m) ]
           | _ ->
               AutocompleteMod (ACSetVisible true) )
     | Deselected ->
@@ -559,7 +554,7 @@ let optionDefaultHandler (event : Keyboard.keyEvent) (m : model) :
    (So if you wanted to _disable_ defaultHandler behavior for a given input,
    you could.) *)
 let handler (event : Keyboard.keyEvent) (m : model) : modification =
-  [ optionDefaultHandler ]
+  [optionDefaultHandler]
   |> List.foldl
        ~f:(fun h (acc : modification option) ->
          match acc with None -> h event m | Some _ -> acc)

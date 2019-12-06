@@ -4,40 +4,39 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : Lib.shortfn list =
-  [ { pns = [ "Char::toASCIICode" ]
+  [ { pns = ["Char::toASCIICode"]
     ; ins = []
-    ; p = [ par "c" TCharacter ]
+    ; p = [par "c" TCharacter]
     ; r = TInt
     ; d = "Return `c`'s ASCII code"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "Char::toASCIIChar" ]
+  ; { pns = ["Char::toASCIIChar"]
     ; ins = []
-    ; p = [ par "i" TInt ]
+    ; p = [par "i" TInt]
     ; r = TCharacter
     ; d = "convert an int to an ASCII character"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "Char::toLowercase" ]
+  ; { pns = ["Char::toLowercase"]
     ; ins = []
-    ; p = [ par "c" TCharacter ]
+    ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the lowercase value of `c`"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "Char::toUppercase" ]
+  ; { pns = ["Char::toUppercase"]
     ; ins = []
-    ; p = [ par "c" TCharacter ]
+    ; p = [par "c" TCharacter]
     ; r = TCharacter
     ; d = "Return the uppercase value of `c`"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
     ; dep = true
-    }
-  ]
+    } ]

@@ -22,8 +22,7 @@ let store ~canvas_id ~trace_id (tlid, fnname, id) arglist result =
       ; ID id
       ; String (Dval.hash Dval.current_hash_version arglist)
       ; Int Dval.current_hash_version
-      ; RoundtrippableDval result
-      ]
+      ; RoundtrippableDval result ]
 
 
 let load ~canvas_id ~trace_id tlid : function_result list =
@@ -40,9 +39,9 @@ let load ~canvas_id ~trace_id tlid : function_result list =
        AND trace_id = $2
        AND tlid = $3
      ORDER BY fnname, id, hash, hash_version, timestamp DESC"
-    ~params:[ Db.Uuid canvas_id; Db.Uuid trace_id; Db.ID tlid ]
+    ~params:[Db.Uuid canvas_id; Db.Uuid trace_id; Db.ID tlid]
   |> List.map ~f:(function
-         | [ fnname; id; hash; hash_version; dval; ts ] ->
+         | [fnname; id; hash; hash_version; dval; ts] ->
              ( fnname
              , id_of_string id
              , hash

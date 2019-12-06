@@ -36,8 +36,8 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
          match op :: ops with
          | [] ->
              []
-         | [ op ] ->
-             [ op ]
+         | [op] ->
+             [op]
          | (_, Op.UndoTL uid) :: (_, Op.RedoTL rid) :: rest when rid = uid ->
              rest
          (* Step 2: error on solo redos *)

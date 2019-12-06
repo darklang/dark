@@ -56,12 +56,10 @@ let () =
       ()) ;
   describe "pathFromInputVars" (fun () ->
       let noRequest = StrDict.empty in
-      let noURL = StrDict.fromList [ ("request", Types.DObj StrDict.empty) ] in
+      let noURL = StrDict.fromList [("request", Types.DObj StrDict.empty)] in
       let generate url =
         StrDict.fromList
-          [ ( "request"
-            , Types.DObj (StrDict.fromList [ ("url", Types.DStr url) ]) )
-          ]
+          [("request", Types.DObj (StrDict.fromList [("url", Types.DStr url)]))]
       in
       test "returns None if no request object" (fun () ->
           expect (pathFromInputVars noRequest) |> toEqual None) ;

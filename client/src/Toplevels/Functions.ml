@@ -76,7 +76,7 @@ let findByName (m : model) (s : string) : userFunction option =
 
 
 let paramData (ufp : userFunctionParameter) : pointerData list =
-  [ PParamName ufp.ufpName; PParamTipe ufp.ufpTipe ]
+  [PParamName ufp.ufpName; PParamTipe ufp.ufpTipe]
 
 
 let allParamData (uf : userFunction) : pointerData list =
@@ -84,7 +84,7 @@ let allParamData (uf : userFunction) : pointerData list =
 
 
 let allData (uf : userFunction) : pointerData list =
-  [ PFnName uf.ufMetadata.ufmName ] @ allParamData uf @ AST.allData uf.ufAST
+  [PFnName uf.ufMetadata.ufmName] @ allParamData uf @ AST.allData uf.ufAST
 
 
 let replaceFnName
@@ -235,9 +235,7 @@ let extend (uf : userFunction) : userFunction =
   in
   let metadata = uf.ufMetadata in
   let newMetadata =
-    { metadata with
-      ufmParameters = uf.ufMetadata.ufmParameters @ [ newParam ]
-    }
+    { metadata with ufmParameters = uf.ufMetadata.ufmParameters @ [newParam] }
   in
   { uf with ufMetadata = newMetadata }
 

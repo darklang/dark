@@ -17,102 +17,101 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 let ( >>| ) = Result.( >>| )
 
 let fns : Lib.shortfn list =
-  [ { pns = [ "toString" ]
+  [ { pns = ["toString"]
     ; ins = []
-    ; p = [ par "v" TAny ]
+    ; p = [par "v" TAny]
     ; r = TStr
     ; d =
         "Returns a string representation of `v`, suitable for displaying to a user. Redacts passwords."
     ; f =
         InProcess
           (function
-          | _, [ a ] ->
+          | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_enduser_readable_text_v0 a)
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "toRepr" ]
+  ; { pns = ["toRepr"]
     ; ins = []
-    ; p = [ par "v" TAny ]
+    ; p = [par "v" TAny]
     ; r = TStr
     ; d =
         "Returns an adorned string representation of `v`, suitable for internal developer usage. Not designed for sending to end-users, use toString instead. Redacts passwords."
     ; f =
         InProcess
           (function
-          | _, [ a ] ->
+          | _, [a] ->
               Dval.dstr_of_string_exn (Dval.to_developer_repr_v0 a)
           | args ->
               fail args)
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "equals" ]
-    ; ins = [ "==" ]
-    ; p = [ par "a" TAny; par "b" TAny ]
+  ; { pns = ["equals"]
+    ; ins = ["=="]
+    ; p = [par "a" TAny; par "b" TAny]
     ; r = TBool
     ; d = "Returns true if the two value are equal"
     ; f =
         InProcess
-          (function
-          | _, [ a; b ] -> DBool (equal_dval a b) | args -> fail args)
+          (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "notEquals" ]
-    ; ins = [ "!=" ]
-    ; p = [ par "a" TAny; par "b" TAny ]
+  ; { pns = ["notEquals"]
+    ; ins = ["!="]
+    ; p = [par "a" TAny; par "b" TAny]
     ; r = TBool
     ; d = "Returns true if the two value are not equal"
     ; f =
         InProcess
           (function
-          | _, [ a; b ] -> DBool (not (equal_dval a b)) | args -> fail args)
+          | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "assoc" ]
+  ; { pns = ["assoc"]
     ; ins = []
-    ; p = [ par "obj" TObj; par "key" TStr; par "val" TAny ]
+    ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
     ; r = TObj
     ; d = "Return a copy of `obj` with the `key` set to `val`."
     ; f =
         InProcess
           (function
-          | _, [ DObj o; DStr k; v ] ->
+          | _, [DObj o; DStr k; v] ->
               DObj (Map.set o ~key:(Unicode_string.to_string k) ~data:v)
           | args ->
               fail args)
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "dissoc" ]
+  ; { pns = ["dissoc"]
     ; ins = []
-    ; p = [ par "obj" TObj; par "key" TStr ]
+    ; p = [par "obj" TObj; par "key" TStr]
     ; r = TObj
     ; d = "Return a copy of `obj` with `key` unset."
     ; f =
         InProcess
           (function
-          | _, [ DObj o; DStr k ] ->
+          | _, [DObj o; DStr k] ->
               DObj (Map.remove o (Unicode_string.to_string k))
           | args ->
               fail args)
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "toForm" ]
+  ; { pns = ["toForm"]
     ; ins = []
-    ; p = [ par "obj" TObj; par "submit" TStr ]
+    ; p = [par "obj" TObj; par "submit" TStr]
     ; r = TStr
     ; d =
         "For demonstration only. Returns a HTML form with the labels and types described in `obj`. `submit` is the form's action."
     ; f =
         InProcess
           (function
-          | _, [ DObj o; DStr uri ] ->
+          | _, [DObj o; DStr uri] ->
               let fmt =
                 format_of_string
                   "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
@@ -142,30 +141,30 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = true
     }
-  ; { pns = [ "Error::toString" ]
+  ; { pns = ["Error::toString"]
     ; ins = []
-    ; p = [ par "err" TError ]
+    ; p = [par "err" TError]
     ; r = TStr
     ; d = "Return a string representing the error"
     ; f =
         InProcess
           (function
-          | _, [ DError (_, err) ] ->
+          | _, [DError (_, err)] ->
               Dval.dstr_of_string_exn err
           | args ->
               fail args)
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "AWS::urlencode" ]
+  ; { pns = ["AWS::urlencode"]
     ; ins = []
-    ; p = [ par "str" TStr ]
+    ; p = [par "str" TStr]
     ; r = TStr
     ; d = "Url encode a string per AWS' requirements"
     ; f =
         InProcess
           (function
-          | _, [ DStr str ] ->
+          | _, [DStr str] ->
               str
               |> Unicode_string.to_string
               |> Util.AWS.url_encode
@@ -174,5 +173,4 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false
-    }
-  ]
+    } ]

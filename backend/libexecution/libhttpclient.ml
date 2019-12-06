@@ -4,7 +4,7 @@ open Lib
 open Types.RuntimeT
 
 let fns : Lib.shortfn list =
-  [ { pns = [ "HttpClient::formContentType" ]
+  [ { pns = ["HttpClient::formContentType"]
     ; ins = []
     ; p = []
     ; r = TObj
@@ -22,7 +22,7 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "HttpClient::jsonContentType" ]
+  ; { pns = ["HttpClient::jsonContentType"]
     ; ins = []
     ; p = []
     ; r = TObj
@@ -40,7 +40,7 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "HttpClient::plainTextContentType" ]
+  ; { pns = ["HttpClient::plainTextContentType"]
     ; ins = []
     ; p = []
     ; r = TObj
@@ -58,7 +58,7 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "HttpClient::htmlContentType" ]
+  ; { pns = ["HttpClient::htmlContentType"]
     ; ins = []
     ; p = []
     ; r = TObj
@@ -76,15 +76,15 @@ let fns : Lib.shortfn list =
     ; ps = true
     ; dep = false
     }
-  ; { pns = [ "HttpClient::bearerToken" ]
+  ; { pns = ["HttpClient::bearerToken"]
     ; ins = []
-    ; p = [ par "token" TStr ]
+    ; p = [par "token" TStr]
     ; r = TObj
     ; d = "Returns an object with 'Authorization' set to the passed token"
     ; f =
         InProcess
           (function
-          | _, [ DStr token ] ->
+          | _, [DStr token] ->
               let auth_string =
                 Unicode_string.append
                   (Unicode_string.of_string_exn "Bearer ")
@@ -95,5 +95,4 @@ let fns : Lib.shortfn list =
               fail args)
     ; ps = true
     ; dep = false
-    }
-  ]
+    } ]

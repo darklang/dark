@@ -14,8 +14,7 @@ let t_case_insensitive_db_roundtrip () =
     [ Op.CreateDB (dbid, pos, "TestUnicode")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, colname)
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     "(let _
@@ -23,7 +22,7 @@ let t_case_insensitive_db_roundtrip () =
             (DB::getAll_v2 TestUnicode))"
   in
   match exec_handler ~ops ast with
-  | DList [ DObj v ] ->
+  | DList [DObj v] ->
       AT.(check bool)
         "matched"
         true
@@ -39,8 +38,7 @@ let t_nulls_allowed_in_db () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   let ast =
     "(let old (DB::set_v1 (obj (x null)) 'hello' MyDB)
@@ -56,7 +54,7 @@ let t_inserting_object_to_missing_col_gives_good_error () =
     "error is expected"
     (exec_handler
        "(DB::add_v0 (obj (col (obj))) TestDB)"
-       ~ops:[ Op.CreateDB (dbid, pos, "TestDB") ])
+       ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
     "Found but did not expect: [col]"
 
 
@@ -67,24 +65,21 @@ let t_nulls_added_to_missing_column () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str")
-    ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
   in
   ignore (exec_handler ~ops "(DB::set_v1 (obj (x 'v')) 'i' MyDB)") ;
   let ops =
     ops
     @ [ Op.AddDBCol (dbid, colnameid2, coltypeid2)
       ; Op.SetDBColName (dbid, colnameid2, "y")
-      ; Op.SetDBColType (dbid, coltypeid2, "Str")
-      ]
+      ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
   in
   check_dval
     "equal_after_fetchall"
     (DList
        [ Dval.dstr_of_string_exn "i"
        ; DObj
-           (DvalMap.from_list
-              [ ("x", Dval.dstr_of_string_exn "v"); ("y", DNull) ])
+           (DvalMap.from_list [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)])
        ])
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
@@ -95,8 +90,7 @@ let t_uuid_db_roundtrip () =
     [ Op.CreateDB (dbid, pos, "Ids")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "uu")
-    ; Op.SetDBColType (dbid, coltypeid, "UUID")
-    ]
+    ; Op.SetDBColType (dbid, coltypeid, "UUID") ]
   in
   let ast =
     "(let i (Uuid::generate)
@@ -109,7 +103,7 @@ let t_uuid_db_roundtrip () =
     "A generated UUID can round-trip from the DB"
     0
     ( match exec_handler ~ops ast with
-    | DList [ p1; p2 ] ->
+    | DList [p1; p2] ->
         compare_dval p1 p2
     | _ ->
         1 )
@@ -121,8 +115,7 @@ let t_password_hash_db_roundtrip () =
     [ Op.CreateDB (dbid, pos, "Passwords")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "password")
-    ; Op.SetDBColType (dbid, coltypeid, "Password")
-    ]
+    ; Op.SetDBColType (dbid, coltypeid, "Password") ]
   in
   let ast =
     "(let pw (Password::hash 'password')
@@ -135,7 +128,7 @@ let t_password_hash_db_roundtrip () =
     "A Password::hash'd string can get stored in and retrieved from a user datastore."
     0
     ( match exec_handler ~ops ast with
-    | DList [ p1; p2 ] ->
+    | DList [p1; p2] ->
         compare_dval p1 p2
     | _ ->
         1 )
@@ -159,5 +152,4 @@ let suite =
   ; ( "Password hashes can be stored in and retrieved from the DB"
     , `Quick
     , t_password_hash_db_roundtrip )
-  ; ("Test postgres escaping", `Quick, t_escape_pg_escaping)
-  ]
+  ; ("Test postgres escaping", `Quick, t_escape_pg_escaping) ]

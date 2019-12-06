@@ -43,8 +43,7 @@ let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
       ; "trown"
         (* XXX(JULIAN): The `test` user is here as a hack while we 
          fix integration tests to run in fluid *)
-      ; "test"
-      ]
+      ; "test" ]
     in
     not (List.member ~value:username exemptUsers)
   in
@@ -61,7 +60,7 @@ let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
     in
     if isFluid vts || containsFluid
     then vts
-    else vts @ [ FluidWithoutStatusVariant ]
+    else vts @ [FluidWithoutStatusVariant]
   else vts
 
 
@@ -117,9 +116,7 @@ let uniqueTests (xs : variantTest list) : variantTest list =
   List.uniqueBy ~f:show_variantTest xs
 
 
-let expandTest (vt : variantTest) : variantTest list =
-  match vt with x -> [ x ]
-
+let expandTest (vt : variantTest) : variantTest list = match vt with x -> [x]
 
 let enabledVariantTests : variantTest list =
   Url.queryParams

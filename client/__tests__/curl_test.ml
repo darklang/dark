@@ -58,7 +58,7 @@ let () =
   describe "curlFromSpec" (fun () ->
       let m =
         makeModel
-          ~handlers:[ http ~path:"/test" () ]
+          ~handlers:[http ~path:"/test" ()]
           ~cursorState:(Selecting (defaultTLID, None))
           ()
       in
@@ -84,7 +84,7 @@ let () =
                 }
             }
           in
-          let m1 = { m with handlers = Handlers.fromList [ cron ] } in
+          let m1 = { m with handlers = Handlers.fromList [cron] } in
           expect (curlFromSpec m1 cronTLID) |> toEqual None)) ;
   describe "curlFromCurrentTrace" (fun () ->
       let traces input =
@@ -97,8 +97,7 @@ let () =
                      { input
                      ; timestamp = "2019-09-17T12:00:30Z"
                      ; functionResults = []
-                     } )
-               ]
+                     } ) ]
       in
       test "returns command for /test GET with headers" (fun () ->
           let headers =
@@ -127,7 +126,7 @@ let () =
           in
           let m =
             makeModel
-              ~handlers:[ http ~path:"/test" () ]
+              ~handlers:[http ~path:"/test" ()]
               ~traces:(traces input)
               ~cursorState:(Selecting (defaultTLID, None))
               ()
@@ -156,7 +155,7 @@ let () =
           in
           let m =
             makeModel
-              ~handlers:[ http ~path:"/test" ~meth:"POST" () ]
+              ~handlers:[http ~path:"/test" ~meth:"POST" ()]
               ~traces:(traces input)
               ~cursorState:(Selecting (defaultTLID, None))
               ()

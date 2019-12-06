@@ -51,7 +51,7 @@ let () =
                 let spec = hParams.handler.spec in
                 List.map
                   (function Types.F (_, s) -> s | _ -> "-")
-                  [ spec.space; spec.name; spec.modifier ]
+                  [spec.space; spec.name; spec.modifier]
                 |> fun ss -> "(" ^ String.concat ", " ss ^ ")"
               in
               let msg =

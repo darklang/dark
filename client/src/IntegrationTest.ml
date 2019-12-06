@@ -103,7 +103,7 @@ let field_access_closes (m : model) : testResult =
 let field_access_pipes (m : model) : testResult =
   match onlyExpr m with
   | Thread
-      [ F (_, FieldAccess (F (_, Variable "request"), F (_, "body"))); Blank _ ]
+      [F (_, FieldAccess (F (_, Variable "request"), F (_, "body"))); Blank _]
     ->
       pass
   | expr ->
@@ -152,8 +152,7 @@ let pipe_within_let (m : model) : testResult =
           ( _
           , Thread
               [ F (_, Variable "value")
-              ; F (_, FnCall (F (_, "Int::add"), [ Blank _ ], _))
-              ] ) ) ->
+              ; F (_, FnCall (F (_, "Int::add"), [Blank _], _)) ] ) ) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -186,8 +185,7 @@ let editing_request_edits_request (m : model) : testResult =
   | FieldAccess (F (_, Variable "request"), Blank _) ->
     ( match m.complete.completions with
     | [ ACVariable ("request", Some _)
-      ; ACFunction { fnName = "Http::badRequest" }
-      ] ->
+      ; ACFunction { fnName = "Http::badRequest" } ] ->
         pass
     | cs ->
         fail ~f:(show_list ~f:show_autocompleteItem) cs )
@@ -231,7 +229,7 @@ let deleting_selects_the_blank (m : model) : testResult =
 
 let right_number_of_blanks (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "Dict::set"), [ Blank _; Blank _; Blank _ ], _) ->
+  | FnCall (F (_, "Dict::set"), [Blank _; Blank _; Blank _], _) ->
       pass
   | e ->
       fail ~f:show_nExpr e
@@ -359,8 +357,7 @@ let rename_db_fields (m : model) : testResult =
          match cols with
          | [ (F (_, "field6"), F (_, "String"))
            ; (F (_, "field2"), F (_, "String"))
-           ; (Blank _, Blank _)
-           ] ->
+           ; (Blank _, Blank _) ] ->
            ( match m.cursorState with
            | Selecting (_, None) ->
                pass
@@ -379,8 +376,7 @@ let rename_db_type (m : model) : testResult =
          (* this was previously an Int *)
          | [ (F (_, "field1"), F (_, "String"))
            ; (F (_, "field2"), F (_, "Int"))
-           ; (Blank _, Blank _)
-           ] ->
+           ; (Blank _, Blank _) ] ->
            ( match m.cursorState with
            | Selecting (tlid, None) ->
                if tlid = dbTLID
@@ -402,9 +398,9 @@ let paste_right_number_of_blanks (m : model) : testResult =
   m.handlers
   |> TD.mapValues ~f:(fun { ast } ->
          match ast with
-         | F (_, Thread [ _; F (_, FnCall (F (_, "-"), [ Blank _ ], _)) ]) ->
+         | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
              pass
-         | F (_, FnCall (F (_, "-"), [ Blank _; Blank _ ], _)) ->
+         | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
              pass (* ignore this TL *)
          | _ ->
              fail ~f:show_expr ast)
@@ -414,7 +410,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
 
 let paste_keeps_focus (m : model) : testResult =
   match onlyExpr m with
-  | FnCall (F (_, "+"), [ F (_, Value "3"); F (id, Value "3") ], _) as fn ->
+  | FnCall (F (_, "+"), [F (_, Value "3"); F (id, Value "3")], _) as fn ->
     ( match m.cursorState with
     | Selecting (_, sid) ->
         if Some id = sid
@@ -455,7 +451,7 @@ let feature_flag_works (m : model) : testResult =
                       ( _
                       , FnCall
                           ( F (_, "Int::greaterThan")
-                          , [ F (_, Variable "a"); F (_, Value "10") ]
+                          , [F (_, Variable "a"); F (_, Value "10")]
                           , _ ) )
                   , F (_, Value "\"A\"")
                   , F (_, Value "\"B\"") ) ) ) ) ->
@@ -488,8 +484,7 @@ let feature_flag_in_function (m : model) : testResult =
                       , F (_, Value "true")
                       , F (_, Value "5")
                       , F (_, Value "3") ) )
-              ; F (_, Value "5")
-              ]
+              ; F (_, Value "5") ]
             , NoRail ) ) ->
         pass
     (* TODO: validate result should evaluate true turning  5 + 5 --> 3 + 5 == 8 *)
@@ -540,8 +535,7 @@ let variable_extraction (m : model) : testResult =
                               , FnCall
                                   ( F (_, "+")
                                   , [ F (_, Variable "foo")
-                                    ; F (_, Variable "bar")
-                                    ]
+                                    ; F (_, Variable "bar") ]
                                   , _ ) )
                           , F
                               ( _
@@ -590,7 +584,7 @@ let editing_goes_to_next_with_tab (m : model) : testResult =
 let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | ( Entering (Filling (_, id1))
-    , Let (_, F (_, Thread [ F (_, Value "52"); Blank id2 ]), _) ) ->
+    , Let (_, F (_, Thread [F (_, Value "52"); Blank id2]), _) ) ->
       if id1 = id2
       then pass
       else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
@@ -606,8 +600,7 @@ let object_literals_work (m : model) : testResult =
         ; (F (_, "k2"), F (_, Value "2"))
         ; (F (_, "k3"), F (_, Value "3"))
         ; (F (_, "k4"), Blank _)
-        ; (Blank _, Blank id2)
-        ] ) ->
+        ; (Blank _, Blank id2) ] ) ->
       if id = id2
       then pass
       else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
@@ -630,8 +623,7 @@ let rename_pattern_variable (m : model) : testResult =
     ( match cases with
     | [ (F (_, PLiteral "1"), F (_, Variable "foo"))
       ; (F (_, PVariable "bar"), F (_, Variable "bar"))
-      ; (Blank _, Blank _)
-      ] ->
+      ; (Blank _, Blank _) ] ->
         pass
     | _ ->
         fail ~f:show_nExpr expr )
@@ -666,7 +658,7 @@ let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
 let delete_db_col (m : model) : testResult =
   let db = onlyDB m in
   match db.cols with
-  | [ (Blank _, Blank _) ] ->
+  | [(Blank _, Blank _)] ->
       pass
   | cols ->
       fail ~f:(show_list ~f:show_dbColumn) cols
@@ -684,7 +676,7 @@ let cant_delete_locked_col (m : model) : testResult =
       |> deOption "Somehow got zero dbs after checking length?"
   in
   match db.cols with
-  | [ (F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _) ] ->
+  | [(F (_, "cantDelete"), F (_, "Int")); (Blank _, Blank _)] ->
       pass
   | cols ->
       fail ~f:(show_list ~f:show_dbColumn) cols
@@ -693,7 +685,7 @@ let cant_delete_locked_col (m : model) : testResult =
 let result_ok_roundtrips (m : model) : testResult =
   let ast = onlyHandler m |> fun x -> x.ast in
   match ast with
-  | F (_, Constructor (F (_, "Ok"), [ Blank _ ])) ->
+  | F (_, Constructor (F (_, "Ok"), [Blank _])) ->
       pass
   | _ ->
       fail ~f:show_expr ast
@@ -719,7 +711,7 @@ let function_analysis_works (_m : model) : testResult =
 
 let fourohfours_parse (m : model) : testResult =
   match m.f404s with
-  | [ x ] ->
+  | [x] ->
       if x.space = "HTTP"
          && x.path = "/nonexistant"
          && x.modifier = "GET"
@@ -828,7 +820,7 @@ let fluid_click_2x_on_token_places_cursor (m : model) : testResult =
     | _ ->
         fail "incorrect cursor state"
   in
-  Result.combine [ focusedPass; browserCursorPass; cursorPass ]
+  Result.combine [focusedPass; browserCursorPass; cursorPass]
   |> Result.map (fun _ -> ())
 
 
@@ -857,7 +849,7 @@ let fluid_click_2x_in_function_places_cursor (m : model) : testResult =
     | _ ->
         fail "incorrect cursor state"
   in
-  Result.combine [ focusedPass; browserCursorPass; cursorPass ]
+  Result.combine [focusedPass; browserCursorPass; cursorPass]
   |> Result.map (fun _ -> ())
 
 

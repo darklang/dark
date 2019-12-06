@@ -17,7 +17,7 @@ let error_result msg = DResult (ResError (Dval.dstr_of_string_exn msg))
 let ( >>| ) = Result.( >>| )
 
 let fns : Lib.shortfn list =
-  [ { pns = [ "Uuid::generate" ]
+  [ { pns = ["Uuid::generate"]
     ; ins = []
     ; p = []
     ; r = TUuid
@@ -28,5 +28,4 @@ let fns : Lib.shortfn list =
      * when live programming *)
     ; ps = false
     ; dep = false
-    }
-  ]
+    } ]

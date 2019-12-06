@@ -579,7 +579,7 @@ module RuntimeT = struct
     in
     match (name, rt, params_all_filled) with
     | Some n, Some t, true ->
-        { prefix_names = [ n ]
+        { prefix_names = [n]
         ; infix_names = []
         ; parameters = params
         ; return_type = t

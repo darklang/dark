@@ -28,7 +28,7 @@ let () =
             B.newF
               (FnCall
                  ( B.newF "DB::deleteAll_v1"
-                 , [ F (dbRefID, Variable "Books") ]
+                 , [F (dbRefID, Variable "Books")]
                  , NoRail ))
         ; spec =
             { space = B.newF "HTTP"
@@ -50,9 +50,9 @@ let () =
         ; pos = { x = 0; y = 0 }
         }
       in
-      let dbs = TD.fromList [ (dbdata.dbTLID, dbdata) ] in
+      let dbs = TD.fromList [(dbdata.dbTLID, dbdata)] in
       let handlers =
-        TD.fromList [ (h1data.hTLID, h1data); (h2data.hTLID, h2data) ]
+        TD.fromList [(h1data.hTLID, h1data); (h2data.hTLID, h2data)]
       in
       test "dbsByName" (fun () ->
           expect (dbsByName dbs)
@@ -70,7 +70,7 @@ let () =
             match
               findUsagesInAST h2tlid datastores handlers functions h2data.ast
             with
-            | [ { refersTo; usedIn; id } ] ->
+            | [{ refersTo; usedIn; id }] ->
                 refersTo = h2tlid && usedIn = dbtlid && id == dbRefID
             | _ ->
                 false
@@ -91,9 +91,8 @@ let () =
                     ; ufmInfix = false
                     }
                 ; ufAST = B.new_ ()
-                }
-            ]
+                } ]
           in
-          expect (tlidsToUpdateUsage ops) |> toEqual [ h1tlid; fntlid ]) ;
+          expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid]) ;
       ()) ;
   ()

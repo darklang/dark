@@ -202,7 +202,7 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
   | Architecture, FocusedType _
   | FocusedHandler _, FocusedType _
   | FocusedDB _, FocusedType _ ->
-      [ Native.OnCaptureView.capture () ]
+      [Native.OnCaptureView.capture ()]
   | _ ->
       []
 
@@ -212,6 +212,6 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
 let maybeChangeFromPage (tlid : tlid) (page : page) : modification list =
   match tlidOf page with
   | Some ptlid when ptlid = tlid ->
-      [ SetPage Architecture ]
+      [SetPage Architecture]
   | _ ->
       []

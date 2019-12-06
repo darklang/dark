@@ -20,8 +20,7 @@ module HttpclientV0 = struct
         [ ("url", url)
         ; ("code", string_of_int code)
         ; ("error", error)
-        ; ("response", resp_body)
-        ]
+        ; ("response", resp_body) ]
       in
       Exception.code
         ~info
@@ -61,8 +60,7 @@ module HttpclientV1 = struct
         [ ("url", url)
         ; ("code", string_of_int code)
         ; ("error", error)
-        ; ("response", resp_body)
-        ]
+        ; ("response", resp_body) ]
       in
       Exception.code
         ~info
@@ -78,8 +76,8 @@ module HttpclientV1 = struct
       (body : string) : string =
     Libcommon.Log.debuG
       "HTTP"
-      ~params:[ ("verb", Httpclient.show_verb verb); ("url", url) ]
-      ~jsonparams:[ ("body", `Int (body |> String.length)) ] ;
+      ~params:[("verb", Httpclient.show_verb verb); ("url", url)]
+      ~jsonparams:[("body", `Int (body |> String.length))] ;
     let results, _, _ = http_call ~raw_bytes url [] verb headers body in
     results
 end
@@ -137,14 +135,13 @@ module LibhttpclientV0 = struct
     Dval.to_dobj_exn
       [ ("body", parsed_result)
       ; ("headers", parsed_headers)
-      ; ("raw", Dval.dstr_of_string_exn result)
-      ]
+      ; ("raw", Dval.dstr_of_string_exn result) ]
 
 
   let call verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; body; query; headers ] ->
+      | _, [DStr uri; body; query; headers] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -160,7 +157,7 @@ module LibhttpclientV0 = struct
   let call_no_body verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; query; headers ] ->
+      | _, [DStr uri; query; headers] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -196,7 +193,7 @@ module LibhttpclientV0 = struct
   let wrapped_call verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; body; query; headers ] ->
+      | _, [DStr uri; body; query; headers] ->
           wrapped_send_request
             (Unicode_string.to_string uri)
             verb
@@ -212,7 +209,7 @@ module LibhttpclientV0 = struct
   let wrapped_call_no_body verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; query; headers ] ->
+      | _, [DStr uri; query; headers] ->
           wrapped_send_request
             (Unicode_string.to_string uri)
             verb
@@ -226,10 +223,10 @@ end
 
 module LibhttpclientV1 = struct
   let params =
-    [ par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj ]
+    [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
 
 
-  let params_no_body = [ par "uri" TStr; par "query" TObj; par "headers" TObj ]
+  let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
 
   type headers = (string * string) list
 
@@ -296,8 +293,7 @@ module LibhttpclientV1 = struct
             |> Dval.dstr_of_string
             |> Option.value
                  ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
-        ; ("code", DInt (Dint.of_int code))
-        ]
+        ; ("code", DInt (Dint.of_int code)) ]
     in
     if code >= 200 && code <= 299
     then DResult (ResOk obj)
@@ -328,7 +324,7 @@ module LibhttpclientV1 = struct
   let call verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; body; query; headers ] ->
+      | _, [DStr uri; body; query; headers] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -343,7 +339,7 @@ module LibhttpclientV1 = struct
   let call_no_body verb json_fn =
     InProcess
       (function
-      | _, [ DStr uri; query; headers ] ->
+      | _, [DStr uri; query; headers] ->
           send_request
             (Unicode_string.to_string uri)
             verb

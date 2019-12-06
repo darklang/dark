@@ -27,8 +27,7 @@ let sampleFunctions : function_ list =
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
   ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult)
-  ]
+  ; ("Result::catchError", TResult) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -37,8 +36,7 @@ let sampleFunctions : function_ list =
                ; paramBlock_args = []
                ; paramOptional = false
                ; paramDescription = ""
-               }
-             ]
+               } ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
@@ -57,8 +55,7 @@ let defaultExpr = EBlank defaultID
 
 let aMatchExpr
     ?(mID = defaultID) ?(patID = gid ()) ?(pattern = FPBlank (mID, patID)) () =
-  EMatch
-    (mID, EVariable (gid (), "request"), [ (pattern, EBool (gid (), true)) ])
+  EMatch (mID, EVariable (gid (), "request"), [(pattern, EBool (gid (), true))])
 
 
 let defaultToplevel =
@@ -159,7 +156,7 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
     : db =
   { dbTLID = tlid
   ; dbName = B.newF "MyDB"
-  ; cols = [ (Blank fieldid, Blank typeid) ]
+  ; cols = [(Blank fieldid, Blank typeid)]
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
@@ -184,7 +181,7 @@ let enteringDBField
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([ aDB () ] @ dbs)
+    ~dbs:([aDB ()] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -196,7 +193,7 @@ let enteringDBType
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([ aDB ~fieldid:defaultID2 ~typeid:defaultID () ] @ dbs)
+    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -207,7 +204,7 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~handlers:[ aHandler ~space ~expr () ]
+    ~handlers:[aHandler ~space ~expr ()]
     ()
 
 
@@ -360,7 +357,7 @@ let () =
                 |> setQuery m "lis"
                 |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName )
-              |> toEqual [ "List::head" ]) ;
+              |> toEqual ["List::head"]) ;
           test "search finds multiple results for prefix" (fun () ->
               expect
                 ( acFor m
@@ -369,10 +366,7 @@ let () =
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
               |> toEqual
-                   [ "Twit::somefunc"
-                   ; "Twit::someOtherFunc"
-                   ; "Twit::yetAnother"
-                   ]) ;
+                   ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]) ;
           test "search finds only prefixed" (fun () ->
               expect
                 ( acFor m
@@ -380,7 +374,7 @@ let () =
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
-              |> toEqual [ "Twit::yetAnother" ]) ;
+              |> toEqual ["Twit::yetAnother"]) ;
           test "show results when the only option is the setQuery m" (fun () ->
               expect
                 ( acFor m
@@ -471,8 +465,7 @@ let () =
                    [ "withLower"
                    ; "withlower"
                    ; "SomeModule::withLower"
-                   ; "SomeOtherModule::withlower"
-                   ]) ;
+                   ; "SomeOtherModule::withlower" ]) ;
           test
             "a specific bug where `+` is interpreted as an FACLiteral"
             (fun () ->
@@ -525,9 +518,8 @@ let () =
                    |> itemPresent (FACVariable ("request", None))
                  ; ac
                    |> setQuery m "event"
-                   |> itemPresent (FACVariable ("event", None))
-                 ])
-              |> toEqual [ true; true ]) ;
+                   |> itemPresent (FACVariable ("event", None)) ])
+              |> toEqual [true; true]) ;
 
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
@@ -560,14 +552,14 @@ let () =
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m =
-                defaultModel ~cursorState:(fillingCS ()) ~dbs:[ aDB () ] ()
+                defaultModel ~cursorState:(fillingCS ()) ~dbs:[aDB ()] ()
               in
               let ac = acFor m in
               let _valid, invalid =
                 AC.filter
                   m
                   ac
-                  [ FACVariable ("MyDB", None) ]
+                  [FACVariable ("MyDB", None)]
                   (defaultFullQuery m "")
               in
               expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
@@ -576,8 +568,7 @@ let () =
             [ FACConstructorName ("Just", 1)
             ; FACConstructorName ("Nothing", 0)
             ; FACConstructorName ("Ok", 1)
-            ; FACConstructorName ("Error", 1)
-            ]
+            ; FACConstructorName ("Error", 1) ]
           in
           (* TODO: not yet working in fluid
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
@@ -671,7 +662,7 @@ let () =
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid ~_id:patID ())
-                  ~handlers:[ aHandler ~tlid ~expr () ]
+                  ~handlers:[aHandler ~tlid ~expr ()]
                   ()
                 |> fun m -> { m with builtInFunctions = [] }
               in
@@ -680,7 +671,7 @@ let () =
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:(fun x -> AC.asName x) )
-              |> toEqual [ "o"; "Ok"; "Nothing"; "Error" ]) ;
+              |> toEqual ["o"; "Ok"; "Nothing"; "Error"]) ;
           ()) ;
       ()) ;
   ()

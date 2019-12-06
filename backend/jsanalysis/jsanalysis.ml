@@ -123,8 +123,7 @@ let perform_analysis
   let input_vars = trace_data.input in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
-    ; ("tlid", `String (Types.string_of_id tlid))
-    ]
+    ; ("tlid", `String (Types.string_of_id tlid)) ]
     (fun _ ->
       ( trace_id
       , Execution.analyse_ast

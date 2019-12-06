@@ -38,17 +38,17 @@ let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8 ]
   |> List.filter_map ~f:(function
          | "content-type", v ->
            ( match string_match ~regex:".*;\\s*charset=(.*)$" v with
-           | Result.Ok [ "utf-8" ] ->
+           | Result.Ok ["utf-8"] ->
                Some `Utf8
-           | Result.Ok [ "utf8" ] ->
+           | Result.Ok ["utf8"] ->
                Some `Utf8
-           | Result.Ok [ "us-ascii" ] ->
+           | Result.Ok ["us-ascii"] ->
                Some `Latin1 (* should work *)
-           | Result.Ok [ "iso-8859-1" ] ->
+           | Result.Ok ["iso-8859-1"] ->
                Some `Latin1
-           | Result.Ok [ "iso_8859-1" ] ->
+           | Result.Ok ["iso_8859-1"] ->
                Some `Latin1
-           | Result.Ok [ "latin1" ] ->
+           | Result.Ok ["latin1"] ->
                Some `Latin1
            | _ ->
                None )
@@ -156,10 +156,10 @@ let http_call_with_code
       if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY ;
 
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
-      C.set_protocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ] ;
+      C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
 
       (* Seems like redirects can be used to get around the above list... *)
-      C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ] ;
+      C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
 
       (* If we have the tunnel options, proxy Curl through it with socks ... *)
       Option.value_map
@@ -214,8 +214,7 @@ let http_call_with_code
         [ ("url", url)
         ; ("error", Curl.strerror curl_code)
         ; ("curl_code", string_of_int code)
-        ; ("response", Buffer.contents responsebuf)
-        ]
+        ; ("response", Buffer.contents responsebuf) ]
       in
       Exception.code
         ~info
@@ -245,8 +244,8 @@ let call
     (body : string) : string =
   Log.debuG
     "HTTP"
-    ~params:[ ("verb", show_verb verb); ("url", url) ]
-    ~jsonparams:[ ("body", `Int (body |> String.length)) ] ;
+    ~params:[("verb", show_verb verb); ("url", url)]
+    ~jsonparams:[("body", `Int (body |> String.length))] ;
   let results, _, _ = http_call ~raw_bytes url [] verb headers body in
   results
 

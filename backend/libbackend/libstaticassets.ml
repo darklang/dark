@@ -7,15 +7,15 @@ module Unicode_string = Libexecution.Unicode_string
 module Dval = Libexecution.Dval
 
 let fns : shortfn list =
-  [ { pns = [ "StaticAssets::baseUrlFor" ]
+  [ { pns = ["StaticAssets::baseUrlFor"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr ]
+    ; p = [par "deploy_hash" TStr]
     ; r = TStr
     ; d = "Return the baseUrl for the specified deploy hash"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash ] ->
+          | state, [DStr deploy_hash] ->
               url state.canvas_id (Unicode_string.to_string deploy_hash) `Short
               |> Dval.dstr_of_string_exn
           | args ->
@@ -23,7 +23,7 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::baseUrlForLatest" ]
+  ; { pns = ["StaticAssets::baseUrlForLatest"]
     ; ins = []
     ; p = []
     ; r = TStr
@@ -39,15 +39,15 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::urlFor" ]
+  ; { pns = ["StaticAssets::urlFor"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TStr
     ; d = "Return a url for the specified file and deploy hash"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               url_for
                 state.canvas_id
                 (Unicode_string.to_string deploy_hash)
@@ -59,15 +59,15 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::urlForLatest" ]
+  ; { pns = ["StaticAssets::urlForLatest"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TStr
     ; d = "Return a url for the specified file and latest deploy"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               url_for
                 state.canvas_id
                 (latest_deploy_hash state.canvas_id)
@@ -79,16 +79,16 @@ let fns : shortfn list =
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::fetch" ]
+  ; { pns = ["StaticAssets::fetch"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -114,16 +114,16 @@ UTF-8 safe"))
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "StaticAssets::fetch_v1" ]
+  ; { pns = ["StaticAssets::fetch_v1"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the deploy_hash - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -146,15 +146,15 @@ UTF-8 safe"))
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::fetchBytes" ]
+  ; { pns = ["StaticAssets::fetchBytes"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
     ; d = "Return the bytes of the specified file from the deploy_hash"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -176,16 +176,16 @@ UTF-8 safe"))
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::fetchLatest" ]
+  ; { pns = ["StaticAssets::fetchLatest"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -211,16 +211,16 @@ UTF-8 safe"))
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "StaticAssets::fetchLatest_v1" ]
+  ; { pns = ["StaticAssets::fetchLatest_v1"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -244,15 +244,15 @@ UTF-8 safe") )
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::fetchLatestBytes" ]
+  ; { pns = ["StaticAssets::fetchLatestBytes"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TResult
     ; d = "Return the bytes of the specified file from the latest deploy"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -274,16 +274,16 @@ UTF-8 safe") )
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::serve" ]
+  ; { pns = ["StaticAssets::serve"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -329,15 +329,15 @@ UTF-8 safe") )
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "StaticAssets::serve_v1" ]
+  ; { pns = ["StaticAssets::serve_v1"]
     ; ins = []
-    ; p = [ par "deploy_hash" TStr; par "file" TStr ]
+    ; p = [par "deploy_hash" TStr; par "file" TStr]
     ; r = TResult
     ; d = "Return the specified file from the latest deploy"
     ; f =
         InProcess
           (function
-          | state, [ DStr deploy_hash; DStr file ] ->
+          | state, [DStr deploy_hash; DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -385,16 +385,16 @@ UTF-8 safe") )
     ; ps = false
     ; dep = false
     }
-  ; { pns = [ "StaticAssets::serveLatest" ]
+  ; { pns = ["StaticAssets::serveLatest"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TResult
     ; d =
         "Return the specified file from the latest deploy - only works on UTF8-safe files for now"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -442,15 +442,15 @@ UTF-8 safe") )
     ; ps = false
     ; dep = true
     }
-  ; { pns = [ "StaticAssets::serveLatest_v1" ]
+  ; { pns = ["StaticAssets::serveLatest_v1"]
     ; ins = []
-    ; p = [ par "file" TStr ]
+    ; p = [par "file" TStr]
     ; r = TResult
     ; d = "Return the specified file from the latest deploy"
     ; f =
         InProcess
           (function
-          | state, [ DStr file ] ->
+          | state, [DStr file] ->
               let url =
                 url_for
                   state.canvas_id
@@ -497,5 +497,4 @@ UTF-8 safe") )
               Libexecution.Lib.fail args)
     ; ps = false
     ; dep = false
-    }
-  ]
+    } ]

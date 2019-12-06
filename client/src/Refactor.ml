@@ -60,11 +60,11 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
   | PExpr e, TLHandler h ->
       let newAst, focus = wrapAst e h.ast wl in
       let newH = { h with ast = newAst } in
-      RPC ([ SetHandler (tlid, h.pos, newH) ], focus)
+      RPC ([SetHandler (tlid, h.pos, newH)], focus)
   | PExpr e, TLFunc f ->
       let newAst, focus = wrapAst e f.ufAST wl in
       let newF = { f with ufAST = newAst } in
-      RPC ([ SetFunction newF ], focus)
+      RPC ([SetFunction newF], focus)
   | _ ->
       NoChange
 
@@ -170,16 +170,14 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
       let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
       let newHandler = { h with ast = newAst } in
       Many
-        [ RPC ([ SetHandler (tlid, h.pos, newHandler) ], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget))
-        ]
+        [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
+        ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
       let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
       let newF = { f with ufAST = newAst } in
       Many
-        [ RPC ([ SetFunction newF ], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget))
-        ]
+        [ RPC ([SetFunction newF], FocusNoChange)
+        ; Enter (Filling (tlid, enterTarget)) ]
   | _ ->
       NoChange
 
@@ -233,8 +231,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
         let newF =
           { ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body }
         in
-        RPC
-          ([ SetFunction newF ] @ astOp, FocusExact (tlid, P.toID replacement))
+        RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
     | _ ->
         NoChange
 
@@ -310,11 +307,11 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
     | Constructor (_, args) ->
         List.any ~f:(isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->
-        List.any ~f:(isFunctionInExpr fnName) [ ifExpr; thenExpr; elseExpr ]
+        List.any ~f:(isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
     | Variable _ ->
         false
     | Let (_, a, b) ->
-        List.any ~f:(isFunctionInExpr fnName) [ a; b ]
+        List.any ~f:(isFunctionInExpr fnName) [a; b]
     | Lambda (_, ex) ->
         isFunctionInExpr fnName ex
     | Value _ ->
@@ -514,7 +511,7 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
     let fn e =
       match e with
       | FnCall (name, params, r) ->
-          FnCall (name, params @ [ B.new_ () ], r)
+          FnCall (name, params @ [B.new_ ()], r)
       | _ ->
           e
     in
@@ -536,8 +533,7 @@ let generateEmptyFunction (_ : unit) : userFunction =
       ; ufpBlock_args = []
       ; ufpOptional = true
       ; ufpDescription = ""
-      }
-    ]
+      } ]
   in
   let metadata =
     { ufmName = F (gid (), funcName)
@@ -553,7 +549,7 @@ let generateEmptyFunction (_ : unit) : userFunction =
 let generateEmptyUserType () : userTipe =
   let tipeName = generateTipeName () in
   let tlid = gtlid () in
-  let definition = UTRecord [ { urfName = B.new_ (); urfTipe = B.new_ () } ] in
+  let definition = UTRecord [{ urfName = B.new_ (); urfTipe = B.new_ () }] in
   { utTLID = tlid
   ; utName = F (gid (), tipeName)
   ; utVersion = 0

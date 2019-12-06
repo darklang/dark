@@ -35,7 +35,7 @@ let t_string_split_works_for_emoji () =
   check_dval
     "stringSplit"
     (exec_ast "(String::split 'hello\xf0\x9f\x98\x84world' '\xf0\x9f\x98\x84')")
-    (DList [ Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world" ])
+    (DList [Dval.dstr_of_string_exn "hello"; Dval.dstr_of_string_exn "world"])
 
 
 let t_string_uppercase_v1_works_on_non_ascii_strings () =
@@ -122,7 +122,7 @@ let t_uuid_string_roundtrip () =
     AT.int
     "A generated id can round-trip"
     0
-    (match exec_ast ast with DList [ p1; p2 ] -> compare_dval p1 p2 | _ -> 1)
+    (match exec_ast ast with DList [p1; p2] -> compare_dval p1 p2 | _ -> 1)
 
 
 let suite =
@@ -161,5 +161,4 @@ let suite =
     , `Quick
     , t_string_trim_preserves_emoji )
   ; ("HTML escaping works reasonably", `Quick, t_html_escaping)
-  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip)
-  ]
+  ; ("UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip) ]

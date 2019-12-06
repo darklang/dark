@@ -67,7 +67,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
 let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   let wrapInList o =
     o
-    |> Option.andThen ~f:(fun v -> Some [ v ])
+    |> Option.andThen ~f:(fun v -> Some [v])
     |> Option.withDefault ~default:[]
   in
   let trace =
@@ -99,7 +99,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                    |> Option.andThen ~f:(fun s -> Some ("-X " ^ s))
                    |> wrapInList
                  in
-                 ("curl" :: headers) @ body @ meth @ [ url ]
+                 ("curl" :: headers) @ body @ meth @ [url]
                  |> String.join ~sep:" "
                  |> Option.some
              | _ ->

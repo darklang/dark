@@ -87,7 +87,7 @@ let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
   |> List.foldl ~init:TLIDDict.empty ~f:(fun (tlid, id) dict ->
          ( TLIDDict.update ~tlid dict ~f:(function
                | None ->
-                   Some (IDSet.fromList [ id ])
+                   Some (IDSet.fromList [id])
                | Some set ->
                    Some (IDSet.add ~value:id set))
            : IDSet.t TLIDDict.t ))
@@ -121,7 +121,7 @@ let findUsagesInAST
                ( id
                , FnCall
                    ( F (_, "emit")
-                   , [ _; F (_, Value space_); F (_, Value name_) ]
+                   , [_; F (_, Value space_); F (_, Value name_)]
                    , _ ) )) ->
              let name = Util.removeQuotes name_ in
              let space = Util.removeQuotes space_ in
@@ -129,8 +129,7 @@ let findUsagesInAST
              StrDict.get ~key handlers
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | PExpr
-             (F (id, FnCall (F (_, "emit_v1"), [ _; F (_, Value name_) ], _)))
-           ->
+             (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in

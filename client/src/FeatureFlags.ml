@@ -30,9 +30,9 @@ let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
   let focus = FocusExact (TL.id tl, msgId) in
   match newTL with
   | TLHandler h ->
-      RPC ([ SetHandler (h.hTLID, h.pos, h) ], focus)
+      RPC ([SetHandler (h.hTLID, h.pos, h)], focus)
   | TLFunc f ->
-      RPC ([ SetFunction f ], focus)
+      RPC ([SetFunction f], focus)
   | _ ->
       NoChange
 
@@ -67,9 +67,9 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
       let focus = FocusExact (TL.id tl, P.toID newPd) in
       ( match newTL with
       | TLHandler h ->
-          RPC ([ SetHandler (h.hTLID, h.pos, h) ], focus)
+          RPC ([SetHandler (h.hTLID, h.pos, h)], focus)
       | TLFunc f ->
-          RPC ([ SetFunction f ], focus)
+          RPC ([SetFunction f], focus)
       | _ ->
           recover "ending FF on invalid handler" (tl, id) NoChange )
 

@@ -21,7 +21,7 @@ let () =
     match (Array.length Sys.argv, Array.to_list Sys.argv) with
     | 1, _ ->
         false
-    | 2, [ _; "--prompt-for-password" ] ->
+    | 2, [_; "--prompt-for-password"] ->
         true
     | _ ->
         usage ()

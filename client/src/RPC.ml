@@ -11,8 +11,7 @@ let postJson
     { method' = "POST"
     ; headers =
         [ Header ("Content-type", "application/json")
-        ; Header ("X-CSRF-Token", csrfToken)
-        ]
+        ; Header ("X-CSRF-Token", csrfToken) ]
     ; url
     ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -26,8 +25,7 @@ let postEmptyJson decoder (csrfToken : string) (url : string) =
     { method' = "POST"
     ; headers =
         [ Header ("Content-type", "application/json")
-        ; Header ("X-CSRF-Token", csrfToken)
-        ]
+        ; Header ("X-CSRF-Token", csrfToken) ]
     ; url
     ; body = Web.XMLHttpRequest.EmptyBody
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -39,7 +37,7 @@ let postEmptyJson decoder (csrfToken : string) (url : string) =
 let postEmptyString decoder (csrfToken : string) (url : string) =
   Tea.Http.request
     { method' = "POST"
-    ; headers = [ Header ("X-CSRF-Token", csrfToken) ]
+    ; headers = [Header ("X-CSRF-Token", csrfToken)]
     ; url
     ; body = Web.XMLHttpRequest.EmptyBody
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
@@ -56,7 +54,7 @@ let opsParams (ops : op list) (opCtr : int option) (clientOpCtrId : string) :
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
     =
   let url =
-    String.concat [ "/api/"; Tea.Http.encodeUri m.canvasName; "/add_op" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/add_op"]
   in
   let request =
     postJson
@@ -72,7 +70,7 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
     msg Tea.Cmd.t =
   let url =
     String.concat
-      [ "/api/"; Tea.Http.encodeUri m.canvasName; "/execute_function" ]
+      ["/api/"; Tea.Http.encodeUri m.canvasName; "/execute_function"]
   in
   let request =
     postJson
@@ -87,8 +85,7 @@ let executeFunction (m : model) (params : executeFunctionRPCParams) :
 let triggerHandler (m : model) (params : triggerHandlerRPCParams) :
     msg Tea.Cmd.t =
   let url =
-    String.concat
-      [ "/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/trigger_handler"]
   in
   let request =
     postJson
@@ -123,7 +120,7 @@ let updateWorkerSchedule (m : model) (params : updateWorkerScheduleRPCParams) :
 
 let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
   let url =
-    String.concat [ "/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/delete_404"]
   in
   let request = postJson (fun _ -> ()) m.csrfToken url (Encoders.fof param) in
   Tea.Http.send (fun x -> Delete404RPCCallback (param, x)) request
@@ -131,7 +128,7 @@ let delete404 (m : model) (param : delete404RPCParams) : msg Tea.Cmd.t =
 
 let initialLoad (m : model) (focus : focus) : msg Tea.Cmd.t =
   let url =
-    String.concat [ "/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
   let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
   Tea.Http.send (fun x -> InitialLoadRPCCallback (focus, NoChange, x)) request
@@ -145,7 +142,7 @@ let logout (m : model) : msg Tea.Cmd.t =
 
 let saveTest (m : model) : msg Tea.Cmd.t =
   let url =
-    String.concat [ "/api/"; Tea.Http.encodeUri m.canvasName; "/save_test" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/save_test"]
   in
   let request = postEmptyString Decoders.saveTestRPCResult m.csrfToken url in
   Tea.Http.send (fun x -> SaveTestRPCCallback x) request
@@ -153,7 +150,7 @@ let saveTest (m : model) : msg Tea.Cmd.t =
 
 let integration (m : model) (name : string) : msg Tea.Cmd.t =
   let url =
-    String.concat [ "/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load" ]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/initial_load"]
   in
   let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
   Tea.Http.send

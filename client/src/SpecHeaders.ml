@@ -62,4 +62,4 @@ let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
 
 
 let allData (spec : handlerSpec) : pointerData list =
-  [ PEventSpace spec.space; PEventName spec.name; PEventModifier spec.modifier ]
+  [PEventSpace spec.space; PEventName spec.name; PEventModifier spec.modifier]

@@ -18,8 +18,7 @@ let () =
     ; ("framework", Test_framework.suite)
     ; ("other-libs", Test_other_libs.suite)
     ; ("analysis", Test_analysis.suite)
-    ; ("event-queue", Test_event_queue.suite)
-    ]
+    ; ("event-queue", Test_event_queue.suite) ]
   in
   Init.init ~run_side_effects:true ;
   Log.set_level `All ;
@@ -36,7 +35,7 @@ let () =
         (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))))
   in
   let suite, exit = Junit_alcotest.run_and_report "all" wrapped_suites in
-  let report = Junit.make [ suite ] in
+  let report = Junit.make [suite] in
   File.mkdir ~root:Testresults "" ;
   let file =
     File.check_filename ~mode:`Write ~root:Testresults "backend.xml"
