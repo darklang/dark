@@ -26,6 +26,10 @@ let sampleFunctions : function_ list =
   ; ("HTTP::options", TAny)
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
+  ; ("DB::getAll_v2", TList)
+  ; ("DB::getAll_v1", TList)
+    (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
+  ; ("DB::get_v1", TList)
   ; ("Option::withDefault", TOption)
   ; ("Result::catchError", TResult) ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
@@ -344,20 +348,33 @@ let () =
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "lis"
+                |> setQuery m "listh"
                 |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName )
               |> toEqual ["List::head"] ) ;
-          test "search finds multiple results for prefix" (fun () ->
+          test "DB::get_v1 occurs before DB::getAll_v1" (fun () ->
               expect
                 ( acFor m
-                |> setQuery m "twit::"
+                |> setQuery m "DB::get"
                 |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
+                |> List.map ~f:AC.asName
+                |> List.head )
+              |> toEqual (Some "DB::get_v1") ) ;
+          test "DB::getAll_v1 occurs before DB::getAll_v2" (fun () ->
+              expect
+                ( acFor m
+                |> setQuery m "DB::getA"
+                |> (fun x -> x.completions)
+                |> List.map ~f:AC.asName
+                |> List.head )
+              |> toEqual (Some "DB::getAll_v1") ) ;
+          test "DB::getAll_v2 is reachable" (fun () ->
+              expect
+                ( acFor m
+                |> setQuery m "DB::getA"
+                |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName )
-              |> toEqual
-                   ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]
-          ) ;
+              |> toEqual ["DB::getAll_v1"; "DB::getAll_v2"] ) ;
           test "search finds only prefixed" (fun () ->
               expect
                 ( acFor m
