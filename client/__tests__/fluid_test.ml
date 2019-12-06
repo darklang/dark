@@ -912,8 +912,8 @@ let () =
         mlStrWSpace
         (key K.DeleteNextWord 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-        ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
-        ^ "ghi,\"" ) ;
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "~ghi,\"" ) ;
       t
         "DeleteNextWord at the beg of line deletes until the next whitespace"
         mlStrWSpace
@@ -1409,10 +1409,10 @@ let () =
         (key K.DeleteNextWord 6)
         "DB::ge~v1@lv@ ___________________" ;
       t
-        "DeleteNextWord in end of function version deletes to function"
+        "DeleteNextWord in end of function version moves cursor to blank "
         aFnCallWithVersion
         (key K.DeleteNextWord 12)
-        "DB::getAllv1~ ___________________" ;
+        "DB::getAllv1 ~___________________" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
@@ -1634,7 +1634,7 @@ let () =
         (ctrlRight 6)
         "12345 <~ 12345" ;
       t
-        "DeletePrevWord in end of binop deletes binop and second int"
+        "DeletePrevWord in end of binop deletes binop and first int"
         (binop "<" anInt anInt)
         (key K.DeletePrevWord 7)
         "12345~" ;
@@ -1644,12 +1644,12 @@ let () =
         (key K.DeletePrevWord 5)
         "~_________ < 12345" ;
       t
-        "DeleteNextWord in end of binop deletes binop and second int"
+        "DeleteNextWord in end of binop deletes second int"
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 8)
         "12345 < ~_________" ;
       t
-        "DeleteNextWord in front of binop does nothing"
+        "DeleteNextWord in front of binop deletes binop and second int"
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
         "12345~" ;
@@ -1696,12 +1696,12 @@ let () =
         (key K.DeletePrevWord 2)
         "~st@@ ___" ;
       t
-        "DeleteNextWord at end of contructor deletes to beg "
+        "DeleteNextWord at end of contructor moves to blank "
         aConstructor
         (key K.DeleteNextWord 4)
-        "Just~ ___" ;
+        "Just ~___" ;
       tp
-        "DeleteNextWord mid contructor deletes to beg "
+        "DeleteNextWord mid contructor deletes to end "
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
