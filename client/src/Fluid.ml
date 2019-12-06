@@ -112,8 +112,8 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     in
     let asInt = if is63BitInt str then Some (`Int str) else None in
     let asFloat =
-      (* for the exception *)
       try
+        (* for the exception *)
         ignore (float_of_string str) ;
         match String.split ~on:"." str with
         | [whole; fraction] ->
@@ -455,6 +455,10 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
+(** patternToToken takes a match pattern `p` and converts it to a list of
+    fluidTokens.
+
+    ~idx is the zero-based index of the pattern in the enclosing match *)
 let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
   match p with
   | FPVariable (mid, id, name) ->
@@ -2474,8 +2478,27 @@ let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
       {astRef = ARIf (id, IPIfKeyword); offset = 0}
   | Some (EMatch (id, _, _)) ->
       {astRef = ARMatch (id, MPKeyword); offset = 0}
-  | _ ->
-      (* FIXME(ds) should be None to make exhaustive match *)
+  | Some (EBinOp _)
+  | Some (EFnCall _)
+  | Some (ELambda _)
+  | Some (EFieldAccess _)
+  | Some (EVariable _)
+  | Some (EPartial _)
+  | Some (ERightPartial _)
+  | Some (EList _)
+  | Some (ERecord _)
+  | Some (EPipe _)
+  | Some (EConstructor _)
+  | Some (EPipeTarget _)
+  | Some (EFeatureFlag _)
+  | Some (EOldExpr _) ->
+      recover
+        ( "unhandled expr with id "
+        ^ deID id
+        ^ " in caretTargetForBeginningOfExpr" )
+        expr
+        {astRef = ARInvalid; offset = 0}
+  | None ->
       recover
         ( "expr with id "
         ^ deID id
@@ -2484,8 +2507,8 @@ let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
         {astRef = ARInvalid; offset = 0}
 
 
-(** addMatchPatternAt adds a new match row (FPBlank) into the EMatch with
-    `matchId` at `idx`.
+(** addMatchPatternAt adds a new match row (FPBlank, EBlank) into the EMatch
+    with `matchId` at `idx`.
 
     Returns a new ast and fluidState with the action recorded. *)
 let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
@@ -2756,12 +2779,15 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
     details. If the flag is not passed, the pipe target is the expression as
     given.
 
-    Will place the caret into the new EBlank created as the first pipe expression.
-
-    Returns a new ast and fluidState.
+    Returns a new ast, fluidState, and the id of the EBlank created as the
+    first pipe expression (if the pipe was successfully added).
     *)
 let createPipe ~(findParent : bool) (id : id) (ast : ast) (s : state) :
-    ast * state =
+    ast * state * id option =
+  let action =
+    Printf.sprintf "createPipe(id=%s findParent=%B)" (deID id) findParent
+  in
+  let s = recordAction action s in
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
@@ -2770,15 +2796,12 @@ let createPipe ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   in
   match exprToReplace with
   | None ->
-      (ast, s)
+      (ast, s, None)
   | Some expr ->
       let blankId = gid () in
-      let pipeChild = EBlank blankId in
-      let newExpr = EPipe (gid (), [expr; pipeChild]) in
+      let newExpr = EPipe (gid (), [expr; EBlank blankId]) in
       let ast = replaceExpr (eid expr) ast ~newExpr in
-      let ct = {astRef = ARBlank blankId; offset = 0} in
-      let s = {s with newPos = posFromCaretTarget s ast ct} in
-      (ast, s)
+      (ast, s, Some blankId)
 
 
 let updateFromACItem
@@ -3765,7 +3788,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           let startPos, endPos = fluidGetSelectionRange s in
           let findParent = startPos = endPos in
           let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
-          Option.map topmostID ~f:(fun id -> createPipe ~findParent id ast s)
+          Option.map topmostID ~f:(fun id ->
+              let ast, s, blankId = createPipe ~findParent id ast s in
+              match blankId with
+              | None ->
+                  (ast, s)
+              | Some id ->
+                  let ct = {astRef = ARBlank id; offset = 0} in
+                  (ast, {s with newPos = posFromCaretTarget s ast ct}) )
           |> Option.withDefault ~default:(ast, s)
         in
         ( match left with
@@ -3944,7 +3974,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * In the special case of the special case where we're actually at the
      * beginning of the next line _following_ the construct, then we actually
      * want to add a let, not continue the construct. These are the index vs
-     * length checks in each case. *)
+     * length checks in each case.
+     *
+     * Keep in mind this is the newline that _ends the previous line_, which means
+     * in each case the idx is one more than the number of elements in the construct.
+     * Eg, a match with 2 rows will have idx=3 here.
+     *)
     | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
         let addLetAboveRightToken () : ast * state =
           let id = FluidToken.tid rTok in
@@ -3954,6 +3989,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         in
         ( match findExpr parentId ast with
         | Some (EMatch (_, _, exprs)) ->
+            (* if a match has n rows, the last newline has idx=(n+1) *)
             if idx = List.length exprs
             then addLetAboveRightToken ()
             else
@@ -3964,7 +4000,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               in
               (ast, {s with newPos = posFromCaretTarget s ast ct})
         | Some (EPipe (_, exprs)) ->
-            (* idx+1 since the initial expression is idx=0 *)
+            (* exprs[0] is the initial value of the pipeline, but the indexing
+             * is zero-based starting at exprs[1] (it indexes the _pipes
+             * only_), so need idx+1 here to counteract. *)
             if idx + 1 = List.length exprs
             then addLetAboveRightToken ()
             else
@@ -3975,7 +4013,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               in
               (ast, {s with newPos = posFromCaretTarget s ast ct})
         | Some (ERecord _) ->
-            (* no length special-case needed. *)
+            (* No length special-case needed because records do not emit a
+             * TNewline with index after the final '}'. In this case, we
+             * actually hit the next match case instead. *)
             let ast = addRecordRowAt idx parentId ast in
             let ct =
               {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
