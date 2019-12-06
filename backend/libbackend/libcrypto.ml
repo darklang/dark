@@ -55,8 +55,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Password::check"]
     ; ins = []
     ; p = [par "existingpwr" TPassword; par "rawpw" TStr]
@@ -77,8 +76,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Crypto::sha256"]
     ; ins = []
     ; p = [par "data" TBytes]
@@ -95,8 +93,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Crypto::sha384"]
     ; ins = []
     ; p = [par "data" TBytes]
@@ -113,8 +110,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Crypto::sha256hmac"]
     ; ins = []
     ; p = [par "key" TBytes; par "data" TBytes]
@@ -131,5 +127,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

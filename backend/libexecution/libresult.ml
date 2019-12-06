@@ -22,8 +22,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Result::map_v1"]
     ; ins = []
     ; p = [par "result" TResult; func ["val"]]
@@ -42,8 +41,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Result::mapError"]
     ; ins = []
     ; p = [par "result" TResult; func ["val"]]
@@ -62,8 +60,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Result::mapError_v1"]
     ; ins = []
     ; p = [par "result" TResult; func ["val"]]
@@ -82,8 +79,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Result::withDefault"]
     ; ins = []
     ; p = [par "result" TResult; par "default" TAny]
@@ -98,8 +94,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Result::fromOption"]
     ; ins = []
     ; p = [par "option" TOption; par "error" TStr]
@@ -118,8 +113,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Result::fromOption_v1"]
     ; ins = []
     ; p = [par "option" TOption; par "error" TStr]
@@ -143,8 +137,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Result::toOption"]
     ; ins = []
     ; p = [par "result" TResult]
@@ -162,8 +155,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Result::toOption_v1"]
     ; ins = []
     ; p = [par "result" TResult]
@@ -181,8 +173,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Result::andThen"]
     ; ins = []
     ; p = [par "result" TResult; func ["val"]]
@@ -208,8 +199,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Result::andThen_v1"]
     ; ins = []
     ; p = [par "result" TResult; func ["val"]]
@@ -237,5 +227,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

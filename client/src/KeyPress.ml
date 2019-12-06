@@ -135,14 +135,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then NoChange
               else
                 RPC
-                  ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
+                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                   , FocusExact (tlid, B.toID blank) )
           | Some (PVarBind _) ->
             ( match AST.findParentOfWithin_ id h.ast with
             | Some (F (_, Lambda (_, _))) ->
                 let replacement = AST.addLambdaBlank id h.ast in
                 RPC
-                  ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
+                  ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                   , FocusNext (tlid, Some id) )
             | _ ->
                 NoChange )
@@ -151,12 +151,12 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 AST.addObjectLiteralBlanks id h.ast
               in
               RPC
-                ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
+                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                 , FocusExact (tlid, nextid) )
           | Some (PPattern _) ->
               let nextid, _, replacement = AST.addPatternBlanks id h.ast in
               RPC
-                ( [SetHandler (tlid, h.pos, { h with ast = replacement })]
+                ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                 , FocusExact (tlid, nextid) )
           | _ ->
               NoChange )
@@ -173,14 +173,14 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then NoChange
               else
                 RPC
-                  ( [SetFunction { f with ufAST = replacement }]
+                  ( [SetFunction {f with ufAST = replacement}]
                   , FocusExact (tlid, B.toID blank) )
           | Some (PVarBind _) ->
             ( match AST.findParentOfWithin_ id f.ufAST with
             | Some (F (_, Lambda (_, _))) ->
                 let replacement = AST.addLambdaBlank id f.ufAST in
                 RPC
-                  ( [SetFunction { f with ufAST = replacement }]
+                  ( [SetFunction {f with ufAST = replacement}]
                   , FocusNext (tlid, Some id) )
             | _ ->
                 NoChange )
@@ -189,7 +189,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 AST.addObjectLiteralBlanks id f.ufAST
               in
               RPC
-                ( [SetFunction { f with ufAST = replacement }]
+                ( [SetFunction {f with ufAST = replacement}]
                 , FocusExact (tlid, nextid) )
           | Some (PParamTipe _) | Some (PParamName _) | Some (PFnName _) ->
               Refactor.addFunctionParameter m f id
@@ -427,10 +427,8 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               then
                 let c = m.complete in
                 (* big hack to for Entry.submit to see field access *)
-                let newC =
-                  { c with value = AC.getValue c ^ "."; index = -1 }
-                in
-                let newM = { m with complete = newC } in
+                let newC = {c with value = AC.getValue c ^ "."; index = -1} in
+                let newM = {m with complete = newC} in
                 Entry.submit newM cursor Entry.GotoNext
               else NoChange
           | Key.Escape ->
@@ -448,8 +446,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                       (* TODO: in this case, when filling a keyname on an
                            * object, nothing happens which is unexpected *)
                       RPC
-                        ( [ SetHandler
-                              (tlid, h.pos, { h with ast = replacement }) ]
+                        ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                         , FocusNext (tlid, None) )
                 | _ ->
                     Many [Select (tlid, Some p); AutocompleteMod ACReset] ) )

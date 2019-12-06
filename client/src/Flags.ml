@@ -12,8 +12,7 @@ let parameter j : parameter =
   ; paramTipe = field "tipe" (string >> Runtime.str2tipe) j
   ; paramBlock_args = field "block_args" (list string) j
   ; paramOptional = field "optional" bool j
-  ; paramDescription = field "description" string j
-  }
+  ; paramDescription = field "description" string j }
 
 
 let function_ j : function_ =
@@ -24,8 +23,7 @@ let function_ j : function_ =
   ; fnReturnTipe = field "return_type" (string >> Runtime.str2tipe) j
   ; fnPreviewExecutionSafe = field "preview_execution_safe" bool j
   ; fnDeprecated = field "deprecated" bool j
-  ; fnInfix = field "infix" bool j
-  }
+  ; fnInfix = field "infix" bool j }
 
 
 type flags =
@@ -36,8 +34,7 @@ type flags =
   ; csrfToken : string
   ; isAdmin : bool
   ; buildHash : string
-  ; username : string
-  }
+  ; username : string }
 
 let fromString (strJ : string) : flags =
   let open Json_decode_extended in
@@ -49,5 +46,4 @@ let fromString (strJ : string) : flags =
   ; csrfToken = field "csrfToken" string j
   ; isAdmin = field "isAdmin" bool j
   ; buildHash = field "buildHash" string j
-  ; username = field "username" string j
-  }
+  ; username = field "username" string j }

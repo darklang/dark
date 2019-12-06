@@ -35,8 +35,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Option::map_v1"]
     ; ins = []
     ; p = [par "option" TOption; func ["val"]]
@@ -55,8 +54,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Option::andThen"]
     ; ins = []
     ; p = [par "option" TOption; func ["val"]]
@@ -82,8 +80,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Option::withDefault"]
     ; ins = []
     ; p = [par "option" TOption; par "default" TAny]
@@ -98,5 +95,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

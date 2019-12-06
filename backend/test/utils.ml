@@ -212,7 +212,7 @@ let nameid = Int63.of_int 17
 
 let nameid2 = Int63.of_int 217
 
-let pos = { x = 0; y = 0 }
+let pos = {x = 0; y = 0}
 
 let execution_id = Int63.of_int 6542
 
@@ -225,9 +225,7 @@ let handler ?(tlid = tlid) ast : HandlerT.handler =
       { module_ = b ()
       ; name = b ()
       ; modifier = b ()
-      ; types = { input = b (); output = b () }
-      }
-  }
+      ; types = {input = b (); output = b ()} } }
 
 
 let http_handler ?(tlid = tlid) ast : HandlerT.handler =
@@ -237,9 +235,7 @@ let http_handler ?(tlid = tlid) ast : HandlerT.handler =
       { module_ = f "HTTP"
       ; name = f "/test"
       ; modifier = f "GET"
-      ; types = { input = b (); output = b () }
-      }
-  }
+      ; types = {input = b (); output = b ()} } }
 
 
 let http_request_path = "/some/vars/and/such"
@@ -254,9 +250,7 @@ let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
       { module_ = f "HTTP"
       ; name = f route
       ; modifier = f "GET"
-      ; types = { input = b (); output = b () }
-      }
-  }
+      ; types = {input = b (); output = b ()} } }
 
 
 let daily_cron ast : HandlerT.handler =
@@ -266,9 +260,7 @@ let daily_cron ast : HandlerT.handler =
       { module_ = f "CRON"
       ; name = f "test"
       ; modifier = f "Daily"
-      ; types = { input = b (); output = b () }
-      }
-  }
+      ; types = {input = b (); output = b ()} } }
 
 
 let worker name ast : HandlerT.handler =
@@ -278,9 +270,7 @@ let worker name ast : HandlerT.handler =
       { module_ = f "WORKER"
       ; name = f name
       ; modifier = f "_"
-      ; types = { input = b (); output = b () }
-      }
-  }
+      ; types = {input = b (); output = b ()} } }
 
 
 let hop h = Op.SetHandler (tlid, pos, h)
@@ -296,19 +286,16 @@ let user_fn name params ast : user_fn =
               ; tipe = f TAny
               ; block_args = []
               ; optional = false
-              ; description = "test"
-              })
+              ; description = "test" })
       ; return_type = f TAny
       ; description = "test user fn"
-      ; infix = false
-      }
-  }
+      ; infix = false } }
 
 
 let fop f = Op.SetFunction f
 
 let user_record name fields : user_tipe =
-  { tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields }
+  {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
 
 
 let t4_get1st (x, _, _, _) = x
@@ -383,8 +370,7 @@ let execute_ops
         ; user_fns
         ; user_tipes
         ; account_id
-        ; canvas_id
-        }
+        ; canvas_id }
       , input_vars ) =
     test_execution_data ~trace_id ops
   in

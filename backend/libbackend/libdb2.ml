@@ -25,8 +25,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::add_v0"]
     ; ins = []
     ; p = [par "val" TObj; par "table" TDB]
@@ -44,8 +43,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::get_v1"]
     ; ins = []
     ; p = [par "key" TStr; par "table" TDB]
@@ -67,8 +65,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::get_v2"]
     ; ins = []
     ; p = [par "key" TStr; par "table" TDB]
@@ -90,8 +87,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::getMany_v1"]
     ; ins = []
     ; p = [par "keys" TList; par "table" TDB]
@@ -120,8 +116,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::getMany_v2"]
     ; ins = []
     ; p = [par "keys" TList; par "table" TDB]
@@ -149,8 +144,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::getManyWithKeys"]
     ; ins = []
     ; p = [par "keys" TList; par "table" TDB]
@@ -179,8 +173,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::getManyWithKeys_v1"]
     ; ins = []
     ; p = [par "keys" TList; par "table" TDB]
@@ -208,8 +201,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::delete_v1"]
     ; ins = []
     ; p = [par "key" TStr; par "table" TDB]
@@ -226,8 +218,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::deleteAll_v1"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -243,8 +234,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::query_v1"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -264,8 +254,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true (* see query_v2 *)
-    }
+    ; dep = true (* see query_v2 *) }
   ; { pns = ["DB::query_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -283,8 +272,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::query_v3"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -302,8 +290,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::queryWithKey_v1"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -323,8 +310,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::queryWithKey_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -341,8 +327,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::queryOne_v1"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -365,8 +350,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::queryOne_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -389,8 +373,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::queryOneWithKey_v1"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -413,8 +396,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::queryOneWithKey_v2"]
     ; ins = []
     ; p = [par "spec" TObj; par "table" TDB]
@@ -437,8 +419,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::getAll_v1"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -458,8 +439,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::getAll_v2"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -476,8 +456,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::getAll_v3"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -494,8 +473,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::getAllWithKeys_v1"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -515,8 +493,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DB::getAllWithKeys_v2"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -532,8 +509,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::count"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -548,8 +524,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; (* previously called `DB::keys` *)
     { pns = ["DB::schemaFields_v1"]
     ; ins = []
@@ -567,8 +542,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::schema_v1"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -586,8 +560,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::generateKey"]
     ; ins = []
     ; p = []
@@ -601,8 +574,7 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DB::keys_v1"]
     ; ins = []
     ; p = [par "table" TDB]
@@ -620,5 +592,4 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

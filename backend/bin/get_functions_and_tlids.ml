@@ -74,8 +74,7 @@ type fn =
   { host : string
   ; handler : string
   ; tlid : string
-  ; fnname : RTT.fnname
-  }
+  ; fnname : RTT.fnname }
 
 let pairs_of_fn (fn : fn) : (string * string) list =
   [ ("host", fn.host)
@@ -109,8 +108,7 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
                   { host = !canvas.host
                   ; handler = handler_name handler
                   ; tlid = Types.string_of_id handler.tlid
-                  ; fnname
-                  }) ))
+                  ; fnname }) ))
 
 
 (*

@@ -27,8 +27,7 @@ type exception_ =
   ; resultType : string option
   ; expected : string option
   ; info : string StrDict.t
-  ; workarounds : string list
-  }
+  ; workarounds : string list }
 
 (* ---------------------- *)
 (* Basic types *)
@@ -40,7 +39,7 @@ and id = ID of string
 and 'a blankOr =
   | Blank of id
   | F of id * 'a
-[@@deriving show { with_path = false }]
+[@@deriving show {with_path = false}]
 
 module TLID = struct
   type t = tlid
@@ -119,18 +118,15 @@ module IDPairSet = Tc.Set (IDPair)
 (* TODO: Can we depreciate VPos? *)
 type pos =
   { x : int
-  ; y : int
-  }
+  ; y : int }
 
 and vPos =
   { vx : int
-  ; vy : int
-  }
+  ; vy : int }
 
 and size =
   { w : int
-  ; h : int
-  }
+  ; h : int }
 
 and box = pos * size
 
@@ -279,15 +275,13 @@ and handlerModifer = string
 and usage =
   { usedIn : tlid
   ; refersTo : tlid
-  ; id : id
-  }
+  ; id : id }
 
 (* handlers *)
 and handlerSpec =
   { space : handlerSpaceName blankOr
   ; name : handlerName blankOr
-  ; modifier : handlerModifer blankOr
-  }
+  ; modifier : handlerModifer blankOr }
 
 and handlerSpace =
   | HSHTTP
@@ -300,16 +294,14 @@ and handler =
   { ast : expr
   ; spec : handlerSpec
   ; hTLID : tlid
-  ; pos : pos
-  }
+  ; pos : pos }
 
 (* groups *)
 and group =
   { gName : string blankOr
   ; gTLID : tlid
   ; members : tlid list
-  ; pos : pos
-  }
+  ; pos : pos }
 
 (* dbs *)
 and dbName = string
@@ -332,8 +324,7 @@ and dbMigration =
   ; state : dbMigrationState
   ; rollforward : expr
   ; rollback : expr
-  ; cols : dbColumn list
-  }
+  ; cols : dbColumn list }
 
 and db =
   { dbTLID : tlid
@@ -342,8 +333,7 @@ and db =
   ; version : int
   ; oldMigrations : dbMigration list
   ; activeMigration : dbMigration option
-  ; pos : pos
-  }
+  ; pos : pos }
 
 (* userFunctions *)
 and userFunctionParameter =
@@ -351,27 +341,23 @@ and userFunctionParameter =
   ; ufpTipe : tipe blankOr
   ; ufpBlock_args : string list
   ; ufpOptional : bool
-  ; ufpDescription : string
-  }
+  ; ufpDescription : string }
 
 and userFunctionMetadata =
   { ufmName : string blankOr
   ; ufmParameters : userFunctionParameter list
   ; ufmDescription : string
   ; ufmReturnTipe : tipe blankOr
-  ; ufmInfix : bool
-  }
+  ; ufmInfix : bool }
 
 and userFunction =
   { ufTLID : tlid
   ; ufMetadata : userFunctionMetadata
-  ; ufAST : expr
-  }
+  ; ufAST : expr }
 
 and userRecordField =
   { urfName : string blankOr
-  ; urfTipe : tipe blankOr
-  }
+  ; urfTipe : tipe blankOr }
 
 and userTipeDefinition = UTRecord of userRecordField list
 
@@ -379,8 +365,7 @@ and userTipe =
   { utTLID : tlid
   ; utName : string blankOr
   ; utVersion : int
-  ; utDefinition : userTipeDefinition
-  }
+  ; utDefinition : userTipeDefinition }
 
 (* toplevels *)
 and toplevel =
@@ -440,8 +425,7 @@ and mouseEvent =
   ; altKey : bool
   ; ctrlKey : bool
   ; shiftKey : bool
-  ; detail : int
-  }
+  ; detail : int }
 
 and isLeftButton = bool
 
@@ -494,8 +478,7 @@ and functionResult =
   ; callerID : id
   ; argHash : string
   ; argHashVersion : int
-  ; value : dval
-  }
+  ; value : dval }
 
 and fetchRequest =
   | TraceFetch of getTraceDataRPCParams
@@ -518,16 +501,14 @@ and fetchContext =
   { canvasName : string
   ; csrfToken : string
   ; origin : string
-  ; prefix : string
-  }
+  ; prefix : string }
 
 and traceID = string
 
 and traceData =
   { input : inputValueDict
   ; timestamp : string
-  ; functionResults : functionResult list
-  }
+  ; functionResults : functionResult list }
 
 and trace = traceID * traceData option
 
@@ -538,8 +519,7 @@ and fourOhFour =
   ; path : string
   ; modifier : string
   ; timestamp : string
-  ; traceID : string
-  }
+  ; traceID : string }
 
 and deployStatus =
   | Deploying
@@ -549,20 +529,17 @@ and staticDeploy =
   { deployHash : string
   ; url : string
   ; lastUpdate : Js.Date.t [@opaque]
-  ; status : deployStatus
-  }
+  ; status : deployStatus }
 
 and dbStats =
   { count : int
-  ; example : (dval * string) option
-  }
+  ; example : (dval * string) option }
 
 and dbStatsStore = dbStats StrDict.t
 
 and workerStats =
   { count : int
-  ; schedule : string option
-  }
+  ; schedule : string option }
 
 (* ------------------- *)
 (* ops *)
@@ -613,36 +590,31 @@ and sendPresenceParams = avatarModelMessage
 and addOpRPCParams =
   { ops : op list
   ; opCtr : int option
-  ; clientOpCtrId : string
-  }
+  ; clientOpCtrId : string }
 
 and executeFunctionRPCParams =
   { efpTLID : tlid
   ; efpTraceID : traceID
   ; efpCallerID : id
   ; efpArgs : dval list
-  ; efpFnName : string
-  }
+  ; efpFnName : string }
 
 and triggerHandlerRPCParams =
   { thTLID : tlid
   ; thTraceID : traceID
-  ; thInput : inputValueDict
-  }
+  ; thInput : inputValueDict }
 
 and getTraceDataRPCParams =
   { gtdrpTlid : tlid
-  ; gtdrpTraceID : traceID
-  }
+  ; gtdrpTraceID : traceID }
 
-and dbStatsRPCParams = { dbStatsTlids : tlid list }
+and dbStatsRPCParams = {dbStatsTlids : tlid list}
 
-and workerStatsRPCParams = { workerStatsTlid : tlid }
+and workerStatsRPCParams = {workerStatsTlid : tlid}
 
 and updateWorkerScheduleRPCParams =
   { workerName : string
-  ; schedule : string
-  }
+  ; schedule : string }
 
 and performHandlerAnalysisParams =
   { handler : handler
@@ -650,8 +622,7 @@ and performHandlerAnalysisParams =
   ; traceData : traceData
   ; dbs : db list
   ; userFns : userFunction list
-  ; userTipes : userTipe list
-  }
+  ; userTipes : userTipe list }
 
 and performFunctionAnalysisParams =
   { func : userFunction
@@ -659,8 +630,7 @@ and performFunctionAnalysisParams =
   ; traceData : traceData
   ; dbs : db list
   ; userFns : userFunction list
-  ; userTipes : userTipe list
-  }
+  ; userTipes : userTipe list }
 
 and performAnalysisParams =
   | AnalyzeHandler of performHandlerAnalysisParams
@@ -679,8 +649,7 @@ and delete404RPCParams = fourOhFour
 and account =
   { name : string
   ; email : string
-  ; username : string
-  }
+  ; username : string }
 
 (* results *)
 and addOpRPCResult =
@@ -691,13 +660,11 @@ and addOpRPCResult =
   ; userFunctions : userFunction list
   ; deletedUserFunctions : userFunction list
   ; userTipes : userTipe list
-  ; deletedUserTipes : userTipe list
-  }
+  ; deletedUserTipes : userTipe list }
 
 and addOpStrollerMsg =
   { result : addOpRPCResult
-  ; params : addOpRPCParams
-  }
+  ; params : addOpRPCParams }
 
 and dvalArgsHash = string
 
@@ -710,7 +677,7 @@ and unlockedDBs = StrSet.t
 
 and getUnlockedDBsRPCResult = unlockedDBs
 
-and getTraceDataRPCResult = { trace : trace }
+and getTraceDataRPCResult = {trace : trace}
 
 and dbStatsRPCResult = dbStatsStore
 
@@ -734,8 +701,7 @@ and initialLoadRPCResult =
   ; groups : group list
   ; deletedGroups : group list
   ; account : account
-  ; worker_schedules : string StrDict.t
-  }
+  ; worker_schedules : string StrDict.t }
 
 and saveTestRPCResult = string
 
@@ -748,8 +714,7 @@ and parameter =
   ; paramTipe : tipe
   ; paramBlock_args : string list
   ; paramOptional : bool
-  ; paramDescription : string
-  }
+  ; paramDescription : string }
 
 and function_ =
   { fnName : string
@@ -758,8 +723,7 @@ and function_ =
   ; fnReturnTipe : tipe
   ; fnPreviewExecutionSafe : bool
   ; fnDeprecated : bool
-  ; fnInfix : bool
-  }
+  ; fnInfix : bool }
 
 (* autocomplete items *)
 and literal = string
@@ -787,8 +751,7 @@ and command =
   { commandName : string
   ; action : model -> toplevel -> pointerData -> modification
   ; doc : string
-  ; shortcut : string
-  }
+  ; shortcut : string }
 
 and omniAction =
   | NewDB of dbName option
@@ -846,8 +809,7 @@ and autocomplete =
   ; target : target option
   ; targetDval : dval option
   ; isCommandMode : bool
-  ; visible : bool
-  }
+  ; visible : bool }
 
 and autocompleteMod =
   | ACSetQuery of string
@@ -913,8 +875,7 @@ and focus =
 
 and toast =
   { toastMessage : string option
-  ; toastPos : vPos option
-  }
+  ; toastPos : vPos option }
 
 and isTransitionAnimated =
   | AnimateTransition
@@ -925,8 +886,7 @@ and canvasProps =
   ; enablePan : bool
   ; lastOffset : pos option
   ; panAnimation : isTransitionAnimated
-  ; minimap : string option
-  }
+  ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
 
@@ -939,8 +899,7 @@ and apiError =
   ; originalError : httpError (* the Tea_http error *)
   ; requestParams : (Js.Json.t[@opaque]) option
   ; reload : bool
-  ; importance : errorImportance
-  }
+  ; importance : errorImportance }
 
 and modification =
   | HandleAPIError of apiError
@@ -1206,8 +1165,7 @@ and handlerProp =
        * the reference *)
       id list
   ; execution : exeState
-  ; showActions : bool
-  }
+  ; showActions : bool }
 
 and tlTraceIDs = traceID TLIDDict.t
 
@@ -1369,8 +1327,7 @@ and fluidTokenInfo =
   ; startPos : int
   ; endPos : int
   ; length : int
-  ; token : fluidToken
-  }
+  ; token : fluidToken }
 
 and fluidAutocompleteItem =
   | FACFunction of function_
@@ -1395,15 +1352,13 @@ and fluidAutocompleteState =
         (* ------------------------------- *)
   ; completions : fluidAutocompleteItem list
   ; invalidCompletions : fluidAutocompleteItem list
-  ; allCompletions : fluidAutocompleteItem list
-  }
+  ; allCompletions : fluidAutocompleteItem list }
 
 and fluidCommandState =
   { index : int
   ; commands : command list
   ; location : (tlid * fluidToken) option
-  ; filter : string option
-  }
+  ; filter : string option }
 
 and fluidState =
   { error : string option
@@ -1430,15 +1385,13 @@ and avatar =
   ; username : string
   ; email : string
   ; fullname : string option
-  ; browserId : string
-  }
+  ; browserId : string }
 
 and avatarModelMessage =
   { browserId : string
   ; tlid : tlid option
   ; canvasName : string
-  ; timestamp : float
-  }
+  ; timestamp : float }
 
 and model =
   { error : string option
@@ -1515,8 +1468,7 @@ and model =
   ; username : string
   ; account : account
   ; worker_schedules : string StrDict.t
-  ; searchCache : string TLIDDict.t
-  }
+  ; searchCache : string TLIDDict.t }
 
 (* Values that we serialize *)
 and serializableEditor =
@@ -1529,9 +1481,8 @@ and serializableEditor =
   ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
-  ; showTopbar : bool
-  }
-[@@deriving show { with_path = false }]
+  ; showTopbar : bool }
+[@@deriving show {with_path = false}]
 
 and permission =
   | Read
@@ -1656,5 +1607,4 @@ type astRef =
    drastically change the token stream. *)
 type caretTarget =
   { astRef : astRef
-  ; offset : int
-  }
+  ; offset : int }

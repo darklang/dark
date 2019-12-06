@@ -78,8 +78,7 @@ let () =
       ; paramTipe = t
       ; paramBlock_args = blockArgs
       ; paramOptional = opt
-      ; paramDescription = ""
-      }
+      ; paramDescription = "" }
     in
     let infixFn op tipe rtTipe =
       { fnName = op
@@ -88,8 +87,7 @@ let () =
       ; fnDescription = "Some infix function"
       ; fnPreviewExecutionSafe = true
       ; fnDeprecated = false
-      ; fnInfix = true
-      }
+      ; fnInfix = true }
     in
     { Defaults.defaultModel with
       analyses =
@@ -115,16 +113,14 @@ let () =
           ; fnDescription = "Add two ints"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "Int::sqrt"
           ; fnParameters = [fnParam "a" TInt false]
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "HttpClient::post_v4"
           ; fnParameters =
               [ fnParam "url" TStr false
@@ -135,16 +131,14 @@ let () =
           ; fnDescription = "Make blocking HTTP POST call to `uri`."
           ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "DB::getAll_v1"
           ; fnParameters = [fnParam "table" TDB false]
           ; fnReturnTipe = TList
           ; fnDescription = "get all"
           ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "Dict::map"
           ; fnParameters =
               [ fnParam "dict" TObj false
@@ -154,31 +148,27 @@ let () =
               "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "List::append"
           ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
           ; fnReturnTipe = TList
           ; fnDescription = "append list"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "List::empty"
           ; fnParameters = []
           ; fnReturnTipe = TList
           ; fnDescription = "empty list"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          } ]
-    }
+          ; fnInfix = false } ] }
   in
   let processMsg
       (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
-    let m = { m with handlers = Handlers.fromList [h] } in
+    let m = {m with handlers = Handlers.fromList [h]} in
     List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
         updateMsg
           m
@@ -189,8 +179,7 @@ let () =
              ; shiftKey = shiftHeld = ShiftHeld
              ; altKey = false
              ; metaKey = false
-             ; ctrlKey = false
-             })
+             ; ctrlKey = false })
           s)
   in
   let process
@@ -201,7 +190,7 @@ let () =
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
-    let s = { Defaults.defaultFluidState with ac = AC.reset m } in
+    let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     let ast = if clone then Fluid.clone ~state:s ast else ast in
     let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -210,7 +199,7 @@ let () =
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
       ast
-      |> toTokens { s with newPos = pos }
+      |> toTokens {s with newPos = pos}
       |> List.filter ~f:(fun ti ->
              FluidToken.isNewline ti.token && ti.startPos < pos)
       |> List.length
@@ -223,7 +212,7 @@ let () =
     in
     let pos = addWrapper pos in
     let selectionStart = Option.map selectionStart ~f:addWrapper in
-    let s = { s with oldPos = pos; newPos = pos; selectionStart } in
+    let s = {s with oldPos = pos; newPos = pos; selectionStart} in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
@@ -2927,22 +2916,22 @@ let () =
       let s = Defaults.defaultFluidState in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
-          expect (gridFor ~pos:116 tokens) |> toEqual { row = 2; col = 2 }) ;
+          expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2}) ;
       test "gridFor - 2" (fun () ->
-          expect (gridFor ~pos:70 tokens) |> toEqual { row = 0; col = 70 }) ;
+          expect (gridFor ~pos:70 tokens) |> toEqual {row = 0; col = 70}) ;
       test "gridFor - 3" (fun () ->
-          expect (gridFor ~pos:129 tokens) |> toEqual { row = 2; col = 15 }) ;
+          expect (gridFor ~pos:129 tokens) |> toEqual {row = 2; col = 15}) ;
       test "gridFor - start of line" (fun () ->
-          expect (gridFor ~pos:130 tokens) |> toEqual { row = 3; col = 0 }) ;
+          expect (gridFor ~pos:130 tokens) |> toEqual {row = 3; col = 0}) ;
       test "gridFor - in an indent" (fun () ->
-          expect (gridFor ~pos:158 tokens) |> toEqual { row = 5; col = 1 }) ;
+          expect (gridFor ~pos:158 tokens) |> toEqual {row = 5; col = 1}) ;
       test "gridFor - (reverse) in an indent" (fun () ->
           expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158) ;
       test "gridFor roundtrips" (fun () ->
           let poses = List.range 0 len in
           let newPoses =
             List.map poses ~f:(fun pos ->
-                let { row; col } = gridFor ~pos tokens in
+                let {row; col} = gridFor ~pos tokens in
                 posFor ~row ~col tokens)
           in
           expect poses |> toEqual newPoses) ;
@@ -3028,7 +3017,7 @@ let () =
              moveTo 14 s
              |> (fun s ->
                   let h = Fluid_utils.h ast in
-                  let m = { m with handlers = Handlers.fromList [h] } in
+                  let m = {m with handlers = Handlers.fromList [h]} in
                   updateAutocomplete m h.hTLID ast s)
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, s) ->
@@ -3219,8 +3208,7 @@ let () =
                   ; startCol = 0
                   ; startPos = 0
                   ; endPos = 6
-                  ; length = 6
-                  }
+                  ; length = 6 }
                 in
                 (L (token, ti), R (token, ti), None))) ;
       ()) ;

@@ -477,8 +477,7 @@ type keyEvent =
   ; altKey : bool
   ; metaKey : bool
   ; targetSelectionStart : int option
-  ; targetSelectionEnd : int option
-  }
+  ; targetSelectionEnd : int option }
 [@@deriving show]
 
 let keyEvent j =

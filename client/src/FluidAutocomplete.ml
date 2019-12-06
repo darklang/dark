@@ -55,7 +55,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | FACFunction { fnName } ->
+  | FACFunction {fnName} ->
       fnName
   | FACField name ->
       name
@@ -185,7 +185,7 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatiblePipeParam ({ fnParameters } : function_) (tipe : tipe) :
+let findCompatiblePipeParam ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
@@ -193,7 +193,7 @@ let findCompatiblePipeParam ({ fnParameters } : function_) (tipe : tipe) :
          if RT.isCompatible fst.paramTipe tipe then Some fst else None)
 
 
-let findParamByType ({ fnParameters } : function_) (tipe : tipe) :
+let findParamByType ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
@@ -325,7 +325,7 @@ let toQueryString (ti : tokenInfo) : string =
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
   let functions = allFunctions m in
-  { Defaults.defaultModel.fluidState.ac with functions }
+  {Defaults.defaultModel.fluidState.ac with functions}
 
 
 let init m = reset m
@@ -422,7 +422,7 @@ let generate
     | _ ->
         generateExprs m tl a ti
   in
-  { a with allCompletions = items }
+  {a with allCompletions = items}
 
 
 let filter
@@ -513,8 +513,7 @@ let refilter
     index
   ; query = Some (TL.id tl, ti)
   ; completions = newCompletions
-  ; invalidCompletions
-  }
+  ; invalidCompletions }
 
 
 let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
@@ -535,9 +534,7 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 let updateFunctions m : model =
   { m with
     fluidState =
-      { m.fluidState with
-        ac = { m.fluidState.ac with functions = allFunctions m }
-      }
+      {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
   }
 
 
@@ -551,7 +548,7 @@ let selectDown (a : autocomplete) : autocomplete =
       let max_ = numCompletions a in
       let max = max max_ 1 in
       let new_ = (index + 1) mod max in
-      { a with index = Some new_ }
+      {a with index = Some new_}
   | None ->
       a
 
@@ -560,7 +557,7 @@ let selectUp (a : autocomplete) : autocomplete =
   match a.index with
   | Some index ->
       let max = numCompletions a - 1 in
-      { a with index = Some (if index <= 0 then max else index - 1) }
+      {a with index = Some (if index <= 0 then max else index - 1)}
   | None ->
       a
 

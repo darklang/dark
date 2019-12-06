@@ -14,8 +14,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Bool::and"]
     ; ins = ["&&"]
     ; p = [par "a" TBool; par "b" TBool]
@@ -26,8 +25,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DBool a; DBool b] -> DBool (a && b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Bool::or"]
     ; ins = ["||"]
     ; p = [par "a" TBool; par "b" TBool]
@@ -38,8 +36,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DBool a; DBool b] -> DBool (a || b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Bool::isNull"]
     ; ins = []
     ; p = [par "check" TAny]
@@ -53,8 +50,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Bool::isError"]
     ; ins = []
     ; p = [par "check" TAny]
@@ -68,5 +64,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    } ]
+    ; dep = true } ]

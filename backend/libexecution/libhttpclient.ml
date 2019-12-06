@@ -20,8 +20,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::jsonContentType"]
     ; ins = []
     ; p = []
@@ -38,8 +37,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::plainTextContentType"]
     ; ins = []
     ; p = []
@@ -56,8 +54,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::htmlContentType"]
     ; ins = []
     ; p = []
@@ -74,8 +71,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::bearerToken"]
     ; ins = []
     ; p = [par "token" TStr]
@@ -94,5 +90,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

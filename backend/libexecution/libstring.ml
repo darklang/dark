@@ -25,8 +25,7 @@ let fns : Lib.shortfn list =
         "Iterate over each character (byte, not EGC) in the string, performing the operation in the block on each one"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::foreach_v1"]
     ; ins = []
     ; p = [par "s" TStr; func ["character"]]
@@ -67,8 +66,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::newline"]
     ; ins = []
     ; p = []
@@ -76,8 +74,7 @@ let fns : Lib.shortfn list =
     ; d = "Returns a string containing a single '\n'"
     ; f = InProcess (function _ -> DStr (Unicode_string.of_string_exn "\n"))
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toList"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -85,8 +82,7 @@ let fns : Lib.shortfn list =
     ; d = "Returns the list of characters (byte, not EGC) in the string"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toList_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -101,8 +97,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::replaceAll"]
     ; ins = []
     ; p = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
@@ -116,8 +111,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toInt"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -137,8 +131,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toInt_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -157,8 +150,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toFloat"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -177,8 +169,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toFloat_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -196,8 +187,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toUppercase"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -212,8 +202,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toUppercase_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -227,8 +216,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toLowercase"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -243,8 +231,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toLowercase_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -258,8 +245,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::length"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -273,8 +259,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::length_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -288,8 +273,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::append"]
     ; ins = ["++"]
     ; p = [par "s1" TStr; par "s2" TStr]
@@ -303,8 +287,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::slugify"]
     ; ins = []
     ; p = [par "string" TStr]
@@ -333,8 +316,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::reverse"]
     ; ins = []
     ; p = [par "string" TStr]
@@ -345,8 +327,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] -> DStr (Unicode_string.rev s) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::split"]
     ; ins = []
     ; p = [par "s" TStr; par "separator" TStr]
@@ -364,8 +345,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::join"]
     ; ins = []
     ; p = [par "l" TList; par "separator" TStr]
@@ -389,8 +369,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::fromList"]
     ; ins = []
     ; p = [par "l" TList]
@@ -398,8 +377,7 @@ let fns : Lib.shortfn list =
     ; d = "Returns the list of characters as a string"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::fromList_v1"]
     ; ins = []
     ; p = [par "l" TList]
@@ -420,8 +398,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::fromChar"]
     ; ins = []
     ; p = [par "c" TCharacter]
@@ -429,8 +406,7 @@ let fns : Lib.shortfn list =
     ; d = "Converts a char to a string"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::fromChar_v1"]
     ; ins = []
     ; p = [par "c" TCharacter]
@@ -444,8 +420,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::base64Encode"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -464,8 +439,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::base64Decode"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -495,8 +469,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::digest"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -513,8 +486,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::sha384"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -530,8 +502,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::sha256"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -547,8 +518,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::random"]
     ; ins = []
     ; p = [par "length" TInt]
@@ -566,8 +536,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::random_v1"]
     ; ins = []
     ; p = [par "length" TInt]
@@ -587,8 +556,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::random_v2"]
     ; ins = []
     ; p = [par "length" TInt]
@@ -607,8 +575,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::htmlEscape"]
     ; ins = []
     ; p = [par "html" TStr]
@@ -624,8 +591,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toUUID"]
     ; ins = []
     ; p = [par "uuid" TStr]
@@ -646,8 +612,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["String::toUUID_v1"]
     ; ins = []
     ; p = [par "uuid" TStr]
@@ -668,8 +633,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::isSubstring"]
     ; ins = []
     ; p = [par "searchingFor" TStr; par "lookingIn" TStr]
@@ -683,8 +647,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::trim"]
     ; ins = []
     ; p = [par "str" TStr]
@@ -699,8 +662,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["String::toBytes"]
     ; ins = []
     ; p = [par "str" TStr]
@@ -715,5 +677,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

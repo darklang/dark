@@ -85,8 +85,7 @@ type jSSide = Native.rect =
   ; top : int
   ; left : int
   ; right : int
-  ; bottom : int
-  }
+  ; bottom : int }
 
 and htmlSizing =
   { centerX : float
@@ -95,8 +94,7 @@ and htmlSizing =
   ; left : int
   ; right : int
   ; bottom : int
-  ; id : id
-  }
+  ; id : id }
 
 let jsToHtmlSizing (obj : jSSide) : htmlSizing =
   { centerX = float_of_int (obj.left + obj.right) /. 2.
@@ -105,8 +103,7 @@ let jsToHtmlSizing (obj : jSSide) : htmlSizing =
   ; left = obj.left
   ; right = obj.right
   ; bottom = obj.bottom
-  ; id = ID obj.id
-  }
+  ; id = ID obj.id }
 
 
 let tlToSizes (tlid : tlid) : htmlSizing list * htmlSizing list =
@@ -349,8 +346,7 @@ let maybeEnterFluid
     Many
       [ SetCursorState (FluidEntering tlid)
       ; TweakModel
-          (fun m -> { m with fluidState = { m.fluidState with newPos = 0 } })
-      ]
+          (fun m -> {m with fluidState = {m.fluidState with newPos = 0}}) ]
   in
   if VariantTesting.isFluid m.tests
   then

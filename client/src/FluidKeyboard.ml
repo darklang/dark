@@ -718,8 +718,7 @@ type keyEvent =
   ; shiftKey : bool
   ; ctrlKey : bool
   ; altKey : bool
-  ; metaKey : bool
-  }
+  ; metaKey : bool }
 [@@deriving show]
 
 let keyEvent j =
@@ -732,8 +731,7 @@ let keyEvent j =
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
-  ; metaKey = field "metaKey" bool j
-  }
+  ; metaKey = field "metaKey" bool j }
 
 
 let registerGlobal name key tagger =

@@ -18,14 +18,12 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
         { consumer_key = toStr "consumerKey"
         ; consumer_secret = toStr "consumerSecret"
         ; access_token = toStr "accessTokenKey"
-        ; access_token_secret = toStr "accessTokenSecret"
-        }
+        ; access_token_secret = toStr "accessTokenSecret" }
     | _ ->
         { consumer_key = ""
         ; consumer_secret = ""
         ; access_token = ""
-        ; access_token_secret = ""
-        }
+        ; access_token_secret = "" }
   in
   let authargs =
     args
@@ -102,8 +100,7 @@ let param2param (sw : Swagger.parameter) : param =
   ; optional = not sw.required
   ; block_args = []
   ; tipe = sw.dataType |> sw_type2dark
-  ; description = sw.description
-  }
+  ; description = sw.description }
 
 
 let auth_param : param =
@@ -136,5 +133,4 @@ let fns =
                 ; p = auth_param :: List.map ~f:param2param op.parameters
                 ; d = Base.Option.value ~default:"" op.summary
                 ; ps = false
-                ; dep = false
-                }))
+                ; dep = false }))

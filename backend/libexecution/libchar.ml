@@ -11,8 +11,7 @@ let fns : Lib.shortfn list =
     ; d = "Return `c`'s ASCII code"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Char::toASCIIChar"]
     ; ins = []
     ; p = [par "i" TInt]
@@ -20,8 +19,7 @@ let fns : Lib.shortfn list =
     ; d = "convert an int to an ASCII character"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Char::toLowercase"]
     ; ins = []
     ; p = [par "c" TCharacter]
@@ -29,8 +27,7 @@ let fns : Lib.shortfn list =
     ; d = "Return the lowercase value of `c`"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Char::toUppercase"]
     ; ins = []
     ; p = [par "c" TCharacter]
@@ -38,5 +35,4 @@ let fns : Lib.shortfn list =
     ; d = "Return the uppercase value of `c`"
     ; f = InProcess (fun _ -> Exception.code "This function no longer exists.")
     ; ps = true
-    ; dep = true
-    } ]
+    ; dep = true } ]

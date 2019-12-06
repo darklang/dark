@@ -8,24 +8,21 @@ let d2 =
   { deployHash = "abc123"
   ; url = ""
   ; lastUpdate = Js.Date.fromString "2019-01-02"
-  ; status = Deployed
-  }
+  ; status = Deployed }
 
 
 let d1 =
   { deployHash = "def456"
   ; url = ""
   ; lastUpdate = Js.Date.fromString "2019-01-01"
-  ; status = Deployed
-  }
+  ; status = Deployed }
 
 
 let d3 =
   { deployHash = "xyz789"
   ; url = ""
   ; lastUpdate = Js.Date.fromString "2019-01-03"
-  ; status = Deploying
-  }
+  ; status = Deploying }
 
 
 let originalList : staticDeploy list = [d2; d1; d3]
@@ -42,8 +39,7 @@ let () =
             { deployHash = "xyz789"
             ; url = ""
             ; lastUpdate = Js.Date.fromString "2019-01-04"
-            ; status = Deploying
-            }
+            ; status = Deploying }
           in
           let mergedList = [newDeploy; d2; d1] in
           expect (Ds.appendDeploy [newDeploy] originalList)

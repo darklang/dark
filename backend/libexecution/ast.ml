@@ -137,8 +137,7 @@ type engine =
   { trace : expr -> dval -> symtable -> unit
   ; trace_blank : string or_blank -> dval -> symtable -> unit
   ; trace_tlid : tlid -> unit
-  ; ctx : context
-  }
+  ; ctx : context }
 
 let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
@@ -620,7 +619,7 @@ and exec_fn
               DIncomplete (SourceId id)
         else
           let state =
-            { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
+            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
           in
           let result =
             try f (state, arglist) with
@@ -670,7 +669,7 @@ and exec_fn
               (* It's okay to execute user functions in both Preview and Real contexts,
                * But in Preview we might not have all the data we need *)
               state.store_fn_arguments tlid args ;
-              let state = { state with tlid } in
+              let state = {state with tlid} in
               let result = exec ~engine ~state args_with_dbs body in
               state.store_fn_result sfr_desc arglist result ;
               Dval.unwrap_from_errorrail result )
@@ -713,7 +712,7 @@ let analysis_engine value_store tlid_store : engine =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  { trace; trace_blank; trace_tlid; ctx = Preview }
+  {trace; trace_blank; trace_tlid; ctx = Preview}
 
 
 let execute_saving_intermediates
@@ -735,7 +734,7 @@ let execute_saving_intermediates
 let server_execution_engine tlid_store : engine =
   let empty_trace _ _ _ = () in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  { trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real }
+  {trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real}
 
 
 let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =

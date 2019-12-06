@@ -110,11 +110,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     if m.username = "ellen"
     then
       match tl with
-      | TLHandler { spec }
+      | TLHandler {spec}
         when Blank.toMaybe spec.name = Some "sendDM"
              || Blank.toMaybe spec.name = Some "sendText" ->
           "ellenDemoSendDMHack"
-      | TLDB { dbName } when Blank.toMaybe dbName = Some "Visits" ->
+      | TLDB {dbName} when Blank.toMaybe dbName = Some "Visits" ->
           "ellenDemoSendDMHack"
       | _ ->
           ""
@@ -410,7 +410,7 @@ let viewToast (t : toast) : msg Html.html =
   in
   let styleOverrides =
     match t.toastPos with
-    | Some { vx; vy } ->
+    | Some {vx; vy} ->
         Html.styles
           [ ("top", string_of_int (vy - 10) ^ "px")
           ; ("left", string_of_int (vx + 10) ^ "px") ]
@@ -452,7 +452,7 @@ let view (m : model) : msg Html.html =
     ; Html.onWithOptions
         ~key:"app-mu"
         "mouseup"
-        { stopPropagation = false; preventDefault = true }
+        {stopPropagation = false; preventDefault = true}
         (Decoders.wrapDecoder
            (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
   in

@@ -122,8 +122,7 @@ let () =
                    ; load_fn_result = (fun _ _ -> None)
                    ; load_fn_arguments = (fun _ -> [])
                    ; store_fn_result = (fun _ _ _ -> ())
-                   ; store_fn_arguments = (fun _ _ -> ())
-                   }
+                   ; store_fn_arguments = (fun _ _ -> ()) }
                  in
                  try
                    ignore (Libbackend.User_db.get_all ~state db) ;

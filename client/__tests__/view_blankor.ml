@@ -23,9 +23,7 @@ let () =
                   ; ufmParameters = []
                   ; ufmDescription = ""
                   ; ufmReturnTipe = Blank (gid ())
-                  ; ufmInfix = false
-                  }
-              }
+                  ; ufmInfix = false } }
           in
           let tl = tlFunc in
           let vs : ViewUtils.viewState =
@@ -46,8 +44,7 @@ let () =
                 ; target = None
                 ; targetDval = None
                 ; isCommandMode = false
-                ; visible = true
-                }
+                ; visible = true }
             ; showEntry = false
             ; showLivevalue = false
             ; dbLocked = false
@@ -70,8 +67,7 @@ let () =
             ; hoveringRefs = []
             ; avatarsList = []
             ; permission = Some ReadWrite
-            ; workerStats = None
-            }
+            ; workerStats = None }
           in
           expect (placeHolderFor vs id ParamName) |> toBe "param name") ;
       ()) ;

@@ -19,7 +19,7 @@ let html (_m : model) =
   then
     let url =
       let qp = "" in
-      let loc = { (Tea.Navigation.getLocation ()) with search = qp } in
+      let loc = {(Tea.Navigation.getLocation ()) with search = qp} in
       loc.protocol ^ "//" ^ loc.host ^ loc.pathname ^ loc.search ^ loc.hash
     in
     [ Html.div

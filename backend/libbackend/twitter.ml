@@ -4,8 +4,7 @@ type auth =
   { consumer_key : string
   ; consumer_secret : string
   ; access_token : string
-  ; access_token_secret : string
-  }
+  ; access_token_secret : string }
 
 let pct_encode_key = Uri.pct_encode ~component:`Userinfo
 

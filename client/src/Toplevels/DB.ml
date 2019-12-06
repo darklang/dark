@@ -8,15 +8,15 @@ module TD = TLIDDict
 let toID (db : db) : tlid = db.dbTLID
 
 let upsert (m : model) (db : db) : model =
-  { m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs }
+  {m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs}
 
 
 let update (m : model) ~(tlid : tlid) ~(f : db -> db) : model =
-  { m with dbs = TD.updateIfPresent ~tlid ~f m.dbs }
+  {m with dbs = TD.updateIfPresent ~tlid ~f m.dbs}
 
 
 let remove (m : model) (db : db) : model =
-  { m with dbs = TD.remove ~tlid:db.dbTLID m.dbs }
+  {m with dbs = TD.remove ~tlid:db.dbTLID m.dbs}
 
 
 let fromList (dbs : db list) : db TLIDDict.t =

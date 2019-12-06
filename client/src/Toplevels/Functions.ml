@@ -22,13 +22,11 @@ let upsert (m : model) (userFunction : userFunction) : model =
 
 let update (m : model) ~(tlid : tlid) ~(f : userFunction -> userFunction) :
     model =
-  { m with userFunctions = TD.updateIfPresent ~tlid ~f m.userFunctions }
+  {m with userFunctions = TD.updateIfPresent ~tlid ~f m.userFunctions}
 
 
 let remove (m : model) (userFunction : userFunction) : model =
-  { m with
-    userFunctions = TD.remove ~tlid:userFunction.ufTLID m.userFunctions
-  }
+  {m with userFunctions = TD.remove ~tlid:userFunction.ufTLID m.userFunctions}
 
 
 let fromList (ufs : userFunction list) : userFunction TLIDDict.t =
@@ -42,8 +40,7 @@ let ufpToP (ufp : userFunctionParameter) : parameter option =
       ; paramTipe = tipe
       ; paramBlock_args = ufp.ufpBlock_args
       ; paramOptional = ufp.ufpOptional
-      ; paramDescription = ufp.ufpDescription
-      }
+      ; paramDescription = ufp.ufpDescription }
       |> fun x -> Some x
   | _ ->
       None
@@ -60,8 +57,7 @@ let ufmToF (ufm : userFunctionMetadata) : function_ option =
       ; fnReturnTipe = tipe
       ; fnInfix = ufm.ufmInfix
       ; fnPreviewExecutionSafe = false
-      ; fnDeprecated = false
-      }
+      ; fnDeprecated = false }
       |> fun x -> Some x
   | _ ->
       None
@@ -97,11 +93,11 @@ let replaceFnName
     let newMetadata =
       match replacement with
       | PFnName new_ ->
-          { metadata with ufmName = B.replace sId new_ metadata.ufmName }
+          {metadata with ufmName = B.replace sId new_ metadata.ufmName}
       | _ ->
           metadata
     in
-    { uf with ufMetadata = newMetadata }
+    {uf with ufMetadata = newMetadata}
   else uf
 
 
@@ -131,9 +127,9 @@ let replaceParamName
           let newP =
             metadata.ufmParameters
             |> List.map ~f:(fun p ->
-                   { p with ufpName = B.replace sId new_ p.ufpName })
+                   {p with ufpName = B.replace sId new_ p.ufpName})
           in
-          { metadata with ufmParameters = newP }
+          {metadata with ufmParameters = newP}
       | _ ->
           metadata
     in
@@ -169,7 +165,7 @@ let replaceParamName
       | _ ->
           uf.ufAST
     in
-    { uf with ufMetadata = newMetadata; ufAST = newBody }
+    {uf with ufMetadata = newMetadata; ufAST = newBody}
   else uf
 
 
@@ -192,13 +188,13 @@ let replaceParamTipe
           let newP =
             metadata.ufmParameters
             |> List.map ~f:(fun p ->
-                   { p with ufpTipe = B.replace sId new_ p.ufpTipe })
+                   {p with ufpTipe = B.replace sId new_ p.ufpTipe})
           in
-          { metadata with ufmParameters = newP }
+          {metadata with ufmParameters = newP}
       | _ ->
           metadata
     in
-    { uf with ufMetadata = newMetadata }
+    {uf with ufMetadata = newMetadata}
   else uf
 
 
@@ -230,22 +226,21 @@ let extend (uf : userFunction) : userFunction =
     ; ufpTipe = B.new_ ()
     ; ufpBlock_args = []
     ; ufpOptional = false
-    ; ufpDescription = ""
-    }
+    ; ufpDescription = "" }
   in
   let metadata = uf.ufMetadata in
   let newMetadata =
-    { metadata with ufmParameters = uf.ufMetadata.ufmParameters @ [newParam] }
+    {metadata with ufmParameters = uf.ufMetadata.ufmParameters @ [newParam]}
   in
-  { uf with ufMetadata = newMetadata }
+  {uf with ufMetadata = newMetadata}
 
 
 let removeParameter (uf : userFunction) (ufp : userFunctionParameter) :
     userFunction =
   let metadata = uf.ufMetadata in
   let params = List.filter ~f:(fun p -> p <> ufp) metadata.ufmParameters in
-  let newM = { metadata with ufmParameters = params } in
-  { uf with ufMetadata = newM }
+  let newM = {metadata with ufmParameters = params} in
+  {uf with ufMetadata = newM}
 
 
 let findByNameInList (name : string) (functions : function_ list) : function_ =
@@ -259,8 +254,7 @@ let findByNameInList (name : string) (functions : function_ list) : function_ =
          ; fnReturnTipe = TError
          ; fnPreviewExecutionSafe = true
          ; fnInfix = false
-         ; fnDeprecated = false
-         }
+         ; fnDeprecated = false }
 
 
 let idOfLastBlankor (f : userFunction) : id =

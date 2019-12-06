@@ -31,8 +31,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["toRepr"]
     ; ins = []
     ; p = [par "v" TAny]
@@ -47,8 +46,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["equals"]
     ; ins = ["=="]
     ; p = [par "a" TAny; par "b" TAny]
@@ -58,8 +56,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function _, [a; b] -> DBool (equal_dval a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["notEquals"]
     ; ins = ["!="]
     ; p = [par "a" TAny; par "b" TAny]
@@ -70,8 +67,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [a; b] -> DBool (not (equal_dval a b)) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["assoc"]
     ; ins = []
     ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
@@ -85,8 +81,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["dissoc"]
     ; ins = []
     ; p = [par "obj" TObj; par "key" TStr]
@@ -100,8 +95,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["toForm"]
     ; ins = []
     ; p = [par "obj" TObj; par "submit" TStr]
@@ -139,8 +133,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Error::toString"]
     ; ins = []
     ; p = [par "err" TError]
@@ -154,8 +147,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["AWS::urlencode"]
     ; ins = []
     ; p = [par "str" TStr]
@@ -172,5 +164,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

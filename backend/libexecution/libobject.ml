@@ -12,8 +12,7 @@ let fns =
     ; f =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Object::merge"]
     ; ins = []
     ; p = [par "left" TObj; par "right" TObj]
@@ -28,8 +27,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Object::toJSON"]
     ; ins = []
     ; p = [par "obj" TObj]
@@ -45,8 +43,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Object::toJSON_v1"]
     ; ins = []
     ; p = [par "obj" TObj]
@@ -62,5 +59,4 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    } ]
+    ; dep = true } ]

@@ -29,8 +29,7 @@ type our_db_migration =
   ; state : DbT.db_migration_state
   ; rollforward : expr
   ; rollback : expr
-  ; cols : our_col list
-  }
+  ; cols : our_col list }
 [@@deriving of_yojson]
 
 type our_db =
@@ -39,8 +38,7 @@ type our_db =
   ; cols : our_col list
   ; version : int
   ; old_migrations : our_db_migration list
-  ; active_migration : our_db_migration option
-  }
+  ; active_migration : our_db_migration option }
 [@@deriving of_yojson]
 
 let convert_col ((name, tipe) : our_col) : DbT.col = (name, tipe)
@@ -51,8 +49,7 @@ let convert_migration (m : our_db_migration) : DbT.db_migration =
   ; state = m.state
   ; rollforward = m.rollforward
   ; rollback = m.rollback
-  ; cols = List.map ~f:convert_col m.cols
-  }
+  ; cols = List.map ~f:convert_col m.cols }
 
 
 let convert_db (db : our_db) : DbT.db =
@@ -61,8 +58,7 @@ let convert_db (db : our_db) : DbT.db =
   ; cols = List.map ~f:convert_col db.cols
   ; version = db.version
   ; old_migrations = List.map ~f:convert_migration db.old_migrations
-  ; active_migration = Option.map ~f:convert_migration db.active_migration
-  }
+  ; active_migration = Option.map ~f:convert_migration db.active_migration }
 
 
 type handler_analysis_param =
@@ -72,8 +68,7 @@ type handler_analysis_param =
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
-  ; user_tipes : user_tipe list
-  }
+  ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type function_analysis_param =
@@ -83,8 +78,7 @@ type function_analysis_param =
         (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
-  ; user_tipes : user_tipe list
-  }
+  ; user_tipes : user_tipe list }
 [@@deriving of_yojson]
 
 type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
@@ -143,7 +137,7 @@ let perform_analysis
 
 
 let perform_handler_analysis (str : string) : string =
-  let { handler; dbs; user_fns; user_tipes; trace_id; trace_data } =
+  let {handler; dbs; user_fns; user_tipes; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> handler_analysis_param_of_yojson
@@ -160,7 +154,7 @@ let perform_handler_analysis (str : string) : string =
 
 
 let perform_function_analysis (str : string) : string =
-  let { func; dbs; user_fns; user_tipes; trace_id; trace_data } =
+  let {func; dbs; user_fns; user_tipes; trace_id; trace_data} =
     str
     |> Yojson.Safe.from_string
     |> function_analysis_param_of_yojson

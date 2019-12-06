@@ -128,11 +128,10 @@ let fnView
 
 let renderView originalTLID direction (tl, originalIDs) =
   match tl with
-  | TLDB { dbTLID; dbName = F (_, name); cols } ->
+  | TLDB {dbTLID; dbName = F (_, name); cols} ->
       dbView originalTLID originalIDs dbTLID name cols direction
   | TLHandler
-      { hTLID; spec = { space = F (_, space); name = F (_, name); modifier } }
-    ->
+      {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}} ->
       handlerView
         originalTLID
         originalIDs
@@ -141,7 +140,7 @@ let renderView originalTLID direction (tl, originalIDs) =
         name
         (B.toMaybe modifier)
         direction
-  | TLFunc { ufTLID; ufMetadata = { ufmName = F (_, name); ufmParameters } } ->
+  | TLFunc {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters}} ->
       fnView originalTLID originalIDs ufTLID name ufmParameters direction
   | _ ->
       Vdom.noNode

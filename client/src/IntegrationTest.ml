@@ -184,8 +184,8 @@ let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (_, Variable "request"), Blank _) ->
     ( match m.complete.completions with
-    | [ ACVariable ("request", Some _)
-      ; ACFunction { fnName = "Http::badRequest" } ] ->
+    | [ACVariable ("request", Some _); ACFunction {fnName = "Http::badRequest"}]
+      ->
         pass
     | cs ->
         fail ~f:(show_list ~f:show_autocompleteItem) cs )
@@ -353,7 +353,7 @@ let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
 
 let rename_db_fields (m : model) : testResult =
   m.dbs
-  |> TD.mapValues ~f:(fun { cols } ->
+  |> TD.mapValues ~f:(fun {cols} ->
          match cols with
          | [ (F (_, "field6"), F (_, "String"))
            ; (F (_, "field2"), F (_, "String"))
@@ -371,7 +371,7 @@ let rename_db_fields (m : model) : testResult =
 
 let rename_db_type (m : model) : testResult =
   m.dbs
-  |> TD.mapValues ~f:(fun { cols; dbTLID } ->
+  |> TD.mapValues ~f:(fun {cols; dbTLID} ->
          match cols with
          (* this was previously an Int *)
          | [ (F (_, "field1"), F (_, "String"))
@@ -396,7 +396,7 @@ let rename_db_type (m : model) : testResult =
 
 let paste_right_number_of_blanks (m : model) : testResult =
   m.handlers
-  |> TD.mapValues ~f:(fun { ast } ->
+  |> TD.mapValues ~f:(fun {ast} ->
          match ast with
          | F (_, Thread [_; F (_, FnCall (F (_, "-"), [Blank _], _))]) ->
              pass
@@ -610,7 +610,7 @@ let object_literals_work (m : model) : testResult =
 
 let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
-  | Some { ast = F (_, FnCall (F (_, "hello"), _, _)) } ->
+  | Some {ast = F (_, FnCall (F (_, "hello"), _, _))} ->
       pass
   | other ->
       fail other

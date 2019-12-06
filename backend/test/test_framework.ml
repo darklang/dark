@@ -116,8 +116,7 @@ let t_trace_data_json_format_redacts_passwords () =
           , id
           , "foobar"
           , 0
-          , DPassword (PasswordBytes.of_string "redactme2") ) ]
-    }
+          , DPassword (PasswordBytes.of_string "redactme2") ) ] }
   in
   let expected : Analysis_types.trace_data =
     { input = [("event", DPassword (PasswordBytes.of_string "Redacted"))]
@@ -127,8 +126,7 @@ let t_trace_data_json_format_redacts_passwords () =
           , id
           , "foobar"
           , 0
-          , DPassword (PasswordBytes.of_string "Redacted") ) ]
-    }
+          , DPassword (PasswordBytes.of_string "Redacted") ) ] }
   in
   trace_data
   |> Analysis_types.trace_data_to_yojson
@@ -310,7 +308,7 @@ let t_function_traces_are_stored () =
   clear_test_data () ;
   let fntlid : tlid = id_of_int 12312345234 in
   let f = user_fn "test_fn" [] (ast_for "(DB::generateKey)") in
-  let f = { f with tlid = fntlid } in
+  let f = {f with tlid = fntlid} in
   let h = handler (ast_for "(test_fn)") in
   let host = "test" in
   let owner = Account.for_host_exn host in

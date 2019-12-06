@@ -58,8 +58,7 @@ let fns : Lib.shortfn list =
     ; d = "TODO"
     ; f = internal_fn (fun _ -> DNull)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::endUsers"]
     ; ins = []
     ; p = []
@@ -85,8 +84,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::checkAllCanvases"]
     ; ins = []
     ; p = []
@@ -94,8 +92,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; d = "TODO"
     ; f = internal_fn (fun _ -> DNull)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DarkInternal::migrateAllCanvases"]
     ; ins = []
     ; p = []
@@ -106,8 +103,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             Canvas.migrate_all_hosts () ;
             DNull)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::cleanupOldTraces"]
     ; ins = []
     ; p = []
@@ -115,8 +111,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; d = "Deprecated, use v1"
     ; f = internal_fn (fun _ -> DNull)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DarkInternal::cleanupOldTraces_v1"]
     ; ins = []
     ; p = []
@@ -129,8 +124,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::checkCanvas"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -146,8 +140,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::upsertUser"]
     ; ins = []
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
@@ -169,8 +162,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DarkInternal::upsertUser_v1"]
     ; ins = []
     ; p = [par "username" TStr; par "email" TStr; par "name" TStr]
@@ -197,8 +189,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getUser"]
     ; ins = []
     ; p = [par "username" TStr]
@@ -213,7 +204,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some { username; name; email } ->
+                | Some {username; name; email} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -223,8 +214,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DarkInternal::getUser_v1"]
     ; ins = []
     ; p = [par "username" TStr]
@@ -239,7 +229,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some { username; name; admin; email } ->
+                | Some {username; name; admin; email} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -250,8 +240,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getUserByEmail"]
     ; ins = []
     ; p = [par "email" TStr]
@@ -266,7 +255,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some { username; name; admin; email } ->
+                | Some {username; name; admin; email} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
@@ -277,8 +266,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::setAdmin"]
     ; ins = []
     ; p = [par "username" TStr; par "admin" TBool]
@@ -294,8 +282,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getUsers"]
     ; ins = []
     ; p = []
@@ -310,8 +297,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getAllCanvases"]
     ; ins = []
     ; p = []
@@ -323,8 +309,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             |> List.map ~f:Dval.dstr_of_string_exn
             |> DList)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::schema"]
     ; ins = []
     ; p = [par "host" TStr; par "dbid" TStr]
@@ -367,8 +352,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::canvasAsText"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -382,8 +366,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::handlers"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -408,8 +391,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::functions"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -433,8 +415,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::canLoadTraces"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
@@ -472,8 +453,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getCORSSetting"]
     ; ins = []
     ; p = [par "canvas" TStr]
@@ -507,8 +487,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::setCORSSetting"]
     ; ins = []
     ; p = [par "canvas" TStr; par "origins" TOption]
@@ -556,8 +535,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::dbs"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -582,8 +560,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::oplistInfo"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
@@ -646,8 +623,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::storedEvents"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
@@ -697,8 +673,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::pushStrollerEvent"]
     ; ins = []
     ; p = [par "canvas_id" TStr; par "event" TStr; par "payload" TObj]
@@ -726,8 +701,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["DarkInternal::pushStrollerEvent_v1"]
     ; ins = []
     ; p = [par "canvas_id" TStr; par "event" TStr; par "payload" TAny]
@@ -755,8 +729,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::sessionKeyToUsername"]
     ; ins = []
     ; p = [par "sessionKey" TStr]
@@ -776,8 +749,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::canvasIdOfCanvasName"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -799,8 +771,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::usernameToUserInfo"]
     ; ins = []
     ; p = [par "username" TStr]
@@ -825,8 +796,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::grant"]
     ; ins = []
     ; p = [par "username" TStr; par "org" TStr; par "permission" TStr]
@@ -875,8 +845,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::grantsFor"]
     ; ins = []
     ; p = [par "org" TStr]
@@ -903,8 +872,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::orgsFor"]
     ; ins = []
     ; p = [par "username" TStr]
@@ -931,8 +899,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::checkPermission"]
     ; ins = []
     ; p = [par "username" TStr; par "canvas" TStr]
@@ -954,8 +921,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::log"]
     ; ins = []
     ; p = [par "level" TStr; par "name" TStr; par "log" TObj]
@@ -1013,8 +979,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::fnsUsed"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
@@ -1045,8 +1010,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::fieldNamesUsed"]
     ; ins = []
     ; p = [par "host" TStr; par "tlid" TStr]
@@ -1077,8 +1041,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::fnMetadata"]
     ; ins = []
     ; p = [par "name" TStr]
@@ -1106,8 +1069,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::allFunctions"]
     ; ins = []
     ; p = []
@@ -1152,8 +1114,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::clearStaticAssets"]
     ; ins = []
     ; p = [par "host" TStr]
@@ -1171,8 +1132,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getAllSchedulingRules"]
     ; ins = []
     ; p = []
@@ -1187,8 +1147,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::getSchedulingRulesForCanvas"]
     ; ins = []
     ; p = [par "canvas_id" TUuid]
@@ -1204,8 +1163,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | args ->
                 fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::addWorkerSchedulingBlock"]
     ; ins = []
     ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
@@ -1214,8 +1172,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         "Add a worker scheduling 'block' for the given canvas and handler. This prevents any events for that handler from being scheduled until the block is manually removed."
     ; f = modify_schedule Event_queue.block_worker
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["DarkInternal::removeWorkerSchedulingBlock"]
     ; ins = []
     ; p = [par "canvas_id" TUuid; par "handler_name" TStr]
@@ -1224,5 +1181,4 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         "Removes the worker scheduling block, if one exists, for the given canvas and handler. Enqueued events from this job will immediately be scheduled."
     ; f = modify_schedule Event_queue.unblock_worker
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

@@ -146,8 +146,7 @@ let fns : shortfn list =
           Httpclient.POST
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::put"]
     ; ins = []
     ; p = params
@@ -158,8 +157,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::get"]
     ; ins = []
     ; p = params
@@ -170,8 +168,7 @@ let fns : shortfn list =
           Httpclient.GET
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::delete"]
     ; ins = []
     ; p = params
@@ -182,8 +179,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::options"]
     ; ins = []
     ; p = params
@@ -194,8 +190,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::head"]
     ; ins = []
     ; p = params
@@ -206,8 +201,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::patch"]
     ; ins = []
     ; p = params
@@ -218,8 +212,7 @@ let fns : shortfn list =
           Httpclient.PATCH
           Libexecution.Legacy.PrettyRequestJsonV0.to_pretty_request_json_v0
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::post_v1"]
     ; ins = []
     ; p = params
@@ -230,8 +223,7 @@ let fns : shortfn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v1"]
     ; ins = []
     ; p = params
@@ -242,8 +234,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v1"]
     ; ins = []
     ; p = params_no_body
@@ -254,8 +245,7 @@ let fns : shortfn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v1"]
     ; ins =
         []
@@ -269,8 +259,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v1"]
     ; ins = []
     ; p = params_no_body
@@ -281,8 +270,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v1"]
     ; ins = []
     ; p = params_no_body
@@ -293,8 +281,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v1"]
     ; ins = []
     ; p = params
@@ -305,8 +292,7 @@ let fns : shortfn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::post_v2"]
     ; ins = []
     ; p = params
@@ -318,8 +304,7 @@ let fns : shortfn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v2"]
     ; ins = []
     ; p = params
@@ -331,8 +316,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v2"]
     ; ins = []
     ; p = params_no_body
@@ -344,8 +328,7 @@ let fns : shortfn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v2"]
     ; ins =
         []
@@ -360,8 +343,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v2"]
     ; ins = []
     ; p = params_no_body
@@ -373,8 +355,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v2"]
     ; ins = []
     ; p = params_no_body
@@ -386,8 +367,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v2"]
     ; ins = []
     ; p = params
@@ -399,8 +379,7 @@ let fns : shortfn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::post_v3"]
     ; ins = []
     ; p = params
@@ -412,8 +391,7 @@ let fns : shortfn list =
           Httpclient.POST
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::put_v3"]
     ; ins = []
     ; p = params
@@ -425,8 +403,7 @@ let fns : shortfn list =
           Httpclient.PUT
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::get_v3"]
     ; ins = []
     ; p = params_no_body
@@ -438,8 +415,7 @@ let fns : shortfn list =
           Httpclient.GET
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::delete_v3"]
     ; ins =
         []
@@ -454,8 +430,7 @@ let fns : shortfn list =
           Httpclient.DELETE
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::options_v3"]
     ; ins = []
     ; p = params_no_body
@@ -467,8 +442,7 @@ let fns : shortfn list =
           Httpclient.OPTIONS
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::head_v3"]
     ; ins = []
     ; p = params_no_body
@@ -480,8 +454,7 @@ let fns : shortfn list =
           Httpclient.HEAD
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::patch_v3"]
     ; ins = []
     ; p = params
@@ -493,8 +466,7 @@ let fns : shortfn list =
           Httpclient.PATCH
           Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["HttpClient::post_v4"]
     ; ins = []
     ; p = params
@@ -503,8 +475,7 @@ let fns : shortfn list =
         "Make blocking HTTP POST call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.POST Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::put_v4"]
     ; ins = []
     ; p = params
@@ -513,8 +484,7 @@ let fns : shortfn list =
         "Make blocking HTTP PUT call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.PUT Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::get_v4"]
     ; ins = []
     ; p = params_no_body
@@ -523,8 +493,7 @@ let fns : shortfn list =
         "Make blocking HTTP GET call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.GET Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::delete_v4"]
     ; ins =
         []
@@ -536,8 +505,7 @@ let fns : shortfn list =
         "Make blocking HTTP DELETE call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.DELETE Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::options_v4"]
     ; ins = []
     ; p = params_no_body
@@ -546,8 +514,7 @@ let fns : shortfn list =
         "Make blocking HTTP OPTIONS call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.OPTIONS Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::head_v4"]
     ; ins = []
     ; p = params_no_body
@@ -556,8 +523,7 @@ let fns : shortfn list =
         "Make blocking HTTP HEAD call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call_no_body Httpclient.HEAD Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::patch_v4"]
     ; ins = []
     ; p = params
@@ -566,8 +532,7 @@ let fns : shortfn list =
         "Make blocking HTTP PATCH call to `uri`. Returns a `Result` object where the response object is wrapped in `Ok` if the status code is in the 2xx range, and is wrapped in `Error` otherwise. Parsing errors/UTF-8 decoding errors are also `Error` wrapped response objects, with a message in the `body` and/or `raw` fields"
     ; f = call Httpclient.PATCH Dval.to_pretty_machine_json_v1
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["HttpClient::basicAuth"]
     ; ins = []
     ; p = [par "username" TStr; par "password" TStr]
@@ -585,5 +550,4 @@ let fns : shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

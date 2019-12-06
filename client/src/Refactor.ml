@@ -59,11 +59,11 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
   match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, focus = wrapAst e h.ast wl in
-      let newH = { h with ast = newAst } in
+      let newH = {h with ast = newAst} in
       RPC ([SetHandler (tlid, h.pos, newH)], focus)
   | PExpr e, TLFunc f ->
       let newAst, focus = wrapAst e f.ufAST wl in
-      let newF = { f with ufAST = newAst } in
+      let newF = {f with ufAST = newAst} in
       RPC ([SetFunction newF], focus)
   | _ ->
       NoChange
@@ -168,13 +168,13 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
   match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
-      let newHandler = { h with ast = newAst } in
+      let newHandler = {h with ast = newAst} in
       Many
         [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
   | PExpr e, TLFunc f ->
       let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
-      let newF = { f with ufAST = newAst } in
+      let newF = {f with ufAST = newAst} in
       Many
         [ RPC ([SetFunction newF], FocusNoChange)
         ; Enter (Filling (tlid, enterTarget)) ]
@@ -217,19 +217,17 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
               ; ufpTipe = F (gid (), tipe)
               ; ufpBlock_args = []
               ; ufpOptional = false
-              ; ufpDescription = ""
-              })
+              ; ufpDescription = "" })
         in
         let metadata =
           { ufmName = F (gid (), name)
           ; ufmParameters = params
           ; ufmDescription = ""
           ; ufmReturnTipe = F (gid (), TAny)
-          ; ufmInfix = false
-          }
+          ; ufmInfix = false }
         in
         let newF =
-          { ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body }
+          {ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body}
         in
         RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
     | _ ->
@@ -277,7 +275,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     |> TD.filterMapValues ~f:(fun h ->
            let newAst = renameFnCalls h.ast old new_ in
            if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAst }))
+           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
            else None)
   in
   let newFunctions =
@@ -285,7 +283,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     |> TD.filterMapValues ~f:(fun uf ->
            let newAst = renameFnCalls uf.ufAST old new_ in
            if newAst <> uf.ufAST
-           then Some (SetFunction { uf with ufAST = newAst })
+           then Some (SetFunction {uf with ufAST = newAst})
            else None)
   in
   newHandlers @ newFunctions
@@ -438,7 +436,7 @@ let updateUsageCounts (m : model) : model =
                None)
     |> countFromList
   in
-  { m with usedDBs; usedFns; usedTipes }
+  {m with usedDBs; usedFns; usedTipes}
 
 
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
@@ -475,7 +473,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     |> TD.filterMapValues ~f:(fun h ->
            let newAst = transformCallsInAst f h.ast uf in
            if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAst }))
+           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
            else None)
   in
   let newFunctions =
@@ -483,7 +481,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     |> TD.filterMapValues ~f:(fun uf_ ->
            let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
-           then Some (SetFunction { uf_ with ufAST = newAst })
+           then Some (SetFunction {uf_ with ufAST = newAst})
            else None)
   in
   newHandlers @ newFunctions
@@ -532,29 +530,26 @@ let generateEmptyFunction (_ : unit) : userFunction =
       ; ufpTipe = F (gid (), TAny)
       ; ufpBlock_args = []
       ; ufpOptional = true
-      ; ufpDescription = ""
-      } ]
+      ; ufpDescription = "" } ]
   in
   let metadata =
     { ufmName = F (gid (), funcName)
     ; ufmParameters = params
     ; ufmDescription = ""
     ; ufmReturnTipe = F (gid (), TAny)
-    ; ufmInfix = false
-    }
+    ; ufmInfix = false }
   in
-  { ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ()) }
+  {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
 
 
 let generateEmptyUserType () : userTipe =
   let tipeName = generateTipeName () in
   let tlid = gtlid () in
-  let definition = UTRecord [{ urfName = B.new_ (); urfTipe = B.new_ () }] in
+  let definition = UTRecord [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
   { utTLID = tlid
   ; utName = F (gid (), tipeName)
   ; utVersion = 0
-  ; utDefinition = definition
-  }
+  ; utDefinition = definition }
 
 
 let coerceTypes (v : dval) : tipe =
@@ -605,12 +600,11 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                 * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                 * let tipe = v |> coerceType in
                 *)
-               { urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF })
+               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF})
       in
       Ok
         { (generateEmptyUserType ()) with
-          utDefinition = UTRecord userTipeDefinition
-        }
+          utDefinition = UTRecord userTipeDefinition }
   | Some _ ->
       Error "Live value is not an object."
   | None ->
@@ -634,12 +628,12 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          | TLHandler h ->
              let newAST = transform h.ast in
              if newAST <> h.ast
-             then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAST }))
+             then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))
              else None
          | TLFunc f ->
              let newAST = transform f.ufAST in
              if newAST <> f.ufAST
-             then Some (SetFunction { f with ufAST = newAST })
+             then Some (SetFunction {f with ufAST = newAST})
              else None
          | TLTipe _ ->
              None

@@ -90,8 +90,7 @@ let parseResponse (body : Http.responseBody) : string =
                ; result
                ; resultType
                ; info
-               ; workarounds
-               }
+               ; workarounds }
                ->
          " ("
          ^ exceptionTipe
@@ -150,4 +149,4 @@ let msg (e : apiError) : string =
 
 
 let make ?requestParams ~reload ~context ~importance originalError =
-  { requestParams; importance; originalError; context; reload }
+  {requestParams; importance; originalError; context; reload}

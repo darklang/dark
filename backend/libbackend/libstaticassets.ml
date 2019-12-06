@@ -21,8 +21,7 @@ let fns : shortfn list =
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::baseUrlForLatest"]
     ; ins = []
     ; p = []
@@ -37,8 +36,7 @@ let fns : shortfn list =
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::urlFor"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -57,8 +55,7 @@ let fns : shortfn list =
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::urlForLatest"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -77,8 +74,7 @@ let fns : shortfn list =
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::fetch"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -112,8 +108,7 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["StaticAssets::fetch_v1"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -144,8 +139,7 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::fetchBytes"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -174,8 +168,7 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::fetchLatest"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -209,8 +202,7 @@ UTF-8 safe"))
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["StaticAssets::fetchLatest_v1"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -242,8 +234,7 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::fetchLatestBytes"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -272,8 +263,7 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::serve"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -327,8 +317,7 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["StaticAssets::serve_v1"]
     ; ins = []
     ; p = [par "deploy_hash" TStr; par "file" TStr]
@@ -383,8 +372,7 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["StaticAssets::serveLatest"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -440,8 +428,7 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["StaticAssets::serveLatest_v1"]
     ; ins = []
     ; p = [par "file" TStr]
@@ -496,5 +483,4 @@ UTF-8 safe") )
           | args ->
               Libexecution.Lib.fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

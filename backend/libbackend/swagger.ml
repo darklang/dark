@@ -9,8 +9,7 @@ type parameter =
   ; paramType : string
   ; required : bool
   ; name : string
-  ; description : string
-  }
+  ; description : string }
 [@@deriving yojson]
 
 type operation =
@@ -18,15 +17,13 @@ type operation =
   ; nickname : string
   ; parameters : parameter list
   ; responseClass : string
-  ; summary : string option
-  }
+  ; summary : string option }
 [@@deriving yojson]
 
 type api =
   { operations : operation list
   ; path : string
-  ; description : string
-  }
+  ; description : string }
 [@@deriving yojson]
 
 type schema =
@@ -34,8 +31,7 @@ type schema =
   ; apis : api list
   ; swaggerVersion : string
   ; apiVersion : string
-  ; description : string
-  }
+  ; description : string }
 [@@deriving yojson]
 
 let parse (filename : string) : schema =

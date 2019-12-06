@@ -35,8 +35,7 @@ type entry =
   ; plusButton : msg option
   ; killAction : msg option
         (* if this is in the deleted section, what does minus do? *)
-  ; verb : string option
-  }
+  ; verb : string option }
 
 and category =
   { count : int
@@ -44,8 +43,7 @@ and category =
   ; plusButton : msg option
   ; iconAction : msg option
   ; classname : string
-  ; entries : item list
-  }
+  ; entries : item list }
 
 and item =
   | Category of category
@@ -121,9 +119,7 @@ let handlerCategory
             ; verb =
                 ( if TL.isHTTPHandler (TLHandler h)
                 then B.toMaybe h.spec.modifier
-                else None )
-            })
-  }
+                else None ) }) }
 
 
 let httpCategory (handlers : handler list) : category =
@@ -183,16 +179,14 @@ let dbCategory (m : model) (dbs : db list) : category =
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; verb = None
-          ; plusButton = None
-          })
+          ; plusButton = None })
   in
   { count = List.length dbs
   ; name = "Datastores"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; iconAction = Some GoToArchitecturalView
-  ; entries
-  }
+  ; entries }
 
 
 let f404Category (m : model) : category =
@@ -205,7 +199,7 @@ let f404Category (m : model) : category =
   ; classname = "fof"
   ; iconAction = None
   ; entries =
-      List.map f404s ~f:(fun ({ space; path; modifier } as fof) ->
+      List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None
@@ -214,9 +208,7 @@ let f404Category (m : model) : category =
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
-            ; verb = (if space = "WORKER" then None else Some modifier)
-            })
-  }
+            ; verb = (if space = "WORKER" then None else Some modifier) }) }
 
 
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
@@ -237,16 +229,14 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
               ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
               ; destination = Some (FocusedFn fn.ufTLID)
               ; plusButton = None
-              ; verb = None
-              }))
+              ; verb = None }))
   in
   { count = List.length fns
   ; name = "Functions"
   ; classname = "fns"
   ; plusButton = Some CreateFunction
   ; iconAction = Some GoToArchitecturalView
-  ; entries
-  }
+  ; entries }
 
 
 let userTipeCategory (m : model) (tipes : userTipe list) : category =
@@ -267,16 +257,14 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
               ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
               ; destination = Some (FocusedType tipe.utTLID)
               ; plusButton = None
-              ; verb = None
-              }))
+              ; verb = None }))
   in
   { count = List.length tipes
   ; name = "Types"
   ; classname = "types"
   ; plusButton = Some CreateType
   ; iconAction = None
-  ; entries
-  }
+  ; entries }
 
 
 let groupCategory (groups : group list) : category =
@@ -296,16 +284,14 @@ let groupCategory (groups : group list) : category =
               ; killAction = Some (DeleteGroupForever group.gTLID)
               ; destination = Some (FocusedGroup (group.gTLID, true))
               ; plusButton = None
-              ; verb = None
-              }))
+              ; verb = None }))
   in
   { count = List.length groups
   ; name = "Groups"
   ; classname = "group"
   ; plusButton = Some CreateGroup
   ; iconAction = None
-  ; entries
-  }
+  ; entries }
 
 
 let rec count (s : item) : int =
@@ -383,19 +369,16 @@ let deletedCategory (m : model) : category =
                                     RestoreToplevel tlid)
                          ; uses = None
                          ; minusButton = e.killAction
-                         ; destination = None
-                         }
+                         ; destination = None }
                    | c ->
-                       c)
-           })
+                       c) })
   in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
   ; iconAction = None
-  ; entries = List.map cats ~f:(fun c -> Category c)
-  }
+  ; entries = List.map cats ~f:(fun c -> Category c) }
 
 
 let entry2html ~hovering (m : model) (e : entry) : msg Html.html =

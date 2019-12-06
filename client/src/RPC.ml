@@ -16,8 +16,7 @@ let postJson
     ; body = Web.XMLHttpRequest.StringBody (Json.stringify body)
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
     ; timeout = None
-    ; withCredentials
-    }
+    ; withCredentials }
 
 
 let postEmptyJson decoder (csrfToken : string) (url : string) =
@@ -30,8 +29,7 @@ let postEmptyJson decoder (csrfToken : string) (url : string) =
     ; body = Web.XMLHttpRequest.EmptyBody
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
     ; timeout = None
-    ; withCredentials = false
-    }
+    ; withCredentials = false }
 
 
 let postEmptyString decoder (csrfToken : string) (url : string) =
@@ -42,13 +40,12 @@ let postEmptyString decoder (csrfToken : string) (url : string) =
     ; body = Web.XMLHttpRequest.EmptyBody
     ; expect = Tea.Http.expectStringResponse (Decoders.wrapExpect decoder)
     ; timeout = None
-    ; withCredentials = false
-    }
+    ; withCredentials = false }
 
 
 let opsParams (ops : op list) (opCtr : int option) (clientOpCtrId : string) :
     addOpRPCParams =
-  { ops; opCtr; clientOpCtrId }
+  {ops; opCtr; clientOpCtrId}
 
 
 let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
@@ -205,7 +202,7 @@ let filterOpsAndResult
         | _ ->
             params.opCtr)
   in
-  let m2 = { m with opCtrs = newOpCtrs } in
+  let m2 = {m with opCtrs = newOpCtrs} in
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
    * latest; otherwise, we need to filter out some ops from params *)
   (* temporarily _don't_ filter ops *)
@@ -270,7 +267,6 @@ let filterOpsAndResult
           ; userTipes =
               result.userTipes
               |> List.filter ~f:(fun ut ->
-                     List.member ~value:ut.utTLID opTlids)
-          })
+                     List.member ~value:ut.utTLID opTlids) })
     in
     (m2, ops, result)

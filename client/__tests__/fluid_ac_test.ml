@@ -35,14 +35,12 @@ let sampleFunctions : function_ list =
                ; paramTipe
                ; paramBlock_args = []
                ; paramOptional = false
-               ; paramDescription = ""
-               } ]
+               ; paramDescription = "" } ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated"
-         })
+         ; fnDeprecated = fnName = "Some::deprecated" })
 
 
 let defaultTLID = gtlid ()
@@ -64,11 +62,9 @@ let defaultToplevel =
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
-        ; modifier = Blank (gid ())
-        }
+        ; modifier = Blank (gid ()) }
     ; hTLID = defaultTLID
-    ; pos = Defaults.origin
-    }
+    ; pos = Defaults.origin }
 
 
 let defaultDval = DNull
@@ -79,15 +75,14 @@ let defaultTokenInfo =
   ; startPos = 0
   ; endPos = 0
   ; length = 0
-  ; token = TBlank defaultID
-  }
+  ; token = TBlank defaultID }
 
 
 let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     AC.fullQuery =
   let ti =
     match tl with
-    | TLHandler { ast; _ } | TLFunc { ufAST = ast; _ } ->
+    | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
         |> fromExpr m.fluidState
         |> toTokens m.fluidState
@@ -123,8 +118,7 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions
-  }
+  ; builtInFunctions = sampleFunctions }
 
 
 let aHandler
@@ -135,8 +129,8 @@ let aHandler
   let space =
     match space with None -> B.new_ () | Some name -> B.newF name
   in
-  let spec = { space; name = B.new_ (); modifier = B.new_ () } in
-  { ast = toExpr expr; spec; hTLID = tlid; pos = { x = 0; y = 0 } }
+  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
+  {ast = toExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -146,10 +140,8 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
       ; ufmParameters = []
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
-      ; ufmInfix = false
-      }
-  ; ufAST = toExpr expr
-  }
+      ; ufmInfix = false }
+  ; ufAST = toExpr expr }
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
@@ -160,8 +152,7 @@ let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = { x = 0; y = 0 }
-  }
+  ; pos = {x = 0; y = 0} }
 
 
 let enteringFunction
@@ -284,8 +275,7 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
   ; target = None
   ; targetDval = None
   ; isCommandMode = false
-  ; visible = ac.index = None
-  }
+  ; visible = ac.index = None }
 
 
 let () =
@@ -664,7 +654,7 @@ let () =
                   ~cursorState:(fillingCS ~tlid ~_id:patID ())
                   ~handlers:[aHandler ~tlid ~expr ()]
                   ()
-                |> fun m -> { m with builtInFunctions = [] }
+                |> fun m -> {m with builtInFunctions = []}
               in
               expect
                 ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m

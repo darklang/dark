@@ -12,7 +12,7 @@ let onSubmit ~key fn =
   Html.onWithOptions
     ~key
     "submit"
-    { stopPropagation = true; preventDefault = true }
+    {stopPropagation = true; preventDefault = true}
     (Decoders.wrapDecoder fn)
 
 
@@ -24,7 +24,7 @@ let defaultPasteHandler =
   Html.onWithOptions
     ~key:"paste"
     "paste"
-    { stopPropagation = true; preventDefault = false }
+    {stopPropagation = true; preventDefault = false}
     (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
 
 

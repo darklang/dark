@@ -35,8 +35,7 @@ type viewState =
   ; fluidState : Types.fluidState
   ; avatarsList : avatar list
   ; permission : permission option
-  ; workerStats : workerStats option
-  }
+  ; workerStats : workerStats option }
 
 (* ----------------------------- *)
 (* Events *)
@@ -165,10 +164,9 @@ let createVS (m : model) (tl : toplevel) : viewState =
        | Some c, None ->
            Some c
        | None, Some _ ->
-           Some { Defaults.defaultWorkerStats with schedule }
+           Some {Defaults.defaultWorkerStats with schedule}
        | Some c, Some _ ->
-           Some { c with schedule })
-  }
+           Some {c with schedule}) }
 
 
 let fontAwesome (name : string) : msg Html.html =
@@ -179,13 +177,12 @@ let decodeClickEvent (fn : mouseEvent -> 'a) j : 'a =
   let module JSD = Json_decode_extended in
   fn
     { mePos =
-        { vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j }
+        {vx = JSD.field "pageX" JSD.int j; vy = JSD.field "pageY" JSD.int j}
     ; button = JSD.field "button" JSD.int j
     ; ctrlKey = JSD.field "ctrlKey" JSD.bool j
     ; shiftKey = JSD.field "shiftKey" JSD.bool j
     ; altKey = JSD.field "altKey" JSD.bool j
-    ; detail = JSD.field "detail" JSD.int j
-    }
+    ; detail = JSD.field "detail" JSD.int j }
 
 
 let decodeTransEvent (fn : string -> 'a) j : 'a =
@@ -204,7 +201,7 @@ let eventBoth
   Patched_tea_html.onWithOptions
     ~key
     event
-    { stopPropagation = false; preventDefault = false }
+    {stopPropagation = false; preventDefault = false}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
@@ -214,7 +211,7 @@ let eventPreventDefault
   Patched_tea_html.onWithOptions
     ~key
     event
-    { stopPropagation = false; preventDefault = true }
+    {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
@@ -224,7 +221,7 @@ let eventNeither
   Patched_tea_html.onWithOptions
     ~key
     event
-    { stopPropagation = true; preventDefault = true }
+    {stopPropagation = true; preventDefault = true}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
@@ -234,7 +231,7 @@ let eventNoPropagation
   Patched_tea_html.onWithOptions
     ~key
     event
-    { stopPropagation = true; preventDefault = false }
+    {stopPropagation = true; preventDefault = false}
     (Decoders.wrapDecoder (decodeClickEvent constructor))
 
 
@@ -243,7 +240,7 @@ let onTransitionEnd ~(key : string) ~(listener : string -> msg) :
   Patched_tea_html.onWithOptions
     ~key
     "transitionend"
-    { stopPropagation = false; preventDefault = true }
+    {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeTransEvent listener))
 
 
@@ -252,7 +249,7 @@ let onAnimationEnd ~(key : string) ~(listener : string -> msg) :
   Patched_tea_html.onWithOptions
     ~key
     "animationend"
-    { stopPropagation = false; preventDefault = true }
+    {stopPropagation = false; preventDefault = true}
     (Decoders.wrapDecoder (decodeAnimEvent listener))
 
 

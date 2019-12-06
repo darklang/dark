@@ -27,5 +27,4 @@ let fns : Lib.shortfn list =
         (* similarly to Date::now, it's not particularly fun for this to change
      * when live programming *)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

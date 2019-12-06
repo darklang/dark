@@ -25,8 +25,7 @@ type static_deploy =
   { deploy_hash : string
   ; url : string
   ; last_update : Time.t
-  ; status : deploy_status
-  }
+  ; status : deploy_status }
 
 let static_deploy_to_yojson (sd : static_deploy) : Yojson.Safe.t =
   `Assoc
@@ -219,8 +218,7 @@ let start_static_asset_deploy
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
   ; last_update
-  ; status = Deploying
-  }
+  ; status = Deploying }
 
 
 (* This is for Ellen's demo, and is just the backend of a libdarkinternal function. *)
@@ -275,8 +273,7 @@ let finish_static_asset_deploy (canvas_id : Uuidm.t) (deploy_hash : string) :
   { deploy_hash
   ; url = url canvas_id deploy_hash `Short
   ; last_update
-  ; status = Deployed
-  }
+  ; status = Deployed }
 
 
 let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
@@ -293,6 +290,6 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
              in
              let status = if isLive then Deployed else Deploying in
              let url = url canvas_id deploy_hash `Short in
-             { deploy_hash; url; last_update; status }
+             {deploy_hash; url; last_update; status}
          | _ ->
              Exception.internal "Bad DB format for static assets deploys")

@@ -20,8 +20,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::values"]
     ; ins = []
     ; p = [par "dict" TObj]
@@ -32,8 +31,7 @@ let fns =
           (function
           | _, [DObj o] -> DList (DvalMap.values o) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::get"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr]
@@ -52,8 +50,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Dict::get_v1"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr]
@@ -71,8 +68,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Dict::get_v2"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr]
@@ -90,8 +86,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::foreach"]
     ; ins = []
     ; p = [par "dict" TObj; func ["val"]]
@@ -107,8 +102,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Dict::map"]
     ; ins = []
     ; p = [par "dict" TObj; func ["key"; "value"]]
@@ -126,8 +120,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::filter"]
     ; ins = []
     ; p = [par "dict" TObj; func ["key"; "value"]]
@@ -158,8 +151,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Dict::filter_v1"]
     ; ins = []
     ; p = [par "dict" TObj; func ["key"; "value"]]
@@ -198,8 +190,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::empty"]
     ; ins = []
     ; p = []
@@ -208,8 +199,7 @@ let fns =
     ; f =
         InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::merge"]
     ; ins = []
     ; p = [par "left" TObj; par "right" TObj]
@@ -224,8 +214,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::toJSON"]
     ; ins = []
     ; p = [par "dict" TObj]
@@ -241,8 +230,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::set"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr; par "val" TAny]
@@ -256,8 +244,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Dict::remove"]
     ; ins = []
     ; p = [par "dict" TObj; par "key" TStr]
@@ -271,5 +258,4 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

@@ -488,8 +488,7 @@ let create (name : string) (id : tlid) : db =
   ; cols = []
   ; version = 0
   ; old_migrations = []
-  ; active_migration = None
-  }
+  ; active_migration = None }
 
 
 let create2 (name : string) (tlid : tlid) (name_id : id) : db =
@@ -498,19 +497,18 @@ let create2 (name : string) (tlid : tlid) (name_id : id) : db =
   ; cols = []
   ; version = 0
   ; old_migrations = []
-  ; active_migration = None
-  }
+  ; active_migration = None }
 
 
 let rename_db (n : string) (db : db) : db =
   let id =
     match db.name with Partial (i, _) | Blank i -> i | Filled (i, _) -> i
   in
-  { db with name = Filled (id, n) }
+  {db with name = Filled (id, n)}
 
 
 let add_col colid typeid (db : db) =
-  { db with cols = db.cols @ [(Blank colid, Blank typeid)] }
+  {db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
 
 let set_col_name id name db =
@@ -522,7 +520,7 @@ let set_col_name id name db =
         col
   in
   let newcols = List.map ~f:set db.cols in
-  { db with cols = newcols }
+  {db with cols = newcols}
 
 
 let change_col_name id name db =
@@ -533,7 +531,7 @@ let change_col_name id name db =
     | _ ->
         col
   in
-  { db with cols = List.map ~f:change db.cols }
+  {db with cols = List.map ~f:change db.cols}
 
 
 let set_col_type id tipe db =
@@ -545,7 +543,7 @@ let set_col_type id tipe db =
         col
   in
   let newcols = List.map ~f:set db.cols in
-  { db with cols = newcols }
+  {db with cols = newcols}
 
 
 let change_col_type id newtipe db =
@@ -556,7 +554,7 @@ let change_col_type id newtipe db =
     | _ ->
         col
   in
-  { db with cols = List.map ~f:change db.cols }
+  {db with cols = List.map ~f:change db.cols}
 
 
 let delete_col id db =
@@ -570,7 +568,7 @@ let delete_col id db =
         | _ ->
             true)
   in
-  { db with cols = newcols }
+  {db with cols = newcols}
 
 
 let create_migration rbid rfid cols db =
@@ -591,9 +589,7 @@ let create_migration rbid rfid cols db =
             ; cols
             ; state = DBMigrationInitialized
             ; rollback = Blank rbid
-            ; rollforward = Blank rfid
-            }
-      }
+            ; rollforward = Blank rfid } }
 
 
 let add_col_to_migration nameid typeid db =
@@ -602,11 +598,9 @@ let add_col_to_migration nameid typeid db =
       db
   | Some migration ->
       let mutated_migration =
-        { migration with
-          cols = migration.cols @ [(Blank nameid, Blank typeid)]
-        }
+        {migration with cols = migration.cols @ [(Blank nameid, Blank typeid)]}
       in
-      { db with active_migration = Some mutated_migration }
+      {db with active_migration = Some mutated_migration}
 
 
 let set_col_name_in_migration id name db =
@@ -624,8 +618,8 @@ let set_col_name_in_migration id name db =
             col
       in
       let newcols = List.map ~f:set migration.cols in
-      let mutated_migration = { migration with cols = newcols } in
-      { db with active_migration = Some mutated_migration }
+      let mutated_migration = {migration with cols = newcols} in
+      {db with active_migration = Some mutated_migration}
 
 
 let set_col_type_in_migration id tipe db =
@@ -643,8 +637,8 @@ let set_col_type_in_migration id tipe db =
             col
       in
       let newcols = List.map ~f:set migration.cols in
-      let mutated_migration = { migration with cols = newcols } in
-      { db with active_migration = Some mutated_migration }
+      let mutated_migration = {migration with cols = newcols} in
+      {db with active_migration = Some mutated_migration}
 
 
 let abandon_migration db =
@@ -652,13 +646,11 @@ let abandon_migration db =
   | None ->
       db
   | Some migration ->
-      let mutated_migration =
-        { migration with state = DBMigrationAbandoned }
-      in
+      let mutated_migration = {migration with state = DBMigrationAbandoned} in
       let db2 =
-        { db with old_migrations = db.old_migrations @ [mutated_migration] }
+        {db with old_migrations = db.old_migrations @ [mutated_migration]}
       in
-      { db2 with active_migration = None }
+      {db2 with active_migration = None}
 
 
 let delete_col_in_migration id db =
@@ -676,5 +668,5 @@ let delete_col_in_migration id db =
             | _ ->
                 true)
       in
-      let mutated_migration = { migration with cols = newcols } in
-      { db with active_migration = Some mutated_migration }
+      let mutated_migration = {migration with cols = newcols} in
+      {db with active_migration = Some mutated_migration}

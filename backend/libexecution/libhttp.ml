@@ -16,8 +16,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; (* TODO(ian): merge Http::respond with Http::respond_with_headers
    * -- need to figure out how to deprecate functions w/o breaking
    * user code
@@ -37,8 +36,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::success"]
     ; ins = []
     ; p = [par "response" TAny]
@@ -49,8 +47,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [dv] -> DResp (Response (200, []), dv) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::respondWithHtml"]
     ; ins = []
     ; p = [par "response" TAny; par "code" TInt]
@@ -68,8 +65,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::respondWithText"]
     ; ins = []
     ; p = [par "response" TAny; par "code" TInt]
@@ -87,8 +83,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::respondWithJson"]
     ; ins = []
     ; p = [par "response" TAny; par "code" TInt]
@@ -107,8 +102,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::redirectTo"]
     ; ins = []
     ; p = [par "url" TStr]
@@ -122,8 +116,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::badRequest"]
     ; ins = []
     ; p = [par "error" TStr]
@@ -137,8 +130,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::notFound"]
     ; ins = []
     ; p = []
@@ -149,8 +141,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [] -> DResp (Response (404, []), DNull) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::unauthorized"]
     ; ins = []
     ; p = []
@@ -161,8 +152,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [] -> DResp (Response (401, []), DNull) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::forbidden"]
     ; ins = []
     ; p = []
@@ -173,8 +163,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [] -> DResp (Response (403, []), DNull) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Http::setCookie"]
     ; ins = []
     ; p = [par "name" TStr; par "value" TStr; par "params" TObj]
@@ -220,5 +209,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

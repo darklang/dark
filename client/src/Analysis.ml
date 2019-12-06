@@ -58,8 +58,7 @@ let replaceFunctionResult
     ; callerID
     ; argHash = hash
     ; argHashVersion = hashVersion
-    ; value = dval
-    }
+    ; value = dval }
   in
   let traces =
     m.traces
@@ -71,8 +70,7 @@ let replaceFunctionResult
                     , Some
                         { input = StrDict.empty
                         ; timestamp = ""
-                        ; functionResults = [newResult]
-                        } ) ]
+                        ; functionResults = [newResult] } ) ]
            |> List.map ~f:(fun ((tid, tdata) as t) ->
                   if tid = traceID
                   then
@@ -80,12 +78,11 @@ let replaceFunctionResult
                     , Option.map tdata ~f:(fun tdata ->
                           { tdata with
                             functionResults =
-                              newResult :: tdata.functionResults
-                          }) )
+                              newResult :: tdata.functionResults }) )
                   else t)
            |> fun x -> Some x)
   in
-  { m with traces }
+  {m with traces}
 
 
 let getLiveValueLoadable (analysisStore : analysisStore) (ID id : id) :
@@ -205,7 +202,7 @@ let selectedTrace (tlTraceIDs : tlTraceIDs) (traces : trace list) (tlid : tlid)
 
 let setSelectedTraceID (m : model) (tlid : tlid) (traceID : traceID) : model =
   let newCursors = TLIDDict.insert ~tlid ~value:traceID m.tlTraceIDs in
-  { m with tlTraceIDs = newCursors }
+  {m with tlTraceIDs = newCursors}
 
 
 let getSelectedTraceID (m : model) (tlid : tlid) : traceID option =
@@ -311,7 +308,7 @@ external prefix : string = "testcafeInjectedPrefix"
   [@@bs.val] [@@bs.scope "window"]
 
 let contextFromModel (m : model) : fetchContext =
-  { canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix }
+  {canvasName = m.canvasName; csrfToken = m.csrfToken; origin; prefix}
 
 
 let updateDBStats m (TLID tlid) =
@@ -320,7 +317,7 @@ let updateDBStats m (TLID tlid) =
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, DbStatsFetch { dbStatsTlids = [TLID tlid] })))
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]})))
 
 
 let getWorkerStats m (TLID tlid) =
@@ -329,8 +326,7 @@ let getWorkerStats m (TLID tlid) =
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           ( contextFromModel m
-           , WorkerStatsFetch { workerStatsTlid = TLID tlid } )))
+           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
@@ -379,7 +375,7 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
       (Tea_cmd.call (fun _ ->
            Fetcher.request
              ( contextFromModel m
-             , TraceFetch { gtdrpTlid = tlid; gtdrpTraceID = traceID } )))
+             , TraceFetch {gtdrpTlid = tlid; gtdrpTraceID = traceID} )))
   else (m, Cmd.none)
 
 
@@ -394,12 +390,12 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
-               { handler = h; traceID; traceData; dbs; userFns; userTipes }))
+               {handler = h; traceID; traceData; dbs; userFns; userTipes}))
   | Some (TLFunc f), Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
-               { func = f; traceID; traceData; dbs; userFns; userTipes }))
+               {func = f; traceID; traceData; dbs; userFns; userTipes}))
   | _ ->
       Cmd.none
 

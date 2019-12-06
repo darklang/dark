@@ -14,8 +14,7 @@ type t =
   ; host : string
   ; space : string
   ; name : string
-  ; modifier : string
-  }
+  ; modifier : string }
 
 let to_event_desc t = (t.space, t.name, t.modifier)
 
@@ -51,8 +50,7 @@ module Scheduling_rule = struct
     ; canvas_id : Uuidm.t
     ; handler_name : string
     ; event_space : string
-    ; created_at : time
-    }
+    ; created_at : time }
 
   let to_dval r =
     DvalMap.from_list
@@ -242,8 +240,7 @@ let dequeue transaction : t option =
         ; host
         ; space
         ; name
-        ; modifier
-        }
+        ; modifier }
   | Some s ->
       Exception.internal
         ( "Fetched seemingly impossible shape from Postgres"
@@ -272,8 +269,7 @@ let row_to_scheduling_rule row : Scheduling_rule.t =
       ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
       ; handler_name
       ; event_space
-      ; created_at = Time.of_string created_at
-      }
+      ; created_at = Time.of_string created_at }
   | _ ->
       Exception.internal "unexpected structure parsing scheduling_rule row"
 

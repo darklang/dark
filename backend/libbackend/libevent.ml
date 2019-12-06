@@ -13,7 +13,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | { canvas_id; account_id }, [data; DStr space; DStr name] ->
+          | {canvas_id; account_id}, [data; DStr space; DStr name] ->
               (* See client/src/Entry.ml for the "_" *)
               let space = Unicode_string.to_string space in
               let name = Unicode_string.to_string name in
@@ -22,8 +22,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["emit_v1"]
     ; ins = []
     ; p = [par "event" TAny; par "Name" TStr]
@@ -32,7 +31,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | { canvas_id; account_id }, [data; DStr name] ->
+          | {canvas_id; account_id}, [data; DStr name] ->
               (* See client/src/Entry.ml for the "_" *)
               let name = Unicode_string.to_string name in
               Event_queue.enqueue ~canvas_id ~account_id "WORKER" name "_" data ;
@@ -40,5 +39,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

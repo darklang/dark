@@ -115,8 +115,7 @@ let execute_handler
     ; load_fn_result
     ; load_fn_arguments
     ; store_fn_result
-    ; store_fn_arguments
-    }
+    ; store_fn_arguments }
   in
   let result, tlids = Ast.execute_ast vars state h.ast in
   match result with
@@ -157,8 +156,7 @@ let execute_function
     ; load_fn_result = load_no_results
     ; load_fn_arguments = load_no_arguments
     ; store_fn_result
-    ; store_fn_arguments
-    }
+    ; store_fn_arguments }
   in
   Ast.execute_fn state fnname caller_id args
 
@@ -191,8 +189,7 @@ let analyse_ast
     ; load_fn_result
     ; load_fn_arguments
     ; store_fn_result = store_no_results
-    ; store_fn_arguments = store_no_arguments
-    }
+    ; store_fn_arguments = store_no_arguments }
   in
   let _, traced_values, _ =
     Ast.execute_saving_intermediates state ~input_vars ast

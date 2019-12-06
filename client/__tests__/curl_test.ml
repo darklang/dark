@@ -10,13 +10,11 @@ let defaultTLID = TLID "7"
 let http ~(path : string) ?(meth = "GET") () : handler =
   { ast = B.new_ ()
   ; hTLID = defaultTLID
-  ; pos = { x = 0; y = 0 }
+  ; pos = {x = 0; y = 0}
   ; spec =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF path
-      ; modifier = Blank.newF meth
-      }
-  }
+      ; modifier = Blank.newF meth } }
 
 
 (* Sets the model with the appropriate toplevels *)
@@ -27,8 +25,7 @@ let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () :
     handlers = Handlers.fromList handlers
   ; canvasName = "test-curl"
   ; cursorState
-  ; traces
-  }
+  ; traces }
 
 
 let () =
@@ -66,7 +63,7 @@ let () =
           expect (curlFromSpec m defaultTLID)
           |> toEqual (Some "curl http://test-curl.builtwithdark.com/test")) ;
       test "returns command in https if env=prod" (fun () ->
-          let m1 = { m with environment = "production" } in
+          let m1 = {m with environment = "production"} in
           expect (curlFromSpec m1 defaultTLID)
           |> toEqual (Some "curl https://test-curl.builtwithdark.com/test")) ;
       test "returns None if tlid not found" (fun () ->
@@ -76,15 +73,13 @@ let () =
           let cron =
             { ast = B.new_ ()
             ; hTLID = cronTLID
-            ; pos = { x = 0; y = 0 }
+            ; pos = {x = 0; y = 0}
             ; spec =
                 { space = Blank.newF "CRON"
                 ; name = Blank.newF "cleanKitchen"
-                ; modifier = Blank.newF "Fortnightly"
-                }
-            }
+                ; modifier = Blank.newF "Fortnightly" } }
           in
-          let m1 = { m with handlers = Handlers.fromList [cron] } in
+          let m1 = {m with handlers = Handlers.fromList [cron]} in
           expect (curlFromSpec m1 cronTLID) |> toEqual None)) ;
   describe "curlFromCurrentTrace" (fun () ->
       let traces input =
@@ -96,8 +91,7 @@ let () =
                  , Some
                      { input
                      ; timestamp = "2019-09-17T12:00:30Z"
-                     ; functionResults = []
-                     } ) ]
+                     ; functionResults = [] } ) ]
       in
       test "returns command for /test GET with headers" (fun () ->
           let headers =

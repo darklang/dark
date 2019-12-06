@@ -5,11 +5,11 @@ let entryID : string = "entry-box"
 
 let leftButton : int = 0
 
-let initialVPos : vPos = { vx = 475; vy = 200 }
+let initialVPos : vPos = {vx = 475; vy = 200}
 
-let centerPos : pos = { x = 475; y = 200 }
+let centerPos : pos = {x = 475; y = 200}
 
-let origin : pos = { x = 0; y = 0 }
+let origin : pos = {x = 0; y = 0}
 
 let moveSize : int = 50
 
@@ -29,8 +29,7 @@ let defaultEditor : serializableEditor =
   ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
-  ; showTopbar = false
-  }
+  ; showTopbar = false }
 
 
 let defaultFluidState : fluidState =
@@ -46,12 +45,10 @@ let defaultFluidState : fluidState =
       ; query = None
       ; completions = []
       ; invalidCompletions = []
-      ; allCompletions = []
-      }
-  ; cp = { index = 0; commands = []; location = None; filter = None }
+      ; allCompletions = [] }
+  ; cp = {index = 0; commands = []; location = None; filter = None}
   ; selectionStart = None
-  ; errorDvSrc = SourceNone
-  }
+  ; errorDvSrc = SourceNone }
 
 
 let defaultCanvasProps : canvasProps =
@@ -59,8 +56,7 @@ let defaultCanvasProps : canvasProps =
   ; enablePan = true
   ; lastOffset = None
   ; panAnimation = DontAnimateTransition
-  ; minimap = None
-  }
+  ; minimap = None }
 
 
 let defaultHandlerProp : handlerProp =
@@ -68,15 +64,14 @@ let defaultHandlerProp : handlerProp =
   ; handlerState = HandlerExpanded
   ; hoveringReferences = []
   ; execution = Idle
-  ; showActions = false
-  }
+  ; showActions = false }
 
 
-let defaultToast : toast = { toastMessage = None; toastPos = None }
+let defaultToast : toast = {toastMessage = None; toastPos = None}
 
-let defaultAccount : account = { name = ""; email = ""; username = "" }
+let defaultAccount : account = {name = ""; email = ""; username = ""}
 
-let defaultWorkerStats : workerStats = { count = 0; schedule = None }
+let defaultWorkerStats : workerStats = {count = 0; schedule = None}
 
 let defaultModel : model =
   { error = None
@@ -97,8 +92,7 @@ let defaultModel : model =
       ; prevValue = ""
       ; targetDval = None
       ; isCommandMode = false
-      ; visible = true
-      }
+      ; visible = true }
   ; builtInFunctions = []
   ; currentPage = Architecture
   ; hovering = []
@@ -154,5 +148,4 @@ let defaultModel : model =
   ; toast = defaultToast
   ; account = defaultAccount
   ; worker_schedules = StrDict.empty
-  ; searchCache = TLIDDict.empty
-  }
+  ; searchCache = TLIDDict.empty }

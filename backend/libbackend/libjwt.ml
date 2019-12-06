@@ -154,8 +154,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["JWT::signAndEncodeWithHeaders"]
     ; ins = []
     ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
@@ -183,8 +182,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["JWT::signAndEncode_v1"]
     ; ins = []
     ; p = [par "pemPrivKey" TStr; par "payload" TAny]
@@ -208,8 +206,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["JWT::signAndEncodeWithHeaders_v1"]
     ; ins = []
     ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
@@ -238,8 +235,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["JWT::verifyAndExtract"]
     ; ins = []
     ; p = [par "pemPubKey" TStr; par "token" TStr]
@@ -276,8 +272,7 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["JWT::verifyAndExtract_v1"]
     ; ins = []
     ; p = [par "pemPubKey" TStr; par "token" TStr]
@@ -320,5 +315,4 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

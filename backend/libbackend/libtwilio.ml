@@ -62,5 +62,4 @@ let fns : Libexecution.Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    } ]
+    ; dep = false } ]

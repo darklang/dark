@@ -8,12 +8,10 @@ module Error = struct
     | TypeLookupFailure of string * int
     | TypeUnificationFailure of
         { expected_tipe : tipe
-        ; actual_value : dval
-        }
+        ; actual_value : dval }
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
-        ; actual_fields : String.Set.t
-        }
+        ; actual_fields : String.Set.t }
 
   let to_string t =
     match t with
@@ -22,12 +20,12 @@ module Error = struct
           "(" ^ lookup_name ^ ", v" ^ string_of_int lookup_version ^ ")"
         in
         "Type " ^ lookup_string ^ " could not be found on the canvas"
-    | TypeUnificationFailure { expected_tipe; actual_value } ->
+    | TypeUnificationFailure {expected_tipe; actual_value} ->
         "Expected to see a value of type "
         ^ Dval.tipe_to_string expected_tipe
         ^ " but found a "
         ^ Dval.tipename actual_value
-    | MismatchedRecordFields { expected_fields; actual_fields } ->
+    | MismatchedRecordFields {expected_fields; actual_fields} ->
         (* More or less wholesale from User_db's type checker *)
         let missing_fields = String.Set.diff expected_fields actual_fields in
         let missing_msg =
@@ -129,7 +127,7 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
       | UTRecord utd ->
           unify_user_record_with_dval_map ~type_env utd dmap ) )
   | expected_tipe, actual_value ->
-      error (TypeUnificationFailure { expected_tipe; actual_value })
+      error (TypeUnificationFailure {expected_tipe; actual_value})
 
 
 and unify_user_record_with_dval_map
@@ -162,7 +160,7 @@ and unify_user_record_with_dval_map
   else
     error
       (MismatchedRecordFields
-         { expected_fields = definition_names; actual_fields = obj_names })
+         {expected_fields = definition_names; actual_fields = obj_names})
 
 
 let check_function_call

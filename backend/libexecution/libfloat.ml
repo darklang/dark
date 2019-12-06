@@ -28,8 +28,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::floor"; "Float::roundDown"]
     ; ins = []
     ; p = [par "a" TFloat]
@@ -43,8 +42,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::round"]
     ; ins = []
     ; p = [par "a" TFloat]
@@ -58,8 +56,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::sqrt"]
     ; ins = []
     ; p = [par "a" TFloat]
@@ -69,8 +66,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function _, [DFloat a] -> DFloat (sqrt a) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::divide"]
     ; ins = ["/"]
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -81,8 +77,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a /. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::add"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -93,8 +88,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a +. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::multiply"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -105,8 +99,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a *. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::subtract"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -117,8 +110,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DFloat (a -. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::greaterThan"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -129,8 +121,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::greaterThanOrEqualTo"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -141,8 +132,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a >=. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::lessThan"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -153,8 +143,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Float::lessThanOrEqualTo"]
     ; ins = []
     ; p = [par "a" TFloat; par "b" TFloat]
@@ -165,5 +154,4 @@ let fns : Lib.shortfn list =
           (function
           | _, [DFloat a; DFloat b] -> DBool (a <=. b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

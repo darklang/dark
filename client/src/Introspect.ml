@@ -140,7 +140,7 @@ let findUsagesInAST
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | _ ->
              None)
-  |> List.map ~f:(fun (usedIn, id) -> { refersTo = tlid; usedIn; id })
+  |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
 
 
 let getUsageFor
@@ -197,19 +197,17 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
            in
            (newUsedIn, newRefersTo))
   in
-  { m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo }
+  {m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo}
 
 
 let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
   let new_props x =
     match x with
     | None ->
-        Some { Defaults.defaultHandlerProp with hoveringReferences = ids }
+        Some {Defaults.defaultHandlerProp with hoveringReferences = ids}
     | Some v ->
-        Some { v with hoveringReferences = ids }
+        Some {v with hoveringReferences = ids}
   in
   TweakModel
     (fun m ->
-      { m with
-        handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps
-      })
+      {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps})

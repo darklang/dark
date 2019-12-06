@@ -79,5 +79,4 @@ let toggle (id : id) (isExpanded : bool) : modification =
     (fun m_ ->
       { m_ with
         featureFlags =
-          StrDict.insert ~key:(deID id) ~value:isExpanded m_.featureFlags
-      })
+          StrDict.insert ~key:(deID id) ~value:isExpanded m_.featureFlags })

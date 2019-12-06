@@ -118,9 +118,7 @@ let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
       Native.Clipboard.copyToClipboard data ;
       let modFun m =
         let m1 = Editor.setHandlerMenu tlid false m in
-        { m1 with
-          toast = { toastMessage = Some "Copied!"; toastPos = Some pos }
-        }
+        {m1 with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
       in
       TweakModel modFun
   | None ->

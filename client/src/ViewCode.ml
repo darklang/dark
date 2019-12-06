@@ -103,7 +103,7 @@ let functionIsExecuting (vs : viewState) (id : id) : bool =
 
 let handlerIsExecuting (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some { execution } ->
+  | Some {execution} ->
       execution = Executing
   | None ->
       false
@@ -111,7 +111,7 @@ let handlerIsExecuting (vs : viewState) : bool =
 
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some { execution } ->
+  | Some {execution} ->
       execution = Complete
   | None ->
       false
@@ -145,8 +145,7 @@ type ('a, 'b, 'c, 'd) x =
   { class_ : 'a
   ; event : 'b
   ; title : 'c
-  ; icon : 'd
-  }
+  ; icon : 'd }
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
@@ -215,7 +214,7 @@ and viewNExpr
         if showRHSInstead then [wc "display-livevalue"] else []
       in
       let bodyViewState =
-        if showRHSInstead then { vs with showLivevalue = false } else vs
+        if showRHSInstead then {vs with showLivevalue = false} else vs
       in
       n
         (wc "letexpr" :: all)
@@ -240,7 +239,7 @@ and viewNExpr
         let c =
           [wc "arg-on-new-line"; ViewBlankOr.WithParamName p.paramName]
         in
-        viewExpr d_ { vs with tooWide = true } c e_
+        viewExpr d_ {vs with tooWide = true} c e_
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
@@ -443,7 +442,7 @@ and viewNExpr
         [wc "flagged shown"]
         [ viewExpr
             0
-            { vs with showEntry = false }
+            {vs with showEntry = false}
             []
             (if condResult then b_ else a_)
         ; fontAwesome "flag"

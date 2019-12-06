@@ -5,7 +5,7 @@ open Json_encode_extended
 (* Dark *)
 
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = { byteLength : int } [@@bs.deriving abstract]
+type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
 

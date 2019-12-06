@@ -16,8 +16,7 @@ let completion =
     ; paramTipe = t
     ; paramBlock_args = blockArgs
     ; paramOptional = opt
-    ; paramDescription = ""
-    }
+    ; paramDescription = "" }
   in
   { Defaults.defaultModel.complete with
     functions =
@@ -30,9 +29,7 @@ let completion =
             "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
         ; fnPreviewExecutionSafe = true
         ; fnDeprecated = false
-        ; fnInfix = false
-        } ]
-  }
+        ; fnInfix = false } ] }
 
 
 let () =

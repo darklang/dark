@@ -24,8 +24,7 @@ let unlocked (c : canvas) : tlid list =
 
 type db_stat =
   { count : int
-  ; example : (RTT.dval * string) option
-  }
+  ; example : (RTT.dval * string) option }
 [@@deriving eq, show, yojson]
 
 type db_stat_map = db_stat IDMap.t [@@deriving eq, show, yojson]
@@ -40,13 +39,13 @@ let db_stats (c : canvas) (tlids : tlid list) : db_stat_map =
           let account_id, canvas_id = (c.owner, c.id) in
           let count = User_db.stats_count ~account_id ~canvas_id db in
           let example = User_db.stats_pluck ~account_id ~canvas_id db in
-          IDMap.add_exn ~data:{ count; example } ~key:tlid map
+          IDMap.add_exn ~data:{count; example} ~key:tlid map
       | _ ->
           map)
     tlids
 
 
-type worker_stat = { count : int } [@@deriving show, yojson]
+type worker_stat = {count : int} [@@deriving show, yojson]
 
 let worker_stats (c : canvas) (tlid : tlid) : worker_stat =
   let count =
@@ -66,7 +65,7 @@ let worker_stats (c : canvas) (tlid : tlid) : worker_stat =
     |> List.hd_exn
     |> int_of_string
   in
-  { count }
+  {count}
 
 
 let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
@@ -160,7 +159,7 @@ let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id h.tlid
   in
-  (trace_id, Some { input = ivs; timestamp; function_results })
+  (trace_id, Some {input = ivs; timestamp; function_results})
 
 
 let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
@@ -181,7 +180,7 @@ let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
   let function_results =
     Stored_function_result.load ~trace_id ~canvas_id:c.id fn.tlid
   in
-  (trace_id, Some { input = ivs; timestamp; function_results })
+  (trace_id, Some {input = ivs; timestamp; function_results})
 
 
 let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
@@ -246,20 +245,20 @@ let execute_function
 
 type fofs = SE.four_oh_four list [@@deriving to_yojson]
 
-type get_trace_data_rpc_result = { trace : trace } [@@deriving to_yojson]
+type get_trace_data_rpc_result = {trace : trace} [@@deriving to_yojson]
 
 let to_get_trace_data_rpc_result (c : canvas) (trace : trace) : string =
-  { trace }
+  {trace}
   |> get_trace_data_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
-type get_unlocked_dbs_rpc_result = { unlocked_dbs : tlid list }
+type get_unlocked_dbs_rpc_result = {unlocked_dbs : tlid list}
 [@@deriving to_yojson]
 
 let to_get_unlocked_dbs_rpc_result (unlocked_dbs : tlid list) (c : canvas) :
     string =
-  { unlocked_dbs }
+  {unlocked_dbs}
   |> get_unlocked_dbs_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
@@ -305,8 +304,7 @@ type add_op_rpc_result =
   ; deleted_user_functions : RTT.user_fn list
   ; user_tipes : RTT.user_tipe list
   ; deleted_user_tipes : RTT.user_tipe list
-        (* replace, see deleted_toplevels *)
-  }
+        (* replace, see deleted_toplevels *) }
 [@@deriving to_yojson]
 
 let empty_to_add_op_rpc_result =
@@ -315,14 +313,12 @@ let empty_to_add_op_rpc_result =
   ; user_functions = []
   ; deleted_user_functions = []
   ; user_tipes = []
-  ; deleted_user_tipes = []
-  }
+  ; deleted_user_tipes = [] }
 
 
 type add_op_stroller_msg =
   { result : add_op_rpc_result
-  ; params : Api.add_op_rpc_params
-  }
+  ; params : Api.add_op_rpc_params }
 [@@deriving to_yojson]
 
 let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
@@ -332,8 +328,7 @@ let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
   ; user_functions = IDMap.data c.user_functions
   ; deleted_user_functions = IDMap.data c.deleted_user_functions
   ; user_tipes = IDMap.data c.user_tipes
-  ; deleted_user_tipes = IDMap.data c.deleted_user_tipes
-  }
+  ; deleted_user_tipes = IDMap.data c.deleted_user_tipes }
 
 
 (* Initial load *)
@@ -351,8 +346,7 @@ type initial_load_rpc_result =
   ; op_ctrs : (string * int) list
   ; permission : Authorization.permission option
   ; account : Account.user_info
-  ; worker_schedules : Event_queue.Worker_states.t
-  }
+  ; worker_schedules : Event_queue.Worker_states.t }
 [@@deriving to_yojson]
 
 let to_initial_load_rpc_result
@@ -379,8 +373,7 @@ let to_initial_load_rpc_result
   ; op_ctrs
   ; permission
   ; account
-  ; worker_schedules
-  }
+  ; worker_schedules }
   |> initial_load_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
@@ -391,21 +384,20 @@ type execute_function_rpc_result =
   ; hash : string
   ; hashVersion : int
   ; touched_tlids : tlid list
-  ; unlocked_dbs : tlid list
-  }
+  ; unlocked_dbs : tlid list }
 [@@deriving to_yojson]
 
 let to_execute_function_rpc_result
     hash (hashVersion : int) touched_tlids unlocked_dbs dv : string =
-  { result = dv; hash; hashVersion; touched_tlids; unlocked_dbs }
+  {result = dv; hash; hashVersion; touched_tlids; unlocked_dbs}
   |> execute_function_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
-type trigger_handler_rpc_result = { touched_tlids : tlid list }
+type trigger_handler_rpc_result = {touched_tlids : tlid list}
 [@@deriving to_yojson]
 
 let to_trigger_handler_rpc_result touched_tlids : string =
-  { touched_tlids }
+  {touched_tlids}
   |> trigger_handler_rpc_result_to_yojson
   |> Yojson.Safe.to_string ~std:true

@@ -26,8 +26,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( % ) a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::add"]
     ; ins = ["+"]
     ; p = [par "a" TInt; par "b" TInt]
@@ -38,8 +37,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( + ) a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::subtract"]
     ; ins = ["-"]
     ; p = [par "a" TInt; par "b" TInt]
@@ -50,8 +48,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( - ) a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::multiply"]
     ; ins = ["*"]
     ; p = [par "a" TInt; par "b" TInt]
@@ -62,8 +59,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( * ) a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::power"]
     ; ins = ["^"]
     ; p = [par "base" TInt; par "exponent" TInt]
@@ -77,8 +73,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::divide"]
     ; ins = []
     ; p = [par "a" TInt; par "b" TInt]
@@ -89,8 +84,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DInt (Dint.( / ) a b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::greaterThan"]
     ; ins = [">"]
     ; p = [par "a" TInt; par "b" TInt]
@@ -100,8 +94,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function _, [DInt a; DInt b] -> DBool (a > b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::greaterThanOrEqualTo"]
     ; ins = [">="]
     ; p = [par "a" TInt; par "b" TInt]
@@ -112,8 +105,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DBool (a >= b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::lessThan"]
     ; ins = ["<"]
     ; p = [par "a" TInt; par "b" TInt]
@@ -123,8 +115,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function _, [DInt a; DInt b] -> DBool (a < b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::lessThanOrEqualTo"]
     ; ins = ["<="]
     ; p = [par "a" TInt; par "b" TInt]
@@ -135,8 +126,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a; DInt b] -> DBool (a <= b) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::random"]
     ; ins = []
     ; p = [par "start" TInt; par "end" TInt]
@@ -152,8 +142,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Int::random_v1"]
     ; ins = []
     ; p = [par "start" TInt; par "end" TInt]
@@ -172,8 +161,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::sqrt"]
     ; ins = []
     ; p = [par "a" TInt]
@@ -184,8 +172,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a |> sqrt) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::toFloat"]
     ; ins = []
     ; p = [par "a" TInt]
@@ -196,8 +183,7 @@ let fns : Lib.shortfn list =
           (function
           | _, [DInt a] -> DFloat (Dint.to_float a) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Int::sum"]
     ; ins = []
     ; p = [par "a" TList]
@@ -226,5 +212,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

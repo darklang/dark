@@ -20,8 +20,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::head_v1"]
     ; ins = []
     ; p = [par "list" TList]
@@ -39,8 +38,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::head_v2"]
     ; ins = []
     ; p = [par "list" TList]
@@ -58,8 +56,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::empty"]
     ; ins = []
     ; p = []
@@ -67,8 +64,7 @@ let fns =
     ; d = "Returns an empty list."
     ; f = InProcess (function _, [] -> DList [] | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::push"]
     ; ins = []
     ; p = [par "list" TList; par "val" TAny]
@@ -80,8 +76,7 @@ let fns =
           (function
           | _, [DList l; i] -> DList (i :: l) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::pushBack"]
     ; ins = []
     ; p = [par "list" TList; par "val" TAny]
@@ -91,8 +86,7 @@ let fns =
         InProcess
           (function _, [DList l; i] -> DList (l @ [i]) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::last"]
     ; ins = []
     ; p = [par "list" TList]
@@ -108,8 +102,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::last_v1"]
     ; ins = []
     ; p = [par "list" TList]
@@ -125,8 +118,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::last_v2"]
     ; ins = []
     ; p = [par "list" TList]
@@ -142,8 +134,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::reverse"]
     ; ins = []
     ; p = [par "list" TList]
@@ -153,8 +144,7 @@ let fns =
         InProcess
           (function _, [DList l] -> DList (List.rev l) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::findFirst"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -169,8 +159,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::findFirst_v1"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -190,8 +179,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::findFirst_v2"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -211,8 +199,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::contains"]
     ; ins = []
     ; p = [par "l" TList; par "val" TAny]
@@ -226,8 +213,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::repeat"]
     ; ins = []
     ; p = [par "times" TInt; par "val" TAny]
@@ -241,8 +227,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::length"]
     ; ins = []
     ; p = [par "l" TList]
@@ -253,8 +238,7 @@ let fns =
           (function
           | _, [DList l] -> Dval.dint (List.length l) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::range"]
     ; ins = []
     ; p =
@@ -273,8 +257,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::fold"]
     ; ins = []
     ; p = [par "l" TList; par "init" TAny; func ["accum"; "curr"]]
@@ -291,8 +274,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::flatten"]
     ; ins = []
     ; p = [par "l" TList]
@@ -314,8 +296,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::uniqueBy"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -332,8 +313,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::isEmpty"]
     ; ins = []
     ; p = [par "l" TList]
@@ -344,8 +324,7 @@ let fns =
           (function
           | _, [DList l] -> DBool (List.is_empty l) | args -> fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::sort"]
     ; ins = []
     ; p = [par "list" TList]
@@ -359,8 +338,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::sortBy"]
     ; ins = []
     ; p = [par "list" TList; func ["val"]]
@@ -376,8 +354,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::append"]
     ; ins = []
     ; p = [par "l1" TList; par "l2" TList]
@@ -391,8 +368,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::filter"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -420,8 +396,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::filter_v1"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -450,8 +425,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::drop"]
     ; ins = []
     ; p = [par "l" TList; par "count" TInt]
@@ -465,8 +439,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::take"]
     ; ins = []
     ; p = [par "l" TList; par "count" TInt]
@@ -480,8 +453,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::foreach"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -498,8 +470,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::map"]
     ; ins = []
     ; p = [par "l" TList; func ["val"]]
@@ -516,8 +487,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["List::getAt"]
     ; ins = []
     ; p = [par "l" TList; par "index" TInt]
@@ -534,8 +504,7 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["List::getAt_v1"]
     ; ins = []
     ; p = [par "l" TList; par "index" TInt]
@@ -552,5 +521,4 @@ let fns =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

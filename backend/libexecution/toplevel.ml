@@ -19,8 +19,7 @@ type tl_tipe =
 type toplevel =
   { tlid : id
   ; pos : pos
-  ; data : tldata
-  }
+  ; data : tldata }
 [@@deriving eq, show, yojson]
 
 type toplevels = toplevel IDMap.t [@@deriving eq, show, yojson]
@@ -57,12 +56,11 @@ let set_expr (id : id) (expr : RuntimeT.expr) (tl : toplevel) : toplevel =
             let newam =
               { am with
                 rollback = replace am.rollback
-              ; rollforward = replace am.rollforward
-              }
+              ; rollforward = replace am.rollforward }
             in
-            { db with active_migration = Some newam }
+            {db with active_migration = Some newam}
       in
-      { tl with data = DB newdb }
+      {tl with data = DB newdb}
   | _ ->
       failwith "not implemented yet"
 

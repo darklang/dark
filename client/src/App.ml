@@ -23,8 +23,7 @@ let incOpCtr (m : model) : model =
           | Some v ->
               Some (v + 1)
           | None ->
-              Some 1)
-  }
+              Some 1) }
 
 
 let opCtr (m : model) : int =
@@ -69,8 +68,7 @@ let init (flagString : string) (location : Web.Location.location) =
       ; csrfToken
       ; isAdmin
       ; buildHash
-      ; username
-      } =
+      ; username } =
     Flags.fromString flagString
   in
   let variants =
@@ -111,18 +109,16 @@ let init (flagString : string) (location : Web.Location.location) =
     ; clientOpCtrId = createClientOpCtrId
     ; isAdmin
     ; buildHash
-    ; username
-    }
+    ; username }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
     { canvasName = m.canvasName
     ; browserId = m.browserId
     ; tlid = None
-    ; timestamp = timeStamp
-    }
+    ; timestamp = timeStamp }
   in
-  let m = { m with fluidState = Fluid.initAC m.fluidState m } in
+  let m = {m with fluidState = Fluid.initAC m.fluidState m} in
   if Url.isIntegrationTest
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
@@ -232,7 +228,7 @@ let processAutocompleteMods (m : model) (mods : autocompleteMod list) :
     Debug.loG
       "autocompletemod result: "
       (string_of_int complete.index ^ " => '" ^ val_ ^ "'") ) ;
-  ({ m with complete }, focus)
+  ({m with complete}, focus)
 
 
 let applyOpsToClient updateCurrent (p : addOpRPCParams) (r : addOpRPCResult) :
@@ -273,7 +269,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  then []
                  else
                    let newM = m |> incOpCtr in
-                   let newH = { h with ast = replacement } in
+                   let newH = {h with ast = replacement} in
                    let ops = [SetHandler (h.hTLID, h.pos, newH)] in
                    let params =
                      RPC.opsParams ops (Some (opCtr newM)) m.clientOpCtrId
@@ -286,7 +282,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  then []
                  else
                    let newM = newM |> incOpCtr in
-                   let newF = { f with ufAST = replacement } in
+                   let newF = {f with ufAST = replacement} in
                    let ops = [SetFunction newF] in
                    let params =
                      RPC.opsParams ops (Some (newM |> opCtr)) m.clientOpCtrId
@@ -363,7 +359,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     in
     match mod_ with
     | DisplayError e ->
-        ({ m with error = Some e }, Cmd.none)
+        ({m with error = Some e}, Cmd.none)
     | DisplayAndReportError (message, url, custom) ->
         let url = match url with Some url -> " (" ^ url ^ ")" | None -> "" in
         let custom = match custom with Some c -> ": " ^ c | None -> "" in
@@ -371,7 +367,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* Reload on bad csrf *)
         if String.contains error ~substring:"Bad CSRF"
         then Native.Location.reload true ;
-        ( { m with error = Some error }
+        ( {m with error = Some error}
         , Tea.Cmd.call (fun _ -> Rollbar.send error None Js.Json.null) )
     | HandleAPIError apiError ->
         let now = Js.Date.now () |> Js.Date.fromFloat in
@@ -395,7 +391,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let cmd =
           if shouldReload
           then
-            let m = { m with lastReload = Some now } in
+            let m = {m with lastReload = Some now} in
             (* Previously, this was two calls to Tea_task.nativeBinding. But
              * only the first got called, unclear why. *)
             Cmd.call (fun _ ->
@@ -412,11 +408,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
-          { m with error; lastReload }
+          {m with error; lastReload}
         in
         (newM, cmd)
     | ClearError ->
-        ({ m with error = None }, Cmd.none)
+        ({m with error = None}, Cmd.none)
     | RPC (ops, focus) ->
         handleRPC
           (RPC.opsParams ops (Some ((m |> opCtr) + 1)) m.clientOpCtrId)
@@ -431,7 +427,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (m, Cmd.none)
     | TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
-        ({ m with integrationTestState = expect }, Cmd.none)
+        ({m with integrationTestState = expect}, Cmd.none)
     | EndIntegrationTest ->
         let expectationFn =
           match m.integrationTestState with
@@ -449,12 +445,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (fun _ -> IntegrationTest.fail "Not running")
         in
         let result = expectationFn m in
-        ( { m with integrationTestState = IntegrationTestFinished result }
+        ( {m with integrationTestState = IntegrationTestFinished result}
         , Cmd.none )
     | MakeCmd cmd ->
         (m, cmd)
     | SetCursorState cursorState ->
-        let newM = { m with cursorState } in
+        let newM = {m with cursorState} in
         (newM, Entry.focusEntry newM)
     | SetPage page ->
         let pagePresent =
@@ -470,8 +466,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             { canvasName = m.canvasName
             ; browserId = m.browserId
             ; tlid = Page.tlidOf page
-            ; timestamp = Js.Date.now () /. 1000.0
-            }
+            ; timestamp = Js.Date.now () /. 1000.0 }
           in
           let cap = Page.capMinimap m.currentPage page in
           let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
@@ -482,7 +477,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | StartFluidMouseSelecting tlid ->
         let newMod =
           if VariantTesting.isFluid m.tests
-          then { m with cursorState = FluidMouseSelecting tlid }
+          then {m with cursorState = FluidMouseSelecting tlid}
           else m
         in
         (newMod, Cmd.none)
@@ -512,7 +507,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | _ ->
               (m, Cmd.none)
         in
-        let m = { m with cursorState } in
+        let m = {m with cursorState} in
         let m, acCmd =
           match Option.andThen p ~f:(TL.getPD m tlid) with
           | Some pd ->
@@ -528,8 +523,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           { canvasName = m.canvasName
           ; browserId = m.browserId
           ; tlid = Some tlid
-          ; timestamp = timeStamp
-          }
+          ; timestamp = timeStamp }
         in
         let commands =
           [hashcmd]
@@ -545,14 +539,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let hashcmd = [Url.updateUrl Architecture] in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
-          let m = { m with cursorState = Deselected } in
+          let m = {m with cursorState = Deselected} in
           let timeStamp = Js.Date.now () /. 1000.0 in
           let avMessage : avatarModelMessage =
             { canvasName = m.canvasName
             ; browserId = m.browserId
             ; tlid = None
-            ; timestamp = timeStamp
-            }
+            ; timestamp = timeStamp }
           in
           let commands =
             hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
@@ -577,7 +570,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (m.cursorState, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = { m with cursorState } in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         (m, Cmd.batch (closeBlanks m @ [afCmd; acCmd; Entry.focusEntry m]))
     | EnterWithOffset (entry, offset) ->
@@ -598,14 +591,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (m.cursorState, None) )
         in
         let m, acCmd = processAutocompleteMods m [ACSetTarget target] in
-        let m = { m with cursorState } in
+        let m = {m with cursorState} in
         let m, afCmd = Analysis.analyzeFocused m in
         ( m
         , Cmd.batch
             ( closeBlanks m
             @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset] ) )
     | SelectCommand (tlid, id) ->
-        let m = { m with cursorState = SelectingCommand (tlid, id) } in
+        let m = {m with cursorState = SelectingCommand (tlid, id)} in
         let m, acCmd =
           processAutocompleteMods m [ACEnableCommandMode; ACRegenerate]
         in
@@ -625,8 +618,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           { m with
             handlers = Handlers.fromList handlers
           ; dbs = DB.fromList dbs
-          ; groups = Groups.fromList groups
-          }
+          ; groups = Groups.fromList groups }
         in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -636,8 +628,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let dbTLIDs = List.map ~f:(fun db -> db.dbTLID) dbs in
           { m with
             deletedHandlers = TD.removeMany m.deletedHandlers ~tlids:hTLIDs
-          ; deletedDBs = TD.removeMany m.deletedDBs ~tlids:dbTLIDs
-          }
+          ; deletedDBs = TD.removeMany m.deletedDBs ~tlids:dbTLIDs }
         in
         let m = Refactor.updateUsageCounts m in
         processAutocompleteMods m [ACRegenerate]
@@ -646,8 +637,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m =
           { m with
             handlers = TD.mergeRight m.handlers (Handlers.fromList handlers)
-          ; dbs = TD.mergeRight m.dbs (DB.fromList dbs)
-          }
+          ; dbs = TD.mergeRight m.dbs (DB.fromList dbs) }
         in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (* If updateCurrent = false, bring back the TL being edited, so we don't lose work done since the
@@ -676,16 +666,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             deletedHandlers = Handlers.fromList dhandlers
           ; deletedDBs = DB.fromList ddbs
           ; handlers = TD.removeMany m.handlers ~tlids:hTLIDs
-          ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs
-          }
+          ; dbs = TD.removeMany m.dbs ~tlids:dbTLIDs }
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateAnalysis (traceID, dvals) ->
         let m =
           { m with
             analyses =
-              Analysis.record m.analyses traceID (LoadableSuccess dvals)
-          }
+              Analysis.record m.analyses traceID (LoadableSuccess dvals) }
         in
         processAutocompleteMods m [ACRegenerate]
     | UpdateDBStats statsStore ->
@@ -704,16 +692,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             m.dbStats
             statsStore
         in
-        let m = { m with dbStats = newStore } in
+        let m = {m with dbStats = newStore} in
         (m, Cmd.none)
     | UpdateWorkerStats (tlid, workerStats) ->
         let newWorkerStats =
           TLIDDict.insert ~tlid ~value:workerStats m.workerStats
         in
-        let m = { m with workerStats = newWorkerStats } in
+        let m = {m with workerStats = newWorkerStats} in
         (m, Cmd.none)
     | UpdateWorkerSchedules schedules ->
-        let m = { m with worker_schedules = schedules } in
+        let m = {m with worker_schedules = schedules} in
         (m, Cmd.none)
     | UpdateTraces traces ->
         let newTraces =
@@ -723,7 +711,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             m.traces
             traces
         in
-        let m = { m with traces = newTraces } in
+        let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
@@ -742,7 +730,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             m.traces
             traces
         in
-        let m = { m with traces = newTraces } in
+        let m = {m with traces = newTraces} in
         let m, afCmd = Analysis.analyzeFocused m in
         let m, acCmd = processAutocompleteMods m [ACRegenerate] in
         (m, Cmd.batch [afCmd; acCmd])
@@ -784,8 +772,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               TD.mergeRight
                 m.deletedUserFunctions
                 (Functions.fromList deletedUserFuncs)
-              |> TD.removeMany ~tlids:(List.map ~f:Functions.toID userFuncs)
-          }
+              |> TD.removeMany ~tlids:(List.map ~f:Functions.toID userFuncs) }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -804,8 +791,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               TD.mergeRight
                 m.deletedUserTipes
                 (UserTypes.fromList deletedUserTipes)
-              |> TD.removeMany ~tlids:(List.map ~f:UserTypes.toID userTipes)
-          }
+              |> TD.removeMany ~tlids:(List.map ~f:UserTypes.toID userTipes) }
         in
         (* Bring back the TL being edited, so we don't lose work done since the
            API call *)
@@ -825,9 +811,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m4 = Refactor.updateUsageCounts m3 in
         processAutocompleteMods m4 [ACRegenerate]
     | SetPermission permission ->
-        ({ m with permission }, Cmd.none)
+        ({m with permission}, Cmd.none)
     | SetUnlockedDBs unlockedDBs ->
-        ({ m with unlockedDBs }, Cmd.none)
+        ({m with unlockedDBs}, Cmd.none)
     | AppendUnlockedDBs newDBs ->
         (* You probably don't want to use this, you probably want to wait for the
          * regular unlockedDBs RPC timer to do a full SetUnlockedDBs, but this
@@ -838,7 +824,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * operation regardless -- so as long as that interim period doesn't result
          * in the potential for dangerous operations, you should be fine.
          *)
-        ({ m with unlockedDBs = StrSet.union m.unlockedDBs newDBs }, Cmd.none)
+        ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
         ( { m with
             f404s =
@@ -846,8 +832,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 ~f:(fun f ->
                   f.space ^ f.path ^ f.modifier
                   <> f404.space ^ f404.path ^ f404.modifier)
-                m.f404s
-          }
+                m.f404s }
         , Cmd.none )
     | Append404s f404s ->
         let new404s =
@@ -859,9 +844,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ f404.timestamp
                  ^ f404.traceID)
         in
-        ({ m with f404s = new404s }, Cmd.none)
+        ({m with f404s = new404s}, Cmd.none)
     | ExpireAvatars ->
-        ({ m with avatarsList = m.avatarsList |> expireAvatars }, Cmd.none)
+        ({m with avatarsList = m.avatarsList |> expireAvatars}, Cmd.none)
     | UpdateAvatarList avatarsList ->
         let updatedAvatars =
           avatarsList
@@ -869,16 +854,16 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  avatar.browserId != m.browserId)
           |> expireAvatars
         in
-        ({ m with avatarsList = updatedAvatars }, Cmd.none)
+        ({m with avatarsList = updatedAvatars}, Cmd.none)
     | AppendStaticDeploy d ->
-        ( { m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys }
+        ( {m with staticDeploys = DarkStorage.appendDeploy d m.staticDeploys}
         , Cmd.none )
     | SetHover (tlid, id) ->
         let nhovering = (tlid, id) :: m.hovering in
-        ({ m with hovering = nhovering }, Cmd.none)
+        ({m with hovering = nhovering}, Cmd.none)
     | ClearHover (tlid, id) ->
         let nhovering = List.filter ~f:(fun m -> m <> (tlid, id)) m.hovering in
-        ({ m with hovering = nhovering }, Cmd.none)
+        ({m with hovering = nhovering}, Cmd.none)
     | AddToGroup (gTLID, tlid) ->
         (* Add to group spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.qw5p3qit4rug *)
         let newMod, newCmd = Groups.addToGroup m gTLID tlid in
@@ -890,9 +875,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         (* This shows the user that they dont need to hit cmd + s to save. *)
         ( { m with
             toast =
-              { toastMessage = Some "Dark saves automatically!"
-              ; toastPos = None
-              }
+              {toastMessage = Some "Dark saves automatically!"; toastPos = None}
           }
         , Cmd.none )
     | SetTLTraceID (tlid, traceID) ->
@@ -905,12 +888,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * we're in before isnt also dragging. *)
         ( { m with
             cursorState =
-              Dragging (tlid, offset, hasMoved, Editor.stripDragging state)
-          }
+              Dragging (tlid, offset, hasMoved, Editor.stripDragging state) }
         , Cmd.none )
     | ExecutingFunctionBegan (tlid, id) ->
         let nexecutingFunctions = m.executingFunctions @ [(tlid, id)] in
-        ({ m with executingFunctions = nexecutingFunctions }, Cmd.none)
+        ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | ExecutingFunctionRPC (tlid, id, name) ->
       ( match TL.get m tlid with
       | Some tl ->
@@ -924,8 +906,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                   ; efpCallerID = id
                   ; efpTraceID = traceID
                   ; efpFnName = name
-                  ; efpArgs = args
-                  }
+                  ; efpArgs = args }
                 in
                 (m, RPC.executeFunction m params)
             | None ->
@@ -947,16 +928,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let nexecutingFunctions =
           List.filter ~f:isComplete m.executingFunctions
         in
-        ({ m with executingFunctions = nexecutingFunctions }, Cmd.none)
+        ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | MoveCanvasTo (offset, panAnimation) ->
         let newCanvasProps =
           { m.canvasProps with
             offset
           ; panAnimation
-          ; lastOffset = Some m.canvasProps.offset
-          }
+          ; lastOffset = Some m.canvasProps.offset }
         in
-        ({ m with canvasProps = newCanvasProps }, Cmd.none)
+        ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
       ( match TL.get m tlid with
       | Some tl ->
@@ -964,9 +944,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               canvasProps =
                 { m.canvasProps with
                   offset = Viewport.centerCanvasOn tl
-                ; panAnimation = AnimateTransition
-                }
-            }
+                ; panAnimation = AnimateTransition } }
           , Cmd.none )
       | None ->
           (m, Cmd.none) )
@@ -977,13 +955,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             let handlerProps =
               RT.setHandlerExeState tlid Executing m.handlerProps
             in
-            ( { m with handlerProps }
+            ( {m with handlerProps}
             , RPC.triggerHandler
                 m
-                { thTLID = tlid
-                ; thTraceID = traceID
-                ; thInput = traceData.input
-                } )
+                {thTLID = tlid; thTraceID = traceID; thInput = traceData.input}
+            )
         | _ ->
             (m, Cmd.none) )
     | InitIntrospect tls ->
@@ -994,13 +970,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
       ( match TL.get m tlid with
       | Some tl ->
           let cp = FluidCommands.show tl token in
-          ( { m with fluidState = { m.fluidState with cp } }
+          ( {m with fluidState = {m.fluidState with cp}}
           , Tea_html_cmds.focus FluidCommands.filterInputID )
       | None ->
           (m, Cmd.none) )
     | FluidCommandsClose ->
         let cp = FluidCommands.reset in
-        ({ m with fluidState = { m.fluidState with cp } }, Cmd.none)
+        ({m with fluidState = {m.fluidState with cp}}, Cmd.none)
     | AddGroup group ->
         (* This code is temp while we work on FE *)
         let nameAlreadyUsed = Groups.isGroupNameUnique group m.groups in
@@ -1017,7 +993,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         processAutocompleteMods m [mod_]
     | UndoGroupDelete (tlid, g) ->
         let newModel = Groups.upsert m g in
-        ( { newModel with deletedGroups = TD.remove ~tlid m.deletedGroups }
+        ( {newModel with deletedGroups = TD.remove ~tlid m.deletedGroups}
         , Cmd.none )
     | SetClipboardContents (data, e) ->
         Clipboard.setData data e ;
@@ -1026,7 +1002,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let searchCache =
           m.searchCache |> TLIDDict.update ~tlid ~f:(fun _ -> Some str)
         in
-        ({ m with searchCache }, Cmd.none)
+        ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
         let exprToString ast = Fluid.exprToStr m.fluidState ast in
         let hcache =
@@ -1041,9 +1017,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  let value = exprToString f.ufAST in
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
-        ({ m with searchCache }, Cmd.none)
+        ({m with searchCache}, Cmd.none)
     | FluidSetState fluidState ->
-        ({ m with fluidState }, Cmd.none)
+        ({m with fluidState}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1052,11 +1028,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
 
 
 let toggleTimers (m : model) : model =
-  { m with timersEnabled = not m.timersEnabled }
+  {m with timersEnabled = not m.timersEnabled}
 
 
 let findCenter (m : model) : pos =
-  let { x; y } =
+  let {x; y} =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
         Viewport.toCenter m.canvasProps.offset
@@ -1067,7 +1043,7 @@ let findCenter (m : model) : pos =
    * confused new users. Given we can't get z-index to work, moving it to the
    * side a little seems the best solution for now. *)
   let xOffset = if m.sidebarOpen then 160 else 0 in
-  { x = x + xOffset; y }
+  {x = x + xOffset; y}
 
 
 let update_ (msg : msg) (m : model) : modification =
@@ -1090,8 +1066,8 @@ let update_ (msg : msg) (m : model) : modification =
   | AutocompleteClick index ->
     ( match unwrapCursorState m.cursorState with
     | Entering cursor ->
-        let newcomplete = { m.complete with index } in
-        let newm = { m with complete = newcomplete } in
+        let newcomplete = {m.complete with index} in
+        let newm = {m with complete = newcomplete} in
         Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
@@ -1133,7 +1109,7 @@ let update_ (msg : msg) (m : model) : modification =
         match Analysis.getTrace m tlid traceID with
         | Some (_, None) ->
             let m, cmd = Analysis.requestTrace m tlid traceID in
-            [ TweakModel (fun old -> { old with syncState = m.syncState })
+            [ TweakModel (fun old -> {old with syncState = m.syncState})
             ; MakeCmd cmd ]
         | _ ->
             []
@@ -1157,7 +1133,7 @@ let update_ (msg : msg) (m : model) : modification =
               , true )
           ; Drag
               ( draggingTLID
-              , { vx = mousePos.x; vy = mousePos.y }
+              , {vx = mousePos.x; vy = mousePos.y}
               , true
               , origCursorState ) ]
     | _ ->
@@ -1366,8 +1342,7 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               { m with
                 deletedHandlers = TD.remove ~tlid m.deletedHandlers
-              ; deletedDBs = TD.remove ~tlid m.deletedDBs
-              }) ]
+              ; deletedDBs = TD.remove ~tlid m.deletedDBs }) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (RPC ([DeleteFunction tlid], FocusSame) :: page)
@@ -1403,7 +1378,7 @@ let update_ (msg : msg) (m : model) : modification =
           let newMembers =
             g.members |> List.filter ~f:(fun member -> member != tlid)
           in
-          let newGroup = { g with members = newMembers } in
+          let newGroup = {g with members = newMembers} in
           let newMod = Groups.upsert m newGroup in
           ( match m.cursorState with
           | Dragging (_, _, _, origCursorState) ->
@@ -1430,14 +1405,14 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
-              { m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes })
+              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes})
         ]
   | DeleteGroupForever tlid ->
       (* TODO: Add RPC *)
       Many
         [ TweakModel
-            (fun m ->
-              { m with deletedGroups = TD.remove ~tlid m.deletedGroups }) ]
+            (fun m -> {m with deletedGroups = TD.remove ~tlid m.deletedGroups})
+        ]
   | AddOpRPCCallback (_, params, Ok _) when params.opCtr = None ->
       HandleAPIError
         (ApiError.make
@@ -1450,7 +1425,7 @@ let update_ (msg : msg) (m : model) : modification =
            Tea.Http.Aborted)
   | AddOpRPCCallback (focus, params, Ok r) ->
       let m, newOps, _ = RPC.filterOpsAndResult m params None in
-      let params = { params with ops = newOps } in
+      let params = {params with ops = newOps} in
       let initialMods =
         applyOpsToClient (focus != FocusNoChange) params r.result
       in
@@ -1473,8 +1448,7 @@ let update_ (msg : msg) (m : model) : modification =
             ; userTipes =
                 TD.mergeRight
                   m.userTipes
-                  (UserTypes.fromList r.result.userTipes)
-            }
+                  (UserTypes.fromList r.result.userTipes) }
           in
           let newState = processFocus m focus in
           [AutocompleteMod ACReset; ClearError; newState]
@@ -1490,7 +1464,7 @@ let update_ (msg : msg) (m : model) : modification =
         let m, newOps, result =
           RPC.filterOpsAndResult m msg.params (Some msg.result)
         in
-        let params = { msg.params with ops = newOps } in
+        let params = {msg.params with ops = newOps} in
         let initialMods =
           applyOpsToClient false params (result |> Option.valueExn)
         in
@@ -1505,8 +1479,7 @@ let update_ (msg : msg) (m : model) : modification =
         ; userFunctions = Functions.fromList r.userFunctions
         ; userTipes = UserTypes.fromList r.userTipes
         ; handlerProps = ViewUtils.createHandlerProp r.handlers
-        ; groups = TLIDDict.empty
-        }
+        ; groups = TLIDDict.empty }
       in
       let newState = processFocus pfM focus in
       let allTLs = TL.all pfM in
@@ -1521,8 +1494,7 @@ let update_ (msg : msg) (m : model) : modification =
                     Some [trace]))
       in
       Many
-        [ TweakModel
-            (fun m -> { m with opCtrs = r.opCtrs; account = r.account })
+        [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
         ; SetToplevels (r.handlers, r.dbs, r.groups, true)
         ; SetDeletedToplevels (r.deletedHandlers, r.deletedDBs)
         ; SetUserFunctions (r.userFunctions, r.deletedUserFunctions, true)
@@ -1574,7 +1546,7 @@ let update_ (msg : msg) (m : model) : modification =
               let handlerProps =
                 RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
-              { m with handlerProps }) ]
+              {m with handlerProps}) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
@@ -1775,8 +1747,8 @@ let update_ (msg : msg) (m : model) : modification =
        * different msg each time that we have to understand. *)
       NoChange
   | PageVisibilityChange vis ->
-      TweakModel (fun m_ -> { m_ with visibility = vis })
-  | CreateHandlerFrom404 ({ space; path; modifier } as fof) ->
+      TweakModel (fun m_ -> {m_ with visibility = vis})
+  | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
       let center = findCenter m in
       let tlid =
         if VariantTesting.variantIsActive m GridLayout
@@ -1790,11 +1762,9 @@ let update_ (msg : msg) (m : model) : modification =
         ; spec =
             { space = B.newF space
             ; name = B.newF path
-            ; modifier = B.newF modifier
-            }
+            ; modifier = B.newF modifier }
         ; hTLID = tlid
-        ; pos
-        }
+        ; pos }
       in
       let traces =
         List.foldl
@@ -1835,10 +1805,9 @@ let update_ (msg : msg) (m : model) : modification =
             routingTableOpenDetails =
               ( if shouldOpen
               then StrSet.add ~value:key m.routingTableOpenDetails
-              else StrSet.remove ~value:key m.routingTableOpenDetails )
-          })
+              else StrSet.remove ~value:key m.routingTableOpenDetails ) })
   | ToggleSideBar ->
-      TweakModel (fun m -> { m with sidebarOpen = not m.sidebarOpen })
+      TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
       let center = findCenter m in
       Entry.submitOmniAction m center action
@@ -1863,13 +1832,12 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (Editor.setHandlerLock tlid locked)
   | EnablePanning pan ->
       TweakModel
-        (fun m ->
-          { m with canvasProps = { m.canvasProps with enablePan = pan } })
+        (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
   | ClipboardCopyEvent e ->
       let toast =
         TweakModel
           (fun m ->
-            { m with toast = { m.toast with toastMessage = Some "Copied!" } })
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let clipboardData =
         if VariantTesting.isFluid m.tests
@@ -1886,7 +1854,7 @@ let update_ (msg : msg) (m : model) : modification =
       let toast =
         TweakModel
           (fun m ->
-            { m with toast = { m.toast with toastMessage = Some "Copied!" } })
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
         if VariantTesting.isFluid m.tests
@@ -1898,9 +1866,7 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
         (fun m ->
-          { m with
-            toast = { toastMessage = Some "Copied!"; toastPos = Some pos }
-          })
+          {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}})
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1921,8 +1887,7 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           { m with
             canvasProps =
-              { m.canvasProps with panAnimation = DontAnimateTransition }
-          })
+              {m.canvasProps with panAnimation = DontAnimateTransition} })
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
@@ -1945,7 +1910,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
-          { m with fluidState = { m.fluidState with cp } })
+          {m with fluidState = {m.fluidState with cp}})
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
@@ -1958,7 +1923,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
-          { m with handlerProps })
+          {m with handlerProps})
   | CopyCurl (tlid, pos) ->
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
@@ -1983,37 +1948,32 @@ let update_ (msg : msg) (m : model) : modification =
                       { m.fluidState with
                         oldPos = m.fluidState.newPos
                       ; newPos = selEnd
-                      ; selectionStart = None
-                      }
-                  }
+                      ; selectionStart = None } }
               | Some (selBegin, selEnd) ->
                   { m with
                     fluidState =
                       { m.fluidState with
                         selectionStart = Some selBegin
                       ; oldPos = m.fluidState.newPos
-                      ; newPos = selEnd
-                      }
-                  }
+                      ; newPos = selEnd } }
               | None ->
                   { m with
-                    fluidState = { m.fluidState with selectionStart = None }
-                  }) ]
+                    fluidState = {m.fluidState with selectionStart = None} })
+        ]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg
   | ResetToast ->
-      TweakModel (fun m -> { m with toast = Defaults.defaultToast })
+      TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->
       TweakModel
-        (fun m ->
-          { m with canvasProps = { m.canvasProps with minimap = data } })
+        (fun m -> {m with canvasProps = {m.canvasProps with minimap = data}})
   | HideTopbar ->
-      TweakModel (fun m -> { m with showTopbar = false })
+      TweakModel (fun m -> {m with showTopbar = false})
   | LogoutOfDark ->
       Many
         [ MakeCmd (RPC.logout m)
-        ; TweakModel (fun m -> { m with timersEnabled = false }) ]
+        ; TweakModel (fun m -> {m with timersEnabled = false}) ]
   | LogoutRPCCallback ->
       (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
       Native.Ext.redirect "/login" ;
@@ -2022,14 +1982,14 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel
             (fun m ->
-              { m with canvasProps = { m.canvasProps with minimap = None } })
+              {m with canvasProps = {m.canvasProps with minimap = None}})
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
       ClearError
   | PauseWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m { workerName; schedule = "pause" })
+      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "pause"})
   | RunWorker workerName ->
-      MakeCmd (RPC.updateWorkerSchedule m { workerName; schedule = "run" })
+      MakeCmd (RPC.updateWorkerSchedule m {workerName; schedule = "run"})
   | UpdateWorkerScheduleCallback (Ok schedules) ->
       UpdateWorkerSchedules schedules
   | UpdateWorkerScheduleCallback (Error _) ->
@@ -2053,7 +2013,7 @@ let update (m : model) (msg : msg) : model * msg Cmd.t =
   let mods = update_ msg m |> filter_read_only m in
   let newm, newc = updateMod mods (m, Cmd.none) in
   Editor.serialize m ;
-  ({ newm with lastMsg = msg; lastMod = mods }, newc)
+  ({newm with lastMsg = msg; lastMod = mods}, newc)
 
 
 let subscriptions (m : model) : msg Tea.Sub.t =
@@ -2170,8 +2130,7 @@ let debugging =
       ; renderCallback = Fluid.renderCallback
       ; update
       ; subscriptions
-      ; shutdown = (fun _ -> Cmd.none)
-      }
+      ; shutdown = (fun _ -> Cmd.none) }
   in
   let myInit flag _ = prog.init flag in
   Tea.Navigation.navigationProgram
@@ -2181,8 +2140,7 @@ let debugging =
     ; view = prog.view
     ; renderCallback = prog.renderCallback
     ; subscriptions = prog.subscriptions
-    ; shutdown = prog.shutdown
-    }
+    ; shutdown = prog.shutdown }
 
 
 let normal =
@@ -2192,8 +2150,7 @@ let normal =
     ; update
     ; renderCallback = Fluid.renderCallback
     ; subscriptions
-    ; shutdown = (fun _ -> Cmd.none)
-    }
+    ; shutdown = (fun _ -> Cmd.none) }
   in
   Tea.Navigation.navigationProgram (fun x -> LocationChange x) program
 

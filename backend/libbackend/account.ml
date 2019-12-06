@@ -55,15 +55,13 @@ type account =
   { username : username
   ; password : Password.t
   ; email : string
-  ; name : string
-  }
+  ; name : string }
 
 type user_info =
   { username : username
   ; email : string
   ; name : string
-  ; admin : bool
-  }
+  ; admin : bool }
 [@@deriving yojson]
 
 type user_info_and_created_at =
@@ -71,8 +69,7 @@ type user_info_and_created_at =
   ; email : string
   ; name : string
   ; admin : bool
-  ; created_at : string
-  }
+  ; created_at : string }
 [@@deriving yojson]
 
 (************************)
@@ -193,7 +190,7 @@ let get_user username =
     ~params:[String username]
   |> Option.bind ~f:(function
          | [name; email; admin] ->
-             Some { username; name; admin = admin = "t"; email }
+             Some {username; name; admin = admin = "t"; email}
          | _ ->
              None)
 
@@ -216,8 +213,7 @@ let get_user_and_created_at username =
                    created_at
                    |> Db.date_of_sqlstring
                    |> Core.Time.to_string_iso8601_basic
-                        ~zone:Core.Time.Zone.utc
-               }
+                        ~zone:Core.Time.Zone.utc }
          | _ ->
              None)
 
@@ -231,7 +227,7 @@ let get_user_by_email email =
     ~params:[String email]
   |> Option.bind ~f:(function
          | [name; username; admin] ->
-             Some { username; name; admin = admin = "t"; email }
+             Some {username; name; admin = admin = "t"; email}
          | _ ->
              None)
 
@@ -326,7 +322,7 @@ let upsert_user ~(username : string) ~(email : string) ~(name : string) () :
     (string, string) Result.t =
   let plaintext = Util.random_string 16 in
   let password = Password.from_plaintext plaintext in
-  upsert_account { username; email; name; password }
+  upsert_account {username; email; name; password}
   |> Result.map ~f:(fun () -> plaintext)
 
 
@@ -335,20 +331,17 @@ let init_testing () : unit =
     { username = "test_unhashed"
     ; password = Password.from_hash "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test+unhashed@darklang.com"
-    ; name = "Dark OCaml Tests with Unhashed Password"
-    } ;
+    ; name = "Dark OCaml Tests with Unhashed Password" } ;
   upsert_account_exn
     { username = "test"
     ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"
-    } ;
+    ; name = "Dark OCaml Tests" } ;
   upsert_admin_exn
     { username = "test_admin"
     ; password = Password.from_plaintext "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test+admin@darklang.com"
-    ; name = "Dark OCaml Test Admin"
-    } ;
+    ; name = "Dark OCaml Test Admin" } ;
   ()
 
 
@@ -359,72 +352,63 @@ let upsert_admins () : unit =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ian@darklang.com"
-    ; name = "Ian Connolly"
-    } ;
+    ; name = "Ian Connolly" } ;
   upsert_admin_exn
     { username = "paul"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "paul@darklang.com"
-    ; name = "Paul Biggar"
-    } ;
+    ; name = "Paul Biggar" } ;
   upsert_admin_exn
     { username = "ellen"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ellen@darklang.com"
-    ; name = "Ellen Chisa"
-    } ;
+    ; name = "Ellen Chisa" } ;
   upsert_admin_exn
     { username = "alice"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "alice@darklang.com"
-    ; name = "Alice Wong"
-    } ;
+    ; name = "Alice Wong" } ;
   upsert_admin_exn
     { username = "ismith"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkbHlXamc0MHA3MWRBZ1kyTmFTTVhIZyRnaWZ1UGpsSnoxMFNUVDlZYWR5Tis1SVovRFVxSXdZeXVtL0Z2TkFOa1ZnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ismith@darklang.com"
-    ; name = "Ian Smith"
-    } ;
+    ; name = "Ian Smith" } ;
   upsert_admin_exn
     { username = "sydney"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMDJYZzhSS1RQai9JOGppdzI5MTBEUSRJdE0yYnlIK29OL1RIdzFJbC9yNWZBT2RGR0xrUFc3V3MxaVpUUUVFKytjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sydney@darklang.com"
-    ; name = "Sydney Noteboom"
-    } ;
+    ; name = "Sydney Noteboom" } ;
   upsert_admin_exn
     { username = "korede"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRGVxb0M0dXJUYkltWWdlYmRidGQxZyRXTHNrRTErTThscmwvRUlIVGoxUFpVVE5nNDdNQ0FqVHZRWHFvMVFjUkI4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "korede@darklang.com"
-    ; name = "Korede"
-    } ;
+    ; name = "Korede" } ;
   upsert_admin_exn
     { username = "julian"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRmFQeGdPZXhaZTFZL2pSYkZ4azFNQSRFR0ZyNEkyeDVqaDIvL243UEIzeUhkcTIwaUZUUi91RXE1RDJkQ0o0eE5BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "julian@darklang.com"
-    ; name = "Julian Ceipek"
-    } ;
+    ; name = "Julian Ceipek" } ;
   upsert_admin_exn
     { username = "dean"
     ; password =
         Password.from_hash
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWjdFdjJlZ2ZmMnZRaFhjQWlpOWlPZyRrL2F1bGFEU0tra3BQMmNKTHF6S3NaU3d5WXdmWm1pNkQ4Yy96alJrT3YwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "dean@darklang.com"
-    ; name = "Dean Strelau"
-    } ;
+    ; name = "Dean Strelau" } ;
 
   (* dark contractors *)
   (* upsert_account_exn *)
@@ -444,8 +428,7 @@ let upsert_useful_canvases () : unit =
     { username = "sample"
     ; password = Password.invalid
     ; email = "nouser@example.com"
-    ; name = "Sample Owner"
-    }
+    ; name = "Sample Owner" }
 
 
 let upsert_banned_accounts () : unit =
@@ -457,8 +440,7 @@ let upsert_banned_accounts () : unit =
              { username
              ; password = Password.invalid
              ; email = "ops+" ^ username ^ "@darklang.com"
-             ; name = "Disallowed account"
-             }) ) ;
+             ; name = "Disallowed account" }) ) ;
   ()
 
 

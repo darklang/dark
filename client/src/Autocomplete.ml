@@ -34,7 +34,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction { fnName } ->
+  | ACFunction {fnName} ->
       fnName
   | ACField name ->
       name
@@ -294,7 +294,7 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatibleThreadParam ({ fnParameters } : function_) (tipe : tipe) :
+let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
@@ -302,7 +302,7 @@ let findCompatibleThreadParam ({ fnParameters } : function_) (tipe : tipe) :
          if RT.isCompatible fst.paramTipe tipe then Some fst else None)
 
 
-let findParamByType ({ fnParameters } : function_) (tipe : tipe) :
+let findParamByType ({fnParameters} : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
@@ -951,7 +951,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     then tlDestinations m
     else extras @ exprs @ fields
   in
-  { a with allCompletions = items; targetDval = dval }
+  {a with allCompletions = items; targetDval = dval}
 
 
 let filter
@@ -1049,8 +1049,7 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   ; completions = newCompletions
   ; invalidCompletions
   ; value = query
-  ; prevValue = old.value
-  }
+  ; prevValue = old.value }
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -1076,8 +1075,7 @@ let reset (m : model) : autocomplete =
   { Defaults.defaultModel.complete with
     admin
   ; functions
-  ; visible = VariantTesting.defaultAutocompleteVisible m
-  }
+  ; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 
 
@@ -1091,12 +1089,12 @@ let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
   let max = max max_ 1 in
   let new_ = (a.index + 1) mod max in
-  { a with index = new_ }
+  {a with index = new_}
 
 
 let selectUp (a : autocomplete) : autocomplete =
   let max = numCompletions a - 1 in
-  { a with index = (if a.index <= 0 then max else a.index - 1) }
+  {a with index = (if a.index <= 0 then max else a.index - 1)}
 
 
 (* Implementation: *)
@@ -1227,18 +1225,18 @@ let documentationForItem (aci : autocompleteItem) : string option =
 
 let setTarget (m : model) (t : target option) (a : autocomplete) : autocomplete
     =
-  { a with target = t } |> regenerate m
+  {a with target = t} |> regenerate m
 
 
 let setVisible (visible : bool) (a : autocomplete) : autocomplete =
-  { a with visible }
+  {a with visible}
 
 
 (* ------------------------------------ *)
 (* Commands *)
 (* ------------------------------------ *)
 let enableCommandMode (a : autocomplete) : autocomplete =
-  { a with isCommandMode = true }
+  {a with isCommandMode = true}
 
 
 let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :

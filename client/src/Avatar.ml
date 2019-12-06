@@ -85,5 +85,4 @@ let myAvatar (m : model) : avatar =
   ; username = m.account.username
   ; email = m.account.email
   ; fullname = Some m.account.name
-  ; browserId = m.browserId
-  }
+  ; browserId = m.browserId }

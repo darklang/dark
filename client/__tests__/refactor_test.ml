@@ -16,8 +16,7 @@ let () =
         ; fnReturnTipe = TResult
         ; fnPreviewExecutionSafe = true
         ; fnDeprecated = false
-        ; fnInfix = false
-        }
+        ; fnInfix = false }
       in
       let f2 =
         { fnName = "Int::notResulty"
@@ -26,26 +25,22 @@ let () =
         ; fnReturnTipe = TInt
         ; fnPreviewExecutionSafe = true
         ; fnDeprecated = false
-        ; fnInfix = false
-        }
+        ; fnInfix = false }
       in
       let model hs =
         { D.defaultModel with
           builtInFunctions = [f1; f2]
-        ; handlers = Handlers.fromList hs
-        }
+        ; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
         let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
         ( { hTLID = TLID "handler1"
-          ; pos = { x = 0; y = 0 }
+          ; pos = {x = 0; y = 0}
           ; ast
           ; spec =
               { space = B.newF "HTTP"
               ; name = B.newF "/src"
-              ; modifier = B.newF "POST"
-              }
-          }
+              ; modifier = B.newF "POST" } }
         , PExpr ast )
       in
       let init fnName fnRail =
@@ -96,8 +91,7 @@ let () =
         ; version = 0
         ; oldMigrations = []
         ; activeMigration = None
-        ; pos = { x = 0; y = 0 }
-        }
+        ; pos = {x = 0; y = 0} }
       in
       test "datastore renamed, handler updates variable" (fun () ->
           let h =
@@ -105,11 +99,9 @@ let () =
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
-                ; modifier = B.newF "POST"
-                }
+                ; modifier = B.newF "POST" }
             ; hTLID = TLID "handler1"
-            ; pos = { x = 0; y = 0 }
-            }
+            ; pos = {x = 0; y = 0} }
           in
           let f =
             { ufTLID = TLID "tl-3"
@@ -118,17 +110,14 @@ let () =
                 ; ufmParameters = []
                 ; ufmDescription = ""
                 ; ufmReturnTipe = B.new_ ()
-                ; ufmInfix = false
-                }
-            ; ufAST = F (ID "ast3", Variable "ElmCode")
-            }
+                ; ufmInfix = false }
+            ; ufAST = F (ID "ast3", Variable "ElmCode") }
           in
           let model =
             { D.defaultModel with
               dbs = DB.fromList [db0]
             ; handlers = Handlers.fromList [h]
-            ; userFunctions = Functions.fromList [f]
-            }
+            ; userFunctions = Functions.fromList [f] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           let res =
@@ -149,17 +138,14 @@ let () =
             ; spec =
                 { space = B.newF "HTTP"
                 ; name = B.newF "/src"
-                ; modifier = B.newF "POST"
-                }
+                ; modifier = B.newF "POST" }
             ; hTLID = TLID "handler1"
-            ; pos = { x = 0; y = 0 }
-            }
+            ; pos = {x = 0; y = 0} }
           in
           let model =
             { D.defaultModel with
               dbs = DB.fromList [db0]
-            ; handlers = Handlers.fromList [h]
-            }
+            ; handlers = Handlers.fromList [h] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
           expect ops |> toEqual []) ;
@@ -240,8 +226,7 @@ let () =
         ; paramTipe
         ; paramOptional
         ; paramBlock_args = args
-        ; paramDescription
-        }
+        ; paramDescription }
       in
       let builtInFunctions =
         [ { fnName = "Int::add"
@@ -250,8 +235,7 @@ let () =
           ; fnReturnTipe = TInt
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "Dict::map"
           ; fnParameters =
               [par "dict" TObj; par "f" TBlock ~args:["key"; "value"]]
@@ -259,35 +243,30 @@ let () =
           ; fnReturnTipe = TObj
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          }
+          ; fnInfix = false }
         ; { fnName = "DB::set_v1"
           ; fnParameters = [par "val" TObj; par "key" TStr; par "table" TDB]
           ; fnDescription = ""
           ; fnReturnTipe = TObj
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false
-          } ]
+          ; fnInfix = false } ]
       in
       let modelAndTl (ast : expr) =
         let hTLID = TLID "handler1" in
         let tl =
           { hTLID
           ; ast
-          ; pos = { x = 0; y = 0 }
+          ; pos = {x = 0; y = 0}
           ; spec =
               { space = B.newF "HTTP"
               ; name = B.newF "/src"
-              ; modifier = B.newF "POST"
-              }
-          }
+              ; modifier = B.newF "POST" } }
         in
         let model =
           { D.defaultModel with
             builtInFunctions
-          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList
-          }
+          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
         in
         (model, TLHandler tl)
       in

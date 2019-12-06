@@ -13,15 +13,15 @@ let fromList (handlers : handler list) : handler TLIDDict.t =
 
 
 let upsert (m : model) (h : handler) : model =
-  { m with handlers = TD.insert ~tlid:h.hTLID ~value:h m.handlers }
+  {m with handlers = TD.insert ~tlid:h.hTLID ~value:h m.handlers}
 
 
 let update (m : model) ~(tlid : tlid) ~(f : handler -> handler) : model =
-  { m with handlers = TD.updateIfPresent ~tlid ~f m.handlers }
+  {m with handlers = TD.updateIfPresent ~tlid ~f m.handlers}
 
 
 let remove (m : model) (h : handler) : model =
-  { m with handlers = TD.remove ~tlid:h.hTLID m.handlers }
+  {m with handlers = TD.remove ~tlid:h.hTLID m.handlers}
 
 
 let getWorkerSchedule (m : model) (h : handler) : string option =

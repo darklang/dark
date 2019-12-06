@@ -33,14 +33,12 @@ let sampleFunctions : function_ list =
                ; paramTipe
                ; paramBlock_args = []
                ; paramOptional = false
-               ; paramDescription = ""
-               } ]
+               ; paramDescription = "" } ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated"
-         })
+         ; fnDeprecated = fnName = "Some::deprecated" })
 
 
 let defaultTLID = gtlid ()
@@ -55,7 +53,7 @@ let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
   Entering (Filling (tlid, id))
 
 
-let creatingCS : cursorState = Entering (Creating { x = 0; y = 0 })
+let creatingCS : cursorState = Entering (Creating {x = 0; y = 0})
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -72,8 +70,7 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions
-  }
+  ; builtInFunctions = sampleFunctions }
 
 
 let aHandler
@@ -86,10 +83,9 @@ let aHandler
   let spec =
     { space = B.ofOption space
     ; name = B.ofOption name
-    ; modifier = B.ofOption modifier
-    }
+    ; modifier = B.ofOption modifier }
   in
-  { ast = expr; spec; hTLID = tlid; pos = { x = 0; y = 0 } }
+  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction
@@ -104,10 +100,8 @@ let aFunction
       ; ufmParameters = params
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
-      ; ufmInfix = false
-      }
-  ; ufAST = expr
-  }
+      ; ufmInfix = false }
+  ; ufAST = expr }
 
 
 let aDB
@@ -122,8 +116,7 @@ let aDB
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = { x = 0; y = 0 }
-  }
+  ; pos = {x = 0; y = 0} }
 
 
 let enteringFunction
@@ -174,9 +167,8 @@ let enteringEventNameHandler ?(space : string option = None) () : model =
 
 let creatingOmni : model =
   { Defaults.defaultModel with
-    cursorState = Entering (Creating { x = 0; y = 0 })
-  ; builtInFunctions = sampleFunctions
-  }
+    cursorState = Entering (Creating {x = 0; y = 0})
+  ; builtInFunctions = sampleFunctions }
 
 
 (* AC targeting a tlid and pointer *)
@@ -247,14 +239,12 @@ let () =
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
-                  ; ufpDescription = ""
-                  }
+                  ; ufpDescription = "" }
                 ; { ufpName = B.newF "author"
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
-                  ; ufpDescription = ""
-                  } ]
+                  ; ufpDescription = "" } ]
               ()
             |> TL.ufToTL
           in
@@ -514,7 +504,7 @@ let () =
               in
               let target = Some (fntlid, PExpr dbNameBlank) in
               let ac = acFor ~target m in
-              let newM = { m with complete = ac } in
+              let newM = {m with complete = ac} in
               expect
                 ( setQuery newM "" ac
                 |> itemPresent (ACVariable ("MyDB", Some (DDB "MyDB"))) )
@@ -575,7 +565,7 @@ let () =
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
-              let newM = { m with complete = ac } in
+              let newM = {m with complete = ac} in
               let valid, _invalid = filter newM ac consAC "" in
               expect
                 ( List.length valid = 2
@@ -599,7 +589,7 @@ let () =
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
-              let newM = { m with complete = ac } in
+              let newM = {m with complete = ac} in
               let valid, _invalid = filter newM ac consAC "" in
               expect
                 ( List.length valid = 2
@@ -819,7 +809,7 @@ let () =
             |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
             |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
           in
-          let m = { m with searchCache } in
+          let m = {m with searchCache} in
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with

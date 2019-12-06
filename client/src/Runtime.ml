@@ -346,8 +346,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ; result = field "result" (optional string) j
         ; resultType = field "result_tipe" (optional string) j
         ; info = field "info" (dict string) j
-        ; workarounds = field "workarounds" (list string) j
-        }
+        ; workarounds = field "workarounds" (list string) j }
       in
       let maybe name m =
         match m with
@@ -530,4 +529,4 @@ let setHandlerExeState
          let p =
            old |> Option.withDefault ~default:Defaults.defaultHandlerProp
          in
-         Some { p with execution = state })
+         Some {p with execution = state})

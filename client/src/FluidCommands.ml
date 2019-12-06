@@ -16,7 +16,7 @@ module K = FluidKeyboard
 let filterInputID : string = "cmd-filter"
 
 let reset : fluidCommandState =
-  { index = 0; commands = Commands.commands; location = None; filter = None }
+  {index = 0; commands = Commands.commands; location = None; filter = None}
 
 
 let commandsFor (tl : toplevel) (id : id) : command list =
@@ -50,8 +50,7 @@ let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
   { index = 0
   ; commands = commandsFor tl (FluidToken.tid token)
   ; location = Some (TL.id tl, token)
-  ; filter = None
-  }
+  ; filter = None }
 
 
 let executeCommand
@@ -81,13 +80,13 @@ let asName (cmd : command) : string = cmd.commandName
 
 let moveUp (s : fluidCommandState) : fluidCommandState =
   let i = s.index - 1 in
-  { s with index = (if i < 0 then 0 else i) }
+  {s with index = (if i < 0 then 0 else i)}
 
 
 let moveDown (s : fluidCommandState) : fluidCommandState =
   let i = s.index + 1 in
   let max = List.length s.commands in
-  { s with index = (if i >= max then max - 1 else i) }
+  {s with index = (if i >= max then max - 1 else i)}
 
 
 let focusItem (i : int) : msg Tea.Cmd.t =
@@ -142,7 +141,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
       (Some query, List.filter ~f:isMatched allCmds)
     else (None, Commands.commands)
   in
-  { cp with filter; commands; index = 0 }
+  {cp with filter; commands; index = 0}
 
 
 let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
@@ -189,9 +188,9 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
 
 let cpSetIndex (_m : Types.model) (i : int) (s : Types.fluidState) :
     Types.modification =
-  let newState = { s with cp = { s.cp with index = i }; upDownCol = None } in
+  let newState = {s with cp = {s.cp with index = i}; upDownCol = None} in
   let cmd = Types.MakeCmd (focusItem i) in
-  let m = Types.TweakModel (fun m -> { m with fluidState = newState }) in
+  let m = Types.TweakModel (fun m -> {m with fluidState = newState}) in
   Types.Many [m; cmd]
 
 
@@ -212,16 +211,12 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
   | K.Up ->
       let cp = moveUp s.cp in
       let cmd = Types.MakeCmd (focusItem cp.index) in
-      let m =
-        Types.TweakModel (fun m -> { m with fluidState = { s with cp } })
-      in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
       Types.Many [m; cmd]
   | K.Down ->
       let cp = moveDown s.cp in
       let cmd = Types.MakeCmd (focusItem cp.index) in
-      let m =
-        Types.TweakModel (fun m -> { m with fluidState = { s with cp } })
-      in
+      let m = Types.TweakModel (fun m -> {m with fluidState = {s with cp}}) in
       Types.Many [m; cmd]
   | K.Escape ->
       FluidCommandsClose

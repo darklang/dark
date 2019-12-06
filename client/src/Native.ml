@@ -43,21 +43,18 @@ let registerGlobalDirect name key tagger =
 
 type size =
   { width : int
-  ; height : int
-  }
+  ; height : int }
 
 type rect =
   { id : string
   ; top : int
   ; left : int
   ; right : int
-  ; bottom : int
-  }
+  ; bottom : int }
 
 type list_pos =
   { atoms : rect list
-  ; nested : rect list
-  }
+  ; nested : rect list }
 
 type jsRect = string Js.Dict.t
 
@@ -113,8 +110,7 @@ module Ext = struct
     ; top = rectTop client |> int_of_float
     ; left = rectLeft client |> int_of_float
     ; right = rectRight client |> int_of_float
-    ; bottom = rectBottom client |> int_of_float
-    }
+    ; bottom = rectBottom client |> int_of_float }
 
 
   external redirect : string -> unit = "replace"
@@ -136,13 +132,12 @@ module Size = struct
            ; top = int_of_string (Js.Dict.unsafeGet jsRect "top")
            ; left = int_of_string (Js.Dict.unsafeGet jsRect "left")
            ; right = int_of_string (Js.Dict.unsafeGet jsRect "right")
-           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom")
-           })
+           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom") })
 
 
   let positions (tlid : string) : list_pos =
     let pos = Ext.astPositions tlid in
-    { atoms = _convert "atoms" pos; nested = _convert "nested" pos }
+    {atoms = _convert "atoms" pos; nested = _convert "nested" pos}
 end
 
 module Location = struct

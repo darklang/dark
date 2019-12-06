@@ -39,7 +39,7 @@ let tuple5 decodeA decodeB decodeC decodeD decodeE json =
   [@@bs.val] [@@bs.scope "window"] *)
 
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = { byteLength : int } [@@bs.deriving abstract]
+type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
 
@@ -138,9 +138,9 @@ let id j = ID (wireIdentifier j)
 
 let tlid j = TLID (wireIdentifier j)
 
-let pos j : pos = { x = field "x" int j; y = field "y" int j }
+let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
-let vPos j : vPos = { vx = field "vx" int j; vy = field "vy" int j }
+let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
 
 let blankOr d =
   variants
@@ -353,8 +353,7 @@ and handlerProp j : handlerProp =
   ; handlerState = field "handlerState" handlerState j
   ; hoveringReferences = field "hoveringReferences" (list id) j
   ; execution = field "executing" exeState j
-  ; showActions = field "showActions" bool j
-  }
+  ; showActions = field "showActions" bool j }
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
@@ -381,8 +380,7 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       withDefault
         Defaults.defaultEditor.showTopbar
         (field "showTopbar1" bool)
-        j
-  }
+        j }
 
 
 and cursorState j =
@@ -433,16 +431,14 @@ let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
 let handlerSpec j : handlerSpec =
   { space = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
-  ; modifier = field "modifier" (blankOr string) j
-  }
+  ; modifier = field "modifier" (blankOr string) j }
 
 
 let handler pos j : handler =
   { ast = field "ast" expr j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
-  ; pos
-  }
+  ; pos }
 
 
 let tipeString j : string = map RT.tipe2str tipe j
@@ -469,8 +465,7 @@ let dbMigration j : dbMigration =
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
   ; rollforward = field "rollforward" expr j
-  ; rollback = field "rollback" expr j
-  }
+  ; rollback = field "rollback" expr j }
 
 
 let db pos j : db =
@@ -480,8 +475,7 @@ let db pos j : db =
   ; version = field "version" int j
   ; oldMigrations = field "old_migrations" (list dbMigration) j
   ; activeMigration = field "active_migration" (optional dbMigration) j
-  ; pos
-  }
+  ; pos }
 
 
 let toplevel j : toplevel =
@@ -499,8 +493,7 @@ let userFunctionParameter j : userFunctionParameter =
   ; ufpTipe = field "tipe" (blankOr tipe) j
   ; ufpBlock_args = field "block_args" (list string) j
   ; ufpOptional = field "optional" bool j
-  ; ufpDescription = field "description" string j
-  }
+  ; ufpDescription = field "description" string j }
 
 
 let userFunctionMetadata j : userFunctionMetadata =
@@ -508,15 +501,13 @@ let userFunctionMetadata j : userFunctionMetadata =
   ; ufmParameters = field "parameters" (list userFunctionParameter) j
   ; ufmDescription = field "description" string j
   ; ufmReturnTipe = field "return_type" (blankOr tipe) j
-  ; ufmInfix = field "infix" bool j
-  }
+  ; ufmInfix = field "infix" bool j }
 
 
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j
-  }
+  ; ufAST = field "ast" expr j }
 
 
 let fof j : fourOhFour =
@@ -524,8 +515,7 @@ let fof j : fourOhFour =
   ; path = index 1 string j
   ; modifier = index 2 string j
   ; timestamp = index 3 string j
-  ; traceID = index 4 traceID j
-  }
+  ; traceID = index 4 traceID j }
 
 
 let deployStatus j : deployStatus =
@@ -539,8 +529,7 @@ let sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
   ; lastUpdate = field "last_update" jsDate j
-  ; status = field "status" deployStatus j
-  }
+  ; status = field "status" deployStatus j }
 
 
 let serverTime j : Js.Date.t = Js.Date.fromString (field "value" string j)
@@ -553,8 +542,7 @@ let presenceMsg j : avatar =
   ; serverTime = field "serverTime" serverTime j
   ; email = field "email" string j
   ; fullname = field "name" (optional string) j
-  ; browserId = field "browserId" string j
-  }
+  ; browserId = field "browserId" string j }
 
 
 let inputValueDict j : inputValueDict =
@@ -565,14 +553,13 @@ let functionResult j : functionResult =
   let fnName, callerID, argHash, argHashVersion, value =
     tuple5 string id string int dval j
   in
-  { fnName; callerID; argHash; argHashVersion; value }
+  {fnName; callerID; argHash; argHashVersion; value}
 
 
 let traceData j : traceData =
   { input = field "input" inputValueDict j
   ; timestamp = field "timestamp" string j
-  ; functionResults = field "function_results" (list functionResult) j
-  }
+  ; functionResults = field "function_results" (list functionResult) j }
 
 
 let trace j : trace = pair traceID (optional traceData) j
@@ -583,8 +570,7 @@ let traces j : traces =
 
 let userRecordField j =
   { urfName = field "name" (blankOr string) j
-  ; urfTipe = field "tipe" (blankOr tipe) j
-  }
+  ; urfTipe = field "tipe" (blankOr tipe) j }
 
 
 let userTipeDefinition j =
@@ -597,8 +583,7 @@ let userTipe j =
   { utTLID = field "tlid" tlid j
   ; utName = field "name" (blankOr string) j
   ; utVersion = field "version" int j
-  ; utDefinition = field "definition" userTipeDefinition j
-  }
+  ; utDefinition = field "definition" userTipeDefinition j }
 
 
 let permission j =
@@ -609,10 +594,10 @@ let op j : op =
   variants
     [ ( "SetHandler"
       , variant3
-          (fun t p h -> SetHandler (t, p, { h with pos = p }))
+          (fun t p h -> SetHandler (t, p, {h with pos = p}))
           tlid
           pos
-          (handler { x = -1286; y = -467 }) )
+          (handler {x = -1286; y = -467}) )
     ; ( "CreateDB"
       , variant3 (fun t p name -> CreateDB (t, p, name)) tlid pos string )
     ; ("AddDBCol", variant3 (fun t cn ct -> AddDBCol (t, cn, ct)) tlid id id)
@@ -694,8 +679,7 @@ let addOpRPCResult j : addOpRPCResult =
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; userTipes = field "user_tipes" (list userTipe) j
-  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
-  }
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
 
 
 let addOpRPCParams j : addOpRPCParams =
@@ -706,14 +690,12 @@ let addOpRPCParams j : addOpRPCParams =
   ; opCtr
     (* withDefault in case we roll back and have an old server that doesn't send
 * us this field *)
-  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j
-  }
+  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
 
 let addOpRPCStrollerMsg j : addOpStrollerMsg =
   { result = field "result" addOpRPCResult j
-  ; params = field "params" addOpRPCParams j
-  }
+  ; params = field "params" addOpRPCParams j }
 
 
 let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
@@ -721,13 +703,12 @@ let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
 
 
 let getTraceDataRPCResult j : getTraceDataRPCResult =
-  { trace = field "trace" trace j }
+  {trace = field "trace" trace j}
 
 
 let dbStats j : dbStats =
   { count = field "count" int j
-  ; example = field "example" (optional (tuple2 dval string)) j
-  }
+  ; example = field "example" (optional (tuple2 dval string)) j }
 
 
 let dbStatsStore j : dbStatsStore = dict dbStats j
@@ -737,15 +718,12 @@ let dbStatsRPCResult j = dbStatsStore j
 let account j : account =
   { name = field "name" string j
   ; email = field "email" string j
-  ; username = field "username" string j
-  }
+  ; username = field "username" string j }
 
 
 (* schedule is None here but gets updated when we create a view state
  * see createVS in ViewUtils.ml for details *)
-let workerStats j : workerStats =
-  { count = field "count" int j; schedule = None }
-
+let workerStats j : workerStats = {count = field "count" int j; schedule = None}
 
 let workerStatsRPCResult j = workerStats j
 
@@ -775,8 +753,7 @@ let initialLoadRPCResult j : initialLoadRPCResult =
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
-  ; worker_schedules = field "worker_schedules" (dict string) j
-  }
+  ; worker_schedules = field "worker_schedules" (dict string) j }
 
 
 let executeFunctionRPCResult j : executeFunctionRPCResult =
@@ -852,8 +829,7 @@ let exception_ j : exception_ =
   ; result = field "result" (optional string) j
   ; resultType = field "result_tipe" (optional string) j
   ; info = field "info" (dict string) j
-  ; workarounds = field "workarounds" (list string) j
-  }
+  ; workarounds = field "workarounds" (list string) j }
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)

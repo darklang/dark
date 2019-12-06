@@ -19,8 +19,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Date::parse_v1"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -42,8 +41,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true
-    }
+    ; dep = true }
   ; { pns = ["Date::parse_v2"]
     ; ins = []
     ; p = [par "s" TStr]
@@ -63,8 +61,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::toString"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -78,8 +75,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::toStringISO8601BasicDateTime"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -93,8 +89,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::toStringISO8601BasicDate"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -108,8 +103,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::now"]
     ; ins = []
     ; p = []
@@ -118,8 +112,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess (function _, [] -> DDate (Time.now ()) | args -> fail args)
     ; ps = false
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::add"]
     ; ins = []
     ; p = [par "d" TDate; par "seconds" TInt]
@@ -133,8 +126,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::sub"]
     ; ins = []
     ; p = [par "d" TDate; par "seconds" TInt]
@@ -148,8 +140,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::greaterThan"]
     ; ins = ["Date::>"]
     ; p = [par "d1" TDate; par "d2" TDate]
@@ -163,8 +154,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::lessThan"]
     ; ins = ["Date::<"]
     ; p = [par "d1" TDate; par "d2" TDate]
@@ -178,8 +168,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::toSeconds"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -198,8 +187,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::fromSeconds"]
     ; ins = []
     ; p = [par "seconds" TInt]
@@ -218,8 +206,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::toHumanReadable"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -295,8 +282,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true (* This doesn't mean anything *)
-    }
+    ; dep = true (* This doesn't mean anything *) }
   ; { pns = ["Date::year"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -310,8 +296,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::month"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -329,8 +314,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::day"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -344,8 +328,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::hour"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -364,8 +347,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::minute"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -384,8 +366,7 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    }
+    ; dep = false }
   ; { pns = ["Date::second"]
     ; ins = []
     ; p = [par "date" TDate]
@@ -404,5 +385,4 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false
-    } ]
+    ; dep = false } ]

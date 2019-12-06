@@ -31,8 +31,7 @@ let clipboardEvent () =
              in
              ()
         end [@bs])
-    ; preventDefault = [%bs.raw {| function () { return null; } |}]
-    }]
+    ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
 
 
 let () =
@@ -48,18 +47,16 @@ let () =
       { Defaults.defaultModel with
         tests = [FluidVariant]
       ; handlers = Handlers.fromList [h]
-      ; cursorState = FluidEntering h.hTLID
-      }
+      ; cursorState = FluidEntering h.hTLID }
     in
     let s =
       { Defaults.defaultFluidState with
         ac = AC.reset m
       ; selectionStart = Some start
       ; oldPos = pos
-      ; newPos = pos
-      }
+      ; newPos = pos }
     in
-    let m = { m with fluidState = s } in
+    let m = {m with fluidState = s} in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
@@ -146,18 +143,16 @@ let () =
           { Defaults.defaultModel with
             tests = [FluidVariant]
           ; handlers = Handlers.fromList [h]
-          ; cursorState = FluidEntering h.hTLID
-          }
+          ; cursorState = FluidEntering h.hTLID }
         in
         let s =
           { Defaults.defaultFluidState with
             ac = AC.reset m
           ; selectionStart = Some 0
           ; oldPos = pos
-          ; newPos = pos
-          }
+          ; newPos = pos }
         in
-        let m = { m with fluidState = s } in
+        let m = {m with fluidState = s} in
         if debug
         then (
           Js.log2 "state before " (Fluid_utils.debugState s) ;

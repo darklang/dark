@@ -14,7 +14,6 @@ type postgres_config =
   { host : string
   ; dbname : string
   ; user : string
-  ; password : string
-  }
+  ; password : string }
 
 val postgres_settings : postgres_config

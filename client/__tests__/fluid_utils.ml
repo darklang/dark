@@ -13,21 +13,18 @@ let debugState s =
         { s.ac with
           functions = []
         ; allCompletions = []
-        ; completions = (if s.ac.index = None then [] else s.ac.completions)
-        }
+        ; completions = (if s.ac.index = None then [] else s.ac.completions) }
     }
 
 
 let h ast : handler =
   { ast = toExpr ast
   ; hTLID = TLID "7"
-  ; pos = { x = 0; y = 0 }
+  ; pos = {x = 0; y = 0}
   ; spec =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET"
-      }
-  }
+      ; modifier = Blank.newF "GET" } }
 
 
 let () = test "empty test to satisfy jest" (fun () -> expect true |> toBe true)

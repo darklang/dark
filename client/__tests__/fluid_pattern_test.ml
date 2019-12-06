@@ -18,10 +18,8 @@ let h ast =
   ; spec =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET"
-      }
-  ; pos = { x = 0; y = 0 }
-  }
+      ; modifier = Blank.newF "GET" }
+  ; pos = {x = 0; y = 0} }
 
 
 let () =
@@ -57,8 +55,7 @@ let () =
       { Defaults.defaultFluidState with
         ac = AC.reset m
       ; oldPos = pos
-      ; newPos = pos
-      }
+      ; newPos = pos }
     in
     if debug
     then (
@@ -66,7 +63,7 @@ let () =
       Js.log2 "pattern before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
-      let m = { m with handlers = Handlers.fromList [h] } in
+      let m = {m with handlers = Handlers.fromList [h]} in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
@@ -77,8 +74,7 @@ let () =
                ; shiftKey = false
                ; altKey = false
                ; metaKey = false
-               ; ctrlKey = false
-               })
+               ; ctrlKey = false })
             s)
     in
     let result =

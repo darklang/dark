@@ -68,8 +68,7 @@ let request_to_rollbar (body : string) (req : CRequest.t) :
   { body
   ; headers = req |> CRequest.headers |> Cohttp.Header.to_list
   ; url = req |> CRequest.uri |> Uri.to_string
-  ; http_method = req |> CRequest.meth |> Cohttp.Code.string_of_method
-  }
+  ; http_method = req |> CRequest.meth |> Cohttp.Code.string_of_method }
 
 
 type response_or_redirect_params =
@@ -77,18 +76,16 @@ type response_or_redirect_params =
       { resp_headers : Header.t
       ; execution_id : Types.id
       ; status : Cohttp.Code.status_code
-      ; body : string
-      }
+      ; body : string }
   | Redirect of
       { uri : Uri.t
-      ; headers : Header.t option
-      }
+      ; headers : Header.t option }
 
 let respond_or_redirect (params : response_or_redirect_params) =
   match params with
-  | Redirect { uri; headers } ->
+  | Redirect {uri; headers} ->
       S.respond_redirect ?headers ~uri ()
-  | Respond { resp_headers; execution_id; status; body } ->
+  | Respond {resp_headers; execution_id; status; body} ->
       let resp_headers =
         Header.add
           resp_headers
@@ -131,8 +128,7 @@ let respond_or_redirect_empty_body (params : response_or_redirect_params) =
           "Content-Length"
           (string_of_int (String.length r.body))
       in
-      respond_or_redirect
-        (Respond { r with body = ""; resp_headers = headers })
+      respond_or_redirect (Respond {r with body = ""; resp_headers = headers})
 
 
 let respond
@@ -140,7 +136,7 @@ let respond
     ~(execution_id : Types.id)
     status
     (body : string) =
-  respond_or_redirect (Respond { resp_headers; execution_id; status; body })
+  respond_or_redirect (Respond {resp_headers; execution_id; status; body})
 
 
 let should_use_https uri =
@@ -229,7 +225,7 @@ let canonicalize_request request =
   in
   (* Somewhat unbelievable, but CRequest.make strips the scheme (eg https)
    * from the uri, so we need to add it back in. *)
-  { new_req with resource = Uri.to_string new_uri }
+  {new_req with resource = Uri.to_string new_uri}
 
 
 (* sanitize both repeated '/' and final '/'.
@@ -320,8 +316,7 @@ let options_handler
     { resp_headers = Cohttp.Header.of_list resp_headers
     ; execution_id
     ; status = `OK
-    ; body = ""
-    }
+    ; body = "" }
 
 
 let result_to_response
@@ -369,8 +364,7 @@ let result_to_response
   | RTT.DResp (Redirect url, value) ->
       Redirect
         { headers = Header.init () |> maybe_infer_cors |> Some
-        ; uri = Uri.of_string url
-        }
+        ; uri = Uri.of_string url }
   | RTT.DResp (Response (code, resp_headers), value) ->
       let resp_headers =
         Header.of_list resp_headers |> maybe_infer_ct value |> maybe_infer_cors
@@ -397,7 +391,7 @@ let result_to_response
               Dval.to_pretty_machine_json_v1 value )
       in
       let status = Cohttp.Code.status_of_code code in
-      Respond { resp_headers; execution_id; status; body }
+      Respond {resp_headers; execution_id; status; body}
   | _ ->
       let body = Dval.to_pretty_machine_json_v1 result in
       (* for demonstrations sake, let's return 200 Okay when
@@ -405,7 +399,7 @@ let result_to_response
       let resp_headers =
         Header.init () |> maybe_infer_ct result |> maybe_infer_cors
       in
-      Respond { resp_headers; execution_id; status = `OK; body }
+      Respond {resp_headers; execution_id; status = `OK; body}
 
 
 let user_page_handler
@@ -428,8 +422,7 @@ let user_page_handler
         { resp_headers
         ; execution_id
         ; status = `Not_found
-        ; body = "404 Not Found: No route matches"
-        }
+        ; body = "404 Not Found: No route matches" }
   | Some owner ->
       let c =
         C.load_http canvas owner ~verb ~path:(sanitize_uri_path (Uri.path uri))
@@ -461,7 +454,7 @@ let user_page_handler
           let resp_headers =
             Cohttp.Header.of_list [cors; ("content-type", filetype)]
           in
-          Respond { resp_headers; execution_id; status = `OK; body = file }
+          Respond {resp_headers; execution_id; status = `OK; body = file}
       | [] ->
           let fof_timestamp =
             PReq.from_request ~allow_unparseable:true uri headers query body
@@ -480,8 +473,7 @@ let user_page_handler
             { resp_headers
             ; execution_id
             ; status = `Not_found
-            ; body = "404 Not Found: No route matches"
-            }
+            ; body = "404 Not Found: No route matches" }
       | a :: b :: _ ->
           let resp_headers = Cohttp.Header.of_list [cors] in
           Respond
@@ -490,8 +482,7 @@ let user_page_handler
             ; status = `Internal_server_error
             ; body =
                 "500 Internal Server Error: More than one handler for route: "
-                ^ Uri.path uri
-            }
+                ^ Uri.path uri }
       | [page] ->
           let input = PReq.from_request uri headers query body in
           ( match (Handler.module_for page, Handler.modifier_for page) with
@@ -711,8 +702,7 @@ let admin_add_op_handler
         then (params, canvas_id)
         else
           ( { params with
-              ops = params.ops |> Op.filter_ops_received_out_of_order
-            }
+              ops = params.ops |> Op.filter_ops_received_out_of_order }
           , canvas_id ))
   in
   let ops = params.ops in
@@ -738,7 +728,7 @@ let admin_add_op_handler
             if Api.causes_any_changes params
             then (
               let strollerMsg =
-                { result; params }
+                {result; params}
                 |> Analysis.add_op_stroller_msg_to_yojson
                 |> Yojson.Safe.to_string
               in
@@ -784,7 +774,7 @@ let admin_add_op_handler
             `OK
             (Option.value
                ~default:
-                 ( { result = Analysis.empty_to_add_op_rpc_result; params }
+                 ( {result = Analysis.empty_to_add_op_rpc_result; params}
                  |> Analysis.add_op_stroller_msg_to_yojson
                  |> Yojson.Safe.to_string )
                strollerMsg))
@@ -861,7 +851,7 @@ let initial_load
           | Some u ->
               u
           | None ->
-              { username; email = ""; name = ""; admin = false })
+              {username; email = ""; name = ""; admin = false})
     in
     let t7, worker_schedules =
       time "7-worker-schedules" (fun _ ->
@@ -1352,8 +1342,7 @@ let domain req =
 
 type login_page =
   { username : string
-  ; password : string
-  }
+  ; password : string }
 [@@deriving yojson]
 
 let login_template = File.readfile ~root:Templates "login.html"
