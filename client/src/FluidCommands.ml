@@ -165,9 +165,7 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       ; ViewEntry.defaultPasteHandler
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
-            FluidMsg (FluidCommandsClick item) )
-      ; ViewUtils.eventBoth ~key:("-mouseover" ^ name) "mouseover" (fun _ ->
-            FluidMsg (FluidUpdateDropdownIndex i) ) ]
+            FluidMsg (FluidCommandsClick item) ) ]
       [Html.text name]
   in
   let filterInput =
@@ -184,14 +182,6 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       [Html.ul [] (List.indexedMap ~f:viewCommands cp.commands)]
   in
   Html.div [Html.class' "command-palette"] [filterInput; cmdsView]
-
-
-let cpSetIndex (_m : Types.model) (i : int) (s : Types.fluidState) :
-    Types.modification =
-  let newState = {s with cp = {s.cp with index = i}; upDownCol = None} in
-  let cmd = Types.MakeCmd (focusItem i) in
-  let m = Types.TweakModel (fun m -> {m with fluidState = newState}) in
-  Types.Many [m; cmd]
 
 
 let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
