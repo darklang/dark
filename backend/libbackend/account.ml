@@ -264,14 +264,15 @@ let set_admin ~username (admin : bool) : unit =
  * No need to detect which and SQL differently; no valid username contains a
  * '@', and every valid email address does. [If you say 'uucp bang path', I will
  * laugh and then tell you to give me a real email address.] *)
-let authenticate ~(username : username) ~(password : string) : string option =
+let authenticate ~(username_or_email : username) ~(password : string) :
+    string option =
   match
     Db.fetch_one_option
       ~name:"valid_user"
-      ~subject:username
+      ~subject:username_or_email
       "SELECT username, password from accounts
            WHERE accounts.username = $1 OR accounts.email = $1"
-      ~params:[String username]
+      ~params:[String username_or_email]
   with
   | Some [db_username; db_password] ->
       if password
