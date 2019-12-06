@@ -598,7 +598,6 @@ let () =
         (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
         (copy (0, 7))
         ("request.body", "request", 7) ;
-
       (* NOT WORKING YET
       t
         "copying field part adds an EVariable to clipboard"
@@ -917,7 +916,6 @@ let () =
              ; EInteger (gid (), "789") ] ))
         (cut (5, 12))
         ("[123,___]", "[456,789]", 5) ;
-
       (* NOT WORKING b/c placing the cursor on either side of a separator
        * acts as though it's on the sub-expression
       t

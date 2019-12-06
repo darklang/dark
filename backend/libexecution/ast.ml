@@ -384,7 +384,6 @@ let rec exec
           in
           ignore (exe fake_st body)
         else () ;
-
         (* TODO: this will error if the number of args and vars arent equal *)
         DBlock
           (fun args ->
@@ -660,7 +659,6 @@ and exec_fn
             Util.merge_left db_dvals args
           in
           engine.trace_tlid tlid ;
-
           (* Don't execute user functions if it's preview mode and we have a result *)
           ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
           | Preview, Some (result, _ts) ->

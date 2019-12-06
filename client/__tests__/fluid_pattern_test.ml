@@ -185,7 +185,6 @@ let () =
         aHugeInt
         (insert '9' 19)
         ("2000000000000000000", 19) ;
-
       (* let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in *)
       let oneShorterThanMax62BitInt =
         FPInteger (mID, gid (), "461168601842738790")
@@ -337,7 +336,6 @@ let () =
         aConstructor
         (space 5)
         ("Just ***", 5) ;
-
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.

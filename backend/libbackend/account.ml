@@ -409,7 +409,6 @@ let upsert_admins () : unit =
           "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWjdFdjJlZ2ZmMnZRaFhjQWlpOWlPZyRrL2F1bGFEU0tra3BQMmNKTHF6S3NaU3d5WXdmWm1pNkQ4Yy96alJrT3YwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "dean@darklang.com"
     ; name = "Dean Strelau" } ;
-
   (* dark contractors *)
   (* upsert_account_exn *)
   (*   { username = "lizzie" *)

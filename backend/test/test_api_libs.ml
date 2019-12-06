@@ -37,7 +37,6 @@ let t_hmac_signing _ =
        ; ("oauth_timestamp", ts)
        ; ("oauth_token", auth.access_token)
        ; ("oauth_version", "1.0") ]) ;
-
   (* Test 2 - full header *)
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   Mock.set_string "ts" ts ;

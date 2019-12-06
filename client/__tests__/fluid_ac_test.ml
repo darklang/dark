@@ -323,7 +323,6 @@ let () =
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc")) ;
-
           (* TODO: not yet working in fluid
            test "Returning to empty unselects" (fun () ->
               expect
@@ -419,7 +418,6 @@ let () =
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual None) ;
-
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m
@@ -510,7 +508,6 @@ let () =
                    |> setQuery m "event"
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true]) ;
-
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in

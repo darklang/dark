@@ -35,7 +35,6 @@ let cron_checker execution_id =
 let () =
   let execution_id = Libexecution.Util.create_id () in
   Libbackend.Init.init ~run_side_effects:false ;
-
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
   let health_check_thread = Thread.create (health_check shutdown) () in

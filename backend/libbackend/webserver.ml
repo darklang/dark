@@ -1891,7 +1891,6 @@ let k8s_handler req ~execution_id ~stopper =
           "shutdown"
           ~data:"Received shutdown request - shutting down"
           ~params:[("execution_id", Types.string_of_id execution_id)] ;
-
         (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
         Lwt_unix.sleep 28.0
         >>= fun _ ->
@@ -2037,7 +2036,6 @@ let callback ~k8s_callback ip req body execution_id =
         ; ("method", req |> CRequest.meth |> Cohttp.Code.string_of_method)
         ; ("uri", Uri.to_string uri)
         ; ("execution_id", Types.string_of_id execution_id) ] ;
-
     (* first: if this isn't https and should be, redirect *)
     match redirect_to (CRequest.uri req) with
     | Some x ->

@@ -375,7 +375,6 @@ let t_date_functions_work () =
     (DResult (ResOk (Dval.dstr_of_string_exn "2019-07-28T22:42:00Z")))
     (exec_ast
        "(Result::map (Date::parse_v1 '2019-07-28T22:42:00Z') (\\d -> (Date::toString d)))") ;
-
   (* Subparts of a date *)
   check_dval
     "Year works"

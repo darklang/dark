@@ -157,7 +157,6 @@ let t_route_variables_work_with_stored_events () =
        ~trace_id:t1
        desc
        (Dval.dstr_of_string_exn "1")) ;
-
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list
@@ -169,7 +168,6 @@ let t_route_variables_work_with_stored_events () =
     "path returned correctly"
     (loaded1 |> List.map ~f:t4_get1st)
     [http_request_path] ;
-
   (* check that the event is not in the 404s *)
   let f404s = Analysis.get_404s ~since:Time.epoch !c in
   AT.check (AT.list (AT.of_pp Stored_event.pp_four_oh_four)) "no 404s" [] f404s ;
@@ -196,7 +194,6 @@ let t_route_variables_work_with_stored_events_and_wildcards () =
        ~trace_id:t1
        desc
        (Dval.dstr_of_string_exn "1")) ;
-
   (* check we get back the path for a route with a variable in it *)
   let loaded1 = SE.load_events ~canvas_id:!c.id route in
   check_dval_list "load GET events" [] (loaded1 |> List.map ~f:t4_get4th) ;

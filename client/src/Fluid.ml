@@ -2090,7 +2090,6 @@ let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
             oldVal
         | oldVal ->
             id := eid oldVal ;
-
             (* This uses oldval, unlike replaceWithPartial, because when a
            * partial goes to blank you're deleting it, while when a
            * rightPartial goes to blank you've only deleted the rhs *)

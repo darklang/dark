@@ -373,7 +373,6 @@ let () =
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual (-1)) ;
-
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m

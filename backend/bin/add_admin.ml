@@ -15,7 +15,6 @@ let prompt str =
 
 let () =
   Random.self_init () ;
-
   (* parse args *)
   let prompt_for_password =
     match (Array.length Sys.argv, Array.to_list Sys.argv) with

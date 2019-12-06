@@ -144,7 +144,6 @@ let http_call_with_code
       C.set_writefunction c responsefn ;
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
-
       (* This tells CURL to send an Accept-Encoding header including all
        * of the encodings it supports *and* tells it to automagically decode
        * responses in those encodings. This works even if someone manually specifies
@@ -153,13 +152,10 @@ let http_call_with_code
        * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
        * *)
       if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY ;
-
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
       C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
-
       (* Seems like redirects can be used to get around the above list... *)
       C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
-
       (* If we have the tunnel options, proxy Curl through it with socks ... *)
       Option.value_map
         ~default:()
@@ -188,10 +184,8 @@ let http_call_with_code
           C.set_customrequest c "HEAD"
       | GET ->
           () ) ;
-
       (* Actually do the request *)
       C.perform c ;
-
       (* If we get a redirect back, then we may see the content-type
        * header twice. Fortunately, because we push headers to the front
        * above, and take the first in charset, we get the right

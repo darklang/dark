@@ -819,7 +819,6 @@ let () =
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_~\"" ) ;
-
       (* Skipped insert, del, bs of space, as it doesn't seem interesting *)
       t
         "final quote is swallowed"
@@ -1349,7 +1348,6 @@ let () =
         (partial "Int::" (fn "Int::add" [b; b]))
         (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
         "Int::sqrt ~_________" ;
-
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
@@ -1457,7 +1455,6 @@ let () =
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
       (* TODO: This should be 129, but reflow puts the caret in the wrong
            * place for new partials *) ;
-
       tp
         "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
@@ -1470,7 +1467,6 @@ let () =
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
       (* TODO: This should be 120, but reflow puts the caret in the wrong
            * place for new partials *) ;
-
       t
         "ctrl+left on function in middle of version moves to beg of version"
         aFnCallWithVersion
@@ -1657,7 +1653,6 @@ let () =
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
         "12345~" ;
-
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
@@ -1710,7 +1705,6 @@ let () =
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
-
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
@@ -1734,7 +1728,6 @@ let () =
         aLambda
         (key GreaterThan 6)
         "\\*** -> ~___" ;
-
       (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) "~___" ;
       t "insert space in lambda" aLambda (key K.Space 1) "\\~*** -> ___" ;
@@ -2047,7 +2040,6 @@ let () =
         emptyMatch
         (ctrlRight 15)
         "match ___\n  *** -> ___~\n" ;
-
       (* delete row with delete *)
       ()) ;
   describe "Lets" (fun () ->
@@ -2415,7 +2407,6 @@ let () =
         aPipe
         (ctrlRight 20)
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
-
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
@@ -2539,7 +2530,6 @@ let () =
         multi
         (ins ',' 3)
         "[56,~___,78]" ;
-
       (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
@@ -2897,7 +2887,6 @@ let () =
         (fieldAccess (EVariable (ID "12", "request")) "bo")
         (enter ~clone:false 10)
         "request.body~" ;
-
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -2945,19 +2934,16 @@ let () =
         emptyIf
         (key K.Left 13)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
-
       (* length *)
       test "up from first row is zero" (fun () ->
           expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0) ;
       test "down from first row is end of last row" (fun () ->
           expect (doDown ~pos:168 ast s |> fun s -> s.newPos) |> toEqual 174) ;
-
       (* end of short row *)
       test "up into shorter row goes to end of row" (fun () ->
           expect (doUp ~pos:172 ast s |> fun m -> m.newPos) |> toEqual 156) ;
       test "down into shorter row goes to end of row" (fun () ->
           expect (doDown ~pos:143 ast s |> fun m -> m.newPos) |> toEqual 156) ;
-
       (* start of indented row *)
       test "up into indented row goes to first token" (fun () ->
           expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130) ;
@@ -2993,7 +2979,6 @@ let () =
         emptyIf
         (keys [K.Escape; K.Down; K.Down] 5)
         "if ___\nthen\n  ___~\nelse\n  ___" ;
-
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect

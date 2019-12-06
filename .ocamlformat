@@ -6,3 +6,4 @@ single-case = compact
 space-around-lists = false
 space-around-records = false
 space-around-variants = false
+sequence-blank-line = compact

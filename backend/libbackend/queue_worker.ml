@@ -16,7 +16,6 @@ let dequeue_and_process execution_id :
          * no item to put back *)
           let bt = Exception.get_backtrace () in
           Log.erroR "Exception while dequeueing" ;
-
           (* execution_id will be in this log *)
           Error (bt, e)
       in
@@ -43,7 +42,6 @@ let dequeue_and_process execution_id :
                      ignore
                        (Event_queue.put_back transaction event ~status:`Err) ;
                      Log.erroR "Exception while loading canvas" ;
-
                      (* execution_id will be in this log *)
                      Error (bt, e)
                  in

@@ -41,26 +41,20 @@ let t_undo () =
   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
   (* Check assumptions *)
   execute_ops ops |> check_dval "t_undo_1" (Dval.dint 5) ;
-
   (* First undo *)
   execute_ops (List.concat [ops; [u]]) |> check_dval "t_undo_3" (Dval.dint 4) ;
-
   (* Second undo *)
   execute_ops (List.concat [ops; [u; u]])
   |> check_dval "t_undo_4" (Dval.dint 3) ;
-
   (* First redo *)
   execute_ops (List.concat [ops; [u; u; r]])
   |> check_dval "t_undo_5" (Dval.dint 4) ;
-
   (* Second redo *)
   execute_ops (List.concat [ops; [u; u; r; r]])
   |> check_dval "t_undo_6" (Dval.dint 5) ;
-
   (* Another undo *)
   execute_ops (List.concat [ops; [u; u; r; r; u]])
   |> check_dval "t_undo_7" (Dval.dint 4) ;
-
   (* Another redo *)
   execute_ops (List.concat [ops; [u; u; r; r; u; r]])
   |> check_dval "t_undo_8" (Dval.dint 5)
@@ -181,7 +175,6 @@ let t_set_after_delete () =
     "second handler is right"
     (execute_ops [op1; op2; op3])
     (Dval.dint 7) ;
-
   (* same thing for functions *)
   clear_test_data () ;
   let h1 = user_fn "testfn" [] (ast_for "(+ 5 3)") in
@@ -215,14 +208,12 @@ let t_load_for_context_only_loads_relevant_data () =
   let h = http_handler ~tlid:tlid2 (ast_for "(+ 5 2)") in
   let c1 = ops2c_exn host1 (Op.SetHandler (tlid2, pos, h) :: shared_oplist) in
   Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
-
   (* c2 *)
   let host2 = "test-load_for_context_two" in
   let c2 =
     ops2c_exn host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
   in
   Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
-
   (* test *)
   let owner = Account.for_host_exn host1 in
   let canvas_id1 = Serialize.fetch_canvas_id owner host1 in
