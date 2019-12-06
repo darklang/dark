@@ -2186,6 +2186,16 @@ let () =
         matchWithTwoLets
         (ctrlRight 15)
         "match ___\n  *** -> let x~ = 5\n         let y = 6\n         ___\n" ;
+      t
+        "enter at the end of a non-let wraps literal expr in let"
+        aShortInt
+        (enter 1)
+        "let _ = 1\n~___" ;
+      t
+        "enter at the end of a non-let wraps fncall in let"
+        aFullFnCall
+        (enter 12)
+        "let _ = Int::add 5 5\n~___" ;
       test "enter at the start of ast also creates let" (fun () ->
           (* Test doesn't work wrapped *)
           expect
@@ -2475,15 +2485,20 @@ let () =
         (enter 4)
         "if 5\n~then\n  6\nelse\n  7" ;
       t
+        "enter at the end of then line wraps expr in let"
+        plainIf
+        (enter 13)
+        "if 5\nthen\n  let _ = 6\n  ~___\nelse\n  7" ;
+      t
+        "enter at the end of else line wraps expr in let"
+        plainIf
+        (enter 22)
+        "if 5\nthen\n  6\nelse\n  let _ = 7\n  ~___" ;
+      t
         "enter at end of then line inserts let if no blank next "
         plainIf
         (enter 9)
         "if 5\nthen\n  let ~*** = ___\n  6\nelse\n  7" ;
-      t
-        "enter at end of then expr line does nothing"
-        plainIf
-        (enter 13)
-        "if 5\nthen\n  6\n~else\n  7" ;
       t
         "enter at end of else line does inserts let if no blank next"
         (* TODO: This should probably do nothing, but right now it acts like
@@ -2491,11 +2506,6 @@ let () =
         plainIf
         (enter 18)
         "if 5\nthen\n  6\nelse\n  let ~*** = ___\n  7" ;
-      t
-        "enter at end of else expr line does nothing"
-        plainIf
-        (enter 22)
-        "if 5\nthen\n  6\nelse\n  7~" ;
       t
         "ctrl+left from value moves to condition "
         plainIf

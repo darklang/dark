@@ -2622,7 +2622,9 @@ let acMoveBasedOnKey
   newState
 
 
-let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
+(* Used for piping and wrapping line in let.  For both we are often at the last argument of a function call. We want to perform the operation on the entire expression om the last line, not just the expression present in the token at the end of the line. This function helps us find the whole expression that we would want to perform it on.
+*)
+let rec findAppropriateParentToWrap (oldExpr : fluidExpr) (ast : ast) :
     fluidExpr option =
   let child = oldExpr in
   let parent = findParent (eid oldExpr) ast in
@@ -2651,10 +2653,10 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
         Some child
     (* These are the expressions we're trying to skip. They are "sub-line" expressions. *)
     | EBinOp _ | EFnCall _ | EList _ | EConstructor _ | EFieldAccess _ ->
-        findAppropriatePipingParent parent ast
+        findAppropriateParentToWrap parent ast
     (* These are wrappers of the current expr. *)
     | EPartial _ | ERightPartial _ ->
-        findAppropriatePipingParent parent ast )
+        findAppropriateParentToWrap parent ast )
   | None ->
       (* If we get to the root *)
       Some child
@@ -2665,7 +2667,7 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriatePipingParent e ast else Some e )
+           if findParent then findAppropriateParentToWrap e ast else Some e )
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
@@ -2710,7 +2712,7 @@ let updateFromACItem
          * to say the largest expression that doesn't break a line. *)
         let newAST =
           let exprToReplace =
-            findAppropriatePipingParent oldExpr ast
+            findAppropriateParentToWrap oldExpr ast
             |> Option.map ~f:extractSubexprFromPartial
           in
           match exprToReplace with
@@ -2858,6 +2860,8 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
         | _, ARInvalid ->
             (* If this happens, there's a bug *)
             false
+        | TBlank id, ARBlank targetId when id = targetId ->
+            true
         | _ ->
             false )
   in
@@ -3496,6 +3500,31 @@ let doInsert
       doInsert' ~pos letter ti ast s
 
 
+let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
+  let s = recordAction "wrapInLet" s in
+  let id = Token.tid ti.token in
+  match findExpr id ast with
+  | Some expr ->
+      let bodyId = gid () in
+      let exprToWrap =
+        match findAppropriateParentToWrap expr ast with
+        | Some e ->
+            e
+        | None ->
+            expr
+      in
+      let eid = eid exprToWrap in
+      let newExpr = ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId) in
+      let newAST = replaceExpr ~newExpr eid ast in
+      let newPos =
+        posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
+      in
+      Debug.loG "VOX newPos=" newPos ;
+      (newAST, {s with newPos})
+  | None ->
+      (ast, s)
+
+
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getCurrentToken tokens =
     let _, mCurrent, _ = getTokensAtPosition tokens ~pos:m.fluidState.newPos in
@@ -3637,6 +3666,21 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   let keyIsInfix = List.member ~value:key infixKeys in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
+  (* Checks to see if the token is within an if-condition statement *)
+  let isInIfCondition token =
+    let rec recurseUp maybeExpr prevId =
+      match maybeExpr with
+      | Some (EIf (_, cond, _, _)) when eid cond = prevId ->
+          true
+      | Some e ->
+          let id = eid e in
+          recurseUp (findParent id ast) id
+      | None ->
+          false
+    in
+    let tid = Token.tid token in
+    recurseUp (findParent tid ast) tid
+  in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
      * inconsistent about whether it looks left/right and also about what
@@ -3862,6 +3906,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* End of line *)
     | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
+    | K.Enter, L (lt, lti), R (TNewline None, rti)
+      when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
+      ->
+        wrapInLet lti ast s
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
     | K.Enter, L (TPipe (id, index, _), _), _ ->
@@ -3871,7 +3919,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
         addEntryAbove (FluidToken.tid t) None ast s
-    (* Int to float *)
+    | K.Enter, L (token, ti), No when not (Token.isLet token) ->
+        wrapInLet ti ast s
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)
