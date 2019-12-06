@@ -227,6 +227,10 @@ let isNewline (t : token) : bool =
   match t with TNewline _ -> true | _ -> false
 
 
+let isLet (t : token) : bool =
+  match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
+
+
 let isAutocompletable (t : token) : bool =
   match t with
   | TBlank _
