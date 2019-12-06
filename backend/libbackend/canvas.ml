@@ -247,17 +247,16 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
           delete_tipe tlid
       | DeleteTypeForever tlid ->
           delete_tipe_forever tlid
-  with
-  | e ->
-      (* Log here so we have context, but then re-raise *)
-      Log.erroR
-        "apply_op failure"
-        ~params:
-          [ ("host", !c.host)
-          ; ("op", Op.show_op op)
-          ; ("exn", Exception.to_string e)
-          ] ;
-      Exception.reraise e
+  with e ->
+    (* Log here so we have context, but then re-raise *)
+    Log.erroR
+      "apply_op failure"
+      ~params:
+        [ ("host", !c.host)
+        ; ("op", Op.show_op op)
+        ; ("exn", Exception.to_string e)
+        ] ;
+    Exception.reraise e
 
 
 let verify (c : canvas ref) : (unit, string list) Result.t =
@@ -434,9 +433,7 @@ let load_from
     in
     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
     c |> verify |> Result.map ~f:(fun _ -> c)
-  with
-  | e ->
-      Libexecution.Exception.reraise_as_pageable e
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
@@ -552,9 +549,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~modifier
             ~tipe
         else ())
-  with
-  | e ->
-      Libexecution.Exception.reraise_as_pageable e
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c

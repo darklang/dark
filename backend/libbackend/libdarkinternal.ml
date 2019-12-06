@@ -142,9 +142,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
               ( try
                   Canvas.validate_host (Unicode_string.to_string host) ;
                   DBool true
-                with
-              | _ ->
-                  DBool false )
+                with _ -> DBool false )
             | args ->
                 fail args)
     ; ps = false
@@ -473,9 +471,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> List.map ~f:(Analysis.handler_trace !c handler)
                   |> ignore ;
                   DBool true
-                with
-              | _ ->
-                  DBool false )
+                with _ -> DBool false )
             | args ->
                 fail args)
     ; ps = false
@@ -546,9 +542,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                         Error
                           ( "Received something other than an Nothing, Just [...], or Just \"*\": "
                           ^ Dval.to_developer_repr_v0 dv )
-                  with
-                  | e ->
-                      Error (Exception.exn_to_string e)
+                  with e -> Error (Exception.exn_to_string e)
                 in
                 ( match cors_setting s with
                 | Error e ->
@@ -729,8 +723,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     ~event:(event |> Unicode_string.to_string)
                     (payload |> DObj |> Dval.to_internal_roundtrippable_v0) ;
                   DResult (ResOk (DObj payload))
-                with
-              | e ->
+                with e ->
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn))
@@ -759,8 +752,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     ~event:(event |> Unicode_string.to_string)
                     (payload |> Dval.to_internal_roundtrippable_v0) ;
                   DResult (ResOk payload)
-                with
-              | e ->
+                with e ->
                   DResult
                     (ResError
                        (e |> Exception.to_string |> Dval.dstr_of_string_exn))

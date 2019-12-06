@@ -248,11 +248,11 @@ let delete_static_asset_deploy
     (username : string)
     (deploy_hash : string) : unit =
   let account_id =
-    try Account.id_of_username username |> Option.value_exn with
-    | e ->
-        Log.infO ("NO ACCOUNT ID FOR USERNAME " ^ username) ;
-        Uuidm.of_string "cb0b287e-92d6-4f51-919d-681705e2ade2"
-        |> Option.value_exn
+    try Account.id_of_username username |> Option.value_exn
+    with e ->
+      Log.infO ("NO ACCOUNT ID FOR USERNAME " ^ username) ;
+      Uuidm.of_string "cb0b287e-92d6-4f51-919d-681705e2ade2"
+      |> Option.value_exn
   in
   Db.run
     ~name:"delete static_asset_deploy record"

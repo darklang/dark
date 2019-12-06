@@ -20,20 +20,19 @@ let rec rec_con depth =
     c#set_notice_processor (fun notice ->
         Log.warN "postgres_notice" ~data:notice) ;
     c
-  with
-  | e ->
-      Log.infO
-        "Couldn't connect to postgres"
-        ~jsonparams:[ ("attempt", `Int depth) ] ;
-      if depth < 10
-      then (
-        (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'
-         * (what could it possibly be doing??). Let's wait max 50 seconds so we're
-         * not crashing twice every time a pod is scheduled. The 20 seconds is
-         * a buffer. Hurry up and wait, private! *)
-        Unix.sleep 5 ;
-        rec_con (depth + 1) )
-      else raise e
+  with e ->
+    Log.infO
+      "Couldn't connect to postgres"
+      ~jsonparams:[ ("attempt", `Int depth) ] ;
+    if depth < 10
+    then (
+      (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'
+       * (what could it possibly be doing??). Let's wait max 50 seconds so we're
+       * not crashing twice every time a pod is scheduled. The 20 seconds is
+       * a buffer. Hurry up and wait, private! *)
+      Unix.sleep 5 ;
+      rec_con (depth + 1) )
+    else raise e
 
 
 let conn = rec_con 0
@@ -57,6 +56,4 @@ let status () =
         `Healthy
     | Bad ->
         `Disconnected
-  with
-  | e ->
-      `Disconnected
+  with e -> `Disconnected

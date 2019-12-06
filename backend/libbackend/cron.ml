@@ -151,21 +151,20 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                      ; ("execution_id", Types.string_of_id execution_id)
                      ] ;
                  None
-           with
-           | e ->
-               let bt = Exception.get_backtrace () in
-               incr stat_canvas_errors ;
-               Log.erroR
-                 "cron_checker"
-                 ~data:"Deserialization error"
-                 ~bt
-                 ~params:
-                   [ ("host", endp)
-                   ; ("exn", Log.dump e)
-                   ; ("execution_id", Types.string_of_id execution_id)
-                   ] ;
-               ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
-               None)
+           with e ->
+             let bt = Exception.get_backtrace () in
+             incr stat_canvas_errors ;
+             Log.erroR
+               "cron_checker"
+               ~data:"Deserialization error"
+               ~bt
+               ~params:
+                 [ ("host", endp)
+                 ; ("exn", Log.dump e)
+                 ; ("execution_id", Types.string_of_id execution_id)
+                 ] ;
+             ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
+             None)
     |> List.iter ~f:(fun (endp, c) ->
            let crons =
              !c.handlers
@@ -227,17 +226,16 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ] ;
          x)
     |> Ok
-  with
-  | e ->
-      let bt = Exception.get_backtrace () in
-      Log.infO
-        "cron_checker"
-        ~data:"errored"
-        ~params:[ ("execution_id", Types.string_of_id execution_id) ]
-        ~jsonparams:
-          [ ("canvas.checked", `Int stat_canvases)
-          ; ("canvas.errors", `Int !stat_canvas_errors)
-          ; ("cron.checked", `Int !stat_crons)
-          ; ("cron.queued", `Int !stat_events)
-          ] ;
-      Error (bt, e)
+  with e ->
+    let bt = Exception.get_backtrace () in
+    Log.infO
+      "cron_checker"
+      ~data:"errored"
+      ~params:[ ("execution_id", Types.string_of_id execution_id) ]
+      ~jsonparams:
+        [ ("canvas.checked", `Int stat_canvases)
+        ; ("canvas.errors", `Int !stat_canvas_errors)
+        ; ("cron.checked", `Int !stat_crons)
+        ; ("cron.queued", `Int !stat_events)
+        ] ;
+    Error (bt, e)

@@ -209,18 +209,17 @@ let http_call_with_code
       let response = (C.get_responsecode c, !errorbuf, responsebody) in
       C.cleanup c ;
       response
-    with
-    | Curl.CurlException (curl_code, code, s) ->
-        let info =
-          [ ("url", url)
-          ; ("error", Curl.strerror curl_code)
-          ; ("curl_code", string_of_int code)
-          ; ("response", Buffer.contents responsebuf)
-          ]
-        in
-        Exception.code
-          ~info
-          ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
+    with Curl.CurlException (curl_code, code, s) ->
+      let info =
+        [ ("url", url)
+        ; ("error", Curl.strerror curl_code)
+        ; ("curl_code", string_of_int code)
+        ; ("response", Buffer.contents responsebuf)
+        ]
+      in
+      Exception.code
+        ~info
+        ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
   in
   (body, code, !result_headers, error)
 

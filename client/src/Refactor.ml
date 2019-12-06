@@ -576,15 +576,13 @@ let coerceTypes (v : dval) : tipe =
     match dstr with
     | DStr s ->
         let parsedDate = Js.Date.fromString s in
-        ( (* toISOString will raise Invalid Date if date
+        ( try
+            (* toISOString will raise Invalid Date if date
                           * is invalid; bucklescript doesn't expose this
                           * to us otherwise *)
-        try
-          ignore (Js.Date.toISOString parsedDate) ;
-          true
-        with
-        | _ ->
-            false )
+            ignore (Js.Date.toISOString parsedDate) ;
+            true
+          with _ -> false )
     | _ ->
         false
   in

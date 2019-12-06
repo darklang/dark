@@ -122,14 +122,14 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
 
 
 let handle_error (fn : unit -> dval) =
-  try DResult (ResOk (fn ())) with
-  | Invalid_argument msg ->
-      let msg =
-        if msg = "No RSA keys"
-        then "Invalid private key: not an RSA key"
-        else msg
-      in
-      DResult (ResError (Dval.dstr_of_string_exn msg))
+  try DResult (ResOk (fn ()))
+  with Invalid_argument msg ->
+    let msg =
+      if msg = "No RSA keys"
+      then "Invalid private key: not an RSA key"
+      else msg
+    in
+    DResult (ResError (Dval.dstr_of_string_exn msg))
 
 
 let fns =
@@ -315,8 +315,7 @@ let fns =
                       |> DResult
                   | Error msg ->
                       DResult (ResError (Dval.dstr_of_string_exn msg)) )
-              with
-            | Invalid_argument msg ->
+              with Invalid_argument msg ->
                 let msg =
                   if msg = "No public keys" then "Invalid public key" else msg
                 in

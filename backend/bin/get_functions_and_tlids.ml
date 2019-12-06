@@ -157,13 +157,11 @@ let () =
                   |> Result.map_error ~f:(String.concat ~sep:", ")
                   |> Prelude.Result.ok_or_internal_exception
                        "Canvas load error" )
-              with
-              | Pageable.PageableExn e ->
-                  Log.erroR
-                    "Can't load canvas"
-                    ~params:
-                      [ ("host", host); ("exn", Exception.exn_to_string e) ] ;
-                  None
+              with Pageable.PageableExn e ->
+                Log.erroR
+                  "Can't load canvas"
+                  ~params:[ ("host", host); ("exn", Exception.exn_to_string e) ] ;
+                None
             in
             canvas
             |> Option.map ~f:process_canvas

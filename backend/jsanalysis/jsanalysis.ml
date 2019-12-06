@@ -194,10 +194,9 @@ let () =
            |> Js.to_string
            |> perform_handler_analysis
            |> fun msg -> Js.array [| Js.string "success"; Js.string msg |]
-         with
-         | e ->
-             let error = Exception.to_string e in
-             Js.array [| Js.string "failure"; Js.string error |]
+         with e ->
+           let error = Exception.to_string e in
+           Js.array [| Js.string "failure"; Js.string error |]
 
        method performFunctionAnalysis
            (stringified_function_analysis_param : js_string)
@@ -207,9 +206,8 @@ let () =
            |> Js.to_string
            |> perform_function_analysis
            |> fun msg -> Js.array [| Js.string "success"; Js.string msg |]
-         with
-         | e ->
-             let error = Exception.to_string e in
-             Js.array [| Js.string "failure"; Js.string error |]
+         with e ->
+           let error = Exception.to_string e in
+           Js.array [| Js.string "failure"; Js.string error |]
     end) ;
   ()

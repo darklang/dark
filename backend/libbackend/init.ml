@@ -40,8 +40,7 @@ let init ~run_side_effects =
       if Config.check_tier_one_hosts then Canvas.check_tier_one_hosts () ;
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete" ;
       has_inited := true )
-  with
-  | e ->
-      let bt = Libexecution.Exception.get_backtrace () in
-      Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
-      raise e
+  with e ->
+    let bt = Libexecution.Exception.get_backtrace () in
+    Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
+    raise e

@@ -61,10 +61,9 @@ let readfile ~root f : string =
     Caml.really_input ic s 0 n ;
     Caml.close_in ic ;
     Caml.Bytes.to_string s
-  with
-  | e ->
-      Caml.close_in_noerr ic ;
-      raise e
+  with e ->
+    Caml.close_in_noerr ic ;
+    raise e
 
 
 let readfile_lwt ~root f : string Lwt.t =

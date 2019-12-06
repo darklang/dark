@@ -19,8 +19,7 @@ let status () =
               Lwt.return `Healthy
           | _ ->
               Lwt.return (`Unhealthy (string_of_int code))
-        with
-      | e ->
+        with e ->
           let bt = Exception.get_backtrace () in
           let%lwt _ =
             Rollbar.report_lwt
@@ -122,8 +121,7 @@ let _segment_event
             ~jsonparams:[ ("status", `Int code) ]
             ~params:log_params ;
           Lwt.return ()
-        with
-      | e ->
+        with e ->
           let bt = Exception.get_backtrace () in
           let%lwt _ =
             Rollbar.report_lwt
@@ -159,19 +157,18 @@ let blocking_curl_post (url : string) (body : string) : int * string * string =
     let response = (get_responsecode c, !errorbuf, responsebody) in
     cleanup c ;
     response
-  with
-  | Curl.CurlException (curl_code, code, s) ->
-      let params =
-        [ ("url", url)
-        ; ("error", Curl.strerror curl_code)
-        ; ("curl_code", string_of_int code)
-        ; ("response", Buffer.contents responsebuf)
-        ]
-      in
-      Log.erroR
-        ("Internal HTTP error in blocking_curl_post: " ^ strerror curl_code)
-        ~params ;
-      (code, "", "")
+  with Curl.CurlException (curl_code, code, s) ->
+    let params =
+      [ ("url", url)
+      ; ("error", Curl.strerror curl_code)
+      ; ("curl_code", string_of_int code)
+      ; ("response", Buffer.contents responsebuf)
+      ]
+    in
+    Log.erroR
+      ("Internal HTTP error in blocking_curl_post: " ^ strerror curl_code)
+      ~params ;
+    (code, "", "")
 
 
 let segment_event_blocking
@@ -284,19 +281,18 @@ let push
               ~jsonparams:[ ("status", `Int code) ]
               ~params:log_params ;
             Lwt.return ()
-          with
-          | e ->
-              let bt = Exception.get_backtrace () in
-              let%lwt _ =
-                Rollbar.report_lwt
-                  e
-                  bt
-                  (Push event)
-                  ( execution_id
-                  |> Option.map ~f:Types.show_id
-                  |> Option.value ~default:"not in execution" )
-              in
-              Lwt.return ())
+          with e ->
+            let bt = Exception.get_backtrace () in
+            let%lwt _ =
+              Rollbar.report_lwt
+                e
+                bt
+                (Push event)
+                ( execution_id
+                |> Option.map ~f:Types.show_id
+                |> Option.value ~default:"not in execution" )
+            in
+            Lwt.return ())
 
 
 let push_new_trace_id

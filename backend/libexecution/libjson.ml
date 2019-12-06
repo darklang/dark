@@ -14,9 +14,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [ DStr json ] ->
-            ( try Dval.of_unknown_json_v0 (Unicode_string.to_string json) with
-            | _ ->
-                DNull )
+            ( try Dval.of_unknown_json_v0 (Unicode_string.to_string json)
+              with _ -> DNull )
           | args ->
               fail args)
     ; ps = true

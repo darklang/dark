@@ -121,9 +121,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
             Some (`Float (whole, fraction))
         | _ ->
             None
-      with
-      | _ ->
-          None
+      with _ -> None
     in
     let asString =
       if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
@@ -4636,9 +4634,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
         | _ ->
             (* We could support more but don't yet *)
             recover "not a pexpr" data None
-      with
-    | _ ->
-        recover "could not decode" json None )
+      with _ -> recover "could not decode" json None )
   | `Text text ->
       (* TODO: This is an OK first solution, but it doesn't allow us paste
          * into things like variable or key names. *)

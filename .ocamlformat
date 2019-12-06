@@ -2,3 +2,4 @@ profile = sparse
 
 break-string-literals = never
 escape-strings = preserve
+single-case = compact

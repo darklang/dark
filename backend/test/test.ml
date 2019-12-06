@@ -26,11 +26,11 @@ let () =
   Account.init_testing () ;
   let wrapped_suites =
     let wrap f () =
-      try f () with
-      | e ->
-          Exception.reraise_after e (fun bt ->
-              print_endline (Exception.to_string e) ;
-              print_endline (Exception.backtrace_to_string bt))
+      try f ()
+      with e ->
+        Exception.reraise_after e (fun bt ->
+            print_endline (Exception.to_string e) ;
+            print_endline (Exception.backtrace_to_string bt))
     in
     List.map suites ~f:(fun (n, ts) ->
         (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))))

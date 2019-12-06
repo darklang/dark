@@ -50,18 +50,15 @@ let send_request
   let parsed_result =
     if has_form_header headers
     then
-      try Dval.of_form_encoding result with
-      | _ ->
-          Dval.dstr_of_string_exn "form decoding error"
+      try Dval.of_form_encoding result
+      with _ -> Dval.dstr_of_string_exn "form decoding error"
     else if has_json_header headers
     then
-      try Dval.of_unknown_json_v0 result with
-      | _ ->
-          Dval.dstr_of_string_exn "json decoding error"
+      try Dval.of_unknown_json_v0 result
+      with _ -> Dval.dstr_of_string_exn "json decoding error"
     else
-      try Dval.dstr_of_string_exn result with
-      | _ ->
-          Dval.dstr_of_string_exn "utf-8 decoding error"
+      try Dval.dstr_of_string_exn result
+      with _ -> Dval.dstr_of_string_exn "utf-8 decoding error"
   in
   let parsed_headers =
     headers

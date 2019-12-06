@@ -10,15 +10,15 @@ let dequeue_and_process execution_id :
     (RTT.dval option, Exception.captured) Result.t =
   Event_queue.with_transaction (fun transaction ->
       let event =
-        try Ok (Event_queue.dequeue transaction) with
-        | e ->
-            (* exception occurred while dequeuing,
+        try Ok (Event_queue.dequeue transaction)
+        with e ->
+          (* exception occurred while dequeuing,
          * no item to put back *)
-            let bt = Exception.get_backtrace () in
-            Log.erroR "Exception while dequeueing" ;
+          let bt = Exception.get_backtrace () in
+          Log.erroR "Exception while dequeueing" ;
 
-            (* execution_id will be in this log *)
-            Error (bt, e)
+          (* execution_id will be in this log *)
+          Error (bt, e)
       in
       event
       |> Result.bind ~f:(fun event ->
@@ -36,17 +36,16 @@ let dequeue_and_process execution_id :
                      (* This is a little silly, we could just return the error,
                    * maybe? *)
                      |> Ok
-                   with
-                   | e ->
-                       (* exception occurred when processing an item,
-                        * so put it back as an error *)
-                       let bt = Exception.get_backtrace () in
-                       ignore
-                         (Event_queue.put_back transaction event ~status:`Err) ;
-                       Log.erroR "Exception while loading canvas" ;
+                   with e ->
+                     (* exception occurred when processing an item,
+                      * so put it back as an error *)
+                     let bt = Exception.get_backtrace () in
+                     ignore
+                       (Event_queue.put_back transaction event ~status:`Err) ;
+                     Log.erroR "Exception while loading canvas" ;
 
-                       (* execution_id will be in this log *)
-                       Error (bt, e)
+                     (* execution_id will be in this log *)
+                     Error (bt, e)
                  in
                  c
                  |> Result.bind ~f:(fun c ->
@@ -169,17 +168,16 @@ let dequeue_and_process execution_id :
                                       ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
-                            with
-                            | e ->
-                                (* exception occurred when processing an item,
+                            with e ->
+                              (* exception occurred when processing an item,
              * so put it back as an error *)
-                                let bt = Exception.get_backtrace () in
-                                ignore
-                                  (Event_queue.put_back
-                                     transaction
-                                     event
-                                     ~status:`Err) ;
-                                Error (bt, e)))))
+                              let bt = Exception.get_backtrace () in
+                              ignore
+                                (Event_queue.put_back
+                                   transaction
+                                   event
+                                   ~status:`Err) ;
+                              Error (bt, e)))))
 
 
 let run (execution_id : Types.id) :

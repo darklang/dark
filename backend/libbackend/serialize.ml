@@ -51,8 +51,8 @@ let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
         | Some r ->
             result
         | None ->
-          ( try Some (f value) with
-          | e ->
+          ( try Some (f value)
+            with e ->
               let bt = Exception.get_backtrace () in
               Log.debuG ~bt name ~data:(Exception.exn_to_string e) ;
               None ))

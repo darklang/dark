@@ -86,15 +86,14 @@ let () =
             try
               Belt.Result.Ok
                 (Decoders.analysisEnvelope (Json.parseOrRaise res))
-            with
-            | Js.Exn.Error err ->
-                let msg =
-                  err
-                  |> Js.Exn.message
-                  |> Tc.Option.withDefault ~default:"Unknown parse error"
-                in
-                reportError "Parse error in analysisWrapper" msg ;
-                Belt.Result.Error (Types.AnalysisParseError msg))
+            with Js.Exn.Error err ->
+              let msg =
+                err
+                |> Js.Exn.message
+                |> Tc.Option.withDefault ~default:"Unknown parse error"
+              in
+              reportError "Parse error in analysisWrapper" msg ;
+              Belt.Result.Error (Types.AnalysisParseError msg))
           result
       in
       postMessage self decoded)

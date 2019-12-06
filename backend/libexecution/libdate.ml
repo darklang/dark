@@ -14,11 +14,8 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [ DStr s ] ->
-            ( try
-                DDate (Util.date_of_isostring (Unicode_string.to_string s))
-              with
-            | e ->
-                RT.error "Invalid date format" )
+            ( try DDate (Util.date_of_isostring (Unicode_string.to_string s))
+              with e -> RT.error "Invalid date format" )
           | args ->
               fail args)
     ; ps = true
@@ -39,8 +36,7 @@ let fns : Lib.shortfn list =
                   (ResOk
                      (DDate
                         (Util.date_of_isostring (Unicode_string.to_string s))))
-              with
-            | e ->
+              with e ->
                 DResult
                   (ResError (Dval.dstr_of_string_exn "Invalid date format")) )
           | args ->
@@ -61,8 +57,7 @@ let fns : Lib.shortfn list =
             ( try
                 Dval.to_res_ok
                   (DDate (Util.date_of_isostring (Unicode_string.to_string s)))
-              with
-            | e ->
+              with e ->
                 Dval.to_res_err (Dval.dstr_of_string_exn "Invalid date format")
             )
           | args ->

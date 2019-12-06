@@ -382,9 +382,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
                  then ""
                  else "\n  error type: " ^ e.exceptionTipe)
           |> Option.withDefault ~default:(wrap s)
-        with
-      | _ ->
-          wrap s )
+        with _ -> wrap s )
   | DPassword s ->
       wrap s
   | DBlock ->

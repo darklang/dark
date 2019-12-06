@@ -25,9 +25,7 @@ let tuple5 decodeA decodeB decodeC decodeD decodeE json =
         , decodeC (unsafe_get source 2)
         , decodeD (unsafe_get source 3)
         , decodeE (unsafe_get source 4) )
-      with
-      | DecodeError msg ->
-          raise @@ DecodeError (msg ^ "\n\tin tuple5")
+      with DecodeError msg -> raise @@ DecodeError (msg ^ "\n\tin tuple5")
     else
       raise
       @@ DecodeError
@@ -880,25 +878,25 @@ let exception_ j : exception_ =
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
-  try Ok (fn (Json.parseOrRaise j)) with
-  | e ->
-      reportError "unexpected json" j ;
-      ( match e with
-      | DecodeError e | Json.ParseError e ->
-          Error e
-      | e ->
-          Error (Printexc.to_string e) )
+  try Ok (fn (Json.parseOrRaise j))
+  with e ->
+    reportError "unexpected json" j ;
+    ( match e with
+    | DecodeError e | Json.ParseError e ->
+        Error e
+    | e ->
+        Error (Printexc.to_string e) )
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
-      try Tea_result.Ok (fn value) with
-      | e ->
-          reportError "undecodable json" value ;
-          ( match e with
-          | DecodeError e | Json.ParseError e ->
-              Tea_result.Error e
-          | e ->
-              Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))
+      try Tea_result.Ok (fn value)
+      with e ->
+        reportError "undecodable json" value ;
+        ( match e with
+        | DecodeError e | Json.ParseError e ->
+            Tea_result.Error e
+        | e ->
+            Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))

@@ -704,12 +704,8 @@ let static_assets_upload_handler
                         , `List (List.map ~f:(fun s -> `String s) err_strs) )
                       ])
                 |> Yojson.Basic.prettify ))
-    with
-    | e ->
-        raise e
-  with
-  | _ ->
-      respond ~execution_id `Not_found "Not found"
+    with e -> raise e
+  with _ -> respond ~execution_id `Not_found "Not found"
 
 
 let admin_add_op_handler
@@ -898,9 +894,7 @@ let initial_load
       ~resp_headers:(server_timing [ t1; t2; t3; t4; t5; t6; t7; t8 ])
       `OK
       result
-  with
-  | e ->
-      Libexecution.Exception.reraise_as_pageable e
+  with e -> Libexecution.Exception.reraise_as_pageable e
 
 
 let execute_function ~(execution_id : Types.id) (host : string) body :
@@ -1087,9 +1081,7 @@ let db_stats ~(execution_id : Types.id) (host : string) (body : string) :
       ~resp_headers:(server_timing [ t1; t2; t3; t4 ])
       `OK
       result
-  with
-  | e ->
-      raise e
+  with e -> raise e
 
 
 let worker_stats ~(execution_id : Types.id) (host : string) (body : string) :
@@ -1116,9 +1108,7 @@ let worker_stats ~(execution_id : Types.id) (host : string) (body : string) :
       ~resp_headers:(server_timing [ t1; t2; t3; t4 ])
       `OK
       result
-  with
-  | e ->
-      raise e
+  with e -> raise e
 
 
 let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
@@ -1142,9 +1132,7 @@ let get_unlocked_dbs ~(execution_id : Types.id) (host : string) (body : string)
       ~resp_headers:(server_timing [ t1; t2; t3 ])
       `OK
       result
-  with
-  | e ->
-      raise e
+  with e -> raise e
 
 
 let worker_schedule ~(execution_id : Types.id) (host : string) (body : string)
@@ -1196,9 +1184,7 @@ let worker_schedule ~(execution_id : Types.id) (host : string) (body : string)
           ~resp_headers:timing
           `Bad_request
           ("{ \"error\" : \"" ^ e ^ "\" } ")
-  with
-  | e ->
-      raise e
+  with e -> raise e
 
 
 let delete_404 ~(execution_id : Types.id) (host : string) body :
@@ -1219,9 +1205,7 @@ let delete_404 ~(execution_id : Types.id) (host : string) body :
       ~resp_headers:(server_timing [ t1; t2; t3 ])
       `OK
       "{ \"result\" : \"deleted\" } "
-  with
-  | e ->
-      raise e
+  with e -> raise e
 
 
 (* ------------------- *)
@@ -1816,9 +1800,7 @@ let static_etag_for =
            (uri |> Uri.path |> String.lstrip ~drop:(( = ) '/'))
       |> Yojson.Basic.Util.to_string
       |> fun x -> [ ("etag", x) ]
-    with
-    | e ->
-        []
+    with e -> []
 
 
 let static_handler uri =
@@ -2047,9 +2029,7 @@ let callback ~k8s_callback ip req body execution_id =
               "Not a valid JSON value: '" ^ msg ^ "'"
           | _ ->
               "Dark Internal Error: " ^ Exn.to_string e
-        with
-        | _ ->
-            "UNHANDLED ERROR: real_err"
+        with _ -> "UNHANDLED ERROR: real_err"
       in
       let real_err =
         real_err
@@ -2072,11 +2052,10 @@ let callback ~k8s_callback ip req body execution_id =
               "Dark Internal Error: Dark - the service running this application - encountered an error. This problem is a bug in Dark, we're sorry! Our automated systems have noted this error and we are working to resolve it. The author of this application can check in our #users channel for more information."
           in
           respond ~execution_id `Internal_server_error body
-    with
-    | e ->
-        let bt = Exception.get_backtrace () in
-        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
-        respond ~execution_id `Internal_server_error "unhandled error"
+    with e ->
+      let bt = Exception.get_backtrace () in
+      Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id) ;
+      respond ~execution_id `Internal_server_error "unhandled error"
   in
   try
     Log.infO
@@ -2127,19 +2106,13 @@ let callback ~k8s_callback ip req body execution_id =
                         ~session
                         ~csrf_token
                         r
-                    with
-                    | e ->
-                        handle_error ~include_internals:true e)
+                    with e -> handle_error ~include_internals:true e)
                   req
                   body
-              with
-            | e ->
-                handle_error ~include_internals:false e )
+              with e -> handle_error ~include_internals:false e )
           | None ->
               k8s_callback req ~execution_id ) ) )
-  with
-  | e ->
-      handle_error ~include_internals:false e
+  with e -> handle_error ~include_internals:false e
 
 
 let server () =

@@ -130,8 +130,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [ DStr s ] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DInt (Dint.of_string_exn utf8) with
-              | e ->
+              ( try DInt (Dint.of_string_exn utf8)
+                with e ->
                   Exception.code
                     ~actual:utf8
                     ~expected:"\\d+"
@@ -152,8 +152,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [ DStr s ] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DResult (ResOk (DInt (Dint.of_string_exn utf8))) with
-              | e ->
+              ( try DResult (ResOk (DInt (Dint.of_string_exn utf8)))
+                with e ->
                   error_result
                     ("Expected a string with only numbers, got " ^ utf8) )
           | args ->
@@ -171,8 +171,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [ DStr s ] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DFloat (float_of_string utf8) with
-              | e ->
+              ( try DFloat (float_of_string utf8)
+                with e ->
                   Exception.code
                     ~actual:utf8
                     "Expected a string representation of an IEEE float" )
@@ -191,8 +191,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [ DStr s ] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DResult (ResOk (DFloat (float_of_string utf8))) with
-              | e ->
+              ( try DResult (ResOk (DFloat (float_of_string utf8)))
+                with e ->
                   error_result
                     "Expected a string representation of an IEEE float" )
           | args ->
@@ -483,19 +483,17 @@ let fns : Lib.shortfn list =
                   (B64.decode
                      ~alphabet:B64.uri_safe_alphabet
                      (Unicode_string.to_string s))
-              with
-            | Not_found_s _ | Caml.Not_found ->
-              ( try
-                  Dval.dstr_of_string_exn
-                    (B64.decode
-                       ~alphabet:B64.default_alphabet
-                       (Unicode_string.to_string s))
-                with
-              | Not_found_s _ | Caml.Not_found ->
-                  RT.error
-                    ~actual:
-                      (Dval.dstr_of_string_exn (Unicode_string.to_string s))
-                    "Not a valid base64 string" ) )
+              with Not_found_s _ | Caml.Not_found ->
+                ( try
+                    Dval.dstr_of_string_exn
+                      (B64.decode
+                         ~alphabet:B64.default_alphabet
+                         (Unicode_string.to_string s))
+                  with Not_found_s _ | Caml.Not_found ->
+                    RT.error
+                      ~actual:
+                        (Dval.dstr_of_string_exn (Unicode_string.to_string s))
+                      "Not a valid base64 string" ) )
           | args ->
               fail args)
     ; ps = true

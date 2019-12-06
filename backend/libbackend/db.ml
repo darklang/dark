@@ -213,35 +213,32 @@ let execute
     let result_log = if logr = "" then [] else [ ("result", logr) ] in
     Log.succesS name ~params:([ ("op", op) ] @ result_log @ subject_log) ;
     result
-  with
-  | e ->
-      let bt = Exception.get_backtrace () in
-      let log_string =
-        params |> List.map ~f:to_log |> String.concat ~sep:", "
-      in
-      Log.erroR
-        name
-        ~params:[ ("op", op); ("params", log_string); ("query", sql) ] ;
-      let msg =
-        match e with
-        | Postgresql.Error (Unexpected_status (_, msg, _)) ->
-            msg
-        | Postgresql.Error pge ->
-            Postgresql.string_of_error pge
-        | Exception.DarkException de ->
-            Log.erroR
-              ~bt
-              "Caught DarkException in DB, reraising"
-              ~params:
-                [ ( "exn"
-                  , Exception.exception_data_to_yojson de
-                    |> Yojson.Safe.to_string )
-                ] ;
-            Caml.Printexc.raise_with_backtrace e bt
-        | e ->
-            Exception.exn_to_string e
-      in
-      Exception.storage msg ~bt ~info:[ ("time", time () |> string_of_float) ]
+  with e ->
+    let bt = Exception.get_backtrace () in
+    let log_string = params |> List.map ~f:to_log |> String.concat ~sep:", " in
+    Log.erroR
+      name
+      ~params:[ ("op", op); ("params", log_string); ("query", sql) ] ;
+    let msg =
+      match e with
+      | Postgresql.Error (Unexpected_status (_, msg, _)) ->
+          msg
+      | Postgresql.Error pge ->
+          Postgresql.string_of_error pge
+      | Exception.DarkException de ->
+          Log.erroR
+            ~bt
+            "Caught DarkException in DB, reraising"
+            ~params:
+              [ ( "exn"
+                , Exception.exception_data_to_yojson de
+                  |> Yojson.Safe.to_string )
+              ] ;
+          Caml.Printexc.raise_with_backtrace e bt
+      | e ->
+          Exception.exn_to_string e
+    in
+    Exception.storage msg ~bt ~info:[ ("time", time () |> string_of_float) ]
 
 
 (* largely cribbed from
@@ -294,8 +291,7 @@ let iter_with_cursor
         match subject with Some str -> [ ("subject", str) ] | None -> []
       in
       Log.succesS name ~params:([ ("op", "iter_with_cursor") ] @ subject_log)
-    with
-  | e ->
+    with e ->
       let bt = Exception.get_backtrace () in
       let log_string =
         params |> List.map ~f:to_log |> String.concat ~sep:", "

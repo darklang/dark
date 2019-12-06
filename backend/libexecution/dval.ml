@@ -921,9 +921,9 @@ let to_pretty_machine_json_v1 dval =
 
 
 let of_unknown_json_v0 str =
-  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0 with
-  | e ->
-      Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
+  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
+  with e ->
+    Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
 let of_unknown_json_v1 str =
@@ -1041,8 +1041,8 @@ let parse_literal (str : string) : dval option =
   else if str = "false"
   then Some (DBool false)
   else
-    try Some (DInt (Dint.of_string_exn str)) with
-    | _ ->
+    try Some (DInt (Dint.of_string_exn str))
+    with _ ->
       ( match float_of_string_opt str with
       | Some v ->
           Some (DFloat v)

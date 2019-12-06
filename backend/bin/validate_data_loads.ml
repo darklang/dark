@@ -27,8 +27,7 @@ let validate_row (table : string) (values : string list) : unit =
       ( try
           let (_ : RTT.dval) = Dval.of_internal_roundtrippable_v0 value in
           Log.infO "successful roundtrip" ~params
-        with
-      | _ ->
+        with _ ->
           let params = ("value", value) :: params in
           Log.erroR "Failed to roundtrip stored event" ~params )
   | _ ->
@@ -78,8 +77,7 @@ let () =
               |> Result.map_error ~f:(String.concat ~sep:", ")
               |> Prelude.Result.ok_or_internal_exception "Canvas load error" ) ;
             Log.infO "successful canvas load" ~params:[ ("host", h) ]
-          with
-        | e ->
+          with e ->
             Log.erroR
               "failed canvas load"
               ~params:
@@ -132,15 +130,14 @@ let () =
                    Log.infO
                      "user data"
                      ~params:[ ("db", dbname); ("host", host) ]
-                 with
-                 | e ->
-                     Log.erroR
-                       "failed to load user_data"
-                       ~params:
-                         [ ("db", dbname)
-                         ; ("host", host)
-                         ; ("exn", Exception.to_string e)
-                         ])
+                 with e ->
+                   Log.erroR
+                     "failed to load user_data"
+                     ~params:
+                       [ ("db", dbname)
+                       ; ("host", host)
+                       ; ("exn", Exception.to_string e)
+                       ])
       | _ ->
           Exception.internal "bad db result") ;
   ()

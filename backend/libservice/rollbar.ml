@@ -208,11 +208,11 @@ let create_request
 let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
   let rollbar_link_of_curl_buffer (r : Buffer.t) : string option =
     let body =
-      try Some (Yojson.Safe.from_string (Buffer.contents r)) with
-      | e ->
-          (* shouldn't happen *)
-          Log.erroR "no body from rollbar response" ;
-          None
+      try Some (Yojson.Safe.from_string (Buffer.contents r))
+      with e ->
+        (* shouldn't happen *)
+        Log.erroR "no body from rollbar response" ;
+        None
     in
     body
     |> Option.bind ~f:(fun body ->
@@ -221,18 +221,17 @@ let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
              |> Yojson.Safe.Util.member "result"
              |> Yojson.Safe.Util.member "uuid"
              |> Yojson.Safe.Util.to_string_option
-           with
-           | e ->
-               let message =
-                 body
-                 |> Yojson.Safe.Util.member "message"
-                 |> Yojson.Safe.Util.to_string_option
-                 |> Option.value ~default:""
-               in
-               Log.erroR
-                 "rollbar response had no .result.uuid"
-                 ~params:[ ("message", message) ] ;
-               None)
+           with e ->
+             let message =
+               body
+               |> Yojson.Safe.Util.member "message"
+               |> Yojson.Safe.Util.to_string_option
+               |> Option.value ~default:""
+             in
+             Log.erroR
+               "rollbar response had no .result.uuid"
+               ~params:[ ("message", message) ] ;
+             None)
     |> Option.bind ~f:(fun uuid ->
            Some ("https://rollbar.com/item/uuid/?uuid=" ^ uuid))
   in
@@ -302,8 +301,7 @@ let report_lwt
                 ~data:(Curl.strerror other)
                 ~params:[ ("execution_id", Log.dump execution_id) ] ;
               `Failure
-        with
-      | err ->
+        with err ->
           Log.erroR
             "Rollbar err"
             ~data:(Log.dump err)
@@ -312,10 +310,9 @@ let report_lwt
         [%lwt.finally
           Curl.cleanup c ;
           return ()]
-  with
-  | err ->
-      Caml.print_endline "UNHANDLED ERROR: rollbar.report_lwt" ;
-      Lwt.fail err
+  with err ->
+    Caml.print_endline "UNHANDLED ERROR: rollbar.report_lwt" ;
+    Lwt.fail err
 
 
 let report
@@ -335,10 +332,9 @@ let report
       log_rollbar r p e ;
       Curl.cleanup c ;
       result
-  with
-  | err ->
-      Caml.print_endline "UNHANDLED ERROR: rollbar.report" ;
-      `Failure
+  with err ->
+    Caml.print_endline "UNHANDLED ERROR: rollbar.report" ;
+    `Failure
 
 
 let last_ditch
