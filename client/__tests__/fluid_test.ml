@@ -517,6 +517,46 @@ let () =
         aStr
         (ctrlRight 5)
         "\"some string~\"" ;
+      t
+        "DeletePrevWord at end of last word in string should only delete last word"
+        aStr
+        (key K.DeletePrevWord 12)
+        "\"some ~\"" ;
+      t
+        "DeletePrevWord at beg of last word in string should delete first word"
+        aStr
+        (key K.DeletePrevWord 6)
+        "\"~string\"" ;
+      t
+        "DeletePrevWord at beg of first word in string does nothing"
+        aStr
+        (key K.DeletePrevWord 1)
+        "~\"some string\"" ;
+      t
+        "DeletePrevWord in the middle of first word in string only deletes in front of the cursor"
+        aStr
+        (key K.DeletePrevWord 3)
+        "\"~me string\"" ;
+      t
+        "DeleteNextWord at end of last word in string moves cursor outside string"
+        aStr
+        (key K.DeleteNextWord 12)
+        "\"some string\"~" ;
+      t
+        "DeleteNextWord at beg of last word in string should delete last word"
+        aStr
+        (key K.DeleteNextWord 6)
+        "\"some ~\"" ;
+      t
+        "DeleteNextWord at beg of first word deletes first word"
+        aStr
+        (key K.DeleteNextWord 1)
+        "\"~ string\"" ;
+      t
+        "DeleteNextWord in the middle of first word in string deletes to next whitespace"
+        aStr
+        (key K.DeleteNextWord 3)
+        "\"so~ string\"" ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
@@ -854,6 +894,31 @@ let () =
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ " 123456789_ abcdefghi, 123456789_ abcdef~\n"
         ^ "ghi,\"" ) ;
+      t
+        "DeletePrevWord at the end of line deletes word in front"
+        mlStrWSpace
+        (key K.DeletePrevWord 82)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ ~ghi,\"" ) ;
+      t
+        "DeletePrevWord at the beg of line goes to end of line above "
+        mlStrWSpace
+        (key K.DeletePrevWord 42)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,~\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
+        ^ "ghi,\"" ) ;
+      t
+        "DeleteNextWord at the end of line deletes up to the next whitespace"
+        mlStrWSpace
+        (key K.DeleteNextWord 82)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef~\"" ) ;
+      t
+        "DeleteNextWord at the beg of line deletes until the next whitespace"
+        mlStrWSpace
+        (key K.DeleteNextWord 42)
+        ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
+        ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
@@ -888,6 +953,16 @@ let () =
         oneShorterThanMax62BitInt
         (ctrlRight 11)
         "461168601842738790~" ;
+      t
+        "DeletePrevWord in the middle of an int deletes all the nums in front of cursor"
+        oneShorterThanMax62BitInt
+        (key K.DeletePrevWord 11)
+        "~2738790" ;
+      t
+        "DeletePrevWord at the end of an int deletes it all"
+        oneShorterThanMax62BitInt
+        (key K.DeletePrevWord 18)
+        "~___" ;
       () ) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (ins '.' 5) "12345.~" ;
@@ -974,6 +1049,46 @@ let () =
         aFloat
         (ctrlRight 6)
         "123.456~" ;
+      t
+        "DeletePrevWord in the middle of an fraction deletes all the nums in front of cursor up to the ."
+        aFloat
+        (key K.DeletePrevWord 6)
+        "123.~6" ;
+      t
+        "DeletePrevWord in the middle of a whole deletes all the nums in front of cursor"
+        aFloat
+        (key K.DeletePrevWord 2)
+        "~3.456" ;
+      t
+        "DeletePrevWord in the end of a fraction deletes all the nums in up to the ."
+        aFloat
+        (key K.DeletePrevWord 7)
+        "123.~" ;
+      t
+        "DeletePrevWord in the end of a whole deletes all the nums in front of cursor"
+        aFloat
+        (key K.DeletePrevWord 3)
+        "~.456" ;
+      t
+        "DeleteNextWord in the middle of an fraction deletes all the nums after the cursor"
+        aFloat
+        (key K.DeleteNextWord 6)
+        "123.45~" ;
+      t
+        "DeleteNextWord in the middle of a whole deletes all the nums in front of the ."
+        aFloat
+        (key K.DeleteNextWord 2)
+        "12~.456" ;
+      t
+        "DeleteNextWord in the end of a fraction does nothing"
+        aFloat
+        (key K.DeleteNextWord 7)
+        "123.456~" ;
+      t
+        "DeleteNextWord in the end of a whole deletes dot"
+        aFloat
+        (key K.DeleteNextWord 3)
+        "123~456" ;
       () ) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
@@ -1018,6 +1133,46 @@ let () =
         falseBool
         (ctrlRight 2)
         "false~" ;
+      t
+        "DeletePrevWord at the end of a true deletes entire true"
+        trueBool
+        (key K.DeletePrevWord 4)
+        "~___" ;
+      t
+        "DeletePrevWord at the end of a false deletes entire false"
+        falseBool
+        (key K.DeletePrevWord 5)
+        "~___" ;
+      tp
+        "DeletePrevWord at the mid of a true deletes to beg"
+        trueBool
+        (key K.DeletePrevWord 2)
+        "~ue" ;
+      tp
+        "DeletePrevWord at the mid of a false deletes to beg"
+        falseBool
+        (key K.DeletePrevWord 3)
+        "~se" ;
+      t
+        "DeleteNextWord at the end of a true does nothing"
+        trueBool
+        (key K.DeleteNextWord 4)
+        "true~" ;
+      t
+        "DeleteNextWord at the end of a false does nothing"
+        falseBool
+        (key K.DeleteNextWord 5)
+        "false~" ;
+      tp
+        "DeleteNextWord at the mid of a true deletes to end"
+        trueBool
+        (key K.DeleteNextWord 2)
+        "tr~" ;
+      tp
+        "DeleteNextWord at the mid of a false deletes to end"
+        falseBool
+        (key K.DeleteNextWord 3)
+        "fal~" ;
       () ) ;
   describe "Nulls" (fun () ->
       tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
@@ -1035,6 +1190,26 @@ let () =
       tp "bs middle of null" aNull (bs 2) "n~ll" ;
       t "ctrl+left middle of null moves to beg" aNull (ctrlLeft 2) "~null" ;
       t "ctrl+right middle of null moves to end" aNull (ctrlRight 2) "null~" ;
+      t
+        "DeletePrevWord at the end of a null deletes entire null"
+        aNull
+        (key K.DeletePrevWord 4)
+        "~___" ;
+      tp
+        "DeletePrevWord at the mid of a null deletes to beg"
+        aNull
+        (key K.DeletePrevWord 2)
+        "~ll" ;
+      t
+        "DeleteNextWord at the end of a null does nothing"
+        aNull
+        (key K.DeleteNextWord 4)
+        "null~" ;
+      tp
+        "DeleteNextWord at the mid of a null deletes to end"
+        aNull
+        (key K.DeleteNextWord 2)
+        "nu~" ;
       () ) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
@@ -1057,6 +1232,16 @@ let () =
         (keys [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
         "~___" ;
       t "insert blank->space" b (space 0) "~___" ;
+      t
+        "DeletePrevWord at the end of a blank does nothing"
+        b
+        (key K.DeletePrevWord 3)
+        "~___" ;
+      t
+        "DeleteNextWord at the end of a blank does nothing"
+        b
+        (key K.DeleteNextWord 3)
+        "___~" ;
       () ) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
@@ -1108,6 +1293,36 @@ let () =
         aNestedField
         (ctrlRight 5)
         "obj.field~.field2" ;
+      t
+        "DeletePrevWord in middle of fieldname deletes to beg of fieldname"
+        aNestedField
+        (key K.DeletePrevWord 6)
+        "obj.~eld.field2" ;
+      t
+        "DeletePrevWord at end of fieldname deletes entire fieldname"
+        aNestedField
+        (key K.DeletePrevWord 9)
+        "obj.~***.field2" ;
+      t
+        "DeletePrevWord at end of dot deletes fieldname"
+        aNestedField
+        (key K.DeletePrevWord 4)
+        "obj~.field2" ;
+      t
+        "DeleteNextWord in middle of fieldname deletes to end of fieldname"
+        aNestedField
+        (key K.DeleteNextWord 6)
+        "obj.fi~.field2" ;
+      t
+        "DeleteNextWord at end of fieldname deletes next fieldname"
+        aNestedField
+        (key K.DeleteNextWord 9)
+        "obj.field~" ;
+      t
+        "DeleteNextWord at end of dot deletes fieldname"
+        aNestedField
+        (key K.DeleteNextWord 4)
+        "obj.~***.field2" ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -1177,6 +1392,26 @@ let () =
         (fn "Int::add" [five; six])
         (bs 11)
         "Int::add 5~ 6" ;
+      tp
+        "DeletePrevWord in middle of function deletes to beg of function"
+        aFnCallWithVersion
+        (key K.DeletePrevWord 6)
+        "~tAllv1@Allv@ ___________________" ;
+      tp
+        "DeletePrevWord in end of function version deletes to function"
+        aFnCallWithVersion
+        (key K.DeletePrevWord 12)
+        "DB::getAll~@@ ___________________" ;
+      tp
+        "DeleteNextWord in middle of function deletes to beg of function"
+        aFnCallWithVersion
+        (key K.DeleteNextWord 6)
+        "DB::ge~v1@lv@ ___________________" ;
+      t
+        "DeleteNextWord in end of function version moves cursor to end of blank "
+        aFnCallWithVersion
+        (key K.DeleteNextWord 12)
+        "DB::getAllv1 ___________________~" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
@@ -1397,6 +1632,26 @@ let () =
         (binop "<" anInt anInt)
         (ctrlRight 6)
         "12345 <~ 12345" ;
+      t
+        "DeletePrevWord in end of binop deletes binop and first int"
+        (binop "<" anInt anInt)
+        (key K.DeletePrevWord 7)
+        "12345~" ;
+      t
+        "DeletePrevWord in front of binop deletes first int"
+        (binop "<" anInt anInt)
+        (key K.DeletePrevWord 5)
+        "~_________ < 12345" ;
+      t
+        "DeleteNextWord in end of binop deletes second int"
+        (binop "<" anInt anInt)
+        (key K.DeleteNextWord 8)
+        "12345 < ~_________" ;
+      t
+        "DeleteNextWord in front of binop deletes binop and second int"
+        (binop "<" anInt anInt)
+        (key K.DeleteNextWord 6)
+        "12345~" ;
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
@@ -1429,6 +1684,26 @@ let () =
         aConstructor
         (ctrlRight 2)
         "Just~ ___" ;
+      t
+        "DeletePrevWord at end of constructor deletes to beg "
+        aConstructor
+        (key K.DeletePrevWord 4)
+        "~___" ;
+      tp
+        "DeletePrevWord mid constructor deletes to beg "
+        aConstructor
+        (key K.DeletePrevWord 2)
+        "~st@@ ___" ;
+      t
+        "DeleteNextWord at end of constructor moves to blank "
+        aConstructor
+        (key K.DeleteNextWord 4)
+        "Just ___~" ;
+      tp
+        "DeleteNextWord mid constructor deletes to end "
+        aConstructor
+        (key K.DeleteNextWord 2)
+        "Ju~@@ ___" ;
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
