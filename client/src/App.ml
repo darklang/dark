@@ -1084,24 +1084,29 @@ let update_ (msg : msg) (m : model) : modification =
   | GlobalClick event ->
     ( match m.currentPage with
     | FocusedFn tlid | FocusedType tlid ->
-      ( match unwrapCursorState m.cursorState with
-      | Entering (Filling _ as cursor) ->
-          (* If we click away from an entry box, submit it -- and select the whole toplevel *)
-          Many [Entry.submit m cursor Entry.StayHere; Select (tlid, None)]
-      | _ ->
-          Select (tlid, None) )
+        (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+        let defaultBehaviour = Select (tlid, None) in
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Filling _ as cursor) ->
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            Many [Entry.commit m cursor; defaultBehaviour]
+        | _ ->
+            defaultBehaviour )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
+          (* Clicking on the canvas should deselect the current selection on the main canvas *)
+          let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | Entering (Filling _ as cursor) ->
-              Many [Entry.submit m cursor Entry.StayHere; Deselect]
+              (* If we click away from an entry box, commit it before doing the default behaviour *)
+              Many [Entry.commit m cursor; defaultBehaviour]
           | _ ->
-              Deselect
+              defaultBehaviour
         else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
@@ -1226,16 +1231,16 @@ let update_ (msg : msg) (m : model) : modification =
       | Dragging (_, _, _, origCursorState) ->
           SetCursorState origCursorState
       | Entering cursor ->
-        ( match cursor with
-        | Filling (_, fillingID) ->
-            if fillingID = targetID
-            then NoChange
-            else
-              Many
-                [ Entry.submit m cursor Entry.StayHere
-                ; select targetExnID targetID ]
-        | _ ->
-            select targetExnID targetID )
+          let defaultBehaviour = select targetExnID targetID in
+          ( match cursor with
+          | Filling (_, fillingID) ->
+              if fillingID = targetID
+              then
+                NoChange
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+              else Many [Entry.commit m cursor; defaultBehaviour]
+          | _ ->
+              defaultBehaviour )
       | Selecting (_, _) ->
           select targetExnID targetID
       | SelectingCommand (_, scID) ->
@@ -1266,16 +1271,16 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelClick (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
-        let targetMods =
+        let defaultBehaviour =
           [ Select (targetExnID, None)
           ; Fluid.update m (FluidMouseClick targetExnID) ]
         in
         match m.cursorState with
-        (* We're entering some text box that's not owned by a FluidEntering editor *)
+        (* If we click away from an entry box, commit it before doing the default behaviour *)
         | Entering (Filling _ as cursor) ->
-            Many (Entry.submit m cursor Entry.StayHere :: targetMods)
+            Many (Entry.commit m cursor :: defaultBehaviour)
         | _ ->
-            Many targetMods
+            Many defaultBehaviour
       else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
@@ -1967,15 +1972,16 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
-    ( match m.cursorState with
-    | Entering (Filling _ as cursor) ->
-        Many
-          [ Entry.submit m cursor Entry.StayHere
-          ; Select (targetExnID, None)
-          ; StartFluidMouseSelecting targetExnID ]
-    | _ ->
-        Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
-    )
+      let defaultBehaviour =
+        [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+      in
+      ( match m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          Many
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            (Entry.commit m cursor :: defaultBehaviour)
+      | _ ->
+          Many defaultBehaviour )
   | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
