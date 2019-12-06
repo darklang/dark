@@ -16,7 +16,8 @@ type user_info_and_created_at =
   ; created_at : string }
 
 (* validate username/password of a Dark user *)
-val authenticate : username_or_email:username -> password:string -> string option
+val authenticate :
+  username_or_email:username -> password:string -> string option
 
 val can_access_operations : username:string -> bool
 
