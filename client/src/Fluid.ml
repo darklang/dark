@@ -3767,7 +3767,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
                       pos
                 in
                 (endPos, newPos)
-            else (ti.endPos, pos)
+            else
+              let newPos = if Token.isTextToken ti.token && (not (Token.isBlank ti.token)) then pos else ti.endPos in
+              (ti.endPos, newPos)
           in
           let newAst, newState =
             deleteCaretRange ~state:s ~ast (pos, rangeEnd)
