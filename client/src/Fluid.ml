@@ -2392,9 +2392,8 @@ let addEntryBelow
         | Some index, EPipe (id, exprs) ->
             EPipe (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
         | _ ->
-          cursor := `NextToken ;
-          e
-        )
+            cursor := `NextToken ;
+            e )
   in
   let newState =
     match !cursor with
@@ -2622,6 +2621,7 @@ let acMoveBasedOnKey
   let newState = moveTo newPos (acClear s) in
   newState
 
+
 (* Used for piping and wrapping line in let.  For both we are often at the last argument of a function call. We want to perform the operation on the entire expression om the last line, not just the expression present in the token at the end of the line. This function helps us find the whole expression that we would want to perform it on.
 *)
 let rec findAppropriateParentToWrap (oldExpr : fluidExpr) (ast : ast) :
@@ -2667,8 +2667,7 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   let exprToReplace =
     findExpr id ast
     |> Option.andThen ~f:(fun e ->
-           if findParent then findAppropriateParentToWrap e ast else Some e
-       )
+           if findParent then findAppropriateParentToWrap e ast else Some e )
     |> Option.map ~f:extractSubexprFromPartial
   in
   match exprToReplace with
@@ -3498,6 +3497,7 @@ let doInsert
   | Some letter ->
       doInsert' ~pos letter ti ast s
 
+
 let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   let s = recordAction "wrapInLet" s in
   let id = Token.tid ti.token in
@@ -3525,6 +3525,7 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
           (ast, s) )
   | None ->
       (ast, s)
+
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
   let getCurrentToken tokens =
@@ -3667,13 +3668,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   let keyIsInfix = List.member ~value:key infixKeys in
   (* TODO: When changing TVariable and TFieldName and probably TFnName we
      * should convert them to a partial which retains the old object *)
-  (* If this expression token is on the same line as an if-condition *)
-  let isOnIfConditionLine exprti =
-    tokens
-    |> List.any ~f:(fun ti ->
-           if ti.startRow = exprti.startRow
-           then match ti.token with TIfKeyword _ -> true | _ -> false
-           else false )
+  (* Checks to see if the token is within an if-condition statement *)
+  let isInIfCondition token =
+    let rec recurseUp maybeExpr prevId =
+      match maybeExpr with
+      | Some (EIf (_, cond, _, _)) when eid cond = prevId ->
+          true
+      | Some e ->
+          let id = eid e in
+          recurseUp (findParent id ast) id
+      | None ->
+          false
+    in
+    let tid = Token.tid token in
+    recurseUp (findParent tid ast) tid
   in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
@@ -3901,10 +3909,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
         addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
     | K.Enter, L (lt, lti), R (TNewline None, rti)
-      when not
-             ( Token.isLet lt
-             || isAutocompleting rti s
-             || isOnIfConditionLine lti ) ->
+      when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
+      ->
         wrapInLet lti ast s
     | K.Enter, _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
