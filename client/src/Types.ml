@@ -1362,7 +1362,7 @@ and fluidState =
   ; upDownCol :
       int option
       (* When moving up or down, and going through whitespace, track
-       * the column so we can go back to it *)
+         * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
@@ -1491,18 +1491,18 @@ and permission =
 
 (* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
    based on which specific parts of the AST we actually want to represent via astRef *)
-and astFloatPart =
+type astFloatPart =
   | FPWhole
   | FPDecimal
 
-and astLetPart =
+type astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
   | LPValue
   | LPBody
 
-and astIfPart =
+type astIfPart =
   | IPIfKeyword
   | IPCondition
   | IPThenKeyword
@@ -1510,42 +1510,42 @@ and astIfPart =
   | IPElseKeyword
   | IPElseBody
 
-and astBinOpPart =
+type astBinOpPart =
   | BOPLHS
   | BOPOperator
   | BOPRHS
 
-and astLambdaPart =
+type astLambdaPart =
   | LPKeyword
   | LPVarName of (* index of the var *) int
   | LPSeparator of (* index of the var *) int
   | LPArrow
   | LPBody
 
-and astFieldAccessPart =
+type astFieldAccessPart =
   | FAPLHS
   | FAPFieldname
 
-and astFnCallPart =
+type astFnCallPart =
   | FCPFnName
   | FCPArg of (* index of the argument *) int
 
-and astRecordPart =
+type astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
   | RPFieldSep of (* index of the <fieldname,value> pair *) int
   | RPFieldValue of (* index of the <fieldname,value> pair *) int
   | RPClose
 
-and astPipePart =
+type astPipePart =
   | PPPipeKeyword of (* index of the pipe *) int
   | PPPipedExpr of (* index of the pipe *) int
 
-and astConstructorPart =
+type astConstructorPart =
   | CPName
   | CPValue of int
 
-and astMatchPart =
+type astMatchPart =
   | MPKeyword
   | MPMatchExpr
   | MPBranchPattern of (* index of the branch *) int
@@ -1564,7 +1564,7 @@ and astMatchPart =
 
    The IDs below all refer to the AST node id
     *)
-and astRef =
+type astRef =
   | ARInteger of id
   | ARBool of id
   | ARString of id
@@ -1599,20 +1599,6 @@ and astRef =
    into that part of the AST, we can uniquely represent a place
    for the caret to jump during AST transformations, even ones that
    drastically change the token stream. *)
-and caretTarget =
+type caretTarget =
   { astRef : astRef
   ; offset : int }
-
-and newPosition =
-  | RightOne
-  | RightTwo
-  | LeftOne
-  | LeftThree
-  | MoveToStart
-  | MoveToTokenEnd of id * (* offset *) int
-  | SamePlace
-  | TwoAfterEnd
-  | Exactly of int
-  (* The hope is that we can migrate everything to
-     AtTarget and then remove this entirely *)
-  | AtTarget of caretTarget
