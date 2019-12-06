@@ -258,12 +258,13 @@ let set_admin ~username (admin : bool) : unit =
 
 
 (* Returns None if no valid user, or Some username _from the db_ if valid. Note:
- * the input username may also be an email address.
+ * the input username may also be an email address. We do this because users
+ * input data this way and it seems silly not to allow it.
  *
  * No need to detect which and SQL differently; no valid username contains a
  * '@', and every valid email address does. [If you say 'uucp bang path', I will
  * laugh and then tell you to give me a real email address.] *)
-let valid_user ~(username : username) ~(password : string) : string option =
+let authenticate ~(username : username) ~(password : string) : string option =
   match
     Db.fetch_one_option
       ~name:"valid_user"
@@ -285,12 +286,6 @@ let valid_user ~(username : username) ~(password : string) : string option =
 
 
 let can_access_operations ~(username : username) : bool = is_admin ~username
-
-(* Returns None if no valid user, or Some username _from the db_ if valid. Note:
- * the input username may also be an email address *)
-let authenticate ~(username : username) ~(password : string) : string option =
-  valid_user ~username ~password
-
 
 let owner ~(auth_domain : string) : Uuidm.t option =
   let auth_domain = String.lowercase auth_domain in
