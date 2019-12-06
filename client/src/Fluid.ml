@@ -112,8 +112,8 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     in
     let asInt = if is63BitInt str then Some (`Int str) else None in
     let asFloat =
+      (* for the exception *)
       try
-        (* for the exception *)
         ignore (float_of_string str) ;
         match String.split ~on:"." str with
         | [whole; fraction] ->
@@ -1783,16 +1783,6 @@ let replacePatternWithPartial
           FPVariable (matchID, gid (), str) )
 
 
-let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) : ast =
-  updateExpr matchId ast ~f:(function
-      | EMatch (_, cond, rows) ->
-          let newVal = (FPBlank (matchId, gid ()), newB ()) in
-          let newRows = List.insertAt rows ~index:idx ~value:newVal in
-          EMatch (matchId, cond, newRows)
-      | e ->
-          recover "expected to find EMatch to update" e e )
-
-
 (* ---------------- *)
 (* Blanks *)
 (* ---------------- *)
@@ -2494,40 +2484,63 @@ let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
         {astRef = ARInvalid; offset = 0}
 
 
+(** addMatchPatternAt adds a new match row (FPBlank) into the EMatch with
+    `matchId` at `idx`.
+
+    Returns a new ast and fluidState with the action recorded. *)
+let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let action =
+    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (deID matchId) idx
+  in
+  let s = recordAction action s in
+  let ast =
+    updateExpr matchId ast ~f:(function
+        | EMatch (_, cond, rows) ->
+            let newVal = (FPBlank (matchId, gid ()), newB ()) in
+            let newRows = List.insertAt rows ~index:idx ~value:newVal in
+            EMatch (matchId, cond, newRows)
+        | e ->
+            recover "expected to find EMatch to update" e e )
+  in
+  (ast, s)
+
+
+(** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
+
+    Returns a new ast, fluidState with the action recorded, and the id of the
+    newly inserted EBlank, which may be useful for doing caret placement. *)
 let addPipeExprAt (pipeId : id) (idx : int) (ast : ast) (s : fluidState) :
-    ast * fluidState * fluidExpr =
+    ast * fluidState * id =
   let action =
     Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx
   in
   let s = recordAction action s in
-  let value = EBlank (gid ()) in
+  let bid = gid () in
   let ast =
     updateExpr pipeId ast ~f:(function
         | EPipe (_, exprs) ->
-            let exprs = List.insertAt exprs ~index:idx ~value in
+            let exprs = List.insertAt exprs ~index:idx ~value:(EBlank bid) in
             EPipe (pipeId, exprs)
         | e ->
             recover "expected to find EPipe to update" e e )
   in
-  (ast, s, value)
+  (ast, s, bid)
 
 
-let addLetBelow (id : id) (ast : ast) (s : state) : ast * state =
-  let s = recordAction "addLetBelow" s in
-  let letId = gid () in
+(** makeIntoLetBody takes the `id` of an expression, which will be made into the
+    body of a new ELet.
+
+    Returns a new ast, fluidState, and the id of the newly inserted ELet, which
+    may be useful for doing caret placement. *)
+let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
+    ast * fluidState * id =
+  let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
+  let lid = gid () in
   let ast =
-    updateExpr id ast ~f:(fun expr -> ELet (letId, gid (), "", newB (), expr))
+    updateExpr id ast ~f:(fun expr -> ELet (lid, gid (), "", newB (), expr))
   in
-  let ct = {astRef = ARLet (letId, LPVarName); offset = 0} in
-  (ast, {s with newPos = posFromCaretTarget s ast ct})
-
-
-let addLetAbove (id : id) (ast : ast) (s : state) : ast * state =
-  let ast =
-    updateExpr id ast ~f:(fun expr -> ELet (gid (), gid (), "", newB (), expr))
-  in
-  let ct = caretTargetForBeginningOfExpr id ast in
-  (ast, {s with newPos = posFromCaretTarget s ast ct})
+  (ast, s, lid)
 
 
 (* -------------------- *)
@@ -2736,6 +2749,17 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
       Some child
 
 
+(** createPipe makes the expression with `id` the target of a new EPipe.
+
+    If the ~findParent flag is passed, an "appropriate" parent of the
+    expression is found as the pipe target. See findAppropriatePipingParent for
+    details. If the flag is not passed, the pipe target is the expression as
+    given.
+
+    Will place the caret into the new EBlank created as the first pipe expression.
+
+    Returns a new ast and fluidState.
+    *)
 let createPipe ~(findParent : bool) (id : id) (ast : ast) (s : state) :
     ast * state =
   let exprToReplace =
@@ -3851,7 +3875,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Move current pipe expr down by adding new expr above it.
      * Keep caret "the same", only moved down by 1 column. *)
     | K.Enter, L (TPipe (id, idx, _), _), R _ ->
-        let s = recordAction ("addPipeExprAt " ^ string_of_int idx) s in
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
         let ct = {astRef = ARPipe (id, PPPipeKeyword (idx + 1)); offset = 2} in
         let s = {s with newPos = posFromCaretTarget s ast ct} in
@@ -3863,8 +3886,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
       ( match findExpr parentId ast with
       | Some (EPipe _) ->
-          let ast, s, blank = addPipeExprAt parentId (idx + 1) ast s in
-          let ct = caretTargetForBeginningOfExpr (eid blank) ast in
+          let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
+          let ct = caretTargetForBeginningOfExpr blankId ast in
           (ast, {s with newPos = posFromCaretTarget s ast ct})
       | Some (ERecord _) ->
           let ast = addRecordRowAt idx parentId ast in
@@ -3873,7 +3896,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           in
           (ast, {s with newPos = posFromCaretTarget s ast ct})
       | Some (EMatch _) ->
-          let ast = addMatchPatternAt parentId idx ast in
+          let ast, s = addMatchPatternAt parentId idx ast s in
           let ct =
             {astRef = ARMatch (parentId, MPBranchPattern idx); offset = 0}
           in
@@ -3894,7 +3917,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
                   match n.token with TBlank _ -> true | _ -> false )
            |> Option.withDefault ~default:false
         then (ast, doRight ~pos ~next:mNext ti s)
-        else addLetBelow id ast s
+        else
+          let ast, s, letId = makeIntoLetBody id ast s in
+          let ct = {astRef = ARLet (letId, LPVarName); offset = 0} in
+          (ast, {s with newPos = posFromCaretTarget s ast ct})
     (*
      * Caret at beginning of special line.
      * Preceding newline contains a parent and index, meaning we're inside some
@@ -3905,40 +3931,50 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * want to add a let, not continue the construct. These are the index vs
      * length checks in each case. *)
     | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
-      ( match findExpr parentId ast with
-      | Some (EMatch (_, _, exprs)) ->
-          if idx = List.length exprs
-          then addLetAbove (FluidToken.tid rTok) ast s
-          else
-            let ast = addMatchPatternAt parentId idx ast in
-            let ct =
-              { astRef = ARMatch (parentId, MPBranchPattern (idx + 1))
-              ; offset = 0 }
-            in
-            (ast, {s with newPos = posFromCaretTarget s ast ct})
-      | Some (EPipe (_, exprs)) ->
-          (* idx+1 since the initial expression is idx=0 *)
-          if idx + 1 = List.length exprs
-          then addLetAbove (FluidToken.tid rTok) ast s
-          else
-            let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
-            let ct =
-              {astRef = ARPipe (parentId, PPPipeKeyword (idx + 1)); offset = 0}
-            in
-            (ast, {s with newPos = posFromCaretTarget s ast ct})
-      | Some (ERecord _) ->
-          let ast = addRecordRowAt idx parentId ast in
-          let ct =
-            {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
-          in
+        let addLetAboveRightToken () : ast * state =
+          let id = FluidToken.tid rTok in
+          let ast, s, _ = makeIntoLetBody id ast s in
+          let ct = caretTargetForBeginningOfExpr id ast in
           (ast, {s with newPos = posFromCaretTarget s ast ct})
-      | _ ->
-          (ast, s) )
+        in
+        ( match findExpr parentId ast with
+        | Some (EMatch (_, _, exprs)) ->
+            if idx = List.length exprs
+            then addLetAboveRightToken ()
+            else
+              let ast, s = addMatchPatternAt parentId idx ast s in
+              let ct =
+                { astRef = ARMatch (parentId, MPBranchPattern (idx + 1))
+                ; offset = 0 }
+              in
+              (ast, {s with newPos = posFromCaretTarget s ast ct})
+        | Some (EPipe (_, exprs)) ->
+            (* idx+1 since the initial expression is idx=0 *)
+            if idx + 1 = List.length exprs
+            then addLetAboveRightToken ()
+            else
+              let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
+              let ct =
+                { astRef = ARPipe (parentId, PPPipeKeyword (idx + 1))
+                ; offset = 0 }
+              in
+              (ast, {s with newPos = posFromCaretTarget s ast ct})
+        | Some (ERecord _) ->
+            (* no length special-case needed. *)
+            let ast = addRecordRowAt idx parentId ast in
+            let ct =
+              {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
+            in
+            (ast, {s with newPos = posFromCaretTarget s ast ct})
+        | _ ->
+            (ast, s) )
     (*
      * Caret at very beginning of tokens or at beginning of non-special line. *)
     | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
         let id = FluidToken.tid t in
-        addLetAbove id ast s
+        let ast, s, _ = makeIntoLetBody id ast s in
+        let ct = caretTargetForBeginningOfExpr id ast in
+        (ast, {s with newPos = posFromCaretTarget s ast ct})
     (****************)
     (* Int to float *)
     (****************)
@@ -3955,7 +3991,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Colon, _, R (TRecordSep _, toTheRight) ->
         (ast, moveTo toTheRight.endPos s)
     (* Binop specific, all of the specific cases must come before the
-     * big general `key, L (_, toTheLeft), _` case.  *)
+     * big general `key, L (_, toTheLeft), _` case. *)
     | _, L (TPartial _, toTheLeft), _
     | _, L (TRightPartial _, toTheLeft), _
     | _, L (TBinOp _, toTheLeft), _
@@ -4000,7 +4036,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * cursor back to the right place if so.
      *
      * TODO: there may be ways of getting the cursor to the end without going
-     * through this code, if so we need to move it.  *)
+     * through this code, if so we need to move it. *)
     let tokens = toTokens newState newAST in
     let text = tokensToString tokens in
     let last = List.last tokens in
@@ -4014,7 +4050,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
    * partial. This is done here because the logic is different that clicking.
    *
    * We "commit the partial" using the old state, and then we do the action
-   * again to make sure we go to the right place for the new canvas.  *)
+   * again to make sure we go to the right place for the new canvas. *)
   if recursing
   then (newAST, newState)
   else
@@ -5630,7 +5666,7 @@ let renderCallback (m : model) : unit =
 
          * We do this after a render(not waiting til the next frame) so that the developer does not see the caret
          * flicker to default browser position
-        *)
+         *)
         match m.fluidState.selectionStart with
         | Some selStart ->
             (* Updates the browser selection range for 2 in the context of selections *)
