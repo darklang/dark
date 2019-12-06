@@ -538,10 +538,10 @@ let () =
         (key K.DeletePrevWord 3)
         "\"~me string\"" ;
       t
-        "DeleteNextWord at end of last word in string does nothing"
+        "DeleteNextWord at end of last word in string moves cursor outside string"
         aStr
         (key K.DeleteNextWord 12)
-        "\"some string~\"" ;
+        "\"some string\"~" ;
       t
         "DeleteNextWord at beg of last word in string should delete last word"
         aStr
@@ -908,12 +908,11 @@ let () =
         ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
         ^ "ghi,\"" ) ;
       t
-        "DeleteNextWord at the end of line moves to next line"
+        "DeleteNextWord at the end of line deletes up to the next whitespace"
         mlStrWSpace
         (key K.DeleteNextWord 82)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
-        ^ " 123456789_ abcdefghi, 123456789_ abcdef\n"
-        ^ "~ghi,\"" ) ;
+        ^ " 123456789_ abcdefghi, 123456789_ abcdef~\"" ) ;
       t
         "DeleteNextWord at the beg of line deletes until the next whitespace"
         mlStrWSpace
@@ -1409,10 +1408,10 @@ let () =
         (key K.DeleteNextWord 6)
         "DB::ge~v1@lv@ ___________________" ;
       t
-        "DeleteNextWord in end of function version moves cursor to blank "
+        "DeleteNextWord in end of function version moves cursor to end of blank "
         aFnCallWithVersion
         (key K.DeleteNextWord 12)
-        "DB::getAllv1 ~___________________" ;
+        "DB::getAllv1 ___________________~" ;
       let string40 = "0123456789abcdefghij0123456789abcdefghij" in
       let string80 = string40 ^ string40 in
       let string160 = string80 ^ string80 in
@@ -1699,7 +1698,7 @@ let () =
         "DeleteNextWord at end of constructor moves to blank "
         aConstructor
         (key K.DeleteNextWord 4)
-        "Just ~___" ;
+        "Just ___~" ;
       tp
         "DeleteNextWord mid constructor deletes to end "
         aConstructor
