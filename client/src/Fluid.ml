@@ -2860,6 +2860,8 @@ let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
         | _, ARInvalid ->
             (* If this happens, there's a bug *)
             false
+        | TBlank id, ARBlank targetId when id = targetId ->
+            true
         | _ ->
             false )
   in
@@ -3514,15 +3516,11 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
       let eid = eid exprToWrap in
       let newExpr = ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId) in
       let newAST = replaceExpr ~newExpr eid ast in
-      let tokens = toTokens s newAST in
-      let lastToken =
-        tokens |> List.find ~f:(fun ti -> ti.token = TBlank bodyId)
+      let newPos =
+        posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
       in
-      ( match lastToken with
-      | Some lastTi ->
-          (newAST, moveToStart lastTi s)
-      | None ->
-          (ast, s) )
+      Debug.loG "VOX newPos=" newPos ;
+      (newAST, {s with newPos})
   | None ->
       (ast, s)
 
