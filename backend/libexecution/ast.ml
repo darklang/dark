@@ -137,7 +137,8 @@ type engine =
   { trace : expr -> dval -> symtable -> unit
   ; trace_blank : string or_blank -> dval -> symtable -> unit
   ; trace_tlid : tlid -> unit
-  ; ctx : context }
+  ; ctx : context
+  }
 
 let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
@@ -177,7 +178,7 @@ let rec exec
           let result = exe st exp in
           ( match result with
           | DBlock blk ->
-              blk [param]
+              blk [ param ]
           | _ ->
               (* This should never happen, but the user should be allowed to
                * recover so this shouldn't be an exception *)
@@ -239,7 +240,7 @@ let rec exec
                  | DIncomplete _ ->
                      None (* ignore unfinished subexpr *)
                  | dv ->
-                     Some dv ) )
+                     Some dv ))
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
     | Filled (_, ObjectLiteral pairs) ->
         pairs
@@ -255,7 +256,7 @@ let rec exec
                        Some (keyname, expr) )
                | _, v ->
                    ignore (exe st v) ;
-                   None )
+                   None)
         |> fun ps ->
         ps
         |> List.map ~f:Tuple.T2.get2
@@ -338,10 +339,8 @@ let rec exec
           let newresult = exe st newcode in
           let oldresult = exe st oldcode in
           let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> Dval.exception_to_dval e (SourceId id)
+            (* under no circumstances should this cause code to fail *)
+            try exe st cond with e -> Dval.exception_to_dval e (SourceId id)
           in
           ( match condresult with
           | DBool true ->
@@ -358,10 +357,8 @@ let rec exec
           (* In the case of a 'real' evaluation, we shouldn't do unneccessary
            * work and as such should follow the proper evaluation semantics *)
           let condresult =
-            try
-              (* under no circumstances should this cause code to fail *)
-              exe st cond
-            with e -> DBool false
+            (* under no circumstances should this cause code to fail *)
+            try exe st cond with e -> DBool false
           in
           ( match condresult with
           (* only false and 'null' are falsey *)
@@ -388,6 +385,7 @@ let rec exec
           in
           ignore (exe fake_st body)
         else () ;
+
         (* TODO: this will error if the number of args and vars arent equal *)
         DBlock
           (fun args ->
@@ -409,7 +407,7 @@ let rec exec
                       ^ string_of_int (List.length args) )
                 else (
                   List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
-                      trace_blank var dv st ) ;
+                      trace_blank var dv st) ;
                   let new_st =
                     filled
                     |> List.filter_map ~f:blank_to_option
@@ -417,7 +415,7 @@ let rec exec
                     |> Symtable.from_list_exn
                     |> fun bindings -> Util.merge_left bindings st
                   in
-                  exe new_st body ) )
+                  exe new_st body ))
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
@@ -431,7 +429,7 @@ let rec exec
               (* let execution through *)
               (* DErrorRail is handled by inject_param_and_execute *)
               | _ ->
-                  result )
+                  result)
       | [] ->
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
@@ -441,20 +439,20 @@ let rec exec
             | Filled (_, PLiteral l) when Dval.parse_literal l = Some dv ->
                 Some (e, [])
             | Filled (_, PVariable v) ->
-                Some (e, [(v, dv)])
-            | Filled (_, PConstructor ("Just", [p])) ->
+                Some (e, [ (v, dv) ])
+            | Filled (_, PConstructor ("Just", [ p ])) ->
               ( match dv with
               | DOption (OptJust v) ->
                   matches v (p, e)
               | _ ->
                   None )
-            | Filled (_, PConstructor ("Ok", [p])) ->
+            | Filled (_, PConstructor ("Ok", [ p ])) ->
               ( match dv with
               | DResult (ResOk v) ->
                   matches v (p, e)
               | _ ->
                   None )
-            | Filled (_, PConstructor ("Error", [p])) ->
+            | Filled (_, PConstructor ("Error", [ p ])) ->
               ( match dv with
               | DResult (ResError v) ->
                   matches v (p, e)
@@ -504,11 +502,11 @@ let rec exec
       ( match (name, args) with
       | Filled (_, "Nothing"), [] ->
           DOption OptNothing
-      | Filled (_, "Just"), [arg] ->
+      | Filled (_, "Just"), [ arg ] ->
           Dval.to_opt_just (exe st arg)
-      | Filled (_, "Ok"), [arg] ->
+      | Filled (_, "Ok"), [ arg ] ->
           Dval.to_res_ok (exe st arg)
-      | Filled (_, "Error"), [arg] ->
+      | Filled (_, "Error"), [ arg ] ->
           Dval.to_res_err (exe st arg)
       | _ ->
           DError (SourceId id, "Invalid construction option") )
@@ -603,7 +601,7 @@ and exec_fn
         | DError _ | DIncomplete _ ->
             true
         | _ ->
-            false )
+            false)
   in
   match badArg with
   | Some (DIncomplete src) ->
@@ -622,7 +620,7 @@ and exec_fn
               DIncomplete (SourceId id)
         else
           let state =
-            {state with fail_fn = Some (Lib.fail_fn fnname fn arglist)}
+            { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
           in
           let result =
             try f (state, arglist) with
@@ -657,12 +655,13 @@ and exec_fn
                      | Filled (_, name) ->
                          Some (name, DDB name)
                      | Partial _ | Blank _ ->
-                         None )
+                         None)
               |> DvalMap.from_list
             in
             Util.merge_left db_dvals args
           in
           engine.trace_tlid tlid ;
+
           (* Don't execute user functions if it's preview mode and we have a result *)
           ( match (engine.ctx, state.load_fn_result sfr_desc arglist) with
           | Preview, Some (result, _ts) ->
@@ -671,7 +670,7 @@ and exec_fn
               (* It's okay to execute user functions in both Preview and Real contexts,
                * But in Preview we might not have all the data we need *)
               state.store_fn_arguments tlid args ;
-              let state = {state with tlid} in
+              let state = { state with tlid } in
               let result = exec ~engine ~state args_with_dbs body in
               state.store_fn_result sfr_desc arglist result ;
               Dval.unwrap_from_errorrail result )
@@ -714,7 +713,7 @@ let analysis_engine value_store tlid_store : engine =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  {trace; trace_blank; trace_tlid; ctx = Preview}
+  { trace; trace_blank; trace_tlid; ctx = Preview }
 
 
 let execute_saving_intermediates
@@ -736,7 +735,7 @@ let execute_saving_intermediates
 let server_execution_engine tlid_store : engine =
   let empty_trace _ _ _ = () in
   let trace_tlid tlid = Hashtbl.set tlid_store ~key:tlid ~data:true in
-  {trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real}
+  { trace = empty_trace; trace_blank = empty_trace; trace_tlid; ctx = Real }
 
 
 let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =

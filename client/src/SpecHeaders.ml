@@ -34,19 +34,19 @@ let visibleModifier (hs : handlerSpec) : bool =
 let replaceEventModifier
     (search : id) (replacement : string blankOr) (hs : handlerSpec) :
     handlerSpec =
-  {hs with modifier = B.replace search replacement hs.modifier}
+  { hs with modifier = B.replace search replacement hs.modifier }
 
 
 let replaceEventName
     (search : id) (replacement : string blankOr) (hs : handlerSpec) :
     handlerSpec =
-  {hs with name = B.replace search replacement hs.name}
+  { hs with name = B.replace search replacement hs.name }
 
 
 let replaceEventSpace
     (search : id) (replacement : string blankOr) (hs : handlerSpec) :
     handlerSpec =
-  {hs with space = B.replace search replacement hs.space}
+  { hs with space = B.replace search replacement hs.space }
 
 
 let replace (search : id) (replacement : string blankOr) (hs : handlerSpec) :
@@ -62,4 +62,4 @@ let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
 
 
 let allData (spec : handlerSpec) : pointerData list =
-  [PEventSpace spec.space; PEventName spec.name; PEventModifier spec.modifier]
+  [ PEventSpace spec.space; PEventName spec.name; PEventModifier spec.modifier ]

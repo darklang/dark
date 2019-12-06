@@ -44,7 +44,7 @@ let set_user_access (user : Uuidm.t) (org : Uuidm.t) (p : permission option) :
         ~name:"set_user_access"
         "DELETE from access
         WHERE access.access_account = $1 AND access.organization_account = $2"
-        ~params:[Uuid user; Uuid org] ;
+        ~params:[ Uuid user; Uuid org ] ;
       ()
   | Some p ->
       Db.run
@@ -54,7 +54,7 @@ let set_user_access (user : Uuidm.t) (org : Uuidm.t) (p : permission option) :
         VALUES
         ($1, $2, $3)
         ON CONFLICT (access_account, organization_account) DO UPDATE SET permission = EXCLUDED.permission"
-        ~params:[Uuid user; Uuid org; permission_to_db p] ;
+        ~params:[ Uuid user; Uuid org; permission_to_db p ] ;
       ()
 
 
@@ -67,14 +67,14 @@ let grants_for ~auth_domain : (Account.username * permission) list =
      INNER JOIN accounts user_ on access.access_account = user_.id
      INNER JOIN accounts org on access.organization_account = org.id
      WHERE org.username = $1"
-    ~params:[String auth_domain]
+    ~params:[ String auth_domain ]
   |> List.map ~f:(fun l ->
          match l with
-         | [username; db_perm] ->
+         | [ username; db_perm ] ->
              (username, permission_of_db db_perm)
          | _ ->
              Exception.internal
-               "bad format from Authorization.grants_for#fetch_grants" )
+               "bad format from Authorization.grants_for#fetch_grants")
 
 
 (* Returns a list of (organization name, permission) pairs for a given username,
@@ -87,14 +87,14 @@ let orgs_for ~(username : Account.username) : (string * permission) list =
      INNER JOIN accounts user_ on access.access_account = user_.id
      INNER JOIN accounts org on access.organization_account = org.id
      WHERE user_.username = $1"
-    ~params:[String username]
+    ~params:[ String username ]
   |> List.map ~f:(fun l ->
          match l with
-         | [org; db_perm] ->
+         | [ org; db_perm ] ->
              (org, permission_of_db db_perm)
          | _ ->
              Exception.internal
-               "bad format from Authorization.grants_for#fetch_orgs" )
+               "bad format from Authorization.grants_for#fetch_orgs")
 
 
 (* If a user has a DB row indicating granted access to this auth_domain,
@@ -107,7 +107,7 @@ let granted_permission ~(username : Account.username) ~(auth_domain : string) :
        INNER JOIN accounts user_ ON access.access_account = user_.id
        INNER JOIN accounts org ON access.organization_account = org.id
        WHERE org.username = $1 AND user_.username = $2"
-    ~params:[String auth_domain; String username]
+    ~params:[ String auth_domain; String username ]
   |> List.hd
   |> Option.bind ~f:List.hd
   |> Option.map ~f:permission_of_db
@@ -124,14 +124,15 @@ let special_cases =
   ; ("rootvc", "adam")
   ; ("rootvc", "lee")
   ; ("talkhiring", "harris")
-  ; ("talkhiring", "anson") ]
+  ; ("talkhiring", "anson")
+  ]
 
 
 let special_case_permission
     ~(username : Account.username) ~(auth_domain : string) =
   if Tablecloth.List.any special_cases ~f:(fun (dom, user) ->
          String.Caseless.equal dom auth_domain
-         && String.Caseless.equal user username )
+         && String.Caseless.equal user username)
   then Some ReadWrite
   else None
 
@@ -154,7 +155,7 @@ let permission ~(auth_domain : string) ~(username : Account.username) =
    `permission option`, lazily, so we don't hit the db unnecessarily *)
   let max_permission_f fs =
     List.fold_left fs ~init:None ~f:(fun p f ->
-        match p with Some ReadWrite -> p | _ -> max p (f ()) )
+        match p with Some ReadWrite -> p | _ -> max p (f ()))
   in
   max_permission_f
     (* These first three don't hit the db, so do them first. *)
@@ -162,7 +163,8 @@ let permission ~(auth_domain : string) ~(username : Account.username) =
     ; (fun _ -> special_case_permission ~username ~auth_domain)
     ; (fun _ -> sample_permission ~auth_domain)
     ; (fun _ -> granted_permission ~username ~auth_domain)
-    ; (fun _ -> admin_permission ~username) ]
+    ; (fun _ -> admin_permission ~username)
+    ]
 
 
 let can_edit_canvas ~(canvas : string) ~(username : Account.username) : bool =

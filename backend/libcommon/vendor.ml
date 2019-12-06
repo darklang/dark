@@ -31,7 +31,7 @@ let rec dump r =
     in
     let opaque name =
       (* XXX In future, print the address of value 'r'.  Not possible
-       * in pure OCaml at the moment.  *)
+       * in pure OCaml at the moment. *)
       "<" ^ name ^ ">"
     in
     let s = Obj.size r

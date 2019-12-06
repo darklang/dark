@@ -9,7 +9,7 @@ let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
          | None ->
              false
          | Some avTlid ->
-             avTlid == (tlid |> deTLID) )
+             avTlid == (tlid |> deTLID))
 
 
 let avatarUrl (email : string) (name : string option) : string =
@@ -48,9 +48,10 @@ let avatarDiv (avatar : avatar) : msg Html.html =
   let minusThreeMins : float = Js.Date.now () -. (3.0 *. 60.0 *. 1000.0) in
   let inactive : bool = minusThreeMins > avActiveTimestamp in
   Html.img
-    [ Html.classList [("avatar", true); ("inactive", inactive)]
+    [ Html.classList [ ("avatar", true); ("inactive", inactive) ]
     ; Html.src (avatarUrl email name)
-    ; Vdom.prop "alt" username ]
+    ; Vdom.prop "alt" username
+    ]
     []
 
 
@@ -58,7 +59,7 @@ let viewAvatars (avatars : avatar list) (tlid : tlid) : msg Html.html =
   let avList = filterAvatarsByTlid avatars tlid in
   let renderAvatar (a : avatar) = avatarDiv a in
   let avatars = List.map ~f:renderAvatar avList in
-  Html.div [Html.class' "avatars"] avatars
+  Html.div [ Html.class' "avatars" ] avatars
 
 
 let viewAllAvatars (avatars : avatar list) : msg Html.html =
@@ -72,9 +73,10 @@ let viewAllAvatars (avatars : avatar list) : msg Html.html =
   in
   let avatarView = List.map ~f:avatarDiv avatars in
   Html.div
-    [Html.classList [("all-avatars", true); ("hide", List.isEmpty avatars)]]
-    [ Html.div [Html.class' "avatars-wrapper"] avatarView
-    ; Html.text "Other users" ]
+    [ Html.classList [ ("all-avatars", true); ("hide", List.isEmpty avatars) ] ]
+    [ Html.div [ Html.class' "avatars-wrapper" ] avatarView
+    ; Html.text "Other users"
+    ]
 
 
 let myAvatar (m : model) : avatar =
@@ -85,4 +87,5 @@ let myAvatar (m : model) : avatar =
   ; username = m.account.username
   ; email = m.account.email
   ; fullname = Some m.account.name
-  ; browserId = m.browserId }
+  ; browserId = m.browserId
+  }

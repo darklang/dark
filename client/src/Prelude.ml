@@ -120,13 +120,13 @@ let asserTFn (msg : 'msg) ~(f : 'a -> bool) (val_ : 'a) : unit =
 
 
 (* Assert `cond`, returning val either way.  All assertion functions report
- * to rollbar if they fail.  *)
+ * to rollbar if they fail. *)
 let assert_ (msg : 'msg) (cond : bool) (val_ : 'a) : 'a =
   if cond then val_ else recover ("assertion failure", msg) val_ val_
 
 
 (* Assert `cond` as a statement.  All assertion functions report to rollbar
- * if they fail.  *)
+ * if they fail. *)
 let asserT (msg : 'msg) (cond : bool) (val_ : 'a) : unit =
   ignore (assert_ msg cond val_)
 

@@ -25,7 +25,9 @@ let tuple5 decodeA decodeB decodeC decodeD decodeE json =
         , decodeC (unsafe_get source 2)
         , decodeD (unsafe_get source 3)
         , decodeE (unsafe_get source 4) )
-      with DecodeError msg -> raise @@ DecodeError (msg ^ "\n\tin tuple5")
+      with
+      | DecodeError msg ->
+          raise @@ DecodeError (msg ^ "\n\tin tuple5")
     else
       raise
       @@ DecodeError
@@ -39,7 +41,7 @@ let tuple5 decodeA decodeB decodeC decodeD decodeE json =
   [@@bs.val] [@@bs.scope "window"] *)
 
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
+type jsArrayBuffer = { byteLength : int } [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
 
@@ -138,15 +140,16 @@ let id j = ID (wireIdentifier j)
 
 let tlid j = TLID (wireIdentifier j)
 
-let pos j : pos = {x = field "x" int j; y = field "y" int j}
+let pos j : pos = { x = field "x" int j; y = field "y" int j }
 
-let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
+let vPos j : vPos = { vx = field "vx" int j; vy = field "vy" int j }
 
 let blankOr d =
   variants
     [ ("Filled", variant2 (fun id v -> F (id, v)) id d)
     ; ("Blank", variant1 (fun id -> Blank id) id)
-    ; ("Partial", variant2 (fun id _ -> Blank id) id string) ]
+    ; ("Partial", variant2 (fun id _ -> Blank id) id string)
+    ]
 
 
 let rec tipe j : tipe =
@@ -173,7 +176,8 @@ let rec tipe j : tipe =
     ; ("TOption", dv0 TOption)
     ; ("TErrorRail", dv0 TErrorRail)
     ; ("TDbList", dv1 (fun x -> TDbList x) tipe)
-    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int) ]
+    ; ("TUserType", dv2 (fun n v -> TUserType (n, v)) string int)
+    ]
     j
 
 
@@ -188,7 +192,8 @@ and nPattern j : nPattern =
     [ ("PVariable", variant1 (fun a -> PVariable a) string)
     ; ("PLiteral", variant1 (fun a -> PLiteral a) string)
     ; ( "PConstructor"
-      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) ) ]
+      , variant2 (fun a b -> PConstructor (a, b)) string (list pattern) )
+    ]
     j
 
 
@@ -202,7 +207,8 @@ let rec expr j : expr =
         , variant2
             (fun id name -> F (id, FluidPartial (name, Blank.new_ ())))
             id
-            string ) ]
+            string )
+      ]
   in
   match blankOrExpr j with
   | F (ID id, FnCall (F (ID "fncall", name), exprs, rail)) ->
@@ -263,7 +269,8 @@ let pointerData j : pointerData =
     ; ("PFnName", dv1 (fun x -> PFnName x) (blankOr string))
     ; ("PParamName", dv1 (fun x -> PParamName x) (blankOr string))
     ; ("PParamTipe", dv1 (fun x -> PParamTipe x) (blankOr tipe))
-    ; ("PPattern", dv1 (fun x -> PPattern x) pattern) ]
+    ; ("PPattern", dv1 (fun x -> PPattern x) pattern)
+    ]
     j
 
 
@@ -274,12 +281,15 @@ let rec dval j : dval =
   let dd = dval in
   let optionT =
     variants
-      [("OptJust", dv1 (fun x -> OptJust x) dd); ("OptNothing", dv0 OptNothing)]
+      [ ("OptJust", dv1 (fun x -> OptJust x) dd)
+      ; ("OptNothing", dv0 OptNothing)
+      ]
   in
   let resultT =
     variants
       [ ("ResOk", dv1 (fun x -> ResOk x) dd)
-      ; ("ResError", dv1 (fun x -> ResError x) dd) ]
+      ; ("ResError", dv1 (fun x -> ResError x) dd)
+      ]
   in
   let dhttp =
     variants
@@ -291,7 +301,8 @@ let rec dval j : dval =
   let srcT =
     variants
       [ ("SourceNone", dv0 SourceNone)
-      ; ("SourceId", dv1 (fun x -> SourceId x) id) ]
+      ; ("SourceId", dv1 (fun x -> SourceId x) id)
+      ]
   in
   variants
     [ ("DInt", dv1 (fun x -> DInt x) int)
@@ -325,8 +336,9 @@ let rec dval j : dval =
       , dv1
           (fun x ->
             let x = x |> bytes_from_base64url in
-            DBytes x )
-          string ) ]
+            DBytes x)
+          string )
+    ]
     j
 
 
@@ -337,7 +349,8 @@ and handlerState j : handlerState =
        ; ("HandlerPrepCollapse", variant0 HandlerPrepCollapse)
        ; ("HandlerCollapsing", variant0 HandlerCollapsing)
        ; ("HandlerCollapsed", variant0 HandlerCollapsed)
-       ; ("HandlerExpanding", variant0 HandlerExpanding) ]
+       ; ("HandlerExpanding", variant0 HandlerExpanding)
+       ]
 
 
 and exeState j : exeState =
@@ -345,7 +358,8 @@ and exeState j : exeState =
   |> variants
        [ ("Idle", variant0 Idle)
        ; ("Executing", variant0 Executing)
-       ; ("Complete", variant0 Complete) ]
+       ; ("Complete", variant0 Complete)
+       ]
 
 
 and handlerProp j : handlerProp =
@@ -353,12 +367,13 @@ and handlerProp j : handlerProp =
   ; handlerState = field "handlerState" handlerState j
   ; hoveringReferences = field "hoveringReferences" (list id) j
   ; execution = field "executing" exeState j
-  ; showActions = field "showActions" bool j }
+  ; showActions = field "showActions" bool j
+  }
 
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always use withDefault or optional because the field might be missing due
-   * to old editors or new fields.  *)
+   * to old editors or new fields. *)
   { timersEnabled = withDefault true (field "timersEnabled" bool) j
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; routingTableOpenDetails =
@@ -380,7 +395,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       withDefault
         Defaults.defaultEditor.showTopbar
         (field "showTopbar1" bool)
-        j }
+        j
+  }
 
 
 and cursorState j =
@@ -397,7 +413,8 @@ and cursorState j =
     ; ("Deselected", dv0 Deselected)
     ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
-    ; ("FluidMouseSelecting", dv1 (fun a -> FluidMouseSelecting a) tlid) ]
+    ; ("FluidMouseSelecting", dv1 (fun a -> FluidMouseSelecting a) tlid)
+    ]
     j
 
 
@@ -406,7 +423,8 @@ and entering j =
   let dv2 = variant2 in
   variants
     [ ("Creating", dv1 (fun x -> Creating x) pos)
-    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id) ]
+    ; ("Filling", dv2 (fun a b -> Filling (a, b)) tlid id)
+    ]
     j
 
 
@@ -416,7 +434,8 @@ and loadable (decoder : Js.Json.t -> 'a) (j : Js.Json.t) : 'a loadable =
     ; ("LoadableNotInitialized", variant0 LoadableNotInitialized)
     ; ( "LoadableLoading"
       , variant1 (fun a -> LoadableLoading a) (optional decoder) )
-    ; ("LoadableError", variant1 (fun a -> LoadableError a) string) ]
+    ; ("LoadableError", variant1 (fun a -> LoadableError a) string)
+    ]
     j
 
 
@@ -431,14 +450,16 @@ let analysisEnvelope (j : Js.Json.t) : traceID * dvalDict =
 let handlerSpec j : handlerSpec =
   { space = field "module" (blankOr string) j
   ; name = field "name" (blankOr string) j
-  ; modifier = field "modifier" (blankOr string) j }
+  ; modifier = field "modifier" (blankOr string) j
+  }
 
 
 let handler pos j : handler =
   { ast = field "ast" expr j
   ; spec = field "spec" handlerSpec j
   ; hTLID = field "tlid" tlid j
-  ; pos }
+  ; pos
+  }
 
 
 let tipeString j : string = map RT.tipe2str tipe j
@@ -455,7 +476,8 @@ let dbMigrationState j : dbMigrationState =
   let dv0 = variant0 in
   variants
     [ ("DBMigrationAbandoned", dv0 DBMigrationAbandoned)
-    ; ("DBMigrationInitialized", dv0 DBMigrationInitialized) ]
+    ; ("DBMigrationInitialized", dv0 DBMigrationInitialized)
+    ]
     j
 
 
@@ -465,7 +487,8 @@ let dbMigration j : dbMigration =
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
   ; rollforward = field "rollforward" expr j
-  ; rollback = field "rollback" expr j }
+  ; rollback = field "rollback" expr j
+  }
 
 
 let db pos j : db =
@@ -475,7 +498,8 @@ let db pos j : db =
   ; version = field "version" int j
   ; oldMigrations = field "old_migrations" (list dbMigration) j
   ; activeMigration = field "active_migration" (optional dbMigration) j
-  ; pos }
+  ; pos
+  }
 
 
 let toplevel j : toplevel =
@@ -483,7 +507,8 @@ let toplevel j : toplevel =
   let variant =
     variants
       [ ("Handler", variant1 (fun x -> TLHandler x) (handler pos))
-      ; ("DB", variant1 (fun x -> TLDB x) (db pos)) ]
+      ; ("DB", variant1 (fun x -> TLDB x) (db pos))
+      ]
   in
   field "data" variant j
 
@@ -493,7 +518,8 @@ let userFunctionParameter j : userFunctionParameter =
   ; ufpTipe = field "tipe" (blankOr tipe) j
   ; ufpBlock_args = field "block_args" (list string) j
   ; ufpOptional = field "optional" bool j
-  ; ufpDescription = field "description" string j }
+  ; ufpDescription = field "description" string j
+  }
 
 
 let userFunctionMetadata j : userFunctionMetadata =
@@ -501,13 +527,15 @@ let userFunctionMetadata j : userFunctionMetadata =
   ; ufmParameters = field "parameters" (list userFunctionParameter) j
   ; ufmDescription = field "description" string j
   ; ufmReturnTipe = field "return_type" (blankOr tipe) j
-  ; ufmInfix = field "infix" bool j }
+  ; ufmInfix = field "infix" bool j
+  }
 
 
 let userFunction j : userFunction =
   { ufTLID = field "tlid" tlid j
   ; ufMetadata = field "metadata" userFunctionMetadata j
-  ; ufAST = field "ast" expr j }
+  ; ufAST = field "ast" expr j
+  }
 
 
 let fof j : fourOhFour =
@@ -515,12 +543,13 @@ let fof j : fourOhFour =
   ; path = index 1 string j
   ; modifier = index 2 string j
   ; timestamp = index 3 string j
-  ; traceID = index 4 traceID j }
+  ; traceID = index 4 traceID j
+  }
 
 
 let deployStatus j : deployStatus =
   let sumtypes =
-    [("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying)]
+    [ ("Deployed", variant0 Deployed); ("Deploying", variant0 Deploying) ]
   in
   j |> variants sumtypes
 
@@ -529,7 +558,8 @@ let sDeploy j : staticDeploy =
   { deployHash = field "deploy_hash" string j
   ; url = field "url" string j
   ; lastUpdate = field "last_update" jsDate j
-  ; status = field "status" deployStatus j }
+  ; status = field "status" deployStatus j
+  }
 
 
 let serverTime j : Js.Date.t = Js.Date.fromString (field "value" string j)
@@ -542,7 +572,8 @@ let presenceMsg j : avatar =
   ; serverTime = field "serverTime" serverTime j
   ; email = field "email" string j
   ; fullname = field "name" (optional string) j
-  ; browserId = field "browserId" string j }
+  ; browserId = field "browserId" string j
+  }
 
 
 let inputValueDict j : inputValueDict =
@@ -553,13 +584,14 @@ let functionResult j : functionResult =
   let fnName, callerID, argHash, argHashVersion, value =
     tuple5 string id string int dval j
   in
-  {fnName; callerID; argHash; argHashVersion; value}
+  { fnName; callerID; argHash; argHashVersion; value }
 
 
 let traceData j : traceData =
   { input = field "input" inputValueDict j
   ; timestamp = field "timestamp" string j
-  ; functionResults = field "function_results" (list functionResult) j }
+  ; functionResults = field "function_results" (list functionResult) j
+  }
 
 
 let trace j : trace = pair traceID (optional traceData) j
@@ -570,12 +602,13 @@ let traces j : traces =
 
 let userRecordField j =
   { urfName = field "name" (blankOr string) j
-  ; urfTipe = field "tipe" (blankOr tipe) j }
+  ; urfTipe = field "tipe" (blankOr tipe) j
+  }
 
 
 let userTipeDefinition j =
   variants
-    [("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField))]
+    [ ("UTRecord", variant1 (fun x -> UTRecord x) (list userRecordField)) ]
     j
 
 
@@ -583,21 +616,22 @@ let userTipe j =
   { utTLID = field "tlid" tlid j
   ; utName = field "name" (blankOr string) j
   ; utVersion = field "version" int j
-  ; utDefinition = field "definition" userTipeDefinition j }
+  ; utDefinition = field "definition" userTipeDefinition j
+  }
 
 
 let permission j =
-  variants [("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite)] j
+  variants [ ("Read", variant0 Read); ("ReadWrite", variant0 ReadWrite) ] j
 
 
 let op j : op =
   variants
     [ ( "SetHandler"
       , variant3
-          (fun t p h -> SetHandler (t, p, {h with pos = p}))
+          (fun t p h -> SetHandler (t, p, { h with pos = p }))
           tlid
           pos
-          (handler {x = -1286; y = -467}) )
+          (handler { x = -1286; y = -467 }) )
     ; ( "CreateDB"
       , variant3 (fun t p name -> CreateDB (t, p, name)) tlid pos string )
     ; ("AddDBCol", variant3 (fun t cn ct -> AddDBCol (t, cn, ct)) tlid id id)
@@ -624,7 +658,7 @@ let op j : op =
     ; ( "AddDBColToDBMigration"
       , variant3
           (fun t colnameid coltypeid ->
-            AddDBColToDBMigration (t, colnameid, coltypeid) )
+            AddDBColToDBMigration (t, colnameid, coltypeid))
           tlid
           id
           id )
@@ -665,7 +699,8 @@ let op j : op =
     ; ("DeleteTLForever", variant1 (fun t -> DeleteTLForever t) tlid)
     ; ("SetType", variant1 (fun t -> SetType t) userTipe)
     ; ("DeleteType", variant1 (fun t -> DeleteType t) tlid)
-    ; ("DeleteTypeForever", variant1 (fun t -> DeleteTypeForever t) tlid) ]
+    ; ("DeleteTypeForever", variant1 (fun t -> DeleteTypeForever t) tlid)
+    ]
     j
 
 
@@ -679,7 +714,8 @@ let addOpRPCResult j : addOpRPCResult =
   ; userFunctions = field "user_functions" (list userFunction) j
   ; deletedUserFunctions = field "deleted_user_functions" (list userFunction) j
   ; userTipes = field "user_tipes" (list userTipe) j
-  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j }
+  ; deletedUserTipes = field "deleted_user_tipes" (list userTipe) j
+  }
 
 
 let addOpRPCParams j : addOpRPCParams =
@@ -688,14 +724,16 @@ let addOpRPCParams j : addOpRPCParams =
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
   { ops = field "ops" (list op) j
   ; opCtr
-      (* withDefault in case we roll back and have an old server that doesn't send
+    (* withDefault in case we roll back and have an old server that doesn't send
 * us this field *)
-  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
+  ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j
+  }
 
 
 let addOpRPCStrollerMsg j : addOpStrollerMsg =
   { result = field "result" addOpRPCResult j
-  ; params = field "params" addOpRPCParams j }
+  ; params = field "params" addOpRPCParams j
+  }
 
 
 let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
@@ -703,12 +741,13 @@ let getUnlockedDBsRPCResult j : getUnlockedDBsRPCResult =
 
 
 let getTraceDataRPCResult j : getTraceDataRPCResult =
-  {trace = field "trace" trace j}
+  { trace = field "trace" trace j }
 
 
 let dbStats j : dbStats =
   { count = field "count" int j
-  ; example = field "example" (optional (tuple2 dval string)) j }
+  ; example = field "example" (optional (tuple2 dval string)) j
+  }
 
 
 let dbStatsStore j : dbStatsStore = dict dbStats j
@@ -718,12 +757,15 @@ let dbStatsRPCResult j = dbStatsStore j
 let account j : account =
   { name = field "name" string j
   ; email = field "email" string j
-  ; username = field "username" string j }
+  ; username = field "username" string j
+  }
 
 
 (* schedule is None here but gets updated when we create a view state
  * see createVS in ViewUtils.ml for details *)
-let workerStats j : workerStats = {count = field "count" int j; schedule = None}
+let workerStats j : workerStats =
+  { count = field "count" int j; schedule = None }
+
 
 let workerStatsRPCResult j = workerStats j
 
@@ -753,7 +795,8 @@ let initialLoadRPCResult j : initialLoadRPCResult =
   ; groups = List.filterMap ~f:TL.asGroup tls
   ; deletedGroups = List.filterMap ~f:TL.asGroup tls
   ; account = field "account" account j
-  ; worker_schedules = field "worker_schedules" (dict string) j }
+  ; worker_schedules = field "worker_schedules" (dict string) j
+  }
 
 
 let executeFunctionRPCResult j : executeFunctionRPCResult =
@@ -780,15 +823,16 @@ let parseBasicDval str : dval =
     ; map (fun x -> DFloat x) Json_decode_extended.float
     ; map (fun x -> DBool x) bool
     ; nullAs DNull
-    ; map (fun x -> DStr x) string ]
+    ; map (fun x -> DStr x) string
+    ]
     str
 
 
 (* Ported directly from Dval.parse in the backend *)
 let parseDvalLiteral (str : string) : dval option =
   match String.toList str with
-  | ['\''; c; '\''] ->
-      Some (DCharacter (String.fromList [c]))
+  | [ '\''; c; '\'' ] ->
+      Some (DCharacter (String.fromList [ c ]))
   | '"' :: rest ->
       if List.last rest = Some '"'
       then
@@ -829,29 +873,32 @@ let exception_ j : exception_ =
   ; result = field "result" (optional string) j
   ; resultType = field "result_tipe" (optional string) j
   ; info = field "info" (dict string) j
-  ; workarounds = field "workarounds" (list string) j }
+  ; workarounds = field "workarounds" (list string) j
+  }
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
-  try Ok (fn (Json.parseOrRaise j)) with e ->
-    reportError "unexpected json" j ;
-    ( match e with
-    | DecodeError e | Json.ParseError e ->
-        Error e
-    | e ->
-        Error (Printexc.to_string e) )
+  try Ok (fn (Json.parseOrRaise j)) with
+  | e ->
+      reportError "unexpected json" j ;
+      ( match e with
+      | DecodeError e | Json.ParseError e ->
+          Error e
+      | e ->
+          Error (Printexc.to_string e) )
 
 
 (* Wrap JSON decoders using bs-json's format, into TEA's JSON decoder format *)
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
-      try Tea_result.Ok (fn value) with e ->
-        reportError "undecodable json" value ;
-        ( match e with
-        | DecodeError e | Json.ParseError e ->
-            Tea_result.Error e
-        | e ->
-            Tea_result.Error ("Json error: " ^ Printexc.to_string e) ) )
+      try Tea_result.Ok (fn value) with
+      | e ->
+          reportError "undecodable json" value ;
+          ( match e with
+          | DecodeError e | Json.ParseError e ->
+              Tea_result.Error e
+          | e ->
+              Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))

@@ -28,7 +28,8 @@ module Session = struct
            ; ( "csrf_token"
              , `String
                  (Cstruct.to_string Nocrypto.(Base64.encode (Rng.generate 30)))
-             ) ]))
+             )
+           ]))
 
 
   let username_for session =
@@ -51,11 +52,11 @@ module Session = struct
       "SELECT session_data
        FROM session
        WHERE expire_date > NOW() AND session_key = $1"
-      ~params:[Db.String key]
+      ~params:[ Db.String key ]
     |> Option.bind ~f:(fun row -> row |> List.hd)
     |> Option.map ~f:(fun session_data ->
            session_data
            |> Yojson.Basic.from_string
            |> Yojson.Basic.Util.member "username"
-           |> Yojson.Basic.Util.to_string )
+           |> Yojson.Basic.Util.to_string)
 end

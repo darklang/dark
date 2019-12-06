@@ -27,7 +27,8 @@ let sampleFunctions : function_ list =
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
   ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult) ]
+  ; ("Result::catchError", TResult)
+  ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -35,12 +36,15 @@ let sampleFunctions : function_ list =
                ; paramTipe
                ; paramBlock_args = []
                ; paramOptional = false
-               ; paramDescription = "" } ]
+               ; paramDescription = ""
+               }
+             ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated" } )
+         ; fnDeprecated = fnName = "Some::deprecated"
+         })
 
 
 let defaultTLID = gtlid ()
@@ -53,7 +57,8 @@ let defaultExpr = EBlank defaultID
 
 let aMatchExpr
     ?(mID = defaultID) ?(patID = gid ()) ?(pattern = FPBlank (mID, patID)) () =
-  EMatch (mID, EVariable (gid (), "request"), [(pattern, EBool (gid (), true))])
+  EMatch
+    (mID, EVariable (gid (), "request"), [ (pattern, EBool (gid (), true)) ])
 
 
 let defaultToplevel =
@@ -62,9 +67,11 @@ let defaultToplevel =
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
-        ; modifier = Blank (gid ()) }
+        ; modifier = Blank (gid ())
+        }
     ; hTLID = defaultTLID
-    ; pos = Defaults.origin }
+    ; pos = Defaults.origin
+    }
 
 
 let defaultDval = DNull
@@ -75,14 +82,15 @@ let defaultTokenInfo =
   ; startPos = 0
   ; endPos = 0
   ; length = 0
-  ; token = TBlank defaultID }
+  ; token = TBlank defaultID
+  }
 
 
 let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     AC.fullQuery =
   let ti =
     match tl with
-    | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
+    | TLHandler { ast; _ } | TLFunc { ufAST = ast; _ } ->
         ast
         |> fromExpr m.fluidState
         |> toTokens m.fluidState
@@ -118,7 +126,8 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions }
+  ; builtInFunctions = sampleFunctions
+  }
 
 
 let aHandler
@@ -129,8 +138,8 @@ let aHandler
   let space =
     match space with None -> B.new_ () | Some name -> B.newF name
   in
-  let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = toExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  let spec = { space; name = B.new_ (); modifier = B.new_ () } in
+  { ast = toExpr expr; spec; hTLID = tlid; pos = { x = 0; y = 0 } }
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -140,19 +149,22 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
       ; ufmParameters = []
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
-      ; ufmInfix = false }
-  ; ufAST = toExpr expr }
+      ; ufmInfix = false
+      }
+  ; ufAST = toExpr expr
+  }
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
     : db =
   { dbTLID = tlid
   ; dbName = B.newF "MyDB"
-  ; cols = [(Blank fieldid, Blank typeid)]
+  ; cols = [ (Blank fieldid, Blank typeid) ]
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = {x = 0; y = 0} }
+  ; pos = { x = 0; y = 0 }
+  }
 
 
 let enteringFunction
@@ -172,7 +184,7 @@ let enteringDBField
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([aDB ()] @ dbs)
+    ~dbs:([ aDB () ] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -184,7 +196,7 @@ let enteringDBType
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
+    ~dbs:([ aDB ~fieldid:defaultID2 ~typeid:defaultID () ] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -195,7 +207,7 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~handlers:[aHandler ~space ~expr ()]
+    ~handlers:[ aHandler ~space ~expr () ]
     ()
 
 
@@ -275,7 +287,8 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
   ; target = None
   ; targetDval = None
   ; isCommandMode = false
-  ; visible = ac.index = None }
+  ; visible = ac.index = None
+  }
 
 
 let () =
@@ -298,22 +311,21 @@ let () =
           let pd = PEventName (Types.F (ID "0", "foo")) in
           test "/foo/bar is valid, no variables" (fun () ->
               let value = "/foo/bar" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test "/:some/:variableNames/:here_1 is valid" (fun () ->
               let value = "/:some/:variableNames/:here_1" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test
             "/:here-1 is not valid, no hyphens allowed in varnames"
             (fun () ->
               let value = "/:here-1" in
               expect (Entry.validate tl pd value)
               |> toEqual
-                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
-      ) ;
+                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/"))) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
-              expect (acFor m |> fun x -> x.index) |> toEqual None ) ;
+              expect (acFor m |> fun x -> x.index) |> toEqual None) ;
           test
             "pressing a letter from the AC.selected entry does not keep the entry AC.selected"
             (fun () ->
@@ -323,7 +335,8 @@ let () =
                 |> setQuery m "Twit::someO"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
-              |> toEqual (Some "Twit::someOtherFunc") ) ;
+              |> toEqual (Some "Twit::someOtherFunc")) ;
+
           (* TODO: not yet working in fluid
            test "Returning to empty unselects" (fun () ->
               expect
@@ -337,17 +350,17 @@ let () =
                 |> AC.selectDown
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
-              |> toEqual (Some "Twit::someOtherFunc") ) ;
+              |> toEqual (Some "Twit::someOtherFunc")) ;
           test "deprecated functions are removed" (fun () ->
               expect (acFor m |> setQuery m "deprecated" |> AC.highlighted)
-              |> toEqual None ) ;
+              |> toEqual None) ;
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( acFor m
                 |> setQuery m "lis"
                 |> (fun x -> x.completions)
                 |> List.map ~f:AC.asName )
-              |> toEqual ["List::head"] ) ;
+              |> toEqual [ "List::head" ]) ;
           test "search finds multiple results for prefix" (fun () ->
               expect
                 ( acFor m
@@ -356,8 +369,10 @@ let () =
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
               |> toEqual
-                   ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]
-          ) ;
+                   [ "Twit::somefunc"
+                   ; "Twit::someOtherFunc"
+                   ; "Twit::yetAnother"
+                   ]) ;
           test "search finds only prefixed" (fun () ->
               expect
                 ( acFor m
@@ -365,7 +380,7 @@ let () =
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName )
-              |> toEqual ["Twit::yetAnother"] ) ;
+              |> toEqual [ "Twit::yetAnother" ]) ;
           test "show results when the only option is the setQuery m" (fun () ->
               expect
                 ( acFor m
@@ -374,7 +389,7 @@ let () =
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:AC.asName
                 |> List.length )
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acFor m
@@ -382,7 +397,7 @@ let () =
                 |> AC.selectDown
                 |> AC.selectDown
                 |> fun x -> x.index )
-              |> toEqual (Some 2) ) ;
+              |> toEqual (Some 2)) ;
           test "scrolling loops one way" (fun () ->
               expect
                 ( acFor m
@@ -391,7 +406,7 @@ let () =
                 |> AC.selectDown
                 |> AC.selectDown
                 |> fun x -> x.index )
-              |> toEqual (Some 0) ) ;
+              |> toEqual (Some 0)) ;
           test "scrolling loops the other way" (fun () ->
               expect
                 ( acFor m
@@ -400,7 +415,7 @@ let () =
                 |> AC.selectUp
                 |> AC.selectUp
                 |> fun x -> x.index )
-              |> toEqual (Some 2) ) ;
+              |> toEqual (Some 2)) ;
           test
             "scrolling loops the other way without going forward first"
             (fun () ->
@@ -410,7 +425,7 @@ let () =
                 |> AC.selectUp
                 |> AC.selectUp
                 |> fun x -> x.index )
-              |> toEqual (Some 1) ) ;
+              |> toEqual (Some 1)) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
@@ -419,7 +434,8 @@ let () =
                 |> AC.selectDown
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
-              |> toEqual None ) ;
+              |> toEqual None) ;
+
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m
@@ -455,7 +471,8 @@ let () =
                    [ "withLower"
                    ; "withlower"
                    ; "SomeModule::withLower"
-                   ; "SomeOtherModule::withlower" ] ) ;
+                   ; "SomeOtherModule::withlower"
+                   ]) ;
           test
             "a specific bug where `+` is interpreted as an FACLiteral"
             (fun () ->
@@ -464,34 +481,34 @@ let () =
                 |> setQuery m "+"
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
-              |> toEqual (Some "+") ) ;
+              |> toEqual (Some "+")) ;
           test "null works" (fun () ->
               expect (acFor m |> setQuery m "nu" |> AC.highlighted)
-              |> toEqual (Some (FACLiteral "null")) ) ;
+              |> toEqual (Some (FACLiteral "null"))) ;
           test "Ok works" (fun () ->
               expect (acFor m |> setQuery m "Ok" |> AC.highlighted)
-              |> toEqual (Some (FACConstructorName ("Ok", 1))) ) ;
+              |> toEqual (Some (FACConstructorName ("Ok", 1)))) ;
           test "Error works" (fun () ->
               expect (acFor m |> setQuery m "Error" |> AC.highlighted)
-              |> toEqual (Some (FACConstructorName ("Error", 1))) ) ;
+              |> toEqual (Some (FACConstructorName ("Error", 1)))) ;
           test "true works" (fun () ->
               expect (acFor m |> setQuery m "tr" |> AC.highlighted)
-              |> toEqual (Some (FACLiteral "true")) ) ;
+              |> toEqual (Some (FACLiteral "true"))) ;
           test "case insensitive true works" (fun () ->
               expect (acFor m |> setQuery m "tR" |> AC.highlighted)
-              |> toEqual (Some (FACLiteral "true")) ) ;
+              |> toEqual (Some (FACLiteral "true"))) ;
           test "false works" (fun () ->
               expect (acFor m |> setQuery m "fa" |> AC.highlighted)
-              |> toEqual (Some (FACLiteral "false")) ) ;
+              |> toEqual (Some (FACLiteral "false"))) ;
           test "if works" (fun () ->
               expect (acFor m |> setQuery m "if" |> AC.highlighted)
-              |> toEqual (Some (FACKeyword KIf)) ) ;
+              |> toEqual (Some (FACKeyword KIf))) ;
           test "let works" (fun () ->
               expect (acFor m |> setQuery m "let" |> AC.highlighted)
-              |> toEqual (Some (FACKeyword KLet)) ) ;
+              |> toEqual (Some (FACKeyword KLet))) ;
           test "Lambda works" (fun () ->
               expect (acFor m |> setQuery m "lambda" |> AC.highlighted)
-              |> toEqual (Some (FACKeyword KLambda)) ) ;
+              |> toEqual (Some (FACKeyword KLambda))) ;
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
               let m = enteringHandler ~space () in
@@ -499,7 +516,7 @@ let () =
                 ( acFor m
                 |> setQuery m "request"
                 |> itemPresent (FACVariable ("request", None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
@@ -508,8 +525,10 @@ let () =
                    |> itemPresent (FACVariable ("request", None))
                  ; ac
                    |> setQuery m "event"
-                   |> itemPresent (FACVariable ("event", None)) ])
-              |> toEqual [true; true] ) ;
+                   |> itemPresent (FACVariable ("event", None))
+                 ])
+              |> toEqual [ true; true ]) ;
+
           (* TODO: not yet working in fluid
            * test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
@@ -537,27 +556,28 @@ let () =
                 |> String.join ~sep:"; " ) ;
               expect (ac |> itemPresent (FACVariable "MyDB")) |> toEqual true
           ) ;*)
-          () ) ;
+          ()) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m =
-                defaultModel ~cursorState:(fillingCS ()) ~dbs:[aDB ()] ()
+                defaultModel ~cursorState:(fillingCS ()) ~dbs:[ aDB () ] ()
               in
               let ac = acFor m in
               let _valid, invalid =
                 AC.filter
                   m
                   ac
-                  [FACVariable ("MyDB", None)]
+                  [ FACVariable ("MyDB", None) ]
                   (defaultFullQuery m "")
               in
               expect (List.member ~value:(FACVariable ("MyDB", None)) invalid)
-              |> toEqual true ) ;
+              |> toEqual true) ;
           let consFAC =
             [ FACConstructorName ("Just", 1)
             ; FACConstructorName ("Nothing", 0)
             ; FACConstructorName ("Ok", 1)
-            ; FACConstructorName ("Error", 1) ]
+            ; FACConstructorName ("Error", 1)
+            ]
           in
           (* TODO: not yet working in fluid
           test "Only Just and Nothing are allowed in Option-blank" (fun () ->
@@ -641,7 +661,7 @@ let () =
                 && List.member ~value:(FACConstructorName ("Just", 1)) valid
                 && List.member ~value:(FACConstructorName ("Nothing", 0)) valid
                 )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "Pattern expressions are available in pattern blank" (fun () ->
               let tlid = TLID "789" in
               let mID = ID "1234" in
@@ -651,16 +671,16 @@ let () =
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid ~_id:patID ())
-                  ~handlers:[aHandler ~tlid ~expr ()]
+                  ~handlers:[ aHandler ~tlid ~expr () ]
                   ()
-                |> fun m -> {m with builtInFunctions = []}
+                |> fun m -> { m with builtInFunctions = [] }
               in
               expect
                 ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:(fun x -> AC.asName x) )
-              |> toEqual ["o"; "Ok"; "Nothing"; "Error"] ) ;
-          () ) ;
-      () ) ;
+              |> toEqual [ "o"; "Ok"; "Nothing"; "Error" ]) ;
+          ()) ;
+      ()) ;
   ()

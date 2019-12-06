@@ -47,7 +47,7 @@ let t_set_user_access () =
   AT.check
     (AT.list (AT.pair AT.bool AT.bool))
     "Changes with Authorization.set_user_access affect can_view_canvas and can_edit_canvas."
-    [(false, false); (true, false); (true, true); (false, false)]
+    [ (false, false); (true, false); (true, true); (false, false) ]
     (let user_id = Option.value_exn (Account.id_of_username "test") in
      let org_id = Option.value_exn (Account.id_of_username "test_admin") in
      let view_and_edit () =
@@ -68,7 +68,8 @@ let t_set_user_access () =
          view_and_edit () )
      ; (* Revoke permissions, see what happens. *)
        ( Authorization.set_user_access user_id org_id None ;
-         view_and_edit () ) ])
+         view_and_edit () )
+     ])
 
 
 let t_permission_ord_instance () =
@@ -134,4 +135,5 @@ let suite =
   ; ( "The ord instance on 'permission' works."
     , `Quick
     , t_permission_ord_instance )
-  ; ("Account validation works", `Quick, t_account_validation_works) ]
+  ; ("Account validation works", `Quick, t_account_validation_works)
+  ]

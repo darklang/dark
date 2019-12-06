@@ -12,7 +12,8 @@ type level =
   | `Info
   | `Success
   | `Debug
-  | `All ]
+  | `All
+  ]
 
 val loglevel : level ref
 
@@ -31,7 +32,8 @@ val should_log : level -> bool
 (* formats *)
 type format =
   [ `Json
-  | `DecoratedJson ]
+  | `DecoratedJson
+  ]
 
 val format : format ref
 

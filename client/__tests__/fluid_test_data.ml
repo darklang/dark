@@ -215,27 +215,27 @@ let letWithUsedBinding (bindingName : string) =
 (* ---------------- *)
 let emptyMatch =
   let mID = gid () in
-  EMatch (mID, b, [(FPBlank (mID, gid ()), b)])
+  EMatch (mID, b, [ (FPBlank (mID, gid ()), b) ])
 
 
 let emptyMatchWithTwoPatterns =
   let mID = gid () in
-  EMatch (mID, b, [(FPBlank (mID, gid ()), b); (FPBlank (mID, gid ()), b)])
+  EMatch (mID, b, [ (FPBlank (mID, gid ()), b); (FPBlank (mID, gid ()), b) ])
 
 
 let matchWithPatterns =
   let mID = gid () in
-  EMatch (mID, b, [(FPInteger (mID, gid (), "3"), b)])
+  EMatch (mID, b, [ (FPInteger (mID, gid (), "3"), b) ])
 
 
 let matchWithConstructorPattern =
   let mID = gid () in
-  EMatch (mID, b, [(FPConstructor (mID, gid (), "Just", []), b)])
+  EMatch (mID, b, [ (FPConstructor (mID, gid (), "Just", []), b) ])
 
 
 let matchWithBinding (bindingName : string) (expr : fluidExpr) =
   let mID = gid () in
-  EMatch (mID, b, [(FPVariable (mID, gid (), bindingName), expr)])
+  EMatch (mID, b, [ (FPVariable (mID, gid (), bindingName), expr) ])
 
 
 let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
@@ -244,8 +244,9 @@ let matchWithConstructorBinding (bindingName : string) (expr : fluidExpr) =
     ( mID
     , b
     , [ ( FPConstructor
-            (mID, gid (), "Ok", [FPVariable (mID, gid (), bindingName)])
-        , expr ) ] )
+            (mID, gid (), "Ok", [ FPVariable (mID, gid (), bindingName) ])
+        , expr )
+      ] )
 
 
 let matchWithTwoLets =
@@ -261,12 +262,13 @@ let matchWithTwoLets =
             , EInteger (gid (), "5")
             , ELet
                 (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
-            ) ) ] )
+            ) )
+      ] )
 
 
 let nestedMatch =
   let mID = gid () in
-  EMatch (mID, b, [(FPBlank (mID, gid ()), emptyMatch)])
+  EMatch (mID, b, [ (FPBlank (mID, gid ()), emptyMatch) ])
 
 
 (* ---------------- *)
@@ -314,15 +316,17 @@ let indentedIfElse =
 (* ---------------- *)
 (* Lambdas *)
 (* ---------------- *)
-let aLambda = ELambda (gid (), [(gid (), "")], b)
+let aLambda = ELambda (gid (), [ (gid (), "") ], b)
 
-let nonEmptyLambda = ELambda (gid (), [(gid (), "")], five)
+let nonEmptyLambda = ELambda (gid (), [ (gid (), "") ], five)
 
 let lambdaWithBinding (bindingName : string) (expr : fluidExpr) =
-  ELambda (gid (), [(gid (), bindingName)], expr)
+  ELambda (gid (), [ (gid (), bindingName) ], expr)
 
 
-let lambdaWithTwoBindings = ELambda (gid (), [(gid (), "x"); (gid (), "y")], b)
+let lambdaWithTwoBindings =
+  ELambda (gid (), [ (gid (), "x"); (gid (), "y") ], b)
+
 
 let lambdaWithUsedBinding (bindingName : string) =
   lambdaWithBinding bindingName (EVariable (gid (), bindingName))
@@ -331,18 +335,18 @@ let lambdaWithUsedBinding (bindingName : string) =
 let lambdaWithUsed2ndBinding (bindingName : string) =
   ELambda
     ( gid ()
-    , [(gid (), "somevar"); (gid (), bindingName)]
+    , [ (gid (), "somevar"); (gid (), bindingName) ]
     , EVariable (gid (), bindingName) )
 
 
 (* ---------------- *)
 (* Functions *)
 (* ---------------- *)
-let aFnCall = EFnCall (gid (), "Int::add", [five; b], NoRail)
+let aFnCall = EFnCall (gid (), "Int::add", [ five; b ], NoRail)
 
-let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail)
+let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [ b ], NoRail)
 
-let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)
+let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [ b; b ], NoRail)
 
 let aBinOp = EBinOp (gid (), "==", b, b, NoRail)
 
@@ -351,27 +355,27 @@ let aFullBinOp = binop "||" (var "myvar") (int "5")
 (* ---------------- *)
 (* Constructors *)
 (* ---------------- *)
-let aConstructor = EConstructor (gid (), gid (), "Just", [b])
+let aConstructor = EConstructor (gid (), gid (), "Just", [ b ])
 
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
-let emptyRow = [(gid (), "", b)]
+let emptyRow = [ (gid (), "", b) ]
 
 let recordRow1 = (gid (), "f1", fiftySix)
 
 let recordRow2 = (gid (), "f2", seventyEight)
 
-let singleRowRecord = ERecord (gid (), [recordRow1])
+let singleRowRecord = ERecord (gid (), [ recordRow1 ])
 
-let multiRowRecord = ERecord (gid (), [recordRow1; recordRow2])
+let multiRowRecord = ERecord (gid (), [ recordRow1; recordRow2 ])
 
 let emptyRowRecord = ERecord (gid (), emptyRow)
 
 let emptyRecord = ERecord (gid (), [])
 
 let functionWrappedEmptyRecord =
-  fn "HttpClient::get_v4" [emptyStr; emptyRecord; emptyRecord]
+  fn "HttpClient::get_v4" [ emptyStr; emptyRecord; emptyRecord ]
 
 
 (* ---------------- *)
@@ -379,19 +383,20 @@ let functionWrappedEmptyRecord =
 (* ---------------- *)
 let emptyList = list []
 
-let single = list [fiftySix]
+let single = list [ fiftySix ]
 
-let multi = list [fiftySix; seventyEight]
+let multi = list [ fiftySix; seventyEight ]
 
-let withStr = list [str "ab"]
+let withStr = list [ str "ab" ]
 
 let longList =
-  list [fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight]
+  list
+    [ fiftySix; seventyEight; fiftySix; seventyEight; fiftySix; seventyEight ]
 
 
-let listWithBlank = list [fiftySix; seventyEight; b; fiftySix]
+let listWithBlank = list [ fiftySix; seventyEight; b; fiftySix ]
 
-let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
+let multiWithStrs = list [ str "ab"; str "cd"; str "ef" ]
 
 (* ---------------- *)
 (* Fields *)
@@ -413,32 +418,35 @@ let aBlankField = EFieldAccess (gid (), EVariable (gid (), "obj"), gid (), "")
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
-let aList5 = list [five]
+let aList5 = list [ five ]
 
-let aList6 = list [six]
+let aList6 = list [ six ]
 
-let aListNum n = list [int n]
+let aListNum n = list [ int n ]
 
 let listFn args = fn "List::append" (pipeTarget :: args)
 
-let aPipe = pipe (list []) [listFn [aList5]; listFn [aList5]]
+let aPipe = pipe (list []) [ listFn [ aList5 ]; listFn [ aList5 ] ]
 
-let emptyPipe = pipe b [b]
+let emptyPipe = pipe b [ b ]
 
 let aLongPipe =
   pipe
     (list [])
-    [ listFn [aListNum "2"]
-    ; listFn [aListNum "3"]
-    ; listFn [aListNum "4"]
-    ; listFn [aListNum "5"] ]
+    [ listFn [ aListNum "2" ]
+    ; listFn [ aListNum "3" ]
+    ; listFn [ aListNum "4" ]
+    ; listFn [ aListNum "5" ]
+    ]
 
 
-let aBinopPipe = pipe b [binop "++" pipeTarget (str "asd")]
+let aBinopPipe = pipe b [ binop "++" pipeTarget (str "asd") ]
 
 let aPipeInsideIf = if' b aLongPipe b
 
-let aNestedPipe = pipe (list []) [listFn [pipe aList5 [listFn [aList6]]]]
+let aNestedPipe =
+  pipe (list []) [ listFn [ pipe aList5 [ listFn [ aList6 ] ] ] ]
+
 
 (* ---------------- *)
 (* Complex *)
@@ -456,7 +464,7 @@ let complexExpr =
           "=="
           (fieldAccess (fieldAccess (var "request") "headers") "origin")
           (str "https://localhost:3000")))
-    (let' "" b (fn "Http::Forbidden" [int "403"]))
+    (let' "" b (fn "Http::Forbidden" [ int "403" ]))
     (fn "Http::Forbidden" [])
 
 

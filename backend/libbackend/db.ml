@@ -204,38 +204,44 @@ let execute
   let binary_params = params |> List.map ~f:to_binary_bool |> Array.of_list in
   let string_params = params |> List.map ~f:to_sql |> Array.of_list in
   let subject_log =
-    match subject with Some str -> [("subject", str)] | None -> []
+    match subject with Some str -> [ ("subject", str) ] | None -> []
   in
   try
     let res = f ~binary_params ~binary_result ~params:string_params sql in
     (* Transform and log the result *)
     let logr, result = r res in
-    let result_log = if logr = "" then [] else [("result", logr)] in
-    Log.succesS name ~params:([("op", op)] @ result_log @ subject_log) ;
+    let result_log = if logr = "" then [] else [ ("result", logr) ] in
+    Log.succesS name ~params:([ ("op", op) ] @ result_log @ subject_log) ;
     result
-  with e ->
-    let bt = Exception.get_backtrace () in
-    let log_string = params |> List.map ~f:to_log |> String.concat ~sep:", " in
-    Log.erroR name ~params:[("op", op); ("params", log_string); ("query", sql)] ;
-    let msg =
-      match e with
-      | Postgresql.Error (Unexpected_status (_, msg, _)) ->
-          msg
-      | Postgresql.Error pge ->
-          Postgresql.string_of_error pge
-      | Exception.DarkException de ->
-          Log.erroR
-            ~bt
-            "Caught DarkException in DB, reraising"
-            ~params:
-              [ ( "exn"
-                , Exception.exception_data_to_yojson de
-                  |> Yojson.Safe.to_string ) ] ;
-          Caml.Printexc.raise_with_backtrace e bt
-      | e ->
-          Exception.exn_to_string e
-    in
-    Exception.storage msg ~bt ~info:[("time", time () |> string_of_float)]
+  with
+  | e ->
+      let bt = Exception.get_backtrace () in
+      let log_string =
+        params |> List.map ~f:to_log |> String.concat ~sep:", "
+      in
+      Log.erroR
+        name
+        ~params:[ ("op", op); ("params", log_string); ("query", sql) ] ;
+      let msg =
+        match e with
+        | Postgresql.Error (Unexpected_status (_, msg, _)) ->
+            msg
+        | Postgresql.Error pge ->
+            Postgresql.string_of_error pge
+        | Exception.DarkException de ->
+            Log.erroR
+              ~bt
+              "Caught DarkException in DB, reraising"
+              ~params:
+                [ ( "exn"
+                  , Exception.exception_data_to_yojson de
+                    |> Yojson.Safe.to_string )
+                ] ;
+            Caml.Printexc.raise_with_backtrace e bt
+        | e ->
+            Exception.exn_to_string e
+      in
+      Exception.storage msg ~bt ~info:[ ("time", time () |> string_of_float) ]
 
 
 (* largely cribbed from
@@ -261,10 +267,10 @@ let iter_with_cursor
         params |> List.map ~f:to_binary_bool |> Array.of_list
       in
       let string_params = params |> List.map ~f:to_sql |> Array.of_list in
-      ignore (conn#exec ~expect:[PG.Command_ok] "BEGIN") ;
+      ignore (conn#exec ~expect:[ PG.Command_ok ] "BEGIN") ;
       ignore
         (conn#exec
-           ~expect:[PG.Command_ok]
+           ~expect:[ PG.Command_ok ]
            ~binary_params
            ~params:string_params
            ("DECLARE " ^ cursor_name ^ " CURSOR FOR " ^ sql)) ;
@@ -272,7 +278,7 @@ let iter_with_cursor
         let res =
           conn#exec
             ~binary_result
-            ~expect:[PG.Tuples_ok]
+            ~expect:[ PG.Tuples_ok ]
             ("FETCH IN " ^ cursor_name)
         in
         if res#ntuples <> 0
@@ -282,13 +288,14 @@ let iter_with_cursor
           loop () )
       in
       loop () ;
-      ignore (conn#exec ~expect:[PG.Command_ok] "CLOSE my_cursor") ;
-      ignore (conn#exec ~expect:[PG.Command_ok] "END") ;
+      ignore (conn#exec ~expect:[ PG.Command_ok ] "CLOSE my_cursor") ;
+      ignore (conn#exec ~expect:[ PG.Command_ok ] "END") ;
       let subject_log =
-        match subject with Some str -> [("subject", str)] | None -> []
+        match subject with Some str -> [ ("subject", str) ] | None -> []
       in
-      Log.succesS name ~params:([("op", "iter_with_cursor")] @ subject_log)
-    with e ->
+      Log.succesS name ~params:([ ("op", "iter_with_cursor") ] @ subject_log)
+    with
+  | e ->
       let bt = Exception.get_backtrace () in
       let log_string =
         params |> List.map ~f:to_log |> String.concat ~sep:", "
@@ -296,7 +303,7 @@ let iter_with_cursor
       Log.erroR
         name
         ~params:
-          [("op", "iter_with_cursor"); ("params", log_string); ("query", sql)] ;
+          [ ("op", "iter_with_cursor"); ("params", log_string); ("query", sql) ] ;
       let msg =
         match e with
         | Postgresql.Error (Unexpected_status (_, msg, _)) ->
@@ -312,11 +319,11 @@ let iter_with_cursor
       Log.erroR
         msg
         ~bt
-        ~params:[("msg", msg); ("time", time () |> string_of_float)] ;
+        ~params:[ ("msg", msg); ("time", time () |> string_of_float) ] ;
       Exception.storage
         "iter_with_cursor"
         ~bt
-        ~info:[("msg", msg); ("time", time () |> string_of_float)] ) ;
+        ~info:[ ("msg", msg); ("time", time () |> string_of_float) ] ) ;
   ()
 
 
@@ -336,7 +343,7 @@ let run
     ~name
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Command_ok])
+    ~f:(conn#exec ~expect:[ PG.Command_ok ])
     ~r:(fun r -> ("", ()))
   |> ignore
 
@@ -354,7 +361,7 @@ let delete
     ~name
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Command_ok])
+    ~f:(conn#exec ~expect:[ PG.Command_ok ])
     ~r:(fun res -> ("deleted_rows", res#cmd_tuples |> int_of_string))
 
 
@@ -371,11 +378,11 @@ let fetch
     ~name
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~f:(conn#exec ~expect:[ PG.Tuples_ok ])
     ~r:(fun res ->
       let result = res#get_all_lst in
       let length = List.length result |> string_of_int in
-      (length ^ " cols", result) )
+      (length ^ " cols", result))
 
 
 let fetch_one
@@ -391,17 +398,17 @@ let fetch_one
     ~name
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~f:(conn#exec ~expect:[ PG.Tuples_ok ])
     ~r:(fun res ->
       match res#get_all_lst with
-      | [single_result] ->
+      | [ single_result ] ->
           let lengths = List.map ~f:String.length single_result in
           let sum = Util.int_sum lengths |> string_of_int in
           (sum ^ "bytes", single_result)
       | [] ->
           Exception.storage "Expected one result, got none"
       | _ ->
-          Exception.storage "Expected exactly one result, got many" )
+          Exception.storage "Expected exactly one result, got many")
 
 
 let fetch_one_option
@@ -417,17 +424,17 @@ let fetch_one_option
     ~name
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~f:(conn#exec ~expect:[ PG.Tuples_ok ])
     ~r:(fun res ->
       match res#get_all_lst with
-      | [single_result] ->
+      | [ single_result ] ->
           let lengths = List.map ~f:String.length single_result in
           let sum = Util.int_sum lengths |> string_of_int in
           (sum ^ "bytes", Some single_result)
       | [] ->
           ("none", None)
       | _ ->
-          Exception.storage "Expected exactly one result, got many" )
+          Exception.storage "Expected exactly one result, got many")
 
 
 let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
@@ -439,15 +446,15 @@ let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
     ~result:TextResult
     ?subject
     sql
-    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~f:(conn#exec ~expect:[ PG.Tuples_ok ])
     ~r:(fun res ->
       match res#get_all_lst with
-      | [["1"]] ->
+      | [ [ "1" ] ] ->
           ("true", true)
       | [] ->
           ("false", false)
       | r ->
-          Exception.storage "Unexpected result" ~actual:(Log.dump r) )
+          Exception.storage "Unexpected result" ~actual:(Log.dump r))
 
 
 let delete_benchmarking_data () : unit =

@@ -17,7 +17,7 @@ let body_parser_type headers =
   let ct_is ct =
     List.exists headers ~f:(fun (k, v) ->
         String.Caseless.equal k "content-type"
-        && String.is_substring ~substring:ct v )
+        && String.is_substring ~substring:ct v)
   in
   if ct_is "application/json"
   then Json
@@ -29,12 +29,14 @@ let body_parser_type headers =
 let parser_fn p (str : string) : dval =
   match p with
   | Json ->
-    ( try Dval.of_unknown_json_v0 str with e ->
+    ( try Dval.of_unknown_json_v0 str with
+    | e ->
         Exception.enduser ~actual:str ("Invalid json: " ^ str) )
   | Form ->
       Dval.of_form_encoding str
   | Unknown ->
-    ( try Dval.of_unknown_json_v0 str with e ->
+    ( try Dval.of_unknown_json_v0 str with
+    | e ->
         Exception.enduser
           ~actual:str
           "Unknown Content-type -- we assumed application/json but invalid JSON was sent"
@@ -47,24 +49,24 @@ let parsed_body headers reqbody =
     then DNull
     else reqbody |> parser_fn (body_parser_type headers)
   in
-  Dval.to_dobj_exn [("body", bdval)]
+  Dval.to_dobj_exn [ ("body", bdval) ]
 
 
 let parsed_query_string (queryvals : (string * string list) list) =
   let dval = Dval.query_to_dval queryvals in
-  Dval.to_dobj_exn [("queryParams", dval)]
+  Dval.to_dobj_exn [ ("queryParams", dval) ]
 
 
 let parsed_headers (headers : (string * string) list) =
   headers
   |> List.map ~f:(fun (k, v) -> (k, Dval.dstr_of_string_exn v))
   |> DvalMap.from_list
-  |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj_exn [("headers", dv)]
+  |> fun dm -> DObj dm |> fun dv -> Dval.to_dobj_exn [ ("headers", dv) ]
 
 
 let unparsed_body rb =
   let dval = Dval.dstr_of_string_exn rb in
-  Dval.to_dobj_exn [("fullBody", dval)]
+  Dval.to_dobj_exn [ ("fullBody", dval) ]
 
 
 let body_of_fmt ~fmt ~key headers rbody =
@@ -75,7 +77,7 @@ let body_of_fmt ~fmt ~key headers rbody =
     | _ ->
         DNull
   in
-  Dval.to_dobj_exn [(key, dval)]
+  Dval.to_dobj_exn [ (key, dval) ]
 
 
 let json_body = body_of_fmt ~fmt:Json ~key:"jsonBody"
@@ -89,7 +91,7 @@ let parsed_cookies cookies =
   |> List.map ~f:(String.lsplit2 ~on:'=')
   |> List.filter_opt
   |> List.map ~f:(fun (k, v) ->
-         (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)) )
+         (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)))
   |> Dval.to_dobj_exn
 
 
@@ -97,13 +99,13 @@ let cookies (headers : (string * string) list) =
   List.Assoc.find ~equal:( = ) headers "cookie"
   |> Option.map ~f:parsed_cookies
   |> Option.value ~default:(Dval.to_dobj_exn [])
-  |> fun x -> Dval.to_dobj_exn [("cookies", x)]
+  |> fun x -> Dval.to_dobj_exn [ ("cookies", x) ]
 
 
 let url (uri : Uri.t) =
   uri
   |> Uri.to_string
-  |> fun s -> Dval.to_dobj_exn [("url", Dval.dstr_of_string_exn s)]
+  |> fun s -> Dval.to_dobj_exn [ ("url", Dval.dstr_of_string_exn s) ]
 
 
 (* ------------------------- *)
@@ -122,16 +124,19 @@ let from_request
     (query : query_val list)
     rbody =
   let parsed_body =
-    try parsed_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try parsed_body headers rbody with
+    | e ->
+        if allow_unparseable then DNull else raise e
   in
   let json_body =
-    try json_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try json_body headers rbody with
+    | e ->
+        if allow_unparseable then DNull else raise e
   in
   let form_body =
-    try form_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try form_body headers rbody with
+    | e ->
+        if allow_unparseable then DNull else raise e
   in
   let parts =
     [ parsed_body
@@ -141,7 +146,8 @@ let from_request
     ; parsed_headers headers
     ; unparsed_body rbody
     ; cookies headers
-    ; url uri ]
+    ; url uri
+    ]
   in
   List.fold_left
     ~init:Dval.empty_dobj
@@ -153,13 +159,14 @@ let to_dval self = self
 
 let sample_request =
   let parts =
-    [ Dval.to_dobj_exn [("body", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("jsonBody", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("formBody", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("queryParams", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("headers", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("fullBody", DIncomplete SourceNone)]
-    ; Dval.to_dobj_exn [("url", DIncomplete SourceNone)] ]
+    [ Dval.to_dobj_exn [ ("body", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("jsonBody", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("formBody", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("queryParams", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("headers", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("fullBody", DIncomplete SourceNone) ]
+    ; Dval.to_dobj_exn [ ("url", DIncomplete SourceNone) ]
+    ]
   in
   List.fold_left
     ~init:Dval.empty_dobj

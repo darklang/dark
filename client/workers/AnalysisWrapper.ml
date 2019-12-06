@@ -12,8 +12,7 @@ external self : self = "self" [@@bs.val]
 
 external onmessage : self -> (event -> unit) -> unit = "onmessage" [@@bs.set]
 
-external postMessage :
-  self -> Types.performAnalysisResult -> unit
+external postMessage : self -> Types.performAnalysisResult -> unit
   = "postMessage"
   [@@bs.send]
 
@@ -52,7 +51,7 @@ let () =
                 let spec = hParams.handler.spec in
                 List.map
                   (function Types.F (_, s) -> s | _ -> "-")
-                  [spec.space; spec.name; spec.modifier]
+                  [ spec.space; spec.name; spec.modifier ]
                 |> fun ss -> "(" ^ String.concat ", " ss ^ ")"
               in
               let msg =
@@ -87,17 +86,18 @@ let () =
             try
               Belt.Result.Ok
                 (Decoders.analysisEnvelope (Json.parseOrRaise res))
-            with Js.Exn.Error err ->
-              let msg =
-                err
-                |> Js.Exn.message
-                |> Tc.Option.withDefault ~default:"Unknown parse error"
-              in
-              reportError "Parse error in analysisWrapper" msg ;
-              Belt.Result.Error (Types.AnalysisParseError msg) )
+            with
+            | Js.Exn.Error err ->
+                let msg =
+                  err
+                  |> Js.Exn.message
+                  |> Tc.Option.withDefault ~default:"Unknown parse error"
+                in
+                reportError "Parse error in analysisWrapper" msg ;
+                Belt.Result.Error (Types.AnalysisParseError msg))
           result
       in
-      postMessage self decoded )
+      postMessage self decoded)
 
 
 [%%raw

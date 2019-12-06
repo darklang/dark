@@ -2,4 +2,4 @@ open Core
 
 val conn : Postgresql.connection
 
-val status : unit -> [`Healthy | `Disconnected]
+val status : unit -> [ `Healthy | `Disconnected ]

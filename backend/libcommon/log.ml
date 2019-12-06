@@ -14,7 +14,8 @@ type level =
   | `Info
   | `Success
   | `Debug
-  | `All ]
+  | `All
+  ]
 
 let logkey : (string * Yojson.Safe.t) list Lwt.key ref =
   (* This key doesn't need to be unique across threads - it's thread-local. The
@@ -182,7 +183,8 @@ let should_log (user_level : level) : bool =
 (* ----------------- *)
 type format =
   [ `Json
-  | `DecoratedJson ]
+  | `DecoratedJson
+  ]
 
 let format : format ref = ref `Json
 
@@ -236,13 +238,15 @@ let print_json_log
     | None ->
         []
     | Some some_bt ->
-        [("backtrace", `String (Caml.Printexc.raw_backtrace_to_string some_bt))]
+        [ ("backtrace", `String (Caml.Printexc.raw_backtrace_to_string some_bt))
+        ]
   in
   let color = if decorate then level_to_color level else "" in
   let reset = if decorate then "\x1b[0m" else "" in
   let params =
     [ ("timestamp", `String timestamp)
-    ; ("level", `String (level_to_string level)) ]
+    ; ("level", `String (level_to_string level))
+    ]
     @ params
     @ bt_params
     |> List.map ~f:(fun (k, v) -> (color ^ k ^ reset, v))
@@ -263,7 +267,7 @@ let pP
     if should_log level
     then
       let data_param =
-        match data with None -> [] | Some data -> [("data", `String data)]
+        match data with None -> [] | Some data -> [ ("data", `String data) ]
       in
       let thread_params =
         match Lwt.get !logkey with
@@ -280,20 +284,21 @@ let pP
         |> Option.map ~f:(function
                | _, `Float start ->
                    [ ( "timer"
-                     , `Float ((Unix.gettimeofday () *. 1000.0) -. start) ) ]
+                     , `Float ((Unix.gettimeofday () *. 1000.0) -. start) )
+                   ]
                | _ ->
-                   [] )
+                   [])
         |> Option.value ~default:[]
       in
       let params =
         time
         @ thread_params
         @ [ ("name", `String name)
-          (* operation time *)
-          (* timestamp *)
-          (* slow request *)
-          (* ip address *)
-           ]
+            (* operation time *)
+            (* timestamp *)
+            (* slow request *)
+            (* ip address *)
+          ]
         @ data_param
         @ jsonparams
         @ List.map params (fun (k, v) -> (k, `String v))
@@ -303,11 +308,13 @@ let pP
           print_json_log ~bt ~decorate:true ~level params
       | `Json ->
           print_json_log ~bt ~decorate:false ~level params
-  with e -> Caml.print_endline ("UNHANDLED ERROR: log.pP: " ^ Exn.to_string e)
+  with
+  | e ->
+      Caml.print_endline ("UNHANDLED ERROR: log.pP: " ^ Exn.to_string e)
 
 
 let inspecT ?(f = dump) (name : string) (x : 'a) : unit =
-  pP ~level:`Inspect name ~params:[("data", f x)]
+  pP ~level:`Inspect name ~params:[ ("data", f x) ]
 
 
 let inspect ?(f = dump) (name : string) (x : 'a) : 'a =

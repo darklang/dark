@@ -13,7 +13,7 @@ let last_ran_at (canvas_id : Uuidm.t) (h : handler) : Time.t option =
        AND canvas_id = $2
        ORDER BY id DESC
        LIMIT 1"
-    ~params:[ID h.tlid; Uuid canvas_id]
+    ~params:[ ID h.tlid; Uuid canvas_id ]
   |> Option.map ~f:List.hd_exn
   |> Option.map ~f:Db.date_of_sqlstring
 
@@ -56,7 +56,8 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) execution_id : bool =
             ~params:
               [ ( "modifier"
                 , Handler.modifier_for h
-                  |> Option.value ~default:"<empty modifier>" ) ] ;
+                  |> Option.value ~default:"<empty modifier>" )
+              ] ;
           let e =
             Exception.make_exception
               DarkInternal
@@ -93,7 +94,8 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) execution_id : bool =
               [ ( "interval"
                 , Handler.modifier_for h
                   |> Option.value ~default:"<empty
-modifier>" ) ]
+modifier>" )
+              ]
             ~jsonparams:
               [ ( "delay_ms"
                 , `Float (Time.Span.to_ms (Time.diff now should_run_after)) )
@@ -106,7 +108,7 @@ let record_execution (canvas_id : Uuidm.t) (h : handler) : unit =
     "INSERT INTO cron_records
     (tlid, canvas_id)
     VALUES ($1, $2)"
-    ~params:[ID h.tlid; Uuid canvas_id]
+    ~params:[ ID h.tlid; Uuid canvas_id ]
     ~name:"Cron.record_execution"
 
 
@@ -119,7 +121,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
       Log.erroR
         "cron_checker"
         ~data:"Not running any crons; pointed at prodclone!"
-        ~params:[("execution_id", Types.string_of_id execution_id)] ;
+        ~params:[ ("execution_id", Types.string_of_id execution_id) ] ;
       [] )
     else
       Serialize.current_hosts ()
@@ -132,8 +134,8 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
   try
     current_endpoints
     |> List.filter_map ~f:(fun endp ->
+           (* serialization can fail, attempt first *)
            try
-             (* serialization can fail, attempt first *)
              let c = Canvas.load_cron endp in
              match c with
              | Ok c ->
@@ -146,21 +148,24 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                    ~params:
                      [ ("host", endp)
                      ; ("errs", String.concat ~sep:", " errs)
-                     ; ("execution_id", Types.string_of_id execution_id) ] ;
+                     ; ("execution_id", Types.string_of_id execution_id)
+                     ] ;
                  None
-           with e ->
-             let bt = Exception.get_backtrace () in
-             incr stat_canvas_errors ;
-             Log.erroR
-               "cron_checker"
-               ~data:"Deserialization error"
-               ~bt
-               ~params:
-                 [ ("host", endp)
-                 ; ("exn", Log.dump e)
-                 ; ("execution_id", Types.string_of_id execution_id) ] ;
-             ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
-             None )
+           with
+           | e ->
+               let bt = Exception.get_backtrace () in
+               incr stat_canvas_errors ;
+               Log.erroR
+                 "cron_checker"
+                 ~data:"Deserialization error"
+                 ~bt
+                 ~params:
+                   [ ("host", endp)
+                   ; ("exn", Log.dump e)
+                   ; ("execution_id", Types.string_of_id execution_id)
+                   ] ;
+               ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
+               None)
     |> List.iter ~f:(fun (endp, c) ->
            let crons =
              !c.handlers
@@ -176,8 +181,9 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ~data:"checking canvas"
              ~params:
                [ ("execution_id", Types.string_of_id execution_id)
-               ; ("host", endp) ]
-             ~jsonparams:[("number_of_crons", `Int cron_count)] ;
+               ; ("host", endp)
+               ]
+             ~jsonparams:[ ("number_of_crons", `Int cron_count) ] ;
            List.iter
              ~f:(fun cr ->
                if should_execute !c.id cr execution_id
@@ -186,7 +192,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                  let name = Handler.event_name_for_exn cr in
                  let modifier = Handler.modifier_for_exn cr in
                  Log.add_log_annotations
-                   [("cron", `Bool true)]
+                   [ ("cron", `Bool true) ]
                    (fun _ ->
                      Event_queue.enqueue
                        ~account_id:!c.owner
@@ -205,29 +211,33 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          ; ("host", endp)
                          ; ("tlid", Types.string_of_id cr.tlid)
                          ; ("event_name", name)
-                         ; ("cron_freq", modifier) ] ) )
-             crons )
+                         ; ("cron_freq", modifier)
+                         ]))
+             crons)
     |> (fun x ->
          Log.infO
            "cron_checker"
            ~data:"checked"
-           ~params:[("execution_id", Types.string_of_id execution_id)]
+           ~params:[ ("execution_id", Types.string_of_id execution_id) ]
            ~jsonparams:
              [ ("canvas.checked", `Int stat_canvases)
              ; ("canvas.errors", `Int !stat_canvas_errors)
              ; ("cron.checked", `Int !stat_crons)
-             ; ("cron.queued", `Int !stat_events) ] ;
-         x )
+             ; ("cron.queued", `Int !stat_events)
+             ] ;
+         x)
     |> Ok
-  with e ->
-    let bt = Exception.get_backtrace () in
-    Log.infO
-      "cron_checker"
-      ~data:"errored"
-      ~params:[("execution_id", Types.string_of_id execution_id)]
-      ~jsonparams:
-        [ ("canvas.checked", `Int stat_canvases)
-        ; ("canvas.errors", `Int !stat_canvas_errors)
-        ; ("cron.checked", `Int !stat_crons)
-        ; ("cron.queued", `Int !stat_events) ] ;
-    Error (bt, e)
+  with
+  | e ->
+      let bt = Exception.get_backtrace () in
+      Log.infO
+        "cron_checker"
+        ~data:"errored"
+        ~params:[ ("execution_id", Types.string_of_id execution_id) ]
+        ~jsonparams:
+          [ ("canvas.checked", `Int stat_canvases)
+          ; ("canvas.errors", `Int !stat_canvas_errors)
+          ; ("cron.checked", `Int !stat_crons)
+          ; ("cron.queued", `Int !stat_events)
+          ] ;
+      Error (bt, e)

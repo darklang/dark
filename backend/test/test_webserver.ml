@@ -21,8 +21,9 @@ let t_should_use_https () =
        [ "http://builtwithdark.com"
        ; "http://test.builtwithdark.com"
        ; "http://localhost"
-       ; "http://test.localhost" ])
-    [true; true; false; false]
+       ; "http://test.localhost"
+       ])
+    [ true; true; false; false ]
 
 
 let t_redirect_to () =
@@ -34,19 +35,21 @@ let t_redirect_to () =
          x
          |> Uri.of_string
          |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string )
+         |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
        ; "https://builtwithdark.com"
        ; "http://test.builtwithdark.com"
        ; "https://test.builtwithdark.com"
-       ; "http://test.builtwithdark.com/x/y?z=a" ])
+       ; "http://test.builtwithdark.com/x/y?z=a"
+       ])
     [ None
     ; Some "https://builtwithdark.com"
     ; None
     ; Some "https://test.builtwithdark.com"
     ; None
-    ; Some "https://test.builtwithdark.com/x/y?z=a" ]
+    ; Some "https://test.builtwithdark.com/x/y?z=a"
+    ]
 
 
 let t_canonicalize_maintains_schemes () =
@@ -71,13 +74,15 @@ let t_canonicalize_maintains_schemes () =
     ; ( "http://test.builtwithdark.com/x/y?z=a"
       , ( "http://test.builtwithdark.com/x/y?z=a"
         , "http://test.builtwithdark.com/x/y?z=a"
-        , "https://test.builtwithdark.com/x/y?z=a" ) ) ]
+        , "https://test.builtwithdark.com/x/y?z=a" ) )
+    ]
   in
   tests
   |> List.map ~f:(fun (url, (e1, e2, e3)) ->
          [ (url, Header.init (), e1)
          ; (url, Header.init_with "x-forwarded-proto" "http", e2)
-         ; (url, Header.init_with "x-forwarded-proto" "https", e3) ] )
+         ; (url, Header.init_with "x-forwarded-proto" "https", e3)
+         ])
   |> List.concat
   |> List.iter ~f:(fun (url, headers, expected) ->
          AT.check
@@ -87,7 +92,7 @@ let t_canonicalize_maintains_schemes () =
            ( Req.make ~meth:`GET ~headers (Uri.of_string url)
            |> Webserver.canonicalize_request
            |> Req.uri
-           |> Uri.to_string ) )
+           |> Uri.to_string ))
 
 
 let t_bad_ssl_cert _ =
@@ -109,8 +114,8 @@ let t_head_and_get_requests_are_coalesced () =
   let test_name = "head-and-get-requests-are-coalsced" in
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    let canvas = ops2c_exn ("test-" ^ test_name) [ n1 ] in
+    Log.infO "canvas account" ~params:[ ("_", !canvas |> C.show_canvas) ] ;
     C.save_all !canvas ;
     canvas
   in
@@ -137,7 +142,7 @@ let t_head_and_get_requests_are_coalesced () =
             | None ->
                 0
             | Some h ->
-                int_of_string h )
+                int_of_string h)
        |> fun content_length -> return (code, (content_length, body_string)))
   in
   let expected_body = "\"test_body\"" in
@@ -159,7 +164,8 @@ let t_head_and_get_requests_are_coalesced () =
               ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
        ])
     [ (200, (expected_content_length, expected_body))
-    ; (200, (expected_content_length, "")) ]
+    ; (200, (expected_content_length, ""))
+    ]
 
 
 let t_authenticate_then_handle_code_and_cookie () =
@@ -180,7 +186,7 @@ let t_authenticate_then_handle_code_and_cookie () =
          Webserver.authenticate_then_handle
            ~execution_id:test_id
            (fun ~session ~csrf_token req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler" )
+             Webserver.respond ~execution_id:test_id `OK "test handler")
            req
            body
        in
@@ -198,7 +204,7 @@ let t_authenticate_then_handle_code_and_cookie () =
                 (* make sure some other cookie isn't getting set *)
                 if name = "__session"
                 then Some (String.lstrip params)
-                else None ) )
+                else None))
        |> fun x -> return (code, (x, redirect)))
   in
   AT.check
@@ -213,33 +219,37 @@ let t_authenticate_then_handle_code_and_cookie () =
              ~headers:form_encoding
              (Uri.of_string "http://darklang.com/login")
          , form_encoded
-             [ ("username", ["test"])
-             ; ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"]) ] )
+             [ ("username", [ "test" ])
+             ; ("password", [ "fVm2CUePzGKCwoEQQdNJktUQ" ])
+             ] )
          (* valid basic auth login on localhost *)
        ; ( Req.make
              ~meth:`POST
              ~headers:form_encoding
              (Uri.of_string "http://darklang.localhost/login")
          , form_encoded
-             [ ("username", ["test"])
-             ; ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"]) ] )
+             [ ("username", [ "test" ])
+             ; ("password", [ "fVm2CUePzGKCwoEQQdNJktUQ" ])
+             ] )
          (* invalid basic auth logins *)
        ; ( Req.make
              ~headers:form_encoding
              ~meth:`POST
              (Uri.of_string "http://darklang.com/login")
-         , form_encoded [("username", ["test"]); ("password", [""])] )
+         , form_encoded [ ("username", [ "test" ]); ("password", [ "" ]) ] )
        ; ( Req.make
              ~meth:`POST
              ~headers:form_encoding
              (Uri.of_string "http://darklang.com/login")
          , form_encoded
-             [("username", [""]); ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"])]
-         )
+             [ ("username", [ "" ])
+             ; ("password", [ "fVm2CUePzGKCwoEQQdNJktUQ" ])
+             ] )
          (* plain request, no auth *)
        ; (Req.make (Uri.of_string "http://darklang.localhost/a/test"), "")
          (* login form loads *)
-       ; (Req.make (Uri.of_string "http://darklang.localhost/login"), "") ])
+       ; (Req.make (Uri.of_string "http://darklang.localhost/login"), "")
+       ])
     [ ( 302
       , ( Some "Max-Age=604800; domain=darklang.com; path=/; secure; httponly"
         , Some "/a/test" ) )
@@ -254,12 +264,13 @@ let t_authenticate_then_handle_code_and_cookie () =
       , ( None
         , Some "/login?redirect=%252F%252Fdarklang.localhost%252Fa%252Ftest" )
       )
-    ; (200, (None, None)) ]
+    ; (200, (None, None))
+    ]
 
 
 let t_check_csrf_then_handle () =
   (* csrf header *)
-  let csrf token = Header.of_list [("X-CSRF-Token", token)] in
+  let csrf token = Header.of_list [ ("X-CSRF-Token", token) ] in
   let test_session = Lwt_main.run (Auth.Session.new_for_username "test") in
   let correct_token = Auth.Session.csrf_token_for test_session in
   (* sample execution id, makes grepping test logs easier *)
@@ -274,7 +285,7 @@ let t_check_csrf_then_handle () =
            ~execution_id:test_id
            ~session:test_session
            (fun req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler" )
+             Webserver.respond ~execution_id:test_id `OK "test handler")
            req
        in
        resp |> Resp.status |> Code.code_of_status |> return)
@@ -285,12 +296,14 @@ let t_check_csrf_then_handle () =
     (List.map
        ~f:ccth
        (* GET works, with no token *)
-       [ ("test", Req.make ~meth:`GET url) (* POST works with the right token *)
+       [ ("test", Req.make ~meth:`GET url)
+         (* POST works with the right token *)
        ; ("test", Req.make ~headers:(csrf correct_token) ~meth:`POST url)
          (* But not with no token *)
        ; ("test", Req.make ~meth:`POST url) (* And not with the wrong token. *)
-       ; ("test", Req.make ~headers:(csrf "x") ~meth:`POST url) ])
-    [200; 200; 401; 401]
+       ; ("test", Req.make ~headers:(csrf "x") ~meth:`POST url)
+       ])
+    [ 200; 200; 401; 401 ]
 
 
 let admin_handler_code
@@ -305,7 +318,7 @@ let admin_handler_code
      let headers =
        Header.of_list
          ( if csrf
-         then [("X-CSRF-Token", Auth.Session.csrf_token_for session)]
+         then [ ("X-CSRF-Token", Auth.Session.csrf_token_for session) ]
          else [] )
      in
      let%lwt () = Nocrypto_entropy_lwt.initialize () in
@@ -335,8 +348,9 @@ let t_admin_handler_ui () =
        ; ("test", "test-something")
          (* arbitrary canvas belonging to another user *)
        ; ("test", "test_admin") (* admin can look at test *)
-       ; ("test_admin", "test") ])
-    [200; 200; 200; 401; 200]
+       ; ("test_admin", "test")
+       ])
+    [ 200; 200; 200; 401; 200 ]
 
 
 let t_admin_handler_api () =
@@ -349,16 +363,17 @@ let t_admin_handler_api () =
     (List.map
        ~f:ah_api_response
        [ ("test", "/api/test/initial_load", "")
-       ; ("test", "/api/test_admin/initial_load", "") ])
-    [200; 401]
+       ; ("test", "/api/test_admin/initial_load", "")
+       ])
+    [ 200; 401 ]
 
 
 let t_head_and_get_requests_are_coalesced () =
   let test_name = "head-and-get-requests-are-coalsced" in
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn ("test-" ^ test_name) [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    let canvas = ops2c_exn ("test-" ^ test_name) [ n1 ] in
+    Log.infO "canvas account" ~params:[ ("_", !canvas |> C.show_canvas) ] ;
     C.save_all !canvas ;
     canvas
   in
@@ -385,7 +400,7 @@ let t_head_and_get_requests_are_coalesced () =
             | None ->
                 0
             | Some h ->
-                int_of_string h )
+                int_of_string h)
        |> fun content_length -> return (code, (content_length, body_string)))
   in
   let expected_body = "\"test_body\"" in
@@ -407,14 +422,15 @@ let t_head_and_get_requests_are_coalesced () =
               ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
        ])
     [ (200, (expected_content_length, expected_body))
-    ; (200, (expected_content_length, "")) ]
+    ; (200, (expected_content_length, ""))
+    ]
 
 
 let t_http_request_redirects () =
   let setup_canvas () =
     let n1 = hop (http_handler (ast_for "'test_body'")) in
-    let canvas = ops2c_exn "test" [n1] in
-    Log.infO "canvas account" ~params:[("_", !canvas |> C.show_canvas)] ;
+    let canvas = ops2c_exn "test" [ n1 ] in
+    Log.infO "canvas account" ~params:[ ("_", !canvas |> C.show_canvas) ] ;
     C.save_all !canvas ;
     canvas
   in
@@ -429,7 +445,7 @@ let t_http_request_redirects () =
              Cohttp_lwt_unix.Server.respond_string
                ~status:(Cohttp.Code.status_of_code 911)
                ~body:""
-               () )
+               ())
            ""
            req
            ""
@@ -463,4 +479,5 @@ let suite =
     , `Quick
     , t_head_and_get_requests_are_coalesced )
   ; ("canonicalizing requests works", `Quick, t_canonicalize_maintains_schemes)
-  ; ("http requests redirect", `Quick, t_http_request_redirects) ]
+  ; ("http requests redirect", `Quick, t_http_request_redirects)
+  ]

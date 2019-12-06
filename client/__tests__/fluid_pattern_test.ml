@@ -18,8 +18,10 @@ let h ast =
   ; spec =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF "/test"
-      ; modifier = Blank.newF "GET" }
-  ; pos = {x = 0; y = 0} }
+      ; modifier = Blank.newF "GET"
+      }
+  ; pos = { x = 0; y = 0 }
+  }
 
 
 let () =
@@ -43,17 +45,20 @@ let () =
   (* let aPartialVar = FPPartial (gid (), "req") in *)
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
-  let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
+  let aConstructor = FPConstructor (mID, gid (), "Just", [ b () ]) in
   let m = Defaults.defaultModel in
   let process
       ~(debug : bool) (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
-    let ast = EMatch (mID, EBlank (gid ()), [(pat, EBlank (gid ()))]) in
+    let ast = EMatch (mID, EBlank (gid ()), [ (pat, EBlank (gid ())) ]) in
     let extra = 12 in
     let pos = pos + extra in
     let s =
       { Defaults.defaultFluidState with
-        ac = AC.reset m; oldPos = pos; newPos = pos }
+        ac = AC.reset m
+      ; oldPos = pos
+      ; newPos = pos
+      }
     in
     if debug
     then (
@@ -61,7 +66,7 @@ let () =
       Js.log2 "pattern before" (eToStructure s ast) ) ;
     let newAST, newState =
       let h = h ast in
-      let m = {m with handlers = Handlers.fromList [h]} in
+      let m = { m with handlers = Handlers.fromList [ h ] } in
       List.foldl keys ~init:(ast, s) ~f:(fun key (ast, s) ->
           updateMsg
             m
@@ -72,12 +77,13 @@ let () =
                ; shiftKey = false
                ; altKey = false
                ; metaKey = false
-               ; ctrlKey = false })
-            s )
+               ; ctrlKey = false
+               })
+            s)
     in
     let result =
       match newAST with
-      | EMatch (_, _, [(pat, _)]) ->
+      | EMatch (_, _, [ (pat, _) ]) ->
           pat
       | _ ->
           failwith ("can't match: " ^ eToString s newAST)
@@ -89,13 +95,13 @@ let () =
     (pToString result, max 0 (newState.newPos - extra))
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [K.Delete] pos pat
+    process ~debug [ K.Delete ] pos pat
   in
   let bs ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [K.Backspace] pos pat
+    process ~debug [ K.Backspace ] pos pat
   in
   let space ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =
-    process ~debug [K.Space] pos pat
+    process ~debug [ K.Space ] pos pat
   in
   (* let tab (pos : int) (pat : fluidPattern) : string * int = *)
   (*   process [K.Tab] pos pat *)
@@ -105,7 +111,7 @@ let () =
   (* in *)
   let press ?(debug = false) (key : K.key) (pos : int) (pat : fluidPattern) :
       string * int =
-    process ~debug [key] pos pat
+    process ~debug [ key ] pos pat
   in
   let presses
       ?(debug = false) (keys : K.key list) (pos : int) (pat : fluidPattern) :
@@ -115,7 +121,7 @@ let () =
   let insert ?(debug = false) (char : char) (pos : int) (pat : fluidPattern) :
       string * int =
     let key = K.fromChar char in
-    process ~debug [key] pos pat
+    process ~debug [ key ] pos pat
   in
   let blank = "***" in
   let t
@@ -157,7 +163,7 @@ let () =
       t "del space in string" aStr (del 5) ("\"somestring\"", 5) ;
       t "bs space in string" aStr (bs 6) ("\"somestring\"", 5) ;
       t "final quote is swallowed" aStr (insert '"' 12) ("\"some string\"", 13) ;
-      () ) ;
+      ()) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (insert '0' 0) ("12345", 0) ;
       t "insert at end of short" aShortInt (insert '2' 1) ("12", 2) ;
@@ -183,6 +189,7 @@ let () =
         aHugeInt
         (insert '9' 19)
         ("2000000000000000000", 19) ;
+
       (* let max62BitInt = FPInteger (mID, gid (), "4611686018427387903") in *)
       let oneShorterThanMax62BitInt =
         FPInteger (mID, gid (), "461168601842738790")
@@ -197,7 +204,7 @@ let () =
         oneShorterThanMax62BitInt
         (insert '4' 18)
         ("461168601842738790", 18) ;
-      () ) ;
+      ()) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (insert '.' 5) ("12345.", 6) ;
       t "insert . converts to float - middle" anInt (insert '.' 3) ("123.45", 4) ;
@@ -252,7 +259,7 @@ let () =
       t "bs dot converts to int" aFloat (bs 4) ("123456", 3) ;
       t "bs dot converts to int, no fraction" aPartialFloat (bs 2) ("1", 1) ;
       t "continue after adding dot" aPartialFloat (insert '2' 2) ("1.2", 3) ;
-      () ) ;
+      ()) ;
   describe "Bools" (fun () ->
       t "insert start of true" trueBool (insert 'c' 0) ("ctrue", 1) ;
       t "del start of true" trueBool (del 0) ("rue", 0) ;
@@ -272,7 +279,7 @@ let () =
       t "insert middle of false" falseBool (insert '0' 2) ("fa0lse", 3) ;
       t "del middle of false" falseBool (del 2) ("fase", 2) ;
       t "bs middle of false" falseBool (bs 2) ("flse", 1) ;
-      () ) ;
+      ()) ;
   describe "Nulls" (fun () ->
       t "insert start of null" aNull (insert 'c' 0) ("cnull", 1) ;
       t "del start of null" aNull (del 0) ("ull", 0) ;
@@ -283,7 +290,7 @@ let () =
       t "insert middle of null" aNull (insert '0' 2) ("nu0ll", 3) ;
       t "del middle of null" aNull (del 2) ("nul", 2) ;
       t "bs middle of null" aNull (bs 2) ("nll", 1) ;
-      () ) ;
+      ()) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" (b ()) (insert '"' 3) ("\"\"", 1) ;
       t "del middle of blank->blank" (b ()) (del 3) (blank, 3) ;
@@ -300,10 +307,12 @@ let () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (presses [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        (presses
+           [ K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left ]
+           4)
         ("***", 0) ;
       t "insert blank->space" (b ()) (press K.Space 0) (blank, 0) ;
-      () ) ;
+      ()) ;
   describe "Variables" (fun () ->
       t "insert middle of variable" aVar (insert 'c' 5) ("variacble", 6) ;
       t "del middle of variable" aVar (del 5) ("variale", 5) ;
@@ -315,7 +324,7 @@ let () =
       t "bs variable" aShortVar (bs 1) (blank, 0) ;
       t "bs mid variable" aVar (bs 8) ("variabl", 7) ;
       t "bs mid variable" aVar (bs 6) ("variale", 5) ;
-      () ) ;
+      ()) ;
   describe "Constructors" (fun () ->
       t
         "arguments work in constructors"
@@ -334,10 +343,11 @@ let () =
         aConstructor
         (space 5)
         ("Just ***", 5) ;
+
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
        * Also, the names of the temporary variables used to store the old arguments of a changed
        * constructor are randomly generated and would be hard to test *)
-      () ) ;
+      ()) ;
   ()

@@ -12,12 +12,12 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    (* with module StrSet := Tablecloth.StrSet *)
-    (*  and module IntSet := Tablecloth.IntSet *)
-    with module StrDict := Tablecloth.StrDict
-    (* with module Option := Tablecloth.Option *)
-    (* with module String := Tablecloth.String *)
-     and module Result := Tablecloth.Result
+      (* with module StrSet := Tablecloth.StrSet *)
+      (*  and module IntSet := Tablecloth.IntSet *)
+      with module StrDict := Tablecloth.StrDict
+      (* with module Option := Tablecloth.Option *)
+      (* with module String := Tablecloth.String *)
+       and module Result := Tablecloth.Result
     (* and module List := Tablecloth.List  *) )
 
 module Result = struct
@@ -48,7 +48,7 @@ module Result = struct
     | Ok a ->
         a
     | Error err ->
-        Exception.internal ~info:[("error", err)] msg
+        Exception.internal ~info:[ ("error", err) ] msg
 end
 
 module StrDict = struct
@@ -96,10 +96,10 @@ module StrDict = struct
   let insert_no_override ~(key : key) ~(value : 'value) (dict : 'value t) :
       'value t =
     Base.Map.change dict key ~f:(fun old ->
-        if old = None then Some value else old )
+        if old = None then Some value else old)
 
 
-  let singleton k v = from_list [(k, v)]
+  let singleton k v = from_list [ (k, v) ]
 
   let is_empty = Base.Map.is_empty
 

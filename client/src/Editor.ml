@@ -11,7 +11,8 @@ let fromString (json : string option) : serializableEditor =
       Debug.loG "no serialized editor" None ;
       Defaults.defaultEditor
   | Some json ->
-    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor with e ->
+    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor with
+    | e ->
         Debug.loG "error parsing serialized editor" e ;
         Defaults.defaultEditor )
 
@@ -41,7 +42,8 @@ let editor2model (e : serializableEditor) : model =
                | HandlerCollapsed ->
                    HandlerCollapsed
                | HandlerExpanding ->
-                   HandlerExpanded ) } )
+                   HandlerExpanded )
+           })
   in
   { m with
     timersEnabled = e.timersEnabled
@@ -50,10 +52,11 @@ let editor2model (e : serializableEditor) : model =
   ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
   ; handlerProps = finalHandlerStates e.handlerProps
-  ; canvasProps = {m.canvasProps with offset = e.canvasPos}
+  ; canvasProps = { m.canvasProps with offset = e.canvasPos }
   ; lastReload = e.lastReload
   ; sidebarOpen = e.sidebarOpen
-  ; showTopbar = e.showTopbar }
+  ; showTopbar = e.showTopbar
+  }
 
 
 let model2editor (m : model) : serializableEditor =
@@ -67,43 +70,44 @@ let model2editor (m : model) : serializableEditor =
   ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
   ; sidebarOpen = m.sidebarOpen
-  ; showTopbar = m.showTopbar }
+  ; showTopbar = m.showTopbar
+  }
 
 
 let setHandlerLock (tlid : tlid) (lock : bool) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->
-        Some {p with handlerLock = lock}
+        Some { p with handlerLock = lock }
     | None ->
-        Some {Defaults.defaultHandlerProp with handlerLock = lock}
+        Some { Defaults.defaultHandlerProp with handlerLock = lock }
   in
   let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
+  { m with handlerProps = props }
 
 
 let setHandlerState (tlid : tlid) (state : handlerState) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->
-        Some {p with handlerState = state}
+        Some { p with handlerState = state }
     | None ->
-        Some {Defaults.defaultHandlerProp with handlerState = state}
+        Some { Defaults.defaultHandlerProp with handlerState = state }
   in
   let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
+  { m with handlerProps = props }
 
 
 let setHandlerMenu (tlid : tlid) (show : bool) (m : model) : model =
   let updateProps prop =
     match prop with
     | Some p ->
-        Some {p with showActions = show}
+        Some { p with showActions = show }
     | None ->
-        Some {Defaults.defaultHandlerProp with showActions = show}
+        Some { Defaults.defaultHandlerProp with showActions = show }
   in
   let props = m.handlerProps |> TLIDDict.update ~tlid ~f:updateProps in
-  {m with handlerProps = props}
+  { m with handlerProps = props }
 
 
 let serialize (m : model) : unit =

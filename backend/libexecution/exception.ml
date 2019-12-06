@@ -90,7 +90,8 @@ type exception_data =
   ; result : string option
   ; result_tipe : string option
   ; info : exception_info
-  ; workarounds : string list }
+  ; workarounds : string list
+  }
 [@@deriving to_yojson, show]
 
 exception DarkException of exception_data [@@deriving show]
@@ -143,7 +144,8 @@ let make_exception
     ; result
     ; result_tipe
     ; info
-    ; workarounds }
+    ; workarounds
+    }
   in
   DarkException e
 

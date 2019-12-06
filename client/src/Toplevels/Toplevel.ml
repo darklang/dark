@@ -70,9 +70,9 @@ let pos tl =
   | TLGroup g ->
       g.pos
   | TLFunc f ->
-      recover "no pos in a func" f.ufTLID {x = 0; y = 0}
+      recover "no pos in a func" f.ufTLID { x = 0; y = 0 }
   | TLTipe t ->
-      recover "no pos in a tipe" t.utTLID {x = 0; y = 0}
+      recover "no pos in a tipe" t.utTLID { x = 0; y = 0 }
 
 
 let remove (m : model) (tl : toplevel) : model =
@@ -94,17 +94,18 @@ let fromList (tls : toplevel list) : toplevel TLIDDict.t =
 
 
 let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
-  let newPos p = {x = p.x + xOffset; y = p.y + yOffset} in
+  let newPos p = { x = p.x + xOffset; y = p.y + yOffset } in
   { m with
     handlers =
       TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->
-          {h with pos = newPos h.pos} )
+          { h with pos = newPos h.pos })
   ; dbs =
       TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
-          {db with pos = newPos db.pos} )
+          { db with pos = newPos db.pos })
   ; groups =
       TD.updateIfPresent m.groups ~tlid ~f:(fun (group : group) ->
-          {group with pos = newPos group.pos} ) }
+          { group with pos = newPos group.pos })
+  }
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
@@ -174,11 +175,11 @@ let isDeprecatedCustomHandler (tl : toplevel) : bool =
 let toOp (tl : toplevel) : op list =
   match tl with
   | TLHandler h ->
-      [SetHandler (h.hTLID, h.pos, h)]
+      [ SetHandler (h.hTLID, h.pos, h) ]
   | TLFunc fn ->
-      [SetFunction fn]
+      [ SetFunction fn ]
   | TLTipe t ->
-      [SetType t]
+      [ SetType t ]
   | TLGroup _ ->
       recover "Groups are front end only" (id tl) []
   | TLDB _ ->
@@ -191,8 +192,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
     |> TD.mapValues ~f:(fun h -> TLHandler h)
     |> List.filter ~f:isDeprecatedCustomHandler
     |> List.filterMap ~f:(fun tl ->
-           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
-       )
+           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space))
   in
   otherSpaces
 
@@ -399,19 +399,20 @@ let getAST (tl : toplevel) : expr option =
 let setAST (tl : toplevel) (newAST : expr) : toplevel =
   match tl with
   | TLHandler h ->
-      TLHandler {h with ast = newAST}
+      TLHandler { h with ast = newAST }
   | TLFunc uf ->
-      TLFunc {uf with ufAST = newAST}
+      TLFunc { uf with ufAST = newAST }
   | TLDB _ | TLTipe _ | TLGroup _ ->
       tl
 
 
 let withAST (m : model) (tlid : tlid) (ast : expr) : model =
   { m with
-    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
+    handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> { h with ast })
   ; userFunctions =
       TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = ast} ) }
+          { uf with ufAST = ast })
+  }
 
 
 (* TODO(match) *)
@@ -456,7 +457,7 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
     ( match asHandler tl with
     | Some h ->
         let newSpec = SpecHeaders.replace id bo h.spec in
-        TLHandler {h with spec = newSpec}
+        TLHandler { h with spec = newSpec }
     | _ ->
         recover "Changing handler metadata on non-handler" replacement tl )
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
@@ -492,11 +493,11 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
   else
     match newTL with
     | TLHandler h ->
-        [SetHandler (h.hTLID, h.pos, h)]
+        [ SetHandler (h.hTLID, h.pos, h) ]
     | TLFunc f ->
-        [SetFunction f]
+        [ SetFunction f ]
     | TLTipe t ->
-        [SetType t]
+        [ SetType t ]
     | TLDB _ ->
         recover "no vars in DBs" tl []
     | TLGroup _ ->
@@ -563,7 +564,7 @@ let getTLAndPD (m : model) (tlid : tlid) (id : id) :
 let allDBNames (dbs : db TD.t) : string list =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
-         match db.dbName with F (_, name) -> Some name | Blank _ -> None )
+         match db.dbName with F (_, name) -> Some name | Blank _ -> None)
 
 
 let allGloballyScopedVarnames (dbs : db TD.t) : string list = allDBNames dbs
@@ -597,9 +598,9 @@ let setSelectedAST (m : model) (ast : expr) : modification =
   | Some tl ->
     ( match tl with
     | TLHandler h ->
-        RPC ([SetHandler (id tl, h.pos, {h with ast})], FocusNoChange)
+        RPC ([ SetHandler (id tl, h.pos, { h with ast }) ], FocusNoChange)
     | TLFunc f ->
-        RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
+        RPC ([ SetFunction { f with ufAST = ast } ], FocusNoChange)
     | TLTipe _ ->
         recover "no ast in Tipes" tl NoChange
     | TLDB _ ->

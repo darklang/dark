@@ -35,7 +35,7 @@ let clear_test_data () : unit =
   let owner = Account.for_host_exn "test" in
   let canvas_ids =
     Db.fetch
-      ~params:[Uuid owner]
+      ~params:[ Uuid owner ]
       ~name:"clear_test_data"
       "SELECT id
        FROM canvases
@@ -44,35 +44,35 @@ let clear_test_data () : unit =
     |> List.map ~f:(fun (cid : Uuidm.t) -> Db.Uuid cid)
   in
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_events_test_data"
     "DELETE FROM events where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_stored_events_test_data"
     "DELETE FROM stored_events_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_function_results_test_data"
     "DELETE FROM function_results_v2 where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_user_data_test_data"
     "DELETE FROM user_data where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_cron_records_test_data"
     "DELETE FROM cron_records where canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_toplevel_oplists_test_data"
     "DELETE FROM toplevel_oplists WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_function_arguments"
     "DELETE FROM function_arguments WHERE canvas_id = ANY (string_to_array ($1, $2)::uuid[])" ;
   Db.run
-    ~params:[List canvas_ids; String Db.array_separator]
+    ~params:[ List canvas_ids; String Db.array_separator ]
     ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = ANY (string_to_array ($1, $2)::uuid[])" ;
   ()
@@ -109,7 +109,7 @@ let check_error msg dval expected =
         | DError (_, msg1), DError (_, msg2) ->
             msg1 = msg2
         | _ ->
-            false )
+            false)
   in
   AT.check at_error msg (DError (SourceNone, expected)) dval
 
@@ -119,7 +119,7 @@ let check_incomplete msg dval =
     AT.testable
       (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
       (fun a b ->
-        match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false )
+        match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false)
   in
   AT.check at_incomplete msg (DIncomplete SourceNone) dval
 
@@ -212,7 +212,7 @@ let nameid = Int63.of_int 17
 
 let nameid2 = Int63.of_int 217
 
-let pos = {x = 0; y = 0}
+let pos = { x = 0; y = 0 }
 
 let execution_id = Int63.of_int 6542
 
@@ -225,7 +225,9 @@ let handler ?(tlid = tlid) ast : HandlerT.handler =
       { module_ = b ()
       ; name = b ()
       ; modifier = b ()
-      ; types = {input = b (); output = b ()} } }
+      ; types = { input = b (); output = b () }
+      }
+  }
 
 
 let http_handler ?(tlid = tlid) ast : HandlerT.handler =
@@ -235,7 +237,9 @@ let http_handler ?(tlid = tlid) ast : HandlerT.handler =
       { module_ = f "HTTP"
       ; name = f "/test"
       ; modifier = f "GET"
-      ; types = {input = b (); output = b ()} } }
+      ; types = { input = b (); output = b () }
+      }
+  }
 
 
 let http_request_path = "/some/vars/and/such"
@@ -250,7 +254,9 @@ let http_route_handler ?(tlid = tlid) ?(route = http_route) () :
       { module_ = f "HTTP"
       ; name = f route
       ; modifier = f "GET"
-      ; types = {input = b (); output = b ()} } }
+      ; types = { input = b (); output = b () }
+      }
+  }
 
 
 let daily_cron ast : HandlerT.handler =
@@ -260,7 +266,9 @@ let daily_cron ast : HandlerT.handler =
       { module_ = f "CRON"
       ; name = f "test"
       ; modifier = f "Daily"
-      ; types = {input = b (); output = b ()} } }
+      ; types = { input = b (); output = b () }
+      }
+  }
 
 
 let worker name ast : HandlerT.handler =
@@ -270,7 +278,9 @@ let worker name ast : HandlerT.handler =
       { module_ = f "WORKER"
       ; name = f name
       ; modifier = f "_"
-      ; types = {input = b (); output = b ()} } }
+      ; types = { input = b (); output = b () }
+      }
+  }
 
 
 let hop h = Op.SetHandler (tlid, pos, h)
@@ -286,16 +296,19 @@ let user_fn name params ast : user_fn =
               ; tipe = f TAny
               ; block_args = []
               ; optional = false
-              ; description = "test" } )
+              ; description = "test"
+              })
       ; return_type = f TAny
       ; description = "test user fn"
-      ; infix = false } }
+      ; infix = false
+      }
+  }
 
 
 let fop f = Op.SetFunction f
 
 let user_record name fields : user_tipe =
-  {tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields}
+  { tlid = tipe_id; version = 0; name = f name; definition = UTRecord fields }
 
 
 let t4_get1st (x, _, _, _) = x
@@ -325,7 +338,7 @@ let add_test_fn_result
 let load_test_fn_results (desc : function_desc) (args : dval list) :
     (dval * Time.t) option =
   List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
-      (desc, args) = (desc', args') )
+      (desc, args) = (desc', args'))
   |> Option.map ~f:Tuple2.get2
 
 
@@ -370,7 +383,8 @@ let execute_ops
         ; user_fns
         ; user_tipes
         ; account_id
-        ; canvas_id }
+        ; canvas_id
+        }
       , input_vars ) =
     test_execution_data ~trace_id ops
   in
@@ -402,7 +416,7 @@ let exec_handler ?(ops = []) (prog : string) : dval =
   (* |> Log.pp ~f:show_expr *)
   |> handler
   |> hop
-  |> fun h -> execute_ops (ops @ [h])
+  |> fun h -> execute_ops (ops @ [ h ])
 
 
 let exec_ast ?(canvas_name = "test") (prog : string) : dval =
@@ -415,7 +429,7 @@ let exec_userfn (prog : string) : dval =
   let name = "test_function" in
   let ast = ast_for prog in
   let fn = user_fn name [] ast in
-  let c, state, _ = test_execution_data [SetFunction fn] in
+  let c, state, _ = test_execution_data [ SetFunction fn ] in
   let result, _ = Ast.execute_fn state name execution_id [] in
   result
 
@@ -438,17 +452,18 @@ let sample_dvals =
   ; ("null", DNull)
   ; ("datastore", DDB "Visitors")
   ; ("string", Dval.dstr_of_string_exn "incredibly this was broken")
-  ; ("list", DList [Dval.dint 4])
+  ; ("list", DList [ Dval.dint 4 ])
   ; ("obj", DObj (DvalMap.singleton "foo" (Dval.dint 5)))
   ; ( "obj2"
     , DObj
         (DvalMap.from_list
-           [("type", Dval.dstr_of_string_exn "weird"); ("value", DNull)]) )
+           [ ("type", Dval.dstr_of_string_exn "weird"); ("value", DNull) ]) )
   ; ( "obj3"
     , DObj
         (DvalMap.from_list
            [ ("type", Dval.dstr_of_string_exn "weird")
-           ; ("value", Dval.dstr_of_string_exn "x") ]) )
+           ; ("value", Dval.dstr_of_string_exn "x")
+           ]) )
   ; ("incomplete", DIncomplete SourceNone)
   ; ("error", DError (SourceNone, "some error string"))
   ; ("block", DBlock (fun _args -> DNull))
@@ -467,12 +482,13 @@ let sample_dvals =
   ; ("result", DResult (ResOk (Dval.dint 15)))
   ; ( "result2"
     , DResult
-        (ResError (DList [Dval.dstr_of_string_exn "dunno if really supported"]))
-    )
+        (ResError
+           (DList [ Dval.dstr_of_string_exn "dunno if really supported" ])) )
   ; ("result3", DResult (ResOk (Dval.dstr_of_string_exn "a string")))
   ; ("bytes", DBytes ("JyIoXCg=" |> B64.decode |> RawBytes.of_string))
   ; ( "bytes2"
     , DBytes
         (* use image bytes here to test for any weird bytes forms *)
         (RawBytes.of_string
-           (File.readfile ~root:Testdata "sample_image_bytes.png")) ) ]
+           (File.readfile ~root:Testdata "sample_image_bytes.png")) )
+  ]

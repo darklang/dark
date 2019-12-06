@@ -8,15 +8,15 @@ module TD = TLIDDict
 let toID (db : db) : tlid = db.dbTLID
 
 let upsert (m : model) (db : db) : model =
-  {m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs}
+  { m with dbs = TD.insert ~tlid:db.dbTLID ~value:db m.dbs }
 
 
 let update (m : model) ~(tlid : tlid) ~(f : db -> db) : model =
-  {m with dbs = TD.updateIfPresent ~tlid ~f m.dbs}
+  { m with dbs = TD.updateIfPresent ~tlid ~f m.dbs }
 
 
 let remove (m : model) (db : db) : model =
-  {m with dbs = TD.remove ~tlid:db.dbTLID m.dbs}
+  { m with dbs = TD.remove ~tlid:db.dbTLID m.dbs }
 
 
 let fromList (dbs : db list) : db TLIDDict.t =
@@ -28,7 +28,7 @@ let astsFor (db : db) : expr list =
   | None ->
       []
   | Some am ->
-      [am.rollforward; am.rollback]
+      [ am.rollforward; am.rollback ]
 
 
 let allData (db : db) : pointerData list =
@@ -37,13 +37,13 @@ let allData (db : db) : pointerData list =
     | Some migra ->
         ( db.cols @ migra.cols
         , List.concat
-            [AST.allData migra.rollforward; AST.allData migra.rollback] )
+            [ AST.allData migra.rollforward; AST.allData migra.rollback ] )
     | None ->
         (db.cols, [])
   in
   let colpointers =
     cols
-    |> List.map ~f:(fun (lhs, rhs) -> [PDBColName lhs; PDBColType rhs])
+    |> List.map ~f:(fun (lhs, rhs) -> [ PDBColName lhs; PDBColType rhs ])
     |> List.concat
   in
   let name = PDBName db.dbName in
@@ -53,7 +53,7 @@ let allData (db : db) : pointerData list =
 let hasCol (db : db) (name : string) : bool =
   db.cols
   |> List.any ~f:(fun (colname, _) ->
-         match colname with Blank _ -> false | F (_, n) -> name = n )
+         match colname with Blank _ -> false | F (_, n) -> name = n)
 
 
 let isLocked (m : model) (TLID tlid : tlid) : bool =
@@ -78,11 +78,12 @@ let isMigrationLockReady (m : dbMigration) : bool =
 
 let startMigration (tlid : tlid) (cols : dbColumn list) : modification =
   let newCols =
-    cols |> List.map ~f:(fun (n, t) -> (B.clone identity n, B.clone identity t))
+    cols
+    |> List.map ~f:(fun (n, t) -> (B.clone identity n, B.clone identity t))
   in
   let rb = B.new_ () in
   let rf = B.new_ () in
-  RPC ([CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols)], FocusSame)
+  RPC ([ CreateDBMigration (tlid, B.toID rb, B.toID rf, newCols) ], FocusSame)
 
 
 let generateDBName (_ : unit) : string =

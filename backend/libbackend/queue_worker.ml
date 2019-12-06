@@ -10,13 +10,15 @@ let dequeue_and_process execution_id :
     (RTT.dval option, Exception.captured) Result.t =
   Event_queue.with_transaction (fun transaction ->
       let event =
-        try Ok (Event_queue.dequeue transaction) with e ->
-          (* exception occurred while dequeuing,
+        try Ok (Event_queue.dequeue transaction) with
+        | e ->
+            (* exception occurred while dequeuing,
          * no item to put back *)
-          let bt = Exception.get_backtrace () in
-          Log.erroR "Exception while dequeueing" ;
-          (* execution_id will be in this log *)
-          Error (bt, e)
+            let bt = Exception.get_backtrace () in
+            Log.erroR "Exception while dequeueing" ;
+
+            (* execution_id will be in this log *)
+            Error (bt, e)
       in
       event
       |> Result.bind ~f:(fun event ->
@@ -34,15 +36,17 @@ let dequeue_and_process execution_id :
                      (* This is a little silly, we could just return the error,
                    * maybe? *)
                      |> Ok
-                   with e ->
-                     (* exception occurred when processing an item,
-                      * so put it back as an error *)
-                     let bt = Exception.get_backtrace () in
-                     ignore
-                       (Event_queue.put_back transaction event ~status:`Err) ;
-                     Log.erroR "Exception while loading canvas" ;
-                     (* execution_id will be in this log *)
-                     Error (bt, e)
+                   with
+                   | e ->
+                       (* exception occurred when processing an item,
+                        * so put it back as an error *)
+                       let bt = Exception.get_backtrace () in
+                       ignore
+                         (Event_queue.put_back transaction event ~status:`Err) ;
+                       Log.erroR "Exception while loading canvas" ;
+
+                       (* execution_id will be in this log *)
+                       Error (bt, e)
                  in
                  c
                  |> Result.bind ~f:(fun c ->
@@ -57,7 +61,8 @@ let dequeue_and_process execution_id :
                           ; ("event_space", `String event.space)
                           ; ("event_name", `String event.name)
                           ; ("event_modifier", `String event.modifier)
-                          ; ("retries", `Int event.retries) ]
+                          ; ("retries", `Int event.retries)
+                          ]
                           (fun _ ->
                             try
                               let event_timestamp =
@@ -83,7 +88,8 @@ let dequeue_and_process execution_id :
                                     ~params:
                                       [ ("host", host)
                                       ; ("event", Log.dump desc)
-                                      ; ("event_id", string_of_int event.id) ] ;
+                                      ; ("event_id", string_of_int event.id)
+                                      ] ;
                                   let space, name, modifier = desc in
                                   Stroller.push_new_404
                                     ~execution_id
@@ -107,13 +113,14 @@ let dequeue_and_process execution_id :
                                       ; ("host", host)
                                       ; ("event_id", string_of_int event.id)
                                       ; ( "handler_id"
-                                        , Types.string_of_id h.tlid ) ] ;
+                                        , Types.string_of_id h.tlid )
+                                      ] ;
                                   let result, touched_tlids =
                                     Execution.execute_handler
                                       h
                                       ~execution_id
                                       ~tlid:h.tlid
-                                      ~input_vars:[("event", event.value)]
+                                      ~input_vars:[ ("event", event.value) ]
                                       ~dbs:(TL.dbs !c.dbs)
                                       ~user_tipes:(!c.user_tipes |> IDMap.data)
                                       ~user_fns:
@@ -158,19 +165,21 @@ let dequeue_and_process execution_id :
                                       ; ("event_id", string_of_int event.id)
                                       ; ( "handler_id"
                                         , Types.string_of_id h.tlid )
-                                      ; ("result_type", result_tipe result) ] ;
+                                      ; ("result_type", result_tipe result)
+                                      ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
-                            with e ->
-                              (* exception occurred when processing an item,
+                            with
+                            | e ->
+                                (* exception occurred when processing an item,
              * so put it back as an error *)
-                              let bt = Exception.get_backtrace () in
-                              ignore
-                                (Event_queue.put_back
-                                   transaction
-                                   event
-                                   ~status:`Err) ;
-                              Error (bt, e) ) ) ) )
+                                let bt = Exception.get_backtrace () in
+                                ignore
+                                  (Event_queue.put_back
+                                     transaction
+                                     event
+                                     ~status:`Err) ;
+                                Error (bt, e)))))
 
 
 let run (execution_id : Types.id) :
@@ -183,5 +192,5 @@ let run (execution_id : Types.id) :
     Ok None )
   else
     Log.add_log_annotations
-      [("start_timer", `Float (Unix.gettimeofday () *. 1000.0))]
+      [ ("start_timer", `Float (Unix.gettimeofday () *. 1000.0)) ]
       (fun _ -> dequeue_and_process execution_id)

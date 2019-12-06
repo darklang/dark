@@ -38,7 +38,8 @@ let fetch_
          (Fetch.HeadersInit.makeWithDict
             (Js.Dict.fromList
                [ ("Content-Type", "application/json")
-               ; ("X-CSRF-TOKEN", context.csrfToken) ]))
+               ; ("X-CSRF-TOKEN", context.csrfToken)
+               ]))
        ())
   |> then_ (fun (resp : Fetch.response) ->
          (* The result not be there because we haven't saved the handler yet.
@@ -47,11 +48,11 @@ let fetch_
          then reject NoneFound
          else if Fetch.Response.status resp = 401
          then reject (BadAuthorization resp)
-         else resolve resp )
+         else resolve resp)
   |> then_ Fetch.Response.json
   |> then_ (fun resp ->
          let result = decoder resp in
-         resolve (postMessage self (on_success result)) )
+         resolve (postMessage self (on_success result)))
   |> catch (fun err ->
          (* Js.Promise.error is opaque, and we just put this in here *)
          match Obj.magic err with
@@ -63,11 +64,11 @@ let fetch_
              resolve (postMessage self (on_missing (Obj.magic err)##message))
          | BadAuthorization resp ->
              Fetch.Response.text resp
-             |> then_ (fun body -> resolve (postMessage self (on_failure body)))
+             |> then_ (fun body ->
+                    resolve (postMessage self (on_failure body)))
          | _ ->
              reportError "fetch error" (url, err) ;
-             resolve (postMessage self (on_failure (Obj.magic err)##message))
-     )
+             resolve (postMessage self (on_failure (Obj.magic err)##message)))
 
 
 let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
@@ -125,4 +126,4 @@ let fetch (context : Types.fetchContext) (request : Types.fetchRequest) =
 let () =
   onmessage self (fun e ->
       let context, request = e##data in
-      ignore (fetch context request) )
+      ignore (fetch context request))

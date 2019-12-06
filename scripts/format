@@ -65,7 +65,7 @@ fi
 # functions
 #######################
 is_dir() {
-  [[ -d "$1" ]] 
+  [[ -d "$1" ]]
 }
 
 is_ocaml() {
@@ -95,7 +95,7 @@ all_prettier_files() {
     -o -path "./backend/_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
     -o -path "client/lib" -prune \
-    -o -path "./client/lib" -prune 
+    -o -path "./client/lib" -prune
 }
 
 all_ocaml_files() {
@@ -113,46 +113,22 @@ all_ocaml_files() {
     -o -path "./backend/_esy" -prune \
     -o -path "/home/dark/.esy" -prune \
     -o -path "backend/esy.lock" -prune \
-    -o -path "./backend/esy.lock" -prune 
-}
-
-check_ocamlformat() {
-  # \0 because the input comes from `find -print0`
-  result=0
-  while read -d $'\0' -r i; do
-    if ! diff <(cat "$i") <(ocamlformat "$i") &> /dev/null; then
-      echo "Failed: $i"
-      result=1
-    fi
-  done
-  return $result
-}
-
-check_prettier () {
-  xargs -0 client/node_modules/.bin/prettier --list-different
-}
-
-format_ocamlformat() {
-  xargs -0 ocamlformat --inplace 
-}
-
-format_prettier() {
-  xargs -0 client/node_modules/.bin/prettier --write
+    -o -path "./backend/esy.lock" -prune
 }
 
 do_ocamlformat() {
   if [[ 0 -eq "$CHECK" ]]; then
-    check_ocamlformat 
+    xargs -0 -n1 -P4 sh -c 'ocamlformat --check $0 || (echo "\nFAIL: $0" ; exit 255)'
   else
-    format_ocamlformat 
+    xargs -0 ocamlformat --inplace
   fi
 }
 
 do_prettier() {
   if [[ 0 -eq "$CHECK" ]]; then
-    check_prettier 
+    xargs -0 client/node_modules/.bin/prettier --list-different
   else
-    format_prettier 
+    xargs -0 client/node_modules/.bin/prettier --write
   fi
 }
 

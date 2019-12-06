@@ -59,12 +59,12 @@ let wrap (wl : wrapLoc) (_ : model) (tl : toplevel) (p : pointerData) :
   match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, focus = wrapAst e h.ast wl in
-      let newH = {h with ast = newAst} in
-      RPC ([SetHandler (tlid, h.pos, newH)], focus)
+      let newH = { h with ast = newAst } in
+      RPC ([ SetHandler (tlid, h.pos, newH) ], focus)
   | PExpr e, TLFunc f ->
       let newAst, focus = wrapAst e f.ufAST wl in
-      let newF = {f with ufAST = newAst} in
-      RPC ([SetFunction newF], focus)
+      let newF = { f with ufAST = newAst } in
+      RPC ([ SetFunction newF ], focus)
   | _ ->
       NoChange
 
@@ -104,7 +104,7 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
         |> Option.map ~f:(fun t ->
                if t = TOption || t = TResult
                then PExpr (F (id, FnCall (F (nid, name), exprs, Rail)))
-               else p )
+               else p)
         |> Option.withDefault ~default:p
     | _ ->
         p
@@ -141,7 +141,7 @@ let extractVarInAst
              |> StrSet.toList
              |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
            in
-           allRequiredVariablesAvailable && noVariablesAreRedefined )
+           allRequiredVariablesAvailable && noVariablesAreRedefined)
     |> List.last
   in
   let newVar = B.newF varname in
@@ -168,16 +168,18 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
   match (p, tl) with
   | PExpr e, TLHandler h ->
       let newAst, enterTarget = extractVarInAst m tl e h.ast varname in
-      let newHandler = {h with ast = newAst} in
+      let newHandler = { h with ast = newAst } in
       Many
-        [ RPC ([SetHandler (tlid, h.pos, newHandler)], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget)) ]
+        [ RPC ([ SetHandler (tlid, h.pos, newHandler) ], FocusNoChange)
+        ; Enter (Filling (tlid, enterTarget))
+        ]
   | PExpr e, TLFunc f ->
       let newAst, enterTarget = extractVarInAst m tl e f.ufAST varname in
-      let newF = {f with ufAST = newAst} in
+      let newF = { f with ufAST = newAst } in
       Many
-        [ RPC ([SetFunction newF], FocusNoChange)
-        ; Enter (Filling (tlid, enterTarget)) ]
+        [ RPC ([ SetFunction newF ], FocusNoChange)
+        ; Enter (Filling (tlid, enterTarget))
+        ]
   | _ ->
       NoChange
 
@@ -217,19 +219,22 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
               ; ufpTipe = F (gid (), tipe)
               ; ufpBlock_args = []
               ; ufpOptional = false
-              ; ufpDescription = "" } )
+              ; ufpDescription = ""
+              })
         in
         let metadata =
           { ufmName = F (gid (), name)
           ; ufmParameters = params
           ; ufmDescription = ""
           ; ufmReturnTipe = F (gid (), TAny)
-          ; ufmInfix = false }
+          ; ufmInfix = false
+          }
         in
         let newF =
-          {ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body}
+          { ufTLID = gtlid (); ufMetadata = metadata; ufAST = AST.clone body }
         in
-        RPC ([SetFunction newF] @ astOp, FocusExact (tlid, P.toID replacement))
+        RPC
+          ([ SetFunction newF ] @ astOp, FocusExact (tlid, P.toID replacement))
     | _ ->
         NoChange
 
@@ -275,16 +280,16 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
     |> TD.filterMapValues ~f:(fun h ->
            let newAst = renameFnCalls h.ast old new_ in
            if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None )
+           then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAst }))
+           else None)
   in
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf ->
            let newAst = renameFnCalls uf.ufAST old new_ in
            if newAst <> uf.ufAST
-           then Some (SetFunction {uf with ufAST = newAst})
-           else None )
+           then Some (SetFunction { uf with ufAST = newAst })
+           else None)
   in
   newHandlers @ newFunctions
 
@@ -305,11 +310,11 @@ let rec isFunctionInExpr (fnName : string) (expr : expr) : bool =
     | Constructor (_, args) ->
         List.any ~f:(isFunctionInExpr fnName) args
     | If (ifExpr, thenExpr, elseExpr) ->
-        List.any ~f:(isFunctionInExpr fnName) [ifExpr; thenExpr; elseExpr]
+        List.any ~f:(isFunctionInExpr fnName) [ ifExpr; thenExpr; elseExpr ]
     | Variable _ ->
         false
     | Let (_, a, b) ->
-        List.any ~f:(isFunctionInExpr fnName) [a; b]
+        List.any ~f:(isFunctionInExpr fnName) [ a; b ]
     | Lambda (_, ex) ->
         isFunctionInExpr fnName ex
     | Value _ ->
@@ -361,7 +366,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     | Some _, Some newName ->
         List.foldr
           ~f:(fun use accfn ->
-            Functions.replaceParamTipe use (transformUse newName use) accfn )
+            Functions.replaceParamTipe use (transformUse newName use) accfn)
           ~init:fn
           uses
     | _ ->
@@ -371,7 +376,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf ->
            let newFn = renameUserTipeInFnParameters uf old new_ in
-           if newFn <> uf then Some (SetFunction newFn) else None )
+           if newFn <> uf then Some (SetFunction newFn) else None)
   in
   newFunctions
 
@@ -404,7 +409,7 @@ let updateUsageCounts (m : model) : model =
             | Some count ->
                 Some (count + 1)
             | None ->
-                Some 1 ) )
+                Some 1))
   in
   let usedFns =
     all
@@ -412,7 +417,7 @@ let updateUsageCounts (m : model) : model =
            | PFnCallName (F (_, name)) ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
   let usedDBs =
@@ -421,7 +426,7 @@ let updateUsageCounts (m : model) : model =
            | PExpr (F (_, Variable name)) when String.isCapitalized name ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
   let usedTipes =
@@ -433,10 +438,10 @@ let updateUsageCounts (m : model) : model =
            | PParamTipe (F (_, TUserType (name, _))) ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
-  {m with usedDBs; usedFns; usedTipes}
+  { m with usedDBs; usedFns; usedTipes }
 
 
 let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
@@ -473,16 +478,16 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
     |> TD.filterMapValues ~f:(fun h ->
            let newAst = transformCallsInAst f h.ast uf in
            if newAst <> h.ast
-           then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None )
+           then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAst }))
+           else None)
   in
   let newFunctions =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf_ ->
            let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
-           then Some (SetFunction {uf_ with ufAST = newAst})
-           else None )
+           then Some (SetFunction { uf_ with ufAST = newAst })
+           else None)
   in
   newHandlers @ newFunctions
 
@@ -509,7 +514,7 @@ let addFunctionParameter (m : model) (f : userFunction) (currentBlankId : id) :
     let fn e =
       match e with
       | FnCall (name, params, r) ->
-          FnCall (name, params @ [B.new_ ()], r)
+          FnCall (name, params @ [ B.new_ () ], r)
       | _ ->
           e
     in
@@ -530,26 +535,30 @@ let generateEmptyFunction (_ : unit) : userFunction =
       ; ufpTipe = F (gid (), TAny)
       ; ufpBlock_args = []
       ; ufpOptional = true
-      ; ufpDescription = "" } ]
+      ; ufpDescription = ""
+      }
+    ]
   in
   let metadata =
     { ufmName = F (gid (), funcName)
     ; ufmParameters = params
     ; ufmDescription = ""
     ; ufmReturnTipe = F (gid (), TAny)
-    ; ufmInfix = false }
+    ; ufmInfix = false
+    }
   in
-  {ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ())}
+  { ufTLID = tlid; ufMetadata = metadata; ufAST = Blank (gid ()) }
 
 
 let generateEmptyUserType () : userTipe =
   let tipeName = generateTipeName () in
   let tlid = gtlid () in
-  let definition = UTRecord [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
+  let definition = UTRecord [ { urfName = B.new_ (); urfTipe = B.new_ () } ] in
   { utTLID = tlid
   ; utName = F (gid (), tipeName)
   ; utVersion = 0
-  ; utDefinition = definition }
+  ; utDefinition = definition
+  }
 
 
 let coerceTypes (v : dval) : tipe =
@@ -567,13 +576,15 @@ let coerceTypes (v : dval) : tipe =
     match dstr with
     | DStr s ->
         let parsedDate = Js.Date.fromString s in
-        ( try
-            (* toISOString will raise Invalid Date if date
+        ( (* toISOString will raise Invalid Date if date
                           * is invalid; bucklescript doesn't expose this
                           * to us otherwise *)
-            ignore (Js.Date.toISOString parsedDate) ;
-            true
-          with _ -> false )
+        try
+          ignore (Js.Date.toISOString parsedDate) ;
+          true
+        with
+        | _ ->
+            false )
     | _ ->
         false
   in
@@ -599,12 +610,13 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                 * discussion at
                 * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                 * let tipe = v |> coerceType in
-                  *)
-               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF} )
+                *)
+               { urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF })
       in
       Ok
         { (generateEmptyUserType ()) with
-          utDefinition = UTRecord userTipeDefinition }
+          utDefinition = UTRecord userTipeDefinition
+        }
   | Some _ ->
       Error "Live value is not an object."
   | None ->
@@ -628,16 +640,16 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          | TLHandler h ->
              let newAST = transform h.ast in
              if newAST <> h.ast
-             then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAST}))
+             then Some (SetHandler (h.hTLID, h.pos, { h with ast = newAST }))
              else None
          | TLFunc f ->
              let newAST = transform f.ufAST in
              if newAST <> f.ufAST
-             then Some (SetFunction {f with ufAST = newAST})
+             then Some (SetFunction { f with ufAST = newAST })
              else None
          | TLTipe _ ->
              None
          | TLDB _ ->
              None
          | TLGroup _ ->
-             None )
+             None)

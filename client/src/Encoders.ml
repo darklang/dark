@@ -5,7 +5,7 @@ open Json_encode_extended
 (* Dark *)
 
 (* XXX(JULIAN): All of this should be cleaned up and moved somewhere nice! *)
-type jsArrayBuffer = {byteLength : int} [@@bs.deriving abstract]
+type jsArrayBuffer = { byteLength : int } [@@bs.deriving abstract]
 
 type jsUint8Array [@@bs.deriving abstract]
 
@@ -69,16 +69,16 @@ let id (Types.ID id) = string id
 
 let tlid (Types.TLID tlid) = string tlid
 
-let pos (p : Types.pos) = object_ [("x", int p.x); ("y", int p.y)]
+let pos (p : Types.pos) = object_ [ ("x", int p.x); ("y", int p.y) ]
 
-let vPos (vp : Types.vPos) = object_ [("vx", int vp.vx); ("vy", int vp.vy)]
+let vPos (vp : Types.vPos) = object_ [ ("vx", int vp.vx); ("vy", int vp.vy) ]
 
 let blankOr (encoder : 'a -> Js.Json.t) (v : 'a Types.blankOr) =
   match v with
   | F (i, s) ->
-      variant "Filled" [id i; encoder s]
+      variant "Filled" [ id i; encoder s ]
   | Blank i ->
-      variant "Blank" [id i]
+      variant "Blank" [ id i ]
 
 
 let rec dval (dv : Types.dval) : Js.Json.t =
@@ -87,54 +87,54 @@ let rec dval (dv : Types.dval) : Js.Json.t =
   let dhttp h =
     match h with
     | Redirect s ->
-        ev "Redirect" [string s]
+        ev "Redirect" [ string s ]
     | Response (code, headers) ->
-        ev "Response" [int code; list (tuple2 string string) headers]
+        ev "Response" [ int code; list (tuple2 string string) headers ]
   in
   match dv with
   | DInt i ->
-      ev "DInt" [int i]
+      ev "DInt" [ int i ]
   | DFloat f ->
-      ev "DFloat" [Json_encode_extended.float f]
+      ev "DFloat" [ Json_encode_extended.float f ]
   | DBool b ->
-      ev "DBool" [bool b]
+      ev "DBool" [ bool b ]
   | DNull ->
       ev "DNull" []
   | DStr s ->
-      ev "DStr" [string s]
+      ev "DStr" [ string s ]
   | DList l ->
-      ev "DList" [array dval l]
+      ev "DList" [ array dval l ]
   | DObj o ->
       o
       |> StrDict.map ~f:dval
       |> StrDict.toList
       |> Js.Dict.fromList
       |> jsonDict
-      |> fun x -> [x] |> ev "DObj"
+      |> fun x -> [ x ] |> ev "DObj"
   (* opaque types *)
   | DBlock ->
-      ev "DBlock" [null]
+      ev "DBlock" [ null ]
   | DIncomplete SourceNone ->
-      ev "DIncomplete" [ev "SourceNone" []]
+      ev "DIncomplete" [ ev "SourceNone" [] ]
   | DIncomplete (SourceId i) ->
-      ev "DIncomplete" [ev "SourceId" [id i]]
+      ev "DIncomplete" [ ev "SourceId" [ id i ] ]
   (* user-ish types *)
   | DCharacter c ->
-      ev "DCharacter" [string c]
+      ev "DCharacter" [ string c ]
   | DError (SourceNone, msg) ->
-      ev "DError" [pair (ev "SourceNone") string ([], msg)]
+      ev "DError" [ pair (ev "SourceNone") string ([], msg) ]
   | DError (SourceId i, msg) ->
-      ev "DError" [pair (ev "SourceId") string ([id i], msg)]
+      ev "DError" [ pair (ev "SourceId") string ([ id i ], msg) ]
   | DResp (h, hdv) ->
-      ev "DResp" [tuple2 dhttp dval (h, hdv)]
+      ev "DResp" [ tuple2 dhttp dval (h, hdv) ]
   | DDB name ->
-      ev "DDB" [string name]
+      ev "DDB" [ string name ]
   | DDate date ->
-      ev "DDate" [string date]
+      ev "DDate" [ string date ]
   | DPassword hashed ->
-      ev "DPassword" [string hashed]
+      ev "DPassword" [ string hashed ]
   | DUuid uuid ->
-      ev "DUuid" [string uuid]
+      ev "DUuid" [ string uuid ]
   | DOption opt ->
       ev
         "DOption"
@@ -142,66 +142,68 @@ let rec dval (dv : Types.dval) : Js.Json.t =
           | OptNothing ->
               ev "OptNothing" []
           | OptJust dv ->
-              ev "OptJust" [dval dv] ) ]
+              ev "OptJust" [ dval dv ] )
+        ]
   | DErrorRail dv ->
-      ev "DErrorRail" [dval dv]
+      ev "DErrorRail" [ dval dv ]
   | DResult res ->
       ev
         "DResult"
         [ ( match res with
           | ResOk dv ->
-              ev "ResOk" [dval dv]
+              ev "ResOk" [ dval dv ]
           | ResError dv ->
-              ev "ResError" [dval dv] ) ]
+              ev "ResError" [ dval dv ] )
+        ]
   | DBytes bin ->
-      ev "DBytes" [string (bin |> base64url_bytes)]
+      ev "DBytes" [ string (bin |> base64url_bytes) ]
 
 
 let rec pointerData (pd : Types.pointerData) : Js.Json.t =
   let ev = variant in
   match pd with
   | PVarBind var ->
-      ev "PVarBind" [blankOr string var]
+      ev "PVarBind" [ blankOr string var ]
   | PEventName name ->
-      ev "PEventName" [blankOr string name]
+      ev "PEventName" [ blankOr string name ]
   | PEventModifier modifier ->
-      ev "PEventModifier" [blankOr string modifier]
+      ev "PEventModifier" [ blankOr string modifier ]
   | PEventSpace space ->
-      ev "PEventSpace" [blankOr string space]
+      ev "PEventSpace" [ blankOr string space ]
   | PExpr e ->
-      ev "PExpr" [expr e]
+      ev "PExpr" [ expr e ]
   | PField field ->
-      ev "PField" [blankOr string field]
+      ev "PField" [ blankOr string field ]
   | PKey key ->
-      ev "PKey" [blankOr string key]
+      ev "PKey" [ blankOr string key ]
   | PDBName name ->
-      ev "PDBName" [blankOr string name]
+      ev "PDBName" [ blankOr string name ]
   | PDBColName colname ->
-      ev "PDBColName" [blankOr string colname]
+      ev "PDBColName" [ blankOr string colname ]
   | PDBColType coltype ->
-      ev "PDBColType" [blankOr string coltype]
+      ev "PDBColType" [ blankOr string coltype ]
   | PFFMsg msg ->
-      ev "PFFMsg" [blankOr string msg]
+      ev "PFFMsg" [ blankOr string msg ]
   | PFnName msg ->
-      ev "PFnName" [blankOr string msg]
+      ev "PFnName" [ blankOr string msg ]
   | PParamName msg ->
-      ev "PParamName" [blankOr string msg]
+      ev "PParamName" [ blankOr string msg ]
   | PParamTipe msg ->
-      ev "PParamTipe" [blankOr tipe msg]
+      ev "PParamTipe" [ blankOr tipe msg ]
   | PPattern p ->
-      ev "PPattern" [pattern p]
+      ev "PPattern" [ pattern p ]
   | PConstructorName n ->
-      ev "PConstructorName" [blankOr string n]
+      ev "PConstructorName" [ blankOr string n ]
   | PFnCallName n ->
-      ev "PFnCallName" [blankOr string n]
+      ev "PFnCallName" [ blankOr string n ]
   | PTypeName n ->
-      ev "PTypeName" [blankOr string n]
+      ev "PTypeName" [ blankOr string n ]
   | PTypeFieldName n ->
-      ev "PTypeFieldName" [blankOr string n]
+      ev "PTypeFieldName" [ blankOr string n ]
   | PTypeFieldTipe t ->
-      ev "PTypeFieldTipe" [blankOr tipe t]
+      ev "PTypeFieldTipe" [ blankOr tipe t ]
   | PGroupName g ->
-      ev "PGroupName" [blankOr string g]
+      ev "PGroupName" [ blankOr string g ]
 
 
 and tlidOf (op : Types.op) : Types.tlid =
@@ -272,9 +274,9 @@ and ops (ops : Types.op list) : Js.Json.t =
   list
     op
     ( match ops with
-    | [UndoTL _] ->
+    | [ UndoTL _ ] ->
         ops
-    | [RedoTL _] ->
+    | [ RedoTL _ ] ->
         ops
     | [] ->
         ops
@@ -293,11 +295,13 @@ and spec (spec : Types.handlerSpec) : Js.Json.t =
     ; ( "types"
       , object_
           [ ("input", blankOr int (Blank.new_ ()))
-          ; ("output", blankOr int (Blank.new_ ())) ] ) ]
+          ; ("output", blankOr int (Blank.new_ ()))
+          ] )
+    ]
 
 
 and handler (h : Types.handler) : Js.Json.t =
-  object_ [("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", expr h.ast)]
+  object_ [ ("tlid", tlid h.hTLID); ("spec", spec h.spec); ("ast", expr h.ast) ]
 
 
 and dbMigrationKind (k : Types.dbMigrationKind) : Js.Json.t =
@@ -325,7 +329,8 @@ and dbMigration (dbm : Types.dbMigration) : Js.Json.t =
     ; ("state", dbMigrationState dbm.state)
     ; ("cols", colList dbm.cols)
     ; ("rollforward", expr dbm.rollforward)
-    ; ("rollback", expr dbm.rollback) ]
+    ; ("rollback", expr dbm.rollback)
+    ]
 
 
 and db (db : Types.db) : Js.Json.t =
@@ -337,81 +342,83 @@ and db (db : Types.db) : Js.Json.t =
     ; ("old_migrations", list dbMigration db.oldMigrations)
     ; ( "active_migration"
       , Option.map ~f:dbMigration db.activeMigration
-        |> Option.withDefault ~default:null ) ]
+        |> Option.withDefault ~default:null )
+    ]
 
 
 and op (call : Types.op) : Js.Json.t =
   let ev = variant in
   match call with
   | SetHandler (t, p, h) ->
-      ev "SetHandler" [tlid t; pos p; handler h]
+      ev "SetHandler" [ tlid t; pos p; handler h ]
   | CreateDB (t, p, name) ->
-      ev "CreateDB" [tlid t; pos p; string name]
+      ev "CreateDB" [ tlid t; pos p; string name ]
   | AddDBCol (t, cn, ct) ->
-      ev "AddDBCol" [tlid t; id cn; id ct]
+      ev "AddDBCol" [ tlid t; id cn; id ct ]
   | SetDBColName (t, i, name) ->
-      ev "SetDBColName" [tlid t; id i; string name]
+      ev "SetDBColName" [ tlid t; id i; string name ]
   | ChangeDBColName (t, i, name) ->
-      ev "ChangeDBColName" [tlid t; id i; string name]
+      ev "ChangeDBColName" [ tlid t; id i; string name ]
   | SetDBColType (t, i, tipe) ->
-      ev "SetDBColType" [tlid t; id i; string tipe]
+      ev "SetDBColType" [ tlid t; id i; string tipe ]
   | ChangeDBColType (t, i, name) ->
-      ev "ChangeDBColType" [tlid t; id i; string name]
+      ev "ChangeDBColType" [ tlid t; id i; string name ]
   | DeleteDBCol (t, i) ->
-      ev "DeleteDBCol" [tlid t; id i]
+      ev "DeleteDBCol" [ tlid t; id i ]
   | DeprecatedInitDbm (t, i, rbid, rfid, kind) ->
       ev
         "DeprecatedInitDbm"
-        [tlid t; id i; id rbid; id rfid; dbMigrationKind kind]
+        [ tlid t; id i; id rbid; id rfid; dbMigrationKind kind ]
   | CreateDBMigration (t, rbid, rfid, cols) ->
-      ev "CreateDBMigration" [tlid t; id rbid; id rfid; colList cols]
+      ev "CreateDBMigration" [ tlid t; id rbid; id rfid; colList cols ]
   | AddDBColToDBMigration (t, colnameid, coltypeid) ->
-      ev "AddDBColToDBMigration" [tlid t; id colnameid; id coltypeid]
+      ev "AddDBColToDBMigration" [ tlid t; id colnameid; id coltypeid ]
   | SetDBColNameInDBMigration (t, i, name) ->
-      ev "SetDBColNameInDBMigration" [tlid t; id i; string name]
+      ev "SetDBColNameInDBMigration" [ tlid t; id i; string name ]
   | SetDBColTypeInDBMigration (t, i, tipe) ->
-      ev "SetDBColTypeInDBMigration" [tlid t; id i; string tipe]
+      ev "SetDBColTypeInDBMigration" [ tlid t; id i; string tipe ]
   | AbandonDBMigration t ->
-      ev "AbandonDBMigration" [tlid t]
+      ev "AbandonDBMigration" [ tlid t ]
   | DeleteColInDBMigration (t, i) ->
-      ev "DeleteColInDBMigration" [tlid t; id i]
+      ev "DeleteColInDBMigration" [ tlid t; id i ]
   | TLSavepoint t ->
-      ev "TLSavepoint" [tlid t]
+      ev "TLSavepoint" [ tlid t ]
   | UndoTL t ->
-      ev "UndoTL" [tlid t]
+      ev "UndoTL" [ tlid t ]
   | RedoTL t ->
-      ev "RedoTL" [tlid t]
+      ev "RedoTL" [ tlid t ]
   | DeleteTL t ->
-      ev "DeleteTL" [tlid t]
+      ev "DeleteTL" [ tlid t ]
   | MoveTL (t, p) ->
-      ev "MoveTL" [tlid t; pos p]
+      ev "MoveTL" [ tlid t; pos p ]
   | SetFunction uf ->
-      ev "SetFunction" [userFunction uf]
+      ev "SetFunction" [ userFunction uf ]
   | DeleteFunction t ->
-      ev "DeleteFunction" [tlid t]
+      ev "DeleteFunction" [ tlid t ]
   | SetExpr (t, i, e) ->
-      ev "SetExpr" [tlid t; id i; expr e]
+      ev "SetExpr" [ tlid t; id i; expr e ]
   | RenameDBname (t, name) ->
-      ev "RenameDBname" [tlid t; string name]
+      ev "RenameDBname" [ tlid t; string name ]
   | CreateDBWithBlankOr (t, p, i, name) ->
-      ev "CreateDBWithBlankOr" [tlid t; pos p; id i; string name]
+      ev "CreateDBWithBlankOr" [ tlid t; pos p; id i; string name ]
   | DeleteFunctionForever t ->
-      ev "DeleteFunctionForever" [tlid t]
+      ev "DeleteFunctionForever" [ tlid t ]
   | DeleteTLForever t ->
-      ev "DeleteTLForever" [tlid t]
+      ev "DeleteTLForever" [ tlid t ]
   | SetType t ->
-      ev "SetType" [userTipe t]
+      ev "SetType" [ userTipe t ]
   | DeleteType t ->
-      ev "DeleteType" [tlid t]
+      ev "DeleteType" [ tlid t ]
   | DeleteTypeForever t ->
-      ev "DeleteTypeForever" [tlid t]
+      ev "DeleteTypeForever" [ tlid t ]
 
 
 and addOpRPCParams (params : Types.addOpRPCParams) : Js.Json.t =
   object_
     [ ("ops", ops params.ops)
     ; ("opCtr", int (params.opCtr |> Option.valueExn))
-    ; ("clientOpCtrId", string params.clientOpCtrId) ]
+    ; ("clientOpCtrId", string params.clientOpCtrId)
+    ]
 
 
 and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
@@ -421,7 +428,8 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("trace_id", string params.efpTraceID)
     ; ("caller_id", id params.efpCallerID)
     ; ("args", list dval params.efpArgs)
-    ; ("fnname", string params.efpFnName) ]
+    ; ("fnname", string params.efpFnName)
+    ]
 
 
 and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) :
@@ -429,7 +437,8 @@ and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) :
   object_
     [ ("tlid", tlid params.thTLID)
     ; ("trace_id", string params.thTraceID)
-    ; ("input", list (tuple2 string dval) (StrDict.toList params.thInput)) ]
+    ; ("input", list (tuple2 string dval) (StrDict.toList params.thInput))
+    ]
 
 
 and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
@@ -437,26 +446,29 @@ and sendPresenceParams (params : Types.sendPresenceParams) : Js.Json.t =
     [ ("canvasName", string params.canvasName)
     ; ("browserId", string params.browserId)
     ; ("tlid", nullable tlid params.tlid)
-    ; ("timestamp", Json_encode_extended.float params.timestamp) ]
+    ; ("timestamp", Json_encode_extended.float params.timestamp)
+    ]
 
 
 and getTraceDataRPCParams (params : Types.getTraceDataRPCParams) : Js.Json.t =
   object_
-    [("tlid", tlid params.gtdrpTlid); ("trace_id", traceID params.gtdrpTraceID)]
+    [ ("tlid", tlid params.gtdrpTlid)
+    ; ("trace_id", traceID params.gtdrpTraceID)
+    ]
 
 
 and dbStatsRPCParams (params : Types.dbStatsRPCParams) : Js.Json.t =
-  object_ [("tlids", list tlid params.dbStatsTlids)]
+  object_ [ ("tlids", list tlid params.dbStatsTlids) ]
 
 
 and workerStatsRPCParams (params : Types.workerStatsRPCParams) : Js.Json.t =
-  object_ [("tlid", tlid params.workerStatsTlid)]
+  object_ [ ("tlid", tlid params.workerStatsTlid) ]
 
 
 and updateWorkerScheduleRPCParams
     (params : Types.updateWorkerScheduleRPCParams) : Js.Json.t =
   object_
-    [("name", string params.workerName); ("schedule", string params.schedule)]
+    [ ("name", string params.workerName); ("schedule", string params.schedule) ]
 
 
 and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
@@ -467,7 +479,8 @@ and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns)
-    ; ("user_tipes", list userTipe params.userTipes) ]
+    ; ("user_tipes", list userTipe params.userTipes)
+    ]
 
 
 and performFunctionAnalysisParams
@@ -478,14 +491,16 @@ and performFunctionAnalysisParams
     ; ("trace_data", traceData params.traceData)
     ; ("dbs", list db params.dbs)
     ; ("user_fns", list userFunction params.userFns)
-    ; ("user_tipes", list userTipe params.userTipes) ]
+    ; ("user_tipes", list userTipe params.userTipes)
+    ]
 
 
 and userFunction (uf : Types.userFunction) : Js.Json.t =
   object_
     [ ("tlid", tlid uf.ufTLID)
     ; ("metadata", userFunctionMetadata uf.ufMetadata)
-    ; ("ast", expr uf.ufAST) ]
+    ; ("ast", expr uf.ufAST)
+    ]
 
 
 and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
@@ -494,7 +509,8 @@ and userFunctionMetadata (f : Types.userFunctionMetadata) : Js.Json.t =
     ; ("parameters", list userFunctionParameter f.ufmParameters)
     ; ("description", string f.ufmDescription)
     ; ("return_type", blankOr tipe f.ufmReturnTipe)
-    ; ("infix", bool f.ufmInfix) ]
+    ; ("infix", bool f.ufmInfix)
+    ]
 
 
 and userTipe (ut : Types.userTipe) : Js.Json.t =
@@ -502,18 +518,20 @@ and userTipe (ut : Types.userTipe) : Js.Json.t =
     [ ("tlid", tlid ut.utTLID)
     ; ("name", blankOr string ut.utName)
     ; ("version", int ut.utVersion)
-    ; ("definition", userTipeDefinition ut.utDefinition) ]
+    ; ("definition", userTipeDefinition ut.utDefinition)
+    ]
 
 
 and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =
   let ev = variant in
-  match utd with UTRecord fields ->
-    ev "UTRecord" [(list userRecordField) fields]
+  match utd with
+  | UTRecord fields ->
+      ev "UTRecord" [ (list userRecordField) fields ]
 
 
 and userRecordField (urf : Types.userRecordField) : Js.Json.t =
   object_
-    [("name", blankOr string urf.urfName); ("tipe", blankOr tipe urf.urfTipe)]
+    [ ("name", blankOr string urf.urfName); ("tipe", blankOr tipe urf.urfTipe) ]
 
 
 and tipe (t : Types.tipe) : Js.Json.t =
@@ -550,7 +568,7 @@ and tipe (t : Types.tipe) : Js.Json.t =
   | TDate ->
       ev "TDate" []
   | TDbList a ->
-      ev "TDbList" [tipe a]
+      ev "TDbList" [ tipe a ]
   | TPassword ->
       ev "TPassword" []
   | TUuid ->
@@ -562,7 +580,7 @@ and tipe (t : Types.tipe) : Js.Json.t =
   | TResult ->
       ev "TResult" []
   | TUserType (name, version) ->
-      ev "TUserType" [string name; int version]
+      ev "TUserType" [ string name; int version ]
   | TBytes ->
       ev "TBytes" []
 
@@ -573,7 +591,8 @@ and userFunctionParameter (p : Types.userFunctionParameter) : Js.Json.t =
     ; ("tipe", blankOr tipe p.ufpTipe)
     ; ("block_args", list string p.ufpBlock_args)
     ; ("optional", bool p.ufpOptional)
-    ; ("description", string p.ufpDescription) ]
+    ; ("description", string p.ufpDescription)
+    ]
 
 
 and expr (expr : Types.expr) : Js.Json.t = blankOr nExpr expr
@@ -584,39 +603,39 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   match nexpr with
   | FnCall (F (_, n), exprs, r) ->
       let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
-      ev op [string n; list e exprs]
+      ev op [ string n; list e exprs ]
   | FnCall (Blank _, exprs, r) ->
       let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
-      let encoded = ev op [string "unknown"; list e exprs] in
+      let encoded = ev op [ string "unknown"; list e exprs ] in
       recover "fnCall hack used" nexpr encoded
   | Let (lhs, rhs, body) ->
-      ev "Let" [blankOr string lhs; e rhs; e body]
+      ev "Let" [ blankOr string lhs; e rhs; e body ]
   | Lambda (vars, body) ->
-      ev "Lambda" [list (blankOr string) vars; e body]
+      ev "Lambda" [ list (blankOr string) vars; e body ]
   | FieldAccess (obj, field) ->
-      ev "FieldAccess" [e obj; blankOr string field]
+      ev "FieldAccess" [ e obj; blankOr string field ]
   | If (cond, then_, else_) ->
-      ev "If" [e cond; e then_; e else_]
+      ev "If" [ e cond; e then_; e else_ ]
   | Variable v ->
-      ev "Variable" [string v]
+      ev "Variable" [ string v ]
   | Value v ->
-      ev "Value" [string v]
+      ev "Value" [ string v ]
   | Thread exprs ->
-      ev "Thread" [list e exprs]
+      ev "Thread" [ list e exprs ]
   | ObjectLiteral pairs ->
-      ev "ObjectLiteral" [list (pair (blankOr string) expr) pairs]
+      ev "ObjectLiteral" [ list (pair (blankOr string) expr) pairs ]
   | ListLiteral elems ->
-      ev "ListLiteral" [list e elems]
+      ev "ListLiteral" [ list e elems ]
   | FeatureFlag (msg, cond, a, b) ->
-      ev "FeatureFlag" [blankOr string msg; e cond; e a; e b]
+      ev "FeatureFlag" [ blankOr string msg; e cond; e a; e b ]
   | Match (matchExpr, cases) ->
-      ev "Match" [e matchExpr; list (pair pattern expr) cases]
+      ev "Match" [ e matchExpr; list (pair pattern expr) cases ]
   | Constructor (name, args) ->
-      ev "Constructor" [blankOr string name; list e args]
+      ev "Constructor" [ blankOr string name; list e args ]
   | FluidPartial (name, oldExpr) ->
-      ev "FluidPartial" [string name; e oldExpr]
+      ev "FluidPartial" [ string name; e oldExpr ]
   | FluidRightPartial (name, oldExpr) ->
-      ev "FluidRightPartial" [string name; e oldExpr]
+      ev "FluidRightPartial" [ string name; e oldExpr ]
 
 
 and pattern (p : Types.pattern) : Js.Json.t = blankOr nPattern p
@@ -625,32 +644,34 @@ and nPattern (npat : Types.nPattern) : Js.Json.t =
   let ev = variant in
   match npat with
   | PVariable a ->
-      ev "PVariable" [string a]
+      ev "PVariable" [ string a ]
   | PLiteral a ->
-      ev "PLiteral" [string a]
+      ev "PLiteral" [ string a ]
   | PConstructor (a, b) ->
-      ev "PConstructor" [string a; list pattern b]
+      ev "PConstructor" [ string a; list pattern b ]
 
 
 and cursorState (cs : Types.cursorState) : Js.Json.t =
   let ev = variant in
   match cs with
   | Selecting (tlid_, mId) ->
-      ev "Selecting" [tlid tlid_; nullable id mId]
+      ev "Selecting" [ tlid tlid_; nullable id mId ]
   | SelectingCommand (tlid_, mId) ->
-      ev "SelectingCommand" [tlid tlid_; id mId]
+      ev "SelectingCommand" [ tlid tlid_; id mId ]
   | Entering (Creating pos_) ->
-      ev "Entering" [ev "Creating" [pos pos_]]
+      ev "Entering" [ ev "Creating" [ pos pos_ ] ]
   | Entering (Filling (tlid_, id_)) ->
-      ev "Entering" [ev "Filling" [tlid tlid_; id id_]]
+      ev "Entering" [ ev "Filling" [ tlid tlid_; id id_ ] ]
   | Dragging (tlid_, vpos_, hasMoved, cursor) ->
-      ev "Dragging" [tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor]
+      ev
+        "Dragging"
+        [ tlid tlid_; vPos vpos_; bool hasMoved; cursorState cursor ]
   | Deselected ->
       ev "Deselected" []
   | FluidEntering tlid_ ->
-      ev "FluidEntering " [tlid tlid_]
+      ev "FluidEntering " [ tlid tlid_ ]
   | FluidMouseSelecting tlid_ ->
-      ev "FluidMouseSelecting " [tlid tlid_]
+      ev "FluidMouseSelecting " [ tlid tlid_ ]
 
 
 and functionResult (fr : Types.functionResult) : Js.Json.t =
@@ -660,7 +681,8 @@ and functionResult (fr : Types.functionResult) : Js.Json.t =
     ; id fr.callerID
     ; string fr.argHash
     ; int fr.argHashVersion
-    ; dval fr.value ]
+    ; dval fr.value
+    ]
 
 
 and traceID = string
@@ -669,7 +691,8 @@ and traceData (t : Types.traceData) : Js.Json.t =
   object_
     [ ("input", list (tuple2 string dval) (StrDict.toList t.input))
     ; ("timestamp", string t.timestamp)
-    ; ("function_results", list functionResult t.functionResults) ]
+    ; ("function_results", list functionResult t.functionResults)
+    ]
 
 
 and trace (t : Types.trace) : Js.Json.t =
@@ -696,7 +719,8 @@ let handlerProp (p : Types.handlerProp) : Js.Json.t =
   object_
     [ ("handlerLock", bool p.handlerLock)
     ; ("handlerState", handlerState p.handlerState)
-    ; ("showActions", bool p.showActions) ]
+    ; ("showActions", bool p.showActions)
+    ]
 
 
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
@@ -711,14 +735,16 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarOpen", bool se.sidebarOpen)
-    ; ("showTopbar1", bool se.showTopbar) ]
+    ; ("showTopbar1", bool se.showTopbar)
+    ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =
   object_
     [ ("space", string fof.space)
     ; ("path", string fof.path)
-    ; ("modifier", string fof.modifier) ]
+    ; ("modifier", string fof.modifier)
+    ]
 
 
 let httpError (e : string Tea.Http.error) : Js.Json.t =
@@ -726,21 +752,21 @@ let httpError (e : string Tea.Http.error) : Js.Json.t =
   let responseBody (r : Http.responseBody) =
     match r with
     | NoResponse ->
-        object_ [("noResponse", null)]
+        object_ [ ("noResponse", null) ]
     | StringResponse str ->
         string str
     | ArrayBufferResponse () ->
-        object_ [("arrayBufferResponse", null)]
+        object_ [ ("arrayBufferResponse", null) ]
     | BlobResponse () ->
-        object_ [("blobResponse", null)]
+        object_ [ ("blobResponse", null) ]
     | DocumentResponse _ ->
-        object_ [("documentResponse", string "<documentResponse>")]
+        object_ [ ("documentResponse", string "<documentResponse>") ]
     | JsonResponse json ->
         json
     | TextResponse text ->
         string text
     | RawResponse (str, ()) ->
-        object_ [("rawResponse", string str)]
+        object_ [ ("rawResponse", string str) ]
   in
   let response (r : Http.response) =
     let module StringMap = Map.Make (Caml.String) in
@@ -748,28 +774,31 @@ let httpError (e : string Tea.Http.error) : Js.Json.t =
       [ ("url", string r.url)
       ; ( "status"
         , object_
-            [("code", int r.status.code); ("message", string r.status.message)]
-        )
+            [ ("code", int r.status.code)
+            ; ("message", string r.status.message)
+            ] )
       ; ( "headers"
         , r.headers
           |> StringMap.bindings
           |> List.map ~f:(fun (k, v) -> (k, string v))
           |> object_ )
-      ; ("body", responseBody r.body) ]
+      ; ("body", responseBody r.body)
+      ]
   in
   match e with
   | Http.BadUrl url ->
-      object_ [("type", string "BadUrl"); ("url", string url)]
+      object_ [ ("type", string "BadUrl"); ("url", string url) ]
   | Http.Timeout ->
-      object_ [("type", string "Timeout")]
+      object_ [ ("type", string "Timeout") ]
   | Http.NetworkError ->
-      object_ [("type", string "NetworkError")]
+      object_ [ ("type", string "NetworkError") ]
   | Http.BadStatus r ->
-      object_ [("type", string "BadStatus"); ("response", response r)]
+      object_ [ ("type", string "BadStatus"); ("response", response r) ]
   | Http.BadPayload (msg, r) ->
       object_
         [ ("type", string "BadPayload")
         ; ("message", string msg)
-        ; ("response", response r) ]
+        ; ("response", response r)
+        ]
   | Http.Aborted ->
-      object_ [("type", string "Aborted")]
+      object_ [ ("type", string "Aborted") ]

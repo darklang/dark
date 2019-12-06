@@ -111,7 +111,8 @@ let executionEvents status tlid id name =
           (fun _ -> ExecuteFunctionButton (tlid, id, name))
       ; ViewUtils.nothingMouseEvent "mouseup"
       ; ViewUtils.nothingMouseEvent "mousedown"
-      ; ViewUtils.nothingMouseEvent "dblclick" ]
+      ; ViewUtils.nothingMouseEvent "dblclick"
+      ]
 
 
 let fnExecutionButton
@@ -126,5 +127,6 @@ let fnExecutionButton
     let icon = executionIcon status in
     let events = executionEvents status vs.tlid id name in
     Html.div
-      ([Html.class' ("execution-button " ^ class_); Html.title title] @ events)
-      [fontAwesome icon]
+      ( [ Html.class' ("execution-button " ^ class_); Html.title title ]
+      @ events )
+      [ fontAwesome icon ]

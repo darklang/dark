@@ -15,7 +15,8 @@ type t =
   ; host : string
   ; space : string
   ; name : string
-  ; modifier : string }
+  ; modifier : string
+  }
 
 val to_event_desc : t -> Stored_event.event_desc
 
@@ -34,7 +35,7 @@ val with_transaction :
 
 val dequeue : transaction -> t option
 
-val put_back : transaction -> t -> status:[`OK | `Err | `Incomplete] -> unit
+val put_back : transaction -> t -> status:[ `OK | `Err | `Incomplete ] -> unit
 
 val finish : transaction -> t -> unit
 
@@ -51,7 +52,8 @@ module Scheduling_rule : sig
     ; canvas_id : Uuidm.t
     ; handler_name : string
     ; event_space : string
-    ; created_at : time }
+    ; created_at : time
+    }
 
   val rule_type_of_string : string -> rule_type option
 

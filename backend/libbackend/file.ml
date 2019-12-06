@@ -61,9 +61,10 @@ let readfile ~root f : string =
     Caml.really_input ic s 0 n ;
     Caml.close_in ic ;
     Caml.Bytes.to_string s
-  with e ->
-    Caml.close_in_noerr ic ;
-    raise e
+  with
+  | e ->
+      Caml.close_in_noerr ic ;
+      raise e
 
 
 let readfile_lwt ~root f : string Lwt.t =
@@ -73,9 +74,9 @@ let readfile_lwt ~root f : string Lwt.t =
 
 let writefile ~root (f : string) (str : string) : unit =
   let f = check_filename ~root ~mode:`Write f in
-  let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
+  let flags = [ Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC ] in
   Unix.with_file ~perm:0o600 ~mode:flags f ~f:(fun desc ->
-      ignore (Unix.write desc ~buf:(Bytes.of_string str)) )
+      ignore (Unix.write desc ~buf:(Bytes.of_string str)))
 
 
 (* ------------------- *)

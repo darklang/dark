@@ -25,7 +25,8 @@ let sampleFunctions : function_ list =
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
   ; ("Option::withDefault", TOption)
-  ; ("Result::catchError", TResult) ]
+  ; ("Result::catchError", TResult)
+  ]
   |> List.map ~f:(fun (fnName, paramTipe) ->
          { fnName
          ; fnParameters =
@@ -33,12 +34,15 @@ let sampleFunctions : function_ list =
                ; paramTipe
                ; paramBlock_args = []
                ; paramOptional = false
-               ; paramDescription = "" } ]
+               ; paramDescription = ""
+               }
+             ]
          ; fnReturnTipe = TBool
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated" } )
+         ; fnDeprecated = fnName = "Some::deprecated"
+         })
 
 
 let defaultTLID = gtlid ()
@@ -53,7 +57,7 @@ let fillingCS ?(tlid = defaultTLID) ?(id = defaultID) () : cursorState =
   Entering (Filling (tlid, id))
 
 
-let creatingCS : cursorState = Entering (Creating {x = 0; y = 0})
+let creatingCS : cursorState = Entering (Creating { x = 0; y = 0 })
 
 (* Sets the model with the appropriate toplevels *)
 let defaultModel
@@ -70,7 +74,8 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions }
+  ; builtInFunctions = sampleFunctions
+  }
 
 
 let aHandler
@@ -83,9 +88,10 @@ let aHandler
   let spec =
     { space = B.ofOption space
     ; name = B.ofOption name
-    ; modifier = B.ofOption modifier }
+    ; modifier = B.ofOption modifier
+    }
   in
-  {ast = expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  { ast = expr; spec; hTLID = tlid; pos = { x = 0; y = 0 } }
 
 
 let aFunction
@@ -100,8 +106,10 @@ let aFunction
       ; ufmParameters = params
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
-      ; ufmInfix = false }
-  ; ufAST = expr }
+      ; ufmInfix = false
+      }
+  ; ufAST = expr
+  }
 
 
 let aDB
@@ -112,11 +120,12 @@ let aDB
     () : db =
   { dbTLID = tlid
   ; dbName = B.newF name
-  ; cols = [(Blank fieldid, Blank typeid)]
+  ; cols = [ (Blank fieldid, Blank typeid) ]
   ; version = 0
   ; oldMigrations = []
   ; activeMigration = None
-  ; pos = {x = 0; y = 0} }
+  ; pos = { x = 0; y = 0 }
+  }
 
 
 let enteringFunction
@@ -136,7 +145,7 @@ let enteringDBField
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([aDB ()] @ dbs)
+    ~dbs:([ aDB () ] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -148,7 +157,7 @@ let enteringDBType
     model =
   defaultModel
     ~cursorState:(fillingCS ())
-    ~dbs:([aDB ~fieldid:defaultID2 ~typeid:defaultID ()] @ dbs)
+    ~dbs:([ aDB ~fieldid:defaultID2 ~typeid:defaultID () ] @ dbs)
     ~handlers
     ~userTipes
     ~userFunctions
@@ -156,19 +165,20 @@ let enteringDBType
 
 
 let enteringHandler ?(space : string option = None) () : model =
-  defaultModel ~cursorState:(fillingCS ()) ~handlers:[aHandler ~space ()] ()
+  defaultModel ~cursorState:(fillingCS ()) ~handlers:[ aHandler ~space () ] ()
 
 
 let enteringEventNameHandler ?(space : string option = None) () : model =
   let handler = aHandler ~space () in
   let id = B.toID handler.spec.name in
-  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[handler] ()
+  defaultModel ~cursorState:(fillingCS ~id ()) ~handlers:[ handler ] ()
 
 
 let creatingOmni : model =
   { Defaults.defaultModel with
-    cursorState = Entering (Creating {x = 0; y = 0})
-  ; builtInFunctions = sampleFunctions }
+    cursorState = Entering (Creating { x = 0; y = 0 })
+  ; builtInFunctions = sampleFunctions
+  }
 
 
 (* AC targeting a tlid and pointer *)
@@ -195,43 +205,42 @@ let () =
             (fun () ->
               expect (fun () ->
                   defaultModel ~cursorState:(fillingCS ()) ()
-                  |> fun x -> acFor x )
+                  |> fun x -> acFor x)
               |> not_
-              |> toThrow ) ;
+              |> toThrow) ;
           test "variable that holds value will have dval tiped" (fun () ->
               expect (ACVariable ("cookies", Some (DInt 3)) |> asTypeString)
-              |> toEqual "Int" ) ;
-          () ) ;
+              |> toEqual "Int") ;
+          ()) ;
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
           let tl = TLHandler (aHandler ~space ()) in
           let pd = PEventName (Types.F (ID "0", "foo")) in
           test "/foo/bar is valid, no variables" (fun () ->
               let value = "/foo/bar" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test "/:some/:variableNames/:here_1 is valid" (fun () ->
               let value = "/:some/:variableNames/:here_1" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test
             "/:here-1 is not valid, no hyphens allowed in varnames"
             (fun () ->
               let value = "/:here-1" in
               expect (Entry.validate tl pd value)
               |> toEqual
-                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
-      ) ;
+                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/"))) ;
       describe "validate CRON intervals" (fun () ->
           let space = Some "CRON" in
           let tl = TLHandler (aHandler ~space ()) in
           let pd = PEventModifier (Types.F (ID "0", "5mins")) in
           test "Every 1hr is valid" (fun () ->
               let value = "Every 1hr" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test "Every 5mins is not valid" (fun () ->
               let value = "Every 5mins" in
               expect (Entry.validate tl pd value)
-              |> toEqual (Some "Every 5mins is an invalid CRON interval") ) ;
-          () ) ;
+              |> toEqual (Some "Every 5mins is an invalid CRON interval")) ;
+          ()) ;
       describe "validate functions" (fun () ->
           let fnAsTL =
             aFunction
@@ -240,26 +249,28 @@ let () =
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
-                  ; ufpDescription = "" }
+                  ; ufpDescription = ""
+                  }
                 ; { ufpName = B.newF "author"
                   ; ufpTipe = B.newF TStr
                   ; ufpBlock_args = []
                   ; ufpOptional = false
-                  ; ufpDescription = "" } ]
+                  ; ufpDescription = ""
+                  }
+                ]
               ()
             |> TL.ufToTL
           in
           test "don't allow duplicate param names" (fun () ->
               expect (validateFnParamNameFree fnAsTL "title")
               |> toEqual
-                   (Some "`title` is already declared. Use another name.") ) ;
+                   (Some "`title` is already declared. Use another name.")) ;
           test "allow unused names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None
-          ) ) ;
+              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None)) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
-              expect (acFor m |> fun x -> x.index) |> toEqual (-1) ) ;
+              expect (acFor m |> fun x -> x.index) |> toEqual (-1)) ;
           test
             "pressing a letter from the selected entry resets the entry selected"
             (fun () ->
@@ -269,11 +280,11 @@ let () =
                 |> setQuery m "Twit::someO"
                 |> highlighted
                 |> Option.map ~f:asName )
-              |> toEqual (Some "Twit::someOtherFunc") ) ;
+              |> toEqual (Some "Twit::someOtherFunc")) ;
           test "Returning to empty unselects" (fun () ->
               expect
                 (acFor m |> setQuery m "lis" |> setQuery m "" |> highlighted)
-              |> toEqual None ) ;
+              |> toEqual None) ;
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
@@ -282,17 +293,17 @@ let () =
                 |> selectDown
                 |> highlighted
                 |> Option.map ~f:asName )
-              |> toEqual (Some "Twit::someOtherFunc") ) ;
+              |> toEqual (Some "Twit::someOtherFunc")) ;
           test "deprecated functions are removed" (fun () ->
               expect (acFor m |> setQuery m "deprecated" |> highlighted)
-              |> toEqual None ) ;
+              |> toEqual None) ;
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( acFor m
                 |> setQuery m "lis"
                 |> (fun x -> x.completions)
                 |> List.map ~f:asName )
-              |> toEqual ["List::head"] ) ;
+              |> toEqual [ "List::head" ]) ;
           test "search finds multiple results for prefix" (fun () ->
               expect
                 ( acFor m
@@ -301,8 +312,10 @@ let () =
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
               |> toEqual
-                   ["Twit::somefunc"; "Twit::someOtherFunc"; "Twit::yetAnother"]
-          ) ;
+                   [ "Twit::somefunc"
+                   ; "Twit::someOtherFunc"
+                   ; "Twit::yetAnother"
+                   ]) ;
           test "search finds only prefixed" (fun () ->
               expect
                 ( acFor m
@@ -310,7 +323,7 @@ let () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual ["Twit::yetAnother"] ) ;
+              |> toEqual [ "Twit::yetAnother" ]) ;
           test "search works anywhere in term" (fun () ->
               expect
                 ( acFor m
@@ -318,7 +331,7 @@ let () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual ["Twit::yetAnother"] ) ;
+              |> toEqual [ "Twit::yetAnother" ]) ;
           test "show results when the only option is the setQuery m" (fun () ->
               expect
                 ( acFor m
@@ -327,7 +340,7 @@ let () =
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName
                 |> List.length )
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acFor m
@@ -335,7 +348,7 @@ let () =
                 |> selectDown
                 |> selectDown
                 |> fun x -> x.index )
-              |> toEqual 2 ) ;
+              |> toEqual 2) ;
           test "scrolling loops one way" (fun () ->
               expect
                 ( acFor m
@@ -344,7 +357,7 @@ let () =
                 |> selectDown
                 |> selectDown
                 |> fun x -> x.index )
-              |> toEqual 0 ) ;
+              |> toEqual 0) ;
           test "scrolling loops the other way" (fun () ->
               expect
                 ( acFor m
@@ -353,7 +366,7 @@ let () =
                 |> selectUp
                 |> selectUp
                 |> fun x -> x.index )
-              |> toEqual 2 ) ;
+              |> toEqual 2) ;
           test
             "scrolling loops the other way without going forward first"
             (fun () ->
@@ -363,10 +376,10 @@ let () =
                 |> selectUp
                 |> selectUp
                 |> fun x -> x.index )
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test "scrolling backward works if we haven't searched yet" (fun () ->
               expect (acFor m |> selectUp |> selectUp |> fun x -> x.index)
-              |> toBeGreaterThan 15 ) ;
+              |> toBeGreaterThan 15) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
@@ -375,7 +388,8 @@ let () =
                 |> selectDown
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
-              |> toEqual (-1) ) ;
+              |> toEqual (-1)) ;
+
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m
@@ -405,7 +419,7 @@ let () =
                 |> (fun x -> x.completions)
                 |> List.length )
               |> not_
-              |> toEqual 0 ) ;
+              |> toEqual 0) ;
           test
             "ordering = startsWith then case match then case insensitive match"
             (fun () ->
@@ -419,7 +433,8 @@ let () =
                    [ "withLower"
                    ; "withlower"
                    ; "SomeModule::withLower"
-                   ; "SomeOtherModule::withlower" ] ) ;
+                   ; "SomeOtherModule::withlower"
+                   ]) ;
           test "typing literals works" (fun () ->
               expect
                 ( acFor m
@@ -427,7 +442,7 @@ let () =
                 |> selectDown
                 |> highlighted
                 |> Option.map ~f:asName )
-              |> toEqual (Some "21434234") ) ;
+              |> toEqual (Some "21434234")) ;
           test
             "a specific bug where `+` is interpreted as an ACLiteral"
             (fun () ->
@@ -436,37 +451,37 @@ let () =
                 |> setQuery m "+"
                 |> highlighted
                 |> Option.map ~f:asName )
-              |> toEqual (Some "+") ) ;
+              |> toEqual (Some "+")) ;
           test "null works" (fun () ->
               expect (acFor m |> setQuery m "nu" |> highlighted)
-              |> toEqual (Some (ACLiteral "null")) ) ;
+              |> toEqual (Some (ACLiteral "null"))) ;
           test "Ok works" (fun () ->
               expect (acFor m |> setQuery m "Ok" |> highlighted)
-              |> toEqual (Some (ACConstructorName "Ok")) ) ;
+              |> toEqual (Some (ACConstructorName "Ok"))) ;
           test "Error works" (fun () ->
               expect (acFor m |> setQuery m "Error" |> highlighted)
-              |> toEqual (Some (ACConstructorName "Error")) ) ;
+              |> toEqual (Some (ACConstructorName "Error"))) ;
           test "true works" (fun () ->
               expect (acFor m |> setQuery m "tr" |> highlighted)
-              |> toEqual (Some (ACLiteral "true")) ) ;
+              |> toEqual (Some (ACLiteral "true"))) ;
           test "case insensitive true works" (fun () ->
               expect (acFor m |> setQuery m "tR" |> highlighted)
-              |> toEqual (Some (ACLiteral "true")) ) ;
+              |> toEqual (Some (ACLiteral "true"))) ;
           test "false works" (fun () ->
               expect (acFor m |> setQuery m "fa" |> highlighted)
-              |> toEqual (Some (ACLiteral "false")) ) ;
+              |> toEqual (Some (ACLiteral "false"))) ;
           test "float literal works" (fun () ->
               expect (acFor m |> setQuery m "3.452" |> highlighted)
-              |> toEqual (Some (ACLiteral "3.452")) ) ;
+              |> toEqual (Some (ACLiteral "3.452"))) ;
           test "if works" (fun () ->
               expect (acFor m |> setQuery m "if" |> highlighted)
-              |> toEqual (Some (ACKeyword KIf)) ) ;
+              |> toEqual (Some (ACKeyword KIf))) ;
           test "let works" (fun () ->
               expect (acFor m |> setQuery m "let" |> highlighted)
-              |> toEqual (Some (ACKeyword KLet)) ) ;
+              |> toEqual (Some (ACKeyword KLet))) ;
           test "Lambda works" (fun () ->
               expect (acFor m |> setQuery m "lambda" |> highlighted)
-              |> toEqual (Some (ACKeyword KLambda)) ) ;
+              |> toEqual (Some (ACKeyword KLambda))) ;
           test "http handlers have request" (fun () ->
               let space = Some "HTTP" in
               let m = enteringHandler ~space () in
@@ -474,7 +489,7 @@ let () =
                 ( acFor m
                 |> setQuery m "request"
                 |> itemPresent (ACVariable ("request", None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "handlers with no route have request and event" (fun () ->
               expect
                 (let ac = acFor m in
@@ -483,8 +498,9 @@ let () =
                    |> itemPresent (ACVariable ("request", None))
                  ; ac
                    |> setQuery m "event"
-                   |> itemPresent (ACVariable ("event", None)) ])
-              |> toEqual [true; true] ) ;
+                   |> itemPresent (ACVariable ("event", None))
+                 ])
+              |> toEqual [ true; true ]) ;
           test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = Blank blankid in
@@ -494,23 +510,23 @@ let () =
                   ~tlid:fntlid
                   ~expr:
                     (B.newF
-                       (FnCall (B.newF "DB::deleteAll", [dbNameBlank], NoRail)))
+                       (FnCall (B.newF "DB::deleteAll", [ dbNameBlank ], NoRail)))
                   ()
               in
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid:fntlid ~id:blankid ())
-                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
-                  ~userFunctions:[fn]
+                  ~dbs:[ aDB ~tlid:(TLID "db123") () ]
+                  ~userFunctions:[ fn ]
                   ()
               in
               let target = Some (fntlid, PExpr dbNameBlank) in
               let ac = acFor ~target m in
-              let newM = {m with complete = ac} in
+              let newM = { m with complete = ac } in
               expect
                 ( setQuery newM "" ac
                 |> itemPresent (ACVariable ("MyDB", Some (DDB "MyDB"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test
             "autocomplete does not have slash when handler is not HTTP"
             (fun () ->
@@ -520,7 +536,7 @@ let () =
                 |> setQuery m ""
                 |> itemPresent (ACHTTPRoute "/")
                 |> not )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "autocomplete supports password type" (fun () ->
               let m = enteringDBType () in
               expect
@@ -528,27 +544,28 @@ let () =
                 |> setQuery m "Pass"
                 |> itemPresent (ACDBColType "Password")
                 |> not )
-              |> toEqual true ) ;
-          () ) ;
+              |> toEqual true) ;
+          ()) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ())
-                  ~dbs:[aDB ~tlid:(TLID "db123") ()]
+                  ~dbs:[ aDB ~tlid:(TLID "db123") () ]
                   ()
               in
               let ac = acFor m in
               let _valid, invalid =
-                filter m ac [ACVariable ("MyDB", None)] ""
+                filter m ac [ ACVariable ("MyDB", None) ] ""
               in
               expect (List.member ~value:(ACVariable ("MyDB", None)) invalid)
-              |> toEqual true ) ;
+              |> toEqual true) ;
           let consAC =
             [ ACConstructorName "Just"
             ; ACConstructorName "Nothing"
             ; ACConstructorName "Ok"
-            ; ACConstructorName "Error" ]
+            ; ACConstructorName "Error"
+            ]
           in
           test "Only Just and Nothing are allowed in Option-blankOr" (fun () ->
               let param1id = ID "123" in
@@ -556,48 +573,48 @@ let () =
                 B.newF
                   (FnCall
                      ( B.newF "Option::withDefault"
-                     , [Blank param1id; Blank.new_ ()]
+                     , [ Blank param1id; Blank.new_ () ]
                      , NoRail ))
               in
               let m =
                 defaultModel
-                  ~handlers:[aHandler ~expr ()]
+                  ~handlers:[ aHandler ~expr () ]
                   ~cursorState:(fillingCS ~id:param1id ())
                   ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
-              let newM = {m with complete = ac} in
+              let newM = { m with complete = ac } in
               let valid, _invalid = filter newM ac consAC "" in
               expect
                 ( List.length valid = 2
                 && List.member ~value:(ACConstructorName "Just") valid
                 && List.member ~value:(ACConstructorName "Nothing") valid )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "Only Ok and Error are allowed in Result-blankOr" (fun () ->
               let param1id = ID "123" in
               let expr =
                 B.newF
                   (FnCall
                      ( B.newF "Result::catchError"
-                     , [Blank param1id; Blank.new_ ()]
+                     , [ Blank param1id; Blank.new_ () ]
                      , NoRail ))
               in
               let m =
                 defaultModel
-                  ~handlers:[aHandler ~expr ()]
+                  ~handlers:[ aHandler ~expr () ]
                   ~cursorState:(fillingCS ~id:param1id ())
                   ()
               in
               let target = Some (defaultTLID, PExpr (Blank param1id)) in
               let ac = acFor ~target m in
-              let newM = {m with complete = ac} in
+              let newM = { m with complete = ac } in
               let valid, _invalid = filter newM ac consAC "" in
               expect
                 ( List.length valid = 2
                 && List.member ~value:(ACConstructorName "Ok") valid
                 && List.member ~value:(ACConstructorName "Error") valid )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "Constructors are also available in Any blankOr" (fun () ->
               let m = enteringHandler () in
               let ac = acFor m in
@@ -607,8 +624,8 @@ let () =
                 && List.member ~value:(ACConstructorName "Error") valid
                 && List.member ~value:(ACConstructorName "Just") valid
                 && List.member ~value:(ACConstructorName "Nothing") valid )
-              |> toEqual true ) ;
-          () ) ;
+              |> toEqual true) ;
+          ()) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
@@ -616,69 +633,69 @@ let () =
                 ( acFor ~target:None m
                 |> setQuery m "HTTP"
                 |> itemPresent (ACOmniAction (NewDB (Some "HTTP"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering an invalid DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m ":[]'/31234myDB[]"
                 |> itemPresent (ACOmniAction (NewDB (Some "MyDB"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering a DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "Mydbname"
                 |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering a short DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "me"
                 |> itemPresent (ACOmniAction (NewDB (Some "Me"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "db names can be multicase" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "MyDBnaMe"
                 |> itemPresent (ACOmniAction (NewDB (Some "MyDBnaMe"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "alphabetical only DB names #1" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "dbname1234::"
                 |> itemPresent (ACOmniAction (NewDB (Some "Dbname1234"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "alphabetical only DB names #2" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "db_name::"
                 |> itemPresent (ACOmniAction (NewDB (Some "Db_name"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "add capital for DB names" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "mydbname"
                 |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "General HTTP handler" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "asdkkasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asdkkasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #1 (base case)" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/"
                 |> itemPresent (ACOmniAction (NewHTTPHandler (Some "/"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #2 (normal)" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/asasdasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #3 (parameterized)" (fun () ->
               expect
                 ( acFor ~target:None m
@@ -687,21 +704,21 @@ let () =
                      (ACOmniAction
                         (NewHTTPHandler (Some "/user/:userid/card/:cardid")))
                 )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering an invalid route name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "[]/31234myDB[]"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/31234myDB"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "fix names for routes" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "asasdasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "fix slashes for routes" (fun () ->
               expect
                 ( acFor ~target:None m
@@ -709,59 +726,59 @@ let () =
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/12/345/6789/12")))
                 )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "fix route name " (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "^hello/[]world"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/hello/world"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "create DB from route name" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/route"
                 |> itemPresent (ACOmniAction (NewDB (Some "Route"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering an invalid function name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m ":[]'/31234MyFn[]"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myFn"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new worker option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewWorkerHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new repl option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewReplHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new cron option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewCronHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new function option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewFunction None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new HTTP option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewHTTPHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create function with name from query" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "myfunction"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myfunction")))
                 )
-              |> toEqual true ) ;
-          () ) ;
+              |> toEqual true) ;
+          ()) ;
       describe "code search" (fun () ->
           let http =
             aHandler
@@ -799,8 +816,8 @@ let () =
           let cursorState = creatingCS in
           let m =
             defaultModel
-              ~handlers:[http; repl]
-              ~userFunctions:[fn]
+              ~handlers:[ http; repl ]
+              ~userFunctions:[ fn ]
               ~cursorState
               ()
           in
@@ -811,27 +828,27 @@ let () =
             |> TLIDDict.insert ~tlid:repl.hTLID ~value:(exprToStr repl.ast)
             |> TLIDDict.insert ~tlid:fn.ufTLID ~value:(exprToStr fn.ufAST)
           in
-          let m = {m with searchCache} in
+          let m = { m with searchCache } in
           test "find variable" (fun () ->
               let foundActions =
                 match qSearch m "bunny" with
-                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
+                | [ Goto (FocusedFn _, tlid, "Found in function fn1", true) ]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find string literal" (fun () ->
               let foundActions =
                 match qSearch m "hello" with
-                | [Goto (FocusedFn _, tlid, "Found in function fn1", true)]
+                | [ Goto (FocusedFn _, tlid, "Found in function fn1", true) ]
                   when tlid = fn.ufTLID ->
                     true
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find field access" (fun () ->
               let foundActions =
                 match qSearch m "request.query" with
@@ -839,13 +856,14 @@ let () =
                       ( FocusedHandler _
                       , tlid
                       , "Found in HTTP::/hello - GET"
-                      , true ) ]
+                      , true )
+                  ]
                   when tlid = http.hTLID ->
                     true
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find function call" (fun () ->
               let foundActions =
                 match qSearch m "Int::add" with
@@ -853,12 +871,13 @@ let () =
                       ( FocusedHandler _
                       , tlid
                       , "Found in REPL::findingDori"
-                      , true ) ]
+                      , true )
+                  ]
                   when tlid = repl.hTLID ->
                     true
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ) ;
-      () ) ;
+              expect foundActions |> toEqual true)) ;
+      ()) ;
   ()

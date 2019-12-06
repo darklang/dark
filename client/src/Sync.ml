@@ -3,12 +3,12 @@ open Tc
 
 let markRequestInModel ~(key : string) (m : model) : model =
   let syncState = StrSet.add m.syncState ~value:key in
-  {m with syncState}
+  { m with syncState }
 
 
 let markResponseInModel ~(key : string) (m : model) : model =
   let syncState = StrSet.remove m.syncState ~value:key in
-  {m with syncState}
+  { m with syncState }
 
 
 let inFlight ~(key : string) (m : model) : bool =

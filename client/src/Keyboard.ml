@@ -215,7 +215,7 @@ let fromCode (keyCode : int) : key =
   | 90 ->
       Z
   | 91 ->
-      Ambiguous [Windows; Command; ChromeSearch]
+      Ambiguous [ Windows; Command; ChromeSearch ]
   | 96 ->
       NumpadZero
   | 97 ->
@@ -396,7 +396,8 @@ let code (key : key) : int option =
       Some 90
   | Ambiguous choices ->
       if List.all
-           ~f:(fun value -> List.member ~value [Windows; Command; ChromeSearch])
+           ~f:(fun value ->
+             List.member ~value [ Windows; Command; ChromeSearch ])
            choices
       then Some 91
       else None
@@ -476,7 +477,8 @@ type keyEvent =
   ; altKey : bool
   ; metaKey : bool
   ; targetSelectionStart : int option
-  ; targetSelectionEnd : int option }
+  ; targetSelectionEnd : int option
+  }
 [@@deriving show]
 
 let keyEvent j =

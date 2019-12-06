@@ -10,7 +10,8 @@ let t_db_add_roundtrip () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let old (obj (x null))
@@ -32,7 +33,8 @@ let t_db_new_query_v1_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
@@ -52,7 +54,8 @@ let t_db_new_query_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
@@ -72,7 +75,8 @@ let t_db_new_query_v3_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "y")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
@@ -89,7 +93,8 @@ let t_db_set_does_upsert () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
@@ -106,7 +111,8 @@ let t_db_get_all_with_keys_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
@@ -123,7 +129,8 @@ let t_db_get_all_with_keys_v2_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -138,7 +145,8 @@ let t_db_get_all_with_keys_v2_works () =
           [ ( "second"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
-            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
+            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) )
+          ]))
     (exec_handler ~ops ast)
 
 
@@ -148,7 +156,8 @@ let t_db_get_many_with_keys_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -165,7 +174,8 @@ let t_db_get_many_with_keys_v1_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -180,7 +190,8 @@ let t_db_get_many_with_keys_v1_works () =
           [ ( "second"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "first"
-            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ) ]))
+            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) )
+          ]))
     (exec_handler ~ops ast)
 
 
@@ -190,7 +201,8 @@ let t_db_get_many_v2_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -202,7 +214,8 @@ let t_db_get_many_v2_works () =
     "equal_after_roundtrip"
     (DList
        [ DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
-       ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ])
+       ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar"))
+       ])
     (exec_handler ~ops ast)
 
 
@@ -212,7 +225,8 @@ let t_db_get_many_v1_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -232,7 +246,8 @@ let t_db_queryWithKey_works_with_many () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Int")
+    ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -251,7 +266,8 @@ let t_db_queryWithKey_v2_works_with_many () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -268,7 +284,8 @@ let t_db_queryWithKey_v2_works_with_many () =
           [ ( "two"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
           ; ( "three"
-            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ) ]))
+            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
+          ]))
     (exec_handler ~ops ast)
 
 
@@ -278,7 +295,8 @@ let t_db_get_returns_nothing () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   check_dval
     "get_returns_nothing"
@@ -292,7 +310,8 @@ let t_db_queryOne_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -311,7 +330,8 @@ let t_db_queryOne_returns_nothing_if_none () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -329,7 +349,8 @@ let t_db_queryOne_returns_nothing_multiple () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -348,7 +369,8 @@ let t_db_queryOneWithKey_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -360,7 +382,8 @@ let t_db_queryOneWithKey_works () =
        (OptJust
           (DList
              [ Dval.dstr_of_string_exn "first"
-             ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo")) ])))
+             ; DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "foo"))
+             ])))
     (exec_handler ~ops ast)
 
 
@@ -370,7 +393,8 @@ let t_db_queryOneWithKey_v2_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -393,7 +417,8 @@ let t_db_queryOneWithKey_returns_nothing_if_none () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -411,7 +436,8 @@ let t_db_queryOneWithKey_v2_returns_nothing_if_none () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -429,7 +455,8 @@ let t_db_queryOneWithKey_returns_nothing_multiple () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -448,7 +475,8 @@ let t_db_queryOneWithKey_v2_returns_nothing_multiple () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -470,7 +498,8 @@ let t_db_getAll_v1_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Int")
+    ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -492,7 +521,8 @@ let t_db_getAll_v2_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Int")
+    ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -514,7 +544,8 @@ let t_db_getAll_v3_works () =
     ; Op.SetDBColType (dbid, coltypeid, "Str")
     ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid2, "sort_by")
-    ; Op.SetDBColType (dbid, coltypeid2, "Int") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Int")
+    ]
   in
   (* sorting to ensure the test isn't flakey *)
   let ast =
@@ -533,7 +564,8 @@ let t_db_getAllKeys_works () =
     [ Op.CreateDB (dbid, pos, "MyDB")
     ; Op.AddDBCol (dbid, colnameid, coltypeid2)
     ; Op.SetDBColName (dbid, colnameid, "x")
-    ; Op.SetDBColType (dbid, coltypeid2, "Str") ]
+    ; Op.SetDBColType (dbid, coltypeid2, "Str")
+    ]
   in
   let ast =
     "(let one (DB::set_v1 (obj (x 'foo')) 'first' MyDB)
@@ -543,7 +575,7 @@ let t_db_getAllKeys_works () =
   in
   check_dval
     "equal_after_roundtrip"
-    (DList [Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second"])
+    (DList [ Dval.dstr_of_string_exn "first"; Dval.dstr_of_string_exn "second" ])
     (exec_handler ~ops ast)
 
 
@@ -598,4 +630,5 @@ let suite =
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
   ; ( "t_db_getAllKeys_works returns List of keys"
     , `Quick
-    , t_db_getAllKeys_works ) ]
+    , t_db_getAllKeys_works )
+  ]

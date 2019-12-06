@@ -48,9 +48,9 @@ let viewFieldName (vs : viewState) (c : htmlConfig list) (f : string blankOr) :
     msg Html.html =
   let configs =
     c
-    @ [enterable]
-    @ [ViewBlankOr.ClickSelectAs (B.toID f)]
-    @ [ViewBlankOr.MouseoverAs (B.toID f)]
+    @ [ enterable ]
+    @ [ ViewBlankOr.ClickSelectAs (B.toID f) ]
+    @ [ ViewBlankOr.MouseoverAs (B.toID f) ]
     @ ViewBlankOr.withFeatureFlag vs f
   in
   ViewBlankOr.viewBlankOr text Field vs configs f
@@ -103,7 +103,7 @@ let functionIsExecuting (vs : viewState) (id : id) : bool =
 
 let handlerIsExecuting (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some {execution} ->
+  | Some { execution } ->
       execution = Executing
   | None ->
       false
@@ -111,7 +111,7 @@ let handlerIsExecuting (vs : viewState) : bool =
 
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some {execution} ->
+  | Some { execution } ->
       execution = Complete
   | None ->
       false
@@ -137,7 +137,7 @@ let handlerIsExeFail (vs : viewState) : bool =
            | DIncomplete _ | DError _ | DErrorRail _ ->
                true
            | _ ->
-               false )
+               false)
     |> Option.withDefault ~default:false
 
 
@@ -145,7 +145,8 @@ type ('a, 'b, 'c, 'd) x =
   { class_ : 'a
   ; event : 'b
   ; title : 'c
-  ; icon : 'd }
+  ; icon : 'd
+  }
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
@@ -154,8 +155,8 @@ let rec viewExpr
     msg Html.html =
   let width = ViewUtils.approxWidth e in
   let widthClass =
-    [wc ("width-" ^ string_of_int width)]
-    @ if width > 120 then [wc "too-wide"] else []
+    [ wc ("width-" ^ string_of_int width) ]
+    @ if width > 120 then [ wc "too-wide" ] else []
   in
   let configs =
     idConfigs
@@ -176,7 +177,9 @@ and viewNExpr
   let a c = text vs (atom :: c) in
   let kw = keyword vs in
   let highlight =
-    if List.member ~value:id vs.hoveringRefs then [wc "related-change"] else []
+    if List.member ~value:id vs.hoveringRefs
+    then [ wc "related-change" ]
+    else []
   in
   let all = idConfigs @ config @ highlight in
   let cs = ViewBlankOr.ClickSelect in
@@ -193,14 +196,15 @@ and viewNExpr
         then v |> Runtime.stripQuotes |> Runtime.convertLiteralToDisplayString
         else v
       in
-      let tooWide = if vs.tooWide then [wc "short-strings"] else [] in
+      let tooWide = if vs.tooWide then [ wc "short-strings" ] else [] in
       let c = ent :: wc cssClass :: wc "value" :: atom :: (all @ tooWide) in
       div
         vs
         c
-        [ Html.div [Html.class' "quote quote-start"] []
+        [ Html.div [ Html.class' "quote quote-start" ] []
         ; Html.text value
-        ; Html.div [Html.class' "quote quote-end"] [] ]
+        ; Html.div [ Html.class' "quote quote-end" ] []
+        ]
   | Variable name ->
       if List.member ~value:id vs.relatedBlankOrs
       then a (ent :: wc "variable" :: wc "related-change" :: all) vs.ac.value
@@ -211,35 +215,37 @@ and viewNExpr
         B.isBlank body && idOf vs.cursorState = Some bodyID
       in
       let rhsConfig =
-        if showRHSInstead then [wc "display-livevalue"] else []
+        if showRHSInstead then [ wc "display-livevalue" ] else []
       in
       let bodyViewState =
-        if showRHSInstead then {vs with showLivevalue = false} else vs
+        if showRHSInstead then { vs with showLivevalue = false } else vs
       in
       n
         (wc "letexpr" :: all)
         [ kw [] "let"
-        ; viewVarBind vs [wc "letvarname"] lhs
-        ; a [wc "letbind"] "="
-        ; n [wc "letrhs"; cs] [viewExpr d vs rhsConfig rhs]
-        ; n [wc "letbody"] [viewExpr d bodyViewState [] body] ]
+        ; viewVarBind vs [ wc "letvarname" ] lhs
+        ; a [ wc "letbind" ] "="
+        ; n [ wc "letrhs"; cs ] [ viewExpr d vs rhsConfig rhs ]
+        ; n [ wc "letbody" ] [ viewExpr d bodyViewState [] body ]
+        ]
   | If (cond, ifbody, elsebody) ->
       n
         (wc "ifexpr" :: all)
         [ kw [] "if"
-        ; n [wc "cond"] [vExpr d cond]
-        ; n [wc "ifbody"] [vExpr 0 ifbody]
+        ; n [ wc "cond" ] [ vExpr d cond ]
+        ; n [ wc "ifbody" ] [ vExpr 0 ifbody ]
         ; kw [] "else"
-        ; n [wc "elsebody"] [vExpr 0 elsebody] ]
+        ; n [ wc "elsebody" ] [ vExpr 0 elsebody ]
+        ]
   | FnCall (Blank _, _, _) ->
       recover "fn with blank" e (n [] [])
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
       let viewTooWideArg p d_ e_ =
         let c =
-          [wc "arg-on-new-line"; ViewBlankOr.WithParamName p.paramName]
+          [ wc "arg-on-new-line"; ViewBlankOr.WithParamName p.paramName ]
         in
-        viewExpr d_ {vs with tooWide = true} c e_
+        viewExpr d_ { vs with tooWide = true } c e_
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
       let fn = Functions.findByNameInList name vs.ac.functions in
@@ -260,7 +266,7 @@ and viewNExpr
             | None ->
                 []
             | Some am ->
-                [am.rollforward; am.rollback]
+                [ am.rollforward; am.rollback ]
                 |> List.filterMap ~f:(fun m -> AST.threadPrevious id m) )
         in
         previous @ exprs
@@ -281,27 +287,29 @@ and viewNExpr
           in
           [ Html.div
               [ Html.class'
-                  (String.join ~sep:" " ["error-indicator"; returnTipe; eval])
+                  (String.join ~sep:" " [ "error-indicator"; returnTipe; eval ])
               ]
-              [] ]
+              []
+          ]
       in
       let fnname parens =
         ViewBlankOr.viewBlankOr
-          (fun vs c text -> div vs c [ViewUtils.viewFnName parens text])
+          (fun vs c text -> div vs c [ ViewUtils.viewFnName parens text ])
           FnCallName
           vs
           []
           nameBo
       in
-      let fnDiv parens = n [wc "op"; wc name] [fnname parens; button] in
+      let fnDiv parens = n [ wc "op"; wc name ] [ fnname parens; button ] in
       let configs = withROP sendToRail @ all in
       ( match (fn.fnInfix, exprs, fn.fnParameters) with
-      | true, [first; second], [p1; p2] ->
+      | true, [ first; second ], [ p1; p2 ] ->
           n
             (wc "fncall infix" :: wc (depthString d) :: configs)
-            [ n [wc "lhs"] [ve p1 incD first]
+            [ n [ wc "lhs" ] [ ve p1 incD first ]
             ; fnDiv false
-            ; n [wc "rhs"] [ve p2 incD second] ]
+            ; n [ wc "rhs" ] [ ve p2 incD second ]
+            ]
       | _ ->
           let args =
             List.map2 ~f:(fun p e_ -> ve p incD e_) fn.fnParameters exprs
@@ -312,57 +320,61 @@ and viewNExpr
   | Lambda (vars, expr) ->
       n
         (wc "lambdaexpr" :: all)
-        [ n [wc "lambdabinding"] (List.map ~f:(viewVarBind vs [atom]) vars)
-        ; a [wc "arrow"] "->"
-        ; n [wc "lambdabody"] [vExpr 0 expr] ]
+        [ n [ wc "lambdabinding" ] (List.map ~f:(viewVarBind vs [ atom ]) vars)
+        ; a [ wc "arrow" ] "->"
+        ; n [ wc "lambdabody" ] [ vExpr 0 expr ]
+        ]
   | Thread exprs ->
-      let pipe = a [wc "thread pipe"] "|>" in
+      let pipe = a [ wc "thread pipe" ] "|>" in
       let texpr e_ =
-        n [wc "threadmember"; ClickSelectAs (B.toID e_)] [pipe; vExpr 0 e_]
+        n [ wc "threadmember"; ClickSelectAs (B.toID e_) ] [ pipe; vExpr 0 e_ ]
       in
       n (wc "threadexpr" :: mo :: config) (List.map ~f:texpr exprs)
   | FieldAccess (obj, field) ->
       n
         (wc "fieldaccessexpr" :: all)
-        [ n [wc "fieldobject"] [vExpr 0 obj]
-        ; a [wc "fieldaccessop operator"] "."
-        ; viewFieldName vs [wc "fieldname"; atom] field ]
+        [ n [ wc "fieldobject" ] [ vExpr 0 obj ]
+        ; a [ wc "fieldaccessop operator" ] "."
+        ; viewFieldName vs [ wc "fieldname"; atom ] field
+        ]
   | Constructor (name, exprs) ->
-      let exprs = List.map ~f:(fun e -> n [] [viewExpr d vs [] e]) exprs in
+      let exprs = List.map ~f:(fun e -> n [] [ viewExpr d vs [] e ]) exprs in
       n
         (wc "constructor" :: all)
-        (viewConstructorName vs [wc "constructorname"] name :: exprs)
+        (viewConstructorName vs [ wc "constructorname" ] name :: exprs)
   | ListLiteral exprs ->
-      let open_ = a [wc "openbracket"] "[" in
-      let close = a [wc "closebracket"] "]" in
-      let comma = a [wc "comma"] "," in
+      let open_ = a [ wc "openbracket" ] "[" in
+      let close = a [ wc "closebracket" ] "]" in
+      let comma = a [ wc "comma" ] "," in
       let lexpr e_ =
-        n [wc "listelem"; ClickSelectAs (B.toID e_)] [vExpr 0 e_]
+        n [ wc "listelem"; ClickSelectAs (B.toID e_) ] [ vExpr 0 e_ ]
       in
       let new_ = List.map ~f:lexpr exprs |> List.intersperse comma in
-      n (wc "list" :: mo :: config) ([open_] @ new_ @ [close])
+      n (wc "list" :: mo :: config) ([ open_ ] @ new_ @ [ close ])
   | ObjectLiteral pairs ->
-      let colon = a [wc "colon"] ":" in
-      let open_ = a [wc "openbrace"] "{" in
-      let close = a [wc "closebrace"] "}" in
+      let colon = a [ wc "colon" ] ":" in
+      let open_ = a [ wc "openbrace" ] "{" in
+      let close = a [ wc "closebrace" ] "}" in
       let pexpr (k, v) =
-        n [wc "objectpair"] [viewKey vs [wc "objectkey"] k; colon; vExpr 0 v]
+        n
+          [ wc "objectpair" ]
+          [ viewKey vs [ wc "objectkey" ] k; colon; vExpr 0 v ]
       in
       n
         (wc "object" :: mo :: config)
-        ([open_] @ List.map ~f:pexpr pairs @ [close])
+        ([ open_ ] @ List.map ~f:pexpr pairs @ [ close ])
   | Match (matchExpr, cases) ->
-      let separator = a [wc "separator"] "->" in
+      let separator = a [ wc "separator" ] "->" in
       let vCase (k, v) =
-        n [wc "matchcase"] [viewPattern vs [] k; separator; vExpr 0 v]
+        n [ wc "matchcase" ] [ viewPattern vs [] k; separator; vExpr 0 v ]
       in
       n
         (wc "matchexpr" :: all)
-        ( [kw [] "match"; n [wc "mexpr"] [vExpr d matchExpr]]
+        ( [ kw [] "match"; n [ wc "mexpr" ] [ vExpr d matchExpr ] ]
         @ List.map ~f:vCase cases )
   | FeatureFlag (msg, cond, a_, b_) ->
       let exprLabel msg_ =
-        Html.label [Html.class' "expr-label"] [Html.text msg_]
+        Html.label [ Html.class' "expr-label" ] [ Html.text msg_ ]
       in
       let isExpanded =
         let mv = StrDict.get ~key:(deID id) vs.featureFlags in
@@ -376,8 +388,9 @@ and viewNExpr
           ; ViewUtils.eventNoPropagation
               ~key:("effa-" ^ showID id)
               "click"
-              (fun _ -> EndFeatureFlag (id, PickA)) ]
-          [fontAwesome "check"]
+              (fun _ -> EndFeatureFlag (id, PickA))
+          ]
+          [ fontAwesome "check" ]
       in
       let pickB =
         Html.div
@@ -387,8 +400,9 @@ and viewNExpr
           ; ViewUtils.eventNoPropagation
               ~key:("effb-" ^ showID id)
               "click"
-              (fun _ -> EndFeatureFlag (id, PickB)) ]
-          [fontAwesome "check"]
+              (fun _ -> EndFeatureFlag (id, PickB))
+          ]
+          [ fontAwesome "check" ]
       in
       let hideModal =
         Html.div
@@ -396,8 +410,9 @@ and viewNExpr
           ; ViewUtils.eventNoPropagation
               ~key:("tfff-" ^ showID id)
               "click"
-              (fun _ -> ToggleFeatureFlag (id, false)) ]
-          [fontAwesome "minus"]
+              (fun _ -> ToggleFeatureFlag (id, false))
+          ]
+          [ fontAwesome "minus" ]
       in
       let expandModal =
         Html.div
@@ -405,16 +420,18 @@ and viewNExpr
           ; ViewUtils.eventNoPropagation
               ~key:("tfft-" ^ showID id)
               "click"
-              (fun _ -> ToggleFeatureFlag (id, true)) ]
-          [fontAwesome "flag"]
+              (fun _ -> ToggleFeatureFlag (id, true))
+          ]
+          [ fontAwesome "flag" ]
       in
       let titleBar =
         Html.div
-          [Html.class' "row title-bar"]
+          [ Html.class' "row title-bar" ]
           [ viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
           ; Html.div
-              [Html.class' "actions"]
-              [(if isExpanded then hideModal else expandModal)] ]
+              [ Html.class' "actions" ]
+              [ (if isExpanded then hideModal else expandModal) ]
+          ]
       in
       let condValue = Analysis.getLiveValue' vs.analysisStore (B.toID cond) in
       let condResult =
@@ -424,32 +441,34 @@ and viewNExpr
       in
       let blockCondition =
         Html.div
-          [Html.class' "row condition"]
-          [exprLabel "Condition (run Case B if...)"; vExpr 0 cond]
+          [ Html.class' "row condition" ]
+          [ exprLabel "Condition (run Case B if...)"; vExpr 0 cond ]
       in
       let exprBlock lbl act exp =
         Html.div
-          [Html.class' "cond-expr"]
-          [exprLabel lbl; act; div vs [wc "expr-block"] [vExpr 0 exp]]
+          [ Html.class' "cond-expr" ]
+          [ exprLabel lbl; act; div vs [ wc "expr-block" ] [ vExpr 0 exp ] ]
       in
       let expressions =
         Html.div
-          [Html.class' "row expressions"]
-          [exprBlock "Case A" pickA a_; exprBlock "Case B" pickB b_]
+          [ Html.class' "row expressions" ]
+          [ exprBlock "Case A" pickA a_; exprBlock "Case B" pickB b_ ]
       in
       div
         vs
-        [wc "flagged shown"]
+        [ wc "flagged shown" ]
         [ viewExpr
             0
-            {vs with showEntry = false}
+            { vs with showEntry = false }
             []
             (if condResult then b_ else a_)
         ; fontAwesome "flag"
         ; Html.div
             [ Html.class'
-                ("feature-flag" ^ if isExpanded then " expand" else "") ]
-            [titleBar; blockCondition; expressions] ]
+                ("feature-flag" ^ if isExpanded then " expand" else "")
+            ]
+            [ titleBar; blockCondition; expressions ]
+        ]
       (* Don't care, we're switching to fluid *)
   | FluidPartial (str, _) ->
       Html.text str
@@ -461,15 +480,18 @@ let view (vs : viewState) (e : expr) =
   if VariantTesting.isFluid vs.testVariants
   then
     [ Html.div
-        [Html.class' "fluid-ast"]
-        (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e)) ]
+        [ Html.class' "fluid-ast" ]
+        (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e))
+    ]
   else
     let showRail = AST.usesRail e in
     let errorRail =
-      Html.div [Html.classList [("rop-rail", true); ("active", showRail)]] []
+      Html.div
+        [ Html.classList [ ("rop-rail", true); ("active", showRail) ] ]
+        []
     in
-    let ast = Html.div [Html.class' "ast"] [viewExpr 0 vs [] e] in
-    [ast; errorRail]
+    let ast = Html.div [ Html.class' "ast" ] [ viewExpr 0 vs [] e ] in
+    [ ast; errorRail ]
 
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
@@ -478,7 +500,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
   | F (_, a), F (_, b), F (_, c)
-    when List.any ~f:(fun s -> String.length s = 0) [a; b; c] ->
+    when List.any ~f:(fun s -> String.length s = 0) [ a; b; c ] ->
       Vdom.noNode
   | F _, F _, F _ ->
       if vs.permission = Some ReadWrite
@@ -487,7 +509,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
           Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-                 |> Option.andThen ~f:(fun (_, data) -> data) )
+                 |> Option.andThen ~f:(fun (_, data) -> data))
           |> Option.is_some
         in
         let classes =
@@ -496,7 +518,8 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
             ; ("is-executing", handlerIsExecuting vs)
             ; ("inactive", not hasData)
             ; ("complete", handlerIsExeComplete vs)
-            ; ("failed", handlerIsExeFail vs) ]
+            ; ("failed", handlerIsExeFail vs)
+            ]
         in
         let attrs =
           if hasData
@@ -511,10 +534,11 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
                 ~listener:(fun name ->
                   if name = "fadeIn"
                   then SetHandlerExeIdle vs.tlid
-                  else IgnoreMsg ) ]
-          else [Html.title "Need input data to replay execution"]
+                  else IgnoreMsg)
+            ]
+          else [ Html.title "Need input data to replay execution" ]
         in
-        Html.div (classes :: attrs) [fontAwesome "redo"]
+        Html.div (classes :: attrs) [ fontAwesome "redo" ]
       else Vdom.noNode
   | _, _, _ ->
       Vdom.noNode
@@ -526,7 +550,7 @@ let externalLink (vs : viewState) (name : string) =
       Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
       |> Option.andThen ~f:(fun trace_id ->
              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-             |> Option.andThen ~f:(fun (_, data) -> data) )
+             |> Option.andThen ~f:(fun (_, data) -> data))
     in
     match currentTraceData with
     | Some data ->
@@ -547,8 +571,9 @@ let externalLink (vs : viewState) (name : string) =
     ; ViewUtils.eventNoPropagation
         ~key:("hide-tl-opts" ^ showTLID vs.tlid)
         "click"
-        (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
-    [fontAwesome "external-link-alt"; Html.text "Open in new tab"]
+        (fun _ -> SetHandlerActionsMenu (vs.tlid, false))
+    ]
+    [ fontAwesome "external-link-alt"; Html.text "Open in new tab" ]
 
 
 let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
@@ -562,8 +587,10 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
           [ ViewUtils.eventNoPropagation
               ~key:("del-tl-" ^ strTLID)
               "click"
-              (fun _ -> ToplevelDelete vs.tlid ) ]
-          [fontAwesome "times"; Html.text "Delete handler"] ]
+              (fun _ -> ToplevelDelete vs.tlid)
+          ]
+          [ fontAwesome "times"; Html.text "Delete handler" ]
+      ]
     in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "HTTP"), F (_, meth), F (_, name) ->
@@ -572,8 +599,9 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
             [ ViewUtils.eventNoPropagation
                 ~key:("del-tl-" ^ strTLID)
                 "click"
-                (fun m -> CopyCurl (vs.tlid, m.mePos) ) ]
-            [fontAwesome "copy"; Html.text "Copy request as cURL"]
+                (fun m -> CopyCurl (vs.tlid, m.mePos))
+            ]
+            [ fontAwesome "copy"; Html.text "Copy request as cURL" ]
         in
         let httpActions = curlAction :: commonActions in
         if meth = "GET"
@@ -592,41 +620,43 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
       ~key:("toggle-tl-menu-" ^ strTLID)
   in
   Html.div
-    [Html.classList [("more-actions", true); ("show", showMenu)]]
+    [ Html.classList [ ("more-actions", true); ("show", showMenu) ] ]
     [ toggleMenu
     ; Html.div
         [ Html.class' "actions"
         ; ViewUtils.eventNoPropagation
             ~key:("hide-tl-opts" ^ strTLID)
             "mouseleave"
-            (fun _ -> SetHandlerActionsMenu (vs.tlid, false) ) ]
-        actions ]
+            (fun _ -> SetHandlerActionsMenu (vs.tlid, false))
+        ]
+        actions
+    ]
 
 
 let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    let configs = (enterable :: idConfigs) @ [wc "name"] in
+    let configs = (enterable :: idConfigs) @ [ wc "name" ] in
     viewText EventName vs configs spec.name
   in
   let viewEventSpace =
-    let configs = (enterable :: idConfigs) @ [wc "space"] in
+    let configs = (enterable :: idConfigs) @ [ wc "space" ] in
     viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
     let triggerBtn = triggerHandlerButton vs spec in
-    let configs = (enterable :: idConfigs) @ [wc "modifier"] in
+    let configs = (enterable :: idConfigs) @ [ wc "modifier" ] in
     let viewMod = viewText EventModifier vs configs spec.modifier in
     match (spec.space, spec.modifier, spec.name) with
     | F (_, "CRON"), Blank _, _ | F (_, "HTTP"), Blank _, _ ->
-        Html.div [] [viewMod; triggerBtn]
+        Html.div [] [ viewMod; triggerBtn ]
     | F (_, "HTTP"), _, _ ->
-        Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
+        Html.div [ Html.class' "modifier" ] [ viewMod; triggerBtn ]
     | F (_, "CRON"), _, _ ->
-        Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
+        Html.div [ Html.class' "modifier" ] [ viewMod; triggerBtn ]
     | F (_, "WORKER"), _, F _ ->
-        Html.div [Html.class' "modifier"] [triggerBtn]
+        Html.div [ Html.class' "modifier" ] [ triggerBtn ]
     | _ ->
         triggerBtn
   in
@@ -658,7 +688,8 @@ let viewEventSpec
     ; viewEventName
     ; viewEventModifier
     ; viewMenu vs spec
-    (* ; btnExpCollapse *) ]
+      (* ; btnExpCollapse *)
+    ]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
@@ -678,11 +709,13 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerExpanded)
-            else IgnoreMsg ) ]
+            else IgnoreMsg)
+      ]
   | HandlerExpanded ->
       [ Html.class' "handler-body expand"
       ; Html.style "height" "auto"
-      ; Vdom.noProp ]
+      ; Vdom.noProp
+      ]
   | HandlerPrepCollapse ->
       let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body"
@@ -692,7 +725,8 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
           ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerCollapsing)
-            else IgnoreMsg ) ]
+            else IgnoreMsg)
+      ]
   | HandlerCollapsing ->
       [ Html.class' "handler-body"
       ; Html.style "height" "0"
@@ -701,9 +735,10 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
           ~listener:(fun prop ->
             if prop = "height"
             then UpdateHandlerState (tlid, HandlerCollapsed)
-            else IgnoreMsg ) ]
+            else IgnoreMsg)
+      ]
   | HandlerCollapsed ->
-      [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
+      [ Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp ]
 
 
 let viewHandler (vs : viewState) (h : handler) (dragEvents : domEventList) :
@@ -711,4 +746,4 @@ let viewHandler (vs : viewState) (h : handler) (dragEvents : domEventList) :
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
   let ast = Html.div attrs (view vs h.ast) in
   let header = viewEventSpec vs h.spec dragEvents in
-  [header; ast]
+  [ header; ast ]

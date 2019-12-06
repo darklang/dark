@@ -1,3 +1,4 @@
 profile = sparse
+
 break-string-literals = never
 escape-strings = preserve

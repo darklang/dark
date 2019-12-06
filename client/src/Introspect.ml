@@ -11,8 +11,9 @@ let keyForHandlerSpec (space : string) (name : string) : string =
 let dbsByName (dbs : db TD.t) : tlid StrDict.t =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
-         db.dbName |> B.toMaybe |> Option.map ~f:(fun name -> (name, db.dbTLID))
-     )
+         db.dbName
+         |> B.toMaybe
+         |> Option.map ~f:(fun name -> (name, db.dbTLID)))
   |> StrDict.fromList
 
 
@@ -26,7 +27,7 @@ let handlersByName (hs : handler TD.t) : tlid StrDict.t =
            h.spec.name |> B.toMaybe |> Option.withDefault ~default:"_"
          in
          let key = keyForHandlerSpec space name in
-         (key, h.hTLID) )
+         (key, h.hTLID))
   |> StrDict.fromList
 
 
@@ -35,7 +36,7 @@ let functionsByName (fns : userFunction TD.t) : tlid StrDict.t =
   |> TD.filterMapValues ~f:(fun fn ->
          fn.ufMetadata.ufmName
          |> B.toMaybe
-         |> Option.map ~f:(fun name -> (name, fn.ufTLID)) )
+         |> Option.map ~f:(fun name -> (name, fn.ufTLID)))
   |> StrDict.fromList
 
 
@@ -74,7 +75,7 @@ let tlidsToUpdateUsage (ops : op list) : tlid list =
          | DeleteDBCol _
          | RenameDBname _
          | SetDBColName _ ->
-             None )
+             None)
   |> List.uniqueBy ~f:(fun (TLID tlid) -> tlid)
 
 
@@ -86,13 +87,13 @@ let allRefersTo (tlid : tlid) (m : model) : (toplevel * id list) list =
   |> List.foldl ~init:TLIDDict.empty ~f:(fun (tlid, id) dict ->
          ( TLIDDict.update ~tlid dict ~f:(function
                | None ->
-                   Some (IDSet.fromList [id])
+                   Some (IDSet.fromList [ id ])
                | Some set ->
-                   Some (IDSet.add ~value:id set) )
-           : IDSet.t TLIDDict.t ) )
+                   Some (IDSet.add ~value:id set))
+           : IDSet.t TLIDDict.t ))
   |> TD.toList
   |> List.filterMap ~f:(fun (tlid, ids) ->
-         TL.get m tlid |> Option.map ~f:(fun tl -> (tl, IDSet.toList ids)) )
+         TL.get m tlid |> Option.map ~f:(fun tl -> (tl, IDSet.toList ids)))
 
 
 let allUsedIn (tlid : tlid) (m : model) : toplevel list =
@@ -120,7 +121,7 @@ let findUsagesInAST
                ( id
                , FnCall
                    ( F (_, "emit")
-                   , [_; F (_, Value space_); F (_, Value name_)]
+                   , [ _; F (_, Value space_); F (_, Value name_) ]
                    , _ ) )) ->
              let name = Util.removeQuotes name_ in
              let space = Util.removeQuotes space_ in
@@ -128,7 +129,8 @@ let findUsagesInAST
              StrDict.get ~key handlers
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | PExpr
-             (F (id, FnCall (F (_, "emit_v1"), [_; F (_, Value name_)], _))) ->
+             (F (id, FnCall (F (_, "emit_v1"), [ _; F (_, Value name_) ], _)))
+           ->
              let name = Util.removeQuotes name_ in
              let space = "WORKER" in
              let key = keyForHandlerSpec space name in
@@ -138,8 +140,8 @@ let findUsagesInAST
              StrDict.get ~key:name functions
              |> Option.map ~f:(fun fnTLID -> (fnTLID, id))
          | _ ->
-             None )
-  |> List.map ~f:(fun (usedIn, id) -> {refersTo = tlid; usedIn; id})
+             None)
+  |> List.map ~f:(fun (usedIn, id) -> { refersTo = tlid; usedIn; id })
 
 
 let getUsageFor
@@ -166,18 +168,18 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
   let functions = functionsByName m.userFunctions in
   (* We need to overwrite the already-stored results for the passed-in TLIDs.
    * So we clear tlRefers for these tlids, and remove them from the inner set
-   * of tlUsedIn.  *)
+   * of tlUsedIn. *)
   let tlRefersToDict = TD.removeMany ~tlids m.tlRefersTo in
   let tlUsedInDict =
     TD.map m.tlUsedIn ~f:(fun tlidsReferedTo ->
-        TLIDSet.removeMany tlidsReferedTo ~values:tlids )
+        TLIDSet.removeMany tlidsReferedTo ~values:tlids)
   in
   let newTlUsedIn, newTlRefersTo =
     tlids
     |> List.filterMap ~f:(fun tlid ->
            let tl = TL.get m tlid in
            Option.map tl ~f:(fun tl ->
-               getUsageFor tl datastores handlers functions ) )
+               getUsageFor tl datastores handlers functions))
     |> List.concat
     |> List.foldl
          ~init:(tlUsedInDict, tlRefersToDict)
@@ -194,20 +196,21 @@ let refreshUsages (m : model) (tlids : tlid list) : model =
              |> TLIDSet.add ~value:usage.refersTo
              |> fun value -> TD.insert ~tlid:usage.usedIn ~value usedIn
            in
-           (newUsedIn, newRefersTo) )
+           (newUsedIn, newRefersTo))
   in
-  {m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo}
+  { m with tlUsedIn = newTlUsedIn; tlRefersTo = newTlRefersTo }
 
 
 let setHoveringReferences (tlid : tlid) (ids : id list) : modification =
   let new_props x =
     match x with
     | None ->
-        Some {Defaults.defaultHandlerProp with hoveringReferences = ids}
+        Some { Defaults.defaultHandlerProp with hoveringReferences = ids }
     | Some v ->
-        Some {v with hoveringReferences = ids}
+        Some { v with hoveringReferences = ids }
   in
   TweakModel
     (fun m ->
-      {m with handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps}
-      )
+      { m with
+        handlerProps = TLIDDict.update ~tlid ~f:new_props m.handlerProps
+      })

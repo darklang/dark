@@ -78,16 +78,18 @@ let () =
       ; paramTipe = t
       ; paramBlock_args = blockArgs
       ; paramOptional = opt
-      ; paramDescription = "" }
+      ; paramDescription = ""
+      }
     in
     let infixFn op tipe rtTipe =
       { fnName = op
-      ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
+      ; fnParameters = [ fnParam "a" tipe false; fnParam "b" tipe false ]
       ; fnReturnTipe = rtTipe
       ; fnDescription = "Some infix function"
       ; fnPreviewExecutionSafe = true
       ; fnDeprecated = false
-      ; fnInfix = true }
+      ; fnInfix = true
+      }
     in
     { Defaults.defaultModel with
       analyses =
@@ -99,7 +101,8 @@ let () =
                   ~key:"12"
                   ~value:
                     (DObj
-                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+                       (StrDict.fromList
+                          [ ("body", DNull); ("formBody", DNull) ]))))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
@@ -108,67 +111,79 @@ let () =
         ; infixFn "<=" TInt TBool
         ; infixFn "||" TBool TBool
         ; { fnName = "Int::add"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
+          ; fnParameters = [ fnParam "a" TInt false; fnParam "b" TInt false ]
           ; fnReturnTipe = TInt
           ; fnDescription = "Add two ints"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "Int::sqrt"
-          ; fnParameters = [fnParam "a" TInt false]
+          ; fnParameters = [ fnParam "a" TInt false ]
           ; fnReturnTipe = TInt
           ; fnDescription = "Get the square root of an Int"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "HttpClient::post_v4"
           ; fnParameters =
               [ fnParam "url" TStr false
               ; fnParam "body" TAny false
               ; fnParam "query" TObj false
-              ; fnParam "headers" TObj false ]
+              ; fnParam "headers" TObj false
+              ]
           ; fnReturnTipe = TResult
           ; fnDescription = "Make blocking HTTP POST call to `uri`."
           ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "DB::getAll_v1"
-          ; fnParameters = [fnParam "table" TDB false]
+          ; fnParameters = [ fnParam "table" TDB false ]
           ; fnReturnTipe = TList
           ; fnDescription = "get all"
           ; fnPreviewExecutionSafe = false
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "Dict::map"
           ; fnParameters =
               [ fnParam "dict" TObj false
-              ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
+              ; fnParam "f" TBlock false ~blockArgs:[ "key"; "value" ]
+              ]
           ; fnReturnTipe = TObj
           ; fnDescription =
               "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "List::append"
-          ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
+          ; fnParameters =
+              [ fnParam "l1" TList false; fnParam "l2" TList false ]
           ; fnReturnTipe = TList
           ; fnDescription = "append list"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false }
+          ; fnInfix = false
+          }
         ; { fnName = "List::empty"
           ; fnParameters = []
           ; fnReturnTipe = TList
           ; fnDescription = "empty list"
           ; fnPreviewExecutionSafe = true
           ; fnDeprecated = false
-          ; fnInfix = false } ] }
+          ; fnInfix = false
+          }
+        ]
+    }
   in
   let processMsg
       (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
-    let m = {m with handlers = Handlers.fromList [h]} in
+    let m = { m with handlers = Handlers.fromList [ h ] } in
     List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
         updateMsg
           m
@@ -179,8 +194,9 @@ let () =
              ; shiftKey = shiftHeld = ShiftHeld
              ; altKey = false
              ; metaKey = false
-             ; ctrlKey = false })
-          s )
+             ; ctrlKey = false
+             })
+          s)
   in
   let process
       ~(debug : bool)
@@ -190,7 +206,7 @@ let () =
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
-    let s = {Defaults.defaultFluidState with ac = AC.reset m} in
+    let s = { Defaults.defaultFluidState with ac = AC.reset m } in
     let ast = if clone then Fluid.clone ~state:s ast else ast in
     let newlinesBefore (pos : int) =
       (* How many newlines occur before the pos, it'll be indented by 2 for
@@ -199,9 +215,9 @@ let () =
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
       ast
-      |> toTokens {s with newPos = pos}
+      |> toTokens { s with newPos = pos }
       |> List.filter ~f:(fun ti ->
-             FluidToken.isNewline ti.token && ti.startPos < pos )
+             FluidToken.isNewline ti.token && ti.startPos < pos)
       |> List.length
     in
     let ast = if wrap then if' (bool true) ast (int "5") else ast in
@@ -212,7 +228,7 @@ let () =
     in
     let pos = addWrapper pos in
     let selectionStart = Option.map selectionStart ~f:addWrapper in
-    let s = {s with oldPos = pos; newPos = pos; selectionStart} in
+    let s = { s with oldPos = pos; newPos = pos; selectionStart } in
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
@@ -239,7 +255,7 @@ let () =
              | TNewline _ when !endPos > ti.endPos ->
                  endPos := !endPos - 2
              | _ ->
-                 () ) ;
+                 ()) ;
       let last =
         toTokens newState result
         |> List.last
@@ -264,7 +280,7 @@ let () =
           | TRightPartial _ | TPartial _ ->
               true
           | _ ->
-              false )
+              false)
     in
     if debug
     then (
@@ -282,7 +298,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.Delete, ShiftNotHeld) ] None pos expr
   in
   let bs
       ?(wrap = true)
@@ -290,7 +306,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.Backspace, ShiftNotHeld) ] None pos expr
   in
   let tab
       ?(wrap = true)
@@ -298,7 +314,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.Tab, ShiftNotHeld) ] None pos expr
   in
   let ctrlLeft
       ?(wrap = true)
@@ -310,7 +326,7 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.GoToStartOfWord, ShiftNotHeld)]
+      [ (K.GoToStartOfWord, ShiftNotHeld) ]
       None
       pos
       expr
@@ -321,7 +337,14 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.GoToEndOfWord, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ (K.GoToEndOfWord, ShiftNotHeld) ]
+      None
+      pos
+      expr
   in
   let shiftTab
       ?(wrap = true)
@@ -329,7 +352,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.ShiftTab, ShiftNotHeld) ] None pos expr
   in
   let space
       ?(wrap = true)
@@ -337,7 +360,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.Space, ShiftNotHeld) ] None pos expr
   in
   let enter
       ?(wrap = true)
@@ -345,7 +368,7 @@ let () =
       ?(clone = true)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (K.Enter, ShiftNotHeld) ] None pos expr
   in
   let key
       ?(wrap = true)
@@ -354,7 +377,7 @@ let () =
       (key : K.key)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [ (key, ShiftNotHeld) ] None pos expr
   in
   let selectionPress
       ?(wrap = true)
@@ -368,7 +391,7 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(key, ShiftNotHeld)]
+      [ (key, ShiftNotHeld) ]
       (Some selectionStart)
       pos
       expr
@@ -406,7 +429,7 @@ let () =
       (pos : int)
       (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~debug ~clone [ (key, ShiftNotHeld) ] None pos expr
   in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
@@ -418,8 +441,9 @@ let () =
         (((str, (_selection, caret)), res) :
           (string * (int option * int)) * hasPartial) : string * hasPartial =
       let caretString = "~" in
-      match str |> String.splitAt ~index:caret with a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
+      match str |> String.splitAt ~index:caret with
+      | a, b ->
+          ([ a; b ] |> String.join ~sep:caretString, res)
     in
     test
       ( name
@@ -428,8 +452,7 @@ let () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial)
-        )
+        expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial))
   in
   (* Test expecting partials found and an expected caret position but no selection *)
   let tp
@@ -441,8 +464,9 @@ let () =
         (((str, (_selection, caret)), res) :
           (string * (int option * int)) * hasPartial) : string * hasPartial =
       let caretString = "~" in
-      match str |> String.splitAt ~index:caret with a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
+      match str |> String.splitAt ~index:caret with
+      | a, b ->
+          ([ a; b ] |> String.join ~sep:caretString, res)
     in
     test
       ( name
@@ -452,7 +476,7 @@ let () =
       ^ "`" )
       (fun () ->
         expect (fn initial |> insertCaret)
-        |> toEqual (expectedStr, ContainsPartial) )
+        |> toEqual (expectedStr, ContainsPartial))
   in
   (* Test expecting no partials found and an expected resulting selection *)
   let ts
@@ -557,7 +581,7 @@ let () =
         aStr
         (key K.DeleteNextWord 3)
         "\"so~ string\"" ;
-      () ) ;
+      ()) ;
   describe "Multi-line Strings" (fun () ->
       t
         "insert into start string"
@@ -818,6 +842,7 @@ let () =
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "123456789_~\"" ) ;
+
       (* Skipped insert, del, bs of space, as it doesn't seem interesting *)
       t
         "final quote is swallowed"
@@ -919,7 +944,7 @@ let () =
         (key K.DeleteNextWord 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ;
-      () ) ;
+      ()) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
       t "insert at end of short" aShortInt (ins '2' 1) "12~" ;
@@ -963,7 +988,7 @@ let () =
         oneShorterThanMax62BitInt
         (key K.DeletePrevWord 18)
         "~___" ;
-      () ) ;
+      ()) ;
   describe "Floats" (fun () ->
       t "insert . converts to float - end" anInt (ins '.' 5) "12345.~" ;
       t "insert . converts to float - middle" anInt (ins '.' 3) "123.~45" ;
@@ -1089,7 +1114,7 @@ let () =
         aFloat
         (key K.DeleteNextWord 3)
         "123~456" ;
-      () ) ;
+      ()) ;
   describe "Bools" (fun () ->
       tp "insert start of true" trueBool (ins 'c' 0) "c~true" ;
       tp "del start of true" trueBool (del 0) "~rue" ;
@@ -1173,7 +1198,7 @@ let () =
         falseBool
         (key K.DeleteNextWord 3)
         "fal~" ;
-      () ) ;
+      ()) ;
   describe "Nulls" (fun () ->
       tp "insert start of null" aNull (ins 'c' 0) "c~null" ;
       tp "del start of null" aNull (del 0) "~ull" ;
@@ -1210,7 +1235,7 @@ let () =
         aNull
         (key K.DeleteNextWord 2)
         "nu~" ;
-      () ) ;
+      ()) ;
   describe "Blanks" (fun () ->
       t "insert middle of blank->string" b (ins '"' 3) "\"~\"" ;
       t "del middle of blank->blank" b (del 3) "___~" ;
@@ -1229,7 +1254,7 @@ let () =
       t
         "backspacing your way through a partial finishes"
         trueBool
-        (keys [K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left] 4)
+        (keys [ K.Backspace; K.Backspace; K.Backspace; K.Backspace; K.Left ] 4)
         "~___" ;
       t "insert blank->space" b (space 0) "~___" ;
       t
@@ -1242,7 +1267,7 @@ let () =
         b
         (key K.DeleteNextWord 3)
         "___~" ;
-      () ) ;
+      ()) ;
   describe "Fields" (fun () ->
       t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
       t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
@@ -1323,7 +1348,7 @@ let () =
         aNestedField
         (key K.DeleteNextWord 4)
         "obj.~***.field2" ;
-      () ) ;
+      ()) ;
   describe "Functions" (fun () ->
       t
         "space on a sep goes to next arg"
@@ -1334,19 +1359,20 @@ let () =
       tp "deleting a function renames" aFnCall (del 7) "Int::ad~@ 5 _________" ;
       t
         "renaming a function maintains unaligned params in let scope"
-        (partial "Int::" (fn "Int::add" [five; six]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (partial "Int::" (fn "Int::add" [ five; six ]))
+        (keys [ K.Letter 's'; K.Letter 'q'; K.Enter ] 5)
         "let b = 6\n~Int::sqrt 5" ;
       t
         "renaming a function doesn't maintain unaligned params if they're already set to variables"
-        (partial "Int::" (fn "Int::add" [var "a"; var "b"]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (partial "Int::" (fn "Int::add" [ var "a"; var "b" ]))
+        (keys [ K.Letter 's'; K.Letter 'q'; K.Enter ] 5)
         "Int::sqrt ~a" ;
       t
         "renaming a function doesn't maintain unaligned params if they're not set (blanks)"
-        (partial "Int::" (fn "Int::add" [b; b]))
-        (keys [K.Letter 's'; K.Letter 'q'; K.Enter] 5)
+        (partial "Int::" (fn "Int::add" [ b; b ]))
+        (keys [ K.Letter 's'; K.Letter 'q'; K.Enter ] 5)
         "Int::sqrt ~_________" ;
+
       (* TODO: functions are not implemented fully. I deld bs and
        * del because we were switching to partials, but this isn't
        * implemented. Some tests we need:
@@ -1385,11 +1411,11 @@ let () =
       t
         "adding function with version goes to the right place"
         b
-        (keys [K.Letter 'd'; K.Letter 'b'; K.Enter] 0)
+        (keys [ K.Letter 'd'; K.Letter 'b'; K.Enter ] 0)
         "DB::getAllv1 ~___________________" ;
       t
         "backspacing a fn arg's separator goes to the right place"
-        (fn "Int::add" [five; six])
+        (fn "Int::add" [ five; six ])
         (bs 11)
         "Int::add 5~ 6" ;
       tp
@@ -1419,27 +1445,27 @@ let () =
         "reflows work for functions"
         (fn
            "HttpClient::post_v4"
-           [str string40; record [(string80, b)]; emptyRecord; emptyRecord])
+           [ str string40; record [ (string80, b) ]; emptyRecord; emptyRecord ])
         render
         "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\"\n  {\n    0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij : ___\n  }\n  {}\n  {}" ;
       t
         "reflows work for functions with long strings"
-        (fn "HttpClient::post_v4" [str string160; b; b; b])
+        (fn "HttpClient::post_v4" [ str string160; b; b; b ])
         render
         "~HttpClient::postv4\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       tp
         "reflows work for partials too "
-        (partial "TEST" (fn "HttpClient::post_v4" [str string160; b; b; b]))
+        (partial "TEST" (fn "HttpClient::post_v4" [ str string160; b; b; b ]))
         render
         "~TEST@lient::postv@\n  \"0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\n  0123456789abcdefghij0123456789abcdefghij\"\n  ____________\n  ______________\n  ________________" ;
       t
         "reflows happen for functions whose arguments have newlines"
-        (fn "HttpClient::post_v4" [emptyStr; emptyRowRecord; b; b])
+        (fn "HttpClient::post_v4" [ emptyStr; emptyRowRecord; b; b ])
         render
         "~HttpClient::postv4\n  \"\"\n  {\n    *** : ___\n  }\n  ______________\n  ________________" ;
       t
         "reflows don't happen for functions whose only newline is in the last argument"
-        (fn "HttpClient::post_v4" [emptyStr; b; b; emptyRowRecord])
+        (fn "HttpClient::post_v4" [ emptyStr; b; b; emptyRowRecord ])
         render
         "~HttpClient::postv4 \"\" ____________ ______________ {\n                                                    *** : ___\n                                                  }" ;
       tp
@@ -1449,11 +1475,16 @@ let () =
          in
          fn
            "HttpClient::post_v4"
-           [emptyStr; emptyRecord; emptyRecord; var justShortEnoughNotToReflow])
+           [ emptyStr
+           ; emptyRecord
+           ; emptyRecord
+           ; var justShortEnoughNotToReflow
+           ])
         (ins ~wrap:false 'x' 120)
         "HttpClient::postv4\n  \"\"\n  {}\n  {}\n  abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcde~fghij01x"
       (* TODO: This should be 129, but reflow puts the caret in the wrong
            * place for new partials *) ;
+
       tp
         "reflows put the caret in the right place on bs"
         (let justLongEnoughToReflow =
@@ -1461,11 +1492,12 @@ let () =
          in
          fn
            "HttpClient::post_v4"
-           [emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow])
+           [ emptyStr; emptyRecord; emptyRecord; var justLongEnoughToReflow ])
         (bs ~wrap:false 129)
         "HttpClient::postv4 \"\" {} {} abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij01~"
       (* TODO: This should be 120, but reflow puts the caret in the wrong
            * place for new partials *) ;
+
       t
         "ctrl+left on function in middle of version moves to beg of version"
         aFnCallWithVersion
@@ -1486,30 +1518,30 @@ let () =
         aFnCallWithVersion
         (ctrlRight 7)
         "DB::getAll~v1 ___________________" ;
-      () ) ;
+      ()) ;
   describe "Binops" (fun () ->
       tp "pipe key starts partial" trueBool (key K.Pipe 4) "true |~" ;
       t
         "pressing enter completes partial"
         trueBool
-        (keys [K.Pipe; K.Down; K.Enter] 4)
+        (keys [ K.Pipe; K.Down; K.Enter ] 4)
         "true ||~ __________" ;
       t
         "pressing space completes partial"
         trueBool
-        (keys [K.Pipe; K.Down; K.Space] 4)
+        (keys [ K.Pipe; K.Down; K.Space ] 4)
         "true || ~__________" ;
       tp "pressing plus key starts partial" trueBool (key K.Plus 4) "true +~" ;
       tp "pressing caret key starts partial" anInt (key K.Caret 5) "12345 ^~" ;
       t
         "pressing pipe twice then space completes partial"
         trueBool
-        (keys [K.Pipe; K.Pipe; K.Space] 4)
+        (keys [ K.Pipe; K.Pipe; K.Space ] 4)
         "true || ~__________" ;
       t
         "piping into newline creates pipe"
         trueBool
-        (keys [K.Pipe; K.GreaterThan; K.Space] 4)
+        (keys [ K.Pipe; K.GreaterThan; K.Space ] 4)
         "true\n|>~___\n" ;
       t
         "pressing bs to clear partial reverts for blank rhs"
@@ -1569,17 +1601,17 @@ let () =
       t
         "pressing del to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (keys [K.Delete; K.Delete] 7)
+        (keys [ K.Delete; K.Delete ] 7)
         "\"five~six\"" ;
       t
         "pressing backspace to remove a string binop combines lhs and rhs"
         (binop "++" (str "five") (str "six"))
-        (keys [K.Backspace; K.Backspace] 9)
+        (keys [ K.Backspace; K.Backspace ] 9)
         "\"five~six\"" ;
       t
         "pressing letters and numbers on a partial completes it"
         b
-        (keys [K.Number '5'; K.Plus; K.Number '5'] 0)
+        (keys [ K.Number '5'; K.Plus; K.Number '5' ] 0)
         "5 + 5~" ;
       tp
         "pressing pipe while editing a partial works properly"
@@ -1594,17 +1626,17 @@ let () =
       t
         "changing binop to fn should work"
         (partial "Int::add" (binop "+" anInt anInt))
-        (keys [K.Enter] 14)
+        (keys [ K.Enter ] 14)
         "Int::add 12345 ~12345" ;
       t
         "changing fn to binops should work"
-        (partial "+" (fn "Int::add" [anInt; anInt]))
-        (keys [K.Enter] 1)
+        (partial "+" (fn "Int::add" [ anInt; anInt ]))
+        (keys [ K.Enter ] 1)
         "~12345 + 12345" ;
       t
         "changing binop should work"
         (binop "<" anInt anInt)
-        (keys [K.Equals; K.Enter] 7)
+        (keys [ K.Equals; K.Enter ] 7)
         "12345 <=~ 12345" ;
       tp
         "adding binop in `if` works"
@@ -1652,10 +1684,11 @@ let () =
         (binop "<" anInt anInt)
         (key K.DeleteNextWord 6)
         "12345~" ;
+
       (* TODO bs on empty partial does something *)
       (* TODO support del on all the bs commands *)
       (* TODO pressing enter at the end of the partialGhost *)
-      () ) ;
+      ()) ;
   describe "Constructors" (fun () ->
       tp "arguments work in constructors" aConstructor (ins 't' 5) "Just t~" ;
       t "int arguments work in constructors" aConstructor (ins '5' 5) "Just 5~" ;
@@ -1704,12 +1737,13 @@ let () =
         aConstructor
         (key K.DeleteNextWord 2)
         "Ju~@@ ___" ;
+
       (* TODO: test renaming constructors.
        * It's not too useful yet because there's only 4 constructors and,
        * hence, unlikely that anyone will rename them this way.
        * Also, the names of the temporary variables used to store the old arguments of a changed
        * constructor are randomly generated and would be hard to test *)
-      () ) ;
+      ()) ;
   describe "Lambdas" (fun () ->
       (* type -> to move through a lambda *)
       t
@@ -1727,6 +1761,7 @@ let () =
         aLambda
         (key GreaterThan 6)
         "\\*** -> ~___" ;
+
       (* end type -> to move through a lambda *)
       t "bs over lambda symbol" aLambda (bs 1) "~___" ;
       t "insert space in lambda" aLambda (key K.Space 1) "\\~*** -> ___" ;
@@ -1771,11 +1806,11 @@ let () =
         "Dict::map _____________ \\~key, value -> ___" ;
       t
         "creating lambda in block placeholder should set arguments when wrapping expression is inside pipe"
-        (pipe b [b])
+        (pipe b [ b ])
         (keys
            (* we have to insert the function with completion here
             * so the arguments are adjusted based on the pipe *)
-           [K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\']
+           [ K.Letter 'm'; K.Letter 'a'; K.Letter 'p'; K.Enter; K.Letter '\\' ]
            6)
         "___\n|>Dict::map \\~key, value -> ___\n" ;
       t
@@ -1831,24 +1866,24 @@ let () =
       t
         "ctrl+left twice over lamda from beg moves to beg of first param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 1)
+        (keys [ K.GoToStartOfWord; K.GoToStartOfWord ] 1)
         "~\\x, y -> ___" ;
       t
         "ctrl+right twice over lamda from beg moves to last blank"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 1)
+        (keys [ K.GoToEndOfWord; K.GoToEndOfWord ] 1)
         "\\x, y~ -> ___" ;
       t
         "ctrl+left twice over lamda from end moves to end of second param"
         lambdaWithTwoBindings
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 12)
+        (keys [ K.GoToStartOfWord; K.GoToStartOfWord ] 12)
         "\\x, ~y -> ___" ;
       t
         "ctrl+right twice over lamda from end doesnt move"
         lambdaWithTwoBindings
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 12)
+        (keys [ K.GoToEndOfWord; K.GoToEndOfWord ] 12)
         "\\x, y -> ___~" ;
-      () ) ;
+      ()) ;
   describe "Variables" (fun () ->
       tp "insert middle of variable" aVar (ins 'c' 5) "variac~ble" ;
       tp "del middle of variable" aVar (del 5) "varia~le" ;
@@ -1863,7 +1898,7 @@ let () =
       t
         "variable doesn't override if"
         (let' "i" b (partial "i" b))
-        (keys [K.Letter 'f'; K.Enter] 13)
+        (keys [ K.Letter 'f'; K.Enter ] 13)
         "let i = ___\nif ~___\nthen\n  ___\nelse\n  ___" ;
       t
         "ctrl+left from beg of variable doesnt move"
@@ -1885,7 +1920,7 @@ let () =
         aVar
         (ctrlRight 8)
         "variable~" ;
-      () ) ;
+      ()) ;
   describe "Match" (fun () ->
       t
         "move to the front of match"
@@ -2012,22 +2047,22 @@ let () =
       t
         "ctrl+left 2 times from end moves to first blank"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 22)
+        (keys [ K.GoToStartOfWord; K.GoToStartOfWord ] 22)
         "match ___\n  ~*** -> ___\n" ;
       t
         "ctrl+right 2 times from end doesnt move"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 22)
+        (keys [ K.GoToEndOfWord; K.GoToEndOfWord ] 22)
         "match ___\n  *** -> ___\n~" ;
       t
         "ctrl+left 2 times from beg doesnt move"
         emptyMatch
-        (keys [K.GoToStartOfWord; K.GoToStartOfWord] 0)
+        (keys [ K.GoToStartOfWord; K.GoToStartOfWord ] 0)
         "~match ___\n  *** -> ___\n" ;
       t
         "ctrl+right 2 times from beg moves to last blank"
         emptyMatch
-        (keys [K.GoToEndOfWord; K.GoToEndOfWord] 0)
+        (keys [ K.GoToEndOfWord; K.GoToEndOfWord ] 0)
         "match ___\n  ***~ -> ___\n" ;
       t
         "ctrl+left from mid moves to previous blank "
@@ -2039,8 +2074,9 @@ let () =
         emptyMatch
         (ctrlRight 15)
         "match ___\n  *** -> ___~\n" ;
+
       (* delete row with delete *)
-      () ) ;
+      ()) ;
   describe "Lets" (fun () ->
       t
         "move to the front of let"
@@ -2070,7 +2106,7 @@ let () =
       t
         "equals skips over assignment"
         emptyLet
-        (keys [K.Letter 'c'; K.Equals] 4)
+        (keys [ K.Letter 'c'; K.Equals ] 4)
         "let c = ~___\n5" ;
       t
         "equals skips over assignment 1"
@@ -2103,17 +2139,17 @@ let () =
            "binding"
            (match'
               b
-              [(pVar "binding", var "binding"); (pInt "5", var "binding")]))
+              [ (pVar "binding", var "binding"); (pInt "5", var "binding") ]))
         (ins 'c' 11)
         "let bindingc~ = 6\nmatch ___\n  binding -> binding\n  5 -> bindingc\n" ;
       t
         "insert doesn't change occurence of binding in shadowed lambda expr"
-        (letWithBinding "binding" (lambda ["binding"] (var "binding")))
+        (letWithBinding "binding" (lambda [ "binding" ] (var "binding")))
         (ins 'c' 11)
         "let bindingc~ = 6\n\\binding -> binding" ;
       t
         "insert changes occurence of binding in lambda expr"
-        (letWithBinding "binding" (lambda ["somevar"] (var "binding")))
+        (letWithBinding "binding" (lambda [ "somevar" ] (var "binding")))
         (ins 'c' 11)
         "let bindingc~ = 6\n\\somevar -> bindingc" ;
       t
@@ -2191,13 +2227,13 @@ let () =
           expect
             (let ast, state =
                processMsg
-                 [(K.Enter, ShiftNotHeld)]
+                 [ (K.Enter, ShiftNotHeld) ]
                  Defaults.defaultFluidState
                  anInt
              in
              (eToString state ast, state.newPos))
-          |> toEqual ("let *** = ___\n12345", 14) ) ;
-      () ) ;
+          |> toEqual ("let *** = ___\n12345", 14)) ;
+      ()) ;
   describe "Pipes" (fun () ->
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
       t
@@ -2333,7 +2369,7 @@ let () =
       t
         "adding infix functions adds the right number of blanks"
         emptyPipe
-        (keys [K.Plus; K.Enter] 6)
+        (keys [ K.Plus; K.Enter ] 6)
         "___\n|>+ ~_________\n" ;
       t
         "creating a pipe from an fn via a partial works"
@@ -2373,12 +2409,12 @@ let () =
         "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe1"
-        (pipe five [listFn [rightPartial "|>" aList5]])
+        (pipe five [ listFn [ rightPartial "|>" aList5 ] ])
         (enter 23)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
         "inserting a pipe into another pipe gives a single pipe2"
-        (pipe five [listFn [aList5]])
+        (pipe five [ listFn [ aList5 ] ])
         (key K.ShiftEnter 19)
         "5\n|>List::append [5]\n|>~___\n" ;
       t
@@ -2393,7 +2429,7 @@ let () =
         "let *** = 6\n          |>~___\n5" ;
       t
         "shift enter in a record's newline creates the pipe in the expr, not the entire record"
-        (record [("f1", fiftySix); ("f2", seventyEight)])
+        (record [ ("f1", fiftySix); ("f2", seventyEight) ])
         (key K.ShiftEnter 11)
         "{\n  f1 : 56\n       |>~___\n  f2 : 78\n}" ;
       t
@@ -2406,10 +2442,11 @@ let () =
         aPipe
         (ctrlRight 20)
         "[]\n|>List::append [5]\n|>List::append~ [5]\n" ;
+
       (* TODO: test for prefix fns *)
       (* TODO: test for deleting pipeed infix fns *)
       (* TODO: test for deleting pipeed prefix fns *)
-      () ) ;
+      ()) ;
   describe "Ifs" (fun () ->
       t
         "move over indent 1"
@@ -2506,7 +2543,7 @@ let () =
         plainIf
         (ctrlRight 4)
         "if 5\nthen\n  6~\nelse\n  7" ;
-      () ) ;
+      ()) ;
   describe "Lists" (fun () ->
       t "create list" b (key K.LeftSquareBracket 0) "[~]" ;
       t "insert into empty list inserts" emptyList (ins '5' 1) "[5~]" ;
@@ -2529,6 +2566,7 @@ let () =
         multi
         (ins ',' 3)
         "[56,~___,78]" ;
+
       (* t "insert separator mid integer makes two items" single (ins ',' 2) *)
       (*   ("[5,6]", 3) ; *)
       (* TODO: when on a separator in a nested list, pressing comma makes an entry outside the list. *)
@@ -2617,7 +2655,7 @@ let () =
         longList
         (ctrlRight 12)
         "[56,78,56,78,56~,78]" ;
-      () ) ;
+      ()) ;
   describe "Record" (fun () ->
       t "create record" b (key K.LeftCurlyBrace 0) "{~}" ;
       t
@@ -2783,7 +2821,7 @@ let () =
         multiRowRecord
         (ctrlRight 6)
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
-      () ) ;
+      ()) ;
   describe "Autocomplete" (fun () ->
       t
         "space autocompletes correctly"
@@ -2798,23 +2836,23 @@ let () =
       t
         "autocomplete space moves forward by 1"
         aBinOp
-        (keys [K.Letter 'r'; K.Space] 0)
+        (keys [ K.Letter 'r'; K.Space ] 0)
         "request ~== _________" ;
       t
         "autocomplete enter moves to end of value"
         aBinOp
-        (keys [K.Letter 'r'; K.Enter] 0)
+        (keys [ K.Letter 'r'; K.Enter ] 0)
         "request~ == _________" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t
         "autocomplete tab moves to next blank"
         aBinOp
-        (keys [K.Letter 'r'; K.Tab] 0)
+        (keys [ K.Letter 'r'; K.Tab ] 0)
         "request == ~_________" ;
       t
         "autocomplete enter on bin-op moves to start of first blank"
         b
-        (keys [K.Equals; K.Enter] 0)
+        (keys [ K.Equals; K.Enter ] 0)
         "~_________ == _________" ;
       t
         "autocomplete enter on function with parameters moves to start of first blank"
@@ -2829,38 +2867,38 @@ let () =
       t
         "autocomplete tab on bin-op moves to start of second blank"
         b
-        (keys [K.Equals; K.Tab] 0)
+        (keys [ K.Equals; K.Tab ] 0)
         "_________ == ~_________" ;
       t
         "autocomplete space on bin-op moves to start of first blank"
         b
-        (keys [K.Equals; K.Space] 0)
+        (keys [ K.Equals; K.Space ] 0)
         "~_________ == _________" ;
       t "variable moves to right place" (partial "req" b) (enter 3) "request~" ;
       t
         "pipe moves to right place on blank"
         b
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 2)
+        (keys [ K.Letter '|'; K.Letter '>'; K.Enter ] 2)
         "___\n|>~___\n" ;
       t
         "pipe moves to right place on placeholder"
         aFnCall
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 11)
+        (keys [ K.Letter '|'; K.Letter '>'; K.Enter ] 11)
         "Int::add 5 _________\n|>~___\n" ;
       t
         "pipe moves to right place in if then"
         emptyIf
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 14)
+        (keys [ K.Letter '|'; K.Letter '>'; K.Enter ] 14)
         "if ___\nthen\n  ___\n  |>~___\nelse\n  ___" ;
       t
         "pipe moves to right place in lambda body"
         aLambda
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 8)
+        (keys [ K.Letter '|'; K.Letter '>'; K.Enter ] 8)
         "\\*** -> ___\n        |>~___\n" ;
       t
         "pipe moves to right place in match body"
         emptyMatch
-        (keys [K.Letter '|'; K.Letter '>'; K.Enter] 19)
+        (keys [ K.Letter '|'; K.Letter '>'; K.Enter ] 19)
         "match ___\n  *** -> ___\n         |>~___\n" ;
       t
         "shift enter autocompletes and creates pipe"
@@ -2869,7 +2907,7 @@ let () =
         "List::empty\n|>~___\n" ;
       t
         "shift enter in pipe autocompletes and creates pipe"
-        (pipe (list []) [partial "appe" b])
+        (pipe (list []) [ partial "appe" b ])
         (key ~wrap:false K.ShiftEnter 9)
         "[]\n|>List::append ___________\n|>~___\n" ;
       t "autocomplete for Just" (partial "Just" b) (enter 4) "Just ~___" ;
@@ -2886,6 +2924,7 @@ let () =
         (fieldAccess (EVariable (ID "12", "request")) "bo")
         (enter ~clone:false 10)
         "request.body~" ;
+
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -2897,32 +2936,32 @@ let () =
       (*   ("match request.body", 18) ; *)
       (* test "backspacing on variable reopens autocomplete" (fun () -> *)
       (*     expect (bs (EVariable (5, "request"))). *)
-      () ) ;
+      ()) ;
   describe "Movement" (fun () ->
       let tokens = toTokens m.fluidState complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let s = Defaults.defaultFluidState in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
-          expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2} ) ;
+          expect (gridFor ~pos:116 tokens) |> toEqual { row = 2; col = 2 }) ;
       test "gridFor - 2" (fun () ->
-          expect (gridFor ~pos:70 tokens) |> toEqual {row = 0; col = 70} ) ;
+          expect (gridFor ~pos:70 tokens) |> toEqual { row = 0; col = 70 }) ;
       test "gridFor - 3" (fun () ->
-          expect (gridFor ~pos:129 tokens) |> toEqual {row = 2; col = 15} ) ;
+          expect (gridFor ~pos:129 tokens) |> toEqual { row = 2; col = 15 }) ;
       test "gridFor - start of line" (fun () ->
-          expect (gridFor ~pos:130 tokens) |> toEqual {row = 3; col = 0} ) ;
+          expect (gridFor ~pos:130 tokens) |> toEqual { row = 3; col = 0 }) ;
       test "gridFor - in an indent" (fun () ->
-          expect (gridFor ~pos:158 tokens) |> toEqual {row = 5; col = 1} ) ;
+          expect (gridFor ~pos:158 tokens) |> toEqual { row = 5; col = 1 }) ;
       test "gridFor - (reverse) in an indent" (fun () ->
-          expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158 ) ;
+          expect (posFor ~row:5 ~col:1 tokens) |> toEqual 158) ;
       test "gridFor roundtrips" (fun () ->
           let poses = List.range 0 len in
           let newPoses =
             List.map poses ~f:(fun pos ->
-                let {row; col} = gridFor ~pos tokens in
-                posFor ~row ~col tokens )
+                let { row; col } = gridFor ~pos tokens in
+                posFor ~row ~col tokens)
           in
-          expect poses |> toEqual newPoses ) ;
+          expect poses |> toEqual newPoses) ;
       t
         "right skips over indent when in indent"
         emptyIf
@@ -2933,21 +2972,24 @@ let () =
         emptyIf
         (key K.Left 13)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
+
       (* length *)
       test "up from first row is zero" (fun () ->
-          expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0 ) ;
+          expect (doUp ~pos:5 ast s |> fun s -> s.newPos) |> toEqual 0) ;
       test "down from first row is end of last row" (fun () ->
-          expect (doDown ~pos:168 ast s |> fun s -> s.newPos) |> toEqual 174 ) ;
+          expect (doDown ~pos:168 ast s |> fun s -> s.newPos) |> toEqual 174) ;
+
       (* end of short row *)
       test "up into shorter row goes to end of row" (fun () ->
-          expect (doUp ~pos:172 ast s |> fun m -> m.newPos) |> toEqual 156 ) ;
+          expect (doUp ~pos:172 ast s |> fun m -> m.newPos) |> toEqual 156) ;
       test "down into shorter row goes to end of row" (fun () ->
-          expect (doDown ~pos:143 ast s |> fun m -> m.newPos) |> toEqual 156 ) ;
+          expect (doDown ~pos:143 ast s |> fun m -> m.newPos) |> toEqual 156) ;
+
       (* start of indented row *)
       test "up into indented row goes to first token" (fun () ->
-          expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130 ) ;
+          expect (doUp ~pos:152 ast s |> fun m -> m.newPos) |> toEqual 130) ;
       test "down into indented row goes to first token" (fun () ->
-          expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114 ) ;
+          expect (doDown ~pos:109 ast s |> fun m -> m.newPos) |> toEqual 114) ;
       t
         "enter at the end of a line goes to first non-whitespace token"
         indentedIfElse
@@ -2961,23 +3003,24 @@ let () =
       t
         "end of if-then blank goes up properly"
         emptyIf
-        (keys [K.Escape; K.Up] 17)
+        (keys [ K.Escape; K.Up ] 17)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes up properly, twice"
         emptyIf
-        (keys [K.Escape; K.Up; K.Up] 17)
+        (keys [ K.Escape; K.Up; K.Up ] 17)
         "if __~_\nthen\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly"
         emptyIf
-        (keys [K.Escape; K.Down] 5)
+        (keys [ K.Escape; K.Down ] 5)
         "if ___\nthen~\n  ___\nelse\n  ___" ;
       t
         "end of if-then blank goes down properly, twice"
         emptyIf
-        (keys [K.Escape; K.Down; K.Down] 5)
+        (keys [ K.Escape; K.Down; K.Down ] 5)
         "if ___\nthen\n  ___~\nelse\n  ___" ;
+
       (* moving through the autocomplete *)
       test "up goes through the autocomplete" (fun () ->
           expect
@@ -2986,7 +3029,7 @@ let () =
             |> (fun (ast, s) -> updateKey K.Up ast s)
             |> (fun (ast, s) -> updateKey K.Up ast s)
             |> fun (_, s) -> s.newPos )
-          |> toEqual 13 ) ;
+          |> toEqual 13) ;
       test "down goes through the autocomplete" (fun () ->
           expect
             ( moveTo 14 s
@@ -2994,15 +3037,15 @@ let () =
             |> (fun (ast, s) -> updateKey K.Down ast s)
             |> (fun (ast, s) -> updateKey K.Down ast s)
             |> fun (_, s) -> s.newPos )
-          |> toEqual 144 ) ;
+          |> toEqual 144) ;
       test "clicking away from autocomplete commits" (fun () ->
           expect
             (let ast = let' "var" (partial "false" b) b in
              moveTo 14 s
              |> (fun s ->
                   let h = Fluid_utils.h ast in
-                  let m = {m with handlers = Handlers.fromList [h]} in
-                  updateAutocomplete m h.hTLID ast s )
+                  let m = { m with handlers = Handlers.fromList [ h ] } in
+                  updateAutocomplete m h.hTLID ast s)
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, s) ->
              match ast with
@@ -3010,7 +3053,7 @@ let () =
                  "success"
              | _ ->
                  eToStructure s ast)
-          |> toEqual "success" ) ;
+          |> toEqual "success") ;
       t
         "moving right off a function autocompletes it anyway"
         (let' "x" (partial "Int::add" b) b)
@@ -3019,7 +3062,7 @@ let () =
       tp
         "pressing an infix which could be valid doesn't commit"
         b
-        (keys [K.Pipe; K.Pipe] 0)
+        (keys [ K.Pipe; K.Pipe ] 0)
         "||~" ;
       tp
         "pressing an infix after true commits it "
@@ -3038,7 +3081,7 @@ let () =
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
              |> fun (_, s) -> s.ac.index)
-          |> toEqual None ) ;
+          |> toEqual None) ;
       test "right/left brings back autocomplete" (fun () ->
           expect
             (let ast = b in
@@ -3046,8 +3089,8 @@ let () =
              |> (fun s -> updateKey (K.Letter 'r') ast s)
              |> (fun (ast, s) -> updateKey K.Escape ast s)
              |> fun (_, s) -> s.ac.index)
-          |> toEqual None ) ;
-      () ) ;
+          |> toEqual None) ;
+      ()) ;
   describe "Line-based Deletion" (fun () ->
       t
         "K.DeleteToStartOfLine with selection deletes just the selection"
@@ -3057,9 +3100,10 @@ let () =
          fn
            "HttpClient::post_v4"
            [ emptyStr
-           ; record [("data", str veryLongString)]
+           ; record [ ("data", str veryLongString) ]
            ; emptyRecord
-           ; emptyRecord ])
+           ; emptyRecord
+           ])
         (selectionPress K.DeleteToStartOfLine 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
@@ -3070,9 +3114,10 @@ let () =
          fn
            "HttpClient::post_v4"
            [ emptyStr
-           ; record [("data", str veryLongString)]
+           ; record [ ("data", str veryLongString) ]
            ; emptyRecord
-           ; emptyRecord ])
+           ; emptyRecord
+           ])
         (selectionPress K.DeleteToEndOfLine 114 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~1234567890abcd\n           efghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
@@ -3083,9 +3128,10 @@ let () =
          fn
            "HttpClient::post_v4"
            [ emptyStr
-           ; record [("data", str veryLongString)]
+           ; record [ ("data", str veryLongString) ]
            ; emptyRecord
-           ; emptyRecord ])
+           ; emptyRecord
+           ])
         (key K.DeleteToStartOfLine 66)
         "HttpClient::postv4\n  \"\"\n  {\n    ~*** : \"1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ1234\n          567890abcdefghijklmnopqrstuvwxyz\"\n  }\n  {}\n  {}" ;
       t
@@ -3096,9 +3142,10 @@ let () =
          fn
            "HttpClient::post_v4"
            [ emptyStr
-           ; record [("data", str veryLongString)]
+           ; record [ ("data", str veryLongString) ]
            ; emptyRecord
-           ; emptyRecord ])
+           ; emptyRecord
+           ])
         (key K.DeleteToEndOfLine 66)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz~EFGHIJKLMNOPQR\n           STUVWXYZ1234567890abcdefghijklmnopqrstuv\n           wxyz\"\n  }\n  {}\n  {}" ;
       t
@@ -3109,29 +3156,30 @@ let () =
          fn
            "HttpClient::post_v4"
            [ emptyStr
-           ; record [("data", str veryLongString)]
+           ; record [ ("data", str veryLongString) ]
            ; emptyRecord
-           ; emptyRecord ])
+           ; emptyRecord
+           ])
         (key K.DeleteToStartOfLine 163)
         "HttpClient::postv4\n  \"\"\n  {\n    data : \"abcdefghijklmnopqrstuvwxyz1234567890ABCD\n           EFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh~\"\n  }\n  {}\n  {}" ;
-      () ) ;
+      ()) ;
   describe "Selection Movement" (fun () ->
       ts
         "shift right selects"
         longLets
-        (modkeys [(K.Right, ShiftHeld)] 0)
+        (modkeys [ (K.Right, ShiftHeld) ] 0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
-        (modkeys [(K.Down, ShiftHeld)] 4)
+        (modkeys [ (K.Down, ShiftHeld) ] 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
-        (modkeys [(K.Left, ShiftHeld)] 52)
+        (modkeys [ (K.Left, ShiftHeld) ] 52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 52, 48) ) ;
       ts
@@ -3176,7 +3224,7 @@ let () =
         (key K.SelectAll 4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 89) ) ;
-      () ) ;
+      ()) ;
   describe "Neighbours" (fun () ->
       test "with empty AST, have left neighbour" (fun () ->
           let id = ID "543" in
@@ -3192,10 +3240,11 @@ let () =
                   ; startCol = 0
                   ; startPos = 0
                   ; endPos = 6
-                  ; length = 6 }
+                  ; length = 6
+                  }
                 in
-                (L (token, ti), R (token, ti), None)) ) ;
-      () ) ;
+                (L (token, ti), R (token, ti), None))) ;
+      ()) ;
   describe "Tabs" (fun () ->
       t "tab goes to first block in a let" emptyLet (tab 0) "let ~*** = ___\n5" ;
       t
@@ -3222,7 +3271,7 @@ let () =
       t
         "shift tab completes autocomplete"
         completelyEmptyLet
-        (keys [K.Letter 'i'; K.Letter 'f'; K.ShiftTab] 14)
+        (keys [ K.Letter 'i'; K.Letter 'f'; K.ShiftTab ] 14)
         "let *** = ~___\nif ___\nthen\n  ___\nelse\n  ___" ;
       t
         "shift-tab goes when on blank"
@@ -3237,5 +3286,5 @@ let () =
       t "cant tab to filled letLHS" letWithLhs (tab 0) "~let n = 6\n5" ;
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
-      () ) ;
+      ()) ;
   ()

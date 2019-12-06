@@ -29,7 +29,8 @@ let offsetForGrid (tlid : tlid) (offset : pos) : pos =
            ; left = offset.y
            ; top = offset.x
            ; right = offset.x + (viewportWidth - 360)
-           ; bottom = offset.y + viewportHeight }
+           ; bottom = offset.y + viewportHeight
+           }
          in
          let topCheck = if o.top < r.top then 1 else 0 in
          let leftCheck = if o.left < r.left then 1 else 0 in
@@ -37,8 +38,8 @@ let offsetForGrid (tlid : tlid) (offset : pos) : pos =
          let bottomCheck = if o.bottom > r.bottom then 1 else 0 in
          (* We probably want to check for partial containment, but for the case of Ellen's demo which this vflag is used for, full containment should be alright because unlike listo it does not have huge handlers *)
          if topCheck + leftCheck + rightCheck + bottomCheck != 4
-         then Some {x = offset.x + r.left - 360; y = offset.y + r.top - 100}
-         else None )
+         then Some { x = offset.x + r.left - 360; y = offset.y + r.top - 100 }
+         else None)
   |> Option.withDefault ~default:offset
 
 
@@ -79,7 +80,8 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   { m with
     currentPage = page
   ; cursorState = Selecting (TL.id tl, boId)
-  ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
+  ; canvasProps =
+      { m.canvasProps with offset; panAnimation; lastOffset = None }
   }
 
 
@@ -100,8 +102,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         currentPage = newPage
       ; canvasProps =
           { m.canvasProps with
-            lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
-      ; cursorState = Selecting (tlid, None) }
+            lastOffset = Some m.canvasProps.offset
+          ; offset = Defaults.origin
+          }
+      ; cursorState = Selecting (tlid, None)
+      }
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
   | FocusedFn oldtlid, FocusedType newtlid
@@ -115,8 +120,9 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       else
         { m with
           currentPage = newPage
-        ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-        ; cursorState = Selecting (newtlid, None) }
+        ; canvasProps = { m.canvasProps with offset = Defaults.origin }
+        ; cursorState = Selecting (newtlid, None)
+        }
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
@@ -135,7 +141,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
       ; canvasProps =
-          {m.canvasProps with offset; lastOffset = None; minimap = None} }
+          { m.canvasProps with offset; lastOffset = None; minimap = None }
+      }
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
@@ -178,12 +185,13 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       { m with
         currentPage = newPage
       ; canvasProps =
-          {m.canvasProps with offset; lastOffset = None; minimap = None} }
+          { m.canvasProps with offset; lastOffset = None; minimap = None }
+      }
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect
     *)
-      {m with currentPage = newPage; cursorState = Deselected}
+      { m with currentPage = newPage; cursorState = Deselected }
 
 
 let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
@@ -194,7 +202,7 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
   | Architecture, FocusedType _
   | FocusedHandler _, FocusedType _
   | FocusedDB _, FocusedType _ ->
-      [Native.OnCaptureView.capture ()]
+      [ Native.OnCaptureView.capture () ]
   | _ ->
       []
 
@@ -204,6 +212,6 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
 let maybeChangeFromPage (tlid : tlid) (page : page) : modification list =
   match tlidOf page with
   | Some ptlid when ptlid = tlid ->
-      [SetPage Architecture]
+      [ SetPage Architecture ]
   | _ ->
       []

@@ -5,12 +5,14 @@ type request_data =
   { body : string
   ; headers : (string * string) list
   ; url : string
-  ; http_method : string }
+  ; http_method : string
+  }
 
 type result =
   [ `Success
   | `Failure
-  | `Disabled ]
+  | `Disabled
+  ]
 
 type err_ctx =
   | Remote of request_data

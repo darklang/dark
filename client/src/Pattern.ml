@@ -9,11 +9,11 @@ module P = Pointer
 let rec allData (p : pattern) : pointerData list =
   match p with
   | Blank _ ->
-      [PPattern p]
+      [ PPattern p ]
   | F (_, PLiteral _) ->
-      [PPattern p]
+      [ PPattern p ]
   | F (_, PVariable _) ->
-      [PPattern p]
+      [ PPattern p ]
   | F (_, PConstructor (_, inner)) ->
       PPattern p :: (inner |> List.map ~f:allData |> List.concat)
 
@@ -52,7 +52,7 @@ let rec variableNames (p : pattern) : varName list =
   | Blank _ | F (_, PLiteral _) ->
       []
   | F (_, PVariable name) ->
-      [name]
+      [ name ]
   | F (_, PConstructor (_, args)) ->
       args |> List.map ~f:variableNames |> List.concat
 

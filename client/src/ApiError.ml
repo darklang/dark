@@ -13,7 +13,7 @@ let serverVersionOf (e : apiError) : string option =
       let module StringMap = Map.Make (Caml.String) in
       response.headers
       |> StringMap.find_first_opt (fun key ->
-             String.toLower key = "x-darklang-server-version" )
+             String.toLower key = "x-darklang-server-version")
       |> Option.map ~f:Tuple2.second
 
 
@@ -90,8 +90,9 @@ let parseResponse (body : Http.responseBody) : string =
                ; result
                ; resultType
                ; info
-               ; workarounds }
-          ->
+               ; workarounds
+               }
+               ->
          " ("
          ^ exceptionTipe
          ^ "): "
@@ -108,7 +109,7 @@ let parseResponse (body : Http.responseBody) : string =
          ^
          if workarounds = []
          then ""
-         else ", workarounds: [" ^ String.concat workarounds ^ "]" )
+         else ", workarounds: [" ^ String.concat workarounds ^ "]")
   |> Option.withDefault ~default:str
 
 
@@ -149,4 +150,4 @@ let msg (e : apiError) : string =
 
 
 let make ?requestParams ~reload ~context ~importance originalError =
-  {requestParams; importance; originalError; context; reload}
+  { requestParams; importance; originalError; context; reload }

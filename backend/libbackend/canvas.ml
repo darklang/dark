@@ -24,7 +24,8 @@ type canvas =
   ; deleted_handlers : TL.toplevels
   ; deleted_dbs : TL.toplevels
   ; deleted_user_functions : RTT.user_fn IDMap.t
-  ; deleted_user_tipes : RTT.user_tipe IDMap.t }
+  ; deleted_user_tipes : RTT.user_tipe IDMap.t
+  }
 [@@deriving eq, show]
 
 (* ------------------------- *)
@@ -35,16 +36,18 @@ let set_db tlid pos data c =
   (* if the db had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
-    dbs = IDMap.set c.dbs tlid {tlid; pos; data}
-  ; deleted_dbs = IDMap.remove c.deleted_dbs tlid }
+    dbs = IDMap.set c.dbs tlid { tlid; pos; data }
+  ; deleted_dbs = IDMap.remove c.deleted_dbs tlid
+  }
 
 
 let set_handler tlid pos data c =
   (* if the handler had been deleted, remove it from the deleted set. This handles
    * a data race where a Set comes in after a Delete. *)
   { c with
-    handlers = IDMap.set c.handlers tlid {tlid; pos; data}
-  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
+    handlers = IDMap.set c.handlers tlid { tlid; pos; data }
+  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid
+  }
 
 
 let set_function (user_fn : RuntimeT.user_fn) (c : canvas) : canvas =
@@ -61,7 +64,8 @@ let set_tipe (user_tipe : RuntimeT.user_tipe) (c : canvas) : canvas =
    * a data race where a Set comes in after a Delete. *)
   { c with
     user_tipes = IDMap.set c.user_tipes user_tipe.tlid user_tipe
-  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid }
+  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes user_tipe.tlid
+  }
 
 
 let delete_function (tlid : tlid) (c : canvas) : canvas =
@@ -72,13 +76,15 @@ let delete_function (tlid : tlid) (c : canvas) : canvas =
       { c with
         user_functions = IDMap.remove c.user_functions tlid
       ; deleted_user_functions =
-          IDMap.set c.deleted_user_functions tlid user_fn }
+          IDMap.set c.deleted_user_functions tlid user_fn
+      }
 
 
 let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_functions = IDMap.remove c.user_functions tlid
-  ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid }
+  ; deleted_user_functions = IDMap.remove c.deleted_user_functions tlid
+  }
 
 
 let delete_tipe (tlid : tlid) (c : canvas) : canvas =
@@ -88,13 +94,15 @@ let delete_tipe (tlid : tlid) (c : canvas) : canvas =
   | Some user_tipe ->
       { c with
         user_tipes = IDMap.remove c.user_tipes tlid
-      ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe }
+      ; deleted_user_tipes = IDMap.set c.deleted_user_tipes tlid user_tipe
+      }
 
 
 let delete_tipe_forever (tlid : tlid) (c : canvas) : canvas =
   { c with
     user_tipes = IDMap.remove c.user_tipes tlid
-  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid }
+  ; deleted_user_tipes = IDMap.remove c.deleted_user_tipes tlid
+  }
 
 
 let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
@@ -102,7 +110,8 @@ let delete_tl_forever (tlid : tlid) (c : canvas) : canvas =
     dbs = IDMap.remove c.dbs tlid
   ; handlers = IDMap.remove c.handlers tlid
   ; deleted_dbs = IDMap.remove c.deleted_dbs tlid
-  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid }
+  ; deleted_handlers = IDMap.remove c.deleted_handlers tlid
+  }
 
 
 let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
@@ -113,7 +122,8 @@ let delete_toplevel (tlid : tlid) (c : canvas) : canvas =
   ; handlers = IDMap.remove c.handlers tlid
   ; deleted_dbs = IDMap.change c.deleted_dbs tlid ~f:(fun _ -> db)
   ; deleted_handlers =
-      IDMap.change c.deleted_handlers tlid ~f:(fun _ -> handler) }
+      IDMap.change c.deleted_handlers tlid ~f:(fun _ -> handler)
+  }
 
 
 let apply_to_toplevel
@@ -125,7 +135,8 @@ let apply_to_all_toplevels
     ~(f : TL.toplevel -> TL.toplevel) (tlid : tlid) (c : canvas) : canvas =
   { c with
     handlers = apply_to_toplevel ~f tlid c.handlers
-  ; dbs = apply_to_toplevel ~f tlid c.dbs }
+  ; dbs = apply_to_toplevel ~f tlid c.dbs
+  }
 
 
 let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
@@ -138,13 +149,13 @@ let apply_to_db ~(f : RTT.DbT.db -> RTT.DbT.db) (tlid : tlid) (c : canvas) :
       | _ ->
           Exception.internal "Provided ID is not for a DB"
     in
-    {tl with data}
+    { tl with data }
   in
-  {c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs}
+  { c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs }
 
 
 let move_toplevel (tlid : tlid) (pos : pos) (c : canvas) : canvas =
-  apply_to_all_toplevels ~f:(fun tl -> {tl with pos}) tlid c
+  apply_to_all_toplevels ~f:(fun tl -> { tl with pos }) tlid c
 
 
 (* ------------------------- *)
@@ -190,7 +201,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
                 | Partial _ as b ->
                     (n, b)
                 | Blank _ as b ->
-                    (n, b) )
+                    (n, b))
           in
           apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
       | AddDBColToDBMigration (tlid, colid, typeid) ->
@@ -236,15 +247,17 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
           delete_tipe tlid
       | DeleteTypeForever tlid ->
           delete_tipe_forever tlid
-  with e ->
-    (* Log here so we have context, but then re-raise *)
-    Log.erroR
-      "apply_op failure"
-      ~params:
-        [ ("host", !c.host)
-        ; ("op", Op.show_op op)
-        ; ("exn", Exception.to_string e) ] ;
-    Exception.reraise e
+  with
+  | e ->
+      (* Log here so we have context, but then re-raise *)
+      Log.erroR
+        "apply_op failure"
+        ~params:
+          [ ("host", !c.host)
+          ; ("op", Op.show_op op)
+          ; ("exn", Exception.to_string e)
+          ] ;
+      Exception.reraise e
 
 
 let verify (c : canvas ref) : (unit, string list) Result.t =
@@ -254,7 +267,7 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
     |> List.filter_map ~f:(fun db ->
            Option.map
              ~f:(fun name -> (db.tlid, name))
-             (Ast.blank_to_option db.name) )
+             (Ast.blank_to_option db.name))
     |> List.group ~break:(fun (_, name1) (_, name2) -> name1 <> name2)
     |> List.filter ~f:(fun g -> List.length g > 1)
     |> List.map ~f:(fun gs ->
@@ -264,7 +277,7 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
            let string_of_pairs ps =
              String.concat ~sep:", " (List.map ~f:string_of_pair ps)
            in
-           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs) )
+           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs))
   in
   match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
@@ -276,7 +289,7 @@ let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
   let reduced_ops = Undo.preprocess (oldops @ newops) in
   List.iter ~f:(fun (is_new, op) -> apply_op is_new op c) reduced_ops ;
   let allops = oldops @ newops |> List.map ~f:Tuple.T2.get2 in
-  c := {!c with ops = Op.oplist2tlid_oplists allops}
+  c := { !c with ops = Op.oplist2tlid_oplists allops }
 
 
 let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
@@ -299,18 +312,17 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
                           s
                       | _ ->
                           Exception.internal
-                            "CORS setting from DB is a list containing a non-string"
-                  )
+                            "CORS setting from DB is a list containing a non-string")
                |> Origins
                |> Some
            | _ ->
                Exception.internal
-                 "CORS setting from DB is neither a string or a list." )
+                 "CORS setting from DB is neither a string or a list.")
   in
   Db.fetch_one
     ~name:"fetch_cors_setting"
     "SELECT cors_setting FROM canvases WHERE id = $1"
-    ~params:[Uuid id]
+    ~params:[ Uuid id ]
   |> List.hd_exn
   |> cors_setting_of_db_string
 
@@ -334,7 +346,8 @@ let init (host : string) (ops : Op.op list) :
       ; deleted_handlers = IDMap.empty
       ; deleted_dbs = IDMap.empty
       ; deleted_user_functions = IDMap.empty
-      ; deleted_user_tipes = IDMap.empty }
+      ; deleted_user_tipes = IDMap.empty
+      }
   in
   add_ops c [] ops ;
   c |> verify |> Result.map ~f:(fun _ -> c)
@@ -344,7 +357,7 @@ let name_for_id (id : Uuidm.t) : string =
   Db.fetch_one
     ~name:"fetch_canvas_name"
     "SELECT name FROM canvases WHERE id = $1"
-    ~params:[Uuid id]
+    ~params:[ Uuid id ]
   |> List.hd_exn
 
 
@@ -352,7 +365,7 @@ let id_for_name (name : string) : Uuidm.t =
   Db.fetch_one
     ~name:"fetch_canvas_id"
     "SELECT id FROM canvases WHERE name = $1"
-    ~params:[String name]
+    ~params:[ String name ]
   |> List.hd_exn
   |> Uuidm.of_string
   |> Option.value_exn
@@ -378,8 +391,8 @@ let update_cors_setting (c : canvas ref) (setting : cors_setting option) : unit
     "UPDATE canvases
      SET cors_setting = $1
      WHERE id = $2"
-    ~params:[cors_setting_to_db setting; Uuid !c.id] ;
-  c := {!c with cors_setting = setting} ;
+    ~params:[ cors_setting_to_db setting; Uuid !c.id ] ;
+  c := { !c with cors_setting = setting } ;
   ()
 
 
@@ -416,11 +429,14 @@ let load_from
         ; deleted_handlers = IDMap.empty
         ; deleted_dbs = IDMap.empty
         ; deleted_user_functions = IDMap.empty
-        ; deleted_user_tipes = IDMap.empty }
+        ; deleted_user_tipes = IDMap.empty
+        }
     in
     add_ops c (Op.tlid_oplists2oplist oldops) newops ;
     c |> verify |> Result.map ~f:(fun _ -> c)
-  with e -> Libexecution.Exception.reraise_as_pageable e
+  with
+  | e ->
+      Libexecution.Exception.reraise_as_pageable e
 
 
 let load_all host (newops : Op.op list) : (canvas ref, string list) Result.t =
@@ -535,8 +551,10 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~module_
             ~modifier
             ~tipe
-        else () )
-  with e -> Libexecution.Exception.reraise_as_pageable e
+        else ())
+  with
+  | e ->
+      Libexecution.Exception.reraise_as_pageable e
 
 
 let save_tlids (c : canvas) (tlids : tlid list) : unit = serialize_only tlids c
@@ -591,7 +609,10 @@ let save_test (c : canvas) : string =
 let validate_op host op =
   if Op.is_deprecated op
   then
-    Exception.internal "bad op" ~info:[("host", host)] ~actual:(Op.show_op op)
+    Exception.internal
+      "bad op"
+      ~info:[ ("host", host) ]
+      ~actual:(Op.show_op op)
 
 
 let validate_host host =
@@ -602,7 +623,7 @@ let validate_host host =
   | Error errs ->
       Exception.internal
         "Bad canvas state"
-        ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
+        ~info:[ ("errors", String.concat ~sep:", " errs); ("host", host) ]
 
 
 (* just load, don't save -- also don't validate the ops don't
@@ -618,8 +639,8 @@ let check_tier_one_hosts () : unit =
           ()
       | Error errs ->
           Exception.internal
-            ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
-            "Bad canvas state" )
+            ~info:[ ("errors", String.concat ~sep:", " errs); ("host", host) ]
+            "Bad canvas state")
 
 
 let migrate_all_hosts () : unit =
@@ -665,7 +686,8 @@ let cleanup_old_traces () : float =
       ; ("stored_events_time", `Float stored_events_time)
       ; ("function_results_time", `Float function_results_time)
       ; ("function_arguments_time", `Float function_arguments_time)
-      ; ("total_time", `Float total_time) ] ;
+      ; ("total_time", `Float total_time)
+      ] ;
   total_time
 
 
@@ -690,15 +712,15 @@ let to_string (host : string) : string =
   in
   String.concat
     ~sep:"\n\n\n"
-    ( [" ------------- Handlers ------------- "]
+    ( [ " ------------- Handlers ------------- " ]
     @ handlers
-    @ [" ------------- DBs ------------- "]
+    @ [ " ------------- DBs ------------- " ]
     @ dbs
-    @ [" ------------- Functions ------------- "]
+    @ [ " ------------- Functions ------------- " ]
     @ user_fns
-    @ [" ------------- Deleted Handlers ------------- "]
+    @ [ " ------------- Deleted Handlers ------------- " ]
     @ deleted_handlers
-    @ [" ------------- Deleted DBs ------------- "]
+    @ [ " ------------- Deleted DBs ------------- " ]
     @ deleted_dbs
-    @ [" ------------- Deleted Functions ------------- "]
+    @ [ " ------------- Deleted Functions ------------- " ]
     @ deleted_user_functions )

@@ -12,7 +12,7 @@ let onSubmit ~key fn =
   Html.onWithOptions
     ~key
     "submit"
-    {stopPropagation = true; preventDefault = true}
+    { stopPropagation = true; preventDefault = true }
     (Decoders.wrapDecoder fn)
 
 
@@ -24,7 +24,7 @@ let defaultPasteHandler =
   Html.onWithOptions
     ~key:"paste"
     "paste"
-    {stopPropagation = true; preventDefault = false}
+    { stopPropagation = true; preventDefault = false }
     (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
 
 
@@ -55,7 +55,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
            |> float_of_int
            |> ( *. ) (1. /. float_of_int longestLineLength)
            |> ceil
-           |> max 1. )
+           |> max 1.)
     |> List.floatSum
     |> int_of_float
   in
@@ -65,7 +65,7 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
       ; Events.onInput (fun x ->
             (* DisplayString can hold things that literals can't (eg naked
              * backslashes), so don't convert back to literal yet *)
-            EntryInputMsg (RT.addQuotes x) )
+            EntryInputMsg (RT.addQuotes x))
       ; defaultPasteHandler
       ; Attributes.value value
       ; Attributes.spellcheck false (* Stop other events firing *)
@@ -74,7 +74,8 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
       ; nothingMouseEvent "mousedown"
       ; Attributes.rows rowCount
       ; widthInCh longestLineLength
-      ; Attributes.autocomplete false ]
+      ; Attributes.autocomplete false
+      ]
       []
   in
   let sizeClass =
@@ -83,11 +84,13 @@ let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
     else "large-string"
   in
   Html.div
-    [Html.class' "string-entry"]
+    [ Html.class' "string-entry" ]
     [ Html.form
         [ onSubmit ~key:"esm" (fun _ -> EntrySubmitMsg)
-        ; Html.class' ("string-container " ^ sizeClass) ]
-        [input] ]
+        ; Html.class' ("string-container " ^ sizeClass)
+        ]
+        [ input ]
+    ]
 
 
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
@@ -102,7 +105,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           | ACFunction _ ->
               viewFnName false name
           | _ ->
-              Html.span [Html.class' "name"] [Html.text name]
+              Html.span [ Html.class' "name" ] [ Html.text name ]
         in
         let typeStr = Autocomplete.asTypeString item in
         let specialClass = Autocomplete.asTypeClass item in
@@ -111,13 +114,15 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
               [ ("autocomplete-item", true)
               ; ("highlighted", highlighted)
               ; (class', true)
-              ; (specialClass, true) ]
+              ; (specialClass, true)
+              ]
           ; nothingMouseEvent "mouseup"
           ; defaultPasteHandler
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick i ) ]
-          [view item; Html.span [Html.class' "types"] [Html.text typeStr]] )
+                AutocompleteClick i)
+          ]
+          [ view item; Html.span [ Html.class' "types" ] [ Html.text typeStr ] ])
       acis
   in
   let invalidIndex = ac.index - List.length ac.completions in
@@ -126,7 +131,7 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     @ toList ac.invalidCompletions "invalid" invalidIndex
   in
   let autocomplete =
-    Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
+    Html.ul [ Attributes.id "autocomplete-holder" ] autocompleteList
   in
   (* two overlapping input boxes, one to provide suggestions, one * to provide
    * the search. (Note: we used to use this, but took it out. Leaving in the
@@ -146,32 +151,33 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       ; Attributes.value search
       ; Attributes.placeholder placeholder
       ; Vdom.attribute "" "spellcheck" "false"
-      ; Attributes.autocomplete false ]
+      ; Attributes.autocomplete false
+      ]
       []
   in
   (* TODO(ian): deliberately using an empty string here *)
   (* and changing absolutely nothing else re: the layout/width *)
   (* here because I have no idea what the effects will be *)
   let suggestionSpan =
-    Html.span [Attributes.id "suggestionBox"] [Html.text ""]
+    Html.span [ Attributes.id "suggestionBox" ] [ Html.text "" ]
   in
   (* http://making.fiftythree.com/fluid-text-inputs/ *)
   let fluidWidthSpan =
     Html.span
-      [Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true"]
-      [Html.text search]
+      [ Attributes.id "fluidWidthSpan"; Vdom.prop "contentEditable" "true" ]
+      [ Html.text search ]
   in
   let input =
     Html.fieldset
-      [Attributes.id "search-container"; widthInCh searchWidth]
-      [searchInput; suggestionSpan; fluidWidthSpan]
+      [ Attributes.id "search-container"; widthInCh searchWidth ]
+      [ searchInput; suggestionSpan; fluidWidthSpan ]
   in
   let viewForm =
     Html.form
-      [onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg)]
-      (if ac.visible then [input; autocomplete] else [input])
+      [ onSubmit ~key:"esm2" (fun _ -> EntrySubmitMsg) ]
+      (if ac.visible then [ input; autocomplete ] else [ input ])
   in
-  let wrapper = Html.div [Html.class' "entry"] [viewForm] in
+  let wrapper = Html.div [ Html.class' "entry" ] [ viewForm ] in
   wrapper
 
 
@@ -200,10 +206,11 @@ let viewEntry (m : model) : msg Html.html =
           let loc = Viewport.subPos pos offset in
           Html.styles
             [ ("left", string_of_int loc.x ^ "px")
-            ; ("top", string_of_int loc.y ^ "px") ]
+            ; ("top", string_of_int loc.y ^ "px")
+            ]
       in
       Html.div
-        [Html.class' "omnibox"; styleProp]
-        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
+        [ Html.class' "omnibox"; styleProp ]
+        [ entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete ]
   | _ ->
       Vdom.noNode

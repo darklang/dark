@@ -26,7 +26,7 @@ let objAsHeaderCurl (dv : dval) : string option =
        * the request without changing the value of this header *)
       |> List.filter ~f:(fun (k, _) -> k != "content-length")
       |> List.map ~f:(fun (k, v) ->
-             "-H '" ^ k ^ ":" ^ (RT.toRepr v |> RT.stripQuotes) ^ "'" )
+             "-H '" ^ k ^ ":" ^ (RT.toRepr v |> RT.stripQuotes) ^ "'")
       |> String.join ~sep:" "
       |> fun s -> Some s
   | _ ->
@@ -56,7 +56,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
                    ^ " -H 'Content-Type: application/json' "
                    ^ route ) )
          | _ ->
-             None )
+             None)
 
 
 (* Constructs curl command from analysis dict.
@@ -67,7 +67,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
 let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   let wrapInList o =
     o
-    |> Option.andThen ~f:(fun v -> Some [v])
+    |> Option.andThen ~f:(fun v -> Some [ v ])
     |> Option.withDefault ~default:[]
   in
   let trace =
@@ -78,7 +78,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   | Some (_, Some td) ->
       StrDict.get ~key:"request" td.input
       |> Option.andThen ~f:(fun obj ->
-             match obj with DObj r -> Some r | _ -> None )
+             match obj with DObj r -> Some r | _ -> None)
       |> Option.andThen ~f:(fun r ->
              match StrDict.get ~key:"url" r with
              | Some (DStr url) ->
@@ -99,11 +99,11 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                    |> Option.andThen ~f:(fun s -> Some ("-X " ^ s))
                    |> wrapInList
                  in
-                 ("curl" :: headers) @ body @ meth @ [url]
+                 ("curl" :: headers) @ body @ meth @ [ url ]
                  |> String.join ~sep:" "
                  |> Option.some
              | _ ->
-                 None )
+                 None)
   | _ ->
       None
 
@@ -118,7 +118,9 @@ let copyCurlMod (m : model) (tlid : tlid) (pos : vPos) : modification =
       Native.Clipboard.copyToClipboard data ;
       let modFun m =
         let m1 = Editor.setHandlerMenu tlid false m in
-        {m1 with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
+        { m1 with
+          toast = { toastMessage = Some "Copied!"; toastPos = Some pos }
+        }
       in
       TweakModel modFun
   | None ->

@@ -3,13 +3,13 @@ open Tc
 open Prelude
 module TL = Toplevel
 
-let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
+let addPos (a : pos) (b : pos) : pos = { x = a.x + b.x; y = a.y + b.y }
 
-let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
+let subPos (a : pos) (b : pos) : pos = { x = a.x - b.x; y = a.y - b.y }
 
 let toAbsolute (m : model) (pos : vPos) : pos =
   let topleft = m.canvasProps.offset in
-  addPos {x = pos.vx; y = pos.vy} topleft
+  addPos { x = pos.vx; y = pos.vy } topleft
 
 
 let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
@@ -23,7 +23,7 @@ let moveCanvasBy (m : model) (x : int) (y : int) : modification =
     else (x, y)
   in
   let offset = m.canvasProps.offset in
-  let pos = addPos offset {x = dx; y = dy} in
+  let pos = addPos offset { x = dx; y = dy } in
   MoveCanvasTo (pos, DontAnimateTransition)
 
 
@@ -75,7 +75,7 @@ let centerCanvasOn (tl : toplevel) : pos =
   in
   let availWidth = (windowWidth - tlWidth) / 3 in
   let offsetLeft = sidebarWidth + availWidth in
-  {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
+  { x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200 }
 
 
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
@@ -94,13 +94,14 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
         ; top = 0
         ; left = sidebarWidth
         ; right = Native.Window.viewportWidth
-        ; bottom = Native.Window.viewportHeight }
+        ; bottom = Native.Window.viewportHeight
+        }
       in
       let tokenBox = Native.Ext.getBoundingClient tokenDom tokenSelector in
       let tlBox =
         Native.Ext.querySelector tlSelector
         |> Option.map ~f:(fun dom ->
-               Native.Ext.getBoundingClient dom tlSelector )
+               Native.Ext.getBoundingClient dom tlSelector)
         |> Option.valueExn
       in
       let tlPos = TL.pos tl in

@@ -4,7 +4,8 @@ type auth =
   { consumer_key : string
   ; consumer_secret : string
   ; access_token : string
-  ; access_token_secret : string }
+  ; access_token_secret : string
+  }
 
 let pct_encode_key = Uri.pct_encode ~component:`Userinfo
 
@@ -26,7 +27,7 @@ let collect_params (params : (string * string) list) : string =
 (* TODO: no body? *)
 let sign consumer_secret access_token_secret uri verb params =
   (* https://dev.twitter.com/oauth/overview/creating-signatures *)
-  
+
   (* Collecting parameters *)
   let collected = collect_params params in
   (* Creating the signature base string - #1-5 *)
@@ -62,7 +63,8 @@ let oauth_params (auth : auth) url verb (args : (string * string) list) :
     ; ("oauth_signature_method", "HMAC-SHA1")
     ; ("oauth_version", "1.0")
     ; ("oauth_timestamp", ts ())
-    ; ("oauth_token", auth.access_token) ]
+    ; ("oauth_token", auth.access_token)
+    ]
   in
   let signature =
     sign
@@ -72,7 +74,7 @@ let oauth_params (auth : auth) url verb (args : (string * string) list) :
       verb
       (List.append initial_params args)
   in
-  [("oauth_signature", signature)]
+  [ ("oauth_signature", signature) ]
   |> List.append initial_params
   |> List.sort ~compare:(fun (a, _) (b, _) -> compare a b)
 

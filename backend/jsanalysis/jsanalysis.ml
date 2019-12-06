@@ -29,7 +29,8 @@ type our_db_migration =
   ; state : DbT.db_migration_state
   ; rollforward : expr
   ; rollback : expr
-  ; cols : our_col list }
+  ; cols : our_col list
+  }
 [@@deriving of_yojson]
 
 type our_db =
@@ -38,7 +39,8 @@ type our_db =
   ; cols : our_col list
   ; version : int
   ; old_migrations : our_db_migration list
-  ; active_migration : our_db_migration option }
+  ; active_migration : our_db_migration option
+  }
 [@@deriving of_yojson]
 
 let convert_col ((name, tipe) : our_col) : DbT.col = (name, tipe)
@@ -49,7 +51,8 @@ let convert_migration (m : our_db_migration) : DbT.db_migration =
   ; state = m.state
   ; rollforward = m.rollforward
   ; rollback = m.rollback
-  ; cols = List.map ~f:convert_col m.cols }
+  ; cols = List.map ~f:convert_col m.cols
+  }
 
 
 let convert_db (db : our_db) : DbT.db =
@@ -58,27 +61,30 @@ let convert_db (db : our_db) : DbT.db =
   ; cols = List.map ~f:convert_col db.cols
   ; version = db.version
   ; old_migrations = List.map ~f:convert_migration db.old_migrations
-  ; active_migration = Option.map ~f:convert_migration db.active_migration }
+  ; active_migration = Option.map ~f:convert_migration db.active_migration
+  }
 
 
 type handler_analysis_param =
   { handler : HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data :
-      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
+  ; trace_data : Analysis_types.trace_data
+        (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
-  ; user_tipes : user_tipe list }
+  ; user_tipes : user_tipe list
+  }
 [@@deriving of_yojson]
 
 type function_analysis_param =
   { func : user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data :
-      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
+  ; trace_data : Analysis_types.trace_data
+        (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
-  ; user_tipes : user_tipe list }
+  ; user_tipes : user_tipe list
+  }
 [@@deriving of_yojson]
 
 type analysis_envelope = uuid * Analysis_types.analysis [@@deriving to_yojson]
@@ -98,7 +104,7 @@ let load_from_trace
             && caller_id = rcaller_id
             && hash = IDMap.find_exn hashes (id_of_int hash_version)
          then Some dval
-         else None )
+         else None)
   |> List.hd
   (* We don't use the time, so just hack it to get the interface right. *)
   |> Option.map ~f:(fun dv -> (dv, Time.now ()))
@@ -117,7 +123,8 @@ let perform_analysis
   let input_vars = trace_data.input in
   Log.add_log_annotations
     [ ("execution_id", `String (Types.string_of_id execution_id))
-    ; ("tlid", `String (Types.string_of_id tlid)) ]
+    ; ("tlid", `String (Types.string_of_id tlid))
+    ]
     (fun _ ->
       ( trace_id
       , Execution.analyse_ast
@@ -133,11 +140,11 @@ let perform_analysis
           ~load_fn_result:(load_from_trace trace_data.function_results)
           ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson
-      |> Yojson.Safe.to_string )
+      |> Yojson.Safe.to_string)
 
 
 let perform_handler_analysis (str : string) : string =
-  let {handler; dbs; user_fns; user_tipes; trace_id; trace_data} =
+  let { handler; dbs; user_fns; user_tipes; trace_id; trace_data } =
     str
     |> Yojson.Safe.from_string
     |> handler_analysis_param_of_yojson
@@ -154,7 +161,7 @@ let perform_handler_analysis (str : string) : string =
 
 
 let perform_function_analysis (str : string) : string =
-  let {func; dbs; user_fns; user_tipes; trace_id; trace_data} =
+  let { func; dbs; user_fns; user_tipes; trace_id; trace_data } =
     str
     |> Yojson.Safe.from_string
     |> function_analysis_param_of_yojson
@@ -180,27 +187,29 @@ let () =
     "darkAnalysis"
     (object%js
        method performHandlerAnalysis
-             (stringified_handler_analysis_param : js_string)
+           (stringified_handler_analysis_param : js_string)
            : js_string Js.js_array Js.t =
          try
            stringified_handler_analysis_param
            |> Js.to_string
            |> perform_handler_analysis
-           |> fun msg -> Js.array [|Js.string "success"; Js.string msg|]
-         with e ->
-           let error = Exception.to_string e in
-           Js.array [|Js.string "failure"; Js.string error|]
+           |> fun msg -> Js.array [| Js.string "success"; Js.string msg |]
+         with
+         | e ->
+             let error = Exception.to_string e in
+             Js.array [| Js.string "failure"; Js.string error |]
 
        method performFunctionAnalysis
-             (stringified_function_analysis_param : js_string)
+           (stringified_function_analysis_param : js_string)
            : js_string Js.js_array Js.t =
          try
            stringified_function_analysis_param
            |> Js.to_string
            |> perform_function_analysis
-           |> fun msg -> Js.array [|Js.string "success"; Js.string msg|]
-         with e ->
-           let error = Exception.to_string e in
-           Js.array [|Js.string "failure"; Js.string error|]
+           |> fun msg -> Js.array [| Js.string "success"; Js.string msg |]
+         with
+         | e ->
+             let error = Exception.to_string e in
+             Js.array [| Js.string "failure"; Js.string error |]
     end) ;
   ()

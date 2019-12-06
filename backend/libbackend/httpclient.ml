@@ -29,7 +29,8 @@ let string_match ~(regex : string) (str : string) : string list Or_error.t =
   |> Result.map ~f:(List.map ~f:(Option.value ~default:""))
 
 
-let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8] =
+let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8 ]
+    =
   let canonicalize s = s |> String.strip |> String.lowercase in
   headers
   |> List.map ~f:(Tuple.T2.map_fst ~f:canonicalize)
@@ -37,22 +38,22 @@ let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8] =
   |> List.filter_map ~f:(function
          | "content-type", v ->
            ( match string_match ~regex:".*;\\s*charset=(.*)$" v with
-           | Result.Ok ["utf-8"] ->
+           | Result.Ok [ "utf-8" ] ->
                Some `Utf8
-           | Result.Ok ["utf8"] ->
+           | Result.Ok [ "utf8" ] ->
                Some `Utf8
-           | Result.Ok ["us-ascii"] ->
+           | Result.Ok [ "us-ascii" ] ->
                Some `Latin1 (* should work *)
-           | Result.Ok ["iso-8859-1"] ->
+           | Result.Ok [ "iso-8859-1" ] ->
                Some `Latin1
-           | Result.Ok ["iso_8859-1"] ->
+           | Result.Ok [ "iso_8859-1" ] ->
                Some `Latin1
-           | Result.Ok ["latin1"] ->
+           | Result.Ok [ "latin1" ] ->
                Some `Latin1
            | _ ->
                None )
          | _ ->
-             None )
+             None)
   |> List.hd
   |> Option.value ~default:`Other
 
@@ -144,6 +145,7 @@ let http_call_with_code
       C.set_writefunction c responsefn ;
       C.set_httpheader c headers ;
       C.set_headerfunction c headerfn ;
+
       (* This tells CURL to send an Accept-Encoding header including all
        * of the encodings it supports *and* tells it to automagically decode
        * responses in those encodings. This works even if someone manually specifies
@@ -152,10 +154,13 @@ let http_call_with_code
        * https://curl.haxx.se/libcurl/c/CURLOPT_ACCEPT_ENCODING.html
        * *)
       if not raw_bytes then C.set_encoding c C.CURL_ENCODING_ANY ;
+
       (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
-      C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
+      C.set_protocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ] ;
+
       (* Seems like redirects can be used to get around the above list... *)
-      C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS] ;
+      C.set_redirprotocols c [ C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS ] ;
+
       (* If we have the tunnel options, proxy Curl through it with socks ... *)
       Option.value_map
         ~default:()
@@ -184,8 +189,10 @@ let http_call_with_code
           C.set_customrequest c "HEAD"
       | GET ->
           () ) ;
+
       (* Actually do the request *)
       C.perform c ;
+
       (* If we get a redirect back, then we may see the content-type
        * header twice. Fortunately, because we push headers to the front
        * above, and take the first in charset, we get the right
@@ -202,16 +209,18 @@ let http_call_with_code
       let response = (C.get_responsecode c, !errorbuf, responsebody) in
       C.cleanup c ;
       response
-    with Curl.CurlException (curl_code, code, s) ->
-      let info =
-        [ ("url", url)
-        ; ("error", Curl.strerror curl_code)
-        ; ("curl_code", string_of_int code)
-        ; ("response", Buffer.contents responsebuf) ]
-      in
-      Exception.code
-        ~info
-        ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
+    with
+    | Curl.CurlException (curl_code, code, s) ->
+        let info =
+          [ ("url", url)
+          ; ("error", Curl.strerror curl_code)
+          ; ("curl_code", string_of_int code)
+          ; ("response", Buffer.contents responsebuf)
+          ]
+        in
+        Exception.code
+          ~info
+          ("Internal HTTP-stack exception: " ^ Curl.strerror curl_code)
   in
   (body, code, !result_headers, error)
 
@@ -237,8 +246,8 @@ let call
     (body : string) : string =
   Log.debuG
     "HTTP"
-    ~params:[("verb", show_verb verb); ("url", url)]
-    ~jsonparams:[("body", `Int (body |> String.length))] ;
+    ~params:[ ("verb", show_verb verb); ("url", url) ]
+    ~jsonparams:[ ("body", `Int (body |> String.length)) ] ;
   let results, _, _ = http_call ~raw_bytes url [] verb headers body in
   results
 

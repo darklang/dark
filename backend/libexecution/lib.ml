@@ -3,7 +3,7 @@ open Types.RuntimeT
 module RT = Runtime
 
 let par ?(d : string = "") ?(args = []) ?(opt = false) name tipe : param =
-  {name; tipe; optional = opt; block_args = args; description = d}
+  { name; tipe; optional = opt; block_args = args; description = d }
 
 
 let func ?(d : string = "") ?(name : string = "f") args : param =
@@ -19,14 +19,15 @@ type shortfn =
   ; f : funcimpl
   ; d : string
   ; ps : bool
-  ; dep : bool }
+  ; dep : bool
+  }
 
 let fail_fn (fnname : string) (fn : fn) (args : dval list) ?msg () : dval =
   let bt = Exception.get_backtrace () in
   let all = List.zip_exn fn.parameters args in
   let invalid =
     List.filter all ~f:(fun (p, a) ->
-        Dval.tipe_of a <> p.tipe && p.tipe <> TAny )
+        Dval.tipe_of a <> p.tipe && p.tipe <> TAny)
   in
   match invalid with
   | [] ->

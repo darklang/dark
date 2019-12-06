@@ -10,11 +10,13 @@ let defaultTLID = TLID "7"
 let http ~(path : string) ?(meth = "GET") () : handler =
   { ast = B.new_ ()
   ; hTLID = defaultTLID
-  ; pos = {x = 0; y = 0}
+  ; pos = { x = 0; y = 0 }
   ; spec =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF path
-      ; modifier = Blank.newF meth } }
+      ; modifier = Blank.newF meth
+      }
+  }
 
 
 (* Sets the model with the appropriate toplevels *)
@@ -25,16 +27,17 @@ let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () :
     handlers = Handlers.fromList handlers
   ; canvasName = "test-curl"
   ; cursorState
-  ; traces }
+  ; traces
+  }
 
 
 let () =
   describe "strAsBodyCurl" (fun () ->
       test "returns jsonfied curl flag" (fun () ->
           expect (strAsBodyCurl (DStr "{\"a\":1,\"b\":false}"))
-          |> toEqual (Some "-d '{\"a\":1,\"b\":false}'") ) ;
+          |> toEqual (Some "-d '{\"a\":1,\"b\":false}'")) ;
       test "returns None if input dval is not DObj" (fun () ->
-          expect (strAsBodyCurl DNull) |> toEqual None ) ) ;
+          expect (strAsBodyCurl DNull) |> toEqual None)) ;
   describe "objAsHeaderCurl" (fun () ->
       test "returns header curl flag string" (fun () ->
           let dict =
@@ -49,39 +52,40 @@ let () =
           expect (objAsHeaderCurl (DObj dict))
           |> toEqual
                (Some
-                  "-H 'Authorization:Bearer abc123' -H 'Content-Type:application/json'")
-      ) ;
+                  "-H 'Authorization:Bearer abc123' -H 'Content-Type:application/json'")) ;
       test "returns None if input dval is not DObj" (fun () ->
-          expect (objAsHeaderCurl DNull) |> toEqual None ) ) ;
+          expect (objAsHeaderCurl DNull) |> toEqual None)) ;
   describe "curlFromSpec" (fun () ->
       let m =
         makeModel
-          ~handlers:[http ~path:"/test" ()]
+          ~handlers:[ http ~path:"/test" () ]
           ~cursorState:(Selecting (defaultTLID, None))
           ()
       in
       test "returns command for /test GET" (fun () ->
           expect (curlFromSpec m defaultTLID)
-          |> toEqual (Some "curl http://test-curl.builtwithdark.com/test") ) ;
+          |> toEqual (Some "curl http://test-curl.builtwithdark.com/test")) ;
       test "returns command in https if env=prod" (fun () ->
-          let m1 = {m with environment = "production"} in
+          let m1 = { m with environment = "production" } in
           expect (curlFromSpec m1 defaultTLID)
-          |> toEqual (Some "curl https://test-curl.builtwithdark.com/test") ) ;
+          |> toEqual (Some "curl https://test-curl.builtwithdark.com/test")) ;
       test "returns None if tlid not found" (fun () ->
-          expect (curlFromSpec m (TLID "1")) |> toEqual None ) ;
+          expect (curlFromSpec m (TLID "1")) |> toEqual None) ;
       test "returns None for non-HTTP handlers" (fun () ->
           let cronTLID = TLID "2" in
           let cron =
             { ast = B.new_ ()
             ; hTLID = cronTLID
-            ; pos = {x = 0; y = 0}
+            ; pos = { x = 0; y = 0 }
             ; spec =
                 { space = Blank.newF "CRON"
                 ; name = Blank.newF "cleanKitchen"
-                ; modifier = Blank.newF "Fortnightly" } }
+                ; modifier = Blank.newF "Fortnightly"
+                }
+            }
           in
-          let m1 = {m with handlers = Handlers.fromList [cron]} in
-          expect (curlFromSpec m1 cronTLID) |> toEqual None ) ) ;
+          let m1 = { m with handlers = Handlers.fromList [ cron ] } in
+          expect (curlFromSpec m1 cronTLID) |> toEqual None)) ;
   describe "curlFromCurrentTrace" (fun () ->
       let traces input =
         StrDict.empty
@@ -92,7 +96,9 @@ let () =
                  , Some
                      { input
                      ; timestamp = "2019-09-17T12:00:30Z"
-                     ; functionResults = [] } ) ]
+                     ; functionResults = []
+                     } )
+               ]
       in
       test "returns command for /test GET with headers" (fun () ->
           let headers =
@@ -121,7 +127,7 @@ let () =
           in
           let m =
             makeModel
-              ~handlers:[http ~path:"/test" ()]
+              ~handlers:[ http ~path:"/test" () ]
               ~traces:(traces input)
               ~cursorState:(Selecting (defaultTLID, None))
               ()
@@ -129,8 +135,7 @@ let () =
           expect (curlFromCurrentTrace m defaultTLID)
           |> toEqual
                (Some
-                  "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET http://test-curl.builtwithdark.com/test")
-      ) ;
+                  "curl -H 'Authorization:Bearer abc123' -H 'Content-Type:application/json' -X GET http://test-curl.builtwithdark.com/test")) ;
       test "returns command for /test POST with body" (fun () ->
           let input =
             StrDict.empty
@@ -151,7 +156,7 @@ let () =
           in
           let m =
             makeModel
-              ~handlers:[http ~path:"/test" ~meth:"POST" ()]
+              ~handlers:[ http ~path:"/test" ~meth:"POST" () ]
               ~traces:(traces input)
               ~cursorState:(Selecting (defaultTLID, None))
               ()
@@ -159,6 +164,5 @@ let () =
           expect (curlFromCurrentTrace m defaultTLID)
           |> toEqual
                (Some
-                  "curl -d '{\"a\":1,\"b\":false}' -X POST http://test-curl.builtwithdark.com/test")
-      ) ) ;
+                  "curl -d '{\"a\":1,\"b\":false}' -X POST http://test-curl.builtwithdark.com/test"))) ;
   ()

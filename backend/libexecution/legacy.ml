@@ -6,9 +6,9 @@ module PrettyResponseJsonV0 = struct
   (* At time of writing, this is the same as Dval.unsafe_dval_to_yojson. It's being copied to be certain this format doesn't change. *)
   let rec unsafe_dval_to_yojson ?(redact = true) (dv : dval) : Yojson.Safe.t =
     let tipe = dv |> Dval.tipe_of |> Dval.unsafe_tipe_to_yojson in
-    let wrap_user_type value = `Assoc [("type", tipe); ("value", value)] in
+    let wrap_user_type value = `Assoc [ ("type", tipe); ("value", value) ] in
     let wrap_constructed_type cons values =
-      `Assoc [("type", tipe); ("constructor", cons); ("values", `List values)]
+      `Assoc [ ("type", tipe); ("constructor", cons); ("values", `List values) ]
     in
     let wrap_user_str value = wrap_user_type (`String value) in
     match dv with
@@ -38,7 +38,7 @@ module PrettyResponseJsonV0 = struct
         wrap_user_str msg
     | DResp (h, hdv) ->
         wrap_user_type
-          (`List [dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv])
+          (`List [ dhttp_to_yojson h; unsafe_dval_to_yojson ~redact hdv ])
     | DDB dbname ->
         wrap_user_str dbname
     | DDate date ->
@@ -62,11 +62,11 @@ module PrettyResponseJsonV0 = struct
       | ResOk dv ->
           wrap_constructed_type
             (`String "Ok")
-            [unsafe_dval_to_yojson ~redact dv]
+            [ unsafe_dval_to_yojson ~redact dv ]
       | ResError dv ->
           wrap_constructed_type
             (`String "Error")
-            [unsafe_dval_to_yojson ~redact dv] )
+            [ unsafe_dval_to_yojson ~redact dv ] )
     | DBytes bytes ->
         wrap_user_str (RawBytes.to_string bytes)
 
@@ -196,7 +196,7 @@ module PrettyRequestJsonV0 = struct
           else
             let strs =
               DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-                  (key ^ ": " ^ to_repr_ indent pp value) :: l )
+                  (key ^ ": " ^ to_repr_ indent pp value) :: l)
             in
             "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
       | DOption OptNothing ->

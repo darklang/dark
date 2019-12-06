@@ -4,31 +4,32 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : Lib.shortfn list =
-  [ { pns = ["Bytes::base64Encode"]
+  [ { pns = [ "Bytes::base64Encode" ]
     ; ins = []
-    ; p = [par "bytes" TBytes]
+    ; p = [ par "bytes" TBytes ]
     ; r = TStr
     ; d =
         "Base64URL encodes `bytes` with `=` padding. Uses URL-safe encoding with `-` and `_` instead of `+` and `/`, as defined in RFC 4648 section 5."
     ; f =
         InProcess
           (function
-          | _, [DBytes bytes] ->
+          | _, [ DBytes bytes ] ->
               Dval.dstr_of_string_exn (Libtarget.base64url_bytes bytes)
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Bytes::hexEncode"]
+    ; dep = false
+    }
+  ; { pns = [ "Bytes::hexEncode" ]
     ; ins = []
-    ; p = [par "bytes" TBytes]
+    ; p = [ par "bytes" TBytes ]
     ; r = TStr
     ; d =
         "Hex (Base16) encodes `bytes` using an uppercase alphabet. Complies with RFC 4648 section 8."
     ; f =
         InProcess
           (function
-          | _, [DBytes bytes] ->
+          | _, [ DBytes bytes ] ->
               let hexUppercaseLookup = "0123456789ABCDEF" in
               let len = Bytes.length bytes in
               let buf = Buffer.create (len * 2) in
@@ -45,4 +46,6 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false } ]
+    ; dep = false
+    }
+  ]

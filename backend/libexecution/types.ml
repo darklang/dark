@@ -4,7 +4,8 @@ module Int63 = Prelude.Int63
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type pos =
   { x : int
-  ; y : int }
+  ; y : int
+  }
 [@@deriving eq, compare, show, yojson, bin_io]
 
 (* We choose int63 so that we get the same type in jsoo, instead of 31 bit. Our
@@ -42,7 +43,7 @@ module IDMap = struct
         Format.pp_print_string fmt (string_of_id key) ;
         Format.pp_print_string fmt ": " ;
         valueFormatter fmt data ;
-        Format.pp_print_string fmt ",  " ) ;
+        Format.pp_print_string fmt ",  ") ;
     Format.pp_print_string fmt "}" ;
     ()
 
@@ -52,7 +53,7 @@ module IDMap = struct
     | `Assoc l ->
         l
         |> List.map ~f:(fun (k, v) ->
-               Result.map (fn v) ~f:(fun v -> (id_of_string k, v)) )
+               Result.map (fn v) ~f:(fun v -> (id_of_string k, v)))
         |> Result.combine_errors
         |> Result.map_error ~f:(String.concat ~sep:", ")
         |> Result.bind ~f:(fun l ->
@@ -60,7 +61,7 @@ module IDMap = struct
                | `Duplicate_key k ->
                    Error ("duplicate key: " ^ string_of_id k)
                | `Ok m ->
-                   Ok m )
+                   Ok m)
     | _ ->
         Error "Expected an object"
 end
@@ -195,7 +196,8 @@ module RuntimeT = struct
       ; state : db_migration_state
       ; rollforward : expr
       ; rollback : expr
-      ; cols : col list }
+      ; cols : col list
+      }
     [@@deriving eq, compare, show, yojson]
 
     type db =
@@ -204,7 +206,8 @@ module RuntimeT = struct
       ; cols : col list
       ; version : int
       ; old_migrations : db_migration list
-      ; active_migration : db_migration option }
+      ; active_migration : db_migration option
+      }
     [@@deriving eq, compare, show, yojson]
   end
 
@@ -215,20 +218,23 @@ module RuntimeT = struct
 
     type spec_types =
       { input : dtdeprecated
-      ; output : dtdeprecated }
+      ; output : dtdeprecated
+      }
     [@@deriving eq, show, yojson, bin_io]
 
     type spec =
       { module_ : string or_blank [@key "module"]
       ; name : string or_blank
       ; modifier : string or_blank
-      ; types : spec_types }
+      ; types : spec_types
+      }
     [@@deriving eq, show, yojson, bin_io]
 
     type handler =
       { tlid : tlid
       ; ast : expr
-      ; spec : spec }
+      ; spec : spec
+      }
     [@@deriving eq, show, yojson, bin_io]
 
     (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -380,8 +386,8 @@ module RuntimeT = struct
       match json with
       | `Assoc l ->
           l
-          |> List.map ~f:(fun (k, v) -> Result.map (fn v) ~f:(fun dv -> (k, dv))
-             )
+          |> List.map ~f:(fun (k, v) ->
+                 Result.map (fn v) ~f:(fun dv -> (k, dv)))
           |> Result.combine_errors
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Result.bind ~f:T.from_list_unique
@@ -451,7 +457,8 @@ module RuntimeT = struct
     ; tipe : tipe
     ; block_args : string list
     ; optional : bool
-    ; description : string }
+    ; description : string
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   type ufn_param =
@@ -459,7 +466,8 @@ module RuntimeT = struct
     ; tipe : tipe or_blank
     ; block_args : string list
     ; optional : bool
-    ; description : string }
+    ; description : string
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   type ufn_metadata =
@@ -467,18 +475,21 @@ module RuntimeT = struct
     ; parameters : ufn_param list
     ; return_type : tipe or_blank
     ; description : string
-    ; infix : bool }
+    ; infix : bool
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   type user_fn =
     { tlid : tlid
     ; metadata : ufn_metadata
-    ; ast : expr }
+    ; ast : expr
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   type user_record_field =
     { name : string or_blank
-    ; tipe : tipe_ or_blank }
+    ; tipe : tipe_ or_blank
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   type user_tipe_definition = UTRecord of user_record_field list
@@ -488,7 +499,8 @@ module RuntimeT = struct
     { tlid : tlid
     ; name : string or_blank
     ; version : int
-    ; definition : user_tipe_definition }
+    ; definition : user_tipe_definition
+    }
   [@@deriving eq, show, yojson, bin_io]
 
   (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -518,7 +530,8 @@ module RuntimeT = struct
     ; store_fn_result : store_fn_result_type
     ; load_fn_arguments : load_fn_arguments_type
     ; store_fn_arguments : store_fn_arguments_type
-    ; fail_fn : fail_fn_type }
+    ; fail_fn : fail_fn_type
+    }
 
   type funcimpl =
     | InProcess of (exec_state * dval list -> dval)
@@ -534,7 +547,8 @@ module RuntimeT = struct
     ; description : string
     ; func : funcimpl
     ; preview_execution_safe : bool
-    ; deprecated : bool }
+    ; deprecated : bool
+    }
 
   let ufn_param_to_param (p : ufn_param) : param option =
     match (p.name, p.tipe) with
@@ -543,7 +557,8 @@ module RuntimeT = struct
         ; tipe = t
         ; block_args = p.block_args
         ; optional = p.optional
-        ; description = p.description }
+        ; description = p.description
+        }
         |> Some
     | _ ->
         None
@@ -564,14 +579,15 @@ module RuntimeT = struct
     in
     match (name, rt, params_all_filled) with
     | Some n, Some t, true ->
-        { prefix_names = [n]
+        { prefix_names = [ n ]
         ; infix_names = []
         ; parameters = params
         ; return_type = t
         ; description = uf.metadata.description
         ; preview_execution_safe = false
         ; func = UserCreated (uf.tlid, uf.ast)
-        ; deprecated = false }
+        ; deprecated = false
+        }
         |> Some
     | _ ->
         None

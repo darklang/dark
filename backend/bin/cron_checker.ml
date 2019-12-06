@@ -16,25 +16,27 @@ let cron_checker execution_id =
         Libcommon.Log.erroR
           "cron_checker"
           ~data:"Uncaught error"
-          ~params:[("exn", Libexecution.Exception.exn_to_string e)] ;
+          ~params:[ ("exn", Libexecution.Exception.exn_to_string e) ] ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e
               bt
               CronChecker
-              (Libexecution.Types.string_of_id execution_id) ) ;
+              (Libexecution.Types.string_of_id execution_id)) ;
         if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
   in
   Lwt_main.run
     (Log.add_log_annotations
        [ ( "execution_id"
-         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+         , `String (Libexecution.Types.string_of_id execution_id) )
+       ]
        (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker))
 
 
 let () =
   let execution_id = Libexecution.Util.create_id () in
   Libbackend.Init.init ~run_side_effects:false ;
+
   (* If either thread sets the shutdown ref, the other will see it and
    * terminate; block until both have terminated. *)
   let health_check_thread = Thread.create (health_check shutdown) () in

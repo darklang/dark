@@ -167,7 +167,8 @@ module Namer = struct
     ; "wallaby"
     ; "woodchuck"
     ; "zebra"
-    ; "zebu" ]
+    ; "zebu"
+    ]
 
 
   let adjs =
@@ -233,7 +234,8 @@ module Namer = struct
     ; "violent"
     ; "wild"
     ; "yapping"
-    ; "zippy" ]
+    ; "zippy"
+    ]
 
 
   let generateFallbackName (space : string) : string =

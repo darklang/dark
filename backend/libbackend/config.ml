@@ -112,9 +112,9 @@ let create_accounts = bool "DARK_CONFIG_CREATE_ACCOUNTS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let log_format : [`Json | `DecoratedJson] =
+let log_format : [ `Json | `DecoratedJson ] =
   let as_str =
-    string_choice "DARK_CONFIG_LOGGING_FORMAT" ["json"; "decorated_json"]
+    string_choice "DARK_CONFIG_LOGGING_FORMAT" [ "json"; "decorated_json" ]
   in
   match as_str with
   | "json" ->
@@ -137,7 +137,8 @@ let log_level =
       ; "info"
       ; "success"
       ; "debug"
-      ; "all" ]
+      ; "all"
+      ]
   in
   match as_str with
   | "off" ->

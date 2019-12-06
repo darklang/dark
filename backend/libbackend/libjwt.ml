@@ -35,7 +35,8 @@ let sign_and_encode
     ~(extra_headers : (string * Yojson.Safe.t) list)
     ~(payload : Yojson.Safe.t) : string =
   let header =
-    `Assoc ([("alg", `String "RS256"); ("type", `String "JWT")] @ extra_headers)
+    `Assoc
+      ([ ("alg", `String "RS256"); ("type", `String "JWT") ] @ extra_headers)
     |> Yojson.Safe.to_string
     |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
   in
@@ -59,7 +60,7 @@ let sign_and_encode
 let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
     (string * string) option =
   match String.split ~on:'.' token with
-  | [header; payload; signature] ->
+  | [ header; payload; signature ] ->
     (* do the minimum of parsing and decoding before verifying signature.
         c.f. "cryptographic doom principle". *)
     ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
@@ -90,7 +91,7 @@ let verify_and_extract_v0 ~(key : Rsa.pub) ~(token : string) :
 let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
     (string * string, string) Result.t =
   match String.split ~on:'.' token with
-  | [header; payload; signature] ->
+  | [ header; payload; signature ] ->
     (* do the minimum of parsing and decoding before verifying signature.
         c.f. "cryptographic doom principle". *)
     ( match B64.decode_opt ~alphabet:B64.uri_safe_alphabet signature with
@@ -121,26 +122,27 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
 
 
 let handle_error (fn : unit -> dval) =
-  try DResult (ResOk (fn ())) with Invalid_argument msg ->
-    let msg =
-      if msg = "No RSA keys"
-      then "Invalid private key: not an RSA key"
-      else msg
-    in
-    DResult (ResError (Dval.dstr_of_string_exn msg))
+  try DResult (ResOk (fn ())) with
+  | Invalid_argument msg ->
+      let msg =
+        if msg = "No RSA keys"
+        then "Invalid private key: not an RSA key"
+        else msg
+      in
+      DResult (ResError (Dval.dstr_of_string_exn msg))
 
 
 let fns =
-  [ { pns = ["JWT::signAndEncode"]
+  [ { pns = [ "JWT::signAndEncode" ]
     ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "payload" TAny]
+    ; p = [ par "pemPrivKey" TStr; par "payload" TAny ]
     ; r = TStr
     ; d =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; payload] ->
+          | _, [ DStr key; payload ] ->
               let (`RSA key) =
                 key
                 |> Unicode_string.to_string
@@ -153,17 +155,18 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::signAndEncodeWithHeaders"]
+    ; dep = true
+    }
+  ; { pns = [ "JWT::signAndEncodeWithHeaders" ]
     ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+    ; p = [ par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny ]
     ; r = TStr
     ; d =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; DObj headers; payload] ->
+          | _, [ DStr key; DObj headers; payload ] ->
               let (`RSA key) =
                 key
                 |> Unicode_string.to_string
@@ -181,17 +184,18 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::signAndEncode_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "JWT::signAndEncode_v1" ]
     ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "payload" TAny]
+    ; p = [ par "pemPrivKey" TStr; par "payload" TAny ]
     ; r = TResult
     ; d =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm. Takes an unecnrypted RSA private key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; payload] ->
+          | _, [ DStr key; payload ] ->
               handle_error (fun () ->
                   let (`RSA key) =
                     key
@@ -201,21 +205,22 @@ let fns =
                   in
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:[] ~payload
-                  |> Dval.dstr_of_string_exn )
+                  |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["JWT::signAndEncodeWithHeaders_v1"]
+    ; dep = false
+    }
+  ; { pns = [ "JWT::signAndEncodeWithHeaders_v1" ]
     ; ins = []
-    ; p = [par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny]
+    ; p = [ par "pemPrivKey" TStr; par "headers" TObj; par "payload" TAny ]
     ; r = TResult
     ; d =
         "Sign and encode an rfc751J9 JSON Web Token, using the RS256 algorithm, with an extra header map. Takes an unecnrypted RSA private key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; DObj headers; payload] ->
+          | _, [ DStr key; DObj headers; payload ] ->
               handle_error (fun () ->
                   let (`RSA key) =
                     key
@@ -230,21 +235,22 @@ let fns =
                   in
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-                  |> Dval.dstr_of_string_exn )
+                  |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["JWT::verifyAndExtract"]
+    ; dep = false
+    }
+  ; { pns = [ "JWT::verifyAndExtract" ]
     ; ins = []
-    ; p = [par "pemPubKey" TStr; par "token" TStr]
+    ; p = [ par "pemPubKey" TStr; par "token" TStr ]
     ; r = TOption
     ; d =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; DStr token] ->
+          | _, [ DStr key; DStr token ] ->
             ( match
                 key
                 |> Unicode_string.to_string
@@ -261,7 +267,8 @@ let fns =
                 with
               | Some (headers, payload) ->
                   [ ("header", Dval.of_unknown_json_v1 headers)
-                  ; ("payload", Dval.of_unknown_json_v1 payload) ]
+                  ; ("payload", Dval.of_unknown_json_v1 payload)
+                  ]
                   |> Prelude.StrDict.from_list_exn
                   |> DObj
                   |> OptJust
@@ -271,17 +278,18 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = true }
-  ; { pns = ["JWT::verifyAndExtract_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "JWT::verifyAndExtract_v1" ]
     ; ins = []
-    ; p = [par "pemPubKey" TStr; par "token" TStr]
+    ; p = [ par "pemPubKey" TStr; par "token" TStr ]
     ; r = TResult
     ; d =
         "Verify and extra the payload and headers from an rfc751J9 JSON Web Token that uses the RS256 algorithm. Takes an unencrypted RSA public key in PEM format."
     ; f =
         InProcess
           (function
-          | _, [DStr key; DStr token] ->
+          | _, [ DStr key; DStr token ] ->
             ( try
                 match
                   key
@@ -299,14 +307,16 @@ let fns =
                     with
                   | Ok (headers, payload) ->
                       [ ("header", Dval.of_unknown_json_v1 headers)
-                      ; ("payload", Dval.of_unknown_json_v1 payload) ]
+                      ; ("payload", Dval.of_unknown_json_v1 payload)
+                      ]
                       |> Prelude.StrDict.from_list_exn
                       |> DObj
                       |> ResOk
                       |> DResult
                   | Error msg ->
                       DResult (ResError (Dval.dstr_of_string_exn msg)) )
-              with Invalid_argument msg ->
+              with
+            | Invalid_argument msg ->
                 let msg =
                   if msg = "No public keys" then "Invalid public key" else msg
                 in
@@ -314,4 +324,6 @@ let fns =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false } ]
+    ; dep = false
+    }
+  ]

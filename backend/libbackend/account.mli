@@ -6,14 +6,16 @@ type user_info =
   { username : username
   ; email : string
   ; name : string
-  ; admin : bool }
+  ; admin : bool
+  }
 
 type user_info_and_created_at =
   { username : username
   ; email : string
   ; name : string
   ; admin : bool
-  ; created_at : string }
+  ; created_at : string
+  }
 
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool

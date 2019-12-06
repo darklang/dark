@@ -10,6 +10,7 @@ let init ~run_side_effects =
       Caml.print_endline "Libbackend Initialization Begins" ;
       Printexc.record_backtrace true ;
       Exn.initialize_module () ;
+
       (* libexecution *)
       let non_client_fns =
         Libdb.fns
@@ -24,8 +25,10 @@ let init ~run_side_effects =
         @ Libjwt.fns
       in
       Libexecution.Init.init Config.log_level Config.log_format non_client_fns ;
+
       (* init the Random module, will be seeded from /dev/urandom on Linux *)
       Random.self_init () ;
+
       (* Dark-specific stuff *)
       File.init () ;
       Httpclient.init () ;
@@ -37,7 +40,8 @@ let init ~run_side_effects =
       if Config.check_tier_one_hosts then Canvas.check_tier_one_hosts () ;
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete" ;
       has_inited := true )
-  with e ->
-    let bt = Libexecution.Exception.get_backtrace () in
-    Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
-    raise e
+  with
+  | e ->
+      let bt = Libexecution.Exception.get_backtrace () in
+      Rollbar.last_ditch e ~bt "backend initialization" "no execution id" ;
+      raise e

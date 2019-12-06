@@ -6,10 +6,14 @@ open Types.RuntimeT
 module Error = struct
   type t =
     | TypeLookupFailure of string * int
-    | TypeUnificationFailure of {expected_tipe : tipe; actual_value : dval}
+    | TypeUnificationFailure of
+        { expected_tipe : tipe
+        ; actual_value : dval
+        }
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
-        ; actual_fields : String.Set.t }
+        ; actual_fields : String.Set.t
+        }
 
   let to_string t =
     match t with
@@ -18,12 +22,12 @@ module Error = struct
           "(" ^ lookup_name ^ ", v" ^ string_of_int lookup_version ^ ")"
         in
         "Type " ^ lookup_string ^ " could not be found on the canvas"
-    | TypeUnificationFailure {expected_tipe; actual_value} ->
+    | TypeUnificationFailure { expected_tipe; actual_value } ->
         "Expected to see a value of type "
         ^ Dval.tipe_to_string expected_tipe
         ^ " but found a "
         ^ Dval.tipename actual_value
-    | MismatchedRecordFields {expected_fields; actual_fields} ->
+    | MismatchedRecordFields { expected_fields; actual_fields } ->
         (* More or less wholesale from User_db's type checker *)
         let missing_fields = String.Set.diff expected_fields actual_fields in
         let missing_msg =
@@ -69,10 +73,10 @@ let user_tipe_list_to_type_env (tipes : user_tipe list) : type_env =
       | Filled (_, name) ->
           TypeEnv.add_exn map ~key:(name, t.version) ~data:t
       | Partial _ | Blank _ ->
-          map )
+          map)
 
 
-let error err = Error [err]
+let error err = Error [ err ]
 
 let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
     (unit, Error.t list) Result.t =
@@ -121,10 +125,11 @@ let rec unify ~(type_env : type_env) (expected : tipe) (value : dval) :
     | None ->
         error (TypeLookupFailure (expected_name, expected_version))
     | Some ut ->
-      ( match ut.definition with UTRecord utd ->
+      ( match ut.definition with
+      | UTRecord utd ->
           unify_user_record_with_dval_map ~type_env utd dmap ) )
   | expected_tipe, actual_value ->
-      error (TypeUnificationFailure {expected_tipe; actual_value})
+      error (TypeUnificationFailure { expected_tipe; actual_value })
 
 
 and unify_user_record_with_dval_map
@@ -138,7 +143,7 @@ and unify_user_record_with_dval_map
            | Filled (_, n), Filled (_, t) ->
                Some (n, t)
            | _ ->
-               None )
+               None)
     |> TipeMap.of_alist_exn
   in
   let definition_names =
@@ -151,13 +156,13 @@ and unify_user_record_with_dval_map
     value
     |> DvalMap.to_list
     |> List.map ~f:(fun (key, data) ->
-           unify ~type_env (TipeMap.find_exn complete_definition key) data )
+           unify ~type_env (TipeMap.find_exn complete_definition key) data)
     |> Result.combine_errors_unit
     |> Result.map_error ~f:List.concat
   else
     error
       (MismatchedRecordFields
-         {expected_fields = definition_names; actual_fields = obj_names})
+         { expected_fields = definition_names; actual_fields = obj_names })
 
 
 let check_function_call
@@ -168,7 +173,7 @@ let check_function_call
   let with_params =
     List.map
       ~f:(fun (argname, argval) ->
-        (List.find_exn ~f:(fun p -> p.name = argname) fn.parameters, argval) )
+        (List.find_exn ~f:(fun p -> p.name = argname) fn.parameters, argval))
       args
   in
   with_params

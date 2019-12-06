@@ -27,7 +27,7 @@ let is_already_run name : bool =
     ~name:"migration.is_already_run"
     "SELECT 1 from system_migrations
      WHERE name = $1"
-    ~params:[String name]
+    ~params:[ String name ]
 
 
 let run_system_migration (name : string) (sql : string) : unit =
@@ -73,7 +73,7 @@ let run () : unit =
       else (
         Log.infO "new migration" ~data:name ;
         let sql = File.readfile ~root:Migrations name in
-        run_system_migration name sql ) ) ;
+        run_system_migration name sql )) ;
   ()
 
 

@@ -43,18 +43,21 @@ let registerGlobalDirect name key tagger =
 
 type size =
   { width : int
-  ; height : int }
+  ; height : int
+  }
 
 type rect =
   { id : string
   ; top : int
   ; left : int
   ; right : int
-  ; bottom : int }
+  ; bottom : int
+  }
 
 type list_pos =
   { atoms : rect list
-  ; nested : rect list }
+  ; nested : rect list
+  }
 
 type jsRect = string Js.Dict.t
 
@@ -70,8 +73,7 @@ module Ext = struct
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
-  external _querySelector :
-    string -> Dom.element Js.Nullable.t
+  external _querySelector : string -> Dom.element Js.Nullable.t
     = "querySelector"
     [@@bs.val] [@@bs.scope "document"]
 
@@ -81,8 +83,7 @@ module Ext = struct
 
   external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
 
-  external getBoundingClientRect :
-    Dom.element -> Dom.domRect
+  external getBoundingClientRect : Dom.element -> Dom.domRect
     = "getBoundingClientRect"
     [@@bs.send]
 
@@ -112,7 +113,8 @@ module Ext = struct
     ; top = rectTop client |> int_of_float
     ; left = rectLeft client |> int_of_float
     ; right = rectRight client |> int_of_float
-    ; bottom = rectBottom client |> int_of_float }
+    ; bottom = rectBottom client |> int_of_float
+    }
 
 
   external redirect : string -> unit = "replace"
@@ -134,12 +136,13 @@ module Size = struct
            ; top = int_of_string (Js.Dict.unsafeGet jsRect "top")
            ; left = int_of_string (Js.Dict.unsafeGet jsRect "left")
            ; right = int_of_string (Js.Dict.unsafeGet jsRect "right")
-           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom") } )
+           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom")
+           })
 
 
   let positions (tlid : string) : list_pos =
     let pos = Ext.astPositions tlid in
-    {atoms = _convert "atoms" pos; nested = _convert "nested" pos}
+    { atoms = _convert "atoms" pos; nested = _convert "nested" pos }
 end
 
 module Location = struct
@@ -261,7 +264,7 @@ module Decoder = struct
                   Error ("tuple2[1] -> " ^ e2)
             else Error "tuple2 expected array with 2 elements"
         | _ ->
-            Error "tuple2 expected array" )
+            Error "tuple2 expected array")
 
 
   let pair = tuple2
@@ -289,7 +292,7 @@ module Decoder = struct
                   Error ("tuple3[2] -> " ^ e3)
             else Error "tuple3 expected array with 3 elements"
         | _ ->
-            Error "tuple3 expected array" )
+            Error "tuple3 expected array")
 
 
   let triple = tuple3
@@ -320,7 +323,7 @@ module Decoder = struct
                   Error ("tuple4[3] -> " ^ e4)
             else Error "tuple4 expected array with 4 elements"
         | _ ->
-            Error "tuple4 expected array" )
+            Error "tuple4 expected array")
 
 
   let wireIdentifier =
@@ -331,7 +334,7 @@ module Decoder = struct
         | Ok s ->
             Ok s
         | Error _ ->
-            Ok (Js.Json.stringify j) )
+            Ok (Js.Json.stringify j))
 end
 
 module Rollbar = struct

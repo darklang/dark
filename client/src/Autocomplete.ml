@@ -26,7 +26,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
          | Some el ->
              Element.setScrollTop el (i |> height |> float_of_int)
          | None ->
-             () ))
+             ()))
 
 
 (* ---------------------------- *)
@@ -34,7 +34,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction {fnName} ->
+  | ACFunction { fnName } ->
       fnName
   | ACField name ->
       name
@@ -294,15 +294,15 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
+let findCompatibleThreadParam ({ fnParameters } : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
   |> Option.andThen ~f:(fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
+         if RT.isCompatible fst.paramTipe tipe then Some fst else None)
 
 
-let findParamByType ({fnParameters} : function_) (tipe : tipe) :
+let findParamByType ({ fnParameters } : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
@@ -314,10 +314,10 @@ let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
   |> Option.andThen ~f:(AST.getValueParent pd)
   |> Option.map ~f:P.toID
   |> Option.andThen2 traceID ~f:(fun traceID id ->
-         Analysis.getLiveValue m id traceID )
+         Analysis.getLiveValue m id traceID)
   (* don't filter on incomplete values *)
   |> Option.andThen ~f:(fun dv_ ->
-         match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
+         match dv_ with DIncomplete _ -> None | _ -> Some dv_)
 
 
 let isThreadMember (m : model) ((tlid, pd) : target) =
@@ -325,7 +325,7 @@ let isThreadMember (m : model) ((tlid, pd) : target) =
   |> Option.andThen ~f:TL.getAST
   |> Option.andThen ~f:(AST.findParentOfWithin_ (P.toID pd))
   |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false )
+         match e with F (_, Thread _) -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
@@ -338,7 +338,7 @@ let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe) )
+         |> Option.map ~f:(fun x -> x.paramTipe))
 
 
 let matchesTypes
@@ -644,7 +644,7 @@ let qSearch (m : model) (s : string) : omniAction list =
                |> Option.orElse
                     ( TLIDDict.get ~tlid m.userFunctions
                     |> Option.map ~f:foundFnOmniAction )
-             else None )
+             else None)
     in
     if List.length results > maxResults
     then List.take ~count:maxResults results
@@ -688,32 +688,33 @@ let toDynamicItems
         ; qFunction q
         ; qWorkerHandler q
         ; qCronHandler q
-        ; qReplHandler q ]
+        ; qReplHandler q
+        ]
         @ qSearch m q
       in
       (* Creating a group Spec: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.sny6o08h9gc2 *)
       let all =
         if VariantTesting.variantIsActive m GroupVariant
-        then standard @ [qGroup q]
+        then standard @ [ qGroup q ]
         else standard
       in
       List.map ~f:(fun o -> ACOmniAction o) all
   | Some (_, PExpr _) ->
-      Option.values [qLiteral q]
+      Option.values [ qLiteral q ]
   | Some (_, PField _) ->
-      if q = "" then [] else [ACField q]
+      if q = "" then [] else [ ACField q ]
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
-        [ACHTTPRoute (cleanHTTPname q)]
+        [ ACHTTPRoute (cleanHTTPname q) ]
     | Some HSCron ->
-        if q = "" then [] else [ACCronName (cleanEventName q)]
+        if q = "" then [] else [ ACCronName (cleanEventName q) ]
     | Some HSRepl ->
-        if q = "" then [] else [ACReplName (cleanEventName q)]
+        if q = "" then [] else [ ACReplName (cleanEventName q) ]
     | _ ->
-        if q = "" then [] else [ACWorkerName (cleanEventName q)] )
+        if q = "" then [] else [ ACWorkerName (cleanEventName q) ] )
   | Some (_, PDBName _) ->
-      if q == "" then [] else [ACDBName (cleanDBName q)]
+      if q == "" then [] else [ ACDBName (cleanDBName q) ]
   | _ ->
       []
 
@@ -757,13 +758,13 @@ let tlDestinations (m : model) : autocompleteItem list =
     |> TD.values
     |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl ->
-           Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false) )
+           Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false))
   in
   let ufs =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun fn ->
            let name = "Jump to function: " ^ fnDisplayName fn in
-           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)) )
+           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)))
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
@@ -807,10 +808,10 @@ let generate (m : model) (a : autocomplete) : autocomplete =
   let varnames =
     a.target
     |> Option.andThen ~f:(fun (tlid, pd) ->
-           TL.get m tlid |> Option.map ~f:(fun tl -> (tl, Pointer.toID pd)) )
+           TL.get m tlid |> Option.map ~f:(fun tl -> (tl, Pointer.toID pd)))
     |> Option.andThen ~f:(fun (tl, id) ->
            Analysis.getSelectedTraceID m (TL.id tl)
-           |> Option.map ~f:(Analysis.getAvailableVarnames m tl id) )
+           |> Option.map ~f:(Analysis.getAvailableVarnames m tl id))
     |> Option.withDefault ~default:[]
   in
   let dval = Option.andThen ~f:(dvalForTarget m) a.target in
@@ -835,7 +836,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     [ ACConstructorName "Just"
     ; ACConstructorName "Nothing"
     ; ACConstructorName "Ok"
-    ; ACConstructorName "Error" ]
+    ; ACConstructorName "Error"
+    ]
   in
   let extras =
     match a.target with
@@ -849,14 +851,16 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; ACHTTPModifier "POST"
             ; ACHTTPModifier "PUT"
             ; ACHTTPModifier "DELETE"
-            ; ACHTTPModifier "PATCH" ]
+            ; ACHTTPModifier "PATCH"
+            ]
         | Some HSCron ->
             [ ACCronTiming "Daily"
             ; ACCronTiming "Weekly"
             ; ACCronTiming "Fortnightly"
             ; ACCronTiming "Every 1hr"
             ; ACCronTiming "Every 12hrs"
-            ; ACCronTiming "Every 1min" ]
+            ; ACCronTiming "Every 1min"
+            ]
         | None | Some HSRepl | Some HSDeprecatedOther | Some HSWorker ->
             [] )
       | EventName ->
@@ -869,7 +873,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
               |> List.filterMap ~f:(fun f404 ->
                      if f404.path != "/"
                      then Some (ACHTTPRoute (cleanHTTPname f404.path))
-                     else None )
+                     else None)
             in
             fourOhFourList
         | _ ->
@@ -879,7 +883,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           [ ACEventSpace "HTTP"
           ; ACEventSpace "CRON"
           ; ACEventSpace "WORKER"
-          ; ACEventSpace "REPL" ]
+          ; ACEventSpace "REPL"
+          ]
       | DBColType ->
           let builtins =
             [ "String"
@@ -889,7 +894,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
             ; "Password"
             ; "Date"
             ; "UUID"
-            ; "Dict" ]
+            ; "Dict"
+            ]
           in
           let compound = List.map ~f:(fun s -> "[" ^ s ^ "]") builtins in
           List.map ~f:(fun x -> ACDBColType x) (builtins @ compound)
@@ -909,7 +915,8 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACParamTipe TBlock
           ; ACParamTipe TPassword
           ; ACParamTipe TUuid
-          ; ACParamTipe TList ]
+          ; ACParamTipe TList
+          ]
           @ userTypes
       | TypeFieldTipe ->
           [ ACTypeFieldTipe TStr
@@ -918,13 +925,14 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TFloat
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
-          ; ACTypeFieldTipe TUuid ]
+          ; ACTypeFieldTipe TUuid
+          ]
       | Pattern ->
         ( match dval with
         | Some dv when RT.typeOf dv = TResult ->
-            [ACConstructorName "Ok"; ACConstructorName "Error"]
+            [ ACConstructorName "Ok"; ACConstructorName "Error" ]
         | Some dv when RT.typeOf dv = TOption ->
-            [ACConstructorName "Just"; ACConstructorName "Nothing"]
+            [ ACConstructorName "Just"; ACConstructorName "Nothing" ]
         | _ ->
             constructors )
       | _ ->
@@ -939,7 +947,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
         List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames
       in
       let keywords =
-        List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
+        List.map ~f:(fun x -> ACKeyword x) [ KLet; KIf; KLambda; KMatch ]
       in
       varnames @ constructors @ keywords @ functions
     else []
@@ -951,7 +959,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     then tlDestinations m
     else extras @ exprs @ fields
   in
-  {a with allCompletions = items; targetDval = dval}
+  { a with allCompletions = items; targetDval = dval }
 
 
 let filter
@@ -970,7 +978,7 @@ let filter
         | ACOmniAction (Goto _) ->
             query <> ""
         | _ ->
-            true )
+            true)
   in
   (* split into different lists *)
   let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
@@ -1000,7 +1008,7 @@ let filter
       notSubstring
   in
   let allMatches =
-    [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
+    [ dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch ]
     |> List.concat
   in
   (* Now split list by type validity *)
@@ -1049,7 +1057,8 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
   ; completions = newCompletions
   ; invalidCompletions
   ; value = query
-  ; prevValue = old.value }
+  ; prevValue = old.value
+  }
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -1068,12 +1077,15 @@ let reset (m : model) : autocomplete =
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
   in
   let admin = m.isAdmin in
   let functions = functions @ userFunctionMetadata in
   { Defaults.defaultModel.complete with
-    admin; functions; visible = VariantTesting.defaultAutocompleteVisible m }
+    admin
+  ; functions
+  ; visible = VariantTesting.defaultAutocompleteVisible m
+  }
   |> regenerate m
 
 
@@ -1087,12 +1099,12 @@ let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
   let max = max max_ 1 in
   let new_ = (a.index + 1) mod max in
-  {a with index = new_}
+  { a with index = new_ }
 
 
 let selectUp (a : autocomplete) : autocomplete =
   let max = numCompletions a - 1 in
-  {a with index = (if a.index <= 0 then max else a.index - 1)}
+  { a with index = (if a.index <= 0 then max else a.index - 1) }
 
 
 (* Implementation: *)
@@ -1223,18 +1235,18 @@ let documentationForItem (aci : autocompleteItem) : string option =
 
 let setTarget (m : model) (t : target option) (a : autocomplete) : autocomplete
     =
-  {a with target = t} |> regenerate m
+  { a with target = t } |> regenerate m
 
 
 let setVisible (visible : bool) (a : autocomplete) : autocomplete =
-  {a with visible}
+  { a with visible }
 
 
 (* ------------------------------------ *)
 (* Commands *)
 (* ------------------------------------ *)
 let enableCommandMode (a : autocomplete) : autocomplete =
-  {a with isCommandMode = true}
+  { a with isCommandMode = true }
 
 
 let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
@@ -1262,7 +1274,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
 
 (* Checks to see if autocomplete or command palette is opened
  * but not omnibox since it's not scrollable
-*)
+ *)
 let isOpened (ac : autocomplete) : bool =
   Option.isSome ac.target || ac.isCommandMode
 

@@ -14,7 +14,8 @@ type t =
   ; host : string
   ; space : string
   ; name : string
-  ; modifier : string }
+  ; modifier : string
+  }
 
 let to_event_desc t = (t.space, t.name, t.modifier)
 
@@ -50,7 +51,8 @@ module Scheduling_rule = struct
     ; canvas_id : Uuidm.t
     ; handler_name : string
     ; event_space : string
-    ; created_at : time }
+    ; created_at : time
+    }
 
   let to_dval r =
     DvalMap.from_list
@@ -60,7 +62,8 @@ module Scheduling_rule = struct
       ; ("canvas_id", DUuid r.canvas_id)
       ; ("handler_name", Dval.dstr_of_string_exn r.handler_name)
       ; ("event_space", Dval.dstr_of_string_exn r.event_space)
-      ; ("created_at", DDate r.created_at) ]
+      ; ("created_at", DDate r.created_at)
+      ]
     |> DObj
 end
 
@@ -104,7 +107,8 @@ let log_queue_size
     ; ("queue_canvas_id", canvas_id)
     ; ("queue_event_space", space)
     ; ("queue_event_name", name)
-    ; ("queue_event_modifier", modifier) ]
+    ; ("queue_event_modifier", modifier)
+    ]
   in
   (* host is optional b/c we have it when we dequeue, but not enqueue. We could
    * also do a db lookup here if we decide querying by canvas name in honeycomb
@@ -119,7 +123,7 @@ let log_queue_size
         Db.fetch_one
           ~name:"fetch_canvas_name"
           "SELECT name FROM canvases WHERE id = $1"
-          ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
+          ~params:[ Uuid (Uuidm.of_string canvas_id |> Option.value_exn) ]
         |> List.hd
   in
   (* I suppose we could do a subquery that'd batch these three conditionals, but
@@ -133,7 +137,7 @@ let log_queue_size
       ~subject:canvas_id
       "SELECT count(*) FROM events
       WHERE status IN ('new','locked','error') AND canvas_id = $1"
-      ~params:[Uuid (Uuidm.of_string canvas_id |> Option.value_exn)]
+      ~params:[ Uuid (Uuidm.of_string canvas_id |> Option.value_exn) ]
     |> List.hd_exn
     |> int_of_string
   in
@@ -148,13 +152,15 @@ let log_queue_size
         [ Uuid (Uuidm.of_string canvas_id |> Option.value_exn)
         ; String space
         ; String name
-        ; String modifier ]
+        ; String modifier
+        ]
     |> List.hd_exn
     |> int_of_string
   in
   let jsonparams =
     [ ("canvas_queue_size", `Int canvas_queue_size)
-    ; ("worker_queue_size", `Int worker_queue_size) ]
+    ; ("worker_queue_size", `Int worker_queue_size)
+    ]
   in
   let params =
     match host with
@@ -186,7 +192,8 @@ let enqueue
       ; String space
       ; String name
       ; String modifier
-      ; RoundtrippableDval data ]
+      ; RoundtrippableDval data
+      ]
 
 
 let dequeue transaction : t option =
@@ -215,12 +222,13 @@ let dequeue transaction : t option =
       ; space
       ; name
       ; modifier
-      ; queue_delay_ms ] ->
+      ; queue_delay_ms
+      ] ->
       log_queue_size Dequeue ~host canvas_id space name modifier ;
       let queue_delay =
         queue_delay_ms
         |> float_of_string_opt
-        |> Option.map ~f:(fun flt -> [("queue_delay_ms", `Float flt)])
+        |> Option.map ~f:(fun flt -> [ ("queue_delay_ms", `Float flt) ])
         |> Option.value ~default:[]
       in
       Log.infO
@@ -230,7 +238,8 @@ let dequeue transaction : t option =
           ; ("canvas_id", canvas_id)
           ; ("space", space)
           ; ("name", name)
-          ; ("modifier", modifier) ]
+          ; ("modifier", modifier)
+          ]
         ~jsonparams:queue_delay ;
       Some
         { id = int_of_string id
@@ -240,7 +249,8 @@ let dequeue transaction : t option =
         ; host
         ; space
         ; name
-        ; modifier }
+        ; modifier
+        }
   | Some s ->
       Exception.internal
         ( "Fetched seemingly impossible shape from Postgres"
@@ -263,13 +273,14 @@ let schedule_all unit : unit =
 let row_to_scheduling_rule row : Scheduling_rule.t =
   let open Scheduling_rule in
   match row with
-  | [id; rule_type; canvas_id; handler_name; event_space; created_at] ->
+  | [ id; rule_type; canvas_id; handler_name; event_space; created_at ] ->
       { id = int_of_string id
       ; rule_type = rule_type |> rule_type_of_string |> Option.value_exn
       ; canvas_id = canvas_id |> Uuidm.of_string |> Option.value_exn
       ; handler_name
       ; event_space
-      ; created_at = Time.of_string created_at }
+      ; created_at = Time.of_string created_at
+      }
   | _ ->
       Exception.internal "unexpected structure parsing scheduling_rule row"
 
@@ -294,7 +305,7 @@ let get_scheduling_rules_for_canvas canvas_id : Scheduling_rule.t list =
     FROM scheduling_rules
     WHERE canvas_id = $1
     "
-    ~params:[Uuid canvas_id]
+    ~params:[ Uuid canvas_id ]
   |> List.map ~f:row_to_scheduling_rule
 
 
@@ -314,9 +325,9 @@ let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
        WHERE canvas_id = $1
          AND tipe = 'handler'
          AND module = 'WORKER'"
-      ~params:[Uuid canvas_id]
+      ~params:[ Uuid canvas_id ]
     |> List.fold ~init:Worker_states.empty ~f:(fun states row ->
-           Map.set states ~key:(List.hd_exn row) ~data:Running )
+           Map.set states ~key:(List.hd_exn row) ~data:Running)
   in
   (* get scheduling overrides for canvas, partitioned *)
   let blocks, pauses =
@@ -328,7 +339,7 @@ let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
   pauses @ blocks
   |> List.fold ~init:states ~f:(fun states r ->
          let v = match r.rule_type with Block -> Blocked | Pause -> Paused in
-         Map.set states ~key:r.handler_name ~data:v )
+         Map.set states ~key:r.handler_name ~data:v)
 
 
 (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
@@ -339,13 +350,13 @@ let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
 let add_scheduling_rule rule_type canvas_id handler_name : unit =
   Db.run
     ~name:"add_scheduling_block"
-    ~params:[String rule_type; Uuid canvas_id; String handler_name]
+    ~params:[ String rule_type; Uuid canvas_id; String handler_name ]
     "INSERT INTO scheduling_rules (rule_type, canvas_id, handler_name, event_space)
     VALUES ( $1, $2, $3, 'WORKER')
     ON CONFLICT DO NOTHING" ;
   Db.run
     ~name:"unschedule_events"
-    ~params:[Uuid canvas_id; String handler_name]
+    ~params:[ Uuid canvas_id; String handler_name ]
     "UPDATE events
     SET status = 'new'
     WHERE space = 'WORKER'
@@ -359,7 +370,7 @@ let add_scheduling_rule rule_type canvas_id handler_name : unit =
 let remove_scheduling_rule rule_type canvas_id handler_name : unit =
   Db.run
     ~name:"remove_scheduling_block"
-    ~params:[Uuid canvas_id; String handler_name; String rule_type]
+    ~params:[ Uuid canvas_id; String handler_name; String rule_type ]
     "DELETE FROM scheduling_rules
     WHERE canvas_id = $1
     AND handler_name = $2
@@ -402,7 +413,8 @@ let put_back transaction (item : t) ~status : unit =
     "event_queue: put_back_transaction"
     ~jsonparams:
       [ ("status", `String (status |> show_status))
-      ; ("retries", `Int item.retries) ] ;
+      ; ("retries", `Int item.retries)
+      ] ;
   match status with
   | `OK ->
       Db.run
@@ -410,7 +422,7 @@ let put_back transaction (item : t) ~status : unit =
         "UPDATE \"events\"
       SET status = 'done', last_processed_at = CURRENT_TIMESTAMP
       WHERE id = $1"
-        ~params:[Int item.id]
+        ~params:[ Int item.id ]
   | `Err ->
       if item.retries < 2
       then
@@ -422,7 +434,7 @@ let put_back transaction (item : t) ~status : unit =
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
           , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $2"
-          ~params:[Int (item.retries + 1); Int item.id]
+          ~params:[ Int (item.retries + 1); Int item.id ]
       else
         Db.run
           ~name:"put_back_Err>=2"
@@ -430,7 +442,7 @@ let put_back transaction (item : t) ~status : unit =
         SET status = 'error'
           , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $1"
-          ~params:[Int item.id]
+          ~params:[ Int item.id ]
   | `Incomplete ->
       Db.run
         ~name:"put_back_Incomplete"
@@ -439,7 +451,7 @@ let put_back transaction (item : t) ~status : unit =
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
           , last_processed_at = CURRENT_TIMESTAMP
         WHERE id = $1"
-        ~params:[Int item.id]
+        ~params:[ Int item.id ]
 
 
 let finish transaction (item : t) : unit =

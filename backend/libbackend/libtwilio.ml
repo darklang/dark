@@ -4,14 +4,15 @@ open Libexecution.Runtime
 open Libexecution.Types.RuntimeT
 
 let fns : Libexecution.Lib.shortfn list =
-  [ { pns = ["Twilio::sendText"]
+  [ { pns = [ "Twilio::sendText" ]
     ; ins = []
     ; p =
         [ par "accountSID" TStr
         ; par "authToken" TStr
         ; par "fromNumber" TStr
         ; par "toNumber" TStr
-        ; par "body" TStr ]
+        ; par "body" TStr
+        ]
     ; r = TObj
     ; d =
         "Send text with `body` to phone number `toNumber` from number `fromNumber`, authenticated via `accountSID` and `authToken`"
@@ -23,7 +24,8 @@ let fns : Libexecution.Lib.shortfn list =
               ; DStr authToken
               ; DStr fromNumber
               ; DStr toNumber
-              ; DStr body ] ) ->
+              ; DStr body
+              ] ) ->
               let basic_auth_string =
                 Libhttpclient.encode_basic_auth accountSID authToken
               in
@@ -31,7 +33,8 @@ let fns : Libexecution.Lib.shortfn list =
               let headers =
                 [ ("Authorization", DStr basic_auth_string)
                 ; ( "Content-Type"
-                  , Libexecution.Dval.dstr_of_string_exn encoding ) ]
+                  , Libexecution.Dval.dstr_of_string_exn encoding )
+                ]
                 |> DvalMap.from_list
                 |> DObj
               in
@@ -43,7 +46,8 @@ let fns : Libexecution.Lib.shortfn list =
                 ; ("ValidityPeriod", Libexecution.Dval.dstr_of_string_exn "900")
                 ; ( "StatusCallback"
                   , Libexecution.Dval.dstr_of_string_exn
-                      (host_url ^ "/twilioCallback") ) ]
+                      (host_url ^ "/twilioCallback") )
+                ]
                 |> DvalMap.fromList
                 |> DObj
               in
@@ -62,4 +66,6 @@ let fns : Libexecution.Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false } ]
+    ; dep = false
+    }
+  ]

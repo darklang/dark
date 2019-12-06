@@ -19,7 +19,8 @@ type tl_tipe =
 type toplevel =
   { tlid : id
   ; pos : pos
-  ; data : tldata }
+  ; data : tldata
+  }
 [@@deriving eq, show, yojson]
 
 type toplevels = toplevel IDMap.t [@@deriving eq, show, yojson]
@@ -56,11 +57,12 @@ let set_expr (id : id) (expr : RuntimeT.expr) (tl : toplevel) : toplevel =
             let newam =
               { am with
                 rollback = replace am.rollback
-              ; rollforward = replace am.rollforward }
+              ; rollforward = replace am.rollforward
+              }
             in
-            {db with active_migration = Some newam}
+            { db with active_migration = Some newam }
       in
-      {tl with data = DB newdb}
+      { tl with data = DB newdb }
   | _ ->
       failwith "not implemented yet"
 
@@ -130,7 +132,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
               then "(" ^ es ~indent arg ^ ")"
               else es ~indent arg
             in
-            old ^ " " ^ argstr )
+            old ^ " " ^ argstr)
     | FnCallSendToRail (name, exprs) ->
         nexpr_to_string ~indent (FnCall (name ^ "-with-rail", exprs))
     | Lambda (vars, body) ->
@@ -160,7 +162,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
               then "(" ^ expr_to_string ~indent arg ^ "), "
               else expr_to_string ~indent arg ^ ", "
             in
-            old ^ " " ^ argstr )
+            old ^ " " ^ argstr)
     | ObjectLiteral pairs ->
         "{"
         ^ String.concat
@@ -169,7 +171,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
                  nli
                  ^ bs k
                  ^ ": "
-                 ^ es ~indent:(indent + 2 + String.length (bs k)) v ))
+                 ^ es ~indent:(indent + 2 + String.length (bs k)) v))
         ^ nl
         ^ "}"
     | FeatureFlag (msg, cond, a, b) ->
@@ -205,7 +207,7 @@ let user_fn_to_string (uf : RuntimeT.user_fn) : string =
            ^ bs p.name
            ^ ": "
            ^ bs (Ast.blank_map ~f:Dval.tipe_to_string p.tipe)
-           ^ ")" )
+           ^ ")")
     |> String.concat ~sep:", "
   in
   "Fn:"

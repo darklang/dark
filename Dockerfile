@@ -220,7 +220,7 @@ RUN opam install -y \
   ppx_deriving_yojson.3.4 \
   merlin.3.2.2 \
   ocp-indent.1.6.1 \
-  ocamlformat.0.8
+  ocamlformat.0.10
 
 
 ENV ESY__PROJECT=/home/dark/app/backend

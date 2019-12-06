@@ -17,9 +17,9 @@ let fns : Lib.shortfn list =
   [ (* ====================================== *)
     (* Password *)
     (* ====================================== *)
-    { pns = ["Password::hash"]
+    { pns = [ "Password::hash" ]
     ; ins = []
-    ; p = [par "pw" TStr]
+    ; p = [ par "pw" TStr ]
     ; r = TPassword
     ; d =
         "Hash a password into a Password by salting and hashing it. This uses libsodium's crypto_pwhash_str under the hood, which is based on argon2.
@@ -27,7 +27,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] ->
+          | _, [ DStr s ] ->
               s
               |> Unicode_string.to_string
               |> Bytes.of_string
@@ -55,10 +55,11 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["Password::check"]
+    ; dep = false
+    }
+  ; { pns = [ "Password::check" ]
     ; ins = []
-    ; p = [par "existingpwr" TPassword; par "rawpw" TStr]
+    ; p = [ par "existingpwr" TPassword; par "rawpw" TStr ]
     ; r = TBool
     ; d =
         "Check whether a Password matches a raw password String safely. This uses libsodium's pwhash under the hood, which is based on argon2.
@@ -66,7 +67,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DPassword existingpw; DStr rawpw] ->
+          | _, [ DPassword existingpw; DStr rawpw ] ->
               rawpw
               |> Unicode_string.to_string
               |> Bytes.of_string
@@ -76,16 +77,17 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha256"]
+    ; dep = false
+    }
+  ; { pns = [ "Crypto::sha256" ]
     ; ins = []
-    ; p = [par "data" TBytes]
+    ; p = [ par "data" TBytes ]
     ; r = TBytes
     ; d = "Computes the SHA-256 digest of the given `data`."
     ; f =
         InProcess
           (function
-          | _, [DBytes data] ->
+          | _, [ DBytes data ] ->
               Cstruct.of_bytes data
               |> Nocrypto.Hash.SHA256.digest
               |> digest_to_bytes
@@ -93,16 +95,17 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha384"]
+    ; dep = false
+    }
+  ; { pns = [ "Crypto::sha384" ]
     ; ins = []
-    ; p = [par "data" TBytes]
+    ; p = [ par "data" TBytes ]
     ; r = TBytes
     ; d = "Computes the SHA-384 digest of the given `data`."
     ; f =
         InProcess
           (function
-          | _, [DBytes data] ->
+          | _, [ DBytes data ] ->
               Cstruct.of_bytes data
               |> Nocrypto.Hash.SHA384.digest
               |> digest_to_bytes
@@ -110,21 +113,24 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = false
-    ; dep = false }
-  ; { pns = ["Crypto::sha256hmac"]
+    ; dep = false
+    }
+  ; { pns = [ "Crypto::sha256hmac" ]
     ; ins = []
-    ; p = [par "key" TBytes; par "data" TBytes]
+    ; p = [ par "key" TBytes; par "data" TBytes ]
     ; r = TBytes
     ; d =
         "Computes the 256 HMAC (hash-based message authentication code) digest of the given `key` and `data`."
     ; f =
         InProcess
           (function
-          | _, [DBytes key; DBytes data] ->
+          | _, [ DBytes key; DBytes data ] ->
               let key = Cstruct.of_bytes key in
               let data = Cstruct.of_bytes data in
               Nocrypto.Hash.SHA256.hmac ~key data |> digest_to_bytes |> DBytes
           | args ->
               fail args)
     ; ps = false
-    ; dep = false } ]
+    ; dep = false
+    }
+  ]

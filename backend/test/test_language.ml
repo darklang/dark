@@ -81,15 +81,15 @@ let t_incomplete_propagation () =
     (exec_ast "(List::head _)") ;
   check_dval
     "Incompletes stripped from lists"
-    (DList [Dval.dint 5; Dval.dint 6])
+    (DList [ Dval.dint 5; Dval.dint 6 ])
     (exec_ast "(5 6 (List::head _))") ;
   check_dval
     "Blanks stripped from lists"
-    (DList [Dval.dint 5; Dval.dint 6])
+    (DList [ Dval.dint 5; Dval.dint 6 ])
     (exec_ast "(5 6 _)") ;
   check_dval
     "Blanks stripped from objects"
-    (DObj (DvalMap.from_list [("m", Dval.dint 5); ("n", Dval.dint 6)]))
+    (DObj (DvalMap.from_list [ ("m", Dval.dint 5); ("n", Dval.dint 6) ]))
     (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))") ;
   check_incomplete "incomplete if conds are incomplete" (exec_ast "(if _ 5 6)") ;
   check_dval
@@ -226,7 +226,7 @@ let t_errorrail_userfn () =
 (* Type checking *)
 (* ---------------- *)
 let t_basic_typecheck_works_happy () =
-  let args = DvalMap.from_list [("a", Dval.dint 5); ("b", Dval.dint 4)] in
+  let args = DvalMap.from_list [ ("a", Dval.dint 5); ("b", Dval.dint 4) ] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -237,7 +237,7 @@ let t_basic_typecheck_works_happy () =
 
 
 let t_basic_typecheck_works_unhappy () =
-  let args = DvalMap.from_list [("a", Dval.dint 5); ("b", DBool true)] in
+  let args = DvalMap.from_list [ ("a", Dval.dint 5); ("b", DBool true) ] in
   let fn = Libs.get_fn_exn ~user_fns:[] "Int::add" in
   let user_tipes = [] in
   AT.check
@@ -248,7 +248,7 @@ let t_basic_typecheck_works_unhappy () =
 
 
 let t_typecheck_any () =
-  let args = DvalMap.from_list [("v", Dval.dint 5)] in
+  let args = DvalMap.from_list [ ("v", Dval.dint 5) ] in
   let fn = Libs.get_fn_exn ~user_fns:[] "toString" in
   let user_tipes = [] in
   AT.check
@@ -266,7 +266,7 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
       | DError _ ->
           true
       | _ ->
-          false )
+          false)
 
 
 let t_int_functions_works () =
@@ -278,7 +278,7 @@ let t_int_functions_works () =
       | DInt i ->
         (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
       | _ ->
-          false ) ;
+          false) ;
   check_condition
     "Int::random_v1 3 0, will swap 3 0 and returns a number between [0,3]"
     (exec_ast "(Int::random_v1 3 0)")
@@ -287,7 +287,7 @@ let t_int_functions_works () =
       | DInt i ->
         (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
       | _ ->
-          false )
+          false)
 
 
 (* ---------------- *)
@@ -302,8 +302,8 @@ let t_dark_internal_fns_are_internal () =
   AT.check
     (AT.list (AT.option at_dval))
     "DarkInternal:: functions are internal."
-    [check_access "test"; check_access "test_admin"]
-    [None; Some DNull]
+    [ check_access "test"; check_access "test_admin" ]
+    [ None; Some DNull ]
 
 
 (* ---------------- *)
@@ -398,7 +398,8 @@ let t_unicode_string_regex_replace_works_with_emojis () =
 let t_dval_hash_differs_for_version_0_and_1 () =
   let arglist =
     [ DBytes ("ab" |> Libtarget.bytes_from_base64url)
-    ; DBytes ("c" |> Libtarget.bytes_from_base64url) ]
+    ; DBytes ("c" |> Libtarget.bytes_from_base64url)
+    ]
   in
   AT.check
     AT.bool
@@ -462,4 +463,5 @@ let suite =
     , t_unicode_string_regex_replace_works_with_emojis )
   ; ("DError propagation", `Quick, t_derror_propagation)
   ; ("Dval.hash", `Quick, t_dval_hash_differs_for_version_0_and_1)
-  ; ("t_int_functions_works", `Quick, t_int_functions_works) ]
+  ; ("t_int_functions_works", `Quick, t_int_functions_works)
+  ]

@@ -24,13 +24,14 @@ let queue_worker execution_id =
           ~data:"Unhandled exception bubbled to queue worker"
           ~params:
             [ ("execution_id", Libexecution.Types.string_of_id execution_id)
-            ; ("exn", Libexecution.Exception.exn_to_string e) ] ;
+            ; ("exn", Libexecution.Exception.exn_to_string e)
+            ] ;
         Lwt.async (fun () ->
             Libbackend.Rollbar.report_lwt
               e
               bt
               EventQueue
-              (Libexecution.Types.string_of_id execution_id) ) ;
+              (Libexecution.Types.string_of_id execution_id)) ;
         Thread.yield () ;
         if not !shutdown
         then (queue_worker [@tailcall]) ()
@@ -41,7 +42,8 @@ let queue_worker execution_id =
   Lwt_main.run
     (Log.add_log_annotations
        [ ( "execution_id"
-         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+         , `String (Libexecution.Types.string_of_id execution_id) )
+       ]
        (fun _ -> Nocrypto_entropy_lwt.initialize () >>= queue_worker))
 
 

@@ -4,107 +4,112 @@ open Types.RuntimeT
 module RT = Runtime
 
 let fns : Lib.shortfn list =
-  [ { pns = ["Result::map"]
+  [ { pns = [ "Result::map" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | _, [ DResult r; DBlock fn ] ->
             ( match r with
             | ResOk dv ->
-                DResult (ResOk (fn [dv]))
+                DResult (ResOk (fn [ dv ]))
             | ResError _ ->
                 DResult r )
           | args ->
               fail args)
     ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::map_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "Result::map_v1" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing."
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | _, [ DResult r; DBlock fn ] ->
             ( match r with
             | ResOk dv ->
-                Dval.to_res_ok (fn [dv])
+                Dval.to_res_ok (fn [ dv ])
             | ResError _ ->
                 DResult r )
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::mapError"]
+    ; dep = false
+    }
+  ; { pns = [ "Result::mapError" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TAny
     ; d =
         "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | _, [ DResult r; DBlock fn ] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                DResult (ResError (fn [err])) )
+                DResult (ResError (fn [ err ])) )
           | args ->
               fail args)
     ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::mapError_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "Result::mapError_v1" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TAny
     ; d =
         "Transform a Result by calling `f` on the Error portion of the Result. If Ok , does nothing."
     ; f =
         InProcess
           (function
-          | _, [DResult r; DBlock fn] ->
+          | _, [ DResult r; DBlock fn ] ->
             ( match r with
             | ResOk _ ->
                 DResult r
             | ResError err ->
-                Dval.to_res_err (fn [err]) )
+                Dval.to_res_err (fn [ err ]) )
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::withDefault"]
+    ; dep = false
+    }
+  ; { pns = [ "Result::withDefault" ]
     ; ins = []
-    ; p = [par "result" TResult; par "default" TAny]
+    ; p = [ par "result" TResult; par "default" TAny ]
     ; r = TAny
     ; d =
         "Turn a result into a normal value, using `default` if the result is Error."
     ; f =
         InProcess
           (function
-          | _, [DResult o; default] ->
+          | _, [ DResult o; default ] ->
             (match o with ResOk dv -> dv | ResError _ -> default)
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::fromOption"]
+    ; dep = false
+    }
+  ; { pns = [ "Result::fromOption" ]
     ; ins = []
-    ; p = [par "option" TOption; par "error" TStr]
+    ; p = [ par "option" TOption; par "error" TStr ]
     ; r = TResult
     ; d =
         "Turn an option into a result, using `error` as the error message for Error."
     ; f =
         InProcess
           (function
-          | _, [DOption o; DStr error] ->
+          | _, [ DOption o; DStr error ] ->
             ( match o with
             | OptJust dv ->
                 DResult (ResOk dv)
@@ -113,17 +118,18 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::fromOption_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "Result::fromOption_v1" ]
     ; ins = []
-    ; p = [par "option" TOption; par "error" TStr]
+    ; p = [ par "option" TOption; par "error" TStr ]
     ; r = TResult
     ; d =
         "Turn an option into a result, using `error` as the error message for Error."
     ; f =
         InProcess
           (function
-          | _, [DOption o; DStr error] ->
+          | _, [ DOption o; DStr error ] ->
             ( match o with
             | OptJust dv ->
                 Dval.to_res_ok dv
@@ -137,16 +143,17 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::toOption"]
+    ; dep = false
+    }
+  ; { pns = [ "Result::toOption" ]
     ; ins = []
-    ; p = [par "result" TResult]
+    ; p = [ par "result" TResult ]
     ; r = TAny
     ; d = "Turn a result into an option."
     ; f =
         InProcess
           (function
-          | _, [DResult o] ->
+          | _, [ DResult o ] ->
             ( match o with
             | ResOk dv ->
                 DOption (OptJust dv)
@@ -155,16 +162,17 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::toOption_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "Result::toOption_v1" ]
     ; ins = []
-    ; p = [par "result" TResult]
+    ; p = [ par "result" TResult ]
     ; r = TAny
     ; d = "Turn a result into an option."
     ; f =
         InProcess
           (function
-          | _, [DResult o] ->
+          | _, [ DResult o ] ->
             ( match o with
             | ResOk dv ->
                 Dval.to_opt_just dv
@@ -173,20 +181,21 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false }
-  ; { pns = ["Result::andThen"]
+    ; dep = false
+    }
+  ; { pns = [ "Result::andThen" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
     ; f =
         InProcess
           (function
-          | _, [DResult o; DBlock fn] ->
+          | _, [ DResult o; DBlock fn ] ->
             ( match o with
             | ResOk dv ->
-              ( match fn [dv] with
+              ( match fn [ dv ] with
               | DResult result ->
                   DResult result
               | other ->
@@ -199,20 +208,21 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = true }
-  ; { pns = ["Result::andThen_v1"]
+    ; dep = true
+    }
+  ; { pns = [ "Result::andThen_v1" ]
     ; ins = []
-    ; p = [par "result" TResult; func ["val"]]
+    ; p = [ par "result" TResult; func [ "val" ] ]
     ; r = TResult
     ; d =
         "Transform a Result using `f`, only if the Result is an Ok. If Error, doesn't nothing. Combines the result into a single Result, where if both the caller and the result are Error, the result is a single Error"
     ; f =
         InProcess
           (function
-          | _, [DResult o; DBlock fn] ->
+          | _, [ DResult o; DBlock fn ] ->
             ( match o with
             | ResOk dv ->
-              ( match fn [dv] with
+              ( match fn [ dv ] with
               | DResult (ResOk res) ->
                   Dval.to_res_ok res
               | DResult (ResError res) ->
@@ -227,4 +237,6 @@ let fns : Lib.shortfn list =
           | args ->
               fail args)
     ; ps = true
-    ; dep = false } ]
+    ; dep = false
+    }
+  ]

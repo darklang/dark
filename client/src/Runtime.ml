@@ -6,7 +6,7 @@ let isCompatible (t1 : tipe) (t2 : tipe) : bool =
   t1 = TAny || t2 = TAny || t1 = t2
 
 
-let errorRailTypes : tipe list = [TOption; TResult]
+let errorRailTypes : tipe list = [ TOption; TResult ]
 
 let rec tipe2str (t : tipe) : string =
   match t with
@@ -240,8 +240,9 @@ let isValidDisplayString (str : string) : bool =
          then (false, false)
          else if sawSlash
          then
-           (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"; "\""]))
-         else (c = Obj.magic "\\", true) )
+           ( false
+           , List.member ~value:c (Obj.magic [ "t"; "r"; "n"; "\\"; "\"" ]) )
+         else (c = Obj.magic "\\", true))
   |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
 
 
@@ -346,7 +347,8 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ; result = field "result" (optional string) j
         ; resultType = field "result_tipe" (optional string) j
         ; info = field "info" (dict string) j
-        ; workarounds = field "workarounds" (list string) j }
+        ; workarounds = field "workarounds" (list string) j
+        }
       in
       let maybe name m =
         match m with
@@ -378,9 +380,11 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
                  ^
                  if e.exceptionTipe = "code"
                  then ""
-                 else "\n  error type: " ^ e.exceptionTipe )
+                 else "\n  error type: " ^ e.exceptionTipe)
           |> Option.withDefault ~default:(wrap s)
-        with _ -> wrap s )
+        with
+      | _ ->
+          wrap s )
   | DPassword s ->
       wrap s
   | DBlock ->
@@ -454,19 +458,19 @@ let inputVariables (tl : toplevel) : varName list =
           |> Option.map ~f:route_variables
           |> Option.withDefault ~default:[]
         in
-        ["request"] @ fromRoute
+        [ "request" ] @ fromRoute
     | F (_, m) when String.toLower m = "cron" ->
         []
     | F (_, m) when String.toLower m = "repl" ->
         []
     | F (_, m) when String.toLower m = "worker" ->
-        ["event"]
+        [ "event" ]
     | F (_, _) ->
         (* workers, including old names *)
-        ["event"]
+        [ "event" ]
     | Blank _ ->
         (* we used to be allowed unknown *)
-        ["request"; "event"] )
+        [ "request"; "event" ] )
   | TLFunc f ->
       f.ufMetadata.ufmParameters
       |> List.filterMap ~f:(fun p -> Blank.toMaybe p.ufpName)
@@ -497,7 +501,7 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
         | None, Some v ->
             Some v
         | Some _sample, Some trace ->
-            Some trace )
+            Some trace)
       (sampleInputValue tl)
       iv
     |> fun dict -> DObj dict
@@ -515,7 +519,7 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
 let pathFromInputVars (iv : inputValueDict) : string option =
   StrDict.get ~key:"request" iv
   |> Option.andThen ~f:(fun obj ->
-         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None )
+         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None)
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
   |> Option.andThen ~f:WebURL.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
@@ -529,4 +533,4 @@ let setHandlerExeState
          let p =
            old |> Option.withDefault ~default:Defaults.defaultHandlerProp
          in
-         Some {p with execution = state} )
+         Some { p with execution = state })

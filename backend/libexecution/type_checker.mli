@@ -10,14 +10,18 @@ module Error : sig
      * (or a race condition! *)
     | TypeLookupFailure of string * int
     (* Type error in _values_, ie. expected a string but got an Int *)
-    | TypeUnificationFailure of {expected_tipe : tipe; actual_value : dval}
+    | TypeUnificationFailure of
+        { expected_tipe : tipe
+        ; actual_value : dval
+        }
     (* Type error between a user record definition and the actual object
       * received, specifically in its keys. ie expected {a : *, b : * } but
       * got { a : *, b : *, c : *} -- note we currently expect an _exact_
       * match and do not support structural subtyping. *)
     | MismatchedRecordFields of
         { expected_fields : String.Set.t
-        ; actual_fields : String.Set.t }
+        ; actual_fields : String.Set.t
+        }
 
   val to_string : t -> string
 end

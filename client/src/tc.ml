@@ -12,14 +12,14 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    with module StrSet := Tablecloth.StrSet
-    (* with module IntSet := Tablecloth.IntSet *)
-    with module StrDict := Tablecloth.StrDict
-    with module Option := Tablecloth.Option
-    with module Int := Tablecloth.Int
-    with module String := Tablecloth.String
-     and module Result := Tablecloth.Result
-     and module List := Tablecloth.List )
+      with module StrSet := Tablecloth.StrSet
+      (* with module IntSet := Tablecloth.IntSet *)
+      with module StrDict := Tablecloth.StrDict
+      with module Option := Tablecloth.Option
+      with module Int := Tablecloth.Int
+      with module String := Tablecloth.String
+       and module Result := Tablecloth.Result
+       and module List := Tablecloth.List )
 
 module Option = struct
   include Tablecloth.Option
@@ -89,7 +89,7 @@ module List = struct
       match l with
       | [] ->
           []
-      | [_] ->
+      | [ _ ] ->
           []
       | _ :: rest ->
           dropLeft ~count:(count - 1) rest
@@ -125,7 +125,7 @@ module String = struct
 
   let rec segment ~(size : int) (s : string) : string list =
     let front, back = splitAt ~index:size s in
-    if back = "" then [front] else front :: segment ~size back
+    if back = "" then [ front ] else front :: segment ~size back
 
 
   let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s :
@@ -159,7 +159,7 @@ module StrDict = struct
   let mergeLeft (dict1 : 'v t) (dict2 : 'v t) : 'v t =
     Tablecloth.StrDict.merge
       ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
-        match (v1, v2) with Some _, _ -> v1 | None, _ -> v2 )
+        match (v1, v2) with Some _, _ -> v1 | None, _ -> v2)
       dict1
       dict2
 
@@ -167,7 +167,7 @@ module StrDict = struct
   let mergeRight (dict1 : 'v t) (dict2 : 'v t) : 'v t =
     Tablecloth.StrDict.merge
       ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
-        match (v1, v2) with _, Some _ -> v2 | _, None -> v1 )
+        match (v1, v2) with _, Some _ -> v2 | _, None -> v1)
       dict1
       dict2
 

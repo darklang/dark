@@ -43,7 +43,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
         ; ViewUtils.eventNoPropagation
             ~key:("tlmu-" ^ showTLID tlid)
             "mouseup"
-            (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+            (fun x -> TLDragRegionMouseUp (tlid, x))
+        ]
       else []
     in
     match tl with
@@ -52,11 +53,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     | TLDB db ->
         (ViewDB.viewDB vs db dragEvents, [])
     | TLFunc f ->
-        ([ViewFunction.viewFunction vs f], ViewData.viewData vs f.ufAST)
+        ([ ViewFunction.viewFunction vs f ], ViewData.viewData vs f.ufAST)
     | TLTipe t ->
-        ([ViewUserType.viewUserTipe vs t], [])
+        ([ ViewUserType.viewUserTipe vs t ], [])
     | TLGroup g ->
-        ([ViewGroup.viewGroup m vs g dragEvents], [])
+        ([ ViewGroup.viewGroup m vs g dragEvents ], [])
   in
   let usages =
     ViewIntrospect.allUsagesView tlid vs.usedInRefs vs.refersToRefs
@@ -76,7 +77,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                 ToplevelClick (tlid, x)
             | Some range ->
                 (* Persist fluid selection when clicking in handler *)
-                FluidMsg (FluidUpdateSelection (tlid, Some range)) ) ]
+                FluidMsg (FluidUpdateSelection (tlid, Some range)))
+      ]
     else
       [ ViewUtils.eventNoPropagation
           ~key:("tlmd-" ^ showTLID tlid)
@@ -89,7 +91,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       ; ViewUtils.eventNoPropagation
           ~key:("tlc-" ^ showTLID tlid)
           "click"
-          (fun x -> ToplevelClick (tlid, x)) ]
+          (fun x -> ToplevelClick (tlid, x))
+      ]
   in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in
@@ -102,7 +105,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       | _ ->
           false
     in
-    [("selected", selected); ("dragging", dragging); ("hovering", hovering)]
+    [ ("selected", selected); ("dragging", dragging); ("hovering", hovering) ]
   in
   (* Need to add aditional css class to remove backgroun color *)
   let isGroup = match tl with TLGroup _ -> "group" | _ -> "" in
@@ -110,11 +113,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     if m.username = "ellen"
     then
       match tl with
-      | TLHandler {spec}
+      | TLHandler { spec }
         when Blank.toMaybe spec.name = Some "sendDM"
              || Blank.toMaybe spec.name = Some "sendText" ->
           "ellenDemoSendDMHack"
-      | TLDB {dbName} when Blank.toMaybe dbName = Some "Visits" ->
+      | TLDB { dbName } when Blank.toMaybe dbName = Some "Visits" ->
           "ellenDemoSendDMHack"
       | _ ->
           ""
@@ -125,7 +128,8 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     ; "tl-" ^ deTLID tlid
     ; (if selected then "selected" else "")
     ; isGroup
-    ; ellensHack ]
+    ; ellensHack
+    ]
     |> String.join ~sep:" "
   in
   let id =
@@ -158,8 +162,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           in
           Option.map desc ~f:(fun desc ->
               [ Html.div
-                  [Html.class' "documentation-box"]
-                  [Html.p [] [Html.text desc]] ] )
+                  [ Html.class' "documentation-box" ]
+                  [ Html.p [] [ Html.text desc ] ]
+              ])
         in
         let selectedFnDocString =
           let fn =
@@ -171,17 +176,18 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    | PFnCallName (F (_, name)) ->
                        Some name
                    | _ ->
-                       None )
+                       None)
             |> Option.andThen ~f:(fun name ->
                    m.complete.functions
-                   |> List.find ~f:(fun f -> name = f.fnName) )
+                   |> List.find ~f:(fun f -> name = f.fnName))
           in
           match fn with
           | Some fn ->
               Some
                 [ Html.div
-                    [Html.class' "documentation-box"]
-                    [Html.p [] [Html.text fn.fnDescription]] ]
+                    [ Html.class' "documentation-box" ]
+                    [ Html.p [] [ Html.text fn.fnDescription ] ]
+                ]
           | None ->
               None
         in
@@ -194,7 +200,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    m.complete.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
                    |> Option.map ~f:(fun x -> x.fnParameters)
-                   |> Option.andThen ~f:(List.getAt ~index) )
+                   |> Option.andThen ~f:(List.getAt ~index))
           in
           match param with
           | Some p ->
@@ -203,9 +209,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
               in
               Some
                 [ Html.div
-                    [Html.class' "documentation-box"]
-                    [ Html.p [] [Html.text header]
-                    ; Html.p [] [Html.text p.paramDescription] ] ]
+                    [ Html.class' "documentation-box" ]
+                    [ Html.p [] [ Html.text header ]
+                    ; Html.p [] [ Html.text p.paramDescription ]
+                    ]
+                ]
           | _ ->
               None
         in
@@ -232,7 +240,9 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let html =
     [ Html.div (Html.class' class_ :: events) (top @ body @ data)
     ; avatars
-    ; Html.div [Html.classList [("use-wrapper", true); ("fade", hasFf)]] usages
+    ; Html.div
+        [ Html.classList [ ("use-wrapper", true); ("fade", hasFf) ] ]
+        usages
     ]
   in
   ViewUtils.placeHtml pos boxClasses html m
@@ -321,18 +331,19 @@ let viewCanvas (m : model) : msg Html.html =
        * know exactly how. TODO: we removed the Util cache so it might work. *)
         |> List.sortBy ~f:(fun tl -> deTLID (TL.id tl))
         (* Filter out toplevels that are not in a group *)
-        |> List.filter ~f:(fun tl -> not (Groups.isInGroup (TL.id tl) m.groups))
+        |> List.filter ~f:(fun tl ->
+               not (Groups.isInGroup (TL.id tl) m.groups))
         |> List.map ~f:(viewTL m)
     | FocusedFn tlid ->
       ( match TD.get ~tlid m.userFunctions with
       | Some func ->
-          [viewTL m (TL.ufToTL func)]
+          [ viewTL m (TL.ufToTL func) ]
       | None ->
           [] )
     | FocusedType tlid ->
       ( match TD.get ~tlid m.userTipes with
       | Some tipe ->
-          [viewTL m (TL.utToTL tipe)]
+          [ viewTL m (TL.utToTL tipe) ]
       | None ->
           [] )
   in
@@ -347,7 +358,8 @@ let viewCanvas (m : model) : msg Html.html =
       , if m.canvasProps.panAnimation = AnimateTransition
         then "transform 0.5s"
         else "unset" )
-    ; canvasTransform ]
+    ; canvasTransform
+    ]
   in
   let overlay =
     let show =
@@ -363,7 +375,7 @@ let viewCanvas (m : model) : msg Html.html =
       | _ ->
           false
     in
-    Html.div [Html.classList [("overlay", true); ("show", show)]] []
+    Html.div [ Html.classList [ ("overlay", true); ("show", show) ] ] []
   in
   let pageClass =
     match m.currentPage with
@@ -385,7 +397,8 @@ let viewCanvas (m : model) : msg Html.html =
     ; Html.class' pageClass
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
-          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
+          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg)
+    ]
     (overlay :: allDivs)
 
 
@@ -396,8 +409,9 @@ let viewMinimap (data : string option) : msg Html.html =
         [ Html.id "minimap"
         ; Html.class' "minimap"
         ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              GoToArchitecturalView ) ]
-        [Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []]
+              GoToArchitecturalView)
+        ]
+        [ Html.img [ Html.src src; Vdom.prop "alt" "architecture preview" ] [] ]
   | None ->
       Vdom.noNode
 
@@ -409,32 +423,36 @@ let viewToast (t : toast) : msg Html.html =
   in
   let styleOverrides =
     match t.toastPos with
-    | Some {vx; vy} ->
+    | Some { vx; vy } ->
         Html.styles
           [ ("top", string_of_int (vy - 10) ^ "px")
-          ; ("left", string_of_int (vx + 10) ^ "px") ]
+          ; ("left", string_of_int (vx + 10) ^ "px")
+          ]
     | None ->
         Vdom.noProp
   in
   Html.div
     [ Html.class' classes
     ; ViewUtils.onAnimationEnd ~key:"toast" ~listener:(fun _ -> ResetToast)
-    ; styleOverrides ]
-    [Html.text msg]
+    ; styleOverrides
+    ]
+    [ Html.text msg ]
 
 
 let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
-            LogoutOfDark )
-      ; Html.class' "action-link" ]
-      [Html.text "Logout"]
+            LogoutOfDark)
+      ; Html.class' "action-link"
+      ]
+      [ Html.text "Logout" ]
   in
   Html.div
-    [Html.class' "my-account"]
+    [ Html.class' "my-account" ]
     [ m |> Avatar.myAvatar |> Avatar.avatarDiv
-    ; Html.div [Html.class' "account-actions"] [logout] ]
+    ; Html.div [ Html.class' "account-actions" ] [ logout ]
+    ]
 
 
 let view (m : model) : msg Html.html =
@@ -451,15 +469,17 @@ let view (m : model) : msg Html.html =
     ; Html.onWithOptions
         ~key:"app-mu"
         "mouseup"
-        {stopPropagation = false; preventDefault = true}
+        { stopPropagation = false; preventDefault = true }
         (Decoders.wrapDecoder
-           (ViewUtils.decodeClickEvent (fun x -> GlobalClick x))) ]
+           (ViewUtils.decodeClickEvent (fun x -> GlobalClick x)))
+    ]
   in
   let footer =
     [ ViewScaffold.viewIntegrationTestButton m.integrationTestState
     ; ViewScaffold.readOnlyMessage m
     ; viewMinimap m.canvasProps.minimap
-    ; ViewScaffold.viewError m.error ]
+    ; ViewScaffold.viewError m.error
+    ]
   in
   let sidebar = ViewSidebar.viewSidebar m in
   let body = viewCanvas m in
@@ -468,7 +488,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if VariantTesting.isFluidV2 m.tests
-    then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
+    then [ Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState ]
     else []
   in
   let viewDocs =
@@ -476,13 +496,15 @@ let view (m : model) : msg Html.html =
         [ Html.class' "doc-container"
         ; Html.href "https://ops-documentation.builtwithdark.com/user-manual"
         ; Html.target "_blank"
-        ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ -> IgnoreMsg)
+        ; ViewUtils.eventNoPropagation ~key:"doc" "mouseup" (fun _ ->
+              IgnoreMsg)
         ]
-        [fontAwesome "book"; Html.text "Docs"] ]
+        [ fontAwesome "book"; Html.text "Docs" ]
+    ]
   in
   let content =
     ViewTopbar.html m
-    @ [sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry]
+    @ [ sidebar; body; activeAvatars; accountView m; viewToast m.toast; entry ]
     @ fluidStatus
     @ footer
     @ viewDocs

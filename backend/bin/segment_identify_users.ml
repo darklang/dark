@@ -14,7 +14,8 @@ let () =
   |> List.iter ~f:(fun username ->
          try
            Stroller.segment_identify_user username ;
-           Log.infO "Identified user" ~params:[("username", username)]
-         with e ->
-           Log.erroR (Printf.sprintf "Failed to identify user: %s" username) ) ;
+           Log.infO "Identified user" ~params:[ ("username", username) ]
+         with
+         | e ->
+             Log.erroR (Printf.sprintf "Failed to identify user: %s" username)) ;
   ()

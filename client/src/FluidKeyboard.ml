@@ -6,8 +6,7 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
-external jsGetBrowserPlatform :
-  unit -> browserPlatform Js.Nullable.t
+external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -719,7 +718,8 @@ type keyEvent =
   ; shiftKey : bool
   ; ctrlKey : bool
   ; altKey : bool
-  ; metaKey : bool }
+  ; metaKey : bool
+  }
 [@@deriving show]
 
 let keyEvent j =
@@ -732,7 +732,8 @@ let keyEvent j =
   ; shiftKey = field "shiftKey" bool j
   ; ctrlKey = field "ctrlKey" bool j
   ; altKey = field "altKey" bool j
-  ; metaKey = field "metaKey" bool j }
+  ; metaKey = field "metaKey" bool j
+  }
 
 
 let registerGlobal name key tagger =

@@ -33,10 +33,10 @@ type entry =
   ; uses : int option
   ; minusButton : msg option
   ; plusButton : msg option
-  ; killAction :
-      msg option
-      (* if this is in the deleted section, what does minus do? *)
-  ; verb : string option }
+  ; killAction : msg option
+        (* if this is in the deleted section, what does minus do? *)
+  ; verb : string option
+  }
 
 and category =
   { count : int
@@ -44,7 +44,8 @@ and category =
   ; plusButton : msg option
   ; iconAction : msg option
   ; classname : string
-  ; entries : item list }
+  ; entries : item list
+  }
 
 and item =
   | Category of category
@@ -53,42 +54,42 @@ and item =
 let buttonLink ~(key : string) (content : msg Html.html) (handler : msg) :
     msg Html.html =
   let event = ViewUtils.eventNeither ~key "click" (fun _ -> handler) in
-  Html.a [event; Html.class' "button-link"] [content]
+  Html.a [ event; Html.class' "button-link" ] [ content ]
 
 
 let htmlObject (src : string) =
   Html.node
     "object"
-    [Vdom.attribute "" "data" src; Html.type' "image/svg+xml"]
+    [ Vdom.attribute "" "data" src; Html.type' "image/svg+xml" ]
     []
 
 
 let categoryIcon (name : string) : msg Html.html list =
   match String.toLower name with
   | "http" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/http.svg") ]
   | "dbs" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/db.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/db.svg") ]
   | "fns" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fn.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fn.svg") ]
   | "deleted" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/deleted.svg") ]
   | "static" ->
-      [fontAwesome "file"]
+      [ fontAwesome "file" ]
   | "types" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/types.svg") ]
   | "cron" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/cron.svg") ]
   | "repl" ->
-      [fontAwesome "terminal"]
+      [ fontAwesome "terminal" ]
   | "worker" ->
-      [fontAwesome "wrench"]
+      [ fontAwesome "wrench" ]
   | "fof" ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/fof.svg") ]
   | "group" ->
-      [fontAwesome "object-group"]
+      [ fontAwesome "object-group" ]
   | _ ->
-      [htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg")]
+      [ htmlObject ("//" ^ Native.Ext.staticHost () ^ "/icons/undefined.svg") ]
 
 
 let handlerCategory
@@ -120,7 +121,9 @@ let handlerCategory
             ; verb =
                 ( if TL.isHTTPHandler (TLHandler h)
                 then B.toMaybe h.spec.modifier
-                else None ) } ) }
+                else None )
+            })
+  }
 
 
 let httpCategory (handlers : handler list) : category =
@@ -150,7 +153,7 @@ let workerCategory (handlers : handler list) : category =
     (fun tl ->
       TL.isWorkerHandler tl
       || (* Show the old workers here for now *)
-         TL.isDeprecatedCustomHandler tl )
+         TL.isDeprecatedCustomHandler tl)
     "WORKER"
     (NewWorkerHandler None)
     (Some GoToArchitecturalView)
@@ -180,14 +183,16 @@ let dbCategory (m : model) (dbs : db list) : category =
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; verb = None
-          ; plusButton = None } )
+          ; plusButton = None
+          })
   in
   { count = List.length dbs
   ; name = "Datastores"
   ; classname = "dbs"
   ; plusButton = Some CreateDBTable
   ; iconAction = Some GoToArchitecturalView
-  ; entries }
+  ; entries
+  }
 
 
 let f404Category (m : model) : category =
@@ -200,7 +205,7 @@ let f404Category (m : model) : category =
   ; classname = "fof"
   ; iconAction = None
   ; entries =
-      List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
+      List.map f404s ~f:(fun ({ space; path; modifier } as fof) ->
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None
@@ -209,7 +214,9 @@ let f404Category (m : model) : category =
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
-            ; verb = (if space = "WORKER" then None else Some modifier) } ) }
+            ; verb = (if space = "WORKER" then None else Some modifier)
+            })
+  }
 
 
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
@@ -230,14 +237,16 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
               ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
               ; destination = Some (FocusedFn fn.ufTLID)
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None
+              }))
   in
   { count = List.length fns
   ; name = "Functions"
   ; classname = "fns"
   ; plusButton = Some CreateFunction
   ; iconAction = Some GoToArchitecturalView
-  ; entries }
+  ; entries
+  }
 
 
 let userTipeCategory (m : model) (tipes : userTipe list) : category =
@@ -258,14 +267,16 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
               ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
               ; destination = Some (FocusedType tipe.utTLID)
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None
+              }))
   in
   { count = List.length tipes
   ; name = "Types"
   ; classname = "types"
   ; plusButton = Some CreateType
   ; iconAction = None
-  ; entries }
+  ; entries
+  }
 
 
 let groupCategory (groups : group list) : category =
@@ -285,14 +296,16 @@ let groupCategory (groups : group list) : category =
               ; killAction = Some (DeleteGroupForever group.gTLID)
               ; destination = Some (FocusedGroup (group.gTLID, true))
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None
+              }))
   in
   { count = List.length groups
   ; name = "Groups"
   ; classname = "group"
   ; plusButton = Some CreateGroup
   ; iconAction = None
-  ; entries }
+  ; entries
+  }
 
 
 let rec count (s : item) : int =
@@ -321,14 +334,14 @@ let standardCategories m hs dbs ufns tipes groups =
   in
   let groupCategory =
     if VariantTesting.variantIsActive m GroupVariant
-    then [groupCategory groups]
+    then [ groupCategory groups ]
     else []
   in
   (* We want to hide user defined types for users who arent already using them 
     since there is currently no way to use them other than as a function param.
     we should show user defined types once the user can use them more *)
   let tipes =
-    if List.length tipes == 0 then [] else [userTipeCategory m tipes]
+    if List.length tipes == 0 then [] else [ userTipeCategory m tipes ]
   in
   let catergories =
     [ httpCategory hs
@@ -336,7 +349,8 @@ let standardCategories m hs dbs ufns tipes groups =
     ; cronCategory hs
     ; replCategory hs
     ; dbCategory m dbs
-    ; userFunctionCategory m ufns ]
+    ; userFunctionCategory m ufns
+    ]
     @ tipes
   in
   catergories @ groupCategory
@@ -366,29 +380,33 @@ let deletedCategory (m : model) : category =
                            plusButton =
                              e.identifier
                              |> tlidOfIdentifier
-                             |> Option.map ~f:(fun tlid -> RestoreToplevel tlid)
+                             |> Option.map ~f:(fun tlid ->
+                                    RestoreToplevel tlid)
                          ; uses = None
                          ; minusButton = e.killAction
-                         ; destination = None }
+                         ; destination = None
+                         }
                    | c ->
-                       c ) } )
+                       c)
+           })
   in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
   ; plusButton = None
   ; classname = "deleted"
   ; iconAction = None
-  ; entries = List.map cats ~f:(fun c -> Category c) }
+  ; entries = List.map cats ~f:(fun c -> Category c)
+  }
 
 
 let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
   let name = e.name in
   let destinationLink page classes name =
-    Url.linkFor page classes [Html.text name]
+    Url.linkFor page classes [ Html.text name ]
   in
   let mainlink =
     Html.span
-      [Html.class' "name"]
+      [ Html.class' "name" ]
       ( match e.destination with
       | Some dest ->
           let cl =
@@ -398,21 +416,21 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
             then "default-link unused"
             else "default-link"
           in
-          [destinationLink dest cl name]
+          [ destinationLink dest cl name ]
       | _ ->
-          [Html.text name] )
+          [ Html.text name ] )
   in
   let verb =
     match (e.destination, e.verb) with
     | Some dest, Some v ->
-        [destinationLink dest "verb verb-link" v]
+        [ destinationLink dest "verb verb-link" v ]
     | None, Some v ->
-        [Html.span [Html.class' "verb"] [Html.text v]]
+        [ Html.span [ Html.class' "verb" ] [ Html.text v ] ]
     | _ ->
-        [Html.span [Html.class' "verb"] []]
+        [ Html.span [ Html.class' "verb" ] [] ]
   in
   let httpMethod = match e.verb with Some v -> v | None -> "" in
-  let iconspacer = [Html.div [Html.class' "icon-spacer"] []] in
+  let iconspacer = [ Html.div [ Html.class' "icon-spacer" ] [] ] in
   let minuslink =
     (* This prevents the delete button appearing in the hover view.
      * We'll add it back in for 404s specifically at some point *)
@@ -420,7 +438,7 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
     then Vdom.noNode
     else
       Html.div
-        [Html.class' "delete"]
+        [ Html.class' "delete" ]
         ( match e.minusButton with
         | Some msg ->
             if m.permission = Some ReadWrite
@@ -428,7 +446,8 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
               [ buttonLink
                   ~key:(entryKeyFromIdentifier e.identifier)
                   (fontAwesome "times-circle")
-                  msg ]
+                  msg
+              ]
             else []
         | None ->
             iconspacer )
@@ -437,20 +456,20 @@ let entry2html ~hovering (m : model) (e : entry) : msg Html.html =
     match e.plusButton with
     | Some msg ->
         if m.permission = Some ReadWrite
-        then [buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg]
+        then [ buttonLink ~key:(e.name ^ "-plus") (fontAwesome "plus") msg ]
         else []
     | None ->
         iconspacer
   in
   let auxViews =
     Html.div
-      [Html.classList [("aux", true); (httpMethod, true)]]
+      [ Html.classList [ ("aux", true); (httpMethod, true) ] ]
       (verb @ pluslink)
   in
   let selected = tlidOfIdentifier e.identifier = tlidOf m.cursorState in
   Html.div
-    [Html.classList [("simple-item handler", true); ("selected", selected)]]
-    [minuslink; mainlink; auxViews]
+    [ Html.classList [ ("simple-item handler", true); ("selected", selected) ] ]
+    [ minuslink; mainlink; auxViews ]
 
 
 let deploy2html (d : staticDeploy) : msg Html.html =
@@ -458,21 +477,25 @@ let deploy2html (d : staticDeploy) : msg Html.html =
     match d.status with Deployed -> "Deployed" | Deploying -> "Deploying"
   in
   Html.div
-    [Html.class' "simple-item deploy"]
+    [ Html.class' "simple-item deploy" ]
     [ Html.div
-        [Html.class' "deploy-status"]
+        [ Html.class' "deploy-status" ]
         [ Html.a
-            [Html.href d.url; Html.target "_blank"; Html.class' "hash"]
-            [Html.text d.deployHash]
+            [ Html.href d.url; Html.target "_blank"; Html.class' "hash" ]
+            [ Html.text d.deployHash ]
         ; Html.span
             [ Html.classList
                 [ ("status", true)
                 ; ( "success"
-                  , match d.status with Deployed -> true | _ -> false ) ] ]
-            [Html.text statusString] ]
+                  , match d.status with Deployed -> true | _ -> false )
+                ]
+            ]
+            [ Html.text statusString ]
+        ]
     ; Html.span
-        [Html.class' "datetime"]
-        [Html.text (Js.Date.toUTCString d.lastUpdate)] ]
+        [ Html.class' "datetime" ]
+        [ Html.text (Js.Date.toUTCString d.lastUpdate) ]
+    ]
 
 
 (* Category Views *)
@@ -483,11 +506,12 @@ let categoryTitle (name : string) (classname : string) : msg Html.html =
       [ Html.class' "header-icon"
       ; Html.title name
       ; Vdom.attribute "" "role" "img"
-      ; Vdom.attribute "" "alt" name ]
+      ; Vdom.attribute "" "alt" name
+      ]
       (categoryIcon classname)
   in
-  let text cl t = Html.span [Html.class' cl] [Html.text t] in
-  Html.div [Html.class' "title"] [icon; text "title" name]
+  let text cl t = Html.span [ Html.class' cl ] [ Html.text t ] in
+  Html.div [ Html.class' "title" ] [ icon; text "title" name ]
 
 
 let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
@@ -519,8 +543,8 @@ let deployStats2html (m : model) : msg Html.html =
       else []
     in
     Html.summary
-      [openEventHandler]
-      [Html.div [Html.class' "header"] (title :: deployLatest)]
+      [ openEventHandler ]
+      [ Html.div [ Html.class' "header" ] (title :: deployLatest) ]
   in
   let deploys =
     if count > 1
@@ -529,10 +553,10 @@ let deployStats2html (m : model) : msg Html.html =
   in
   let classes =
     Html.classList
-      [("sidebar-section", true); ("deploys", true); ("empty", count = 0)]
+      [ ("sidebar-section", true); ("deploys", true); ("empty", count = 0) ]
   in
   (if count = 0 then Html.div else Html.details)
-    [classes; openAttr]
+    [ classes; openAttr ]
     (header :: deploys)
 
 
@@ -558,22 +582,23 @@ and category2html (m : model) (c : category) : msg Html.html =
             [ buttonLink
                 ~key:("plus-" ^ c.classname)
                 (fontAwesome "plus-circle")
-                msg ]
+                msg
+            ]
           else []
       | None ->
           []
     in
     Html.summary
-      [Html.class' "headerSummary"; openEventHandler]
-      [Html.div [Html.class' "header"] (title :: plusButton)]
+      [ Html.class' "headerSummary"; openEventHandler ]
+      [ Html.div [ Html.class' "header" ] (title :: plusButton) ]
   in
   let entries = List.map ~f:(item2html ~hovering:false m) c.entries in
   let classes =
     Html.classList
-      [("sidebar-section", true); (c.classname, true); ("empty", c.count = 0)]
+      [ ("sidebar-section", true); (c.classname, true); ("empty", c.count = 0) ]
   in
   (if c.count = 0 then Html.div else Html.details)
-    [classes; openAttr]
+    [ classes; openAttr ]
     (header :: entries)
 
 
@@ -586,14 +611,15 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
           [ buttonLink
               ~key:("plus-" ^ c.classname)
               (fontAwesome "plus-circle")
-              msg ]
+              msg
+          ]
         else []
     | None ->
         []
   in
   let hoverView =
     let entries = List.map ~f:(item2html ~hovering:true m) c.entries in
-    if c.count = 0 then [] else [Html.div [Html.class' "hover"] entries]
+    if c.count = 0 then [] else [ Html.div [ Html.class' "hover" ] entries ]
   in
   (* Make the sidebar icons go back to the architectural view:
    https://trello.com/c/ajQDbUR2/1490-make-clicking-on-any-structural-sidebar-button-go-back-to-architectural-view-dbs-http-cron-workers-10-10 *)
@@ -601,22 +627,26 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     match c.iconAction with
     | Some ev ->
         [ ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              ev ) ]
+              ev)
+        ]
     | None ->
         []
   in
   let icon =
     Html.div
       ( event
-      @ [ Html.classList [("header-icon", true)]
+      @ [ Html.classList [ ("header-icon", true) ]
         ; Vdom.attribute "" "role" "img"
-        ; Vdom.attribute "" "alt" c.name ] )
+        ; Vdom.attribute "" "alt" c.name
+        ] )
       (categoryIcon c.classname)
   in
   Html.div
     [ Html.classList
-        [("collapsed", true); (c.classname, true); ("empty", c.count = 0)] ]
-    ([Html.div [Html.class' "collapsed-icon"] (icon :: plusButton)] @ hoverView)
+        [ ("collapsed", true); (c.classname, true); ("empty", c.count = 0) ]
+    ]
+    ( [ Html.div [ Html.class' "collapsed-icon" ] (icon :: plusButton) ]
+    @ hoverView )
 
 
 let closedDeployStats2html (m : model) : msg Html.html =
@@ -626,28 +656,29 @@ let closedDeployStats2html (m : model) : msg Html.html =
     if count > 0
     then
       let deploys = List.map ~f:deploy2html entries in
-      [Html.div [Html.class' "hover"] deploys]
-    else [Vdom.noNode]
+      [ Html.div [ Html.class' "hover" ] deploys ]
+    else [ Vdom.noNode ]
   in
   let icon =
     Html.div
-      [ Html.classList [("header-icon", true); ("empty", count = 0)]
+      [ Html.classList [ ("header-icon", true); ("empty", count = 0) ]
       ; Vdom.attribute "" "role" "img"
-      ; Vdom.attribute "" "alt" "Static Assets" ]
+      ; Vdom.attribute "" "alt" "Static Assets"
+      ]
       (categoryIcon "static")
   in
   Html.div
-    [Html.class' "collapsed"]
-    ([Html.div [Html.class' "collapsed-icon"] [icon]] @ hoverView)
+    [ Html.class' "collapsed" ]
+    ([ Html.div [ Html.class' "collapsed-icon" ] [ icon ] ] @ hoverView)
 
 
 let toggleSidebar (m : model) : msg Html.html =
   let event =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
-        ToggleSideBar )
+        ToggleSideBar)
   in
   let button icon tooltip =
-    Html.a [Html.class' "button-link"; Html.title tooltip] [icon; icon]
+    Html.a [ Html.class' "button-link"; Html.title tooltip ] [ icon; icon ]
   in
   let toggleBtn =
     if m.sidebarOpen
@@ -656,22 +687,25 @@ let toggleSidebar (m : model) : msg Html.html =
   in
   let toggleSide =
     Html.div
-      [event; Html.class' "toggle-container"]
-      [ Html.p [] [Html.text "Collapse sidebar"]
+      [ event; Html.class' "toggle-container" ]
+      [ Html.p [] [ Html.text "Collapse sidebar" ]
       ; Html.div
           [ Html.classList
-              [("toggle-button", true); ("closed", not m.sidebarOpen)] ]
-          [toggleBtn] ]
+              [ ("toggle-button", true); ("closed", not m.sidebarOpen) ]
+          ]
+          [ toggleBtn ]
+      ]
   in
   toggleSide
 
 
 let stateInfoTohtml (key : string) (value : msg Html.html) : msg Html.html =
   Html.div
-    [Html.class' "state-info-row"]
-    [ Html.p [Html.class' "key"] [Html.text key]
-    ; Html.p [Html.class' "sep"] [Html.text ":"]
-    ; Html.p [Html.class' "value"] [value] ]
+    [ Html.class' "state-info-row" ]
+    [ Html.p [ Html.class' "key" ] [ Html.text key ]
+    ; Html.p [ Html.class' "sep" ] [ Html.text ":" ]
+    ; Html.p [ Html.class' "value" ] [ value ]
+    ]
 
 
 let adminDebuggerView (m : model) : msg Html.html =
@@ -699,32 +733,37 @@ let adminDebuggerView (m : model) : msg Html.html =
     ^ "]"
   in
   let environment =
-    Html.span [Html.class' "environment"] [Html.text environmentName]
+    Html.span [ Html.class' "environment" ] [ Html.text environmentName ]
   in
   let stateInfo =
     Html.div
-      [Html.class' "state-info"]
+      [ Html.class' "state-info" ]
       [ stateInfoTohtml "env" (Html.text m.environment)
       ; stateInfoTohtml "flags" (Html.text flagText)
       ; stateInfoTohtml "page" (Html.text (pageToString m.currentPage))
       ; stateInfoTohtml
           "cursorState"
-          (Html.text (show_cursorState m.cursorState)) ]
+          (Html.text (show_cursorState m.cursorState))
+      ]
   in
   let toggleTimer =
     let timerText =
       if m.timersEnabled then "Disable Timers" else "Enable Timers"
     in
     Html.div
-      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
-      ; Html.class' "checkbox-row" ]
-      [ Html.input' [Html.type' "checkbox"; Html.checked m.timersEnabled] []
-      ; Html.p [] [Html.text timerText] ]
+      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
+            ToggleTimers)
+      ; Html.class' "checkbox-row"
+      ]
+      [ Html.input' [ Html.type' "checkbox"; Html.checked m.timersEnabled ] []
+      ; Html.p [] [ Html.text timerText ]
+      ]
   in
   let debugger =
     Html.a
       [ Html.href (ViewScaffold.debuggerLinkLoc ())
-      ; Html.class' "state-info-row debugger" ]
+      ; Html.class' "state-info-row debugger"
+      ]
       [ Html.text
           (if Url.isDebugging then "Disable Debugger" else "Enable Debugger")
       ]
@@ -732,35 +771,39 @@ let adminDebuggerView (m : model) : msg Html.html =
   let saveTestButton =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
-            SaveTestButton )
-      ; Html.class' "state-info-row save-state" ]
-      [Html.text "SAVE STATE FOR INTEGRATION TEST"]
+            SaveTestButton)
+      ; Html.class' "state-info-row save-state"
+      ]
+      [ Html.text "SAVE STATE FOR INTEGRATION TEST" ]
   in
   let hoverView =
     [ Html.div
-        [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; debugger; saveTestButton] ]
+        [ Html.class' "hover admin-state" ]
+        [ stateInfo; toggleTimer; debugger; saveTestButton ]
+    ]
   in
   let icon =
     Html.div
       [ Html.class' "header-icon admin-settings"
       ; Html.title "Admin"
       ; Vdom.attribute "" "role" "img"
-      ; Vdom.attribute "" "alt" "Admin" ]
-      [fontAwesome "cog"]
+      ; Vdom.attribute "" "alt" "Admin"
+      ]
+      [ fontAwesome "cog" ]
   in
   Html.div
-    [Html.class' "collapsed admin"]
+    [ Html.class' "collapsed admin" ]
     [ Html.div
-        [Html.class' ("collapsed-icon " ^ m.environment)]
-        ([environment; icon] @ hoverView) ]
+        [ Html.class' ("collapsed-icon " ^ m.environment) ]
+        ([ environment; icon ] @ hoverView)
+    ]
 
 
 let viewSidebar_ (m : model) : msg Html.html =
   let isClosed : bool = not m.sidebarOpen in
   let cats =
     standardCategories m m.handlers m.dbs m.userFunctions m.userTipes m.groups
-    @ [f404Category m; deletedCategory m]
+    @ [ f404Category m; deletedCategory m ]
   in
   let showAdminDebugger =
     if isClosed && m.isAdmin then adminDebuggerView m else Vdom.noNode
@@ -775,34 +818,38 @@ let viewSidebar_ (m : model) : msg Html.html =
     match m.error with
     | Some _ when m.isAdmin ->
         Html.div
-          [Html.classList [("error-status error", true); ("opened", true)]]
+          [ Html.classList [ ("error-status error", true); ("opened", true) ] ]
           [ Html.a
               [ Html.class' "link"
               ; Html.href "#"
               ; ViewUtils.eventNoPropagation
                   ~key:(string_of_bool true)
                   "mouseup"
-                  (fun _ -> DismissErrorBar ) ]
-              [Html.text "Hide details"] ]
+                  (fun _ -> DismissErrorBar)
+              ]
+              [ Html.text "Hide details" ]
+          ]
     | _ ->
         Html.noNode
   in
   let html =
     Html.div
-      [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
+      [ Html.classList [ ("viewing-table", true); ("isClosed", isClosed) ]
       ; nothingMouseEvent "mouseup"
       ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-            EnablePanning false )
+            EnablePanning false)
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-            EnablePanning true ) ]
-      ( [toggleSidebar m]
+            EnablePanning true)
+      ]
+      ( [ toggleSidebar m ]
       @ [ Html.div
-            [Html.classList [("groups", true); ("groups-closed", isClosed)]]
+            [ Html.classList [ ("groups", true); ("groups-closed", isClosed) ] ]
             ( List.map ~f:(showCategories m) cats
-            @ [showDeployStats m; showAdminDebugger] )
-        ; status ] )
+            @ [ showDeployStats m; showAdminDebugger ] )
+        ; status
+        ] )
   in
-  Html.div [Html.id "sidebar-left"] [html]
+  Html.div [ Html.id "sidebar-left" ] [ html ]
 
 
 let rtCacheKey m =

@@ -1,16 +1,16 @@
 open Core_kernel
 
+type t
 (** Represents a string of user-perceivable Unicode characters.
  ** The internal representation is deliberately opaque, and no guarantee
  ** is given regarding the representation or encoding. **)
-type t
 
 val pp : Format.formatter -> t -> unit
 
 module Character : sig
+  type t
   (** Represents a single user-perceivable Unicode character, more specifically
    ** an 'extended grapheme cluster' in Unicoder terminology **)
-  type t
 
   val compare : t -> t -> int
 

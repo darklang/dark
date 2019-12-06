@@ -64,14 +64,16 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
               ^ "-"
               ^ (p.ufpName |> B.toID |> showID) )
             "click"
-            (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p)) ]
-        [fontAwesome "times-circle"]
+            (fun _ -> DeleteUserFunctionParameter (uf.ufTLID, p))
+        ]
+        [ fontAwesome "times-circle" ]
     else
       Html.div
         [ Html.class' "parameter-btn disallowed"
         ; Html.title
-            "Can't delete parameter because it is used in the function body" ]
-        [fontAwesome "times-circle"]
+            "Can't delete parameter because it is used in the function body"
+        ]
+        [ fontAwesome "times-circle" ]
   in
   match p.ufpName with
   | F (_, pname) ->
@@ -83,42 +85,47 @@ let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
 let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
   let addParamBtn =
     Html.div
-      [Html.class' "col new-parameter"]
+      [ Html.class' "col new-parameter" ]
       [ Html.div
           [ Html.class' "parameter-btn allowed add"
           ; ViewUtils.eventNoPropagation
               ~key:("aufp-" ^ showTLID fn.ufTLID)
               "click"
-              (fun _ -> AddUserFunctionParameter fn.ufTLID) ]
-          [fontAwesome "plus-circle"]
-      ; Html.span [Html.class' "btn-label"] [Html.text "add new parameter"] ]
+              (fun _ -> AddUserFunctionParameter fn.ufTLID)
+          ]
+          [ fontAwesome "plus-circle" ]
+      ; Html.span [ Html.class' "btn-label" ] [ Html.text "add new parameter" ]
+      ]
   in
   let namediv =
     Html.div
-      [Html.class' "ufn-name"]
-      [viewUserFnName vs [wc "fn-name-content"] fn.ufMetadata.ufmName]
+      [ Html.class' "ufn-name" ]
+      [ viewUserFnName vs [ wc "fn-name-content" ] fn.ufMetadata.ufmName ]
   in
   let coldivs =
     fn.ufMetadata.ufmParameters
     |> List.map ~f:(fun p ->
            Html.div
-             [Html.class' "col"]
+             [ Html.class' "col" ]
              ( ( if vs.permission = Some ReadWrite
-               then [viewKillParameterBtn fn p]
+               then [ viewKillParameterBtn fn p ]
                else [] )
-             @ [ viewParamName vs [wc "name"] p.ufpName
-               ; Html.div [Html.class' "param-divider"] [Html.text ":"]
-               ; viewParamTipe vs [wc "type"] p.ufpTipe ] ) )
+             @ [ viewParamName vs [ wc "name" ] p.ufpName
+               ; Html.div [ Html.class' "param-divider" ] [ Html.text ":" ]
+               ; viewParamTipe vs [ wc "type" ] p.ufpTipe
+               ] ))
   in
   Html.div
-    [Html.class' "user-fn"]
+    [ Html.class' "user-fn" ]
     ( (namediv :: coldivs)
-    @ if vs.permission = Some ReadWrite then [addParamBtn] else [] )
+    @ if vs.permission = Some ReadWrite then [ addParamBtn ] else [] )
 
 
 let viewFunction (vs : viewState) (fn : userFunction) : msg Html.html =
   Html.div
-    [Html.class' "user-fn-toplevel"]
-    [ Html.div [Html.class' "metadata"] [viewMetadata vs fn]
-    ; Html.div [Html.class' "function-body expand"] (ViewCode.view vs fn.ufAST)
+    [ Html.class' "user-fn-toplevel" ]
+    [ Html.div [ Html.class' "metadata" ] [ viewMetadata vs fn ]
+    ; Html.div
+        [ Html.class' "function-body expand" ]
+        (ViewCode.view vs fn.ufAST)
     ]

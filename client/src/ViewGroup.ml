@@ -31,12 +31,12 @@ let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
   if preview
   then
     Html.div
-      [Html.class' "group-name"]
-      [Html.p [] [Html.text (blankOr2String g.gName)]]
+      [ Html.class' "group-name" ]
+      [ Html.p [] [ Html.text (blankOr2String g.gName) ] ]
   else
-    let c = (enterable :: idConfigs) @ [wc ""] in
+    let c = (enterable :: idConfigs) @ [ wc "" ] in
     let nameField = ViewBlankOr.viewText GroupName vs c g.gName in
-    Html.div [Html.class' "group-name form"] [nameField]
+    Html.div [ Html.class' "group-name form" ] [ nameField ]
 
 
 let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
@@ -45,22 +45,25 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
     | TLHandler h ->
         let viewSpace =
           let space = blankOr2String h.spec.space in
-          Html.p [Html.class' "member-text"] [Html.text space]
+          Html.p [ Html.class' "member-text" ] [ Html.text space ]
         in
         let viewMod =
           let modifier = blankOr2String h.spec.modifier in
-          Html.p [Html.class' "member-text"] [Html.text modifier]
+          Html.p [ Html.class' "member-text" ] [ Html.text modifier ]
         in
         let viewName =
           let name = blankOr2String h.spec.name in
-          Html.p [Html.class' "member-text"] [Html.text name]
+          Html.p [ Html.class' "member-text" ] [ Html.text name ]
         in
-        [Html.div [Html.class' "member"] [viewSpace; viewMod; viewName]]
+        [ Html.div [ Html.class' "member" ] [ viewSpace; viewMod; viewName ] ]
     | TLDB db ->
         let name = blankOr2String db.dbName in
         [ Html.div
-            [Html.class' "member"]
-            [Html.p [Html.class' "member-text"] [Html.text ("DB:  " ^ name)]]
+            [ Html.class' "member" ]
+            [ Html.p
+                [ Html.class' "member-text" ]
+                [ Html.text ("DB:  " ^ name) ]
+            ]
         ]
     | _ ->
         []
@@ -81,7 +84,7 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
       (fun x -> DragGroupMember (gTLID, tlid, x))
   in
   Html.div
-    [event; Vdom.attribute "" "draggable" "true"; Html.class' "member-wrap"]
+    [ event; Vdom.attribute "" "draggable" "true"; Html.class' "member-wrap" ]
     body
 
 
@@ -95,7 +98,7 @@ let viewMember (vs : viewState) (tl : toplevel) : msg Html.html =
     | _ ->
         ([], [])
   in
-  Html.div [Html.class' "member"] (body @ data)
+  Html.div [ Html.class' "member" ] (body @ data)
 
 
 let viewGroupMembers
@@ -107,7 +110,7 @@ let viewGroupMembers
   if List.length members == 0
   then
     let innerTxt = if preview then "" else "Drag inside here" in
-    Html.div [Html.class' "children"] [Html.p [] [Html.text innerTxt]]
+    Html.div [ Html.class' "children" ] [ Html.p [] [ Html.text innerTxt ] ]
   else
     let memberList =
       members
@@ -116,10 +119,10 @@ let viewGroupMembers
              | Some tl ->
                  if preview then previewMembers gTLID tl else viewMember vs tl
              | None ->
-                 Html.noNode )
+                 Html.noNode)
     in
     Html.div
-      [Html.classList [("member-list", true); ("preview", preview)]]
+      [ Html.classList [ ("member-list", true); ("preview", preview) ] ]
       memberList
 
 
@@ -146,18 +149,22 @@ let viewGroup
       if hasMembers
       then
         [ Html.p
-            [Html.class' "error-text"]
-            [Html.text "Can't delete groups with things inside"] ]
+            [ Html.class' "error-text" ]
+            [ Html.text "Can't delete groups with things inside" ]
+        ]
       else []
     in
     Html.div
       [ Html.classList
           [ ("delete-btn-wrap", true)
           ; ("preview", isPreview)
-          ; ("empty", not hasMembers) ] ]
+          ; ("empty", not hasMembers)
+          ]
+      ]
       ( [ Html.a
-            [delEvent; Html.classList [("delete-btn", true)]]
-            [fontAwesome "times"] ]
+            [ delEvent; Html.classList [ ("delete-btn", true) ] ]
+            [ fontAwesome "times" ]
+        ]
       @ errorText )
   in
   let groupMemberView =
@@ -165,4 +172,6 @@ let viewGroup
   in
   Html.div
     (Html.class' "group-data" :: dragEvents)
-    [Html.div [Html.class' "group-top"] [nameView; closeIcon]; groupMemberView]
+    [ Html.div [ Html.class' "group-top" ] [ nameView; closeIcon ]
+    ; groupMemberView
+    ]

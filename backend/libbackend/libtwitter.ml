@@ -18,12 +18,14 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
         { consumer_key = toStr "consumerKey"
         ; consumer_secret = toStr "consumerSecret"
         ; access_token = toStr "accessTokenKey"
-        ; access_token_secret = toStr "accessTokenSecret" }
+        ; access_token_secret = toStr "accessTokenSecret"
+        }
     | _ ->
         { consumer_key = ""
         ; consumer_secret = ""
         ; access_token = ""
-        ; access_token_secret = "" }
+        ; access_token_secret = ""
+        }
   in
   let authargs =
     args
@@ -49,7 +51,7 @@ let call (endpoint : string) (verb : string) (args : dval_map) : dval =
   else
     let header = Twitter.authorization_header auth url verb authargs in
     let headers =
-      Dval.to_dobj_exn [("Authorization", Dval.dstr_of_string_exn header)]
+      Dval.to_dobj_exn [ ("Authorization", Dval.dstr_of_string_exn header) ]
     in
     match verb with
     | "GET" ->
@@ -100,7 +102,8 @@ let param2param (sw : Swagger.parameter) : param =
   ; optional = not sw.required
   ; block_args = []
   ; tipe = sw.dataType |> sw_type2dark
-  ; description = sw.description }
+  ; description = sw.description
+  }
 
 
 let auth_param : param =
@@ -121,16 +124,17 @@ let fns =
           * they can't actually be called correctly, and the presence of "{"
           * made it impossible to create objects in the autocomplete, so we
           * disabled them for now *)
-         not (String.contains ~substring:"{" api.path) )
+         not (String.contains ~substring:"{" api.path))
   |> List.filter_map ~f:(fun (api : Swagger.api) ->
          api.operations
          |> List.head
          |> Option.map ~f:(fun (op : Swagger.operation) ->
-                { pns = ["Twitter::" ^ twurl2name api.path]
+                { pns = [ "Twitter::" ^ twurl2name api.path ]
                 ; ins = []
                 ; r = TAny
                 ; f = API (call api.path op.httpMethod)
                 ; p = auth_param :: List.map ~f:param2param op.parameters
                 ; d = Base.Option.value ~default:"" op.summary
                 ; ps = false
-                ; dep = false } ) )
+                ; dep = false
+                }))

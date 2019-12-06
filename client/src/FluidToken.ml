@@ -618,22 +618,23 @@ let toCssClasses (t : token) : string list =
     let name = toCategoryName t in
     if name = "" then None else Some ("fluid-category-" ^ name)
   in
-  [empty; keyword; typename; category] |> List.filterMap ~f:identity
+  [ empty; keyword; typename; category ] |> List.filterMap ~f:identity
 
 
 let show_tokenInfo (ti : tokenInfo) =
   Html.dl
     []
-    [ Html.dt [] [Html.text "pos"]
-    ; Html.dd [] [Html.text (Printf.sprintf "(%d, %d)" ti.startPos ti.endPos)]
-    ; Html.dt [] [Html.text "tok"]
-    ; Html.dd [] [Html.text (toText ti.token)]
-    ; Html.dt [] [Html.text "id"]
-    ; Html.dd [] [Html.text (tid ti.token |> deID)]
-    ; Html.dt [] [Html.text "type"]
-    ; Html.dd [] [Html.text (toTypeName ti.token)]
-    ; Html.dt [] [Html.text "debug"]
-    ; Html.dd [] [Html.text (toDebugInfo ti.token)] ]
+    [ Html.dt [] [ Html.text "pos" ]
+    ; Html.dd [] [ Html.text (Printf.sprintf "(%d, %d)" ti.startPos ti.endPos) ]
+    ; Html.dt [] [ Html.text "tok" ]
+    ; Html.dd [] [ Html.text (toText ti.token) ]
+    ; Html.dt [] [ Html.text "id" ]
+    ; Html.dd [] [ Html.text (tid ti.token |> deID) ]
+    ; Html.dt [] [ Html.text "type" ]
+    ; Html.dd [] [ Html.text (toTypeName ti.token) ]
+    ; Html.dt [] [ Html.text "debug" ]
+    ; Html.dd [] [ Html.text (toDebugInfo ti.token) ]
+    ]
 
 
 (* Since tokens don't have unique IDs, it is hard to look at two tokens streams

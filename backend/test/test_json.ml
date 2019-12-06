@@ -34,27 +34,28 @@ let t_dval_yojson_roundtrips () =
           v
           |> Yojson.Safe.from_string
           |> dval_of_yojson
-          |> Result.ok_or_failwith ) ]
+          |> Result.ok_or_failwith )
+    ]
   in
   let check name (v : dval) =
     List.iter
       checks
       ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
-         ->
+              ->
         check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
         AT.check
           AT.string
           (test_name ^ " as string: " ^ name)
           (v |> encode)
           (v |> encode |> decode |> encode) ;
-        () )
+        ())
   in
   sample_dvals
   |> List.filter ~f:(function
          | _, DBlock _ | _, DPassword _ ->
              false
          | _ ->
-             true )
+             true)
   |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
@@ -69,8 +70,9 @@ let t_dval_user_db_json_roundtrips () =
   let dvals =
     [ ( "looks like an option but isn't"
       , Dval.to_dobj_exn
-          [("type", Dval.dstr_of_string_exn "option"); ("value", Dval.dint 5)]
-      ) ]
+          [ ("type", Dval.dstr_of_string_exn "option"); ("value", Dval.dint 5) ]
+      )
+    ]
   in
   List.iter dvals ~f:(fun (name, dv) -> check name dv)
 
@@ -104,7 +106,8 @@ let t_dval_user_db_v1_migration () =
              ; TDate
              ; TPassword
              ; TUuid
-             ; TObj ] )
+             ; TObj
+             ])
   in
   check "regular old object" (Dval.to_dobj_exn fields)
 
@@ -117,12 +120,12 @@ let t_result_to_response_works () =
   in
   let req_example_com =
     Req.make
-      ~headers:(Header.of_list [("Origin", "https://example.com")])
+      ~headers:(Header.of_list [ ("Origin", "https://example.com") ])
       (Uri.of_string "http://test.builtwithdark.com/")
   in
   let req_google_com =
     Req.make
-      ~headers:(Header.of_list [("Origin", "https://google.com")])
+      ~headers:(Header.of_list [ ("Origin", "https://google.com") ])
       (Uri.of_string "http://test.builtwithdark.com/")
   in
   let c = ops2c_exn "test" [] in
@@ -135,7 +138,7 @@ let t_result_to_response_works () =
          |> Webserver.respond_or_redirect
          |> Lwt_main.run
          |> fst
-         |> check )
+         |> check)
        [ ( exec_ast "(obj)"
          , req
          , None
@@ -210,7 +213,7 @@ let t_result_to_response_works () =
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast "1"
          , req
-         , Some (Canvas.Origins ["https://example.com"])
+         , Some (Canvas.Origins [ "https://example.com" ])
          , fun r ->
              AT.check
                (AT.option AT.string)
@@ -219,7 +222,7 @@ let t_result_to_response_works () =
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast "1"
          , req_example_com
-         , Some (Canvas.Origins ["https://example.com"])
+         , Some (Canvas.Origins [ "https://example.com" ])
          , fun r ->
              AT.check
                (AT.option AT.string)
@@ -228,13 +231,14 @@ let t_result_to_response_works () =
                (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
        ; ( exec_ast "1"
          , req_google_com
-         , Some (Canvas.Origins ["https://example.com"])
+         , Some (Canvas.Origins [ "https://example.com" ])
          , fun r ->
              AT.check
                (AT.option AT.string)
                "with whitelist setting and mismatched Origin, we get null Access-Control-Allow-Origin"
                (Some "null")
-               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") ) ]) ;
+               (Header.get (Resp.headers r) "Access-Control-Allow-Origin") )
+       ]) ;
   ()
 
 
@@ -243,7 +247,7 @@ let date_migration_has_correct_formats () =
   let date = DDate (Util.date_of_isostring str) in
   let expected =
     Yojson.pretty_to_string
-      (`Assoc [("type", `String "date"); ("value", `String str)])
+      (`Assoc [ ("type", `String "date"); ("value", `String str) ])
   in
   AT.check
     AT.string
@@ -295,11 +299,13 @@ let t_password_serialization () =
     "to_internal_roundtrippable_v0"
     true
     Dval.to_internal_roundtrippable_v0 ;
+
   (* roundtrips *)
   roundtrips
     "to_internal_roundtrippable_v0"
     Dval.to_internal_roundtrippable_v0
     Dval.of_internal_roundtrippable_v0 ;
+
   (* redacting *)
   does_serialize
     "to_enduser_readable_text_v0"
@@ -372,4 +378,5 @@ let suite =
     , t_password_serialization )
   ; ( "Passwords serialize when not redacting"
     , `Quick
-    , t_password_json_round_trip_forwards ) ]
+    , t_password_json_round_trip_forwards )
+  ]

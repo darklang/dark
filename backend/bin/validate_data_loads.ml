@@ -20,14 +20,15 @@ let usage () : unit =
 
 let validate_row (table : string) (values : string list) : unit =
   match values with
-  | [canvas_name; value; trace_id] ->
+  | [ canvas_name; value; trace_id ] ->
       let params =
-        [("table", table); ("canvas", canvas_name); ("trace_id", trace_id)]
+        [ ("table", table); ("canvas", canvas_name); ("trace_id", trace_id) ]
       in
       ( try
-          let _ : RTT.dval = Dval.of_internal_roundtrippable_v0 value in
+          let (_ : RTT.dval) = Dval.of_internal_roundtrippable_v0 value in
           Log.infO "successful roundtrip" ~params
-        with _ ->
+        with
+      | _ ->
           let params = ("value", value) :: params in
           Log.erroR "Failed to roundtrip stored event" ~params )
   | _ ->
@@ -38,7 +39,7 @@ let () =
   ( match (Array.length Sys.argv, Array.to_list Sys.argv) with
   | 1, _ ->
       ()
-  | 2, [_; "-h"] | _ ->
+  | 2, [ _; "-h" ] | _ ->
       usage () ) ;
   Log.infO "Next: get_stored_events" ;
   Db.iter_with_cursor
@@ -70,14 +71,15 @@ let () =
     "SELECT name from canvases"
     ~params:[]
     ~f:(function
-      | [h] ->
+      | [ h ] ->
         ( try
             ignore
               ( Canvas.load_all h []
               |> Result.map_error ~f:(String.concat ~sep:", ")
               |> Prelude.Result.ok_or_internal_exception "Canvas load error" ) ;
-            Log.infO "successful canvas load" ~params:[("host", h)]
-          with e ->
+            Log.infO "successful canvas load" ~params:[ ("host", h) ]
+          with
+        | e ->
             Log.erroR
               "failed canvas load"
               ~params:
@@ -87,14 +89,14 @@ let () =
                   , Base.Backtrace.to_string (Backtrace.Exn.most_recent ()) )
                 ] )
       | _ ->
-          Exception.internal "wrong # of fields in db resultset" ) ;
+          Exception.internal "wrong # of fields in db resultset") ;
   Log.infO "Next: get_all_user_data" ;
   Db.iter_with_cursor
     ~name:"get all canvases"
     "SELECT name FROM canvases"
     ~params:[]
     ~f:(function
-      | [host] ->
+      | [ host ] ->
           let c =
             Canvas.load_all host []
             |> Result.map_error ~f:(String.concat ~sep:", ")
@@ -122,18 +124,23 @@ let () =
                    ; load_fn_result = (fun _ _ -> None)
                    ; load_fn_arguments = (fun _ -> [])
                    ; store_fn_result = (fun _ _ _ -> ())
-                   ; store_fn_arguments = (fun _ _ -> ()) }
+                   ; store_fn_arguments = (fun _ _ -> ())
+                   }
                  in
                  try
                    ignore (Libbackend.User_db.get_all ~state db) ;
-                   Log.infO "user data" ~params:[("db", dbname); ("host", host)]
-                 with e ->
-                   Log.erroR
-                     "failed to load user_data"
-                     ~params:
-                       [ ("db", dbname)
-                       ; ("host", host)
-                       ; ("exn", Exception.to_string e) ] )
+                   Log.infO
+                     "user data"
+                     ~params:[ ("db", dbname); ("host", host) ]
+                 with
+                 | e ->
+                     Log.erroR
+                       "failed to load user_data"
+                       ~params:
+                         [ ("db", dbname)
+                         ; ("host", host)
+                         ; ("exn", Exception.to_string e)
+                         ])
       | _ ->
-          Exception.internal "bad db result" ) ;
+          Exception.internal "bad db result") ;
   ()

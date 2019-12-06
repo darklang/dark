@@ -192,7 +192,7 @@ let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
   |> List.map ~f:(fun op -> tlidOf op |> Option.value_exn)
   |> List.stable_dedup
   |> List.map ~f:(fun tlid ->
-         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = Some tlid)) )
+         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = Some tlid)))
 
 
 let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
@@ -201,7 +201,7 @@ let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
 
 let ast_of (op : op) : Types.RuntimeT.expr option =
   match op with
-  | SetFunction {ast} | SetExpr (_, _, ast) | SetHandler (_, _, {ast}) ->
+  | SetFunction { ast } | SetExpr (_, _, ast) | SetHandler (_, _, { ast }) ->
       Some ast
   | _ ->
       None
@@ -229,13 +229,15 @@ let is_latest_op_request client_op_ctr_id op_ctr canvas_id : bool =
     ~params:
       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
       ; Db.Int op_ctr
-      ; Db.Uuid canvas_id ] ;
+      ; Db.Uuid canvas_id
+      ] ;
   Db.exists
     ~name:"check-if-op_ctr-is-latest"
     "SELECT 1 FROM op_ctrs WHERE browser_id = $1 AND ctr = $2"
     ~params:
       [ Db.Uuid (client_op_ctr_id |> Uuidm.of_string |> Option.value_exn)
-      ; Db.Int op_ctr ]
+      ; Db.Int op_ctr
+      ]
 
 
 (* filter down to only those ops which can be applied out of order
@@ -279,4 +281,4 @@ let filter_ops_received_out_of_order (ops : op list) : op list =
          | DeleteFunctionForever _
          | DeleteType _
          | DeleteTypeForever _ ->
-             true )
+             true)

@@ -47,7 +47,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
                Element.setScrollTop el (offset -. liHeight)
              else ()
          | _, _ ->
-             () ))
+             ()))
 
 
 (* ---------------------------- *)
@@ -55,7 +55,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | FACFunction {fnName} ->
+  | FACFunction { fnName } ->
       fnName
   | FACField name ->
       name
@@ -152,7 +152,7 @@ let allFunctions (m : model) : function_ list =
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
   in
   functions @ userFunctionMetadata
 
@@ -185,15 +185,15 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatiblePipeParam ({fnParameters} : function_) (tipe : tipe) :
+let findCompatiblePipeParam ({ fnParameters } : function_) (tipe : tipe) :
     parameter option =
   fnParameters
   |> List.head
   |> Option.andThen ~f:(fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
+         if RT.isCompatible fst.paramTipe tipe then Some fst else None)
 
 
-let findParamByType ({fnParameters} : function_) (tipe : tipe) :
+let findParamByType ({ fnParameters } : function_) (tipe : tipe) :
     parameter option =
   fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
@@ -215,10 +215,10 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
       |> Option.andThen2 traceID ~f:(fun traceID id ->
-             Analysis.getLiveValue m id traceID )
+             Analysis.getLiveValue m id traceID)
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
-             match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
+             match dv_ with DIncomplete _ -> None | _ -> Some dv_)
   | None ->
       None
 
@@ -228,7 +228,7 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false )
+         match e with F (_, Thread _) -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
@@ -242,7 +242,7 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe) )
+         |> Option.map ~f:(fun x -> x.paramTipe))
   |> Option.withDefault ~default:TAny
 
 
@@ -325,7 +325,7 @@ let toQueryString (ti : tokenInfo) : string =
 (* ---------------------------- *)
 let reset (m : model) : autocomplete =
   let functions = allFunctions m in
-  {Defaults.defaultModel.fluidState.ac with functions}
+  { Defaults.defaultModel.fluidState.ac with functions }
 
 
 let init m = reset m
@@ -339,7 +339,8 @@ let generateExprs m (tl : toplevel) a ti =
     [ FACConstructorName ("Just", 1)
     ; FACConstructorName ("Nothing", 0)
     ; FACConstructorName ("Ok", 1)
-    ; FACConstructorName ("Error", 1) ]
+    ; FACConstructorName ("Error", 1)
+    ]
   in
   let id = FluidToken.tid ti.token in
   let varnames =
@@ -349,10 +350,10 @@ let generateExprs m (tl : toplevel) a ti =
     |> List.map ~f:(fun (varname, dv) -> FACVariable (varname, dv))
   in
   let keywords =
-    List.map ~f:(fun x -> FACKeyword x) [KLet; KIf; KLambda; KMatch; KPipe]
+    List.map ~f:(fun x -> FACKeyword x) [ KLet; KIf; KLambda; KMatch; KPipe ]
   in
   let literals =
-    List.map ~f:(fun x -> FACLiteral x) ["true"; "false"; "null"]
+    List.map ~f:(fun x -> FACLiteral x) [ "true"; "false"; "null" ]
   in
   varnames @ constructors @ literals @ keywords @ functions
 
@@ -371,18 +372,19 @@ let generatePatterns ti a queryString =
     else
       [ FPABool (mid, gid (), true)
       ; FPABool (mid, gid (), false)
-      ; FPAConstructor (mid, gid (), "Just", [FPBlank (mid, gid ())])
+      ; FPAConstructor (mid, gid (), "Just", [ FPBlank (mid, gid ()) ])
       ; FPAConstructor (mid, gid (), "Nothing", [])
-      ; FPAConstructor (mid, gid (), "Ok", [FPBlank (mid, gid ())])
-      ; FPAConstructor (mid, gid (), "Error", [FPBlank (mid, gid ())])
-      ; FPANull (mid, gid ()) ]
+      ; FPAConstructor (mid, gid (), "Ok", [ FPBlank (mid, gid ()) ])
+      ; FPAConstructor (mid, gid (), "Error", [ FPBlank (mid, gid ()) ])
+      ; FPANull (mid, gid ())
+      ]
       |> List.map ~f:(fun p -> FACPattern p) )
     |> List.filter ~f:(fun c ->
            (* filter out old query string variable *)
-           match c with FACPattern (FPAVariable _) -> false | _ -> true )
+           match c with FACPattern (FPAVariable _) -> false | _ -> true)
   in
   let isInvalidPatternVar str =
-    [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null"]
+    [ ""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null" ]
     |> List.member ~value:str
     || str
        |> String.dropRight ~count:(String.length str - 1)
@@ -393,7 +395,7 @@ let generatePatterns ti a queryString =
      * constructor or boolean name *)
     if isInvalidPatternVar queryString
     then []
-    else [FACPattern (FPAVariable (mid, gid (), queryString))]
+    else [ FACPattern (FPAVariable (mid, gid (), queryString)) ]
   in
   match ti.token with
   | TPatternBlank (mid, _) | TPatternVariable (mid, _, _) ->
@@ -422,7 +424,7 @@ let generate
     | _ ->
         generateExprs m tl a ti
   in
-  {a with allCompletions = items}
+  { a with allCompletions = items }
 
 
 let filter
@@ -463,7 +465,7 @@ let filter
       notSubstring
   in
   let allMatches =
-    [startsWith; startsWithCI; substring; substringCI; stringMatch]
+    [ startsWith; startsWithCI; substring; substringCI; stringMatch ]
     |> List.concat
   in
   (* Now split list by type validity *)
@@ -513,7 +515,8 @@ let refilter
     index
   ; query = Some (TL.id tl, ti)
   ; completions = newCompletions
-  ; invalidCompletions }
+  ; invalidCompletions
+  }
 
 
 let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
@@ -534,7 +537,9 @@ let regenerate (m : model) (a : autocomplete) ((tlid, ti) : query) :
 let updateFunctions m : model =
   { m with
     fluidState =
-      {m.fluidState with ac = {m.fluidState.ac with functions = allFunctions m}}
+      { m.fluidState with
+        ac = { m.fluidState.ac with functions = allFunctions m }
+      }
   }
 
 
@@ -548,7 +553,7 @@ let selectDown (a : autocomplete) : autocomplete =
       let max_ = numCompletions a in
       let max = max max_ 1 in
       let new_ = (index + 1) mod max in
-      {a with index = Some new_}
+      { a with index = Some new_ }
   | None ->
       a
 
@@ -557,7 +562,7 @@ let selectUp (a : autocomplete) : autocomplete =
   match a.index with
   | Some index ->
       let max = numCompletions a - 1 in
-      {a with index = Some (if index <= 0 then max else index - 1)}
+      { a with index = Some (if index <= 0 then max else index - 1) }
   | None ->
       a
 

@@ -20,7 +20,8 @@ module HttpclientV0 = struct
         [ ("url", url)
         ; ("code", string_of_int code)
         ; ("error", error)
-        ; ("response", resp_body) ]
+        ; ("response", resp_body)
+        ]
       in
       Exception.code
         ~info
@@ -60,7 +61,8 @@ module HttpclientV1 = struct
         [ ("url", url)
         ; ("code", string_of_int code)
         ; ("error", error)
-        ; ("response", resp_body) ]
+        ; ("response", resp_body)
+        ]
       in
       Exception.code
         ~info
@@ -76,8 +78,8 @@ module HttpclientV1 = struct
       (body : string) : string =
     Libcommon.Log.debuG
       "HTTP"
-      ~params:[("verb", Httpclient.show_verb verb); ("url", url)]
-      ~jsonparams:[("body", `Int (body |> String.length))] ;
+      ~params:[ ("verb", Httpclient.show_verb verb); ("url", url) ]
+      ~jsonparams:[ ("body", `Int (body |> String.length)) ] ;
     let results, _, _ = http_call ~raw_bytes url [] verb headers body in
     results
 end
@@ -88,7 +90,7 @@ module LibhttpclientV0 = struct
   let has_form_header (headers : headers) : bool =
     List.exists headers ~f:(fun (k, v) ->
         String.lowercase k = "content-type"
-        && String.lowercase v = "application/x-www-form-urlencoded" )
+        && String.lowercase v = "application/x-www-form-urlencoded")
 
 
   let has_json_header (headers : headers) : bool =
@@ -96,7 +98,7 @@ module LibhttpclientV0 = struct
         String.lowercase k = "content-type"
         && v
            |> String.lowercase
-           |> String.is_substring ~substring:"application/json" )
+           |> String.is_substring ~substring:"application/json")
 
 
   (* TODO: integrate with dark_request *)
@@ -127,7 +129,7 @@ module LibhttpclientV0 = struct
     let parsed_headers =
       headers
       |> List.map ~f:(fun (k, v) ->
-             (String.strip k, Dval.dstr_of_string_exn (String.strip v)) )
+             (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
       |> List.filter ~f:(fun (k, _) -> String.length k > 0)
       |> DvalMap.from_list
       |> fun dm -> DObj dm
@@ -135,13 +137,14 @@ module LibhttpclientV0 = struct
     Dval.to_dobj_exn
       [ ("body", parsed_result)
       ; ("headers", parsed_headers)
-      ; ("raw", Dval.dstr_of_string_exn result) ]
+      ; ("raw", Dval.dstr_of_string_exn result)
+      ]
 
 
   let call verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; body; query; headers] ->
+      | _, [ DStr uri; body; query; headers ] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -157,7 +160,7 @@ module LibhttpclientV0 = struct
   let call_no_body verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; query; headers] ->
+      | _, [ DStr uri; query; headers ] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -193,7 +196,7 @@ module LibhttpclientV0 = struct
   let wrapped_call verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; body; query; headers] ->
+      | _, [ DStr uri; body; query; headers ] ->
           wrapped_send_request
             (Unicode_string.to_string uri)
             verb
@@ -209,7 +212,7 @@ module LibhttpclientV0 = struct
   let wrapped_call_no_body verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; query; headers] ->
+      | _, [ DStr uri; query; headers ] ->
           wrapped_send_request
             (Unicode_string.to_string uri)
             verb
@@ -223,17 +226,17 @@ end
 
 module LibhttpclientV1 = struct
   let params =
-    [par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj]
+    [ par "uri" TStr; par "body" TAny; par "query" TObj; par "headers" TObj ]
 
 
-  let params_no_body = [par "uri" TStr; par "query" TObj; par "headers" TObj]
+  let params_no_body = [ par "uri" TStr; par "query" TObj; par "headers" TObj ]
 
   type headers = (string * string) list
 
   let has_form_header (headers : headers) : bool =
     List.exists headers ~f:(fun (k, v) ->
         String.lowercase k = "content-type"
-        && String.lowercase v = "application/x-www-form-urlencoded" )
+        && String.lowercase v = "application/x-www-form-urlencoded")
 
 
   let has_json_header (headers : headers) : bool =
@@ -241,7 +244,7 @@ module LibhttpclientV1 = struct
         String.lowercase k = "content-type"
         && v
            |> String.lowercase
-           |> String.is_substring ~substring:"application/json" )
+           |> String.is_substring ~substring:"application/json")
 
 
   let send_request
@@ -266,20 +269,23 @@ module LibhttpclientV1 = struct
     let parsed_result =
       if has_form_header headers
       then
-        try Dval.of_form_encoding result with _ ->
-          Dval.dstr_of_string_exn "form decoding error"
+        try Dval.of_form_encoding result with
+        | _ ->
+            Dval.dstr_of_string_exn "form decoding error"
       else if has_json_header headers
       then
-        try Dval.of_unknown_json_v0 result with _ ->
-          Dval.dstr_of_string_exn "json decoding error"
+        try Dval.of_unknown_json_v0 result with
+        | _ ->
+            Dval.dstr_of_string_exn "json decoding error"
       else
-        try Dval.dstr_of_string_exn result with _ ->
-          Dval.dstr_of_string_exn "utf-8 decoding error"
+        try Dval.dstr_of_string_exn result with
+        | _ ->
+            Dval.dstr_of_string_exn "utf-8 decoding error"
     in
     let parsed_headers =
       headers
       |> List.map ~f:(fun (k, v) ->
-             (String.strip k, Dval.dstr_of_string_exn (String.strip v)) )
+             (String.strip k, Dval.dstr_of_string_exn (String.strip v)))
       |> List.filter ~f:(fun (k, _) -> String.length k > 0)
       |> DvalMap.from_list
       |> fun dm -> DObj dm
@@ -293,7 +299,8 @@ module LibhttpclientV1 = struct
             |> Dval.dstr_of_string
             |> Option.value
                  ~default:(Dval.dstr_of_string_exn "utf-8 decoding error") )
-        ; ("code", DInt (Dint.of_int code)) ]
+        ; ("code", DInt (Dint.of_int code))
+        ]
     in
     if code >= 200 && code <= 299
     then DResult (ResOk obj)
@@ -324,7 +331,7 @@ module LibhttpclientV1 = struct
   let call verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; body; query; headers] ->
+      | _, [ DStr uri; body; query; headers ] ->
           send_request
             (Unicode_string.to_string uri)
             verb
@@ -339,7 +346,7 @@ module LibhttpclientV1 = struct
   let call_no_body verb json_fn =
     InProcess
       (function
-      | _, [DStr uri; query; headers] ->
+      | _, [ DStr uri; query; headers ] ->
           send_request
             (Unicode_string.to_string uri)
             verb
