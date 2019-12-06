@@ -607,7 +607,7 @@ let viewEventSpec
     (vs : viewState) (spec : handlerSpec) (dragEvents : domEventList) :
     msg Html.html =
   let viewEventName =
-    let configs = (enterable :: idConfigs) @ [wc "name"] in
+    let configs = (enterable :: idConfigs) @ [wc "handler-name"] in
     viewText EventName vs configs spec.name
   in
   let viewEventSpace =
@@ -615,20 +615,13 @@ let viewEventSpec
     viewText EventSpace vs configs spec.space
   in
   let viewEventModifier =
-    let triggerBtn = triggerHandlerButton vs spec in
     let configs = (enterable :: idConfigs) @ [wc "modifier"] in
     let viewMod = viewText EventModifier vs configs spec.modifier in
     match (spec.space, spec.modifier, spec.name) with
-    | F (_, "CRON"), Blank _, _ | F (_, "HTTP"), Blank _, _ ->
-        Html.div [] [viewMod; triggerBtn]
-    | F (_, "HTTP"), _, _ ->
-        Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
-    | F (_, "CRON"), _, _ ->
-        Html.div [Html.class' "modifier"] [viewMod; triggerBtn]
-    | F (_, "WORKER"), _, F _ ->
-        Html.div [Html.class' "modifier"] [triggerBtn]
+    | F (_, "HTTP"), _, _ | F (_, "CRON"), _, _ ->
+        Html.div [Html.class' "modifier"] [viewMod]
     | _ ->
-        triggerBtn
+        Vdom.noNode
   in
   let baseClass = "spec-header" in
   let classes =
@@ -652,13 +645,16 @@ let viewEventSpec
     | _ ->
         baseClass
   in
+  let viewActions =
+    let triggerBtn = triggerHandlerButton vs spec in
+    Html.div [Html.class' "handler-actions"] [triggerBtn; viewMenu vs spec]
+  in
+  let viewType =
+    Html.div [Html.class' "handler-type"] [viewEventSpace; viewEventModifier]
+  in
   Html.div
     (Html.class' classes :: dragEvents)
-    [ viewEventSpace
-    ; viewEventName
-    ; viewEventModifier
-    ; viewMenu vs spec
-    (* ; btnExpCollapse *) ]
+    [viewType; viewEventName; viewActions]
 
 
 let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
