@@ -455,35 +455,39 @@ type token = Types.fluidToken
 
 type tokenInfo = Types.fluidTokenInfo
 
-let rec patternToToken (p : fluidPattern) : fluidToken list =
+let rec patternToToken (p : fluidPattern) ~(idx : int) : fluidToken list =
   match p with
   | FPVariable (mid, id, name) ->
-      [TPatternVariable (mid, id, name)]
+      [TPatternVariable (mid, id, name, idx)]
   | FPConstructor (mid, id, name, args) ->
-      let args = List.map args ~f:(fun a -> TSep id :: patternToToken a) in
-      List.concat ([TPatternConstructorName (mid, id, name)] :: args)
+      let args =
+        List.map args ~f:(fun a -> TSep id :: patternToToken a ~idx)
+      in
+      List.concat ([TPatternConstructorName (mid, id, name, idx)] :: args)
   | FPInteger (mid, id, i) ->
-      [TPatternInteger (mid, id, i)]
+      [TPatternInteger (mid, id, i, idx)]
   | FPBool (mid, id, b) ->
-      if b then [TPatternTrue (mid, id)] else [TPatternFalse (mid, id)]
+      if b
+      then [TPatternTrue (mid, id, idx)]
+      else [TPatternFalse (mid, id, idx)]
   | FPString (mid, id, s) ->
-      [TPatternString (mid, id, s)]
+      [TPatternString (mid, id, s, idx)]
   | FPFloat (mID, id, whole, fraction) ->
       let whole =
-        if whole = "" then [] else [TPatternFloatWhole (mID, id, whole)]
+        if whole = "" then [] else [TPatternFloatWhole (mID, id, whole, idx)]
       in
       let fraction =
         if fraction = ""
         then []
-        else [TPatternFloatFraction (mID, id, fraction)]
+        else [TPatternFloatFraction (mID, id, fraction, idx)]
       in
-      whole @ [TPatternFloatPoint (mID, id)] @ fraction
+      whole @ [TPatternFloatPoint (mID, id, idx)] @ fraction
   | FPNull (mid, id) ->
-      [TPatternNullToken (mid, id)]
+      [TPatternNullToken (mid, id, idx)]
   | FPBlank (mid, id) ->
-      [TPatternBlank (mid, id)]
+      [TPatternBlank (mid, id, idx)]
   | FPOldPattern (mid, op) ->
-      [TPatternString (mid, Blank.toID op, "TODO: old pattern")]
+      [TPatternString (mid, Blank.toID op, "TODO: old pattern", idx)]
 
 
 module Builder = struct
@@ -813,12 +817,12 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       | head :: tail ->
           b
           |> addNested ~f:(fromExpr head)
-          |> addNewlineIfNeeded (Some (id, id, Some 0))
+          |> addNewlineIfNeeded (Some (eid head, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TPipe (id, i, length))
                  |> addNested ~f:(fromExpr e)
-                 |> addNewlineIfNeeded (Some (id, id, Some (i + 1))) )
+                 |> addNewlineIfNeeded (Some (eid e, id, Some (i + 1))) )
           |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EPipeTarget _ ->
       recover "should never be making tokens for EPipeTarget" e b
@@ -831,9 +835,11 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
              |> addIter pairs ~f:(fun i (pattern, expr) b ->
                     b
                     |> addNewlineIfNeeded (Some (id, id, Some i))
-                    |> addMany (patternToToken pattern)
+                    |> addMany (patternToToken pattern ~idx:i)
                     |> addMany
-                         [TSep id; TMatchSep (pid pattern); TSep (pid pattern)]
+                         [ TSep id
+                         ; TMatchSep (pid pattern, i)
+                         ; TSep (pid pattern) ]
                     |> addNested ~f:(fromExpr expr) )
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))) )
   | EOldExpr expr ->
@@ -919,14 +925,14 @@ let eToStructure (s : state) (e : fluidExpr) : string =
 (* -------------------- *)
 let pToString (p : fluidPattern) : string =
   p
-  |> patternToToken
+  |> patternToToken ~idx:0
   |> List.map ~f:(fun t -> Token.toTestText t)
   |> String.join ~sep:""
 
 
 let pToStructure (p : fluidPattern) : string =
   p
-  |> patternToToken
+  |> patternToToken ~idx:0
   |> infoize ~pos:0
   |> List.map ~f:(fun ti ->
          "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
@@ -1332,6 +1338,8 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
   updateVariableUses oldVarName ~f ast
 
 
+(* updateExpr searches `ast` for an expression `e` with the given `id` and when
+ * found replaces `e` with `f e`. *)
 let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let rec run e = if id = eid e then f e else recurse ~f:run e in
   run ast
@@ -1447,7 +1455,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
   let s = recordAction "goToStartOfWord" s in
-  (* We want to find the closest editable token that is before the current cursor position 
+  (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let previousToken =
     toTokens s ast
@@ -1489,7 +1497,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     =
   let s = recordAction "goToEndOfWord" s in
-  (* We want to find the closest editable token that is after the current cursor position 
+  (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let nextToken =
     toTokens s ast
@@ -1773,6 +1781,16 @@ let replacePatternWithPartial
           FPVariable (mID, pID, str)
       | _ ->
           FPVariable (matchID, gid (), str) )
+
+
+let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) : ast =
+  updateExpr matchId ast ~f:(function
+      | EMatch (_, cond, rows) ->
+          let newVal = (FPBlank (matchId, gid ()), newB ()) in
+          let newRows = List.insertAt rows ~index:idx ~value:newVal in
+          EMatch (matchId, cond, newRows)
+      | e ->
+          recover "expected to find EMatch to update" e e )
 
 
 (* ---------------- *)
@@ -2160,7 +2178,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
   | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
       replaceExpr id ~newExpr:(EString (id, f str)) ast
-  | TPatternString (mID, id, str) ->
+  | TPatternString (mID, id, str, _) ->
       replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
   | TInteger (id, str) ->
       let str = f str in
@@ -2170,7 +2188,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
         else EInteger (id, coerceStringTo63BitInt str)
       in
       replaceExpr id ~newExpr ast
-  | TPatternInteger (mID, id, str) ->
+  | TPatternInteger (mID, id, str, _) ->
       let str = f str in
       let newPat =
         if str = ""
@@ -2178,19 +2196,19 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
         else FPInteger (mID, id, coerceStringTo63BitInt str)
       in
       replacePattern mID id ~newPat ast
-  | TPatternNullToken (mID, id) ->
+  | TPatternNullToken (mID, id, _) ->
       let str = f "null" in
       let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
-  | TPatternTrue (mID, id) ->
+  | TPatternTrue (mID, id, _) ->
       let str = f "true" in
       let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
-  | TPatternFalse (mID, id) ->
+  | TPatternFalse (mID, id, _) ->
       let str = f "false" in
       let newExpr = FPVariable (mID, gid (), str) in
       replacePattern mID id ~newPat:newExpr ast
-  | TPatternVariable (mID, _, str) ->
+  | TPatternVariable (mID, _, str, _) ->
       replaceVarInPattern mID str (f str) ast
   | TRecordFieldname (id, _, index, str) ->
       replaceRecordField ~index (f str) id ast
@@ -2363,98 +2381,153 @@ let addBlankToList (id : id) (ast : ast) : ast =
 (* ---------------- *)
 (* General stuff *)
 (* ---------------- *)
-let addEntryBelow
-    (id : id)
-    (index : int option)
-    (ast : ast)
-    (s : fluidState)
-    (f : fluidState -> fluidState) : ast * fluidState =
-  let s = recordAction "addEntryBelow" s in
-  let cursor = ref `NextBlank in
-  let newAST =
-    updateExpr id ast ~f:(fun e ->
-        match (index, e) with
-        | None, EBlank _ ->
-            cursor := `NextToken ;
-            e
-        | None, e ->
-            ELet (gid (), gid (), "", newB (), e)
-        | Some index, ERecord (id, fields) ->
-            ERecord
-              (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
-        | Some index, EMatch (id, cond, rows) ->
-            (* TODO: this doesn't work on the last row, due to how matches are
-             * created, which is hard to fix. *)
-            EMatch
-              ( id
-              , cond
-              , List.insertAt
-                  rows
-                  ~index
-                  ~value:(FPBlank (gid (), gid ()), newB ()) )
-        | Some index, EPipe (id, exprs) ->
-            EPipe (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
+
+(* posFromCaretTarget returns the position in the token stream corresponding to
+   the passed caretTarget within the passed ast. We expect to succeed in finding
+   the target. If we cannot, we `recover` and return the current caret pos
+   as a fallback.
+
+   This is useful for determining the precise position to which the caret should
+   jump after a transformation. *)
+let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
+    int =
+  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
+     that makes the mapping easier. *)
+  let tokens = toTokens s ast in
+  let tokenInfo =
+    List.find tokens ~f:(fun ti ->
+        match (ti.token, ct.astRef) with
+        | TFieldName (id, _, _), ARFieldAccess (id', FAPFieldname)
+        | TVariable (id, _), ARVariable id'
+        | TBlank id, ARBlank id'
+        | TInteger (id, _), ARInteger id'
+        | TIfKeyword id, ARIf (id', IPIfKeyword)
+        | TIfElseKeyword id, ARIf (id', IPElseKeyword)
+        | TIfThenKeyword id, ARIf (id', IPThenKeyword)
+        | TLetKeyword (id, _), ARLet (id', LPKeyword)
+        | TLetLHS (id, _, _), ARLet (id', LPVarName)
+        | TRecordOpen id, ARRecord (id', RPOpen)
+        | TRecordClose id, ARRecord (id', RPClose) ->
+            id = id'
+        | TPipe (id, idx, _), ARPipe (id', PPPipeKeyword idx')
+        | TRecordFieldname (id, _, idx, _), ARRecord (id', RPFieldname idx')
+        | TPatternBlank (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternVariable (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternTrue (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternFalse (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternString (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternInteger (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | ( TPatternConstructorName (id, _, _, idx)
+          , ARMatch (id', MPBranchPattern idx') )
+        | ( TPatternFloatWhole (id, _, _, idx)
+          , ARMatch (id', MPBranchPattern idx') ) ->
+            id = id' && idx = idx'
+        | _, ARInvalid ->
+            recover "Attempted to find an ARInvalid" () false
         | _ ->
-            cursor := `NextToken ;
-            e )
+            false )
   in
-  let newState =
-    match !cursor with
-    | `NextToken ->
-        f s
-    | `NextBlank ->
-        moveToNextBlank ~pos:s.newPos newAST s
-  in
-  (newAST, newState)
+  match tokenInfo with
+  | Some ti ->
+      ti.startPos + min ct.offset ti.length
+  | None ->
+      recover
+        "We expected to find the given caretTarget in the token stream but couldn't."
+        ct
+        s.newPos
 
 
-let addEntryAbove (id : id) (index : int option) (ast : ast) (s : fluidState) :
-    ast * fluidState =
-  let s = recordAction "addEntryAbove" s in
-  let nextIndex = ref None in
-  let newAST =
-    updateExpr id ast ~f:(fun e ->
-        match (index, e) with
-        | Some index, ERecord (id, fields) ->
-            nextIndex := Some (index + 1) ;
-            ERecord
-              (id, List.insertAt fields ~index ~value:(gid (), "", newB ()))
-        | Some index, EMatch (id, cond, rows) ->
-            nextIndex := Some (index + 1) ;
-            EMatch
-              ( id
-              , cond
-              , List.insertAt
-                  rows
-                  ~index
-                  ~value:(FPBlank (gid (), gid ()), newB ()) )
-        | Some index, EPipe (id, exprs) ->
-            (* TODO: this should move to the inside of the |> *)
-            nextIndex := Some (index + 1) ;
-            EPipe (id, List.insertAt exprs ~index:(index + 1) ~value:(newB ()))
-        | None, e ->
-            ELet (gid (), gid (), "", newB (), e)
-        | _ ->
-            e )
+(* caretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget
+ * corresponding to the "very end" of that fluidExpr. The concept of "very end"
+ * is related to an understanding of the tokenization of the expr, even though
+ * this function doesn't explicitly depend on any tokenization functions. *)
+let caretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
+  match expr with
+  | Some (EVariable (id, str)) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | Some (EFieldAccess (id, _, _, fieldName)) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | None ->
+      recover
+        "caretTargetForLastPartOfExpr got an id outside of the AST"
+        id
+        {astRef = ARInvalid; offset = 0}
+  | _ ->
+      recover
+        "we don't yet support caretTargetForLastPartOfExpr for this"
+        expr
+        {astRef = ARInvalid; offset = 0}
+
+
+(* caretTargetForBeginningOfExpr returns a caretTarget representing the
+ * beginning of the expression in `ast` having the given `id`. *)
+let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
+  match expr with
+  | Some (EInteger (id, _)) ->
+      {astRef = ARInteger id; offset = 0}
+  | Some (EBool (id, _)) ->
+      {astRef = ARBool id; offset = 0}
+  | Some (EString (id, _)) ->
+      {astRef = ARString id; offset = 0}
+  | Some (EFloat (id, _, _)) ->
+      {astRef = ARFloat (id, FPWhole); offset = 0}
+  | Some (ENull id) ->
+      {astRef = ARNull id; offset = 0}
+  | Some (EBlank id) ->
+      {astRef = ARBlank id; offset = 0}
+  | Some (ELet (id, _, _, _, _)) ->
+      {astRef = ARLet (id, LPKeyword); offset = 0}
+  | Some (EIf (id, _, _, _)) ->
+      {astRef = ARIf (id, IPIfKeyword); offset = 0}
+  | Some (EMatch (id, _, _)) ->
+      {astRef = ARMatch (id, MPKeyword); offset = 0}
+  | _ ->
+      (* FIXME(ds) should be None to make exhaustive match *)
+      recover
+        ( "expr with id "
+        ^ deID id
+        ^ " not found in caretTargetForBeginningOfExpr" )
+        expr
+        {astRef = ARInvalid; offset = 0}
+
+
+let addPipeExprAt (pipeId : id) (idx : int) (ast : ast) (s : fluidState) :
+    ast * fluidState * fluidExpr =
+  let action =
+    Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx
   in
-  let newState =
-    let tokens = toTokens s newAST in
-    let newToken =
-      List.find tokens ~f:(fun ti ->
-          match ti.token with
-          | TNewline (Some (tid, _, tindex))
-            when id = tid && tindex = !nextIndex ->
-              true
-          | _ ->
-              false )
-    in
-    let newPos =
-      Option.map newToken ~f:(fun ti -> ti.startPos)
-      |> Option.withDefault ~default:s.newPos
-    in
-    moveToNextNonWhitespaceToken ~pos:newPos newAST {s with newPos}
+  let s = recordAction action s in
+  let value = EBlank (gid ()) in
+  let ast =
+    updateExpr pipeId ast ~f:(function
+        | EPipe (_, exprs) ->
+            let exprs = List.insertAt exprs ~index:idx ~value in
+            EPipe (pipeId, exprs)
+        | e ->
+            recover "expected to find EPipe to update" e e )
   in
-  (newAST, newState)
+  (ast, s, value)
+
+
+let addLetBelow (id : id) (ast : ast) (s : state) : ast * state =
+  let s = recordAction "addLetBelow" s in
+  let letId = gid () in
+  let ast =
+    updateExpr id ast ~f:(fun expr -> ELet (letId, gid (), "", newB (), expr))
+  in
+  let ct = {astRef = ARLet (letId, LPVarName); offset = 0} in
+  (ast, {s with newPos = posFromCaretTarget s ast ct})
+
+
+let addLetAbove (id : id) (ast : ast) (s : state) : ast * state =
+  let ast =
+    updateExpr id ast ~f:(fun expr -> ELet (gid (), gid (), "", newB (), expr))
+  in
+  let ct = caretTargetForBeginningOfExpr id ast in
+  (ast, {s with newPos = posFromCaretTarget s ast ct})
 
 
 (* -------------------- *)
@@ -2663,7 +2736,7 @@ let rec findAppropriatePipingParent (oldExpr : fluidExpr) (ast : ast) :
       Some child
 
 
-let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
+let createPipe ~(findParent : bool) (id : id) (ast : ast) (s : state) :
     ast * state =
   let exprToReplace =
     findExpr id ast
@@ -2675,10 +2748,13 @@ let doShiftEnter ~(findParent : bool) (id : id) (ast : ast) (s : state) :
   | None ->
       (ast, s)
   | Some expr ->
-      let pipeChild = newB () in
+      let blankId = gid () in
+      let pipeChild = EBlank blankId in
       let newExpr = EPipe (gid (), [expr; pipeChild]) in
-      let newAST = replaceExpr (eid expr) ast ~newExpr in
-      (newAST, moveToEndOfTarget (eid pipeChild) newAST s)
+      let ast = replaceExpr (eid expr) ast ~newExpr in
+      let ct = {astRef = ARBlank blankId; offset = 0} in
+      let s = {s with newPos = posFromCaretTarget s ast ct} in
+      (ast, s)
 
 
 let updateFromACItem
@@ -2696,7 +2772,10 @@ let updateFromACItem
     (* since patterns have no partial but commit as variables
      * automatically, allow intermediate variables to
      * be autocompletable to other expressions *)
-    | (TPatternBlank (mID, pID) | TPatternVariable (mID, pID, _)), _, _, _ ->
+    | ( (TPatternBlank (mID, pID, _) | TPatternVariable (mID, pID, _, _))
+      , _
+      , _
+      , _ ) ->
         let newPat, acOffset = acToPattern entry in
         let newAST = replacePattern ~newPat mID pID ast in
         (newAST, acOffset)
@@ -2834,83 +2913,6 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 (* -------------------- *)
 (* Code entering/interaction *)
 (* -------------------- *)
-
-(* posFromCaretTarget returns the position in the token stream corresponding to
-   the passed caretTarget within the passed ast. We expect to succeed in finding
-   the target. If we cannot, we `recover` and return the current caret pos
-   as a fallback.
-   
-   This is useful for determining the precise position to which the caret should
-   jump after a transformation. *)
-let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
-  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
-     that makes the mapping easier. *)
-  let tokens = toTokens s ast in
-  let tokenInfo =
-    List.find tokens ~f:(fun ti ->
-        match (ti.token, ct.astRef) with
-        | ( TRecordFieldname (id, _, tIndex, _)
-          , ARRecord (targetId, RPFieldname fieldIndex) )
-          when id = targetId && tIndex = fieldIndex ->
-            true
-        | TFieldName (id, _, _), ARFieldAccess (targetId, FAPFieldname)
-          when id = targetId ->
-            true
-        | TVariable (id, _), ARVariable targetId when id = targetId ->
-            true
-        | _, ARInvalid ->
-            (* If this happens, there's a bug *)
-            false
-        | _ ->
-            false )
-  in
-  match tokenInfo with
-  | Some ti ->
-      ti.startPos + min ct.offset ti.length
-  | None ->
-      recover
-        "We expected to find the given caretTarget in the token stream but couldn't."
-        ct
-        s.newPos
-
-
-(* getCaretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget corresponding to the "very end"
-  of that fluidExpr. The concept of "very end" is related to an understanding of the tokenization of the expr,
-  even though this function doesn't explicitly depend on any tokenization functions. *)
-let getCaretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EVariable (id, str)) ->
-      {astRef = ARVariable id; offset = String.length str}
-  | Some (EFieldAccess (id, _, _, fieldName)) ->
-      { astRef = ARFieldAccess (id, FAPFieldname)
-      ; offset = String.length fieldName }
-  | None ->
-      recover
-        "getCaretTargetForLastPartOfExpr got an id outside of the AST"
-        id
-        {astRef = ARInvalid; offset = 0}
-  | _ ->
-      recover
-        "we don't yet support getCaretTargetForLastPartOfExpr for this"
-        expr
-        {astRef = ARInvalid; offset = 0}
-
-
-type newPosition =
-  | RightOne
-  | RightTwo
-  | LeftOne
-  | LeftThree
-  | MoveToStart
-  | MoveToTokenEnd of id * (* offset *) int
-  | SamePlace
-  | TwoAfterEnd
-  | Exactly of int
-  (* The hope is that we can migrate everything to
-     AtTarget and then remove this entirely *)
-  | AtTarget of caretTarget
-
 let adjustPosForReflow
     ~state
     (newAST : fluidExpr)
@@ -3015,7 +3017,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
     | TString (id, "") ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TPatternString (mID, id, "") ->
+    | TPatternString (mID, id, "", _) ->
         (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne)
@@ -3025,7 +3027,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
     | TRecordFieldname (id, _, i, "") when pos = ti.startPos ->
         (removeRecordField id i ast, LeftThree)
-    | TPatternBlank (mID, id) when pos = ti.startPos ->
+    | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TBlank _
     | TPlaceholder _
@@ -3046,10 +3048,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, Exactly ti.startPos)
     | TFieldOp (id, lhsId) ->
         let newAst = removeField id ast in
-        (newAst, AtTarget (getCaretTargetForLastPartOfExpr lhsId newAst))
+        (newAst, AtTarget (caretTargetForLastPartOfExpr lhsId newAst))
     | TFloatPoint id ->
         (removePointFromFloat id ast, LeftOne)
-    | TPatternFloatPoint (mID, id) ->
+    | TPatternFloatPoint (mID, id, _) ->
         (removePatternPointFromFloat mID id ast, LeftOne)
     | TConstructorName (id, str)
     (* str is the partialName: *)
@@ -3095,10 +3097,10 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TLambdaVar _ ->
         let f str = removeCharAt str offset in
         (replaceStringToken ~f ti.token ast, LeftOne)
-    | TPatternFloatWhole (mID, id, str) ->
+    | TPatternFloatWhole (mID, id, str, _) ->
         let str = removeCharAt str offset in
         (replacePatternFloatWhole str mID id ast, LeftOne)
-    | TPatternFloatFraction (mID, id, str) ->
+    | TPatternFloatFraction (mID, id, str, _) ->
         let str = removeCharAt str offset in
         (replacePatternFloatFraction str mID id ast, LeftOne)
     | TFloatWhole (id, str) ->
@@ -3107,7 +3109,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TFloatFraction (id, str) ->
         let str = removeCharAt str offset in
         (replaceFloatFraction str id ast, LeftOne)
-    | TPatternConstructorName (mID, id, str) ->
+    | TPatternConstructorName (mID, id, str, _) ->
         let f str = removeCharAt str offset in
         (replacePatternWithPartial (f str) mID id ast, LeftOne)
     | TPipe (id, i, _) ->
@@ -3205,7 +3207,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         else s
       in
       (newAST, newState)
-  | TPatternString (mID, id, str) ->
+  | TPatternString (mID, id, str, _) ->
       let target s =
         (* if we're in front of the quotes vs within it *)
         if offset == 0 then s else left s
@@ -3248,13 +3250,13 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
       (replaceFloatWhole (f str) id ast, s)
   | TFloatFraction (id, str) ->
       (replaceFloatFraction (f str) id ast, s)
-  | TPatternFloatPoint (mID, id) ->
+  | TPatternFloatPoint (mID, id, _) ->
       (removePatternPointFromFloat mID id ast, s)
-  | TPatternFloatFraction (mID, id, str) ->
+  | TPatternFloatFraction (mID, id, str, _) ->
       (replacePatternFloatFraction (f str) mID id ast, s)
-  | TPatternFloatWhole (mID, id, str) ->
+  | TPatternFloatWhole (mID, id, str, _) ->
       (replacePatternFloatWhole (f str) mID id ast, s)
-  | TPatternConstructorName (mID, id, str) ->
+  | TPatternConstructorName (mID, id, str, _) ->
       let f str = removeCharAt str offset in
       (replacePatternWithPartial (f str) mID id ast, s)
   | TPatternBlank _ ->
@@ -3429,7 +3431,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TBinOp _
     | TLambdaVar _ ->
         (replaceStringToken ~f ti.token ast, RightOne)
-    | TPatternInteger (_, _, i) | TInteger (_, i) ->
+    | TPatternInteger (_, _, i, _) | TInteger (_, i) ->
         let newLength = f i |> coerceStringTo63BitInt |> String.length in
         let move = if newLength > offset then RightOne else SamePlace in
         (replaceStringToken ~f ti.token ast, move)
@@ -3439,15 +3441,15 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceFloatFraction (f str) id ast, RightOne)
     | TFloatPoint id ->
         (insertAtFrontOfFloatFraction letterStr id ast, RightOne)
-    | TPatternFloatWhole (mID, id, str) ->
+    | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
-    | TPatternFloatFraction (mID, id, str) ->
+    | TPatternFloatFraction (mID, id, str, _) ->
         (replacePatternFloatFraction (f str) mID id ast, RightOne)
-    | TPatternFloatPoint (mID, id) ->
+    | TPatternFloatPoint (mID, id, _) ->
         (insertAtFrontOfPatternFloatFraction letterStr mID id ast, RightOne)
     | TPatternConstructorName _ ->
         (ast, SamePlace)
-    | TPatternBlank (mID, pID) ->
+    | TPatternBlank (mID, pID, _) ->
         let newPat =
           if letter = '"'
           then FPString (mID, newID, "")
@@ -3672,10 +3674,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank (_, _), _)
+    | K.Backspace, _, R (TPatternBlank _, _)
       when Option.isSome s.selectionStart ->
         deleteSelection ~state:s ~ast
-    | K.Backspace, _, R (TPatternBlank (_, _), ti) ->
+    | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
     | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
       ->
@@ -3724,7 +3726,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           let startPos, endPos = fluidGetSelectionRange s in
           let findParent = startPos = endPos in
           let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
-          Option.map topmostID ~f:(fun id -> doShiftEnter ~findParent id ast s)
+          Option.map topmostID ~f:(fun id -> createPipe ~findParent id ast s)
           |> Option.withDefault ~default:(ast, s)
         in
         ( match left with
@@ -3811,19 +3813,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
-    (* Record-specific insertions *)
-    | K.Enter, L (TRecordOpen id, _), _ ->
-        let newAST = addRecordRowAt 0 id ast in
-        let newPos =
-          posFromCaretTarget
-            s
-            newAST
-            {astRef = ARRecord (id, RPFieldname 0); offset = 0}
-        in
-        (newAST, {s with newPos})
-    | K.Enter, _, R (TRecordClose id, _) ->
-        let newAST = addRecordRowToBack id ast in
-        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
@@ -3839,23 +3828,124 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TFieldName _, toTheLeft), _
       when onEdge ->
         doInsert ~pos keyChar toTheLeft ast s
-    (* End of line *)
-    | K.Enter, _, R (TNewline (Some (id, _, index)), ti) ->
-        addEntryBelow id index ast s (doRight ~pos ~next:mNext ti)
-    | K.Enter, _, R (TNewline None, ti) ->
+    (***********)
+    (* K.Enter *)
+    (***********)
+    (*
+     * Caret to right of record open {
+     * Add new initial record row and move caret to it. *)
+    | K.Enter, L (TRecordOpen id, _), _ ->
+        let ast = addRecordRowAt 0 id ast in
+        let ct = {astRef = ARRecord (id, RPFieldname 0); offset = 0} in
+        (ast, {s with newPos = posFromCaretTarget s ast ct})
+    (*
+     * Caret to left of record close }
+     * Add new final record but leave caret to left of } *)
+    | K.Enter, _, R (TRecordClose id, _) ->
+        let s = recordAction "addRecordRowToBack" s in
+        let ast = addRecordRowToBack id ast in
+        let ct = {astRef = ARRecord (id, RPClose); offset = 0} in
+        (ast, {s with newPos = posFromCaretTarget s ast ct})
+    (*
+     * Caret between pipe symbol |> and following expression.
+     * Move current pipe expr down by adding new expr above it.
+     * Keep caret "the same", only moved down by 1 column. *)
+    | K.Enter, L (TPipe (id, idx, _), _), R _ ->
+        let s = recordAction ("addPipeExprAt " ^ string_of_int idx) s in
+        let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
+        let ct = {astRef = ARPipe (id, PPPipeKeyword (idx + 1)); offset = 2} in
+        let s = {s with newPos = posFromCaretTarget s ast ct} in
+        (ast, s)
+    (*
+     * Caret on end-of-line.
+     * Following newline contains a parent and index, meaning we're inside some
+     * special construct. Special-case each of those. *)
+    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
+      ( match findExpr parentId ast with
+      | Some (EPipe _) ->
+          let ast, s, blank = addPipeExprAt parentId (idx + 1) ast s in
+          let ct = caretTargetForBeginningOfExpr (eid blank) ast in
+          (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | Some (ERecord _) ->
+          let ast = addRecordRowAt idx parentId ast in
+          let ct =
+            {astRef = ARRecord (parentId, RPFieldname idx); offset = 0}
+          in
+          (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | Some (EMatch _) ->
+          let ast = addMatchPatternAt parentId idx ast in
+          let ct =
+            {astRef = ARMatch (parentId, MPBranchPattern idx); offset = 0}
+          in
+          (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | _ ->
+          (ast, s) )
+    (*
+     * Caret at end-of-line with no data in the TNewline.
+     * Just move right (ie, * to beginning of next line) *)
+    | K.Enter, L _, R (TNewline None, ti) ->
         (ast, doRight ~pos ~next:mNext ti s)
-    | K.Enter, L (TPipe (id, index, _), _), _ ->
-        let newAST, newState = addEntryAbove id (Some index) ast s in
-        (newAST, {newState with newPos = newState.newPos + 2})
-    | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
-        addEntryAbove id index ast s
-    | K.Enter, No, R (t, _) ->
-        addEntryAbove (FluidToken.tid t) None ast s
+    (*
+     * Caret at end-of-line generally adds a let on the line below,
+     * unless the next line starts with a blank, in which case we go to it. *)
+    | K.Enter, L _, R (TNewline (Some (id, _, _)), ti) ->
+        if mNext
+           |> Option.map ~f:(fun n ->
+                  match n.token with TBlank _ -> true | _ -> false )
+           |> Option.withDefault ~default:false
+        then (ast, doRight ~pos ~next:mNext ti s)
+        else addLetBelow id ast s
+    (*
+     * Caret at beginning of special line.
+     * Preceding newline contains a parent and index, meaning we're inside some
+     * special construct. Special-case each of those.
+     *
+     * In the special case of the special case where we're actually at the
+     * beginning of the next line _following_ the construct, then we actually
+     * want to add a let, not continue the construct. These are the index vs
+     * length checks in each case. *)
+    | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
+      ( match findExpr parentId ast with
+      | Some (EMatch (_, _, exprs)) ->
+          if idx = List.length exprs
+          then addLetAbove (FluidToken.tid rTok) ast s
+          else
+            let ast = addMatchPatternAt parentId idx ast in
+            let ct =
+              { astRef = ARMatch (parentId, MPBranchPattern (idx + 1))
+              ; offset = 0 }
+            in
+            (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | Some (EPipe (_, exprs)) ->
+          (* idx+1 since the initial expression is idx=0 *)
+          if idx + 1 = List.length exprs
+          then addLetAbove (FluidToken.tid rTok) ast s
+          else
+            let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
+            let ct =
+              {astRef = ARPipe (parentId, PPPipeKeyword (idx + 1)); offset = 0}
+            in
+            (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | Some (ERecord _) ->
+          let ast = addRecordRowAt idx parentId ast in
+          let ct =
+            {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
+          in
+          (ast, {s with newPos = posFromCaretTarget s ast ct})
+      | _ ->
+          (ast, s) )
+    (*
+     * Caret at very beginning of tokens or at beginning of non-special line. *)
+    | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
+        let id = FluidToken.tid t in
+        addLetAbove id ast s
+    (****************)
     (* Int to float *)
+    (****************)
     | K.Period, L (TInteger (id, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertIntToFloat offset id ast, moveOneRight pos s)
-    | K.Period, L (TPatternInteger (mID, id, _), ti), _ ->
+    | K.Period, L (TPatternInteger (mID, id, _, _), ti), _ ->
         let offset = pos - ti.startPos in
         (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
     (* Skipping over specific characters, this must come before the
@@ -5474,6 +5564,9 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
             |> Option.withDefault ~default:"None" ) ] ]
   in
+  let error =
+    [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
+  in
   let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
     let tokenInfo tkn =
@@ -5503,16 +5596,13 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
     [dtText "left"; ddLeft; dtText "right"; ddRight; dtText "next"; ddNext]
   in
   let actions =
-    [ Html.dt [] [Html.text "actions"]
+    [ dtText "actions"
     ; Html.dd
         [Attrs.class' "actions"]
         [ Html.ul
             []
             (List.map s.actions ~f:(fun txt -> Html.li [] [Html.text txt])) ]
     ]
-  in
-  let error =
-    [dtText "error"; ddText (Option.withDefault s.error ~default:"None")]
   in
   let status = List.concat [posData; error; tokenData; actions] in
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
