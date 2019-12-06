@@ -1409,8 +1409,8 @@ let handle_login_page ~execution_id req body =
     in
     let username =
       Option.map2 username_or_email password ~f:(fun u p -> (u, p))
-      |> Option.bind ~f:(fun (username, password) ->
-             Account.authenticate ~username ~password )
+      |> Option.bind ~f:(fun (username_or_email, password) ->
+             Account.authenticate ~username_or_email ~password )
     in
     match username with
     | Some username ->
@@ -1522,8 +1522,8 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
          * to /a/<canvas>, your browser will still present basic auth, but we
          * want to redirect you to the /login page, hence checking the
          * user-agent. *)
-        | Some (`Basic (username, password)), Some true ->
-            let username = Account.authenticate ~username ~password in
+        | Some (`Basic (username_or_email, password)), Some true ->
+            let username = Account.authenticate ~username_or_email ~password in
             ( match username with
             | Some username ->
                 (* This is dupe of the "real" (/login) session code; since we're gonna
