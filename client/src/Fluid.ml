@@ -5393,13 +5393,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mouseup" ^ idStr)
               "mouseup"
-              (fun _ ->
-                match Entry.getFluidSelectionRange () with
-                | Some range ->
-                    FluidMsg (FluidMouseUp (tlid, Some range))
-                | None ->
-                    (* We need to clear the state regardless *)
-                    FluidMsg (FluidMouseUp (tlid, None)) )
+              (fun _ -> FluidMsg (FluidMouseUp (tlid, None)) )
           ; ViewUtils.onAnimationEnd
               ~key:("anim-end" ^ idStr)
               ~listener:(fun msg ->
