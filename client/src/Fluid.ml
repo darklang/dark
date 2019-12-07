@@ -5043,7 +5043,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsClick _
   | FluidMouseClick _
   | FluidAutocompleteClick _
-  | FluidUpdateSelection _ ->
+  | FluidMouseUp _ ->
       let tlid =
         match msg with
         | FluidMouseClick tlid ->
@@ -5360,18 +5360,18 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                     ( match ev with
                     | {detail = 2; altKey = true} ->
                         FluidMsg
-                          (FluidUpdateSelection
+                          (FluidMouseUp
                              (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
                         FluidMsg
-                          (FluidUpdateSelection
+                          (FluidMouseUp
                              (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
-                        FluidMsg (FluidUpdateSelection (tlid, None)) )
+                        FluidMsg (FluidMouseUp (tlid, None)) )
                 | None ->
                     (* We expect that this doesn't happen *)
-                    FluidMsg (FluidUpdateSelection (tlid, None)) )
+                    FluidMsg (FluidMouseUp (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mousedown" ^ idStr)
               "mousedown"
@@ -5382,7 +5382,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
               (fun _ ->
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
-                    FluidMsg (FluidUpdateSelection (tlid, Some range))
+                    FluidMsg (FluidMouseUp (tlid, Some range))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                  focused node (weird browser problem?) *)
@@ -5403,8 +5403,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 match Entry.getFluidSelectionRange () with
                 | Some range ->
                     if ev.shiftKey
-                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
-                    else FluidMsg (FluidUpdateSelection (tlid, None))
+                    then FluidMsg (FluidMouseUp (tlid, Some range))
+                    else FluidMsg (FluidMouseUp (tlid, None))
                 | None ->
                     (* This will happen if it gets a selection and there is no
                      focused node (weird browser problem?) *)

@@ -1945,7 +1945,7 @@ let update_ (msg : msg) (m : model) : modification =
             (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
-  | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
+  | FluidMsg (FluidMouseUp (targetExnID, selection)) ->
       Many
         [ Select (targetExnID, None)
         ; TweakModel

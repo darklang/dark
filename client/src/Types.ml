@@ -987,7 +987,7 @@ and fluidMsg =
    * This bi-directionality is not ideal and could use some rethinking.
    *)
   | FluidMouseDown of tlid
-  | FluidUpdateSelection of tlid * (int * int) option
+  | FluidMouseUp of tlid * (int * int) option
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
   (* Index of the dropdown(autocomplete or command palette) item *)
