@@ -5612,7 +5612,9 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"None" ) ] ]
+            |> Option.withDefault ~default:"None" ) ]
+    ; dtText "midClick"
+    ; Html.dd [] [Html.text (string_of_bool s.midClick)] ]
   in
   let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
@@ -5669,7 +5671,7 @@ let selectedASTAsText (m : model) : string option =
 
 let renderCallback (m : model) : unit =
   match m.cursorState with
-  | FluidEntering _ ->
+  | FluidEntering _ when m.fluidState.midClick = false ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
