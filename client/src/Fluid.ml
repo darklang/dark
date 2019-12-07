@@ -5034,7 +5034,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              then FluidSetState fluidState
              else Many [moveMod; FluidSetState fluidState] )
       |> Option.withDefault ~default:NoChange
-  | FluidStartSelection _
+  | FluidMouseDown _
   | FluidKeyPress _
   | FluidCopy
   | FluidPaste _
@@ -5375,7 +5375,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mousedown" ^ idStr)
               "mousedown"
-              (fun _ -> FluidMsg (FluidStartSelection tlid) )
+              (fun _ -> FluidMsg (FluidMouseDown tlid) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mouseup" ^ idStr)
               "mouseup"
