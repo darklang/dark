@@ -4912,15 +4912,12 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
-    | FluidMouseClick _ ->
-      (* TODO: if mouseclick on blank put cursor at beginning of it *)
-      ( match Entry.getFluidCaretPos () with
-      | Some newPos ->
-          updateMouseClick newPos ast s
-      | None ->
-          (* We reset the fluidState to prevent the selection and/or cursor position from persisting
-           * when a user switched handlers *)
-          (ast, s |> acClear) )
+    | FluidMouseUp (_, Some (selStart, selEnd)) when selStart = selEnd ->
+        updateMouseClick selStart ast s
+    | FluidMouseUp (_, None) ->
+        (* We reset the fluidState to prevent the selection and/or cursor
+         * position from persisting when a user switched handlers *)
+        (ast, s |> acClear)
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5041,12 +5038,11 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCut
   | FluidCommandsFilter _
   | FluidCommandsClick _
-  | FluidMouseClick _
   | FluidAutocompleteClick _
   | FluidMouseUp _ ->
       let tlid =
         match msg with
-        | FluidMouseClick tlid ->
+        | FluidMouseUp (tlid, _) ->
             Some tlid
         | _ ->
             tlidOf m.cursorState
@@ -5364,8 +5360,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                              (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
                         FluidMsg
-                          (FluidMouseUp
-                             (tlid, getTokenRangeAtCaret state ast))
+                          (FluidMouseUp (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
                         (* We expect that this doesn't happen *)
                         FluidMsg (FluidMouseUp (tlid, None)) )
