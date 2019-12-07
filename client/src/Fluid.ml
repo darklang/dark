@@ -5400,28 +5400,6 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 | None ->
                     (* We need to clear the state regardless *)
                     FluidMsg (FluidMouseUp (tlid, None)) )
-          ; ViewUtils.eventNoPropagation
-              ~key:
-                ( "fluid-selection-click-"
-                ^ idStr
-                ^ "-"
-                ^
-                match state.selectionStart with
-                | Some x ->
-                    string_of_int x
-                | None ->
-                    "nosel" )
-              "click"
-              (fun ev ->
-                match Entry.getFluidSelectionRange () with
-                | Some range ->
-                    if ev.shiftKey
-                    then FluidMsg (FluidMouseUp (tlid, Some range))
-                    else FluidMsg (FluidMouseUp (tlid, None))
-                | None ->
-                    (* This will happen if it gets a selection and there is no
-                     focused node (weird browser problem?) *)
-                    IgnoreMsg )
           ; ViewUtils.onAnimationEnd
               ~key:("anim-end" ^ idStr)
               ~listener:(fun msg ->
