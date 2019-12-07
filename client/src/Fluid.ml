@@ -5381,11 +5381,15 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                         FluidMsg
                           (FluidMouseUp (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
-                        (* We expect that this doesn't happen *)
-                        FluidMsg (FluidMouseUp (tlid, None)) )
+                        recover
+                          "detail was not 2 in the doubleclick event"
+                          ev
+                          (FluidMsg (FluidMouseUp (tlid, None))) )
                 | None ->
-                    (* We expect that this doesn't happen *)
-                    FluidMsg (FluidMouseUp (tlid, None)) )
+                    recover
+                      "found no caret pos in the doubleclick handler"
+                      ev
+                      (FluidMsg (FluidMouseUp (tlid, None))) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mousedown" ^ idStr)
               "mousedown"
