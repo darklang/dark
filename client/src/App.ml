@@ -474,13 +474,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
-    | StartFluidMouseSelecting tlid ->
-        let newMod =
-          if VariantTesting.isFluid m.tests
-          then {m with cursorState = FluidMouseSelecting tlid}
-          else m
-        in
-        (newMod, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
@@ -1229,9 +1222,7 @@ let update_ (msg : msg) (m : model) : modification =
       | SelectingCommand (_, scID) ->
           if scID = targetID then NoChange else select targetExnID targetID
       | FluidEntering _ ->
-          select targetExnID targetID
-      | FluidMouseSelecting _ ->
-          StartFluidMouseSelecting targetExnID )
+          select targetExnID targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
@@ -1262,7 +1253,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ | FluidMouseSelecting _ ->
+        | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1942,7 +1933,10 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidStartSelection targetExnID) ->
       let defaultBehaviour =
-        [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
+        [ Select (targetExnID, None)
+        ; TweakModel
+            (fun m -> {m with fluidState = {m.fluidState with midClick = true}})
+        ]
       in
       ( match m.cursorState with
       | Entering (Filling _ as cursor) ->
@@ -1961,26 +1955,26 @@ let update_ (msg : msg) (m : model) : modification =
                   (fun () -> Entry.getFluidSelectionRange ())
                   selection
               in
+              let fluidState = {m.fluidState with midClick = false} in
               match selection with
               (* if range width is 0, just change pos *)
               | Some (selBegin, selEnd) when selBegin = selEnd ->
                   { m with
                     fluidState =
-                      { m.fluidState with
+                      { fluidState with
                         oldPos = m.fluidState.newPos
                       ; newPos = selEnd
                       ; selectionStart = None } }
               | Some (selBegin, selEnd) ->
                   { m with
                     fluidState =
-                      { m.fluidState with
+                      { fluidState with
                         selectionStart = Some selBegin
                       ; oldPos = m.fluidState.newPos
                       ; newPos = selEnd } }
               | None ->
-                  { m with
-                    fluidState = {m.fluidState with selectionStart = None} } )
-        ]
+                  {m with fluidState = {fluidState with selectionStart = None}}
+              ) ]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg

@@ -441,7 +441,6 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
-  | FluidMouseSelecting of tlid
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
@@ -968,7 +967,6 @@ and modification =
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | StartFluidMouseSelecting of tlid
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
   | FluidSetState of fluidState
@@ -1371,6 +1369,10 @@ and fluidState =
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
   ; selectionStart : int option (* The selection ends at newPos *)
+  ; midClick :
+      (* If we get a renderCallback between a mousedown and a mouseUp, we
+       * lose the information we're trying to get from the click. *)
+      bool
   ; errorDvSrc : dval_source
   (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
   }
