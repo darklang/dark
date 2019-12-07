@@ -1233,7 +1233,7 @@ let update_ (msg : msg) (m : model) : modification =
       then
         let defaultBehaviour =
           [ Select (targetExnID, None)
-          ; Fluid.update m (FluidMouseClick targetExnID) ]
+          ; Fluid.update m (FluidMouseUp (targetExnID, None)) ]
         in
         match m.cursorState with
         (* If we click away from an entry box, commit it before doing the default behaviour *)
@@ -1904,10 +1904,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidMsg FluidCopy
-  | FluidMsg FluidCut
-  | FluidMsg (FluidPaste _)
-  | FluidMsg (FluidMouseClick _) ->
+  | FluidMsg FluidCopy | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel

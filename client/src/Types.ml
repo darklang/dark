@@ -978,7 +978,6 @@ and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidCopy
   | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidMouseClick of tlid
   | FluidCut
   | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
       [@printer opaque "FluidPaste"]
