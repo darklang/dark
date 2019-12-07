@@ -1931,7 +1931,7 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | FluidMsg (FluidStartSelection targetExnID) ->
+  | FluidMsg (FluidMouseDown targetExnID) ->
       let defaultBehaviour =
         [ Select (targetExnID, None)
         ; TweakModel
