@@ -950,6 +950,15 @@ and modification =
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
+  | Apply of
+      (   (* It can be tempting to call a function which returns
+           * modifications. However, this can have a bug - the model 
+           * used to create those modifications can be wrong (if the
+           * model was changed by previous modifications). Apply can
+           * be used to call the functions and apply the modifications,
+           * so that the latest model is use. *)
+          model
+       -> modification)
   | SetTypes of userTipe list * userTipe list * bool
   | SetPermission of permission option
   | CenterCanvasOn of tlid
@@ -959,6 +968,10 @@ and modification =
   | UpdateDBStats of dbStatsStore
   | FluidCommandsShow of tlid * fluidToken
   | FluidCommandsClose
+  (* We need to track clicks so that we don't mess with the caret while a
+   * click is happening. *)
+  | FluidStartClick
+  | FluidEndClick
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | AddGroup of group

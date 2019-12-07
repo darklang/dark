@@ -4912,12 +4912,30 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
-    | FluidMouseUp (_, Some (selStart, selEnd)) when selStart = selEnd ->
-        updateMouseClick selStart ast s
-    | FluidMouseUp (_, None) ->
+    | FluidMouseUp (_, selection) ->
+        let s = {s with midClick = false} in
+        let selection =
+          Option.orElseLazy
+            (fun () -> Entry.getFluidSelectionRange ())
+            selection
+        in
+        let ast, s =
+          match selection with
+          (* if range width is 0, just change pos *)
+          | Some (selBegin, selEnd) when selBegin = selEnd ->
+              updateMouseClick selBegin ast s
+          | Some (selBegin, selEnd) ->
+              ( ast
+              , { s with
+                  selectionStart = Some selBegin
+                ; oldPos = s.newPos
+                ; newPos = selEnd } )
+          | None ->
+              (ast, {s with selectionStart = None})
+        in
         (* We reset the fluidState to prevent the selection and/or cursor
          * position from persisting when a user switched handlers *)
-        (ast, s |> acClear)
+        (ast, acClear s)
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5379,9 +5397,8 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                 | Some range ->
                     FluidMsg (FluidMouseUp (tlid, Some range))
                 | None ->
-                    (* This will happen if it gets a selection and there is no
-                 focused node (weird browser problem?) *)
-                    IgnoreMsg )
+                    (* We need to clear the state regardless *)
+                    FluidMsg (FluidMouseUp (tlid, None)) )
           ; ViewUtils.eventNoPropagation
               ~key:
                 ( "fluid-selection-click-"
