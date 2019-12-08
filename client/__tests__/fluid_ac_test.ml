@@ -7,6 +7,7 @@ open Fluid
 module AC = FluidAutocomplete
 module B = Blank
 module K = FluidKeyboard
+open Fluid_test_data
 
 let sampleFunctions : function_ list =
   [ ("Twit::somefunc", TObj)
@@ -54,11 +55,6 @@ let defaultID = gid ()
 let defaultID2 = gid ()
 
 let defaultExpr = EBlank defaultID
-
-let aMatchExpr
-    ?(mID = defaultID) ?(patID = gid ()) ?(pattern = FPBlank (mID, patID)) () =
-  EMatch (mID, EVariable (gid (), "request"), [(pattern, EBool (gid (), true))])
-
 
 let defaultToplevel =
   TLHandler
@@ -204,22 +200,16 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
 
 
 (* AC targeting a tlid and pointer *)
-let acFor
-    ?(target = Some (defaultTLID, PExpr (toExpr defaultExpr))) (m : model) :
-    AC.autocomplete =
-  let tlid, ti =
-    match target with
-    | Some (tlid, PExpr expr) ->
-        let ti =
-          fromExpr Defaults.defaultModel.fluidState expr
-          |> toTokens Defaults.defaultModel.fluidState
-          |> List.filter ~f:(fun ti -> FluidToken.isAutocompletable ti.token)
-          |> List.head
-          |> Option.withDefault ~default:defaultTokenInfo
-        in
-        (tlid, ti)
+let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
+  let ti =
+    match TL.get m tlid with
+    | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
+        ast
+        |> fromExpr m.fluidState
+        |> Fluid.getToken {m.fluidState with newPos = pos}
+        |> Option.withDefault ~default:defaultTokenInfo
     | _ ->
-        (defaultTLID, defaultTokenInfo)
+        defaultTokenInfo
   in
   match m.cursorState with
   | Entering (Creating _) ->
@@ -532,8 +522,7 @@ let () =
                   ~userFunctions:[fn]
                   ()
               in
-              let target = Some (fntlid, PExpr (toExpr dbNameBlank)) in
-              let ac = acFor ~target m in
+              let ac = acFor ~tlid:fntlid ~pos:14 m in
               expect
                 (ac |> itemPresent (FACVariable ("MyDB", Some (DDB "MyDB"))))
               |> toEqual true ) ;
@@ -647,7 +636,7 @@ let () =
               let mID = ID "1234" in
               let patID = ID "456" in
               let pattern = FPVariable (mID, patID, "o") in
-              let expr = aMatchExpr ~mID ~patID ~pattern () in
+              let expr = match' b [(pattern, b)] in
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid ~_id:patID ())
