@@ -649,8 +649,6 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Deselected" []
   | FluidEntering tlid_ ->
       ev "FluidEntering " [tlid tlid_]
-  | FluidMouseSelecting tlid_ ->
-      ev "FluidMouseSelecting " [tlid tlid_]
 
 
 and functionResult (fr : Types.functionResult) : Js.Json.t =

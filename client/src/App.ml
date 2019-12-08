@@ -474,13 +474,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
-    | StartFluidMouseSelecting tlid ->
-        let newMod =
-          if VariantTesting.isFluid m.tests
-          then {m with cursorState = FluidMouseSelecting tlid}
-          else m
-        in
-        (newMod, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
@@ -985,8 +978,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               groups = TLIDDict.insert ~tlid:group.gTLID ~value:group m.groups
             }
           , Cmd.none )
+    | FluidStartClick ->
+        ({m with fluidState = {m.fluidState with midClick = true}}, Cmd.none)
+    | FluidEndClick ->
+        ({m with fluidState = {m.fluidState with midClick = false}}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
+    | Apply fn ->
+        let mod_ = fn m in
+        updateMod mod_ (m, cmd)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
     | UndoGroupDelete (tlid, g) ->
@@ -1194,7 +1194,7 @@ let update_ (msg : msg) (m : model) : modification =
           | None ->
               SetCursorState origCursorState )
         | _ ->
-            NoChange
+            FluidEndClick
       else NoChange
   | BlankOrClick (targetExnID, targetID, event) ->
       let select tlid id =
@@ -1229,9 +1229,7 @@ let update_ (msg : msg) (m : model) : modification =
       | SelectingCommand (_, scID) ->
           if scID = targetID then NoChange else select targetExnID targetID
       | FluidEntering _ ->
-          select targetExnID targetID
-      | FluidMouseSelecting _ ->
-          StartFluidMouseSelecting targetExnID )
+          select targetExnID targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
       let offset =
         Native.OffsetEstimator.estimateClickOffset (showID targetID) event
@@ -1242,7 +1240,8 @@ let update_ (msg : msg) (m : model) : modification =
       then
         let defaultBehaviour =
           [ Select (targetExnID, None)
-          ; Fluid.update m (FluidMouseClick targetExnID) ]
+          ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None)))
+          ]
         in
         match m.cursorState with
         (* If we click away from an entry box, commit it before doing the default behaviour *)
@@ -1262,7 +1261,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ | FluidMouseSelecting _ ->
+        | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1869,7 +1868,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let copyData, mod_ =
         if VariantTesting.isFluid m.tests
-        then (Fluid.getCopySelection m, Fluid.update m FluidCut)
+        then
+          (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
         else Clipboard.cut m
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
@@ -1913,10 +1913,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidMsg FluidCopy
-  | FluidMsg FluidCut
-  | FluidMsg (FluidPaste _)
-  | FluidMsg (FluidMouseClick _) ->
+  | FluidMsg FluidCopy | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
@@ -1940,10 +1937,8 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | FluidMsg (FluidStartSelection targetExnID) ->
-      let defaultBehaviour =
-        [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
-      in
+  | FluidMsg (FluidMouseDown targetExnID) ->
+      let defaultBehaviour = [FluidStartClick; Select (targetExnID, None)] in
       ( match m.cursorState with
       | Entering (Filling _ as cursor) ->
           Many
@@ -1951,36 +1946,8 @@ let update_ (msg : msg) (m : model) : modification =
             (Entry.commit m cursor :: defaultBehaviour)
       | _ ->
           Many defaultBehaviour )
-  | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
-      Many
-        [ Select (targetExnID, None)
-        ; TweakModel
-            (fun m ->
-              let selection =
-                Option.orElseLazy
-                  (fun () -> Entry.getFluidSelectionRange ())
-                  selection
-              in
-              match selection with
-              (* if range width is 0, just change pos *)
-              | Some (selBegin, selEnd) when selBegin = selEnd ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        oldPos = m.fluidState.newPos
-                      ; newPos = selEnd
-                      ; selectionStart = None } }
-              | Some (selBegin, selEnd) ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        selectionStart = Some selBegin
-                      ; oldPos = m.fluidState.newPos
-                      ; newPos = selEnd } }
-              | None ->
-                  { m with
-                    fluidState = {m.fluidState with selectionStart = None} } )
-        ]
+  | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
+      Many [Select (targetExnID, None); Apply (fun m -> Fluid.update m msg)]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg

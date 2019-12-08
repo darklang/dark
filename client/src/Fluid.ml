@@ -4905,6 +4905,29 @@ let getCopySelection (m : model) : clipboardContents =
       `None
 
 
+let updateMouseUp (s : state) (ast : ast) (selection : (int * int) option) =
+  let s = {s with midClick = false} in
+  let selection =
+    Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
+  in
+  let ast, s =
+    match selection with
+    (* if range width is 0, just change pos *)
+    | Some (selBegin, selEnd) when selBegin = selEnd ->
+        updateMouseClick selBegin ast s
+    | Some (selBegin, selEnd) ->
+        ( ast
+        , { s with
+            selectionStart = Some selBegin; oldPos = s.newPos; newPos = selEnd
+          } )
+    | None ->
+        (ast, {s with selectionStart = None})
+  in
+  (* We reset the fluidState to prevent the selection and/or cursor
+         * position from persisting when a user switched handlers *)
+  (ast, acClear s)
+
+
 let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
     ast * fluidState =
   (* TODO: The state should be updated from the last request, and so this
@@ -4912,15 +4935,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
-    | FluidMouseClick _ ->
-      (* TODO: if mouseclick on blank put cursor at beginning of it *)
-      ( match Entry.getFluidCaretPos () with
-      | Some newPos ->
-          updateMouseClick newPos ast s
-      | None ->
-          (* We reset the fluidState to prevent the selection and/or cursor position from persisting
-           * when a user switched handlers *)
-          (ast, s |> acClear) )
+    | FluidMouseUp (_, selection) ->
+        updateMouseUp s ast selection
     | FluidCut ->
         deleteSelection ~state:s ~ast
     | FluidPaste data ->
@@ -5034,19 +5050,18 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              then FluidSetState fluidState
              else Many [moveMod; FluidSetState fluidState] )
       |> Option.withDefault ~default:NoChange
-  | FluidStartSelection _
+  | FluidMouseDown _
   | FluidKeyPress _
   | FluidCopy
   | FluidPaste _
   | FluidCut
   | FluidCommandsFilter _
   | FluidCommandsClick _
-  | FluidMouseClick _
   | FluidAutocompleteClick _
-  | FluidUpdateSelection _ ->
+  | FluidMouseUp _ ->
       let tlid =
         match msg with
-        | FluidMouseClick tlid ->
+        | FluidMouseUp (tlid, _) ->
             Some tlid
         | _ ->
             tlidOf m.cursorState
@@ -5360,55 +5375,29 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                     ( match ev with
                     | {detail = 2; altKey = true} ->
                         FluidMsg
-                          (FluidUpdateSelection
+                          (FluidMouseUp
                              (tlid, getExpressionRangeAtCaret state ast))
                     | {detail = 2; altKey = false} ->
                         FluidMsg
-                          (FluidUpdateSelection
-                             (tlid, getTokenRangeAtCaret state ast))
+                          (FluidMouseUp (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
-                        (* We expect that this doesn't happen *)
-                        FluidMsg (FluidUpdateSelection (tlid, None)) )
+                        recover
+                          "detail was not 2 in the doubleclick event"
+                          ev
+                          (FluidMsg (FluidMouseUp (tlid, None))) )
                 | None ->
-                    (* We expect that this doesn't happen *)
-                    FluidMsg (FluidUpdateSelection (tlid, None)) )
+                    recover
+                      "found no caret pos in the doubleclick handler"
+                      ev
+                      (FluidMsg (FluidMouseUp (tlid, None))) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mousedown" ^ idStr)
               "mousedown"
-              (fun _ -> FluidMsg (FluidStartSelection tlid) )
+              (fun _ -> FluidMsg (FluidMouseDown tlid) )
           ; ViewUtils.eventNoPropagation
               ~key:("fluid-selection-mouseup" ^ idStr)
               "mouseup"
-              (fun _ ->
-                match Entry.getFluidSelectionRange () with
-                | Some range ->
-                    FluidMsg (FluidUpdateSelection (tlid, Some range))
-                | None ->
-                    (* This will happen if it gets a selection and there is no
-                 focused node (weird browser problem?) *)
-                    IgnoreMsg )
-          ; ViewUtils.eventNoPropagation
-              ~key:
-                ( "fluid-selection-click-"
-                ^ idStr
-                ^ "-"
-                ^
-                match state.selectionStart with
-                | Some x ->
-                    string_of_int x
-                | None ->
-                    "nosel" )
-              "click"
-              (fun ev ->
-                match Entry.getFluidSelectionRange () with
-                | Some range ->
-                    if ev.shiftKey
-                    then FluidMsg (FluidUpdateSelection (tlid, Some range))
-                    else FluidMsg (FluidUpdateSelection (tlid, None))
-                | None ->
-                    (* This will happen if it gets a selection and there is no
-                     focused node (weird browser problem?) *)
-                    IgnoreMsg )
+              (fun _ -> FluidMsg (FluidMouseUp (tlid, None)) )
           ; ViewUtils.onAnimationEnd
               ~key:("anim-end" ^ idStr)
               ~listener:(fun msg ->
@@ -5467,39 +5456,44 @@ let viewLiveValue
            in
            if FluidToken.validID id
            then
-             let loadable =
-               Analysis.getLiveValueLoadable vs.analysisStore id
+             let lvHtml dval =
+               let text = Runtime.toRepr dval in
+               ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
              in
-             match (AC.highlighted state.ac, loadable) with
-             | None, LoadableSuccess (DIncomplete _) when Option.isSome fnText
-               ->
-                 let text = Option.withDefault ~default:"" fnText in
-                 ([Html.text text], true, ti.startRow)
-             | None, LoadableSuccess (DIncomplete (SourceId srcId))
-               when srcId <> id ->
-                 ( [goToSrcView "<Incomplete> Click to locate source" srcId]
-                 , true
-                 , ti.startRow )
-             | None, LoadableSuccess (DIncomplete _) ->
-                 ([Html.text "<Incomplete>"], true, ti.startRow)
-             | None, LoadableSuccess (DError (SourceId srcId, _))
-               when srcId <> id ->
-                 (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
-                 ( [goToSrcView "<Error> Click to locate source" srcId]
-                 , true
-                 , ti.startRow )
-             | None, LoadableSuccess (DError (_, msg)) ->
-                 ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
-             | Some (FACVariable (_, Some dval)), _
-             | None, LoadableSuccess dval ->
-                 let text = Runtime.toRepr dval in
-                 ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
-             | Some _, _ ->
+             match AC.highlighted state.ac with
+             | Some (FACVariable (_, Some dval)) ->
+                 lvHtml dval
+             | Some _ ->
+                 (* Showing a livevalue when the autocomplete is showing
+                  * is confusing, except in particular situations. *)
                  none
-             | None, LoadableNotInitialized | None, LoadableLoading _ ->
-                 ([ViewUtils.fontAwesome "spinner"], true, row)
-             | None, LoadableError err ->
-                 ([Html.text ("Error loading live value: " ^ err)], true, row)
+             | None ->
+               ( match Analysis.getLiveValueLoadable vs.analysisStore id with
+               | LoadableSuccess (DIncomplete _) when Option.isSome fnText ->
+                   let text = Option.withDefault ~default:"" fnText in
+                   ([Html.text text], true, ti.startRow)
+               | LoadableSuccess (DIncomplete (SourceId srcId))
+                 when srcId <> id ->
+                   ( [goToSrcView "<Incomplete> Click to locate source" srcId]
+                   , true
+                   , ti.startRow )
+               | LoadableSuccess (DIncomplete _) ->
+                   ([Html.text "<Incomplete>"], true, ti.startRow)
+               | LoadableSuccess (DError (SourceId srcId, _)) when srcId <> id
+                 ->
+                   (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
+                   ( [goToSrcView "<Error> Click to locate source" srcId]
+                   , true
+                   , ti.startRow )
+               | LoadableSuccess (DError (_, msg)) ->
+                   ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
+               | LoadableSuccess dval ->
+                   lvHtml dval
+               | LoadableNotInitialized | LoadableLoading _ ->
+                   ([ViewUtils.fontAwesome "spinner"], true, row)
+               | LoadableError err ->
+                   ([Html.text ("Error loading live value: " ^ err)], true, row)
+               )
            else none )
     |> Option.withDefault ~default:none
   in
@@ -5607,7 +5601,9 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.selectionStart
             |> Option.map ~f:(fun selStart ->
                    string_of_int selStart ^ "->" ^ string_of_int s.newPos )
-            |> Option.withDefault ~default:"None" ) ] ]
+            |> Option.withDefault ~default:"None" ) ]
+    ; dtText "midClick"
+    ; Html.dd [] [Html.text (string_of_bool s.midClick)] ]
   in
   let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
@@ -5664,7 +5660,7 @@ let selectedASTAsText (m : model) : string option =
 
 let renderCallback (m : model) : unit =
   match m.cursorState with
-  | FluidEntering _ ->
+  | FluidEntering _ when m.fluidState.midClick = false ->
       if FluidCommands.isOpened m.fluidState.cp
       then ()
       else (
