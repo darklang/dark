@@ -514,8 +514,7 @@ let () =
                    |> setQuery m "event"
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true] ) ;
-          (* TODO: not yet working in fluid
-           * test "functions have DB names in the autocomplete" (fun () ->
+          test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = EBlank blankid in
               let fntlid = TLID "fn123" in
@@ -535,12 +534,9 @@ let () =
               in
               let target = Some (fntlid, PExpr (toExpr dbNameBlank)) in
               let ac = acFor ~target m in
-              Js.log2
-                "DB name completions blankOr: "
-                ( List.map ~f:AC.show_autocompleteItem ac.completions
-                |> String.join ~sep:"; " ) ;
-              expect (ac |> itemPresent (FACVariable "MyDB")) |> toEqual true
-          ) ;*)
+              expect
+                (ac |> itemPresent (FACVariable ("MyDB", Some (DDB "MyDB"))))
+              |> toEqual true ) ;
           () ) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
