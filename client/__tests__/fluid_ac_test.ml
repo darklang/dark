@@ -316,11 +316,10 @@ let () =
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
-          (* TODO: not yet working in fluid
-           test "Returning to empty unselects" (fun () ->
+          test "Returning to empty unselects" (fun () ->
               expect
                 (acFor m |> setQuery m "lis" |> setQuery m "" |> AC.highlighted)
-              |> toEqual None ) ; *)
+              |> toEqual None ) ;
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
