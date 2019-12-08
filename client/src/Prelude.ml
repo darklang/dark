@@ -116,7 +116,7 @@ let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r)
     : 'r =
   if cond
   then returnVal
-  else recover ("assertion failure" ^ msg) ~debug returnVal
+  else recover ("Assertion failure: " ^ msg) ~debug returnVal
 
 
 (* Assert `cond` as a statement.  All assertion functions report to rollbar
