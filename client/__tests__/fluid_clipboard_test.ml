@@ -312,22 +312,22 @@ let () =
         "pasting an int-only EString into an integer should extend integer"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (0, 0))
-        ("12345678", "\"1234\"", 4) ;
+        ("12345678", "1234", 4) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (4, 4))
-        ("56781234", "\"1234\"", 8) ;
+        ("56781234", "1234", 8) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (2, 2))
-        ("56123478", "\"1234\"", 6) ;
+        ("56123478", "1234", 6) ;
       t
         "pasting an int-only EString over part of an integer should extend integer"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (1, 3))
-        ("512348", "\"1234\"", 5) ;
+        ("512348", "1234", 5) ;
       () ) ;
   describe "Strings" (fun () ->
       t
