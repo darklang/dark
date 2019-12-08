@@ -284,18 +284,6 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
 
 let () =
   describe "autocomplete" (fun () ->
-      (* TODO: not yet working in fluid
-      describe "generation" (fun () ->
-          test
-            "invalidated cursor state/acFor still produces a valid autocomplete"
-            (fun () ->
-              expect (fun () ->
-                  defaultModel ~cursorState:(fillingCS ()) ()
-                  |> fun x -> acFor x )
-              |> not_
-              |> toThrow ) ;
-          () ) ;
-          *)
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
           let tl = TLHandler (aHandler ~space ()) in
