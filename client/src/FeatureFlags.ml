@@ -10,7 +10,7 @@ module TL = Toplevel
 let toFlagged (msgId : id) (expr : expr) : expr =
   match expr with
   | F (_, FeatureFlag (_, _, _, _)) ->
-      recover "cant convert flagged to flagged" expr expr
+      recover "cant convert flagged to flagged" ~debug:expr expr
   | _ ->
       F (gid (), FeatureFlag (Blank msgId, B.new_ (), expr, B.new_ ()))
 
@@ -20,7 +20,7 @@ let fromFlagged (pick : pick) (expr : expr) : expr =
   | F (_, FeatureFlag (_, _, a, b)) ->
     (match pick with PickA -> a | PickB -> b)
   | _ ->
-      recover "cant convert flagged to flagged" expr expr
+      recover "cant convert flagged to flagged" ~debug:expr expr
 
 
 let wrap (_m : model) (tl : toplevel) (pd : pointerData) : modification =
@@ -48,7 +48,7 @@ let start (m : model) : modification =
       | _ ->
           recover
             "invalid tl and id for starting feature flag"
-            (tl, pd)
+            ~debug:(tl, pd)
             NoChange )
   | _ ->
       NoChange
@@ -71,7 +71,7 @@ let end_ (m : model) (id : id) (pick : pick) : modification =
       | TLFunc f ->
           RPC ([SetFunction f], focus)
       | _ ->
-          recover "ending FF on invalid handler" (tl, id) NoChange )
+          recover "ending FF on invalid handler" ~debug:(tl, id) NoChange )
 
 
 let toggle (id : id) (isExpanded : bool) : modification =

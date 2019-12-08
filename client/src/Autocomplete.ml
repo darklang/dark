@@ -461,7 +461,10 @@ let cronIntervalValidator (name : string) : string option =
 
 
 let assertValid pattern value : string =
-  asserT "Failed validator" (Regex.exactly ~re:pattern value) (pattern, value) ;
+  asserT
+    "Failed validator"
+    (Regex.exactly ~re:pattern value)
+    ~debug:(pattern, value) ;
   value
 
 
@@ -745,9 +748,9 @@ let tlGotoName (tl : toplevel) : string =
       "Jump to Group: "
       ^ (g.gName |> B.toMaybe |> Option.withDefault ~default:"Undefined")
   | TLFunc _ ->
-      recover "can't goto function" tl "<invalid state>"
+      recover "can't goto function" ~debug:tl "<invalid state>"
   | TLTipe _ ->
-      recover "can't goto tipe " tl "<invalid state>"
+      recover "can't goto tipe " ~debug:tl "<invalid state>"
 
 
 let tlDestinations (m : model) : autocompleteItem list =
