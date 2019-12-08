@@ -919,6 +919,21 @@ let () =
         (key K.DeleteNextWord 42)
         ( "\"123456789_abcdefghi,123456789_abcdefghi,\n"
         ^ "~ abcdefghi, 123456789_ abcdefghi,\"" ) ;
+      t
+        "adding a quote at the front turns a partial into a string"
+        (partial "abcdefgh\"" b)
+        (ins '"' 0)
+        "\"~abcdefgh\"" ;
+      t
+        "adding a quote at the back turns a partial into a string"
+        (partial "\"abcdefgh" b)
+        (ins '"' 9)
+        "\"abcdefgh\"~" ;
+      tp
+        "just one quote doesn't turn a partial into a string"
+        (partial "abcdefgh" b)
+        (ins '"' 0)
+        "\"~abcdefgh" ;
       () ) ;
   describe "Integers" (fun () ->
       t "insert 0 at front " anInt (ins '0' 0) "~12345" ;
