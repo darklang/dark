@@ -3520,7 +3520,6 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
       let newPos =
         posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
       in
-      Debug.loG "VOX newPos=" newPos ;
       (newAST, {s with newPos})
   | None ->
       (ast, s)
