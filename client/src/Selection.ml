@@ -251,7 +251,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
               (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
           ]
   | _ ->
-      recover "Entering invalid tl" (tlid, id) NoChange
+      recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
 
 let enter (m : model) (tlid : tlid) (id : id) : modification =
@@ -323,7 +323,7 @@ let moveLeft ?(andEnter = false) (m : model) (tlid : tlid) (mId : id option) :
 let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
-      recover "Nothing to select" (tlid, cur) NoChange
+      recover "Nothing to select" ~debug:(tlid, cur) NoChange
   | Some tl ->
       let pd = Option.andThen cur ~f:(TL.find tl) in
       pd
@@ -374,7 +374,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   match TL.get m tlid with
   | None ->
-      recover "selecting no TL" (tlid, cur) NoChange
+      recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = TL.getNextBlank tl pd in
@@ -390,7 +390,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
 let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
-      recover "selecting no TL" (tlid, cur) NoChange
+      recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = TL.getNextBlank tl pd in
@@ -409,7 +409,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
     =
   match TL.get m tlid with
   | None ->
-      recover "selecting no TL" (tlid, cur) NoChange
+      recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = pd |> TL.getPrevBlank tl in
@@ -425,7 +425,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
 let enterPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
-      recover "selecting no TL" (tlid, cur) NoChange
+      recover "selecting no TL" ~debug:(tlid, cur) NoChange
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = TL.getPrevBlank tl pd in
@@ -465,7 +465,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
             | TLFunc f ->
                 RPC ([SetFunction f], focus)
             | TLTipe _ | TLDB _ | TLGroup _ ->
-                recover "pointer type mismatch" (newTL, pd) NoChange )
+                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange )
         | DBName | FnName | TypeName | GroupName ->
             Many [Enter (Filling (tlid, id)); AutocompleteMod (ACSetQuery "")]
         | _ ->
@@ -480,6 +480,7 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
             | TLGroup _ ->
                 NoChange
             | TLDB _ ->
-                recover "pointer type mismatch" (newTL, pd) NoChange ) )
+                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange )
+        )
       | _ ->
-          recover "deleting from non-existant pd" id NoChange )
+          recover "deleting from non-existant pd" ~debug:id NoChange )
