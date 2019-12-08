@@ -4653,7 +4653,7 @@ let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
       `Json (Encoders.pointerData (PExpr (toExpr ast)))
 
 
-let jsonToExpr (jsonStr : string) : fluidExpr option =
+let jsonToExpr (jsonStr : string) : fluidExpr =
   let open Js.Json in
   let rec jsJsonToExpr (j : t) : fluidExpr =
     match classify j with
@@ -4665,8 +4665,6 @@ let jsonToExpr (jsonStr : string) : fluidExpr option =
         EBool (gid (), true)
     | JSONNull ->
         ENull (gid ())
-    (* TODO int *)
-    (* TODO float *)
     | JSONNumber float ->
         let str = Js.Float.toString float in
         if is63BitInt str
@@ -4696,8 +4694,8 @@ let jsonToExpr (jsonStr : string) : fluidExpr option =
   in
   try
     let j = Json.parseOrRaise jsonStr in
-    Some (jsJsonToExpr j)
-  with _ -> Some (EString (gid (), jsonStr))
+    jsJsonToExpr j
+  with _ -> EString (gid (), jsonStr)
 
 
 let clipboardContentsToExpr ~state (data : clipboardContents) :
@@ -4714,7 +4712,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
             recover "not a pexpr" data None
       with _ -> recover "could not decode" json None )
   | `Text text ->
-      jsonToExpr text
+      Some (jsonToExpr text)
   | `None ->
       None
 
