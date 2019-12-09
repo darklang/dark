@@ -497,6 +497,7 @@ let () =
       t "del space in string" aStr (del 5) "\"some~string\"" ;
       t "bs space in string" aStr (bs 6) "\"some~string\"" ;
       t "final quote is swallowed" aStr (ins '"' 12) "\"some string\"~" ;
+      t "insert backtick in string" aStr (key K.Backtick 1) "\"`~some string\"" ;
       t
         "ctrl+left from mid string goes front of word in string"
         aStr
