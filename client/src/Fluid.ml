@@ -1787,6 +1787,28 @@ let replacePatternWithPartial
           FPVariable (matchID, gid (), str) )
 
 
+(** addMatchPatternAt adds a new match row (FPBlank, EBlank) into the EMatch
+    with `matchId` at `idx`.
+
+    Returns a new ast and fluidState with the action recorded. *)
+let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
+    ast * fluidState =
+  let action =
+    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (deID matchId) idx
+  in
+  let s = recordAction action s in
+  let ast =
+    updateExpr matchId ast ~f:(function
+        | EMatch (_, cond, rows) ->
+            let newVal = (FPBlank (matchId, gid ()), newB ()) in
+            let newRows = List.insertAt rows ~index:idx ~value:newVal in
+            EMatch (matchId, cond, newRows)
+        | e ->
+            recover "expected to find EMatch to update" e e )
+  in
+  (ast, s)
+
+
 (* ---------------- *)
 (* Blanks *)
 (* ---------------- *)
@@ -1894,6 +1916,21 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : ast) : ast =
           ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
       | _ ->
           recover "not a let in replaceLetLHS" e e )
+
+
+(** makeIntoLetBody takes the `id` of an expression, which will be made into the
+    body of a new ELet.
+
+    Returns a new ast, fluidState, and the id of the newly inserted ELet, which
+    may be useful for doing caret placement. *)
+let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
+    ast * fluidState * id =
+  let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
+  let lid = gid () in
+  let ast =
+    updateExpr id ast ~f:(fun expr -> ELet (lid, gid (), "", newB (), expr))
+  in
+  (ast, s, lid)
 
 
 (* ---------------- *)
@@ -2160,6 +2197,28 @@ let removePipe (id : id) (ast : ast) (index : int) : ast =
           EPipe (id, List.removeAt ~index exprs)
       | _ ->
           e )
+
+
+(** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
+
+    Returns a new ast, fluidState with the action recorded, and the id of the
+    newly inserted EBlank, which may be useful for doing caret placement. *)
+let addPipeExprAt (pipeId : id) (idx : int) (ast : ast) (s : fluidState) :
+    ast * fluidState * id =
+  let action =
+    Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx
+  in
+  let s = recordAction action s in
+  let bid = gid () in
+  let ast =
+    updateExpr pipeId ast ~f:(function
+        | EPipe (_, exprs) ->
+            let exprs = List.insertAt exprs ~index:idx ~value:(EBlank bid) in
+            EPipe (pipeId, exprs)
+        | e ->
+            recover "expected to find EPipe to update" e e )
+  in
+  (ast, s, bid)
 
 
 (* Supports the various different tokens replacing their string contents.
@@ -2505,65 +2564,6 @@ let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
         ^ " not found in caretTargetForBeginningOfExpr" )
         expr
         {astRef = ARInvalid; offset = 0}
-
-
-(** addMatchPatternAt adds a new match row (FPBlank, EBlank) into the EMatch
-    with `matchId` at `idx`.
-
-    Returns a new ast and fluidState with the action recorded. *)
-let addMatchPatternAt (matchId : id) (idx : int) (ast : ast) (s : fluidState) :
-    ast * fluidState =
-  let action =
-    Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (deID matchId) idx
-  in
-  let s = recordAction action s in
-  let ast =
-    updateExpr matchId ast ~f:(function
-        | EMatch (_, cond, rows) ->
-            let newVal = (FPBlank (matchId, gid ()), newB ()) in
-            let newRows = List.insertAt rows ~index:idx ~value:newVal in
-            EMatch (matchId, cond, newRows)
-        | e ->
-            recover "expected to find EMatch to update" e e )
-  in
-  (ast, s)
-
-
-(** addPipeExprAt adds a new EBlank into the EPipe with `pipeId` at `idx`.
-
-    Returns a new ast, fluidState with the action recorded, and the id of the
-    newly inserted EBlank, which may be useful for doing caret placement. *)
-let addPipeExprAt (pipeId : id) (idx : int) (ast : ast) (s : fluidState) :
-    ast * fluidState * id =
-  let action =
-    Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx
-  in
-  let s = recordAction action s in
-  let bid = gid () in
-  let ast =
-    updateExpr pipeId ast ~f:(function
-        | EPipe (_, exprs) ->
-            let exprs = List.insertAt exprs ~index:idx ~value:(EBlank bid) in
-            EPipe (pipeId, exprs)
-        | e ->
-            recover "expected to find EPipe to update" e e )
-  in
-  (ast, s, bid)
-
-
-(** makeIntoLetBody takes the `id` of an expression, which will be made into the
-    body of a new ELet.
-
-    Returns a new ast, fluidState, and the id of the newly inserted ELet, which
-    may be useful for doing caret placement. *)
-let makeIntoLetBody (id : id) (ast : ast) (s : fluidState) :
-    ast * fluidState * id =
-  let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
-  let lid = gid () in
-  let ast =
-    updateExpr id ast ~f:(fun expr -> ELet (lid, gid (), "", newB (), expr))
-  in
-  (ast, s, lid)
 
 
 (* -------------------- *)
