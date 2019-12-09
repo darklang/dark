@@ -15,6 +15,7 @@ open Prelude
 module K = FluidKeyboard
 module Mouse = Tea.Mouse
 module TL = Toplevel
+module Regex = Util.Regex
 
 (* Tea *)
 module Cmd = Tea.Cmd
@@ -3540,7 +3541,6 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
       let newPos =
         posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
       in
-      Debug.loG "VOX newPos=" newPos ;
       (newAST, {s with newPos})
   | None ->
       (ast, s)
@@ -4677,6 +4677,53 @@ let exprToClipboardContents (ast : fluidExpr) : clipboardContents =
       `Json (Encoders.pointerData (PExpr (toExpr ast)))
 
 
+let jsonToExpr (jsonStr : string) : fluidExpr =
+  let open Js.Json in
+  let rec jsJsonToExpr (j : t) : fluidExpr =
+    match classify j with
+    | JSONString str ->
+        EString (gid (), str)
+    | JSONFalse ->
+        EBool (gid (), false)
+    | JSONTrue ->
+        EBool (gid (), true)
+    | JSONNull ->
+        ENull (gid ())
+    | JSONNumber float ->
+        let str = Js.Float.toString float in
+        if is63BitInt str
+        then EInteger (gid (), str)
+        else if Regex.exactly ~re:"[0-9]+\\.[0-9]+" str
+        then
+          match String.split ~on:"." str with
+          | [whole; fraction] ->
+              EFloat (gid (), whole, fraction)
+          | _ ->
+              recover
+                "invalid float passed the regex"
+                str
+                (EInteger (gid (), "0"))
+        else
+          (* TODO: support floats in the format 3.4e5 *)
+          recover "unsupported float in json" str (EInteger (gid (), "0"))
+    | JSONObject dict ->
+        dict
+        |> Js_dict.entries
+        |> Array.toList
+        |> List.map ~f:(fun (k, json) -> (gid (), k, jsJsonToExpr json))
+        |> fun fields -> ERecord (gid (), fields)
+    | JSONArray arr ->
+        arr
+        |> Array.toList
+        |> List.map ~f:jsJsonToExpr
+        |> fun exprs -> EList (gid (), exprs)
+  in
+  try
+    let j = Json.parseOrRaise jsonStr in
+    jsJsonToExpr j
+  with _ -> EString (gid (), jsonStr)
+
+
 let clipboardContentsToExpr ~state (data : clipboardContents) :
     fluidExpr option =
   match data with
@@ -4691,9 +4738,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
             recover "not a pexpr" ~debug:data None
       with _ -> recover "could not decode" ~debug:json None )
   | `Text text ->
-      (* TODO: This is an OK first solution, but it doesn't allow us paste
-         * into things like variable or key names. *)
-      Some (EString (gid (), text))
+      Some (jsonToExpr text)
   | `None ->
       None
 
