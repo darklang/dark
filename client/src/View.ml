@@ -12,20 +12,20 @@ let fontAwesome = ViewUtils.fontAwesome
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
   let vs = ViewUtils.createVS m tl in
+  let dragEvents =
+    if VariantTesting.isFluid m.tests
+    then
+      [ ViewUtils.eventNoPropagation
+          ~key:("tlmd-" ^ showTLID tlid)
+          "mousedown"
+          (fun x -> TLDragRegionMouseDown (tlid, x))
+      ; ViewUtils.eventNoPropagation
+          ~key:("tlmu-" ^ showTLID tlid)
+          "mouseup"
+          (fun x -> TLDragRegionMouseUp (tlid, x)) ]
+    else []
+  in
   let body, data =
-    let dragEvents =
-      if VariantTesting.isFluid m.tests
-      then
-        [ ViewUtils.eventNoPropagation
-            ~key:("tlmd-" ^ showTLID tlid)
-            "mousedown"
-            (fun x -> TLDragRegionMouseDown (tlid, x))
-        ; ViewUtils.eventNoPropagation
-            ~key:("tlmu-" ^ showTLID tlid)
-            "mouseup"
-            (fun x -> TLDragRegionMouseUp (tlid, x)) ]
-      else []
-    in
     match tl with
     | TLHandler h ->
         (ViewCode.viewHandler vs h dragEvents, ViewData.viewData vs h.ast)
@@ -71,6 +71,19 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           "click"
           (fun x -> ToplevelClick (tlid, x)) ]
   in
+  (* This is a bit ugly - DBs have a larger 'margin' (not CSS margin) between
+   * the encompassing toplevel div and the db div it contains, than  handlers.
+   * Which leads to it being easy to hit "why won't this drag" if you click in
+   * that margin. So for TLDBs, we want the whole toplevel div to be a draggable
+   * region (and so we want to attach the dragEvents handlers to the that div,
+   * and not just the db div).
+   *
+   * We do not want that for handlers, because:
+   * - if you click _just_ outside of a text region, you probably want
+   * click-drag-select behavior, not drag-handler behavior
+   * - the 'margin' is smaller, so you are less likely to hit the "why won't
+   * this drag" behavior mentioned above *)
+  let events = events @ match tl with TLDB _ -> dragEvents | _ -> [] in
   let avatars = Avatar.viewAvatars m.avatarsList tlid in
   let selected = Some tlid = tlidOf m.cursorState in
   let hovering = ViewUtils.isHoverOverTL vs in
