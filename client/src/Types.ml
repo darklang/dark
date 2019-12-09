@@ -952,7 +952,7 @@ and modification =
   | TweakModel of (model -> model)
   | Apply of
       (   (* It can be tempting to call a function which returns
-           * modifications. However, this can have a bug - the model 
+           * modifications. However, this can have a bug - the model
            * used to create those modifications can be wrong (if the
            * model was changed by previous modifications). Apply can
            * be used to call the functions and apply the modifications,
@@ -1548,7 +1548,7 @@ type astLambdaPart =
   | LPBody
 
 type astFieldAccessPart =
-  | FAPLHS
+  | FAPRHS
   | FAPFieldname
 
 type astFnCallPart =
@@ -1570,6 +1570,11 @@ type astConstructorPart =
   | CPName
   | CPValue of int
 
+type astListPart =
+  | LPOpen
+  | LPClose
+  | LPSeparator of int
+
 type astMatchPart =
   | MPKeyword
   | MPMatchExpr
@@ -1590,29 +1595,25 @@ type astMatchPart =
    The IDs below all refer to the AST node id
     *)
 type astRef =
-  | ARInteger of id
-  | ARBool of id
-  | ARString of id
-  | ARFloat of id * astFloatPart
-  | ARNull of id
-  | ARBlank of id
-  | ARLet of id * astLetPart
-  | ARIf of id * astIfPart
   | ARBinOp of id * astBinOpPart
+  | ARBlank of id
+  | ARBool of id
+  | ARConstructor of id * astConstructorPart
   | ARFieldAccess of id * astFieldAccessPart
-  | ARVariable of id
+  | ARFloat of id * astFloatPart
   | ARFnCall of id
+  | ARIf of id * astIfPart
+  | ARInteger of id
+  | ARLet of id * astLetPart
+  | ARList of id * astListPart
+  | ARMatch of id * astMatchPart
+  | ARNull of id
   | ARPartial of id
   | ARRightPartial of id
-  | ARList of
-      (* TODO(JULIAN): This might need an open and close part... *)
-      (* AST node id, index of the element in the list *)
-      id
-      * int
+  | ARString of id
+  | ARVariable of id
   | ARRecord of id * astRecordPart
   | ARPipe of id * astPipePart
-  | ARConstructor of id * astConstructorPart
-  | ARMatch of id * astMatchPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 
