@@ -4701,11 +4701,14 @@ let jsonToExpr (jsonStr : string) : fluidExpr =
           | _ ->
               recover
                 "invalid float passed the regex"
-                str
+                ~debug:str
                 (EInteger (gid (), "0"))
         else
           (* TODO: support floats in the format 3.4e5 *)
-          recover "unsupported float in json" str (EInteger (gid (), "0"))
+          recover
+            "unsupported float in json"
+            ~debug:str
+            (EInteger (gid (), "0"))
     | JSONObject dict ->
         dict
         |> Js_dict.entries
