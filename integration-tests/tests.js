@@ -206,7 +206,7 @@ test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .space")
+    .click(".spec-header > .handler-type > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
@@ -225,7 +225,7 @@ test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .space")
+    .click(".spec-header > .handler-type > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -244,7 +244,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .space")
+    .click(".spec-header > .handler-type > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -479,7 +479,7 @@ test("editing_headers", async t => {
     .pressKey("enter")
 
     // edit them
-    .click(".spec-header > .name")
+    .click(".spec-header > .handler-name")
     .pressKey("enter")
     .pressKey("backspace")
     .pressKey("backspace")
@@ -490,7 +490,7 @@ test("editing_headers", async t => {
     .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
-    .click(".spec-header > .modifier")
+    .click(".spec-header > .handler-type > .modifier")
     .pressKey("delete")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
@@ -500,13 +500,13 @@ test("switching_to_http_space_adds_slash", async t => {
   await createWorkerHandler(t);
   await t
     // add headers
-    .click(".spec-header > .name")
+    .click(".spec-header > .handler-name")
     .pressKey("enter")
     .typeText("#entry-box", "spec_name")
     .pressKey("enter")
 
     // edit space
-    .click(".spec-header > .space")
+    .click(".spec-header > .handler-type > .space")
     .pressKey("backspace")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter");
@@ -516,7 +516,7 @@ test("switching_from_default_repl_space_removes_name", async t => {
   await createRepl(t);
   await t
     // edit space
-    .click(".spec-header > .space")
+    .click(".spec-header > .handler-type >.space")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
@@ -1190,7 +1190,7 @@ test("fluid_ctrl_left_on_empty_match", async t => {
 test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
-    .click(Selector(".spec-header > .name"))
+    .click(Selector(".spec-header > .handler-name"))
     .pressKey("enter")
     .typeText("#entry-box", ":a")
     .pressKey("enter");
