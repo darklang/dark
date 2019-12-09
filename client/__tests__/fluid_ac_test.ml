@@ -645,9 +645,8 @@ let () =
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect
-                ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m
+                ( acFor ~tlid ~pos:13 m
                 |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:(fun x -> AC.asName x) )
               |> toEqual ["o"; "Ok"; "Nothing"; "Error"] ) ;
           () ) ;
