@@ -48,7 +48,7 @@ let sampleFunctions : function_ list =
          ; fnDeprecated = fnName = "Some::deprecated" } )
 
 
-let defaultTLID = gtlid ()
+let defaultTLID = TLID "7"
 
 let defaultID = gid ()
 
@@ -118,7 +118,18 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions }
+  ; builtInFunctions = sampleFunctions
+  ; analyses =
+      StrDict.singleton (* The default traceID for TLID 7 *)
+        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
+        ~value:
+          (LoadableSuccess
+             (StrDict.singleton
+                ~key:"12"
+                ~value:
+                  (DObj
+                     (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+  }
 
 
 let aHandler
@@ -414,6 +425,11 @@ let () =
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
               |> toEqual None ) ;
+          test "Empty field shows autocomplete" (fun () ->
+              let expr = EFieldAccess (ID "12", var "test", ID "12", "") in
+              expect
+                (acFor ~pos:5 (enteringHandler ~expr ()) |> fun x -> x.index)
+              |> toEqual (Some 0) ) ;
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m
