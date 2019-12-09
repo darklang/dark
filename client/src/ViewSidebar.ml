@@ -324,7 +324,7 @@ let standardCategories m hs dbs ufns tipes groups =
     then [groupCategory groups]
     else []
   in
-  (* We want to hide user defined types for users who arent already using them 
+  (* We want to hide user defined types for users who arent already using them
     since there is currently no way to use them other than as a function param.
     we should show user defined types once the user can use them more *)
   let tipes =
@@ -593,7 +593,9 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
   in
   let hoverView =
     let entries = List.map ~f:(item2html ~hovering:true m) c.entries in
-    if c.count = 0 then [] else [Html.div [Html.class' "hover"] entries]
+    if c.count = 0
+    then [Html.div [Html.class' "hover"] [Html.text "Empty"]]
+    else [Html.div [Html.class' "hover"] entries]
   in
   (* Make the sidebar icons go back to the architectural view:
    https://trello.com/c/ajQDbUR2/1490-make-clicking-on-any-structural-sidebar-button-go-back-to-architectural-view-dbs-http-cron-workers-10-10 *)

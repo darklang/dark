@@ -553,12 +553,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                let cs =
-                  if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
-                  then FluidEntering tlid
-                  else Entering entry
-                in
-                (cs, Some (tlid, pd))
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                then (FluidEntering tlid, None)
+                else (Entering entry, Some (tlid, pd))
             | None ->
                 (m.cursorState, None) )
         in
@@ -574,12 +571,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | Filling (tlid, id) ->
             ( match TL.getPD m tlid id with
             | Some pd ->
-                let cs =
-                  if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
-                  then FluidEntering tlid
-                  else Entering entry
-                in
-                (cs, Some (tlid, pd))
+                if VariantTesting.isFluid m.tests && P.astOwned (P.typeOf pd)
+                then (FluidEntering tlid, None)
+                else (Entering entry, Some (tlid, pd))
             | None ->
                 (m.cursorState, None) )
         in
