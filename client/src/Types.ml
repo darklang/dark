@@ -1311,20 +1311,25 @@ and fluidToken =
   | TRecordOpen of id
   | TRecordFieldname of id * analysisId * int * string
   | TRecordSep of id * int * analysisId
-  | TMatchKeyword of id
-  | TMatchSep of id
-  | TPatternVariable of id * id * string
-  | TPatternConstructorName of id * id * string
-  | TPatternInteger of id * id * string
-  | TPatternString of id * id * string
-  | TPatternTrue of id * id
-  | TPatternFalse of id * id
-  | TPatternNullToken of id * id
-  | TPatternFloatWhole of id * id * string
-  | TPatternFloatPoint of id * id
-  | TPatternFloatFraction of id * id * string
-  | TPatternBlank of id * id
   | TRecordClose of id
+  | TMatchKeyword of id
+  (* match id, index of match row *)
+  | TMatchSep of id * int
+  (* for all these TPattern* variants:
+   * - the first id is the match id
+   * - the second id is the pattern id
+   * - the final int is the index of the (pattern -> expr) *)
+  | TPatternVariable of id * id * string * int
+  | TPatternConstructorName of id * id * string * int
+  | TPatternInteger of id * id * string * int
+  | TPatternString of id * id * string * int
+  | TPatternTrue of id * id * int
+  | TPatternFalse of id * id * int
+  | TPatternNullToken of id * id * int
+  | TPatternFloatWhole of id * id * string * int
+  | TPatternFloatPoint of id * id * int
+  | TPatternFloatFraction of id * id * string * int
+  | TPatternBlank of id * id * int
   | TConstructorName of id * string
   | TParenOpen of id
   | TParenClose of id
@@ -1376,7 +1381,7 @@ and fluidState =
   ; upDownCol :
       int option
       (* When moving up or down, and going through whitespace, track
-       * the column so we can go back to it *)
+         * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
@@ -1511,7 +1516,6 @@ and permission =
 
 (* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
    based on which specific parts of the AST we actually want to represent via astRef *)
-
 type astFloatPart =
   | FPWhole
   | FPDecimal
@@ -1582,7 +1586,7 @@ type astMatchPart =
    we can represent concepts like "the caret position at the end of this
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
-   
+
    The IDs below all refer to the AST node id
     *)
 type astRef =

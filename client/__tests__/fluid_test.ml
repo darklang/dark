@@ -2006,6 +2006,11 @@ let () =
         (enter 50)
         "match ___\n  *** -> match ___\n           *** -> ___\n           ~*** -> ___\n" ;
       t
+        "enter at beginning of line after match adds let, not match row"
+        (let' "a" emptyMatch five)
+        (enter 39)
+        "let a = match ___\n          *** -> ___\nlet *** = ___\n~5" ;
+      t
         "enter at the start of a row creates a new row"
         matchWithPatterns
         (enter 12)
@@ -2398,6 +2403,18 @@ let () =
         (enter 55)
         "[]\n|>List::append [5]\n               |>List::append [6]\n               |>~___\n" ;
       t
+        "enter at the end of pipe expression with line below creates a new entry"
+        (let' "a" (pipe (list []) [listFn [aList5]]) five)
+        (enter ~wrap:false 37)
+        (* indent counting is all weird with wrapper *)
+        "let a = []\n        |>List::append [5]\n        |>~___\n5" ;
+      t
+        "enter at the beginning of expression after pipe creates let, not pipe"
+        (let' "a" (pipe (list []) [listFn [aList5]]) five)
+        (enter ~wrap:false 38)
+        (* indent counting is all weird with wrapper *)
+        "let a = []\n        |>List::append [5]\nlet *** = ___\n~5" ;
+      t
         "inserting a pipe into another pipe gives a single pipe1"
         (pipe five [listFn [rightPartial "|>" aList5]])
         (enter 23)
@@ -2752,7 +2769,7 @@ let () =
         "pressing enter at the back adds a row"
         multiRowRecord
         (enter 22)
-        "{\n  f1 : 56\n  f2 : 78\n  ~*** : ___\n}" ;
+        "{\n  f1 : 56\n  f2 : 78\n  *** : ___\n~}" ;
       t
         "pressing enter at the start of a field adds a row"
         multiRowRecord

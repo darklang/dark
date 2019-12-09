@@ -50,20 +50,20 @@ let tid (t : token) : id =
   | TRecordClose id
   | TRecordFieldname (id, _, _, _)
   | TRecordSep (id, _, _)
-  | TMatchSep id
-  | TMatchKeyword id
   | TConstructorName (id, _)
-  | TPatternBlank (_, id)
-  | TPatternInteger (_, id, _)
-  | TPatternVariable (_, id, _)
-  | TPatternConstructorName (_, id, _)
-  | TPatternString (_, id, _)
-  | TPatternTrue (_, id)
-  | TPatternFalse (_, id)
-  | TPatternNullToken (_, id)
-  | TPatternFloatWhole (_, id, _)
-  | TPatternFloatPoint (_, id)
-  | TPatternFloatFraction (_, id, _)
+  | TMatchSep (id, _)
+  | TMatchKeyword id
+  | TPatternBlank (_, id, _)
+  | TPatternInteger (_, id, _, _)
+  | TPatternVariable (_, id, _, _)
+  | TPatternConstructorName (_, id, _, _)
+  | TPatternString (_, id, _, _)
+  | TPatternTrue (_, id, _)
+  | TPatternFalse (_, id, _)
+  | TPatternNullToken (_, id, _)
+  | TPatternFloatWhole (_, id, _, _)
+  | TPatternFloatPoint (_, id, _)
+  | TPatternFloatFraction (_, id, _, _)
   | TSep id
   | TParenOpen id
   | TParenClose id
@@ -352,15 +352,15 @@ let toText (t : token) : string =
       "match "
   | TMatchSep _ ->
       "->"
-  | TPatternInteger (_, _, i) ->
+  | TPatternInteger (_, _, i, _) ->
       shouldntBeEmpty i
-  | TPatternFloatWhole (_, _, w) ->
+  | TPatternFloatWhole (_, _, w, _) ->
       shouldntBeEmpty w
   | TPatternFloatPoint _ ->
       "."
-  | TPatternFloatFraction (_, _, f) ->
+  | TPatternFloatFraction (_, _, f, _) ->
       f
-  | TPatternString (_, _, str) ->
+  | TPatternString (_, _, str, _) ->
       "\"" ^ str ^ "\""
   | TPatternTrue _ ->
       "true"
@@ -370,9 +370,9 @@ let toText (t : token) : string =
       "null"
   | TPatternBlank _ ->
       "   "
-  | TPatternVariable (_, _, name) ->
+  | TPatternVariable (_, _, name, _) ->
       canBeEmpty name
-  | TPatternConstructorName (_, _, name) ->
+  | TPatternConstructorName (_, _, name, _) ->
       canBeEmpty name
   | TParenOpen _ ->
       "("
@@ -608,8 +608,24 @@ let toDebugInfo (t : token) : string =
   | TStringMLMiddle (_, _, offset, _)
   | TStringMLEnd (_, _, offset, _) ->
       "offset=" ^ string_of_int offset
-  | TNewline (Some (_, pid, Some index)) ->
-      "parent=" ^ deID pid ^ " index=" ^ string_of_int index
+  | TNewline (Some (_, pid, Some idx)) ->
+      "parent=" ^ deID pid ^ " idx=" ^ string_of_int idx
+  | TPipe (_, idx, len) ->
+      Printf.sprintf "idx=%d len=%d" idx len
+  | TMatchSep (_, idx) ->
+      "idx=" ^ string_of_int idx
+  | TPatternBlank (mid, _, idx)
+  | TPatternInteger (mid, _, _, idx)
+  | TPatternVariable (mid, _, _, idx)
+  | TPatternConstructorName (mid, _, _, idx)
+  | TPatternString (mid, _, _, idx)
+  | TPatternTrue (mid, _, idx)
+  | TPatternFalse (mid, _, idx)
+  | TPatternNullToken (mid, _, idx)
+  | TPatternFloatWhole (mid, _, _, idx)
+  | TPatternFloatPoint (mid, _, idx)
+  | TPatternFloatFraction (mid, _, _, idx) ->
+      "match=" ^ deID mid ^ " idx=" ^ string_of_int idx
   | _ ->
       ""
 
