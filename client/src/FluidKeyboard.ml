@@ -344,6 +344,8 @@ let fromKeyboardCode
       if shift then GreaterThan else Period
   | 191 ->
       if shift then QuestionMark else ForwardSlash
+  | 192 ->
+      if shift then Tilde else Backtick
   | 219 ->
       if shift then LeftCurlyBrace else LeftSquareBracket
   | 220 ->
