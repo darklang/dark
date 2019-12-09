@@ -1399,7 +1399,10 @@ let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
     else recurse ~f:run e
   in
   let finished = run ast in
-  asserT "didn't find the id in the expression to update" !found (id, ast) ;
+  asserT
+    ~debug:(id, ast)
+    "didn't find the id in the expression to update"
+    !found ;
   finished
 
 
