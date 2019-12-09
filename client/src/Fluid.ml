@@ -1941,15 +1941,18 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
 let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       let str = String.trim str in
-      match e with
-      | EPartial (id, _, oldVal) ->
-          asserT
-            "empty partial, use deletePartial instead"
-            (str <> "")
-            ~debug:str ;
-          EPartial (id, str, oldVal)
-      | oldVal ->
-          if str = "" then newB () else EPartial (gid (), str, oldVal) )
+      if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
+      then EString (gid (), String.slice ~from:1 ~to_:(-1) str)
+      else
+        match e with
+        | EPartial (id, _, oldVal) ->
+            asserT
+              ~debug:str
+              "empty partial, use deletePartial instead"
+              (str <> "") ;
+            EPartial (id, str, oldVal)
+        | oldVal ->
+            if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
 
 let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
