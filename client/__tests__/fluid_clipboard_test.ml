@@ -4,6 +4,7 @@ open Tc
 open Types
 open Prelude
 open Fluid
+open Fluid_test_data
 module B = Blank
 module K = FluidKeyboard
 module Regex = Util.Regex
@@ -96,6 +97,15 @@ let () =
     let e = clipboardEvent () in
     let data = Fluid.exprToClipboardContents clipboard in
     Clipboard.setData data e ;
+    process ~debug e range expr (ClipboardPasteEvent e)
+  in
+  let pasteText
+      ?(debug = false)
+      ~(clipboard : string)
+      (range : int * int)
+      (expr : fluidExpr) : testResult =
+    let e = clipboardEvent () in
+    Clipboard.setData (`Text clipboard) e ;
     process ~debug e range expr (ClipboardPasteEvent e)
   in
   let t
@@ -302,22 +312,22 @@ let () =
         "pasting an int-only EString into an integer should extend integer"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (0, 0))
-        ("12345678", "\"1234\"", 4) ;
+        ("12345678", "1234", 4) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (4, 4))
-        ("56781234", "\"1234\"", 8) ;
+        ("56781234", "1234", 8) ;
       t
         "pasting an int-only EString into an integer should extend integer 2"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (2, 2))
-        ("56123478", "\"1234\"", 6) ;
+        ("56123478", "1234", 6) ;
       t
         "pasting an int-only EString over part of an integer should extend integer"
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (1, 3))
-        ("512348", "\"1234\"", 5) ;
+        ("512348", "1234", 5) ;
       () ) ;
   describe "Strings" (fun () ->
       t
@@ -983,6 +993,32 @@ let () =
       () ) ;
   describe "Match" (fun () ->
       (* TODO: test match statements, implementation is slightly inconsistent*)
+      () ) ;
+  describe "json" (fun () ->
+      t
+        "pasting a json int makes an int"
+        b
+        (pasteText ~clipboard:"6" (0, 0))
+        ("6", "6", 1) ;
+      t
+        "pasting a json float makes a float"
+        b
+        (pasteText ~clipboard:"6.6" (0, 0))
+        ("6.6", "6.6", 3) ;
+      t
+        "pasting a json array makes a list"
+        b
+        (pasteText ~clipboard:"[ 1 , 2 , 3 , 4 ]" (0, 0))
+        ("[1,2,3,4]", "[1,2,3,4]", 9) ;
+      t
+        "pasting a object list makes a record"
+        b
+        (pasteText
+           ~clipboard:"{ \"a\": \n\"b\", \"c\":[\n1\n,\n2], \"d\" : \n4.5 }"
+           (0, 0))
+        ( "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
+        , "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
+        , 35 ) ;
       () ) ;
   describe "Feature Flags" (fun () ->
       (* TODO: test feature flags, not yet in fluid *) () ) ;
