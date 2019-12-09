@@ -1690,6 +1690,158 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
   moveTo pos {s with upDownCol = Some col}
 
 
+(******************************)
+(* Movement with CaretTarget  *)
+(******************************)
+
+(* posFromCaretTarget returns the position in the token stream corresponding to
+   the passed caretTarget within the passed ast. We expect to succeed in finding
+   the target. If we cannot, we `recover` and return the current caret pos
+   as a fallback.
+
+   This is useful for determining the precise position to which the caret should
+   jump after a transformation. *)
+let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
+    int =
+  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
+     that makes the mapping easier. *)
+  let tokens = toTokens s ast in
+  let tokenInfo =
+    List.find tokens ~f:(fun ti ->
+        match (ti.token, ct.astRef) with
+        | TFieldName (id, _, _), ARFieldAccess (id', FAPFieldname)
+        | TVariable (id, _), ARVariable id'
+        | TBlank id, ARBlank id'
+        | TInteger (id, _), ARInteger id'
+        | TIfKeyword id, ARIf (id', IPIfKeyword)
+        | TIfElseKeyword id, ARIf (id', IPElseKeyword)
+        | TIfThenKeyword id, ARIf (id', IPThenKeyword)
+        | TLetKeyword (id, _), ARLet (id', LPKeyword)
+        | TLetLHS (id, _, _), ARLet (id', LPVarName)
+        | TRecordOpen id, ARRecord (id', RPOpen)
+        | TRecordClose id, ARRecord (id', RPClose) ->
+            id = id'
+        | TPipe (id, idx, _), ARPipe (id', PPPipeKeyword idx')
+        | TRecordFieldname (id, _, idx, _), ARRecord (id', RPFieldname idx')
+        | TPatternBlank (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternVariable (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternTrue (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternFalse (id, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternString (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | TPatternInteger (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
+        | ( TPatternConstructorName (id, _, _, idx)
+          , ARMatch (id', MPBranchPattern idx') )
+        | ( TPatternFloatWhole (id, _, _, idx)
+          , ARMatch (id', MPBranchPattern idx') ) ->
+            id = id' && idx = idx'
+        | _, ARInvalid ->
+            recover "Attempted to find an ARInvalid" () false
+        | _ ->
+            false )
+  in
+  match tokenInfo with
+  | Some ti ->
+      ti.startPos + min ct.offset ti.length
+  | None ->
+      recover
+        "We expected to find the given caretTarget in the token stream but couldn't."
+        ct
+        s.newPos
+
+
+(** moveToCaretTarget returns a modified fluidState with newPos set to reflect
+    the caretTarget. *)
+let moveToCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) =
+  {s with newPos = posFromCaretTarget s ast ct}
+
+
+(** moveToAstRef returns a modified fluidState with newPos set to reflect
+    the targeted astRef.
+
+    If given, offset is the offset of the caretTarget, in characters. Defaults
+    to 0, or the beginning of the targeted expression. *)
+let moveToAstRef
+    (s : fluidState) (ast : fluidExpr) ?(offset = 0) (astRef : astRef) :
+    fluidState =
+  moveToCaretTarget s ast {astRef; offset}
+
+
+(* caretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget
+ * corresponding to the "very end" of that fluidExpr. The concept of "very end"
+ * is related to an understanding of the tokenization of the expr, even though
+ * this function doesn't explicitly depend on any tokenization functions. *)
+let caretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
+  match expr with
+  | Some (EVariable (id, str)) ->
+      {astRef = ARVariable id; offset = String.length str}
+  | Some (EFieldAccess (id, _, _, fieldName)) ->
+      { astRef = ARFieldAccess (id, FAPFieldname)
+      ; offset = String.length fieldName }
+  | None ->
+      recover
+        "caretTargetForLastPartOfExpr got an id outside of the AST"
+        id
+        {astRef = ARInvalid; offset = 0}
+  | _ ->
+      recover
+        "we don't yet support caretTargetForLastPartOfExpr for this"
+        expr
+        {astRef = ARInvalid; offset = 0}
+
+
+(* caretTargetForBeginningOfExpr returns a caretTarget representing the
+ * beginning of the expression in `ast` having the given `id`. *)
+let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
+  let expr = findExpr id ast in
+  match expr with
+  | Some (EInteger (id, _)) ->
+      {astRef = ARInteger id; offset = 0}
+  | Some (EBool (id, _)) ->
+      {astRef = ARBool id; offset = 0}
+  | Some (EString (id, _)) ->
+      {astRef = ARString id; offset = 0}
+  | Some (EFloat (id, _, _)) ->
+      {astRef = ARFloat (id, FPWhole); offset = 0}
+  | Some (ENull id) ->
+      {astRef = ARNull id; offset = 0}
+  | Some (EBlank id) ->
+      {astRef = ARBlank id; offset = 0}
+  | Some (ELet (id, _, _, _, _)) ->
+      {astRef = ARLet (id, LPKeyword); offset = 0}
+  | Some (EIf (id, _, _, _)) ->
+      {astRef = ARIf (id, IPIfKeyword); offset = 0}
+  | Some (EMatch (id, _, _)) ->
+      {astRef = ARMatch (id, MPKeyword); offset = 0}
+  | Some (EBinOp _)
+  | Some (EFnCall _)
+  | Some (ELambda _)
+  | Some (EFieldAccess _)
+  | Some (EVariable _)
+  | Some (EPartial _)
+  | Some (ERightPartial _)
+  | Some (EList _)
+  | Some (ERecord _)
+  | Some (EPipe _)
+  | Some (EConstructor _)
+  | Some (EPipeTarget _)
+  | Some (EFeatureFlag _)
+  | Some (EOldExpr _) ->
+      recover
+        ( "unhandled expr with id "
+        ^ deID id
+        ^ " in caretTargetForBeginningOfExpr" )
+        expr
+        {astRef = ARInvalid; offset = 0}
+  | None ->
+      recover
+        ( "expr with id "
+        ^ deID id
+        ^ " not found in caretTargetForBeginningOfExpr" )
+        expr
+        {astRef = ARInvalid; offset = 0}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -2429,141 +2581,6 @@ let addBlankToList (id : id) (ast : ast) : ast =
         ast )
   | _ ->
       ast
-
-
-(* ---------------- *)
-(* General stuff *)
-(* ---------------- *)
-
-(* posFromCaretTarget returns the position in the token stream corresponding to
-   the passed caretTarget within the passed ast. We expect to succeed in finding
-   the target. If we cannot, we `recover` and return the current caret pos
-   as a fallback.
-
-   This is useful for determining the precise position to which the caret should
-   jump after a transformation. *)
-let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
-    int =
-  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
-     that makes the mapping easier. *)
-  let tokens = toTokens s ast in
-  let tokenInfo =
-    List.find tokens ~f:(fun ti ->
-        match (ti.token, ct.astRef) with
-        | TFieldName (id, _, _), ARFieldAccess (id', FAPFieldname)
-        | TVariable (id, _), ARVariable id'
-        | TBlank id, ARBlank id'
-        | TInteger (id, _), ARInteger id'
-        | TIfKeyword id, ARIf (id', IPIfKeyword)
-        | TIfElseKeyword id, ARIf (id', IPElseKeyword)
-        | TIfThenKeyword id, ARIf (id', IPThenKeyword)
-        | TLetKeyword (id, _), ARLet (id', LPKeyword)
-        | TLetLHS (id, _, _), ARLet (id', LPVarName)
-        | TRecordOpen id, ARRecord (id', RPOpen)
-        | TRecordClose id, ARRecord (id', RPClose) ->
-            id = id'
-        | TPipe (id, idx, _), ARPipe (id', PPPipeKeyword idx')
-        | TRecordFieldname (id, _, idx, _), ARRecord (id', RPFieldname idx')
-        | TPatternBlank (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternVariable (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternTrue (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternFalse (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternString (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternInteger (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | ( TPatternConstructorName (id, _, _, idx)
-          , ARMatch (id', MPBranchPattern idx') )
-        | ( TPatternFloatWhole (id, _, _, idx)
-          , ARMatch (id', MPBranchPattern idx') ) ->
-            id = id' && idx = idx'
-        | _, ARInvalid ->
-            recover "Attempted to find an ARInvalid" () false
-        | _ ->
-            false )
-  in
-  match tokenInfo with
-  | Some ti ->
-      ti.startPos + min ct.offset ti.length
-  | None ->
-      recover
-        "We expected to find the given caretTarget in the token stream but couldn't."
-        ct
-        s.newPos
-
-
-(* caretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget
- * corresponding to the "very end" of that fluidExpr. The concept of "very end"
- * is related to an understanding of the tokenization of the expr, even though
- * this function doesn't explicitly depend on any tokenization functions. *)
-let caretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EVariable (id, str)) ->
-      {astRef = ARVariable id; offset = String.length str}
-  | Some (EFieldAccess (id, _, _, fieldName)) ->
-      { astRef = ARFieldAccess (id, FAPFieldname)
-      ; offset = String.length fieldName }
-  | None ->
-      recover
-        "caretTargetForLastPartOfExpr got an id outside of the AST"
-        id
-        {astRef = ARInvalid; offset = 0}
-  | _ ->
-      recover
-        "we don't yet support caretTargetForLastPartOfExpr for this"
-        expr
-        {astRef = ARInvalid; offset = 0}
-
-
-(* caretTargetForBeginningOfExpr returns a caretTarget representing the
- * beginning of the expression in `ast` having the given `id`. *)
-let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EInteger (id, _)) ->
-      {astRef = ARInteger id; offset = 0}
-  | Some (EBool (id, _)) ->
-      {astRef = ARBool id; offset = 0}
-  | Some (EString (id, _)) ->
-      {astRef = ARString id; offset = 0}
-  | Some (EFloat (id, _, _)) ->
-      {astRef = ARFloat (id, FPWhole); offset = 0}
-  | Some (ENull id) ->
-      {astRef = ARNull id; offset = 0}
-  | Some (EBlank id) ->
-      {astRef = ARBlank id; offset = 0}
-  | Some (ELet (id, _, _, _, _)) ->
-      {astRef = ARLet (id, LPKeyword); offset = 0}
-  | Some (EIf (id, _, _, _)) ->
-      {astRef = ARIf (id, IPIfKeyword); offset = 0}
-  | Some (EMatch (id, _, _)) ->
-      {astRef = ARMatch (id, MPKeyword); offset = 0}
-  | Some (EBinOp _)
-  | Some (EFnCall _)
-  | Some (ELambda _)
-  | Some (EFieldAccess _)
-  | Some (EVariable _)
-  | Some (EPartial _)
-  | Some (ERightPartial _)
-  | Some (EList _)
-  | Some (ERecord _)
-  | Some (EPipe _)
-  | Some (EConstructor _)
-  | Some (EPipeTarget _)
-  | Some (EFeatureFlag _)
-  | Some (EOldExpr _) ->
-      recover
-        ( "unhandled expr with id "
-        ^ deID id
-        ^ " in caretTargetForBeginningOfExpr" )
-        expr
-        {astRef = ARInvalid; offset = 0}
-  | None ->
-      recover
-        ( "expr with id "
-        ^ deID id
-        ^ " not found in caretTargetForBeginningOfExpr" )
-        expr
-        {astRef = ARInvalid; offset = 0}
 
 
 (* -------------------- *)
@@ -3794,8 +3811,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               | None ->
                   (ast, s)
               | Some id ->
-                  let ct = {astRef = ARBlank id; offset = 0} in
-                  (ast, {s with newPos = posFromCaretTarget s ast ct}) )
+                  let s = moveToAstRef s ast (ARBlank id) in
+                  (ast, s) )
           |> Option.withDefault ~default:(ast, s)
         in
         ( match left with
@@ -3905,24 +3922,25 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Add new initial record row and move caret to it. *)
     | K.Enter, L (TRecordOpen id, _), _ ->
         let ast = addRecordRowAt 0 id ast in
-        let ct = {astRef = ARRecord (id, RPFieldname 0); offset = 0} in
-        (ast, {s with newPos = posFromCaretTarget s ast ct})
+        let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) in
+        (ast, s)
     (*
      * Caret to left of record close }
      * Add new final record but leave caret to left of } *)
     | K.Enter, _, R (TRecordClose id, _) ->
         let s = recordAction "addRecordRowToBack" s in
         let ast = addRecordRowToBack id ast in
-        let ct = {astRef = ARRecord (id, RPClose); offset = 0} in
-        (ast, {s with newPos = posFromCaretTarget s ast ct})
+        let s = moveToAstRef s ast (ARRecord (id, RPClose)) in
+        (ast, s)
     (*
      * Caret between pipe symbol |> and following expression.
      * Move current pipe expr down by adding new expr above it.
      * Keep caret "the same", only moved down by 1 column. *)
     | K.Enter, L (TPipe (id, idx, _), _), R _ ->
         let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
-        let ct = {astRef = ARPipe (id, PPPipeKeyword (idx + 1)); offset = 2} in
-        let s = {s with newPos = posFromCaretTarget s ast ct} in
+        let s =
+          moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
+        in
         (ast, s)
     (*
      * Caret on end-of-line.
@@ -3932,20 +3950,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       ( match findExpr parentId ast with
       | Some (EPipe _) ->
           let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
-          let ct = caretTargetForBeginningOfExpr blankId ast in
-          (ast, {s with newPos = posFromCaretTarget s ast ct})
+          let s =
+            moveToCaretTarget s ast (caretTargetForBeginningOfExpr blankId ast)
+          in
+          (ast, s)
       | Some (ERecord _) ->
           let ast = addRecordRowAt idx parentId ast in
-          let ct =
-            {astRef = ARRecord (parentId, RPFieldname idx); offset = 0}
-          in
-          (ast, {s with newPos = posFromCaretTarget s ast ct})
+          let s = moveToAstRef s ast (ARRecord (parentId, RPFieldname idx)) in
+          (ast, s)
       | Some (EMatch _) ->
           let ast, s = addMatchPatternAt parentId idx ast s in
-          let ct =
-            {astRef = ARMatch (parentId, MPBranchPattern idx); offset = 0}
+          let s =
+            moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
           in
-          (ast, {s with newPos = posFromCaretTarget s ast ct})
+          (ast, s)
       | _ ->
           (ast, s) )
     (*
@@ -3964,8 +3982,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         then (ast, doRight ~pos ~next:mNext ti s)
         else
           let ast, s, letId = makeIntoLetBody id ast s in
-          let ct = {astRef = ARLet (letId, LPVarName); offset = 0} in
-          (ast, {s with newPos = posFromCaretTarget s ast ct})
+          let s = moveToAstRef s ast (ARLet (letId, LPVarName)) in
+          (ast, s)
     (*
      * Caret at beginning of special line.
      * Preceding newline contains a parent and index, meaning we're inside some
@@ -3984,8 +4002,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         let addLetAboveRightToken () : ast * state =
           let id = FluidToken.tid rTok in
           let ast, s, _ = makeIntoLetBody id ast s in
-          let ct = caretTargetForBeginningOfExpr id ast in
-          (ast, {s with newPos = posFromCaretTarget s ast ct})
+          let s =
+            moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
+          in
+          (ast, s)
         in
         ( match findExpr parentId ast with
         | Some (EMatch (_, _, exprs)) ->
@@ -3994,11 +4014,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             then addLetAboveRightToken ()
             else
               let ast, s = addMatchPatternAt parentId idx ast s in
-              let ct =
-                { astRef = ARMatch (parentId, MPBranchPattern (idx + 1))
-                ; offset = 0 }
-              in
-              (ast, {s with newPos = posFromCaretTarget s ast ct})
+              let ref = ARMatch (parentId, MPBranchPattern (idx + 1)) in
+              let s = moveToAstRef s ast ref in
+              (ast, s)
         | Some (EPipe (_, exprs)) ->
             (* exprs[0] is the initial value of the pipeline, but the indexing
              * is zero-based starting at exprs[1] (it indexes the _pipes
@@ -4007,20 +4025,19 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             then addLetAboveRightToken ()
             else
               let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
-              let ct =
-                { astRef = ARPipe (parentId, PPPipeKeyword (idx + 1))
-                ; offset = 0 }
+              let s =
+                moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
               in
-              (ast, {s with newPos = posFromCaretTarget s ast ct})
+              (ast, s)
         | Some (ERecord _) ->
             (* No length special-case needed because records do not emit a
              * TNewline with index after the final '}'. In this case, we
              * actually hit the next match case instead. *)
             let ast = addRecordRowAt idx parentId ast in
-            let ct =
-              {astRef = ARRecord (parentId, RPFieldname (idx + 1)); offset = 0}
+            let s =
+              moveToAstRef s ast (ARRecord (parentId, RPFieldname (idx + 1)))
             in
-            (ast, {s with newPos = posFromCaretTarget s ast ct})
+            (ast, s)
         | _ ->
             (ast, s) )
     (*
@@ -4028,8 +4045,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
         let id = FluidToken.tid t in
         let ast, s, _ = makeIntoLetBody id ast s in
-        let ct = caretTargetForBeginningOfExpr id ast in
-        (ast, {s with newPos = posFromCaretTarget s ast ct})
+        let s =
+          moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
+        in
+        (ast, s)
     (****************)
     (* Int to float *)
     (****************)
