@@ -393,6 +393,8 @@ let longList =
 
 let listWithBlank = list [fiftySix; seventyEight; b; fiftySix]
 
+let listWithRecord = list [emptyRecord]
+
 let multiWithStrs = list [str "ab"; str "cd"; str "ef"]
 
 (* ---------------- *)
