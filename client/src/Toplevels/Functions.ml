@@ -139,21 +139,21 @@ let replaceParamName
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            recover "not searching for PParam" search None
+            recover "not searching for PParam" ~debug:search None
       in
       let rContent =
         match replacement with
         | PParamName d ->
             B.toMaybe d
         | _ ->
-            recover replacement "content not PParam" None
+            recover "content not PParam" ~debug:replacement None
       in
       let transformUse rep old =
         match old with
         | PExpr (F (_, _)) ->
             PExpr (F (gid (), Variable rep))
         | _ ->
-            recover "transform not expr" old old
+            recover "transform not expr" ~debug:old old
       in
       match (sContent, rContent) with
       | Some o, Some r ->

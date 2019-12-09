@@ -106,7 +106,7 @@ let str2tipe (t : string) : tipe =
     | "dict" ->
         TObj
     | other ->
-        recover "invalid type in str2tipe" other TAny
+        recover ~debug:other "invalid type in str2tipe" TAny
   in
   match String.toLower t with
   | "any" ->
@@ -165,7 +165,7 @@ let str2tipe (t : string) : tipe =
         |> String.dropLeft ~count:1
         |> String.dropRight ~count:1
         |> parseListTipe
-      else recover "invalid list type in str2tipe" other TAny
+      else recover "invalid list type in str2tipe" ~debug:other TAny
 
 
 let typeOf (dv : dval) : tipe =
