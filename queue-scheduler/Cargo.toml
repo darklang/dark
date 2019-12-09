@@ -16,7 +16,7 @@ path = "src/main.rs"
 backoff = "0.1.5"
 backtrace = "0.3"
 chrono = "0.4"
-config = "0.9"
+config = "0.10"
 failure = "0.1.6"
 postgres = { version = "0.15", features = ["with-uuid"] }
 rand = "0.7.2"
