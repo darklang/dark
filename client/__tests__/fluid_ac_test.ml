@@ -128,7 +128,7 @@ let defaultModel
                 ~key:"12"
                 ~value:
                   (DObj
-                     (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+                     (StrDict.fromList [("title", DNull); ("author", DNull)]))))
   }
 
 
@@ -424,6 +424,18 @@ let () =
               expect
                 (acFor ~pos:5 (enteringHandler ~expr ()) |> fun x -> x.index)
               |> toEqual (Some 0) ) ;
+          test
+            "With no fieldname, fields are shown alphabetically with the 0th selected"
+            (fun () ->
+              let expr = EFieldAccess (ID "12", var "test", ID "12", "") in
+              expect (acFor ~pos:6 (enteringHandler ~expr ()) |> AC.highlighted)
+              |> toEqual (Some (FACField "author")) ) ;
+          test
+            "When adding the first letter, with the first field selected, the first field remains selected"
+            (fun () ->
+              let expr = EFieldAccess (ID "12", var "test", ID "12", "t") in
+              expect (acFor ~pos:5 (enteringHandler ~expr ()) |> AC.highlighted)
+              |> toEqual (Some (FACField "title")) ) ;
           (* test "Filter by method signature for typed values" ( fun () ->
               expect
                 ( acFor m

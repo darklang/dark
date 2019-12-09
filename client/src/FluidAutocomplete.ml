@@ -506,14 +506,23 @@ let refilter
     match ti.token with TFieldPartial _ -> true | _ -> false
   in
   let index =
-    if isFieldPartial && newCount > 0
+    if isFieldPartial
     then
-      (* If we didn't change anything, don't change anything *)
-      match oldHighlightNewIndex with
-      | Some newIndex ->
-          Some newIndex
-      | None ->
-          Some 0
+      if queryString = ""
+      then
+        (* Show autocomplete - the fist item - when there's no text. If we
+         * just deleted the text, reset to the top. *)
+        Some 0
+      else if oldQueryString = "" && old.index = Some 0
+      then
+        (* If we didn't actually select the old value, don't cling to it. *)
+        Some 0
+      else if Option.isSome oldHighlightNewIndex
+      then
+        (* Otherwise we did select something, so let's find it. *)
+        oldHighlightNewIndex
+      else (* Always show fields. *)
+        Some 0
     else if queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
       None
