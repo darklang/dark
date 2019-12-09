@@ -2674,6 +2674,11 @@ let () =
         (space 1)
         "{~}" ;
       t
+        "inserting valid text in an empty record works"
+        emptyRecord
+        (ins 'f' 1 ~wrap:false)
+        "{\n  f~ : ___\n}" ;
+      t
         "inserting space in empty record field does nothing"
         emptyRowRecord
         (space 4)
