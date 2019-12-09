@@ -1312,36 +1312,36 @@ let () =
         aNestedField
         (ctrlRight 5)
         "obj.field~.field2" ;
-      t
+      tp
         "DeletePrevWord in middle of fieldname deletes to beg of fieldname"
         aNestedField
         (key K.DeletePrevWord 6)
-        "obj.~eld.field2" ;
-      t
+        "obj.~eld@@.field2" ;
+      tp
         "DeletePrevWord at end of fieldname deletes entire fieldname"
         aNestedField
         (key K.DeletePrevWord 9)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
       t
         "DeletePrevWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeletePrevWord 4)
         "obj~.field2" ;
-      t
+      tp
         "DeleteNextWord in middle of fieldname deletes to end of fieldname"
         aNestedField
         (key K.DeleteNextWord 6)
-        "obj.fi~.field2" ;
+        "obj.fi~@l@.field2" ;
       t
         "DeleteNextWord at end of fieldname deletes next fieldname"
         aNestedField
         (key K.DeleteNextWord 9)
         "obj.field~" ;
-      t
+      tp
         "DeleteNextWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeleteNextWord 4)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
       tp
         "insert dot to complete partial field"
         (EPartial
