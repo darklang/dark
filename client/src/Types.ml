@@ -1582,7 +1582,7 @@ type astMatchPart =
    we can represent concepts like "the caret position at the end of this
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
-   
+
    The IDs below all refer to the AST node id
     *)
 type astRef =

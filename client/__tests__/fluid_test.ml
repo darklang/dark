@@ -165,8 +165,8 @@ let () =
           ; fnInfix = false } ] }
   in
   let processMsg
-      (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
-      ast * fluidState =
+      (keys : (K.key * shiftState) list) (s : fluidState) (ast : Expression.t)
+      : Expression.t * fluidState =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
     List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
@@ -189,7 +189,7 @@ let () =
       (keys : (K.key * shiftState) list)
       (selectionStart : int option)
       (pos : int)
-      (ast : ast) : testResult =
+      (ast : Expression.t) : testResult =
     let s = {Defaults.defaultFluidState with ac = AC.reset m} in
     let ast = if clone then Fluid.clone ~state:s ast else ast in
     let newlinesBefore (pos : int) =

@@ -62,7 +62,7 @@ let aMatchExpr
 
 let defaultToplevel =
   TLHandler
-    { ast = toExpr defaultExpr
+    { ast = FluidExpression.toExpr defaultExpr
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
@@ -134,7 +134,7 @@ let aHandler
     match space with None -> B.new_ () | Some name -> B.newF name
   in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = toExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = FluidExpression.toExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -145,7 +145,7 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
-  ; ufAST = toExpr expr }
+  ; ufAST = FluidExpression.toExpr expr }
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
@@ -205,8 +205,8 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
 
 (* AC targeting a tlid and pointer *)
 let acFor
-    ?(target = Some (defaultTLID, PExpr (toExpr defaultExpr))) (m : model) :
-    AC.autocomplete =
+    ?(target = Some (defaultTLID, PExpr (FluidExpression.toExpr defaultExpr)))
+    (m : model) : AC.autocomplete =
   let tlid, ti =
     match target with
     | Some (tlid, PExpr expr) ->
@@ -673,7 +673,9 @@ let () =
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect
-                ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m
+                ( acFor
+                    ~target:(Some (tlid, PExpr (FluidExpression.toExpr expr)))
+                    m
                 |> (fun x -> x.completions)
                 (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:(fun x -> AC.asName x) )

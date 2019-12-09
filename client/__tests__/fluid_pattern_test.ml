@@ -13,7 +13,7 @@ module TL = Toplevel
  * works. *)
 
 let h ast =
-  { ast = toExpr ast
+  { ast = FluidExpression.toExpr ast
   ; hTLID = TLID "7"
   ; spec =
       { space = Blank.newF "HTTP"

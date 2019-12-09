@@ -1,7 +1,6 @@
 open Jest
 open Expect
 open Types
-open Fluid
 module B = Blank
 module K = FluidKeyboard
 
@@ -18,7 +17,7 @@ let debugState s =
 
 
 let h ast : handler =
-  { ast = toExpr ast
+  { ast = FluidExpression.toExpr ast
   ; hTLID = TLID "7"
   ; pos = {x = 0; y = 0}
   ; spec =
