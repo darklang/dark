@@ -558,6 +558,12 @@ let () =
         aStr
         (key K.DeleteNextWord 3)
         "\"so~ string\"" ;
+      ts
+        "SelectAll in an string, will delete entire string, returning a blank"
+        aStr
+        (keys [K.SelectAll; K.Backspace] 13 ~wrap:false)
+        (* We don't wrap this in if-then because, SelectAll will select all of the code, and we just want to test it in the case when it's just the string. Double clicking on a string will select just the entire string, but there's no way of testing that here, so we might have to write an integration test for it. *)
+        ("___", (None, 0)) ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
