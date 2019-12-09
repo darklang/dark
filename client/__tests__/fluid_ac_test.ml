@@ -222,13 +222,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
     | _ ->
         defaultTokenInfo
   in
-  match m.cursorState with
-  | Entering (Creating _) ->
-      AC.regenerate m (AC.init m) (tlid, ti)
-  | Entering (Filling _) ->
-      AC.regenerate m (AC.init m) (tlid, ti)
-  | _ ->
-      AC.regenerate m (AC.init m) (tlid, ti)
+  AC.regenerate m (AC.init m) (tlid, ti)
 
 
 let setQuery (m : model) (q : string) (a : AC.autocomplete) : AC.autocomplete =
