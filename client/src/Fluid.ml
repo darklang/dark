@@ -4041,6 +4041,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           (ast, s)
       | _ ->
           (ast, s) )
+    (*
+     * Caret at end of line with nothing in newline. *)
     | K.Enter, L (lt, lti), R (TNewline None, rti)
       when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
       ->
@@ -4128,6 +4130,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
         in
         (ast, s)
+    (*
+     * Caret at very end of tokens where last line is non-let expression. *)
     | K.Enter, L (token, ti), No when not (Token.isLet token) ->
         wrapInLet ti ast s
     (****************)
