@@ -585,8 +585,8 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
   let toggleMenu =
     toggleButton
       ~name:"toggle-btn"
-      ~activeIcon:"chevron-circle-up"
-      ~inactiveIcon:"chevron-circle-down"
+      ~activeIcon:"bars"
+      ~inactiveIcon:"bars"
       ~msg:(fun _ -> SetHandlerActionsMenu (vs.tlid, not showMenu))
       ~active:showMenu
       ~key:("toggle-tl-menu-" ^ strTLID)
