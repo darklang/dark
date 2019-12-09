@@ -3921,8 +3921,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Deleting *)
     | K.Backspace, L (TPatternString _, ti), _
     | K.Backspace, L (TString _, ti), _
-      when pos = ti.endPos ->
-        (* Backspace should move into a string, not delete it *)
+      when pos = ti.endPos
+           && not
+                ( s.selectionStart = Some ti.startPos
+                || s.selectionStart == Some ti.endPos ) ->
+        (* When there's no selection, backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
     | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
       when Option.isSome s.selectionStart ->
