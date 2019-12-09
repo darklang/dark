@@ -5419,6 +5419,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
+    | FluidUpdateAutocomplete ->
+        (* updateAutocomplete has already been run, so nothing more to do *)
+        (ast, s)
     | FluidMouseUp (_, selection) ->
         updateMouseUp s ast selection
     | FluidCut ->
@@ -5542,6 +5545,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsFilter _
   | FluidCommandsClick _
   | FluidAutocompleteClick _
+  | FluidUpdateAutocomplete
   | FluidMouseUp _ ->
       let tlid =
         match msg with

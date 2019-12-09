@@ -1161,6 +1161,7 @@ and fluidMsg =
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidFocusOnToken of id
   | FluidClearErrorDvSrc
+  | FluidUpdateAutocomplete
 
 and msg =
   | GlobalClick of mouseEvent
