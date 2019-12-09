@@ -2120,7 +2120,7 @@ let insertInRecord ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast)
         | EPartial (pId, pName, pExpr) ->
             ERecord (id, List.insertAt ~index ~value:(pId, pName, pExpr) fields)
         | _ ->
-            ast)
+            ast )
       | _ ->
           recover "not a record in insertInRecord" ~debug:e e )
 
@@ -3465,7 +3465,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, RightOne)
     (* records *)
-    | TRecordOpen id ->
+    | TRecordOpen id when isIdentifierChar letterStr ->
         (insertInRecord ~index:0 id ~newExpr ast, Exactly (s.newPos + 4))
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
@@ -3583,6 +3583,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TListClose _
     | TListSep _
     | TIndent _
+    | TRecordOpen _
     | TRecordClose _
     | TRecordSep _
     | TPipe _
@@ -4188,6 +4189,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
+        (ast, s)
+    | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | _, _, R (_, toTheRight) ->
         doInsert ~pos keyChar toTheRight ast s
