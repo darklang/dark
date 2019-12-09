@@ -1740,8 +1740,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         | ( TPatternFloatWhole (id, _, _, idx)
           , ARMatch (id', MPBranchPattern idx') ) ->
             id = id' && idx = idx'
-        | _, ARInvalid ->
-            recover "Attempted to find an ARInvalid" false
         | _ ->
             false )
   in
