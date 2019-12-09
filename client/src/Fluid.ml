@@ -2111,6 +2111,20 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
           recover "not a record field in removeRecordField" ~debug:e e )
 
 
+let insertInRecord ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast)
+    : ast =
+  updateExpr id ast ~f:(fun e ->
+      match e with
+      | ERecord (id, fields) ->
+        ( match newExpr with
+        | EPartial (pId, pName, pExpr) ->
+            ERecord (id, List.insertAt ~index ~value:(pId, pName, pExpr) fields)
+        | _ ->
+            ast)
+      | _ ->
+          recover "not a record in insertInRecord" ~debug:e e )
+
+
 (* Add a row to the record *)
 let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
@@ -3450,6 +3464,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, RightOne)
+    (* records *)
+    | TRecordOpen id ->
+        (insertInRecord ~index:0 id ~newExpr ast, Exactly (s.newPos + 4))
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
@@ -3566,7 +3583,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TListClose _
     | TListSep _
     | TIndent _
-    | TRecordOpen _
     | TRecordClose _
     | TRecordSep _
     | TPipe _
@@ -4166,6 +4182,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         , s |> moveTo (pos + 2) )
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
+        doInsert ~pos keyChar toTheLeft ast s
+    | _, L (TRecordOpen _, toTheLeft), R (TRecordClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
