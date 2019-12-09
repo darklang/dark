@@ -952,193 +952,15 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
 (* Getting expressions *)
 (* ------------- *)
 
-let isEmpty (e : Expression.t) : bool =
-  let isBlank e = match e with EBlank _ -> true | _ -> false in
-  match e with
-  | EBlank _ ->
-      true
-  | ERecord (_, []) ->
-      true
-  | ERecord (_, l) ->
-      l
-      |> List.filter ~f:(fun (_, k, v) -> k = "" && not (isBlank v))
-      |> List.isEmpty
-  | EList (_, l) ->
-      l |> List.filter ~f:(not << isBlank) |> List.isEmpty
-  | _ ->
-      false
-
-
-let exprIsEmpty (id : id) (ast : Expression.t) : bool =
-  match Expression.find id ast with Some e -> isEmpty e | _ -> false
-
-
-let findParent (id : id) (ast : Expression.t) : Expression.t option =
-  let rec findParent'
-      ~(parent : Expression.t option) (id : id) (expr : Expression.t) :
-      Expression.t option =
-    let fp = findParent' ~parent:(Some expr) id in
-    if Expression.id expr = id
-    then parent
-    else
-      match expr with
-      | EInteger _
-      | EBlank _
-      | EString _
-      | EVariable _
-      | EBool _
-      | ENull _
-      | EPipeTarget _
-      | EFloat _ ->
-          None
-      | ELet (_, _, _, rhs, next) ->
-          fp rhs |> Option.orElse (fp next)
-      | EIf (_, cond, ifexpr, elseexpr) ->
-          fp cond |> Option.orElse (fp ifexpr) |> Option.orElse (fp elseexpr)
-      | EBinOp (_, _, lexpr, rexpr, _) ->
-          fp lexpr |> Option.orElse (fp rexpr)
-      | EFieldAccess (_, expr, _, _) | ELambda (_, _, expr) ->
-          fp expr
-      | EMatch (_, _, pairs) ->
-          pairs
-          |> List.map ~f:Tuple2.second
-          |> List.filterMap ~f:fp
-          |> List.head
-      | ERecord (_, fields) ->
-          fields
-          |> List.map ~f:Tuple3.third
-          |> List.filterMap ~f:fp
-          |> List.head
-      | EFnCall (_, _, exprs, _)
-      | EList (_, exprs)
-      | EConstructor (_, _, _, exprs)
-      | EPipe (_, exprs) ->
-          List.filterMap ~f:fp exprs |> List.head
-      | EOldExpr _ ->
-          None
-      | EPartial (_, _, expr) ->
-          fp expr
-      | ERightPartial (_, _, expr) ->
-          fp expr
-      | EFeatureFlag (_, _, _, cond, casea, caseb) ->
-          fp cond |> Option.orElse (fp casea) |> Option.orElse (fp caseb)
-  in
-  findParent' ~parent:None id ast
-
-
 (* ------------- *)
 (* Replacing expressions *)
 (* ------------- *)
-(* f needs to call recurse or it won't go far *)
-let recurse ~(f : Expression.t -> Expression.t) (expr : Expression.t) :
-    Expression.t =
-  match expr with
-  | EInteger _
-  | EBlank _
-  | EString _
-  | EVariable _
-  | EBool _
-  | ENull _
-  | EPipeTarget _
-  | EFloat _ ->
-      expr
-  | ELet (id, lhsID, name, rhs, next) ->
-      ELet (id, lhsID, name, f rhs, f next)
-  | EIf (id, cond, ifexpr, elseexpr) ->
-      EIf (id, f cond, f ifexpr, f elseexpr)
-  | EBinOp (id, op, lexpr, rexpr, ster) ->
-      EBinOp (id, op, f lexpr, f rexpr, ster)
-  | EFieldAccess (id, expr, fieldID, fieldname) ->
-      EFieldAccess (id, f expr, fieldID, fieldname)
-  | EFnCall (id, name, exprs, ster) ->
-      EFnCall (id, name, List.map ~f exprs, ster)
-  | ELambda (id, names, expr) ->
-      ELambda (id, names, f expr)
-  | EList (id, exprs) ->
-      EList (id, List.map ~f exprs)
-  | EMatch (id, mexpr, pairs) ->
-      EMatch
-        (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
-  | ERecord (id, fields) ->
-      ERecord
-        (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
-  | EPipe (id, exprs) ->
-      EPipe (id, List.map ~f exprs)
-  | EConstructor (id, nameID, name, exprs) ->
-      EConstructor (id, nameID, name, List.map ~f exprs)
-  | EOldExpr _ ->
-      expr
-  | EPartial (id, str, oldExpr) ->
-      EPartial (id, str, f oldExpr)
-  | ERightPartial (id, str, oldExpr) ->
-      ERightPartial (id, str, f oldExpr)
-  | EFeatureFlag (id, msg, msgid, cond, casea, caseb) ->
-      EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
-
-
-(* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec updateVariableUses
-    (oldVarName : string)
-    ~(f : Expression.t -> Expression.t)
-    (ast : Expression.t) : Expression.t =
-  let u = updateVariableUses oldVarName ~f in
-  match ast with
-  | EVariable (_, varName) ->
-      if varName = oldVarName then f ast else ast
-  | ELet (id, id', lhs, rhs, body) ->
-      if oldVarName = lhs (* if variable name is rebound *)
-      then ast
-      else ELet (id, id', lhs, u rhs, u body)
-  | ELambda (id, vars, lexpr) ->
-      if List.map ~f:Tuple2.second vars |> List.member ~value:oldVarName
-         (* if variable name is rebound *)
-      then ast
-      else ELambda (id, vars, u lexpr)
-  | EMatch (id, cond, pairs) ->
-      let pairs =
-        List.map
-          ~f:(fun (pat, expr) ->
-            if Pattern.hasVariableNamed oldVarName (Expression.toPattern pat)
-            then (pat, expr)
-            else (pat, u expr) )
-          pairs
-      in
-      EMatch (id, u cond, pairs)
-  | _ ->
-      recurse ~f:u ast
-
-
-let renameVariableUses
-    (oldVarName : string) (newVarName : string) (ast : Expression.t) :
-    Expression.t =
-  let f expr =
-    match expr with
-    | EVariable (id, _) ->
-        EVariable (id, newVarName)
-    | _ ->
-        expr
-  in
-  updateVariableUses oldVarName ~f ast
-
-
-let removeVariableUse (oldVarName : string) (ast : Expression.t) : Expression.t
-    =
-  let f _ = EBlank (gid ()) in
-  updateVariableUses oldVarName ~f ast
-
-
-let updateExpr
-    ~(f : Expression.t -> Expression.t) (id : id) (ast : Expression.t) :
-    Expression.t =
-  let rec run e = if id = Expression.id e then f e else recurse ~f:run e in
-  run ast
-
 
 let replaceExpr ~(newExpr : Expression.t) (id : id) (ast : Expression.t) :
     Expression.t =
   (* If we're putting a pipe into another pipe, fix it up *)
   let id, newExpr =
-    match (findParent id ast, newExpr) with
+    match (Expression.findParent id ast, newExpr) with
     | Some (EPipe (parentID, oldExprs)), EPipe (newID, newExprs) ->
         let before, elemAndAfter =
           List.splitWhen ~f:(fun nested -> Expression.id nested = id) oldExprs
@@ -1148,7 +970,7 @@ let replaceExpr ~(newExpr : Expression.t) (id : id) (ast : Expression.t) :
     | _ ->
         (id, newExpr)
   in
-  updateExpr id ast ~f:(fun _ -> newExpr)
+  Expression.update id ast ~f:(fun _ -> newExpr)
 
 
 (* ---------------- *)
@@ -1503,7 +1325,7 @@ let updatePattern
     (matchID : id)
     (patID : id)
     (ast : Expression.t) : Expression.t =
-  updateExpr matchID ast ~f:(fun m ->
+  Expression.update matchID ast ~f:(fun m ->
       match m with
       | EMatch (matchID, expr, pairs) ->
           let rec run p =
@@ -1526,7 +1348,7 @@ let replacePattern
 let replaceVarInPattern
     (mID : id) (oldVarName : string) (newVarName : string) (ast : Expression.t)
     : Expression.t =
-  updateExpr mID ast ~f:(fun e ->
+  Expression.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
           let rec replaceNameInPattern pat =
@@ -1544,7 +1366,7 @@ let replaceVarInPattern
           let newCases =
             List.map cases ~f:(fun (pat, expr) ->
                 ( replaceNameInPattern pat
-                , renameVariableUses oldVarName newVarName expr ) )
+                , Expression.renameVariableUses oldVarName newVarName expr ) )
           in
           EMatch (mID, cond, newCases)
       | _ ->
@@ -1552,7 +1374,7 @@ let replaceVarInPattern
 
 
 let removePatternRow (mID : id) (id : id) (ast : Expression.t) : Expression.t =
-  updateExpr mID ast ~f:(fun e ->
+  Expression.update mID ast ~f:(fun e ->
       match e with
       | EMatch (_, cond, patterns) ->
           let newPatterns =
@@ -1584,7 +1406,7 @@ let replacePatternWithPartial
 (* ---------------- *)
 
 let removeEmptyExpr (id : id) (ast : Expression.t) : Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ELet (_, _, "", EBlank _, body) ->
           body
@@ -1606,7 +1428,7 @@ let removeEmptyExpr (id : id) (ast : Expression.t) : Expression.t =
 (* ---------------- *)
 let replaceFieldName (str : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFieldAccess (id, expr, fieldID, _) ->
           EFieldAccess (id, expr, fieldID, str)
@@ -1616,11 +1438,11 @@ let replaceFieldName (str : string) (id : id) (ast : Expression.t) :
 
 let exprToFieldAccess (id : id) (fieldID : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
+  Expression.update id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
 
 
 let removeField (id : id) (ast : Expression.t) : Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
           faExpr
@@ -1637,13 +1459,14 @@ let replaceLamdaVar
     (newVarName : string)
     (id : id)
     (ast : Expression.t) : Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let vars =
             List.updateAt vars ~index ~f:(fun (id, _) -> (id, newVarName))
           in
-          ELambda (id, vars, renameVariableUses oldVarName newVarName expr)
+          ELambda
+            (id, vars, Expression.renameVariableUses oldVarName newVarName expr)
       | _ ->
           recover "not a lamda in replaceLamdaVar" ~debug:e e )
 
@@ -1654,7 +1477,7 @@ let removeLambdaSepToken (id : id) (ast : Expression.t) (index : int) :
     (* remove expression in front of sep, not behind it *)
     index + 1
   in
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let var =
@@ -1662,7 +1485,10 @@ let removeLambdaSepToken (id : id) (ast : Expression.t) (index : int) :
             |> Option.map ~f:Tuple2.second
             |> Option.withDefault ~default:""
           in
-          ELambda (id, List.removeAt ~index vars, removeVariableUse var expr)
+          ELambda
+            ( id
+            , List.removeAt ~index vars
+            , Expression.removeVariableUse var expr )
       | _ ->
           e )
 
@@ -1670,7 +1496,7 @@ let removeLambdaSepToken (id : id) (ast : Expression.t) (index : int) :
 let insertLambdaVar
     ~(index : int) ~(name : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let value = (gid (), name) in
@@ -1685,10 +1511,15 @@ let insertLambdaVar
 
 let replaceLetLHS (newLHS : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ELet (id, lhsID, oldLHS, rhs, next) ->
-          ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
+          ELet
+            ( id
+            , lhsID
+            , newLHS
+            , rhs
+            , Expression.renameVariableUses oldLHS newLHS next )
       | _ ->
           recover "not a let in replaceLetLHS" ~debug:e e )
 
@@ -1698,7 +1529,7 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : Expression.t) :
 (* ---------------- *)
 let replaceRecordField ~index (str : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           let fields =
@@ -1712,7 +1543,7 @@ let replaceRecordField ~index (str : string) (id : id) (ast : Expression.t) :
 
 let removeRecordField (id : id) (index : int) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, List.removeAt ~index fields)
@@ -1723,7 +1554,7 @@ let removeRecordField (id : id) (index : int) (ast : Expression.t) :
 (* Add a row to the record *)
 let addRecordRowAt (index : int) (id : id) (ast : Expression.t) : Expression.t
     =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
@@ -1732,7 +1563,7 @@ let addRecordRowAt (index : int) (id : id) (ast : Expression.t) : Expression.t
 
 
 let addRecordRowToBack (id : id) (ast : Expression.t) : Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, fields @ [(gid (), "", newB ())])
@@ -1746,7 +1577,7 @@ let addRecordRowToBack (id : id) (ast : Expression.t) : Expression.t =
 
 let replaceWithPartial (str : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       let str = String.trim str in
       match e with
       | EPartial (id, _, oldVal) ->
@@ -1763,7 +1594,7 @@ let deletePartial (ti : tokenInfo) (ast : Expression.t) (s : state) :
     Expression.t * state =
   let newState = ref (fun (_ : Expression.t) -> s) in
   let ast =
-    updateExpr (Token.id ti.token) ast ~f:(fun e ->
+    Expression.update (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | EPartial
             ( _
@@ -1827,7 +1658,7 @@ let replacePartialWithArguments
     | _, _ ->
         false
   in
-  updateExpr id ast ~f:(fun expr ->
+  Expression.update id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
@@ -1899,7 +1730,7 @@ let convertToBinOp (char : char option) (id : id) (ast : Expression.t) :
   | None ->
       ast
   | Some c ->
-      updateExpr id ast ~f:(fun expr ->
+      Expression.update id ast ~f:(fun expr ->
           ERightPartial (gid (), String.fromChar c, expr) )
 
 
@@ -1907,7 +1738,7 @@ let deleteRightPartial (ti : tokenInfo) (ast : Expression.t) :
     Expression.t * id =
   let id = ref Token.fakeid in
   let ast =
-    updateExpr (Token.id ti.token) ast ~f:(fun e ->
+    Expression.update (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | ERightPartial (_, _, oldVal) ->
             id := Expression.id oldVal ;
@@ -1924,7 +1755,7 @@ let deleteRightPartial (ti : tokenInfo) (ast : Expression.t) :
 
 let replaceWithRightPartial (str : string) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       let str = String.trim str in
       if str = ""
       then recover "replacing with empty right partial" ~debug:e e
@@ -1939,7 +1770,7 @@ let replaceWithRightPartial (str : string) (id : id) (ast : Expression.t) :
 let deleteBinOp (ti : tokenInfo) (ast : Expression.t) : Expression.t * id =
   let id = ref Token.fakeid in
   let ast =
-    updateExpr (Token.id ti.token) ast ~f:(fun e ->
+    Expression.update (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | EBinOp (_, _, EPipeTarget _, rhs, _) ->
             id := Expression.id rhs ;
@@ -1956,20 +1787,6 @@ let deleteBinOp (ti : tokenInfo) (ast : Expression.t) : Expression.t * id =
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
-let removePipe (id : id) (ast : Expression.t) (index : int) : Expression.t =
-  let index =
-    (* remove expression in front of pipe, not behind it *)
-    index + 1
-  in
-  updateExpr id ast ~f:(fun e ->
-      match e with
-      | EPipe (_, [e1; _]) ->
-          e1
-      | EPipe (id, exprs) ->
-          EPipe (id, List.removeAt ~index exprs)
-      | _ ->
-          e )
-
 
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
@@ -2045,7 +1862,7 @@ let replaceStringToken
 (* ---------------- *)
 let replaceFloatWhole (str : string) (id : id) (ast : Expression.t) : fluidExpr
     =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, _, fraction) ->
           EFloat (id, str, fraction)
@@ -2088,7 +1905,7 @@ let removePatternPointFromFloat
 
 let replaceFloatFraction (str : string) (id : id) (ast : Expression.t) :
     fluidExpr =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, whole, _) ->
           EFloat (id, whole, str)
@@ -2098,7 +1915,7 @@ let replaceFloatFraction (str : string) (id : id) (ast : Expression.t) :
 
 let insertAtFrontOfFloatFraction
     (letter : string) (id : id) (ast : Expression.t) : fluidExpr =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
@@ -2122,7 +1939,7 @@ let insertAtFrontOfPatternFloatFraction
 
 let convertIntToFloat (offset : int) (id : id) (ast : Expression.t) :
     Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EInteger (_, i) ->
           let whole, fraction = String.splitAt ~index:offset i in
@@ -2144,7 +1961,7 @@ let convertPatternIntToFloat
 
 
 let removePointFromFloat (id : id) (ast : Expression.t) : Expression.t =
-  updateExpr id ast ~f:(fun e ->
+  Expression.update id ast ~f:(fun e ->
       match e with
       | EFloat (_, whole, fraction) ->
           let i = coerceStringTo63BitInt (whole ^ fraction) in
@@ -2156,44 +1973,6 @@ let removePointFromFloat (id : id) (ast : Expression.t) : Expression.t =
 (* ---------------- *)
 (* Lists *)
 (* ---------------- *)
-let removeListSepToken (id : id) (ast : Expression.t) (index : int) : fluidExpr
-    =
-  let index =
-    (* remove expression in front of sep, not behind it *)
-    index + 1
-  in
-  updateExpr id ast ~f:(fun e ->
-      match e with
-      | EList (id, exprs) ->
-          EList (id, List.removeAt ~index exprs)
-      | _ ->
-          e )
-
-
-let insertInList
-    ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : Expression.t) :
-    Expression.t =
-  updateExpr id ast ~f:(fun e ->
-      match e with
-      | EList (id, exprs) ->
-          EList (id, List.insertAt ~index ~value:newExpr exprs)
-      | _ ->
-          recover "not a list in insertInList" ~debug:e e )
-
-
-(* Add a blank after the expr indicated by id, which we presume is in a list *)
-let addBlankToList (id : id) (ast : Expression.t) : Expression.t =
-  let parent = findParent id ast in
-  match parent with
-  | Some (EList (pID, exprs)) ->
-    ( match List.findIndex ~f:(fun e -> Expression.id e = id) exprs with
-    | Some index ->
-        insertInList ~index:(index + 1) ~newExpr:(EBlank (gid ())) pID ast
-    | _ ->
-        ast )
-  | _ ->
-      ast
-
 
 (* ---------------- *)
 (* General stuff *)
@@ -2207,7 +1986,7 @@ let addEntryBelow
   let s = recordAction "addEntryBelow" s in
   let cursor = ref `NextBlank in
   let newAST =
-    updateExpr id ast ~f:(fun e ->
+    Expression.update id ast ~f:(fun e ->
         match (index, e) with
         | None, EBlank _ ->
             cursor := `NextToken ;
@@ -2249,7 +2028,7 @@ let addEntryAbove
   let s = recordAction "addEntryAbove" s in
   let nextIndex = ref None in
   let newAST =
-    updateExpr id ast ~f:(fun e ->
+    Expression.update id ast ~f:(fun e ->
         match (index, e) with
         | Some index, ERecord (id, fields) ->
             nextIndex := Some (index + 1) ;
@@ -2469,7 +2248,7 @@ let acMoveBasedOnKey
 let rec findAppropriateParentToWrap (oldExpr : fluidExpr) (ast : Expression.t)
     : fluidExpr option =
   let child = oldExpr in
-  let parent = findParent (Expression.id oldExpr) ast in
+  let parent = Expression.(findParent (id oldExpr) ast) in
   match parent with
   | Some parent ->
     ( match parent with
@@ -2532,7 +2311,7 @@ let updateFromACItem
   let id = Token.id ti.token in
   let newExpr, offset = acToExpr entry in
   let oldExpr = Expression.find id ast in
-  let parent = findParent id ast in
+  let parent = Expression.findParent id ast in
   let newAST, offset =
     match (ti.token, oldExpr, parent, newExpr) with
     (* since patterns have no partial but commit as variables
@@ -2873,8 +2652,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state)
     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne)
     | TListSep (id, idx) ->
-        (removeListSepToken id ast idx, LeftOne)
-    | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
+        (Expression.removeListSepToken id ast idx, LeftOne)
+    | (TRecordOpen id | TListOpen id) when Expression.isEmptyId id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
     | TRecordFieldname (id, _, i, "") when pos = ti.startPos ->
         (removeRecordField id i ast, LeftThree)
@@ -2975,7 +2754,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state)
                 ~debug:ti
                 SamePlace
         in
-        (removePipe id ast i, newPosition)
+        (Expression.removePipe id ast i, newPosition)
   in
   let newPos = adjustPosForReflow ~state:s newAST ti pos newPosition in
   (newAST, {s with newPos})
@@ -3001,12 +2780,12 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
       (removeEmptyExpr (Token.id ti.token) ast, s)
-  | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
+  | (TListOpen id | TRecordOpen id) when Expression.isEmptyId id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
   | TLambdaSep (id, idx) ->
       (removeLambdaSepToken id ast idx, s)
   | TListSep (id, idx) ->
-      (removeListSepToken id ast idx, s)
+      (Expression.removeListSepToken id ast idx, s)
   | TBlank _
   | TPlaceholder _
   | TIndent _
@@ -3113,7 +2892,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
   | TPatternBlank _ ->
       (ast, s)
   | TPipe (id, i, length) ->
-      let newAST = removePipe id ast i in
+      let newAST = Expression.removePipe id ast i in
       let s =
         (* index goes from zero and doesn't include first element, while length
          * does. So + 2 correct for both those *)
@@ -3163,7 +2942,7 @@ let doInsert'
     in
     let fnname =
       let id = Token.id ti.token in
-      match findParent id ast with
+      match Expression.findParent id ast with
       | Some (EFnCall (_, name, _, _)) ->
           Some name
       | _ ->
@@ -3208,9 +2987,9 @@ let doInsert'
         (replaceExpr id ~newExpr ast, RightOne)
     (* lists *)
     | TListOpen id when letter = ',' ->
-        (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
+        (Expression.insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
     | TListOpen id ->
-        (insertInList ~index:0 id ~newExpr ast, RightOne)
+        (Expression.insertInList ~index:0 id ~newExpr ast, RightOne)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
@@ -3535,12 +3314,12 @@ let rec updateKey
           true
       | Some e ->
           let id = Expression.id e in
-          recurseUp (findParent id ast) id
+          recurseUp (Expression.findParent id ast) id
       | None ->
           false
     in
     let tid = Token.id token in
-    recurseUp (findParent tid ast) tid
+    recurseUp (Expression.findParent tid ast) tid
   in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
@@ -3730,7 +3509,8 @@ let rec updateKey
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
-        then (addBlankToList (Token.id t) ast, moveOneRight ti.endPos s)
+        then
+          (Expression.addBlankToList (Token.id t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos keyChar ti ast s
     (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
