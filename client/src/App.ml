@@ -436,12 +436,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           | IntegrationTestFinished _ ->
               recover
                 "Attempted to end integration test but one ran + was already finished"
-                m.integrationTestState
+                ~debug:m.integrationTestState
                 (fun _ -> IntegrationTest.fail "Already finished" )
           | NoIntegrationTest ->
               recover
                 "Attempted to end integration test but none was running"
-                m.integrationTestState
+                ~debug:m.integrationTestState
                 (fun _ -> IntegrationTest.fail "Not running" )
         in
         let result = expectationFn m in
@@ -474,13 +474,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         else
           ( Page.setPage m m.currentPage Architecture
           , Url.updateUrl Architecture )
-    | StartFluidMouseSelecting tlid ->
-        let newMod =
-          if VariantTesting.isFluid m.tests
-          then {m with cursorState = FluidMouseSelecting tlid}
-          else m
-        in
-        (newMod, Cmd.none)
     | Select (tlid, p) ->
         let cursorState =
           if VariantTesting.isFluid m.tests
@@ -929,8 +922,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           List.filter ~f:isComplete m.executingFunctions
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
-    | MoveCanvasTo pos ->
-        let newCanvasProps = {m.canvasProps with offset = pos} in
+    | MoveCanvasTo (offset, panAnimation) ->
+        let newCanvasProps =
+          { m.canvasProps with
+            offset; panAnimation; lastOffset = Some m.canvasProps.offset }
+        in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
       ( match TL.get m tlid with
@@ -938,7 +934,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ( { m with
               canvasProps =
                 { m.canvasProps with
-                  offset = Viewport.centerCanvasOn tl; panAnimation = true } }
+                  offset = Viewport.centerCanvasOn tl
+                ; panAnimation = AnimateTransition } }
           , Cmd.none )
       | None ->
           (m, Cmd.none) )
@@ -981,8 +978,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               groups = TLIDDict.insert ~tlid:group.gTLID ~value:group m.groups
             }
           , Cmd.none )
+    | FluidStartClick ->
+        ({m with fluidState = {m.fluidState with midClick = true}}, Cmd.none)
+    | FluidEndClick ->
+        ({m with fluidState = {m.fluidState with midClick = false}}, Cmd.none)
     | TweakModel fn ->
         (fn m, Cmd.none)
+    | Apply fn ->
+        let mod_ = fn m in
+        updateMod mod_ (m, cmd)
     | AutocompleteMod mod_ ->
         processAutocompleteMods m [mod_]
     | UndoGroupDelete (tlid, g) ->
@@ -1012,6 +1016,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  cache |> TLIDDict.insert ~tlid:f.ufTLID ~value )
         in
         ({m with searchCache}, Cmd.none)
+    | FluidSetState fluidState ->
+        ({m with fluidState}, Cmd.none)
     (* applied from left to right *)
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
@@ -1073,18 +1079,30 @@ let update_ (msg : msg) (m : model) : modification =
         NoChange )
   | GlobalClick event ->
     ( match m.currentPage with
-    | FocusedFn _ | FocusedType _ ->
-        NoChange
+    | FocusedFn tlid | FocusedType tlid ->
+        (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
+        let defaultBehaviour = Select (tlid, None) in
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Filling _ as cursor) ->
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            Many [Entry.commit m cursor; defaultBehaviour]
+        | _ ->
+            defaultBehaviour )
     | Architecture | FocusedDB _ | FocusedHandler _ | FocusedGroup _ ->
         if event.button = Defaults.leftButton
         then
+          (* Clicking on the canvas should deselect the current selection on the main canvas *)
+          let defaultBehaviour = Deselect in
           match unwrapCursorState m.cursorState with
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+          | Entering (Filling _ as cursor) ->
+              (* If we click away from an entry box, commit it before doing the default behaviour *)
+              Many [Entry.commit m cursor; defaultBehaviour]
           | _ ->
-              Deselect
+              defaultBehaviour
         else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
@@ -1176,57 +1194,61 @@ let update_ (msg : msg) (m : model) : modification =
           | None ->
               SetCursorState origCursorState )
         | _ ->
-            NoChange
+            FluidEndClick
       else NoChange
-  | BlankOrClick (targetExnID, targetID, _) ->
-    ( match m.cursorState with
-    | Deselected ->
-        Select (targetExnID, Some targetID)
-    | Dragging (_, _, _, origCursorState) ->
-        SetCursorState origCursorState
-    | Entering cursor ->
-      ( match cursor with
-      | Filling (_, fillingID) ->
-          if fillingID = targetID
-          then NoChange
-          else Select (targetExnID, Some targetID)
-      | _ ->
-          Select (targetExnID, Some targetID) )
-    | Selecting (_, _) ->
-        Select (targetExnID, Some targetID)
-    | SelectingCommand (_, scID) ->
-        if scID = targetID
-        then NoChange
-        else Select (targetExnID, Some targetID)
-    | FluidEntering _ ->
-        Select (targetExnID, Some targetID)
-    | FluidMouseSelecting _ ->
-        StartFluidMouseSelecting targetExnID )
+  | BlankOrClick (targetExnID, targetID, event) ->
+      let select tlid id =
+        if VariantTesting.isFluid m.tests
+        then
+          let offset =
+            Native.OffsetEstimator.estimateClickOffset (showID targetID) event
+          in
+          (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
+           * as double clicks to automatically enter them. *)
+          Selection.dblclick m targetExnID targetID offset
+        else Select (tlid, Some id)
+      in
+      ( match m.cursorState with
+      | Deselected ->
+          select targetExnID targetID
+      | Dragging (_, _, _, origCursorState) ->
+          SetCursorState origCursorState
+      | Entering cursor ->
+          let defaultBehaviour = select targetExnID targetID in
+          ( match cursor with
+          | Filling (_, fillingID) ->
+              if fillingID = targetID
+              then
+                NoChange
+                (* If we click away from an entry box, commit it before doing the default behaviour *)
+              else Many [Entry.commit m cursor; defaultBehaviour]
+          | _ ->
+              defaultBehaviour )
+      | Selecting (_, _) ->
+          select targetExnID targetID
+      | SelectingCommand (_, scID) ->
+          if scID = targetID then NoChange else select targetExnID targetID
+      | FluidEntering _ ->
+          select targetExnID targetID )
   | BlankOrDoubleClick (targetExnID, targetID, event) ->
-      (* TODO: switch to ranges to get actual character offset
-       * rather than approximating *)
       let offset =
-        match
-          Js.Nullable.toOption (Web_document.getElementById (showID targetID))
-        with
-        | Some elem ->
-            let rect = elem##getBoundingClientRect () in
-            if event.mePos.vy >= int_of_float rect##top
-               && event.mePos.vy <= int_of_float rect##bottom
-               && event.mePos.vx >= int_of_float rect##left
-               && event.mePos.vx <= int_of_float rect##right
-            then Some ((event.mePos.vx - int_of_float rect##left) / 8)
-            else None
-        | None ->
-            None
+        Native.OffsetEstimator.estimateClickOffset (showID targetID) event
       in
       Selection.dblclick m targetExnID targetID offset
   | ToplevelClick (targetExnID, _) ->
       if VariantTesting.isFluid m.tests
       then
-        Many
+        let defaultBehaviour =
           [ Select (targetExnID, None)
-          ; Fluid.update m (FluidMouseClick targetExnID) ]
+          ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None)))
+          ]
+        in
+        match m.cursorState with
+        (* If we click away from an entry box, commit it before doing the default behaviour *)
+        | Entering (Filling _ as cursor) ->
+            Many (Entry.commit m cursor :: defaultBehaviour)
+        | _ ->
+            Many defaultBehaviour
       else (
         match m.cursorState with
         | Dragging (_, _, _, origCursorState) ->
@@ -1239,7 +1261,7 @@ let update_ (msg : msg) (m : model) : modification =
             Select (targetExnID, None)
         | Entering _ ->
             Select (targetExnID, None)
-        | FluidEntering _ | FluidMouseSelecting _ ->
+        | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
       Many
@@ -1846,7 +1868,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       let copyData, mod_ =
         if VariantTesting.isFluid m.tests
-        then (Fluid.getCopySelection m, Fluid.update m FluidCut)
+        then
+          (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
         else Clipboard.cut m
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
@@ -1874,13 +1897,13 @@ let update_ (msg : msg) (m : model) : modification =
   | CanvasPanAnimationEnd ->
       TweakModel
         (fun m ->
-          {m with canvasProps = {m.canvasProps with panAnimation = false}} )
+          { m with
+            canvasProps =
+              {m.canvasProps with panAnimation = DontAnimateTransition} } )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
       Introspect.setHoveringReferences tlid ids
-  | FluidMsg (FluidKeyPress _ as msg) ->
-      Fluid.update m msg
   | TriggerSendPresenceCallback (Ok _) ->
       NoChange
   | TriggerSendPresenceCallback (Error err) ->
@@ -1890,11 +1913,8 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidMsg FluidCopy
-  | FluidMsg FluidCut
-  | FluidMsg (FluidPaste _)
-  | FluidMsg (FluidMouseClick _) ->
-      recover "Fluid functions should not happen here" msg NoChange
+  | FluidMsg FluidCopy | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
+      recover "Fluid functions should not happen here" ~debug:msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel
         (fun m ->
@@ -1917,38 +1937,20 @@ let update_ (msg : msg) (m : model) : modification =
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
-  | FluidMsg (FluidStartSelection targetExnID) ->
-      Many [Select (targetExnID, None); StartFluidMouseSelecting targetExnID]
-  | FluidMsg (FluidUpdateSelection (targetExnID, selection)) ->
-      Many
-        [ Select (targetExnID, None)
-        ; TweakModel
-            (fun m ->
-              let selection =
-                Option.orElseLazy
-                  (fun () -> Entry.getFluidSelectionRange ())
-                  selection
-              in
-              match selection with
-              (* if range width is 0, just change pos *)
-              | Some (selBegin, selEnd) when selBegin = selEnd ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        oldPos = m.fluidState.newPos
-                      ; newPos = selEnd
-                      ; selectionStart = None } }
-              | Some (selBegin, selEnd) ->
-                  { m with
-                    fluidState =
-                      { m.fluidState with
-                        selectionStart = Some selBegin
-                      ; oldPos = m.fluidState.newPos
-                      ; newPos = selEnd } }
-              | None ->
-                  { m with
-                    fluidState = {m.fluidState with selectionStart = None} } )
-        ]
+  | FluidMsg (FluidMouseDown targetExnID) ->
+      let defaultBehaviour = [FluidStartClick; Select (targetExnID, None)] in
+      ( match m.cursorState with
+      | Entering (Filling _ as cursor) ->
+          Many
+            (* If we click away from an entry box, commit it before doing the default behaviour *)
+            (Entry.commit m cursor :: defaultBehaviour)
+      | _ ->
+          Many defaultBehaviour )
+  | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
+      Many [Select (targetExnID, None); Apply (fun m -> Fluid.update m msg)]
+  | FluidMsg msg ->
+      (* Handle all other messages *)
+      Fluid.update m msg
   | ResetToast ->
       TweakModel (fun m -> {m with toast = Defaults.defaultToast})
   | UpdateMinimap data ->

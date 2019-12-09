@@ -227,6 +227,10 @@ let isNewline (t : token) : bool =
   match t with TNewline _ -> true | _ -> false
 
 
+let isLet (t : token) : bool =
+  match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
+
+
 let isAutocompletable (t : token) : bool =
   match t with
   | TBlank _
@@ -251,7 +255,7 @@ let isErrorDisplayable (t : token) : bool =
 
 let toText (t : token) : string =
   let shouldntBeEmpty name =
-    asserT "shouldn't be empty" (name <> "") t ;
+    asserT ~debug:t "shouldn't be empty" (name <> "") ;
     name
   in
   let canBeEmpty name = if name = "" then "   " else name in
@@ -401,9 +405,9 @@ let toTestText (t : token) : string =
         if isBlank t then "***" else toText t
   in
   asserT
+    ~debug:t
     "wrong length toTestText"
-    (String.length result = String.length (toText t))
-    t ;
+    (String.length result = String.length (toText t)) ;
   result
 
 

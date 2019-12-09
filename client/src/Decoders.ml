@@ -377,8 +377,10 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
         (field "sidebarOpen" bool)
         j
   ; showTopbar =
-      withDefault Defaults.defaultEditor.showTopbar (field "showTopbar" bool) j
-  }
+      withDefault
+        Defaults.defaultEditor.showTopbar
+        (field "showTopbar1" bool)
+        j }
 
 
 and cursorState j =
@@ -395,7 +397,7 @@ and cursorState j =
     ; ("Deselected", dv0 Deselected)
     ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
-    ; ("FluidMouseSelecting", dv1 (fun a -> FluidMouseSelecting a) tlid) ]
+    ; ("FluidMouseSelecting", dv1 (fun a -> FluidEntering a) tlid) ]
     j
 
 

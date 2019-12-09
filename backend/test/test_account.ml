@@ -19,9 +19,13 @@ let t_authenticate_user () =
     "Account.authenticate_user works for the test user"
     true
     ( Account.authenticate "test" "fVm2CUePzGKCwoEQQdNJktUQ"
-    && (not (Account.authenticate "test_unhashed" "fVm2CUePzGKCwoEQQdNJktUQ"))
-    && (not (Account.authenticate "test" "no"))
-    && not (Account.authenticate "test_unhashed" "no") )
+      |> Option.value ~default:"failure"
+      = "test"
+    && (not
+          ( Account.authenticate "test_unhashed" "fVm2CUePzGKCwoEQQdNJktUQ"
+          |> Option.is_some ))
+    && (not (Account.authenticate "test" "no" |> Option.is_some))
+    && not (Account.authenticate "test_unhashed" "no" |> Option.is_some) )
 
 
 let t_special_case_accounts_work () =

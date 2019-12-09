@@ -257,31 +257,36 @@ let set_admin ~username (admin : bool) : unit =
     ~params:[Bool admin; String username]
 
 
-let valid_user ~(username : username) ~(password : string) : bool =
+(* Returns None if no valid user, or Some username _from the db_ if valid. Note:
+ * the input username may also be an email address. We do this because users
+ * input data this way and it seems silly not to allow it.
+ *
+ * No need to detect which and SQL differently; no valid username contains a
+ * '@', and every valid email address does. [If you say 'uucp bang path', I will
+ * laugh and then tell you to give me a real email address.] *)
+let authenticate ~(username_or_email : username) ~(password : string) :
+    string option =
   match
     Db.fetch_one_option
       ~name:"valid_user"
-      ~subject:username
-      "SELECT password from accounts
-           WHERE accounts.username = $1"
-      ~params:[String username]
+      ~subject:username_or_email
+      "SELECT username, password from accounts
+           WHERE accounts.username = $1 OR accounts.email = $1"
+      ~params:[String username_or_email]
   with
-  | None ->
-      false
-  | Some [db_password] ->
-      password
-      |> Bytes.of_string
-      |> Hash.wipe_to_password
-      |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
-  | _ ->
-      false
+  | Some [db_username; db_password] ->
+      if password
+         |> Bytes.of_string
+         |> Hash.wipe_to_password
+         |> Hash.verify_password_hash
+              (Bytes.of_string (B64.decode db_password))
+      then Some db_username
+      else None
+  | None | _ ->
+      None
 
 
 let can_access_operations ~(username : username) : bool = is_admin ~username
-
-let authenticate ~(username : username) ~(password : string) : bool =
-  valid_user ~username ~password
-
 
 let owner ~(auth_domain : string) : Uuidm.t option =
   let auth_domain = String.lowercase auth_domain in

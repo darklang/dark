@@ -70,9 +70,9 @@ let pos tl =
   | TLGroup g ->
       g.pos
   | TLFunc f ->
-      recover "no pos in a func" f.ufTLID {x = 0; y = 0}
+      recover "no pos in a func" ~debug:f.ufTLID {x = 0; y = 0}
   | TLTipe t ->
-      recover "no pos in a tipe" t.utTLID {x = 0; y = 0}
+      recover "no pos in a tipe" ~debug:t.utTLID {x = 0; y = 0}
 
 
 let remove (m : model) (tl : toplevel) : model =
@@ -180,9 +180,9 @@ let toOp (tl : toplevel) : op list =
   | TLTipe t ->
       [SetType t]
   | TLGroup _ ->
-      recover "Groups are front end only" (id tl) []
+      recover "Groups are front end only" ~debug:(id tl) []
   | TLDB _ ->
-      recover "This isn't how datastore ops work" (id tl) []
+      recover "This isn't how datastore ops work" ~debug:(id tl) []
 
 
 let customEventSpaceNames (handlers : handler TD.t) : string list =
@@ -458,7 +458,10 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         let newSpec = SpecHeaders.replace id bo h.spec in
         TLHandler {h with spec = newSpec}
     | _ ->
-        recover "Changing handler metadata on non-handler" replacement tl )
+        recover
+          "Changing handler metadata on non-handler"
+          ~debug:replacement
+          tl )
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
   | PFnName _ | PParamName _ | PParamTipe _ ->
@@ -467,21 +470,21 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         let newFn = Functions.replaceMetadataField p replacement fn in
         TLFunc newFn
     | _ ->
-        recover "Changing fn metadata on non-fn" replacement tl )
+        recover "Changing fn metadata on non-fn" ~debug:replacement tl )
   | PTypeName _ | PTypeFieldName _ | PTypeFieldTipe _ ->
     ( match asUserTipe tl with
     | Some tipe ->
         let newTL = UserTypes.replace p replacement tipe in
         TLTipe newTL
     | _ ->
-        recover "Changing tipe metadata on non-tipe" replacement tl )
+        recover "Changing tipe metadata on non-tipe" ~debug:replacement tl )
   | PGroupName _ ->
     ( match asGroup tl with
     | Some group ->
         let newTL = Groups.replace p replacement group in
         TLGroup newTL
     | _ ->
-        recover "Changing group metadata on non-fn" replacement tl )
+        recover "Changing group metadata on non-fn" ~debug:replacement tl )
 
 
 let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -498,9 +501,9 @@ let replaceOp (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
     | TLTipe t ->
         [SetType t]
     | TLDB _ ->
-        recover "no vars in DBs" tl []
+        recover "no vars in DBs" ~debug:tl []
     | TLGroup _ ->
-        recover "groups are front end only" tl []
+        recover "groups are front end only" ~debug:tl []
 
 
 let replaceMod (pd : pointerData) (replacement : pointerData) (tl : toplevel) :
@@ -545,7 +548,8 @@ let find (tl : toplevel) (id_ : id) : pointerData option =
   allData tl
   |> List.filter ~f:(fun d -> id_ = P.toID d)
   |> assertFn
-       ("cant find pd for id", id tl, id)
+       "cant find pd for id"
+       ~debug:(id tl, id)
        ~f:(fun r -> List.length r <= 1)
   (* guard against dups *)
   |> List.head
@@ -601,8 +605,8 @@ let setSelectedAST (m : model) (ast : expr) : modification =
     | TLFunc f ->
         RPC ([SetFunction {f with ufAST = ast}], FocusNoChange)
     | TLTipe _ ->
-        recover "no ast in Tipes" tl NoChange
+        recover "no ast in Tipes" ~debug:tl NoChange
     | TLDB _ ->
-        recover "no ast in DBs" tl NoChange
+        recover "no ast in DBs" ~debug:tl NoChange
     | TLGroup _ ->
-        recover "no ast in Groups" tl NoChange )
+        recover "no ast in Groups" ~debug:tl NoChange )

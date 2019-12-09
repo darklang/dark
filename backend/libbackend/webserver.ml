@@ -1381,7 +1381,7 @@ let handle_login_page ~execution_id req body =
     then
       (* This tells nginx to proxy-pass to the corpsite's /login via nginx'
        * /user-login location - see
-       * scripts/support/nginx.conf. Note that it _only_ proxys /login
+       * scripts/support/nginx.conf. Note that it _only_ proxies /login
        * exactly *)
       let resp_headers =
         Header.of_list
@@ -1395,7 +1395,9 @@ let handle_login_page ~execution_id req body =
   else
     (* Responds to a form submitted from login.html *)
     let params = Uri.query_of_encoded body in
-    let username, password, redirect =
+    (*  the username form param may be username _or_ email; we get the username
+     *  back from the DB when we call authenticate *)
+    let username_or_email, password, redirect =
       List.fold params ~init:(None, None, None) ~f:(fun (u, p, r) (k, vs) ->
           if k = "username"
           then (List.hd vs, p, r)
@@ -1405,9 +1407,13 @@ let handle_login_page ~execution_id req body =
           then (u, p, List.hd vs)
           else (u, p, r) )
     in
-    match (username, password) with
-    | Some username, Some password
-      when Account.authenticate ~username ~password ->
+    let username =
+      Option.map2 username_or_email password ~f:(fun u p -> (u, p))
+      |> Option.bind ~f:(fun (username_or_email, password) ->
+             Account.authenticate ~username_or_email ~password )
+    in
+    match username with
+    | Some username ->
         Log.add_log_annotations
           [("username", `String username)]
           (fun _ ->
@@ -1440,8 +1446,7 @@ let handle_login_page ~execution_id req body =
             over_headers_promise
               ~f:(fun h -> Header.add_list h headers)
               (S.respond_redirect ~uri:(Uri.of_string redirect_to) ()) )
-    | _ ->
-        (* TODO: reload with error *)
+    | None ->
         let uri = Uri.of_string "/login" in
         let uri =
           match redirect with
@@ -1517,39 +1522,41 @@ let authenticate_then_handle ~(execution_id : Types.id) handler req body =
          * to /a/<canvas>, your browser will still present basic auth, but we
          * want to redirect you to the /login page, hence checking the
          * user-agent. *)
-        | Some (`Basic (username, password)), Some true ->
-            if Account.authenticate ~username ~password
-            then
-              (* This is dupe of the "real" (/login) session code; since we're gonna
-           * rip this basic auth codepath out post-Strangeloop, I don't feel
-           * like DRYing it up *)
-              let%lwt session = Auth.Session.new_for_username username in
-              let https_only_cookie =
-                req |> CRequest.uri |> should_use_https
-              in
-              let domain =
-                Header.get headers "host"
-                |> Option.value ~default:"darklang.com"
-                |> String.substr_replace_all ~pattern:":8000" ~with_:""
-              in
-              let csrf_token = Auth.Session.csrf_token_for session in
-              (* this is silly, but dark-cli regexes the csrf_token from the body
-             * for historical reasons
-             *)
-              let body = "const csrfToken = \"" ^ csrf_token ^ "\";" in
-              let resp_headers =
-                username_header username
-                :: Auth.Session.to_cookie_hdrs
-                     ~http_only:true
-                     ~secure:https_only_cookie
-                     ~domain
-                     ~path:"/"
-                     Auth.Session.cookie_key
-                     session
-                |> Cohttp.Header.of_list
-              in
-              respond ~execution_id ~resp_headers `OK body
-            else respond ~execution_id `Unauthorized "Bad credentials"
+        | Some (`Basic (username_or_email, password)), Some true ->
+            let username = Account.authenticate ~username_or_email ~password in
+            ( match username with
+            | Some username ->
+                (* This is dupe of the "real" (/login) session code; since we're gonna
+                 * rip this basic auth codepath out post-Strangeloop, I don't feel
+                 * like DRYing it up *)
+                let%lwt session = Auth.Session.new_for_username username in
+                let https_only_cookie =
+                  req |> CRequest.uri |> should_use_https
+                in
+                let domain =
+                  Header.get headers "host"
+                  |> Option.value ~default:"darklang.com"
+                  |> String.substr_replace_all ~pattern:":8000" ~with_:""
+                in
+                let csrf_token = Auth.Session.csrf_token_for session in
+                (* this is silly, but dark-cli regexes the csrf_token from the body
+                 * for historical reasons
+                 *)
+                let body = "const csrfToken = \"" ^ csrf_token ^ "\";" in
+                let resp_headers =
+                  username_header username
+                  :: Auth.Session.to_cookie_hdrs
+                       ~http_only:true
+                       ~secure:https_only_cookie
+                       ~domain
+                       ~path:"/"
+                       Auth.Session.cookie_key
+                       session
+                  |> Cohttp.Header.of_list
+                in
+                respond ~execution_id ~resp_headers `OK body
+            | None ->
+                respond ~execution_id `Unauthorized "Bad credentials" )
         | _ ->
             (* If it's an api, don't try to redirect *)
             if Re2.matches (Re2.create_exn "^/api/") path
