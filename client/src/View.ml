@@ -114,7 +114,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
       TL.getAST tl
       |> Option.map ~f:(Fluid.fromExpr m.fluidState)
       |> Option.andThen ~f:(Fluid.getToken m.fluidState)
-      |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+      |> Option.map ~f:(fun ti -> FluidToken.id ti.token)
       |> Option.orElse (idOf m.cursorState)
     else idOf m.cursorState
   in

@@ -15,7 +15,7 @@ let getCurrentPointer (m : model) : (toplevel * pointerData) option =
         |> Option.andThen ~f:TL.getAST
         |> Option.map ~f:(Fluid.fromExpr s)
         |> Option.andThen ~f:(Fluid.getToken s)
-        |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
+        |> Option.map ~f:(fun ti -> FluidToken.id ti.token)
     | _ ->
         idOf m.cursorState
   in

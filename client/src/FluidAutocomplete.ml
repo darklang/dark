@@ -9,6 +9,7 @@ module TL = Toplevel
 module B = Blank
 module Regex = Util.Regex
 module TD = TLIDDict
+module Token = FluidToken
 
 type autocomplete = fluidAutocompleteState [@@deriving show]
 
@@ -210,7 +211,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
     | TFieldName (_, fieldID, _) ->
         fieldID
     | _ ->
-        FluidToken.tid ti.token
+        Token.id ti.token
   in
   (* TODO: missing function *)
   match TL.getAST tl with
@@ -228,7 +229,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
 
 
 let isPipeMember (tl : toplevel) (ti : tokenInfo) =
-  let id = FluidToken.tid ti.token in
+  let id = Token.id ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e ->
@@ -238,7 +239,7 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
 
 let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
     tipe =
-  let id = FluidToken.tid ti.token in
+  let id = Token.id ti.token in
   TL.getAST tl
   |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast id)
   |> Option.andThen ~f:(fun (name, index) ->
@@ -345,7 +346,7 @@ let generateExprs m (tl : toplevel) a ti =
     ; FACConstructorName ("Ok", 1)
     ; FACConstructorName ("Error", 1) ]
   in
-  let id = FluidToken.tid ti.token in
+  let id = Token.id ti.token in
   let varnames =
     Analysis.getSelectedTraceID m (TL.id tl)
     |> Option.map ~f:(Analysis.getAvailableVarnames m tl id)

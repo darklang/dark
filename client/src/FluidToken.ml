@@ -2,13 +2,11 @@ open Tc
 open Types
 open Prelude
 
-type token = Types.fluidToken
-
-type tokenInfo = Types.fluidTokenInfo
+type t = Types.fluidToken
 
 let fakeid = ID "fake-id"
 
-let tid (t : token) : id =
+let id (t : t) : id =
   match t with
   | TInteger (id, _)
   | TFloatWhole (id, _)
@@ -73,7 +71,7 @@ let tid (t : token) : id =
       fakeid
 
 
-let analysisID (t : token) : id =
+let analysisID (t : t) : id =
   match t with
   | TLetLHS (_, id, _)
   | TLetKeyword (_, id)
@@ -84,11 +82,11 @@ let analysisID (t : token) : id =
   | TFieldName (_, id, _) ->
       id
   | _ ->
-      tid t
+      id t
 
 
-let parentExprID (t : token) : id =
-  match t with TNewline (Some (_, id, _)) -> id | _ -> tid t
+let parentExprID (t : t) : id =
+  match t with TNewline (Some (_, id, _)) -> id | _ -> id t
 
 
 let validID id = id <> fakeid
@@ -199,7 +197,7 @@ let isBlank t =
       false
 
 
-let isKeyword (t : token) =
+let isKeyword (t : t) =
   match t with
   | TLetKeyword _
   | TIfKeyword _
@@ -211,11 +209,9 @@ let isKeyword (t : token) =
       false
 
 
-let isSkippable (token : token) : bool =
-  match token with TIndent _ -> true | _ -> false
+let isSkippable (t : t) : bool = match t with TIndent _ -> true | _ -> false
 
-
-let isAtom (t : token) : bool =
+let isAtom (t : t) : bool =
   match t with
   | TMatchSep _ | TPipe _ | TLambdaArrow _ ->
       true
@@ -223,15 +219,13 @@ let isAtom (t : token) : bool =
       isKeyword t || isBlank t
 
 
-let isNewline (t : token) : bool =
-  match t with TNewline _ -> true | _ -> false
+let isNewline (t : t) : bool = match t with TNewline _ -> true | _ -> false
 
-
-let isLet (t : token) : bool =
+let isLet (t : t) : bool =
   match t with TLetAssignment _ | TLetLHS _ -> true | _ -> false
 
 
-let isAutocompletable (t : token) : bool =
+let isAutocompletable (t : t) : bool =
   match t with
   | TBlank _
   | TPlaceholder _
@@ -249,11 +243,11 @@ let isAutocompletable (t : token) : bool =
 
 
 (* Is this token something we can highlight as DError or DIncomplete? *)
-let isErrorDisplayable (t : token) : bool =
+let isErrorDisplayable (t : t) : bool =
   isTextToken t && match t with TFnVersion _ -> false | _ -> true
 
 
-let toText (t : token) : string =
+let toText (t : t) : string =
   let shouldntBeEmpty name =
     asserT ~debug:t "shouldn't be empty" (name <> "") ;
     name
@@ -380,7 +374,7 @@ let toText (t : token) : string =
       ")"
 
 
-let toTestText (t : token) : string =
+let toTestText (t : t) : string =
   let result =
     match t with
     | TPlaceholder ((name, tipe), _) ->
@@ -411,7 +405,7 @@ let toTestText (t : token) : string =
   result
 
 
-let toIndex (t : token) : int option =
+let toIndex (t : t) : int option =
   match t with
   | TStringMLMiddle (_, _, index, _)
   | TLambdaVar (_, _, index, _)
@@ -426,7 +420,7 @@ let toIndex (t : token) : int option =
       None
 
 
-let toTypeName (t : token) : string =
+let toTypeName (t : t) : string =
   match t with
   | TInteger _ ->
       "integer"
@@ -548,7 +542,7 @@ let toTypeName (t : token) : string =
       "paren-close"
 
 
-let toCategoryName (t : token) : string =
+let toCategoryName (t : t) : string =
   match t with
   | TInteger _ ->
       "integer"
@@ -602,7 +596,7 @@ let toCategoryName (t : token) : string =
       "paren"
 
 
-let toDebugInfo (t : token) : string =
+let toDebugInfo (t : t) : string =
   match t with
   | TStringMLStart (_, _, offset, _)
   | TStringMLMiddle (_, _, offset, _)
@@ -614,7 +608,7 @@ let toDebugInfo (t : token) : string =
       ""
 
 
-let toCssClasses (t : token) : string list =
+let toCssClasses (t : t) : string list =
   let empty = if isBlank t then Some "fluid-empty" else None in
   let keyword = if isKeyword t then Some "fluid-keyword" else None in
   let typename = Some ("fluid-" ^ toTypeName t) in
@@ -625,27 +619,12 @@ let toCssClasses (t : token) : string list =
   [empty; keyword; typename; category] |> List.filterMap ~f:identity
 
 
-let show_tokenInfo (ti : tokenInfo) =
-  Html.dl
-    []
-    [ Html.dt [] [Html.text "pos"]
-    ; Html.dd [] [Html.text (Printf.sprintf "(%d, %d)" ti.startPos ti.endPos)]
-    ; Html.dt [] [Html.text "tok"]
-    ; Html.dd [] [Html.text (toText ti.token)]
-    ; Html.dt [] [Html.text "id"]
-    ; Html.dd [] [Html.text (tid ti.token |> deID)]
-    ; Html.dt [] [Html.text "type"]
-    ; Html.dd [] [Html.text (toTypeName ti.token)]
-    ; Html.dt [] [Html.text "debug"]
-    ; Html.dd [] [Html.text (toDebugInfo ti.token)] ]
-
-
 (* Since tokens don't have unique IDs, it is hard to look at two tokens streams
  * and find which tokens represent the same thing. You can use toText and ID,
  * but that doesn't work where the content has changed, which is a thing we
  * want to check for. *)
-let matches (t1 : token) (t2 : token) : bool =
-  tid t1 = tid t2
+let matches (t1 : t) (t2 : t) : bool =
+  id t1 = id t2
   && toTypeName t1 = toTypeName t2
   && toIndex t1 = toIndex t2
   && t1 <> (* Matches too many things *) TNewline None

@@ -952,7 +952,7 @@ and modification =
   | TweakModel of (model -> model)
   | Apply of
       (   (* It can be tempting to call a function which returns
-           * modifications. However, this can have a bug - the model 
+           * modifications. However, this can have a bug - the model
            * used to create those modifications can be wrong (if the
            * model was changed by previous modifications). Apply can
            * be used to call the functions and apply the modifications,

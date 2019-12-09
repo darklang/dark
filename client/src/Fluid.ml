@@ -29,6 +29,7 @@ module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module Token = FluidToken
+module TokenInfo = FluidTokenInfo
 
 type viewState = ViewUtils.viewState
 
@@ -460,8 +461,6 @@ let pmid pattern : id =
 (* -------------------- *)
 (* Tokens *)
 (* -------------------- *)
-type token = Types.fluidToken
-
 type tokenInfo = Types.fluidTokenInfo
 
 let rec patternToToken (p : fluidPattern) : fluidToken list =
@@ -988,7 +987,7 @@ let report (e : string) (s : state) =
 (* Update *)
 (* -------------------- *)
 
-let length (tokens : token list) : int =
+let length (tokens : Token.t list) : int =
   tokens |> List.map ~f:Token.toText |> List.map ~f:String.length |> List.sum
 
 
@@ -999,8 +998,8 @@ let getLeftTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
 
 
 type neighbour =
-  | L of token * tokenInfo
-  | R of token * tokenInfo
+  | L of Token.t * TokenInfo.t
+  | R of Token.t * TokenInfo.t
   | No
 
 let rec getTokensAtPosition
@@ -1067,7 +1066,7 @@ let gridFor ~(pos : int) (tokens : tokenInfo list) : gridPos =
   in
   match ti with
   | Some ti ->
-      if FluidToken.isNewline ti.token
+      if Token.isNewline ti.token
       then {row = ti.startRow + 1; col = 0}
       else {row = ti.startRow; col = ti.startCol + (pos - ti.startPos)}
   | None ->
@@ -1419,7 +1418,7 @@ let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   token.startPos
 
 
-(* getBegOfWordInStrCaretPos returns the closest whitespace position before the 
+(* getBegOfWordInStrCaretPos returns the closest whitespace position before the
  * current caret position in a string  *)
 let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
@@ -1439,7 +1438,7 @@ let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   ti.startPos + !nextPos
 
 
-(* getEndOfWordInStrCaretPos returns the closest whitespace position after the 
+(* getEndOfWordInStrCaretPos returns the closest whitespace position after the
  * current caret position in a string  *)
 let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
@@ -1495,7 +1494,7 @@ let moveToEndOfLine (ast : ast) (ti : tokenInfo) (s : state) : state =
 let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
     state =
   let s = recordAction "goToStartOfWord" s in
-  (* We want to find the closest editable token that is before the current cursor position 
+  (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let previousToken =
     toTokens s ast
@@ -1514,7 +1513,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
 let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
     =
   let s = recordAction "goToEndOfWord" s in
-  (* We want to find the closest editable token that is after the current cursor position 
+  (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let nextToken =
     toTokens s ast
@@ -1565,14 +1564,13 @@ let moveToEndOfTarget (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveToEndOfTarget" s in
   let tokens = toTokens s ast in
   match
-    List.find (List.reverse tokens) ~f:(fun ti ->
-        FluidToken.tid ti.token = target )
+    List.find (List.reverse tokens) ~f:(fun ti -> Token.id ti.token = target)
   with
   | None ->
       recover "cannot find token to moveToEndOfTarget" ~debug:(target, ast) s
   | Some lastToken ->
       let newPos =
-        if FluidToken.isBlank lastToken.token
+        if Token.isBlank lastToken.token
         then lastToken.startPos
         else lastToken.endPos
       in
@@ -1955,7 +1953,7 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
 let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let newState = ref (fun (_ : ast) -> s) in
   let ast =
-    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | EPartial
             ( _
@@ -2094,9 +2092,9 @@ let convertToBinOp (char : char option) (id : id) (ast : ast) : ast =
 
 
 let deleteRightPartial (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
+  let id = ref Token.fakeid in
   let ast =
-    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | ERightPartial (_, _, oldVal) ->
             id := eid oldVal ;
@@ -2125,9 +2123,9 @@ let replaceWithRightPartial (str : string) (id : id) (ast : ast) : ast =
 
 
 let deleteBinOp (ti : tokenInfo) (ast : ast) : ast * id =
-  let id = ref FluidToken.fakeid in
+  let id = ref Token.fakeid in
   let ast =
-    updateExpr (FluidToken.tid ti.token) ast ~f:(fun e ->
+    updateExpr (Token.id ti.token) ast ~f:(fun e ->
         match e with
         | EBinOp (_, _, EPipeTarget _, rhs, _) ->
             id := eid rhs ;
@@ -2161,7 +2159,7 @@ let removePipe (id : id) (ast : ast) (index : int) : ast =
 
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
-let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
+let replaceStringToken ~(f : string -> string) (token : Token.t) (ast : ast) :
     fluidExpr =
   match token with
   | TStringMLStart (id, _, _, str)
@@ -2701,7 +2699,7 @@ let updateFromACItem
     (ast : ast)
     (s : state)
     (key : K.key) : ast * state =
-  let id = Token.tid ti.token in
+  let id = Token.id ti.token in
   let newExpr, offset = acToExpr entry in
   let oldExpr = findExpr id ast in
   let parent = findParent id ast in
@@ -2841,7 +2839,7 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
       let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
-      let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
+      let newAST = replaceExpr ~newExpr (Token.id ti.token) ast in
       (newAST, newState)
 
 
@@ -2853,7 +2851,7 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
    the passed caretTarget within the passed ast. We expect to succeed in finding
    the target. If we cannot, we `recover` and return the current caret pos
    as a fallback.
-   
+
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
 let posFromCaretTarget (s : state) (ast : ast) (ct : caretTarget) : int =
@@ -2958,11 +2956,11 @@ let adjustPosForReflow
   | SamePlace, _ ->
       newPos
   | RightOne, _ ->
-      if FluidToken.isBlank oldTI.token
+      if Token.isBlank oldTI.token
       then oldTI.startPos + diff + 1
       else newPos + 1
   | RightTwo, _ ->
-      if FluidToken.isBlank oldTI.token
+      if Token.isBlank oldTI.token
       then oldTI.startPos + diff + 2
       else newPos + 2
   | LeftOne, Some newTI ->
@@ -2986,11 +2984,10 @@ let adjustPosForReflow
   | MoveToTokenEnd (id, offset), _ ->
       newTokens
       |> List.reverse
-      |> List.find ~f:(fun x -> Token.tid x.token = id)
+      |> List.find ~f:(fun x -> Token.id x.token = id)
       |> Option.map ~f:(fun ti ->
-             if FluidToken.isBlank ti.token
-             then ti.startPos
-             else ti.endPos + offset )
+             if Token.isBlank ti.token then ti.startPos else ti.endPos + offset
+         )
       |> recoverOpt "didn't find expected token in MoveToToken" ~default:newPos
   | MoveToStart, Some newTI ->
       newTI.startPos
@@ -3027,7 +3024,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
         (ast, MoveToStart)
     | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-        let newAST = removeEmptyExpr (Token.tid ti.token) ast in
+        let newAST = removeEmptyExpr (Token.id ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
     | TString (id, "") ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
@@ -3163,7 +3160,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-      (removeEmptyExpr (Token.tid ti.token) ast, s)
+      (removeEmptyExpr (Token.id ti.token) ast, s)
   | (TListOpen id | TRecordOpen id) when exprIsEmpty id ast ->
       (replaceExpr id ~newExpr:(newB ()) ast, s)
   | TLambdaSep (id, idx) ->
@@ -3324,7 +3321,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
           None
     in
     let fnname =
-      let id = FluidToken.tid ti.token in
+      let id = Token.id ti.token in
       match findParent id ast with
       | Some (EFnCall (_, name, _, _)) ->
           Some name
@@ -3363,7 +3360,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         let fieldID = gid () in
         (exprToFieldAccess id fieldID ast, RightOne)
     (* Dont add space to blanks *)
-    | ti when FluidToken.isBlank ti && letterStr == " " ->
+    | ti when Token.isBlank ti && letterStr == " " ->
         (ast, SamePlace)
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
@@ -3406,7 +3403,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TFieldName _
     | TLambdaVar _
     | TRecordFieldname _
-      when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
+      when isNumber letterStr && (offset = 0 || Token.isBlank ti.token) ->
         (ast, SamePlace)
     | (TFnVersion _ | TFnName _) when not (isFnNameChar letterStr) ->
         (ast, SamePlace)
@@ -3520,7 +3517,7 @@ let doInsert
 
 let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : ast * fluidState =
   let s = recordAction "wrapInLet" s in
-  let id = Token.tid ti.token in
+  let id = Token.id ti.token in
   match findExpr id ast with
   | Some expr ->
       let bodyId = gid () in
@@ -3696,7 +3693,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | None ->
           false
     in
-    let tid = Token.tid token in
+    let tid = Token.id token in
     recurseUp (findParent tid ast) tid
   in
   let newAST, newState =
@@ -3887,7 +3884,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
-        then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
+        then (addBlankToList (Token.id t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos keyChar ti ast s
     (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
@@ -3936,7 +3933,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Enter, L (TNewline (Some (id, _, index)), _), _ ->
         addEntryAbove id index ast s
     | K.Enter, No, R (t, _) ->
-        addEntryAbove (FluidToken.tid t) None ast s
+        addEntryAbove (Token.id t) None ast s
     | K.Enter, L (token, ti), No when not (Token.isLet token) ->
         wrapInLet ti ast s
     | K.Period, L (TInteger (id, _), ti), _ ->
@@ -3962,7 +3959,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         doInsert ~pos keyChar toTheRight ast s
     | _, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
+        ( convertToBinOp keyChar (Token.id toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
@@ -4215,7 +4212,7 @@ let getExpressionRangeAtCaret (state : fluidState) (ast : ast) :
   (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
-         let exprID = Token.tid t.token in
+         let exprID = Token.id t.token in
          exprRangeInAst ~state ~ast exprID )
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
@@ -4287,7 +4284,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
                then "\"" ^ trimQuotes text ^ "\""
                else text
              in
-             Token.(tid t, text, toTypeName t) )
+             Token.(id t, text, toTypeName t) )
     in
     let reconstructExpr expr : fluidExpr option =
       let exprID =
@@ -4710,7 +4707,7 @@ let getStringIndex ti pos : int =
 let pasteOverSelection ~state ~ast data : ast * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
-  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
+  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.id) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr = clipboardContentsToExpr ~state data in
@@ -5246,9 +5243,9 @@ let fnForToken state token : function_ option =
       None
 
 
-let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
+let fnArgExprs (token : Token.t) (ast : fluidExpr) (state : state) :
     fluidExpr list =
-  let id = Token.tid token in
+  let id = Token.id token in
   let previous =
     toExpr ast
     |> AST.threadPrevious id
@@ -5290,7 +5287,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   let l = ast |> toTokens state in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
-    if FluidToken.validID id
+    if Token.validID id
     then
       match Analysis.getLiveValueLoadable vs.analysisStore id with
       | LoadableSuccess (DIncomplete (SourceId id)) ->
@@ -5323,7 +5320,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
             else Vdom.noNode
       in
       let element nested =
-        let tokenId = Token.tid ti.token in
+        let tokenId = Token.id ti.token in
         let idStr = deID tokenId in
         let content = Token.toText ti.token in
         let analysisId = Token.analysisID ti.token in
@@ -5470,12 +5467,12 @@ let viewLiveValue
                  if fn.fnPreviewExecutionSafe
                  then None
                  else
-                   let id = Token.tid ti.token in
+                   let id = Token.id ti.token in
                    ViewFnExecution.fnExecutionStatus vs fn id args
                    |> ViewFnExecution.executionError
                    |> Option.some )
            in
-           if FluidToken.validID id
+           if Token.validID id
            then
              let lvHtml dval =
                let text = Runtime.toRepr dval in
@@ -5628,8 +5625,8 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
   in
   let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
-    let tokenInfo tkn =
-      Html.dd [Attrs.class' "tokenInfo"] [Token.show_tokenInfo tkn]
+    let tokenInfo ti =
+      Html.dd [Attrs.class' "tokenInfo"] [TokenInfo.debugInfo ti]
     in
     let ddLeft =
       match left with

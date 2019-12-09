@@ -12,6 +12,7 @@ end
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module K = FluidKeyboard
+module Token = FluidToken
 
 let filterInputID : string = "cmd-filter"
 
@@ -48,7 +49,7 @@ let commandsFor (tl : toplevel) (id : id) : command list =
 
 let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
   { index = 0
-  ; commands = commandsFor tl (FluidToken.tid token)
+  ; commands = commandsFor tl (Token.id token)
   ; location = Some (TL.id tl, token)
   ; filter = None }
 
@@ -56,7 +57,7 @@ let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
 let executeCommand
     (m : model) (tlid : tlid) (token : fluidToken) (cmd : command) :
     modification =
-  match TL.getTLAndPD m tlid (FluidToken.tid token) with
+  match TL.getTLAndPD m tlid (Token.id token) with
   | Some (tl, Some pd) ->
       cmd.action m tl pd
   | _ ->
@@ -129,7 +130,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
     match cp.location with
     | Some (tlid, token) ->
         Option.map (TL.get m tlid) ~f:(fun tl ->
-            commandsFor tl (FluidToken.tid token) )
+            commandsFor tl (Token.id token) )
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
         Commands.commands
