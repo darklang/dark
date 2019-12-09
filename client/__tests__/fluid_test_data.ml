@@ -340,6 +340,8 @@ let lambdaWithUsed2ndBinding (bindingName : string) =
 (* ---------------- *)
 let aFnCall = EFnCall (gid (), "Int::add", [five; b], NoRail)
 
+let aFullFnCall = EFnCall (gid (), "Int::add", [five; five], NoRail)
+
 let aFnCallWithVersion = EFnCall (gid (), "DB::getAll_v1", [b], NoRail)
 
 let aFnCallWithBlockArg = EFnCall (gid (), "Dict::map", [b; b], NoRail)

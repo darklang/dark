@@ -7,27 +7,7 @@ module TL = Toplevel
 module P = Pointer
 module TD = TLIDDict
 
-type viewState = ViewUtils.viewState
-
-type htmlConfig = ViewBlankOr.htmlConfig
-
-let idConfigs = ViewBlankOr.idConfigs
-
 let fontAwesome = ViewUtils.fontAwesome
-
-let viewText = ViewBlankOr.viewText
-
-let wc = ViewBlankOr.wc
-
-let text = ViewBlankOr.text
-
-let div = ViewBlankOr.div
-
-let nested = ViewBlankOr.nested
-
-let atom = ViewBlankOr.atom
-
-let keyword = ViewBlankOr.keyword
 
 let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
   let tlid = TL.id tl in
@@ -76,7 +56,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                 ToplevelClick (tlid, x)
             | Some range ->
                 (* Persist fluid selection when clicking in handler *)
-                FluidMsg (FluidUpdateSelection (tlid, Some range)) ) ]
+                FluidMsg (FluidMouseUp (tlid, Some range)) ) ]
     else
       [ ViewUtils.eventNoPropagation
           ~key:("tlmd-" ^ showTLID tlid)
@@ -344,7 +324,9 @@ let viewCanvas (m : model) : msg Html.html =
   in
   let styles =
     [ ( "transition"
-      , if m.canvasProps.panAnimation then "transform 0.5s" else "unset" )
+      , if m.canvasProps.panAnimation = AnimateTransition
+        then "transform 0.5s"
+        else "unset" )
     ; canvasTransform ]
   in
   let overlay =

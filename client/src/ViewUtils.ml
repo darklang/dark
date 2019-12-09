@@ -412,7 +412,7 @@ let splitFnName (fnName : fnName) : string option * string * string =
       | [_; _; mod_; Some fn; _; None] ->
           (mod_, fn, "0")
       | _ ->
-          recover "invalid fn name" fnName (None, fnName, "0") )
+          recover "invalid fn name" ~debug:fnName (None, fnName, "0") )
   | None ->
       (None, fnName, "0")
 

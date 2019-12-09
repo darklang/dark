@@ -425,11 +425,11 @@ let getAstFromTopLevel tl : expr =
   | TLFunc f ->
       f.ufAST
   | TLGroup _ ->
-      recover "No ASTs in Groups" tl (B.new_ ())
+      recover "No ASTs in Groups" ~debug:tl (B.new_ ())
   | TLDB _ ->
-      recover "No ASTs in DBs" tl (B.new_ ())
+      recover "No ASTs in DBs" ~debug:tl (B.new_ ())
   | TLTipe _ ->
-      recover "No ASTs in Types" tl (B.new_ ())
+      recover "No ASTs in Types" ~debug:tl (B.new_ ())
 
 
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
@@ -556,8 +556,11 @@ let submitACItem
     ( match TL.getTLAndPD m tlid id with
     | Some (tl, Some pd) ->
       ( match validate tl pd stringValue with
-      | Some result ->
-          DisplayError result
+      | Some error ->
+          (* We submit when users click away from an input, but they might not have typed anything! We
+           * don't want to adjust the validators to allow empty strings where they are not allowed, but we
+           * also don't want to display an error when they were not responsible for it! *)
+          if stringValue = "" then NoChange else DisplayError error
       | None ->
           let wrap ops next =
             let wasEditing = P.isBlank pd |> not in
@@ -589,7 +592,7 @@ let submitACItem
               | TLGroup g ->
                   AddGroup g
               | TLDB _ ->
-                  recover "no vars in DBs" tl NoChange
+                  recover "no vars in DBs" ~debug:tl NoChange
           in
           let saveH h next = save (TLHandler h) next in
           let saveAst ast next =
@@ -599,11 +602,11 @@ let submitACItem
             | TLFunc f ->
                 save (TLFunc {f with ufAST = ast}) next
             | TLDB _ ->
-                recover "no ASTs in DBs" tl NoChange
+                recover "no ASTs in DBs" ~debug:tl NoChange
             | TLTipe _ ->
-                recover "no ASTs in Tipes" tl NoChange
+                recover "no ASTs in Tipes" ~debug:tl NoChange
             | TLGroup _ ->
-                recover "no ASTs in Groups" tl NoChange
+                recover "no ASTs in Groups" ~debug:tl NoChange
           in
           let replace new_ =
             tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
@@ -752,7 +755,7 @@ let submitACItem
                            ( F (id_, FieldAccess (lhs, B.newF fieldname))
                            , B.new_ () ))
                   | _ ->
-                      recover "should be a field" parent parent
+                      recover "should be a field" ~debug:parent parent
                 in
                 let new_ = PExpr wrapped in
                 let replacement = TL.replace (PExpr parent) new_ tl in
@@ -835,7 +838,7 @@ let submitACItem
                     ^ ", "
                     ^ Types.show_autocompleteItem item ) ) ) )
     | _ ->
-        recover "Missing tl/pd" cursor NoChange )
+        recover "Missing tl/pd" ~debug:cursor NoChange )
 
 
 let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
@@ -853,7 +856,7 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
   | _ ->
     ( match AC.highlighted m.complete with
     | Some (ACOmniAction _) ->
-        recover "Shouldnt allow omniactions here" cursor NoChange
+        recover "Shouldnt allow omniactions here" ~debug:cursor NoChange
     | Some item ->
         submitACItem m cursor item move
     | _ ->
@@ -901,4 +904,16 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
         | Some acItem ->
             submitACItem m cursor acItem move
         | None ->
-            DisplayError "Invalid input" ) )
+            (* There's no good error message when the user submits an empty string, but just not doing anything
+             * shows that it's not a valid input *)
+            if m.complete.value = ""
+            then NoChange
+            else DisplayError "Invalid input" ) )
+
+
+(* Submit, but don't move the cursor
+ *
+ * This was added to to cleanly express "commit the state of an input box when I click away",
+ * but is more generally intended to express "commit the state and I'll handle the cursor"
+ * *)
+let commit (m : model) (cursor : entryCursor) = submit m cursor StayHere

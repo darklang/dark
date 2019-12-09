@@ -56,7 +56,7 @@ let tlidOf (s : cursorState) : tlid option =
       None
   | SelectingCommand (tlid, _) ->
       Some tlid
-  | FluidEntering tlid | FluidMouseSelecting tlid ->
+  | FluidEntering tlid ->
       Some tlid
 
 
@@ -72,64 +72,73 @@ let idOf (s : cursorState) : id option =
       None
   | SelectingCommand (_, id) ->
       Some id
-  | FluidEntering _ | FluidMouseSelecting _ ->
+  | FluidEntering _ ->
       None
 
 
 (* -------------------------------------- *)
 (* Crashing *)
 (* -------------------------------------- *)
-let reportError (msg : 'msg) (msgVal : 'b) : unit =
-  let error =
-    "An unexpected but recoverable error happened. "
-    ^ "Message: "
-    ^ Js.String.make msg
-    ^ ", Value: "
-    ^ Js.String.make msgVal
-  in
+let reportError (msg : string) (msgVal : 'm) : unit =
   Js.log3 "An unexpected but recoverable error happened: " msg msgVal ;
   Js.Console.trace () ;
-  Native.Rollbar.send error None Js.Json.null ;
+  Native.Rollbar.send
+    msg
+    None
+    (* It seems ridiculous to convert to JSON strings, and then parse, to
+     * get the right type to send through, but I can't figure out a
+     * different way to do it. *)
+    ( msgVal
+    |> Js.Json.stringifyAny
+    |> Tc.Option.map ~f:Js.Json.parseExn
+    |> Tc.Option.withDefault ~default:Js.Json.null ) ;
   ()
 
 
 (* We never want to crash the app. Instead, send a rollbar notification of the invalid state and try to continue. *)
-let recover (msg : 'msg) (msgVal : 'b) (recoveryVal : 'c) : 'c =
-  reportError msg msgVal ;
+let recover ?(debug : 'd option) (msg : string) (recoveryVal : 'r) : 'r =
+  reportError ("Recover: " ^ msg) debug ;
   recoveryVal
 
 
-let recoverOpt (msg : 'msg) ~(default : 'a) (x : 'a option) : 'a =
+let recoverOpt
+    ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option) : 'r =
   match x with
   | Some y ->
       y
   | None ->
-      recover ("Got None but expected something: " ^ msg) x default
-
-
-(* Assert that `f a` returns true, passing the value back as a result. All
- * assertion functions report to rollbar if they fail. *)
-let assertFn (msg : 'msg) ~(f : 'a -> bool) (a : 'a) : 'a =
-  if f a then a else recover ("assertion failure", msg) a a
-
-
-(* Assert that `f a` returns true, as a statement. All assertion functions
- * report to rollbar if they fail. *)
-let asserTFn (msg : 'msg) ~(f : 'a -> bool) (val_ : 'a) : unit =
-  ignore (assertFn ~f msg val_)
+      recover ~debug ("Got None but expected something: " ^ msg) default
 
 
 (* Assert `cond`, returning val either way.  All assertion functions report
  * to rollbar if they fail.  *)
-let assert_ (msg : 'msg) (cond : bool) (val_ : 'a) : 'a =
-  if cond then val_ else recover ("assertion failure", msg) val_ val_
+let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r)
+    : 'r =
+  if cond
+  then returnVal
+  else recover ("Assertion failure: " ^ msg) ~debug returnVal
 
 
 (* Assert `cond` as a statement.  All assertion functions report to rollbar
  * if they fail.  *)
-let asserT (msg : 'msg) (cond : bool) (val_ : 'a) : unit =
-  ignore (assert_ msg cond val_)
+let asserT ?(debug : 'd option) (msg : 'msg) (cond : bool) : unit =
+  assert_ ~debug msg cond ()
+
+
+(* Assert that `f a` returns true, passing the value back as a result. All
+ * assertion functions report to rollbar if they fail. *)
+let assertFn
+    ?(debug : 'd option) (msg : string) ~(f : 'r -> bool) (returnVal : 'r) : 'r
+    =
+  assert_ ~debug msg (f returnVal) returnVal
+
+
+(* Assert that `f a` returns true, as a statement. All assertion functions
+ * report to rollbar if they fail. *)
+let asserTFn ?(debug : 'd option) (msg : string) ~(f : 'a -> bool) : unit =
+  assertFn ~f ~debug msg ()
 
 
 (* Like recover but with the message TODO *)
-let todo (msg : 'a) (recoveryVal : 'b) : 'b = recover "TODO" msg recoveryVal
+let todo (msg : string) (recoveryVal : 'b) : 'b =
+  recover ~debug:recoveryVal ("TODO: " ^ msg) recoveryVal

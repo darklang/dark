@@ -588,7 +588,7 @@ and nExpr (nexpr : Types.nExpr) : Js.Json.t =
   | FnCall (Blank _, exprs, r) ->
       let op = if r = Rail then "FnCallSendToRail" else "FnCall" in
       let encoded = ev op [string "unknown"; list e exprs] in
-      recover "fnCall hack used" nexpr encoded
+      recover "fnCall hack used" ~debug:nexpr encoded
   | Let (lhs, rhs, body) ->
       ev "Let" [blankOr string lhs; e rhs; e body]
   | Lambda (vars, body) ->
@@ -649,8 +649,6 @@ and cursorState (cs : Types.cursorState) : Js.Json.t =
       ev "Deselected" []
   | FluidEntering tlid_ ->
       ev "FluidEntering " [tlid tlid_]
-  | FluidMouseSelecting tlid_ ->
-      ev "FluidMouseSelecting " [tlid tlid_]
 
 
 and functionResult (fr : Types.functionResult) : Js.Json.t =
@@ -711,7 +709,7 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarOpen", bool se.sidebarOpen)
-    ; ("showTopbar", bool se.showTopbar) ]
+    ; ("showTopbar1", bool se.showTopbar) ]
 
 
 let fof (fof : Types.fourOhFour) : Js.Json.t =

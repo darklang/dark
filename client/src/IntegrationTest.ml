@@ -945,20 +945,6 @@ let fluid_ctrl_left_on_empty_match (_m : model) : testResult =
     ~actual:(Entry.getFluidCaretPos ())
 
 
-let fluid_ctrl_right_on_empty_match (_m : model) : testResult =
-  let expectedPos = 15 in
-  testIntOption
-    ~errMsg:
-      ( "incorrect browser cursor position, expected: "
-      ^ (expectedPos |> string_of_int)
-      ^ ", current: "
-      ^ ( Entry.getFluidCaretPos ()
-        |> Option.withDefault ~default:0
-        |> string_of_int ) )
-    ~expected:expectedPos
-    ~actual:(Entry.getFluidCaretPos ())
-
-
 let varnames_are_incomplete (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -1147,8 +1133,6 @@ let trigger (test_name : string) : integrationTestState =
         fluid_ctrl_right_on_string
     | "fluid_ctrl_left_on_empty_match" ->
         fluid_ctrl_left_on_empty_match
-    | "fluid_ctrl_right_on_empty_match" ->
-        fluid_ctrl_right_on_empty_match
     | "varnames_are_incomplete" ->
         varnames_are_incomplete
     | "center_toplevel" ->

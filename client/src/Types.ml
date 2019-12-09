@@ -441,7 +441,6 @@ and hasMoved = bool
 and cursorState =
   | Selecting of tlid * id option
   | Entering of entryCursor
-  | FluidMouseSelecting of tlid
   | FluidEntering of tlid
   | Dragging of tlid * vPos * hasMoved * cursorState
   | SelectingCommand of tlid * id
@@ -876,11 +875,15 @@ and toast =
   { toastMessage : string option
   ; toastPos : vPos option }
 
+and isTransitionAnimated =
+  | AnimateTransition
+  | DontAnimateTransition
+
 and canvasProps =
   { offset : pos
   ; enablePan : bool
   ; lastOffset : pos option
-  ; panAnimation : bool
+  ; panAnimation : isTransitionAnimated
   ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -939,7 +942,7 @@ and modification =
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
-  | MoveCanvasTo of pos
+  | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
@@ -947,6 +950,15 @@ and modification =
   | AppendStaticDeploy of staticDeploy list
   (* designed for one-off small changes *)
   | TweakModel of (model -> model)
+  | Apply of
+      (   (* It can be tempting to call a function which returns
+           * modifications. However, this can have a bug - the model 
+           * used to create those modifications can be wrong (if the
+           * model was changed by previous modifications). Apply can
+           * be used to call the functions and apply the modifications,
+           * so that the latest model is use. *)
+          model
+       -> modification)
   | SetTypes of userTipe list * userTipe list * bool
   | SetPermission of permission option
   | CenterCanvasOn of tlid
@@ -956,6 +968,10 @@ and modification =
   | UpdateDBStats of dbStatsStore
   | FluidCommandsShow of tlid * fluidToken
   | FluidCommandsClose
+  (* We need to track clicks so that we don't mess with the caret while a
+   * click is happening. *)
+  | FluidStartClick
+  | FluidEndClick
   | UpdateAvatarList of avatar list
   | ExpireAvatars
   | AddGroup of group
@@ -964,9 +980,9 @@ and modification =
   | MoveMemberToNewGroup of tlid * tlid * model
   | ShowSaveToast
   | SetClipboardContents of clipboardContents * clipboardEvent
-  | StartFluidMouseSelecting of tlid
   | UpdateASTCache of tlid * string
   | InitASTCache of handler list * userFunction list
+  | FluidSetState of fluidState
 
 (* ------------------- *)
 (* Msgs *)
@@ -975,7 +991,6 @@ and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
   | FluidCopy
   | FluidKeyPress of FluidKeyboard.keyEvent
-  | FluidMouseClick of tlid
   | FluidCut
   | FluidPaste of [`Json of Js.Json.t | `Text of string | `None]
       [@printer opaque "FluidPaste"]
@@ -983,10 +998,13 @@ and fluidMsg =
    * If the selection is None, the selection will be read from the browser rather than the browser's selection being set.
    * This bi-directionality is not ideal and could use some rethinking.
    *)
-  | FluidStartSelection of tlid
-  | FluidUpdateSelection of tlid * (int * int) option
+  | FluidMouseDown of tlid
+  | FluidMouseUp of tlid * (int * int) option
   | FluidCommandsFilter of string
   | FluidCommandsClick of command
+  (* Index of the dropdown(autocomplete or command palette) item *)
+  | FluidFocusOnToken of id
+  | FluidClearErrorDvSrc
 
 and msg =
   | GlobalClick of mouseEvent
@@ -1367,8 +1385,14 @@ and fluidState =
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
   ; cp : fluidCommandState
-  ; selectionStart : int option
-  (* The selection ends at newPos *) }
+  ; selectionStart : int option (* The selection ends at newPos *)
+  ; midClick :
+      (* If we get a renderCallback between a mousedown and a mouseUp, we
+       * lose the information we're trying to get from the click. *)
+      bool
+  ; errorDvSrc : dval_source
+  (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
+  }
 
 (* Avatars *)
 and avatar =
