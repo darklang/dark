@@ -6062,6 +6062,8 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
+    ; dtText "acEntryCount"
+    ; Html.dd [] [Html.text (s.ac.completions |> List.length |> string_of_int)]
     ; dtText "upDownCol"
     ; Html.dd
         []
