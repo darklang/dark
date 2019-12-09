@@ -1148,7 +1148,7 @@ let update_ (msg : msg) (m : model) : modification =
         | Some (TLHandler _) | Some (TLDB _) | Some (TLGroup _) ->
             Drag (targetTLID, event.mePos, false, m.cursorState)
       else NoChange
-  | TLDragRegionMouseUp (_, event) ->
+  | TLDragRegionMouseUp (tlid, event) ->
       if event.button = Defaults.leftButton
       then
         match m.cursorState with
@@ -1184,11 +1184,13 @@ let update_ (msg : msg) (m : model) : modification =
                             ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
                 else SetCursorState origCursorState
-              else SetCursorState origCursorState
+              else
+                Select (draggingTLID, None)
+                (* if we haven't moved, treat this as a single click  and not a attempted drag*)
           | None ->
               SetCursorState origCursorState )
         | _ ->
-            FluidEndClick
+            Many [Select (tlid, None); FluidEndClick]
       else NoChange
   | BlankOrClick (targetExnID, targetID, event) ->
       let select tlid id =
