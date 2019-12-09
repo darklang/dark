@@ -3466,7 +3466,14 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (insertInList ~index:0 id ~newExpr ast, RightOne)
     (* records *)
     | TRecordOpen id when isIdentifierChar letterStr ->
-        (insertInRecord ~index:0 id ~newExpr ast, Exactly (s.newPos + 4))
+        let newAST = insertInRecord ~index:0 id ~newExpr ast in
+        let newPos =
+          posFromCaretTarget
+            s
+            newAST
+            {astRef = ARRecord (id, RPFieldname 0); offset = 1}
+        in
+        (newAST, Exactly newPos)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
