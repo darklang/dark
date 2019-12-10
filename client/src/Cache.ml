@@ -10,7 +10,7 @@ let is_caching_enabled = true
  *
  * Note: one use of None as a cache key is "this TL is where the cursor is,
  * don't use the cached value". (At the time this comment is being written, we
- * only use this cache functionality to wrap TL rendering.) *)
+ * only use this cache functionality to wrap TL and sidebar rendering.) *)
 
 let cache1m
     (keyFn : 'a -> 'b option) (expensiveFn : 'a -> 'msg Vdom.t) (arg1 : 'a) :
