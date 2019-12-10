@@ -837,6 +837,7 @@ let rtCacheKey m =
   , m.error
   , m.permission
   , m.currentPage )
+  |> Option.some
 
 
-let viewSidebar m = Cache.cache1 rtCacheKey viewSidebar_ m
+let viewSidebar m = Cache.cache1m rtCacheKey viewSidebar_ m
