@@ -990,15 +990,6 @@ let fluid_fieldname_autocomplete_closes (m : model) : testResult =
   else fail ("autocomplete is not clear", m.fluidState.ac.index)
 
 
-let fluid_delete_whole_string (m : model) : testResult =
-  (* Assert string is deleted and turend into blank *)
-  match onlyExpr m with
-  | If (F (_, Value "true"), Blank _, F (_, Value "9")) ->
-      pass
-  | ast ->
-      fail ("failed to delete \"hello\" from AST", ast)
-
-
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1165,7 +1156,5 @@ let trigger (test_name : string) : integrationTestState =
         fluid_fn_pg_change
     | "fluid_fieldname_autocomplete_closes" ->
         fluid_fieldname_autocomplete_closes
-    | "fluid_delete_whole_string" ->
-        fluid_delete_whole_string
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
