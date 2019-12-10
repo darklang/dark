@@ -2112,8 +2112,7 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 (* Add a row to the record *)
-let addRecordRowAt (letter : string) (index : int) (id : id) (ast : ast) : ast
-    =
+let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
@@ -3978,19 +3977,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
-    (* Record-specific insertions *)
-    | K.Enter, L (TRecordOpen id, _), _ ->
-        let newAST = addRecordRowAt "" 0 id ast in
-        let newPos =
-          posFromCaretTarget
-            s
-            newAST
-            {astRef = ARRecord (id, RPFieldname 0); offset = 0}
-        in
-        (newAST, {s with newPos})
-    | K.Enter, _, R (TRecordClose id, _) ->
-        let newAST = addRecordRowToBack id ast in
-        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
@@ -4182,18 +4168,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
+    (*
+     * Caret to right of record open {, then type
+     * Adds new initial record row with the typed 
+     * value as the key (if value entered is valid),
+     * then move caret to end of key *)
     | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
       ( match keyChar with
       | Some keyCharStr when isIdentifierChar (String.fromChar keyCharStr) ->
           let letterSTr = String.fromChar keyCharStr in
-          let newAST = addRecordRowAt letterSTr 0 id ast in
-          let newPos =
-            posFromCaretTarget
-              s
-              newAST
-              {astRef = ARRecord (id, RPFieldname 0); offset = 1}
+          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
+          let s =
+            moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1
           in
-          (newAST, {s with newPos})
+          (ast, s)
       | _ ->
           (ast, s) )
     | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
