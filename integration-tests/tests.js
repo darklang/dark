@@ -1292,17 +1292,3 @@ test("fluid_fn_pg_change", async t => {
   //Make sure we stay on the page
   await t.expect(available(".tl-1464810122")).ok({ timeout: 1000 });
 });
-
-test("fluid_fieldname_autocomplete_closes", async t => {
-  // Highlight the fieldname (it takes 2 single-clicks right now)
-  await t.click(Selector(".fluid-field-name"));
-  await t.click(Selector(".fluid-field-name"));
-
-  // Cause the autocomplete to appear
-  await t.pressKey("left");
-  // Check the autocomplete has appeared
-  await t.expect(available("#fluid-dropdown")).ok({ timeout: 1000 });
-
-  // Complete the autocomplete
-  await t.pressKey("enter");
-});

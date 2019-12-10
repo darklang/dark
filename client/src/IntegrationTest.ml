@@ -984,12 +984,6 @@ let fluid_fn_pg_change (_m : model) : testResult =
   pass
 
 
-let fluid_fieldname_autocomplete_closes (m : model) : testResult =
-  if m.fluidState.ac.index = None
-  then pass
-  else fail ("autocomplete is not clear", m.fluidState.ac.index)
-
-
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1154,7 +1148,5 @@ let trigger (test_name : string) : integrationTestState =
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
         fluid_fn_pg_change
-    | "fluid_fieldname_autocomplete_closes" ->
-        fluid_fieldname_autocomplete_closes
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
