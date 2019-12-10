@@ -251,6 +251,26 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
 
 
+let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
+  let maybeFluidAstAndState =
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.map ~f:(fun genericAst ->
+           let state =
+             if Toplevel.selectedAST m = Some genericAst
+             then
+               m.fluidState
+               (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
+    I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
+    remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
+    between handler-specific and global fluid state. *)
+             else m.fluidState
+           in
+           (fromExpr state genericAst, state) )
+  in
+  maybeFluidAstAndState
+
+
 let literalToString
     (v :
       [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
