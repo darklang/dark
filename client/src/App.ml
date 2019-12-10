@@ -484,9 +484,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           if VariantTesting.isFluid m.tests
           then
             match p with
-            | None ->
+            | STTopLevelRoot | STUnknown ->
                 (FluidEntering tlid, None)
-            | Some id ->
+            | STID id ->
               ( match TL.getPD m tlid id with
               | Some pd ->
                   if P.astOwned (P.typeOf pd)
@@ -534,10 +534,45 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                           None
                     in
                     (FluidEntering tlid, maybeNewFluidState)
-                  else (Selecting (tlid, p), None)
+                  else (Selecting (tlid, Some id), None)
               | None ->
                   (Deselected, None) )
-          else (Selecting (tlid, p), None)
+            | STCaret caretTarget ->
+                let maybeFluidAstAndState =
+                  TL.get m tlid
+                  |> Option.andThen ~f:TL.getAST
+                  |> Option.map ~f:(fun genericAst ->
+                         let state =
+                           if Toplevel.selectedAST m = Some genericAst
+                           then
+                             m.fluidState
+                             (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
+                I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
+                remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
+                between handler-specific and global fluid state. *)
+                           else m.fluidState
+                         in
+                         (Fluid.fromExpr state genericAst, state) )
+                in
+                let maybeNewFluidState =
+                  match maybeFluidAstAndState with
+                  | Some (ast, state) ->
+                      Some
+                        (Fluid.setPosition
+                           state
+                           (Fluid.posFromCaretTarget state ast caretTarget))
+                  | None ->
+                      None
+                in
+                (FluidEntering tlid, maybeNewFluidState)
+          else
+            match p with
+            | STTopLevelRoot | STUnknown ->
+                (Selecting (tlid, None), None)
+            | STID id ->
+                (Selecting (tlid, Some id), None)
+            | STCaret _ ->
+                (Selecting (tlid, None), None)
         in
         let m, hashcmd =
           match TL.get m tlid with
@@ -555,12 +590,18 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               maybeNewFluidState |> Option.withDefault ~default:m.fluidState }
         in
         let m, acCmd =
-          match Option.andThen p ~f:(TL.getPD m tlid) with
-          | Some pd ->
-              processAutocompleteMods m [ACSetTarget (Some (tlid, pd))]
-          | None ->
-              (* Ensure that when we click out of an entry box that the AC is
-               * reset, else we can't scroll. *)
+          (* Note that we want to ensure that when we click out of an entry box that the AC is
+           * reset, else we can't scroll. *)
+          match p with
+          | STTopLevelRoot | STUnknown ->
+              processAutocompleteMods m [ACReset]
+          | STID id ->
+            ( match TL.getPD m tlid id with
+            | Some pd ->
+                processAutocompleteMods m [ACSetTarget (Some (tlid, pd))]
+            | None ->
+                processAutocompleteMods m [ACReset] )
+          | STCaret _ ->
               processAutocompleteMods m [ACReset]
         in
         let m, afCmd = Analysis.analyzeFocused m in
@@ -1311,11 +1352,30 @@ let update_ (msg : msg) (m : model) : modification =
         | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
-      (* TODO(JULIAN): provide caretTarget to Select here, since that's where we actually know where we want to place the caret! *)
+      let selectionTarget : tlidSelectTarget =
+        if VariantTesting.isFluid m.tests
+        then
+          ( match Fluid.astAndStateFromTLID m tlid with
+          | Some (ast, _state) ->
+              Fluid.findExpr id ast
+              |> Option.andThen ~f:(fun (expr : Types.fluidExpr) ->
+                     match expr with
+                     | EFnCall (_, fnName, _, _) ->
+                         Some
+                           (STCaret
+                              { astRef = ARFnCall (id, FCPFnName)
+                              ; offset = String.length fnName })
+                     | _ ->
+                         None )
+          | None ->
+              None )
+          |> Option.withDefault ~default:STUnknown
+        else STID id
+      in
       Many
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionRPC (tlid, id, name)
-        ; Select (tlid, STID id) ]
+        ; Select (tlid, selectionTarget) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
@@ -1986,7 +2046,7 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidMouseDown targetExnID) ->
-      let defaultBehaviour = [FluidStartClick; Select (targetExnID, None)] in
+      let defaultBehaviour = [FluidStartClick; Select (targetExnID, STTopLevelRoot)] in
       ( match m.cursorState with
       | Entering (Filling _ as cursor) ->
           Many
@@ -1995,7 +2055,7 @@ let update_ (msg : msg) (m : model) : modification =
       | _ ->
           Many defaultBehaviour )
   | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
-      Many [Select (targetExnID, None); Apply (fun m -> Fluid.update m msg)]
+      Many [Select (targetExnID, STTopLevelRoot); Apply (fun m -> Fluid.update m msg)]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg
