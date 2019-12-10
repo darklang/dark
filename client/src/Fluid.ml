@@ -1767,7 +1767,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARList (id, LPOpen) ->
         (function TListOpen id' -> id = id' | _ -> false)
     | ARList (id, LPClose) ->
-        (function TListOpen id' -> id = id' | _ -> false)
+        (function TListClose id' -> id = id' | _ -> false)
     | ARList (id, LPSeparator idx) ->
         (function
         | TListSep (id', idx') -> id = id' && idx = idx' | _ -> false)
