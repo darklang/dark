@@ -4943,6 +4943,20 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
+let clipboardContentsToString ~state (data : clipboardContents) : string =
+  match data with
+  | `Json _ ->
+      data
+      |> clipboardContentsToExpr ~state
+      |> Option.map ~f:(eToString state)
+      |> Option.withDefault ~default:""
+      |> trimQuotes
+  | `Text text ->
+      text
+  | `None ->
+      ""
+
+
 let getStringIndex ti pos : int =
   match ti.token with
   | TString (_, _) ->
@@ -4962,6 +4976,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr = clipboardContentsToExpr ~state data in
+  let text = clipboardContentsToString ~state data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
@@ -4981,17 +4996,18 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting other kinds of expressions into string *)
-  | Some clipboardExpr, Some (EString (_, str)), Some ti ->
-      let insert = eToString state clipboardExpr |> trimQuotes in
+  | _, Some (EString (_, str)), Some ti ->
       let index = getStringIndex ti state.newPos in
-      let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
+      let newExpr =
+        EString (gid (), String.insertAt ~insert:text ~index str)
+      in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
       (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
-      let newPos = state.newPos + String.length insert in
+      let newPos = state.newPos + String.length text in
       (newAST, {state with newPos})
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
