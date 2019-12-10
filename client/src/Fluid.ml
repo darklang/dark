@@ -2111,26 +2111,13 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
           recover "not a record field in removeRecordField" ~debug:e e )
 
 
-let insertInRecord ~(index : int) ~(newExpr : fluidExpr) (id : id) (ast : ast)
-    : ast =
-  updateExpr id ast ~f:(fun e ->
-      match e with
-      | ERecord (id, fields) ->
-        ( match newExpr with
-        | EPartial (pId, pName, pExpr) ->
-            ERecord (id, List.insertAt ~index ~value:(pId, pName, pExpr) fields)
-        | _ ->
-            ast )
-      | _ ->
-          recover "not a record in insertInRecord" ~debug:e e )
-
-
 (* Add a row to the record *)
-let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
+let addRecordRowAt (leter : string) (index : int) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
+          ERecord
+            (id, List.insertAt ~index ~value:(gid (), leter, newB ()) fields)
       | _ ->
           recover "Not a record in addRecordRowAt" ~debug:e e )
 
@@ -3464,16 +3451,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, RightOne)
-    (* records *)
-    | TRecordOpen id when isIdentifierChar letterStr ->
-        let newAST = insertInRecord ~index:0 id ~newExpr ast in
-        let newPos =
-          posFromCaretTarget
-            s
-            newAST
-            {astRef = ARRecord (id, RPFieldname 0); offset = 1}
-        in
-        (newAST, Exactly newPos)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
@@ -4000,6 +3977,19 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close curly to go over the last curly *)
         (ast, moveOneRight pos s)
+    (* Record-specific insertions *)
+    | K.Enter, L (TRecordOpen id, _), _ ->
+        let newAST = addRecordRowAt "" 0 id ast in
+        let newPos =
+          posFromCaretTarget
+            s
+            newAST
+            {astRef = ARRecord (id, RPFieldname 0); offset = 0}
+        in
+        (newAST, {s with newPos})
+    | K.Enter, _, R (TRecordClose id, _) ->
+        let newAST = addRecordRowToBack id ast in
+        (newAST, moveToNextNonWhitespaceToken ~pos newAST s)
     | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
         (* Allow pressing close square to go over the last square *)
         (ast, moveOneRight pos s)
@@ -4191,8 +4181,20 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
-    | _, L (TRecordOpen _, toTheLeft), R (TRecordClose _, _) ->
-        doInsert ~pos keyChar toTheLeft ast s
+    | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+      ( match keyChar with
+      | Some keyCharStr when isIdentifierChar (String.fromChar keyCharStr) ->
+          let letterSTr = String.fromChar keyCharStr in
+          let newAST = addRecordRowAt letterSTr 0 id ast in
+          let newPos =
+            posFromCaretTarget
+              s
+              newAST
+              {astRef = ARRecord (id, RPFieldname 0); offset = 1}
+          in
+          (newAST, {s with newPos})
+      | _ ->
+          (ast, s) )
     | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
