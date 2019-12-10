@@ -619,8 +619,8 @@ let submitACItem
                   ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
               else if oldName = value (* leave as is *)
               then
-                Select (tlid, STID id)
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if List.member ~value (TL.allDBNames m.dbs)
               then DisplayError ("There is already a DB named " ^ value)
               else
@@ -629,8 +629,8 @@ let submitACItem
           | PDBColType ct, ACDBColType value, TLDB db ->
               if B.asF ct = Some value
               then
-                Select (tlid, STID id)
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if DB.isMigrationCol db id
               then
                 wrapID
@@ -645,8 +645,8 @@ let submitACItem
           | PDBColName cn, ACDBColName value, TLDB db ->
               if B.asF cn = Some value
               then
-                Select (tlid, STID id)
                 (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if DB.isMigrationCol db id
               then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
               else if DB.hasCol db value
