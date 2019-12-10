@@ -462,7 +462,7 @@ type astLambdaPart =
 [@@deriving show {with_path = false}]
 
 type astFieldAccessPart =
-  | FAPLHS
+  | FAPRHS
   | FAPFieldname
 [@@deriving show {with_path = false}]
 
