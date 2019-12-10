@@ -141,13 +141,17 @@ let processFocus (m : model) (focus : focus) : modification =
         | Some pd ->
             Enter (Filling (tlid, P.toID pd))
         | None ->
-            Select (tlid, pred) ) )
+          ( match pred with
+          | Some id ->
+              Select (tlid, STID id)
+          | None ->
+              Select (tlid, STUnknown) ) ) )
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
         if P.isBlank pd || P.toContent pd = Some ""
         then Enter (Filling (tlid, id))
-        else Select (tlid, Some id)
+        else Select (tlid, STID id)
     | _ ->
         NoChange )
   | FocusSame ->
@@ -155,15 +159,15 @@ let processFocus (m : model) (focus : focus) : modification =
     | Selecting (tlid, mId) ->
       ( match (TL.get m tlid, mId) with
       | Some tl, Some id ->
-          if TL.isValidID tl id then NoChange else Select (tlid, None)
+          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
       | Some _, None ->
-          Select (tlid, None)
+          Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
     | Entering (Filling (tlid, id)) ->
       ( match TL.get m tlid with
       | Some tl ->
-          if TL.isValidID tl id then NoChange else Select (tlid, None)
+          if TL.isValidID tl id then NoChange else Select (tlid, STTopLevelRoot)
       | _ ->
           Deselect )
     | _ ->
@@ -1249,7 +1253,7 @@ let update_ (msg : msg) (m : model) : modification =
           (* If we're in the Fluid world, we should treat clicking legacy BlankOr inputs
            * as double clicks to automatically enter them. *)
           Selection.dblclick m targetExnID targetID offset
-        else Select (tlid, Some id)
+        else Select (tlid, STID id)
       in
       ( match m.cursorState with
       | Deselected ->
@@ -1282,7 +1286,7 @@ let update_ (msg : msg) (m : model) : modification =
       if VariantTesting.isFluid m.tests
       then
         let defaultBehaviour =
-          [ Select (targetExnID, None)
+          [ Select (targetExnID, STTopLevelRoot)
           ; Apply (fun m -> Fluid.update m (FluidMouseUp (targetExnID, None)))
           ]
         in
@@ -1297,13 +1301,13 @@ let update_ (msg : msg) (m : model) : modification =
         | Dragging (_, _, _, origCursorState) ->
             SetCursorState origCursorState
         | Selecting (_, _) ->
-            Select (targetExnID, None)
+            Select (targetExnID, STTopLevelRoot)
         | SelectingCommand (_, _) ->
-            Select (targetExnID, None)
+            Select (targetExnID, STTopLevelRoot)
         | Deselected ->
-            Select (targetExnID, None)
+            Select (targetExnID, STTopLevelRoot)
         | Entering _ ->
-            Select (targetExnID, None)
+            Select (targetExnID, STTopLevelRoot)
         | FluidEntering _ ->
             NoChange )
   | ExecuteFunctionButton (tlid, id, name) ->
@@ -1311,13 +1315,13 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ ExecutingFunctionBegan (tlid, id)
         ; ExecutingFunctionRPC (tlid, id, name)
-        ; Select (tlid, Some id) ]
+        ; Select (tlid, STID id) ]
   | TraceClick (tlid, traceID, _) ->
     ( match m.cursorState with
     | Dragging (_, _, _, origCursorState) ->
         SetCursorState origCursorState
     | Deselected ->
-        Many [Select (tlid, None); SetTLTraceID (tlid, traceID)]
+        Many [Select (tlid, STTopLevelRoot); SetTLTraceID (tlid, traceID)]
     | _ ->
         SetTLTraceID (tlid, traceID) )
   | StartMigration tlid ->

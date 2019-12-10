@@ -1035,12 +1035,18 @@ and apiError =
   ; reload : bool
   ; importance : errorImportance }
 
+and tlidSelectTarget =
+  | STCaret of caretTarget
+  | STID of id
+  | STTopLevelRoot
+  | STUnknown
+
 and modification =
   | HandleAPIError of apiError
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
-  | Select of tlid * id option
+  | Select of tlid * tlidSelectTarget
   | SelectCommand of tlid * id
   | SetHover of tlid * id
   | ClearHover of tlid * id
