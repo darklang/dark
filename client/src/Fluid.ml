@@ -4054,8 +4054,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
     | K.Period, L (TFieldPartial _, ti), _
-      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
-        acStartField ti ast s
     | K.Period, _, R (TFieldPartial _, ti)
       when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
