@@ -490,72 +490,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               ( match TL.getPD m tlid id with
               | Some pd ->
                   if P.astOwned (P.typeOf pd)
-                  then
-                    let maybeFluidAstAndState =
-                      TL.get m tlid
-                      |> Option.andThen ~f:TL.getAST
-                      |> Option.map ~f:(fun genericAst ->
-                             let state =
-                               if Toplevel.selectedAST m = Some genericAst
-                               then
-                                 m.fluidState
-                                 (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
-                      I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
-                      remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
-                      between handler-specific and global fluid state. *)
-                               else m.fluidState
-                             in
-                             (Fluid.fromExpr state genericAst, state) )
-                    in
-                    let maybeNewFluidState =
-                      match maybeFluidAstAndState with
-                      | Some (ast, state) ->
-                          Fluid.findExpr id ast
-                          |> Option.andThen ~f:(fun (expr : Types.fluidExpr) ->
-                                 ( let maybeCaretTarget : caretTarget option =
-                                     match expr with
-                                     | EFnCall (_, fnName, _, _) ->
-                                         Some
-                                           { astRef = ARFnCall (id, FCPFnName)
-                                           ; offset = String.length fnName }
-                                     | _ ->
-                                         None
-                                   in
-                                   maybeCaretTarget
-                                   |> Option.map ~f:(fun caretTarget ->
-                                          Fluid.setPosition
-                                            state
-                                            (Fluid.posFromCaretTarget
-                                               state
-                                               ast
-                                               caretTarget) )
-                                   : fluidState option ) )
-                      | None ->
-                          None
-                    in
-                    (FluidEntering tlid, maybeNewFluidState)
+                  then (FluidEntering tlid, None)
                   else (Selecting (tlid, Some id), None)
               | None ->
                   (Deselected, None) )
             | STCaret caretTarget ->
-                let maybeFluidAstAndState =
-                  TL.get m tlid
-                  |> Option.andThen ~f:TL.getAST
-                  |> Option.map ~f:(fun genericAst ->
-                         let state =
-                           if Toplevel.selectedAST m = Some genericAst
-                           then
-                             m.fluidState
-                             (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
-                I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
-                remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
-                between handler-specific and global fluid state. *)
-                           else m.fluidState
-                         in
-                         (Fluid.fromExpr state genericAst, state) )
-                in
                 let maybeNewFluidState =
-                  match maybeFluidAstAndState with
+                  match Fluid.astAndStateFromTLID m tlid with
                   | Some (ast, state) ->
                       Some
                         (Fluid.setPosition

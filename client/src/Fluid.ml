@@ -252,19 +252,22 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
 
 
 let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
+  (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
+    accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
+  let removeHandlerTransientState m =
+    {m with fluidState = {m.fluidState with ac = AC.reset m}}
+  in
   let maybeFluidAstAndState =
     TL.get m tlid
     |> Option.andThen ~f:TL.getAST
     |> Option.map ~f:(fun genericAst ->
            let state =
-             if Toplevel.selectedAST m = Some genericAst
-             then
-               m.fluidState
-               (* XXX(JULIAN): The reason this is the same is that using Defaults.defaultFluidState wipes out s.ac.functions, which is very bad.
-    I'm leaving this if-statement here to indicate that we should do something different depending on if we're selecting a new top level or
-    remaining in the old one. TODO: Actually do something different, make Fluid.fromExpr accept only the info it needs, and differentiate
-    between handler-specific and global fluid state. *)
-             else m.fluidState
+             (* We need to discard transient state if the selected handler has changed *)
+             if Some tlid = tlidOf m.cursorState
+             then m.fluidState
+             else
+               let newM = removeHandlerTransientState m in
+               newM.fluidState
            in
            (fromExpr state genericAst, state) )
   in
