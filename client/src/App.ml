@@ -2046,7 +2046,9 @@ let update_ (msg : msg) (m : model) : modification =
   | SetHandlerActionsMenu (tlid, show) ->
       TweakModel (Editor.setHandlerMenu tlid show)
   | FluidMsg (FluidMouseDown targetExnID) ->
-      let defaultBehaviour = [FluidStartClick; Select (targetExnID, STTopLevelRoot)] in
+      let defaultBehaviour =
+        [FluidStartClick; Select (targetExnID, STTopLevelRoot)]
+      in
       ( match m.cursorState with
       | Entering (Filling _ as cursor) ->
           Many
@@ -2055,7 +2057,9 @@ let update_ (msg : msg) (m : model) : modification =
       | _ ->
           Many defaultBehaviour )
   | FluidMsg (FluidMouseUp (targetExnID, _) as msg) ->
-      Many [Select (targetExnID, STTopLevelRoot); Apply (fun m -> Fluid.update m msg)]
+      Many
+        [ Select (targetExnID, STTopLevelRoot)
+        ; Apply (fun m -> Fluid.update m msg) ]
   | FluidMsg msg ->
       (* Handle all other messages *)
       Fluid.update m msg
