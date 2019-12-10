@@ -24,11 +24,6 @@ let cache1m
       eFn ()
 
 
-let cache1 (keyFn : 'a -> 'b) (expensiveFn : 'a -> 'msg Vdom.t) (arg1 : 'a) :
-    'msg Vdom.t =
-  cache1m (fun x -> Some (keyFn x)) expensiveFn arg1
-
-
 let cache2m
     (keyFn : 'a -> 'b -> 'c option)
     (expensiveFn : 'a -> 'b -> 'msg Vdom.t)
@@ -41,11 +36,3 @@ let cache2m
       Tea_html.lazy1 k eFn
   | _ ->
       eFn ()
-
-
-let cache2
-    (keyFn : 'a -> 'b -> 'c)
-    (expensiveFn : 'a -> 'b -> 'msg Vdom.t)
-    (arg1 : 'a)
-    (arg2 : 'b) : 'msg Vdom.t =
-  cache2m (fun a1 a2 -> Some (keyFn a1 a2)) expensiveFn arg1 arg2
