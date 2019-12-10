@@ -5364,6 +5364,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           if key = K.SelectAll
           then newState.selectionStart
           else if shiftKey && not (key = K.ShiftEnter)
+                  (* We dont want to persist selection on ShiftEnter *)
           then s.selectionStart
           else None
         in
