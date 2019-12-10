@@ -1710,40 +1710,132 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
    jump after a transformation. *)
 let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     int =
-  (* TODO(JULIAN): we may want to consider passing an old and new AST eventually, if
-     that makes the mapping easier. *)
-  let tokens = toTokens s ast in
-  let tokenInfo =
-    List.find tokens ~f:(fun ti ->
-        match (ti.token, ct.astRef) with
-        | TFieldName (id, _, _), ARFieldAccess (id', FAPFieldname)
-        | TVariable (id, _), ARVariable id'
-        | TBlank id, ARBlank id'
-        | TInteger (id, _), ARInteger id'
-        | TIfKeyword id, ARIf (id', IPIfKeyword)
-        | TIfElseKeyword id, ARIf (id', IPElseKeyword)
-        | TIfThenKeyword id, ARIf (id', IPThenKeyword)
-        | TLetKeyword (id, _), ARLet (id', LPKeyword)
-        | TLetLHS (id, _, _), ARLet (id', LPVarName)
-        | TRecordOpen id, ARRecord (id', RPOpen)
-        | TRecordClose id, ARRecord (id', RPClose) ->
-            id = id'
-        | TPipe (id, idx, _), ARPipe (id', PPPipeKeyword idx')
-        | TRecordFieldname (id, _, idx, _), ARRecord (id', RPFieldname idx')
-        | TPatternBlank (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternVariable (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternTrue (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternFalse (id, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternString (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | TPatternInteger (id, _, _, idx), ARMatch (id', MPBranchPattern idx')
-        | ( TPatternConstructorName (id, _, _, idx)
-          , ARMatch (id', MPBranchPattern idx') )
-        | ( TPatternFloatWhole (id, _, _, idx)
-          , ARMatch (id', MPBranchPattern idx') ) ->
+  let infos = toTokens s ast in
+  (* The conditional logic here is a bit nasty, but essentially we're first
+   * looking at which kind of astRef we got and then for each one, specifying
+   * the function we'll use in List.find to find the correct token.
+   *
+   * This is purposefully verbose, as we want to ensure we have an exhaustive
+   * mtch. Please do not use '_' in any of the astRef match conditions or
+   * refactor in any way that removes the exhaustive matching of the astRefs.
+   *
+   * NB: These were somewhat hastily added and are very possibly incorrect.
+   * Please fix.
+   *)
+  let f =
+    match ct.astRef with
+    | ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS) ->
+        (function e -> Token.tid e = id)
+    | ARBinOp (id, BOPOperator) ->
+        (function TBinOp (id', _) -> id = id' | _ -> false)
+    | ARBlank id ->
+        (function TBlank id' -> id = id' | _ -> false)
+    | ARBool id ->
+        (function TTrue id' | TFalse id' -> id = id' | _ -> false)
+    | ARConstructor (id, CPName) ->
+        (function TConstructorName (id', _) -> id = id' | _ -> false)
+    | ARConstructor (id, CPValue _) ->
+        (function e -> Token.tid e = id)
+    | ARFieldAccess (id, FAPFieldname) ->
+        (function TFieldName (id', _, _) -> id = id' | _ -> false)
+    | ARFieldAccess (id, FAPRHS) ->
+        (function e -> Token.tid e = id)
+    | ARFloat (id, FPWhole) ->
+        (function TFloatWhole (id', _) -> id = id' | _ -> false)
+    | ARFloat (id, FPDecimal) ->
+        (function TFloatFraction (id', _) -> id = id' | _ -> false)
+    | ARFnCall id ->
+        (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
+    | ARIf (id, IPIfKeyword) ->
+        (function TIfKeyword id' -> id = id' | _ -> false)
+    | ARIf (id, IPThenKeyword) ->
+        (function TIfThenKeyword id' -> id = id' | _ -> false)
+    | ARIf (id, IPElseKeyword) ->
+        (function TIfElseKeyword id' -> id = id' | _ -> false)
+    | ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody) ->
+        (function e -> Token.tid e = id)
+    | ARInteger id ->
+        (function TInteger (id', _) -> id = id' | _ -> false)
+    | ARLet (id, LPKeyword) ->
+        (function TLetKeyword (id', _) -> id = id' | _ -> false)
+    | ARLet (id, LPVarName) ->
+        (function TLetLHS (id', _, _) -> id = id' | _ -> false)
+    | ARLet (id, LPAssignment) ->
+        (function TLetAssignment (id', _) -> id = id' | _ -> false)
+    | ARLet (id, LPValue) | ARLet (id, LPBody) ->
+        (function e -> Token.tid e = id)
+    | ARList (id, LPOpen) ->
+        (function TListOpen id' -> id = id' | _ -> false)
+    | ARList (id, LPClose) ->
+        (function TListClose id' -> id = id' | _ -> false)
+    | ARList (id, LPSeparator idx) ->
+        (function
+        | TListSep (id', idx') -> id = id' && idx = idx' | _ -> false)
+    | ARMatch (id, MPKeyword) ->
+        (function TMatchKeyword id' -> id = id' | _ -> false)
+    | ARMatch (id, MPMatchExpr) ->
+        (function e -> Token.tid e = id)
+    | ARMatch (id, MPBranchValue _idx) ->
+        (* FIXME no way to get match branch value by index *)
+        (function
+        | e -> Token.tid e = id)
+    | ARMatch (id, MPBranchSep idx) ->
+        (function
+        | TMatchSep (id', idx') -> id = id' && idx = idx' | _ -> false)
+    | ARMatch (id, MPBranchPattern idx) ->
+        (function
+        | TPatternVariable (id', _, _, idx')
+        | TPatternConstructorName (id', _, _, idx')
+        | TPatternInteger (id', _, _, idx')
+        | TPatternString (id', _, _, idx')
+        | TPatternTrue (id', _, idx')
+        | TPatternFalse (id', _, idx')
+        | TPatternNullToken (id', _, idx')
+        | TPatternFloatWhole (id', _, _, idx')
+        | TPatternFloatPoint (id', _, idx')
+        | TPatternFloatFraction (id', _, _, idx')
+        | TPatternBlank (id', _, idx') ->
             id = id' && idx = idx'
         | _ ->
-            false )
+            false)
+    | ARNull id ->
+        (function TNullToken id' -> id = id' | _ -> false)
+    | ARPartial id ->
+        (function TPartial (id', _) -> id = id' | _ -> false)
+    | ARPipe (id, PPPipeKeyword idx) ->
+        (function
+        | TPipe (id', idx', _) -> id = id' && idx = idx' | _ -> false)
+    | ARPipe (id, PPPipedExpr _idx) ->
+        (* FIXME no way to get pipe expression by index *)
+        (function
+        | e -> Token.tid e = id)
+    | ARRecord (id, RPOpen) ->
+        (function TRecordOpen id' -> id = id' | _ -> false)
+    | ARRecord (id, RPClose) ->
+        (function TRecordClose id' -> id = id' | _ -> false)
+    | ARRecord (id, RPFieldname idx) ->
+        (function
+        | TRecordFieldname (id', _, idx', _) ->
+            id = id' && idx = idx'
+        | _ ->
+            false)
+    | ARRecord (id, RPFieldSep idx) ->
+        (function
+        | TRecordSep (id', idx', _) -> id = id' && idx = idx' | _ -> false)
+    | ARRecord (id, RPFieldValue _idx) ->
+        (* FIXME no way to get field value by index *)
+        (function
+        | e -> Token.tid e = id)
+    | ARRightPartial id ->
+        (function TRightPartial (id', _) -> id = id' | _ -> false)
+    | ARString id ->
+        (function TString (id', _) -> id = id' | _ -> false)
+    | ARVariable id ->
+        (function TVariable (id', _) -> id = id' | _ -> false)
+    | ARInvalid ->
+        (function _ -> false)
   in
+  let tokenInfo = List.find infos ~f:(fun ti -> f ti.token) in
   match tokenInfo with
   | Some ti ->
       ti.startPos + min ct.offset ti.length
