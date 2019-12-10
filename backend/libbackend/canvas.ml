@@ -247,6 +247,13 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
     Exception.reraise e
 
 
+(* NOTE: If you add a new verification here, please ensure all places that
+ * load canvases/apply ops correctly load the requisite data.
+ *
+ * eg. The `admin_add_op_handler` in webserver.ml uses `load_with_context` at
+ * time of writing. This would not be sufficient if the new verifier required
+ * an invariant across eg. all handlers.
+ * *)
 let verify (c : canvas ref) : (unit, string list) Result.t =
   let duped_db_names =
     !c.dbs
