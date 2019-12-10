@@ -2112,12 +2112,13 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 (* Add a row to the record *)
-let addRecordRowAt (leter : string) (index : int) (id : id) (ast : ast) : ast =
+let addRecordRowAt (letter : string) (index : int) (id : id) (ast : ast) : ast
+    =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord
-            (id, List.insertAt ~index ~value:(gid (), leter, newB ()) fields)
+            (id, List.insertAt ~index ~value:(gid (), letter, newB ()) fields)
       | _ ->
           recover "Not a record in addRecordRowAt" ~debug:e e )
 
