@@ -4169,7 +4169,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
     (*
-     * Caret to right of record open {, then type
+     * Caret between empty record symbols {}
      * Adds new initial record row with the typed 
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
