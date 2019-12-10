@@ -2204,11 +2204,12 @@ let removeRecordField (id : id) (index : int) (ast : ast) : ast =
 
 
 (* Add a row to the record *)
-let addRecordRowAt (index : int) (id : id) (ast : ast) : ast =
+let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
-          ERecord (id, List.insertAt ~index ~value:(gid (), "", newB ()) fields)
+          ERecord
+            (id, List.insertAt ~index ~value:(gid (), letter, newB ()) fields)
       | _ ->
           recover "Not a record in addRecordRowAt" ~debug:e e )
 
@@ -4259,9 +4260,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
         doInsert ~pos keyChar toTheLeft ast s
+    (*
+     * Caret between empty record symbols {}
+     * Adds new initial record row with the typed 
+     * value as the key (if value entered is valid),
+     * then move caret to end of key *)
+    | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+      ( match keyChar with
+      | Some keyCharStr when isIdentifierChar (String.fromChar keyCharStr) ->
+          let letterSTr = String.fromChar keyCharStr in
+          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
+          let s =
+            moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1
+          in
+          (ast, s)
+      | _ ->
+          (ast, s) )
     | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
+        (ast, s)
+    | _, _, R (TRecordOpen _, _) ->
         (ast, s)
     | _, _, R (_, toTheRight) ->
         doInsert ~pos keyChar toTheRight ast s
