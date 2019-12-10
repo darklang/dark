@@ -1306,3 +1306,17 @@ test("fluid_fieldname_autocomplete_closes", async t => {
   // Complete the autocomplete
   await t.pressKey("enter");
 });
+
+test("fluid_delete_whole_string", async t => {
+  // Select "hello" string
+  await t.doubleClick(Selector(".fluid-string"));
+
+  // Check string selected
+  await t.expect(available(".fluid-string.cursor-on")).ok();
+
+  // Press backsapce
+  await t.pressKey("delete");
+
+  // Press assert string has been deleted
+  await t.expect(available(".fluid-string")).notOk();
+});
