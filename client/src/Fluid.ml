@@ -5363,7 +5363,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         let selectionStart =
           if key = K.SelectAll
           then newState.selectionStart
-          else if shiftKey
+          else if shiftKey && not (key = K.ShiftEnter)
           then s.selectionStart
           else None
         in
