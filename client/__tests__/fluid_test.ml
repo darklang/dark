@@ -96,11 +96,15 @@ let () =
           ~key:"94167980-f909-527e-a4af-bc3155f586d3"
           ~value:
             (LoadableSuccess
-               (StrDict.singleton
-                  ~key:"12"
-                  ~value:
-                    (DObj
-                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+               (StrDict.fromList
+                  [ ( "12"
+                    , DObj
+                        (StrDict.fromList [("body", DNull); ("formBody", DNull)])
+                    )
+                  ; ( "13"
+                    , DObj
+                        (StrDict.fromList [("title", DNull); ("author", DNull)])
+                    ) ]))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
@@ -2975,6 +2979,16 @@ let () =
            ))
         (enter ~clone:false 10)
         "request.body~" ;
+      t
+        "autocomplete shows first alphabetical item for fields"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.author~" ;
+      t
+        "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.title~" ;
       t
         "autocomplete for field autocommits"
         (ELet
