@@ -1169,7 +1169,7 @@ let update_ (msg : msg) (m : model) : modification =
     ( match m.currentPage with
     | FocusedFn tlid | FocusedType tlid ->
         (* Clicking on the raw canvas should keep you selected to functions/types in their space *)
-        let defaultBehaviour = Select (tlid, None) in
+        let defaultBehaviour = Select (tlid, STTopLevelRoot) in
         ( match unwrapCursorState m.cursorState with
         | Entering (Filling _ as cursor) ->
             (* If we click away from an entry box, commit it before doing the default behaviour *)
