@@ -3908,419 +3908,466 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * sensitive to ordering. If you're adding a case that's sensitive to
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
-    match (key, toTheLeft, toTheRight) with
-    (* Moving through a lambda arrow with '->' *)
-    | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
-        (ast, moveOneRight (ti.startPos + 1) s)
-    | K.Minus, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
-      when pos = ti.startPos + 1 ->
-        (ast, moveOneRight (ti.startPos + 1) s)
-    | K.GreaterThan, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
-      when pos = ti.startPos + 2 ->
-        (ast, moveToNextNonWhitespaceToken ~pos ast s)
-    (* Deleting *)
-    | K.Backspace, L (TPatternString _, ti), _
-    | K.Backspace, L (TString _, ti), _
-      when s.selectionStart = Some ti.startPos
-           || s.selectionStart == Some ti.endPos ->
-        deleteSelection ~state:s ~ast
-    | K.Backspace, L (TPatternString _, ti), _
-    | K.Backspace, L (TString _, ti), _
-      when pos = ti.endPos ->
-        (* backspace, when no selection should move into a string, not delete it *)
-        (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
-        doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank _, _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
-    | K.Backspace, _, R (TPatternBlank _, ti) ->
-        doBackspace ~pos ti ast s
-    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
-      ->
-        deleteSelection ~state:s ~ast
-    | K.Backspace, L (_, ti), _ ->
-        doBackspace ~pos ti ast s
-    | K.Delete, _, R (_, ti) ->
-        doDelete ~pos ti ast s
-    (* Autocomplete menu *)
-    (* Note that these are spelt out explicitly on purpose, else they'll
-     * trigger on the wrong element sometimes. *)
-    | K.Escape, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, acClear s)
-    | K.Escape, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, acClear s)
-    | K.Up, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, acMoveUp s)
-    | K.Up, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, acMoveUp s)
-    | K.Down, _, R (_, ti) when isAutocompleting ti s ->
-        (ast, acMoveDown s)
-    | K.Down, L (_, ti), _ when isAutocompleting ti s ->
-        (ast, acMoveDown s)
-    (* Autocomplete finish *)
-    | _, L (_, ti), _
-      when isAutocompleting ti s
-           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
-      ->
-        acEnter ti ast s key
-    | _, _, R (_, ti)
-      when isAutocompleting ti s
-           && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
-      ->
-        acEnter ti ast s key
-    (* When we type a letter/number after an infix operator, complete and
-     * then enter the number/letter. *)
-    | K.Number _, L (TRightPartial (_, _), ti), _
-    | K.Letter _, L (TRightPartial (_, _), ti), _
-      when onEdge ->
-        let ast, s = acEnter ti ast s K.Tab in
-        getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
-        |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
-        |> Option.withDefault ~default:(ast, s)
-    | K.ShiftEnter, left, _ ->
-        let doPipeline ast s =
-          let startPos, endPos = fluidGetSelectionRange s in
-          let findParent = startPos = endPos in
-          let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
-          Option.map topmostID ~f:(fun id ->
-              let ast, s, blankId = createPipe ~findParent id ast s in
-              match blankId with
-              | None ->
-                  (ast, s)
-              | Some id ->
-                  let s = moveToAstRef s ast (ARBlank id) in
-                  (ast, s) )
+    if Option.isSome s.selectionStart && (key = K.Delete || key = K.Backspace)
+    then deleteSelection ~state:s ~ast
+    else
+      match (key, toTheLeft, toTheRight) with
+      (* Moving through a lambda arrow with '->' *)
+      | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
+          (ast, moveOneRight (ti.startPos + 1) s)
+      | K.Minus, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+        when pos = ti.startPos + 1 ->
+          (ast, moveOneRight (ti.startPos + 1) s)
+      | K.GreaterThan, L (TLambdaArrow _, _), R (TLambdaArrow _, ti)
+        when pos = ti.startPos + 2 ->
+          (ast, moveToNextNonWhitespaceToken ~pos ast s)
+      (* Deleting *)
+      | K.Backspace, L (TPatternString _, ti), _
+      | K.Backspace, L (TString _, ti), _
+        when s.selectionStart = Some ti.startPos
+            || s.selectionStart == Some ti.endPos ->
+          deleteSelection ~state:s ~ast
+      | K.Backspace, L (TPatternString _, ti), _
+      | K.Backspace, L (TString _, ti), _
+        when pos = ti.endPos ->
+          (* backspace, when no selection should move into a string, not delete it *)
+          (ast, moveOneLeft pos s)
+      | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
+        when Option.isSome s.selectionStart ->
+          deleteSelection ~state:s ~ast
+      | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
+          doBackspace ~pos ti ast s
+      | K.Backspace, _, R (TPatternBlank _, _)
+        when Option.isSome s.selectionStart ->
+          deleteSelection ~state:s ~ast
+      | K.Backspace, _, R (TPatternBlank _, ti) ->
+          doBackspace ~pos ti ast s
+      | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
+        ->
+          deleteSelection ~state:s ~ast
+      | K.Backspace, L (_, ti), _ ->
+          doBackspace ~pos ti ast s
+      | K.Delete, _, R (_, ti) ->
+          doDelete ~pos ti ast s
+      (* Autocomplete menu *)
+      (* Note that these are spelt out explicitly on purpose, else they'll
+      * trigger on the wrong element sometimes. *)
+      | K.Escape, L (_, ti), _ when isAutocompleting ti s ->
+          (ast, acClear s)
+      | K.Escape, _, R (_, ti) when isAutocompleting ti s ->
+          (ast, acClear s)
+      | K.Up, _, R (_, ti) when isAutocompleting ti s ->
+          (ast, acMoveUp s)
+      | K.Up, L (_, ti), _ when isAutocompleting ti s ->
+          (ast, acMoveUp s)
+      | K.Down, _, R (_, ti) when isAutocompleting ti s ->
+          (ast, acMoveDown s)
+      | K.Down, L (_, ti), _ when isAutocompleting ti s ->
+          (ast, acMoveDown s)
+      (* Autocomplete finish *)
+      | _, L (_, ti), _
+        when isAutocompleting ti s
+            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+        ->
+          acEnter ti ast s key
+      | _, _, R (_, ti)
+        when isAutocompleting ti s
+            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+        ->
+          acEnter ti ast s key
+      (* When we type a letter/number after an infix operator, complete and
+      * then enter the number/letter. *)
+      | K.Number _, L (TRightPartial (_, _), ti), _
+      | K.Letter _, L (TRightPartial (_, _), ti), _
+        when onEdge ->
+          let ast, s = acEnter ti ast s K.Tab in
+          getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
+          |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
           |> Option.withDefault ~default:(ast, s)
-        in
-        ( match left with
-        | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
-            let ast, s = acEnter ti ast s K.Enter in
-            doPipeline ast s
-        | _ ->
-            doPipeline ast s )
-    (* Special autocomplete entries *)
-    (* press dot while in a variable entry *)
-    | K.Period, L (TPartial _, ti), _
-      when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
-        acStartField ti ast s
-    (* Tab to next blank *)
-    | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
-        (ast, moveToNextBlank ~pos ast s)
-    | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
-        (ast, moveToPrevBlank ~pos ast s)
-    | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
-        (ast, selectAll ~pos ast s)
-    (* TODO: press comma while in an expr in a list *)
-    (* TODO: press comma while in an expr in a record *)
-    (* TODO: press equals when in a let *)
-    (* TODO: press colon when in a record field *)
-    (* Left/Right movement *)
-    | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
-        (ast, goToEndOfWord ~pos ast ti s)
-    | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
-        (ast, goToStartOfWord ~pos ast ti s)
-    | K.Left, L (_, ti), _ ->
-        (ast, doLeft ~pos ti s |> acMaybeShow ti)
-    | K.Right, _, R (_, ti) ->
-        (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-    | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
-        (ast, moveToStartOfLine ast ti s)
-    | K.GoToEndOfLine, _, R (_, ti) ->
-        (ast, moveToEndOfLine ast ti s)
-    | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
-  ->
-      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-           The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
-           For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
-           K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
-      ( match fluidGetOptionalSelectionRange s with
-      | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
-      | None ->
-          deleteCaretRange
-            ~state:s
-            ~ast
-            (s.newPos, getStartOfLineCaretPos ast ti s) )
-    | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
-      (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-           The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
-           For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
-           This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
-      ( match fluidGetOptionalSelectionRange s with
-      | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
-      | None ->
-          deleteCaretRange
-            ~state:s
-            ~ast
-            (s.newPos, getEndOfLineCaretPos ast ti s) )
-    | K.DeleteNextWord, _, R (_, ti) ->
-      ( match fluidGetOptionalSelectionRange s with
-      | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
-      | None ->
-          let movedState = goToEndOfWord ~pos ast ti s in
-          let newAst, newState =
-            deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
-          in
-          if newAst = ast && newState.newPos = pos
-          then (newAst, movedState)
-          else (newAst, newState) )
-    | K.DeletePrevWord, L (_, ti), _ ->
-      ( match fluidGetOptionalSelectionRange s with
-      | Some selRange ->
-          deleteCaretRange ~state:s ~ast selRange
-      | None ->
-          let rangeStart =
-            if Token.isStringToken ti.token && pos != ti.startPos
-            then getBegOfWordInStrCaretPos ~pos ti
-            else ti.startPos
-          in
-          deleteCaretRange ~state:s ~ast (rangeStart, pos) )
-    | K.Up, _, _ ->
-        (ast, doUp ~pos ast s)
-    | K.Down, _, _ ->
-        (ast, doDown ~pos ast s)
-    | K.Space, _, R (TSep _, _) ->
-        (ast, moveOneRight pos s)
-    (* comma - add another of the thing *)
-    | K.Comma, L (TListOpen _, toTheLeft), _
-    | K.Comma, L (TLambdaSymbol _, toTheLeft), _
-    | K.Comma, L (TLambdaVar _, toTheLeft), _
-      when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
-        (insertLambdaVar ~index id ~name:"" ast, s)
-    | K.Comma, L (t, ti), _ ->
-        if onEdge
-        then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
-        else doInsert ~pos keyChar ti ast s
-    (* list-specific insertions *)
-    | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close curly to go over the last curly *)
-        (ast, moveOneRight pos s)
-    | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
-        (* Allow pressing close square to go over the last square *)
-        (ast, moveOneRight pos s)
-    (* String-specific insertions *)
-    | K.DoubleQuote, _, R (TPatternString _, ti)
-    | K.DoubleQuote, _, R (TString _, ti)
-    | K.DoubleQuote, _, R (TStringMLEnd _, ti)
-      when pos = ti.endPos - 1 ->
-        (* Allow pressing quote to go over the last quote *)
-        (ast, moveOneRight pos s)
-    (* Field access *)
-    | K.Period, L (TVariable _, toTheLeft), _
-    | K.Period, L (TFieldName _, toTheLeft), _
-      when onEdge ->
-        doInsert ~pos keyChar toTheLeft ast s
-    (***********)
-    (* K.Enter *)
-    (***********)
-    (*
-     * Caret to right of record open {
-     * Add new initial record row and move caret to it. *)
-    | K.Enter, L (TRecordOpen id, _), _ ->
-        let ast = addRecordRowAt 0 id ast in
-        let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) in
-        (ast, s)
-    (*
-     * Caret to left of record close }
-     * Add new final record but leave caret to left of } *)
-    | K.Enter, _, R (TRecordClose id, _) ->
-        let s = recordAction "addRecordRowToBack" s in
-        let ast = addRecordRowToBack id ast in
-        let s = moveToAstRef s ast (ARRecord (id, RPClose)) in
-        (ast, s)
-    (*
-     * Caret between pipe symbol |> and following expression.
-     * Move current pipe expr down by adding new expr above it.
-     * Keep caret "the same", only moved down by 1 column. *)
-    | K.Enter, L (TPipe (id, idx, _), _), R _ ->
-        let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
-        let s =
-          moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
-        in
-        (ast, s)
-    (*
-     * Caret on end-of-line.
-     * Following newline contains a parent and index, meaning we're inside some
-     * special construct. Special-case each of those. *)
-    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
-      ( match findExpr parentId ast with
-      | Some (EPipe _) ->
-          let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
-          let s =
-            moveToCaretTarget s ast (caretTargetForBeginningOfExpr blankId ast)
-          in
-          (ast, s)
-      | Some (ERecord _) ->
-          let ast = addRecordRowAt idx parentId ast in
-          let s = moveToAstRef s ast (ARRecord (parentId, RPFieldname idx)) in
-          (ast, s)
-      | Some (EMatch _) ->
-          let ast, s = addMatchPatternAt parentId idx ast s in
-          let s =
-            moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
-          in
-          (ast, s)
-      | _ ->
-          (ast, s) )
-    (*
-     * Caret at end of line with nothing in newline. *)
-    | K.Enter, L (lt, lti), R (TNewline None, rti)
-      when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
+      | K.ShiftEnter, left, _ ->
+          let doPipeline ast s =
+            let startPos, endPos = fluidGetSelectionRange s in
+            let findParent = startPos = endPos in
+            let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
+            Option.map topmostID ~f:(fun id ->
+                let ast, s, blankId = createPipe ~findParent id ast s in
+                match blankId with
+                | None ->
+                    (ast, s)
+                | Some id ->
+                    let s = moveToAstRef s ast (ARBlank id) in
+                    (ast, s) )
+            |> Option.withDefault ~default:(ast, s)
+        | K.ShiftEnter, left, _ ->
+            let doPipeline ast s =
+              let startPos, endPos = fluidGetSelectionRange s in
+              let findParent = startPos = endPos in
+              let topmostID =
+                getTopmostSelectionID startPos endPos ~state:s ast
+              in
+              Option.map topmostID ~f:(fun id ->
+                  doShiftEnter ~findParent id ast s )
+              |> Option.withDefault ~default:(ast, s)
+            in
+            ( match left with
+            | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
+                let ast, s = acEnter ti ast s K.Enter in
+                doPipeline ast s
+            | _ ->
+                doPipeline ast s )
+        (* Special autocomplete entries *)
+        (* press dot while in a variable entry *)
+        | K.Period, L (TPartial _, ti), _
+          when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+            acStartField ti ast s
+        (* Tab to next blank *)
+        | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
+            (ast, moveToNextBlank ~pos ast s)
+        | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
+            (ast, moveToPrevBlank ~pos ast s)
+        | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
+            (ast, selectAll ~pos ast s)
+        (* TODO: press comma while in an expr in a list *)
+        (* TODO: press comma while in an expr in a record *)
+        (* TODO: press equals when in a let *)
+        (* TODO: press colon when in a record field *)
+        (* Left/Right movement *)
+        | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
+            (ast, goToEndOfWord ~pos ast ti s)
+        | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
+            (ast, goToStartOfWord ~pos ast ti s)
+        | K.Left, L (_, ti), _ ->
+            (ast, doLeft ~pos ti s |> acMaybeShow ti)
+        | K.Right, _, R (_, ti) ->
+            (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
+        | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
+            (ast, moveToStartOfLine ast ti s)
+        | K.GoToEndOfLine, _, R (_, ti) ->
+            (ast, moveToEndOfLine ast ti s)
+        | K.DeleteToStartOfLine, _, R (_, ti)
+        | K.DeleteToStartOfLine, L (_, ti), _ ->
+          (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+              The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
+              For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
+              K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
+          ( match fluidGetOptionalSelectionRange s with
+          | Some selRange ->
+              deleteCaretRange ~state:s ~ast selRange
+          | None ->
+              deleteCaretRange
+                ~state:s
+                ~ast
+                (s.newPos, getStartOfLineCaretPos ast ti s) )
+        | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _
       ->
-        wrapInLet lti ast s
-    (*
-     * Caret at end-of-line with no data in the TNewline.
-     * Just move right (ie, * to beginning of next line) *)
-    | K.Enter, L _, R (TNewline None, ti) ->
-        (ast, doRight ~pos ~next:mNext ti s)
-    (*
-     * Caret at end-of-line generally adds a let on the line below,
-     * unless the next line starts with a blank, in which case we go to it. *)
-    | K.Enter, L _, R (TNewline (Some (id, _, _)), ti) ->
-        if mNext
-           |> Option.map ~f:(fun n ->
-                  match n.token with TBlank _ -> true | _ -> false )
-           |> Option.withDefault ~default:false
-        then (ast, doRight ~pos ~next:mNext ti s)
-        else
-          let ast, s, letId = makeIntoLetBody id ast s in
-          let s = moveToAstRef s ast (ARLet (letId, LPVarName)) in
+          (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+              The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
+              For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
+              This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
+          ( match fluidGetOptionalSelectionRange s with
+          | Some selRange ->
+              deleteCaretRange ~state:s ~ast selRange
+          | None ->
+              deleteCaretRange
+                ~state:s
+                ~ast
+                (s.newPos, getEndOfLineCaretPos ast ti s) )
+        | K.DeleteNextWord, _, R (_, ti) ->
+          ( match fluidGetOptionalSelectionRange s with
+          | Some selRange ->
+              deleteCaretRange ~state:s ~ast selRange
+          | None ->
+              let movedState = goToEndOfWord ~pos ast ti s in
+              let newAst, newState =
+                deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
+              in
+              if newAst = ast && newState.newPos = pos
+              then (newAst, movedState)
+              else (newAst, newState) )
+        | K.DeletePrevWord, L (_, ti), _ ->
+          ( match fluidGetOptionalSelectionRange s with
+          | Some selRange ->
+              deleteCaretRange ~state:s ~ast selRange
+          | None ->
+              let rangeStart =
+                if Token.isStringToken ti.token && pos != ti.startPos
+                then getBegOfWordInStrCaretPos ~pos ti
+                else ti.startPos
+              in
+              deleteCaretRange ~state:s ~ast (rangeStart, pos) )
+        | K.Up, _, _ ->
+            (ast, doUp ~pos ast s)
+        | K.Down, _, _ ->
+            (ast, doDown ~pos ast s)
+        | K.Space, _, R (TSep _, _) ->
+            (ast, moveOneRight pos s)
+        (* comma - add another of the thing *)
+        | K.Comma, L (TListOpen _, toTheLeft), _
+        | K.Comma, L (TLambdaSymbol _, toTheLeft), _
+        | K.Comma, L (TLambdaVar _, toTheLeft), _
+          when onEdge ->
+            doInsert ~pos keyChar toTheLeft ast s
+        | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
+            (insertLambdaVar ~index id ~name:"" ast, s)
+        | K.Comma, L (t, ti), _ ->
+            if onEdge
+            then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
+            else doInsert ~pos keyChar ti ast s
+        (* list-specific insertions *)
+        | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1
+          ->
+            (* Allow pressing close curly to go over the last curly *)
+            (ast, moveOneRight pos s)
+        (* Record-specific insertions *)
+        | K.Enter, L (TRecordOpen id, _), _ ->
+            let newAST = addRecordRowAt 0 id ast in
+            let newPos =
+              posFromCaretTarget
+                s
+                newAST
+                {astRef = ARRecord (id, RPFieldname 0); offset = 0}
+            in
+            deleteCaretRange ~state:s ~ast (rangeStart, pos) )
+      | K.Up, _, _ ->
+          (ast, doUp ~pos ast s)
+      | K.Down, _, _ ->
+          (ast, doDown ~pos ast s)
+      | K.Space, _, R (TSep _, _) ->
+          (ast, moveOneRight pos s)
+      (* comma - add another of the thing *)
+      | K.Comma, L (TListOpen _, toTheLeft), _
+      | K.Comma, L (TLambdaSymbol _, toTheLeft), _
+      | K.Comma, L (TLambdaVar _, toTheLeft), _
+        when onEdge ->
+          doInsert ~pos keyChar toTheLeft ast s
+      | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
+          (insertLambdaVar ~index id ~name:"" ast, s)
+      | K.Comma, L (t, ti), _ ->
+          if onEdge
+          then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
+          else doInsert ~pos keyChar ti ast s
+      (* list-specific insertions *)
+      | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
+          (* Allow pressing close curly to go over the last curly *)
+          (ast, moveOneRight pos s)
+      | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+          (* Allow pressing close square to go over the last square *)
+          (ast, moveOneRight pos s)
+      (* String-specific insertions *)
+      | K.DoubleQuote, _, R (TPatternString _, ti)
+      | K.DoubleQuote, _, R (TString _, ti)
+      | K.DoubleQuote, _, R (TStringMLEnd _, ti)
+        when pos = ti.endPos - 1 ->
+          (* Allow pressing quote to go over the last quote *)
+          (ast, moveOneRight pos s)
+      (* Field access *)
+      | K.Period, L (TVariable _, toTheLeft), _
+      | K.Period, L (TFieldName _, toTheLeft), _
+        when onEdge ->
+          doInsert ~pos keyChar toTheLeft ast s
+      (***********)
+      (* K.Enter *)
+      (***********)
+      (*
+      * Caret to right of record open {
+      * Add new initial record row and move caret to it. *)
+      | K.Enter, L (TRecordOpen id, _), _ ->
+          let ast = addRecordRowAt 0 id ast in
+          let s = moveToAstRef s ast (ARRecord (id, RPFieldname 0)) in
           (ast, s)
-    (*
-     * Caret at beginning of special line.
-     * Preceding newline contains a parent and index, meaning we're inside some
-     * special construct. Special-case each of those.
-     *
-     * In the special case of the special case where we're actually at the
-     * beginning of the next line _following_ the construct, then we actually
-     * want to add a let, not continue the construct. These are the index vs
-     * length checks in each case.
-     *
-     * Keep in mind this is the newline that _ends the previous line_, which means
-     * in each case the idx is one more than the number of elements in the construct.
-     * Eg, a match with 2 rows will have idx=3 here.
-     *)
-    | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
-        let addLetAboveRightToken () : ast * state =
-          let id = FluidToken.tid rTok in
+      (*
+      * Caret to left of record close }
+      * Add new final record but leave caret to left of } *)
+      | K.Enter, _, R (TRecordClose id, _) ->
+          let s = recordAction "addRecordRowToBack" s in
+          let ast = addRecordRowToBack id ast in
+          let s = moveToAstRef s ast (ARRecord (id, RPClose)) in
+          (ast, s)
+      (*
+      * Caret between pipe symbol |> and following expression.
+      * Move current pipe expr down by adding new expr above it.
+      * Keep caret "the same", only moved down by 1 column. *)
+      | K.Enter, L (TPipe (id, idx, _), _), R _ ->
+          let ast, s, _ = addPipeExprAt id (idx + 1) ast s in
+          let s =
+            moveToAstRef s ast (ARPipe (id, PPPipeKeyword (idx + 1))) ~offset:2
+          in
+          (ast, s)
+      (*
+      * Caret on end-of-line.
+      * Following newline contains a parent and index, meaning we're inside some
+      * special construct. Special-case each of those. *)
+      | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
+        ( match findExpr parentId ast with
+        | Some (EPipe _) ->
+            let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
+            let s =
+              moveToCaretTarget s ast (caretTargetForBeginningOfExpr blankId ast)
+            in
+            (ast, s)
+        | Some (ERecord _) ->
+            let ast = addRecordRowAt idx parentId ast in
+            let s = moveToAstRef s ast (ARRecord (parentId, RPFieldname idx)) in
+            (ast, s)
+        | Some (EMatch _) ->
+            let ast, s = addMatchPatternAt parentId idx ast s in
+            let s =
+              moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
+            in
+            (ast, s)
+        | _ ->
+            (ast, s) )
+      (*
+      * Caret at end of line with nothing in newline. *)
+      | K.Enter, L (lt, lti), R (TNewline None, rti)
+        when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
+        ->
+          wrapInLet lti ast s
+      (*
+      * Caret at end-of-line with no data in the TNewline.
+      * Just move right (ie, * to beginning of next line) *)
+      | K.Enter, L _, R (TNewline None, ti) ->
+          (ast, doRight ~pos ~next:mNext ti s)
+      (*
+      * Caret at end-of-line generally adds a let on the line below,
+      * unless the next line starts with a blank, in which case we go to it. *)
+      | K.Enter, L _, R (TNewline (Some (id, _, _)), ti) ->
+          if mNext
+            |> Option.map ~f:(fun n ->
+                    match n.token with TBlank _ -> true | _ -> false )
+            |> Option.withDefault ~default:false
+          then (ast, doRight ~pos ~next:mNext ti s)
+          else
+            let ast, s, letId = makeIntoLetBody id ast s in
+            let s = moveToAstRef s ast (ARLet (letId, LPVarName)) in
+            (ast, s)
+      (*
+      * Caret at beginning of special line.
+      * Preceding newline contains a parent and index, meaning we're inside some
+      * special construct. Special-case each of those.
+      *
+      * In the special case of the special case where we're actually at the
+      * beginning of the next line _following_ the construct, then we actually
+      * want to add a let, not continue the construct. These are the index vs
+      * length checks in each case.
+      *
+      * Keep in mind this is the newline that _ends the previous line_, which means
+      * in each case the idx is one more than the number of elements in the construct.
+      * Eg, a match with 2 rows will have idx=3 here.
+      *)
+      | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
+          let addLetAboveRightToken () : ast * state =
+            let id = FluidToken.tid rTok in
+            let ast, s, _ = makeIntoLetBody id ast s in
+            let s =
+              moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
+            in
+            (ast, s)
+          in
+          ( match findExpr parentId ast with
+          | Some (EMatch (_, _, exprs)) ->
+              (* if a match has n rows, the last newline has idx=(n+1) *)
+              if idx = List.length exprs
+              then addLetAboveRightToken ()
+              else
+                let ast, s = addMatchPatternAt parentId idx ast s in
+                let ref = ARMatch (parentId, MPBranchPattern (idx + 1)) in
+                let s = moveToAstRef s ast ref in
+                (ast, s)
+          | Some (EPipe (_, exprs)) ->
+              (* exprs[0] is the initial value of the pipeline, but the indexing
+              * is zero-based starting at exprs[1] (it indexes the _pipes
+              * only_), so need idx+1 here to counteract. *)
+              if idx + 1 = List.length exprs
+              then addLetAboveRightToken ()
+              else
+                let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
+                let s =
+                  moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
+                in
+                (ast, s)
+          | Some (ERecord _) ->
+              (* No length special-case needed because records do not emit a
+              * TNewline with index after the final '}'. In this case, we
+              * actually hit the next match case instead. *)
+              let ast = addRecordRowAt idx parentId ast in
+              let s =
+                moveToAstRef s ast (ARRecord (parentId, RPFieldname (idx + 1)))
+              in
+              (ast, s)
+          | _ ->
+              (ast, s) )
+      (*
+      * Caret at very beginning of tokens or at beginning of non-special line. *)
+      | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
+          let id = FluidToken.tid t in
           let ast, s, _ = makeIntoLetBody id ast s in
           let s =
             moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
           in
           (ast, s)
-        in
-        ( match findExpr parentId ast with
-        | Some (EMatch (_, _, exprs)) ->
-            (* if a match has n rows, the last newline has idx=(n+1) *)
-            if idx = List.length exprs
-            then addLetAboveRightToken ()
-            else
-              let ast, s = addMatchPatternAt parentId idx ast s in
-              let ref = ARMatch (parentId, MPBranchPattern (idx + 1)) in
-              let s = moveToAstRef s ast ref in
-              (ast, s)
-        | Some (EPipe (_, exprs)) ->
-            (* exprs[0] is the initial value of the pipeline, but the indexing
-             * is zero-based starting at exprs[1] (it indexes the _pipes
-             * only_), so need idx+1 here to counteract. *)
-            if idx + 1 = List.length exprs
-            then addLetAboveRightToken ()
-            else
-              let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
-              let s =
-                moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
-              in
-              (ast, s)
-        | Some (ERecord _) ->
-            (* No length special-case needed because records do not emit a
-             * TNewline with index after the final '}'. In this case, we
-             * actually hit the next match case instead. *)
-            let ast = addRecordRowAt idx parentId ast in
+      (*
+      * Caret at very end of tokens where last line is non-let expression. *)
+      | K.Enter, L (token, ti), No when not (Token.isLet token) ->
+          wrapInLet ti ast s
+      (****************)
+      (* Int to float *)
+      (****************)
+      | K.Period, L (TInteger (id, _), ti), _ ->
+          let offset = pos - ti.startPos in
+          (convertIntToFloat offset id ast, moveOneRight pos s)
+      | K.Period, L (TPatternInteger (mID, id, _, _), ti), _ ->
+          let offset = pos - ti.startPos in
+          (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
+      (* Skipping over specific characters, this must come before the
+      * more general binop cases or we lose the jumping behaviour *)
+      | K.Equals, _, R (TLetAssignment _, toTheRight) ->
+          (ast, moveTo toTheRight.endPos s)
+      | K.Colon, _, R (TRecordSep _, toTheRight) ->
+          (ast, moveTo toTheRight.endPos s)
+      (* Binop specific, all of the specific cases must come before the
+      * big general `key, L (_, toTheLeft), _` case. *)
+      | _, L (TPartial _, toTheLeft), _
+      | _, L (TRightPartial _, toTheLeft), _
+      | _, L (TBinOp _, toTheLeft), _
+        when keyIsInfix ->
+          doInsert ~pos keyChar toTheLeft ast s
+      | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
+          doInsert ~pos keyChar toTheRight ast s
+      | _, L (_, toTheLeft), _
+        when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
+          ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
+          , s |> moveTo (pos + 2) )
+      (* Rest of Insertions *)
+      | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
+          doInsert ~pos keyChar toTheLeft ast s
+      (*
+      * Caret between empty record symbols {}
+      * Adds new initial record row with the typed 
+      * value as the key (if value entered is valid),
+      * then move caret to end of key *)
+      | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
+        ( match keyChar with
+        | Some keyCharStr when isIdentifierChar (String.fromChar keyCharStr) ->
+            let letterSTr = String.fromChar keyCharStr in
+            let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
             let s =
-              moveToAstRef s ast (ARRecord (parentId, RPFieldname (idx + 1)))
+              moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1
             in
             (ast, s)
         | _ ->
             (ast, s) )
-    (*
-     * Caret at very beginning of tokens or at beginning of non-special line. *)
-    | K.Enter, No, R (t, _) | K.Enter, L (TNewline _, _), R (t, _) ->
-        let id = FluidToken.tid t in
-        let ast, s, _ = makeIntoLetBody id ast s in
-        let s =
-          moveToCaretTarget s ast (caretTargetForBeginningOfExpr id ast)
-        in
-        (ast, s)
-    (*
-     * Caret at very end of tokens where last line is non-let expression. *)
-    | K.Enter, L (token, ti), No when not (Token.isLet token) ->
-        wrapInLet ti ast s
-    (****************)
-    (* Int to float *)
-    (****************)
-    | K.Period, L (TInteger (id, _), ti), _ ->
-        let offset = pos - ti.startPos in
-        (convertIntToFloat offset id ast, moveOneRight pos s)
-    | K.Period, L (TPatternInteger (mID, id, _, _), ti), _ ->
-        let offset = pos - ti.startPos in
-        (convertPatternIntToFloat offset mID id ast, moveOneRight pos s)
-    (* Skipping over specific characters, this must come before the
-     * more general binop cases or we lose the jumping behaviour *)
-    | K.Equals, _, R (TLetAssignment _, toTheRight) ->
-        (ast, moveTo toTheRight.endPos s)
-    | K.Colon, _, R (TRecordSep _, toTheRight) ->
-        (ast, moveTo toTheRight.endPos s)
-    (* Binop specific, all of the specific cases must come before the
-     * big general `key, L (_, toTheLeft), _` case. *)
-    | _, L (TPartial _, toTheLeft), _
-    | _, L (TRightPartial _, toTheLeft), _
-    | _, L (TBinOp _, toTheLeft), _
-      when keyIsInfix ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | _, _, R (TBlank _, toTheRight) when keyIsInfix ->
-        doInsert ~pos keyChar toTheRight ast s
-    | _, L (_, toTheLeft), _
-      when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
-        , s |> moveTo (pos + 2) )
-    (* Rest of Insertions *)
-    | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
-        doInsert ~pos keyChar toTheLeft ast s
-    (*
-     * Caret between empty record symbols {}
-     * Adds new initial record row with the typed 
-     * value as the key (if value entered is valid),
-     * then move caret to end of key *)
-    | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
-      ( match keyChar with
-      | Some keyCharStr when isIdentifierChar (String.fromChar keyCharStr) ->
-          let letterSTr = String.fromChar keyCharStr in
-          let ast = addRecordRowAt ~letter:letterSTr 0 id ast in
-          let s =
-            moveToAstRef s ast (ARRecord (id, RPFieldname 0)) ~offset:1
-          in
+      | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
+          doInsert ~pos keyChar toTheLeft ast s
+      | _, _, R (TListOpen _, _) ->
           (ast, s)
+      | _, _, R (TRecordOpen _, _) ->
+          (ast, s)
+      | _, _, R (_, toTheRight) ->
+          doInsert ~pos keyChar toTheRight ast s
       | _ ->
-          (ast, s) )
-    | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
-        doInsert ~pos keyChar toTheLeft ast s
-    | _, _, R (TListOpen _, _) ->
-        (ast, s)
-    | _, _, R (TRecordOpen _, _) ->
-        (ast, s)
-    | _, _, R (_, toTheRight) ->
-        doInsert ~pos keyChar toTheRight ast s
-    | _ ->
-        (* Unknown *)
-        (ast, report ("Unknown action: " ^ K.toName key) s)
+          (* Unknown *)
+          (ast, report ("Unknown action: " ^ K.toName key) s)
   in
   let newAST, newState =
     (* This is a hack to make Enter create a new entry in matches and pipes
