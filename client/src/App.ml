@@ -1296,21 +1296,14 @@ let update_ (msg : msg) (m : model) : modification =
       let selectionTarget : tlidSelectTarget =
         if VariantTesting.isFluid m.tests
         then
-          ( match Fluid.astAndStateFromTLID m tlid with
-          | Some (ast, _state) ->
-              Fluid.findExpr id ast
-              |> Option.andThen ~f:(fun (expr : Types.fluidExpr) ->
-                     match expr with
-                     | EFnCall (_, fnName, _, _) ->
-                         Some
-                           (STCaret
-                              { astRef = ARFnCall (id, FCPFnName)
-                              ; offset = String.length fnName })
-                     | _ ->
-                         None )
-          | None ->
-              None )
-          |> Option.withDefault ~default:STUnknown
+          (* Note that the intent here is to make the live value visible,
+             which is a side-effect of placing the caret right after the
+             function name in the handler where the function is being called.
+             We're relying on the length of the function name representing
+             the offset into the tokenized function call node corresponding to
+             this location. Eg: foo|v1 a b *)
+          STCaret
+            {astRef = ARFnCall (id, FCPFnName); offset = String.length name}
         else STID id
       in
       Many
