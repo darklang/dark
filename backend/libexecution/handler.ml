@@ -12,44 +12,37 @@ let is_complete (h : handler) : bool =
       false
 
 
-let is_http (h : handler) : bool =
-  match h.spec.module_ with
-  | Filled (_, m) ->
-      String.Caseless.equal "http" m
-  | _ ->
-      true
-
-
-(* default to true, because http is generally what we want *)
-
-let is_cron (h : handler) : bool =
-  match h.spec.module_ with
-  | Filled (_, m) ->
-      String.Caseless.equal "cron" m
-  | _ ->
-      false
-
-
-(* default to false, because http takes precedence *)
-
 let module_for (h : handler) : string option =
   match h.spec.module_ with Filled (_, m) -> Some m | _ -> None
 
 
 let module_type (h : handler) =
-  match h.spec.module_ with
-  | Filled (_, m) when String.Caseless.equal "http" m ->
+  match module_for h with
+  | Some m when String.Caseless.equal "http" m ->
       `Http
-  | Filled (_, m) when String.Caseless.equal "cron" m ->
+  | Some m when String.Caseless.equal "cron" m ->
       `Cron
-  | Filled (_, m) when String.Caseless.equal "worker" m ->
+  | Some m when String.Caseless.equal "worker" m ->
       `Worker
-  | Filled (_, m) when String.Caseless.equal "repl" m ->
+  | Some m when String.Caseless.equal "repl" m ->
       `Repl
-  | Filled (_, m) ->
+  | Some m ->
       `Worker
-  | _ ->
+  | None ->
       `Unknown
+
+
+let is_http (h : handler) : bool =
+  (* match `Unknown because http is generally what we want *)
+  match module_type h with `Http | `Unknown -> true | _ -> false
+
+
+let is_worker (h : handler) : bool =
+  match module_type h with `Worker -> true | _ -> false
+
+
+let is_cron (h : handler) : bool =
+  match module_type h with `Cron -> true | _ -> false
 
 
 let module_for_exn (h : handler) : string =
@@ -105,3 +98,18 @@ let matches_event_desc (d : string * string * string) (h : handler) : bool =
   module_for h = Some space
   && event_name_for h = Some name
   && modifier_for h = Some modifier
+
+
+(** has_valid_spec returns true if the spec is complete and valid.
+    Specifically, this is called from Canvas.verify, meaning every save and
+    load validates the canvas's handlers through this function. *)
+let has_valid_spec (h : handler) : bool =
+  (* Legacy workers with arbitrary module may have any modifier, but new
+   * workers must have "_" *)
+  match module_for h with
+  | Some m when String.Caseless.equal "worker" m ->
+      modifier_for h = Some "_"
+  | Some m when String.Caseless.equal "repl" m ->
+      modifier_for h = Some "_"
+  | Some _ | None ->
+      true
