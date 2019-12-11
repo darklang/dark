@@ -373,6 +373,25 @@ let () =
       pos
       expr
   in
+  (* Adding ShiftHeld because in some cases, we check 
+   * if the shiftkey is held seperately from the actually fluid key *)
+  let selectionPressWithShift
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      (key : K.key)
+      (selectionStart : int)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(key, ShiftHeld)]
+      (Some selectionStart)
+      pos
+      expr
+  in
   let keys
       ?(wrap = true)
       ?(debug = false)
@@ -3221,17 +3240,17 @@ let () =
       t
         "selecting an expression pipes from it 1"
         (binop "+" (int "4") (int "5"))
-        (selectionPress K.ShiftEnter 4 5)
+        (selectionPressWithShift K.ShiftEnter 4 5)
         "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
         (binop "+" (int "4") (int "5"))
-        (selectionPress K.ShiftEnter 5 4)
+        (selectionPressWithShift K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts
         "K.ShiftEnter doesn't persist selection"
         anInt
-        (selectionPress K.ShiftEnter 0 5)
+        (selectionPressWithShift K.ShiftEnter 0 5)
         ("12345\n|>___\n", (None, 8)) ;
       ts
         "K.SelectAll selects all"
