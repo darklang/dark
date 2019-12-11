@@ -166,13 +166,29 @@ let newHandler m space name modifier pos =
     ; hTLID = tlid
     ; pos }
   in
+  let idToEnter =
+    (* TL.getNextBlank requires that there be a tl in the model to operate on;
+     * here, we're setting an ID to focus before the model is updated, so we
+     * generate our list of pointerDatas here *)
+    SpecHeaders.allData handler.spec @ AST.allData handler.ast
+    |> List.filter ~f:Pointer.isBlank
+    |> List.head
+    |> Option.valueExn
+    (* newHandler must have _a_ blank *)
+    |> Pointer.toID
+  in
   let fluidMods =
     if VariantTesting.isFluid m.tests
     then
       let s = m.fluidState in
       let newS = {s with newPos = 0} in
+      let cursorState =
+        if idToEnter = (handler.ast |> Blank.toID)
+        then FluidEntering tlid
+        else Entering (Filling (tlid, idToEnter))
+      in
       [ TweakModel (fun m -> {m with fluidState = newS})
-      ; SetCursorState (FluidEntering tlid) ]
+      ; SetCursorState cursorState ]
     else []
   in
   let pageChanges =
