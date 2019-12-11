@@ -90,7 +90,7 @@ else
     --app-init-delay 0 \
     --pageload-timeout 200 \
     --screenshots takeOnFails=true \
-    --screenshots path=rundir/screenshots/ \
+    --screenshots rundir/screenshots/ \
     --concurrency "$CONCURRENCY" \
     --reporter=spec \
     $debugcmd \
