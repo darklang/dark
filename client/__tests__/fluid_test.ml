@@ -182,6 +182,9 @@ let () =
              ; ctrlKey = false })
           s )
   in
+  let getShiftState (shiftHeld : bool) : shiftState =
+    if shiftHeld then ShiftHeld else ShiftNotHeld
+  in
   let process
       ~(debug : bool)
       ~(clone : bool)
@@ -280,37 +283,62 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
-  in
-  let bs
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
-  in
-  let tab
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
-  in
-  let ctrlLeft
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
     process
       ~wrap
       ~clone
       ~debug
-      [(K.GoToStartOfWord, ShiftNotHeld)]
+      [(K.Delete, getShiftState shiftHeld)]
+      None
+      pos
+      expr
+  in
+  let bs
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.Backspace, getShiftState shiftHeld)]
+      None
+      pos
+      expr
+  in
+  let tab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.Tab, getShiftState shiftHeld)]
+      None
+      pos
+      expr
+  in
+  let ctrlLeft
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.GoToStartOfWord, getShiftState shiftHeld)]
       None
       pos
       expr
@@ -319,47 +347,81 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.GoToEndOfWord, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.GoToEndOfWord, getShiftState shiftHeld)]
+      None
+      pos
+      expr
   in
   let shiftTab
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.ShiftTab, getShiftState shiftHeld)]
+      None
+      pos
+      expr
   in
   let space
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.Space, getShiftState shiftHeld)]
+      None
+      pos
+      expr
   in
   let enter
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [(K.Enter, getShiftState shiftHeld)]
+      None
+      pos
+      expr
   in
   let key
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (key : K.key)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~clone ~debug [(key, getShiftState shiftHeld)] None pos expr
   in
   let selectionPress
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (key : K.key)
       (selectionStart : int)
       (pos : int)
@@ -368,26 +430,7 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(key, ShiftNotHeld)]
-      (Some selectionStart)
-      pos
-      expr
-  in
-  (* Adding ShiftHeld because in some cases, we check 
-   * if the shiftkey is held seperately from the actually fluid key *)
-  let selectionPressWithShift
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (key : K.key)
-      (selectionStart : int)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [(key, ShiftHeld)]
+      [(key, getShiftState shiftHeld)]
       (Some selectionStart)
       pos
       expr
@@ -396,6 +439,7 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (keys : K.key list)
       (pos : int)
       (expr : fluidExpr) : testResult =
@@ -403,7 +447,7 @@ let () =
       ~wrap
       ~debug
       ~clone
-      (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
+      (List.map ~f:(fun key -> (key, getShiftState shiftHeld)) keys)
       None
       pos
       expr
@@ -421,11 +465,12 @@ let () =
       ?(debug = false)
       ?(wrap = true)
       ?(clone = true)
+      ?(shiftHeld = false)
       (char : char)
       (pos : int)
       (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
+    process ~wrap ~debug ~clone [(key, getShiftState shiftHeld)] None pos expr
   in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
@@ -3240,17 +3285,17 @@ let () =
       t
         "selecting an expression pipes from it 1"
         (binop "+" (int "4") (int "5"))
-        (selectionPressWithShift K.ShiftEnter 4 5)
+        (selectionPress ~shiftHeld:true K.ShiftEnter 4 5)
         "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
         (binop "+" (int "4") (int "5"))
-        (selectionPressWithShift K.ShiftEnter 5 4)
+        (selectionPress ~shiftHeld:true K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts
         "K.ShiftEnter doesn't persist selection"
         anInt
-        (selectionPressWithShift K.ShiftEnter 0 5)
+        (selectionPress ~shiftHeld:true K.ShiftEnter 0 5)
         ("12345\n|>___\n", (None, 8)) ;
       ts
         "K.SelectAll selects all"
