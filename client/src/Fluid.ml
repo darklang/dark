@@ -2885,34 +2885,52 @@ let acMoveDown (s : state) : state =
   acSetIndex index s
 
 
+(* acMoveBasedOnKey produces a new state with the caret placed in a position that
+   makes sense for the specific key that was pressed to confirm the autocomplete.
+   
+   It accepts:
+   - the pressed key,
+   - the caret position at which the autocompleted token begins,
+   - an "offset" that corresponds to how many additional steps the caret should take to get
+      from there to where the caret would end up with no special handling,
+   - the state after the completion has been added to the ast
+   - the ast after the completion has been added *)
 let acMoveBasedOnKey
-    (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
-    state =
+    (key : K.key)
+    (posAtStartOfACedToken : int)
+    (offset : int)
+    (s : state)
+    (ast : ast) : state =
   let tokens = toTokens s ast in
-  let nextBlank = getNextBlankPos s.newPos tokens in
-  let prevBlank = getPrevBlankPos s.newPos tokens in
+  let posAtEndOfACedToken = posAtStartOfACedToken + offset in
   let newPos =
     match key with
     | K.Tab ->
-        nextBlank
+      ( match getNextBlank s.newPos tokens with
+      | Some nextBlankTi ->
+          nextBlankTi.startPos
+      | None ->
+          posAtEndOfACedToken )
     | K.ShiftTab ->
-        prevBlank
+      ( match getPrevBlank s.newPos tokens with
+      | Some prevBlankTi ->
+          prevBlankTi.startPos
+      | None ->
+          posAtStartOfACedToken )
     | K.Enter ->
-        startPos + offset
+        posAtEndOfACedToken
     | K.Space ->
-        let thisTi =
-          List.find ~f:(fun ti -> ti.startPos = startPos + offset) tokens
+        let newS =
+          (* TODO: consider skipping over non-whitespace separators
+             as well, such as the commas in a list:
+              we currently do [aced|,___]
+              but could do    [aced,|___]
+           *)
+          moveToNextNonWhitespaceToken ~pos:posAtEndOfACedToken ast s
         in
-        ( match thisTi with
-        (* Only move forward to skip over a separator *)
-        (* TODO: are there more separators we should consider here? *)
-        | Some {token = TSep _} ->
-            min nextBlank (startPos + offset + 1)
-        | _ ->
-            (* if new position is after next blank, stay in next blank *)
-            startPos + offset )
+        newS.newPos
     | _ ->
-        s.newPos
+        posAtEndOfACedToken
   in
   let newState = moveTo newPos (acClear s) in
   newState
