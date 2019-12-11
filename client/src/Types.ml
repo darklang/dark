@@ -1035,6 +1035,22 @@ and apiError =
   ; reload : bool
   ; importance : errorImportance }
 
+(* tlidSelectTarget represents a target inside a TLID for use
+   by the `Select` modification.
+   
+   In Fluid, we should probably use STCaret in all cases --
+   knowing the id of an ast node (via STID) is insufficient
+   to know where to place the caret within that node.
+   In non-fluid, the concept of a caret doesn't really exist;
+   we select nodes at any nesting level as a whole, so STID is
+   sufficient.
+
+   If we want to select a toplevel as a whole but don't have a
+   specific id in mind, we use STTopLevelRoot.
+
+   If we tried to find eg an id but it didn't correspond to a node,
+   we use STUnknown to indicate that this shouldn't happen.
+    *)
 and tlidSelectTarget =
   | STCaret of caretTarget
   | STID of id
