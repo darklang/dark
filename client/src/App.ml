@@ -145,7 +145,7 @@ let processFocus (m : model) (focus : focus) : modification =
           | Some id ->
               Select (tlid, STID id)
           | None ->
-              Select (tlid, STUnknown) ) ) )
+              Select (tlid, STTopLevelRoot) ) ) )
   | FocusExact (tlid, id) ->
     ( match TL.getPD m tlid id with
     | Some pd ->
@@ -484,7 +484,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           if VariantTesting.isFluid m.tests
           then
             match p with
-            | STTopLevelRoot | STUnknown ->
+            | STTopLevelRoot ->
                 (FluidEntering tlid, None)
             | STID id ->
               ( match TL.getPD m tlid id with
@@ -508,7 +508,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                 (FluidEntering tlid, maybeNewFluidState)
           else
             match p with
-            | STTopLevelRoot | STUnknown ->
+            | STTopLevelRoot ->
                 (Selecting (tlid, None), None)
             | STID id ->
                 (Selecting (tlid, Some id), None)
@@ -534,7 +534,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (* Note that we want to ensure that when we click out of an entry box that the AC is
            * reset, else we can't scroll. *)
           match p with
-          | STTopLevelRoot | STUnknown ->
+          | STTopLevelRoot ->
               processAutocompleteMods m [ACReset]
           | STID id ->
             ( match TL.getPD m tlid id with

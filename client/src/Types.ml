@@ -1046,16 +1046,14 @@ and apiError =
    sufficient.
 
    If we want to select a toplevel as a whole but don't have a
-   specific id in mind, we use STTopLevelRoot.
-
-   If we tried to find eg an id but it didn't correspond to a node,
-   we use STUnknown to indicate that this shouldn't happen.
-    *)
+   specific id in mind, we use STTopLevelRoot. There's a few
+   places where we do this as a fallback when we expected to find
+   an id but couldn't (they used to use Some(id) with an implicit
+   fallback to None). *)
 and tlidSelectTarget =
   | STCaret of caretTarget
   | STID of id
   | STTopLevelRoot
-  | STUnknown
 
 and modification =
   | HandleAPIError of apiError

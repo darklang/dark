@@ -190,7 +190,7 @@ let move
   | Some id ->
       Select (tlid, STID id)
   | None ->
-      Select (tlid, STUnknown)
+      Select (tlid, STTopLevelRoot)
 
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
@@ -206,7 +206,7 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
       |> Option.orElse pd
       |> Option.map ~f:P.toID
       |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STUnknown))
+      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
 
 
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
@@ -339,7 +339,7 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
       |> Option.andThen ~f:(TL.getParentOf tl)
       |> Option.map ~f:P.toID
       |> Option.map ~f:(fun id -> Select (tlid, STID id))
-      |> Option.withDefault ~default:(Select (tlid, STUnknown))
+      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
 
 
 (* ------------------------------- *)
@@ -392,7 +392,7 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
       let nextIdTarget =
         Option.map nextBlankPd ~f:P.toID
         |> Option.map ~f:(fun id -> STID id)
-        |> Option.withDefault ~default:STUnknown
+        |> Option.withDefault ~default:STTopLevelRoot
       in
       maybeEnterFluid
         ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
@@ -432,7 +432,7 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
       let nextIdTarget =
         Option.map nextBlankPd ~f:P.toID
         |> Option.map ~f:(fun id -> STID id)
-        |> Option.withDefault ~default:STUnknown
+        |> Option.withDefault ~default:STTopLevelRoot
       in
       maybeEnterFluid
         ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
