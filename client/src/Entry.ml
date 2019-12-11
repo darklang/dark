@@ -170,12 +170,8 @@ let newHandler m space name modifier pos =
     (* TL.getNextBlank requires that there be a tl in the model to operate on;
      * here, we're setting an ID to focus before the model is updated, so we
      * generate our list of pointerDatas here *)
-    SpecHeaders.allData handler.spec @ AST.allData handler.ast
-    |> List.filter ~f:Pointer.isBlank
-    |> List.head
-    |> Option.valueExn
-    (* newHandler must have _a_ blank *)
-    |> Pointer.toID
+    (* newHandler must have _a_ blank, so valueExn *)
+    handler.spec |> SpecHeaders.firstBlank |> Option.valueExn
   in
   let fluidMods =
     if VariantTesting.isFluid m.tests
