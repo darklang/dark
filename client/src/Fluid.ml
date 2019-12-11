@@ -5696,83 +5696,81 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
 let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
-  let goToSrcView text tid =
-    Html.div
-      [ ViewUtils.eventNoPropagation
-          ~key:("lv-src-" ^ deID tid)
-          "click"
-          (fun _ -> FluidMsg (FluidFocusOnToken tid))
-      ; Html.class' "jump-src" ]
-      [Html.text text]
+  (* Renders dval*)
+  let renderDval dval canCopy =
+    let text = Runtime.toRepr dval in
+    [ Html.text text
+    ; (if canCopy then viewCopyButton tlid text else Vdom.noNode) ]
   in
-  let liveValue, show, offset =
-    let none = ([Vdom.noNode], false, 0) in
-    getToken state ast
-    |> Option.map ~f:(fun ti ->
-           let fn = fnForToken state ti.token in
-           let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
-           let row = ti.startRow in
-           let id = Token.analysisID ti.token in
-           let fnText =
-             Option.and_then fn ~f:(fun fn ->
-                 if fn.fnPreviewExecutionSafe
-                 then None
-                 else
-                   let id = Token.tid ti.token in
-                   ViewFnExecution.fnExecutionStatus vs fn id args
-                   |> ViewFnExecution.executionError
-                   |> Option.some )
-           in
-           if FluidToken.validID id
-           then
-             let lvHtml dval =
-               let text = Runtime.toRepr dval in
-               ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
-             in
-             match AC.highlighted state.ac with
-             | Some (FACVariable (_, Some dval)) ->
-                 lvHtml dval
-             | Some _ ->
-                 (* Showing a livevalue when the autocomplete is showing
-                  * is confusing, except in particular situations. *)
-                 none
-             | None ->
-               ( match Analysis.getLiveValueLoadable vs.analysisStore id with
-               | LoadableSuccess (DIncomplete _) when Option.isSome fnText ->
-                   let text = Option.withDefault ~default:"" fnText in
-                   ([Html.text text], true, ti.startRow)
-               | LoadableSuccess (DIncomplete (SourceId srcId))
-                 when srcId <> id ->
-                   ( [goToSrcView "<Incomplete> Click to locate source" srcId]
-                   , true
-                   , ti.startRow )
-               | LoadableSuccess (DIncomplete _) ->
-                   ([Html.text "<Incomplete>"], true, ti.startRow)
-               | LoadableSuccess (DError (SourceId srcId, _)) when srcId <> id
-                 ->
-                   (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
-                   ( [goToSrcView "<Error> Click to locate source" srcId]
-                   , true
-                   , ti.startRow )
-               | LoadableSuccess (DError (_, msg)) ->
-                   ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
-               | LoadableSuccess dval ->
-                   lvHtml dval
-               | LoadableNotInitialized | LoadableLoading _ ->
-                   ([ViewUtils.fontAwesome "spinner"], true, row)
-               | LoadableError err ->
-                   ([Html.text ("Error loading live value: " ^ err)], true, row)
-               )
-           else none )
-    |> Option.withDefault ~default:none
+  (* Renders live value for token *)
+  let renderTokenLv token id =
+    let fnLoading =
+      (* If fn needs to be manually executed, check status *)
+      let fn = fnForToken state token in
+      let args = fnArgExprs token ast state |> List.map ~f:eid in
+      Option.andThen fn ~f:(fun fn ->
+          if fn.fnPreviewExecutionSafe
+          then None
+          else
+            let id = Token.tid token in
+            ViewFnExecution.fnExecutionStatus vs fn id args
+            |> ViewFnExecution.executionError
+            |> Option.some )
+    in
+    match Analysis.getLiveValueLoadable vs.analysisStore id with
+    | LoadableSuccess (DIncomplete _) when Option.isSome fnLoading ->
+        [Html.text (Option.withDefault ~default:"" fnLoading)]
+    | LoadableSuccess (DIncomplete (SourceId srcId) as dv)
+    | LoadableSuccess (DError (SourceId srcId, _) as dv)
+      when srcId <> id ->
+        let msg =
+          "<"
+          ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
+          ^ "> Click to locate source"
+        in
+        [ Html.div
+            [ ViewUtils.eventNoPropagation
+                ~key:("lv-src-" ^ deID srcId)
+                "click"
+                (fun _ -> FluidMsg (FluidFocusOnToken srcId))
+            ; Html.class' "jump-src" ]
+            [Html.text msg] ]
+    | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
+      ->
+        renderDval dv false
+    | LoadableSuccess dval ->
+        renderDval dval true
+    | LoadableNotInitialized | LoadableLoading _ ->
+        [ViewUtils.fontAwesome "spinner"]
+    | LoadableError err ->
+        [Html.text ("Error loading live value: " ^ err)]
   in
-  let offset = float_of_int offset +. 1.5 in
-  Html.div
-    [ Html.classList [("live-values", true); ("show", show)]
-    ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
-    ; Attrs.autofocus false
-    ; Vdom.attribute "" "spellcheck" "false" ]
-    liveValue
+  getToken state ast
+  |> Option.andThen ~f:(fun ti ->
+         let row = ti.startRow in
+         let content =
+           match AC.highlighted state.ac with
+           | Some (FACVariable (_, Some dv)) ->
+               (* If autocomplete is open and a variable is highlighted, then show its dval *)
+               Some (renderDval dv true)
+           | _ ->
+               (* Else show live value of current token *)
+               let token = ti.token in
+               let id = Token.analysisID token in
+               if Token.validID id then Some (renderTokenLv token id) else None
+         in
+         Option.pair content (Some row) )
+  (* Render live value to the side *)
+  |> Option.map ~f:(fun (content, row) ->
+         let offset = float_of_int row +. 1.5 in
+         Html.div
+           [ Html.classList [("live-values", true)]
+           ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
+           ; Attrs.autofocus false
+           ; Vdom.attribute "" "spellcheck" "false" ]
+           content )
+  (* If there's a failure at any point, we don't render the live-value wrapper *)
+  |> Option.withDefault ~default:Vdom.noNode
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
