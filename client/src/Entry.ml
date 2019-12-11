@@ -255,7 +255,7 @@ let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
   | NewGroup name ->
       Groups.createEmptyGroup name pos
   | Goto (page, tlid, _, _) ->
-      Many [SetPage page; Select (tlid, None)]
+      Many [SetPage page; Select (tlid, STTopLevelRoot)]
 
 
 type nextMove =
@@ -618,7 +618,9 @@ let submitACItem
                 DisplayError
                   ("DB name must match " ^ AC.dbNameValidator ^ " pattern")
               else if oldName = value (* leave as is *)
-              then Select (tlid, Some id)
+              then
+                (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if List.member ~value (TL.allDBNames m.dbs)
               then DisplayError ("There is already a DB named " ^ value)
               else
@@ -626,7 +628,9 @@ let submitACItem
                 RPC (RenameDBname (tlid, value) :: varrefs, FocusNothing)
           | PDBColType ct, ACDBColType value, TLDB db ->
               if B.asF ct = Some value
-              then Select (tlid, Some id)
+              then
+                (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if DB.isMigrationCol db id
               then
                 wrapID
@@ -640,7 +644,9 @@ let submitACItem
               else wrapID [ChangeDBColType (tlid, id, value)]
           | PDBColName cn, ACDBColName value, TLDB db ->
               if B.asF cn = Some value
-              then Select (tlid, Some id)
+              then
+                (* TODO(JULIAN): I think this should actually be STCaret with a target indicating the end of the ac item? *)
+                Select (tlid, STID id)
               else if DB.isMigrationCol db id
               then wrapID [SetDBColNameInDBMigration (tlid, id, value)]
               else if DB.hasCol db value

@@ -645,6 +645,11 @@ let execute_function_works (_ : model) : testResult =
   pass
 
 
+let fluid_execute_function_shows_live_value (_ : model) : testResult =
+  (* The test logic is in tests.js *)
+  pass
+
+
 let function_version_renders (_ : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -1081,6 +1086,8 @@ let trigger (test_name : string) : integrationTestState =
         feature_flag_in_function
     | "execute_function_works" ->
         execute_function_works
+    | "fluid_execute_function_shows_live_value" ->
+        fluid_execute_function_shows_live_value
     | "function_version_renders" ->
         function_version_renders
     | "only_backspace_out_of_strings_on_last_char" ->

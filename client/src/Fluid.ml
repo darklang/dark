@@ -251,6 +251,29 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
 
 
+let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
+  (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
+    accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
+  let removeHandlerTransientState m =
+    {m with fluidState = {m.fluidState with ac = AC.reset m}}
+  in
+  let maybeFluidAstAndState =
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.map ~f:(fun genericAst ->
+           let state =
+             (* We need to discard transient state if the selected handler has changed *)
+             if Some tlid = tlidOf m.cursorState
+             then m.fluidState
+             else
+               let newM = removeHandlerTransientState m in
+               newM.fluidState
+           in
+           (fromExpr state genericAst, state) )
+  in
+  maybeFluidAstAndState
+
+
 let literalToString
     (v :
       [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
@@ -1744,8 +1767,12 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         (function TFloatWhole (id', _) -> id = id' | _ -> false)
     | ARFloat (id, FPDecimal) ->
         (function TFloatFraction (id', _) -> id = id' | _ -> false)
-    | ARFnCall id ->
+    | ARFnCall (id, FCPFnName) ->
         (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
+    | ARFnCall (id, FCPArg _idx) ->
+        (* FIXME no way to get function arg by index *)
+        (function
+        | e -> Token.tid e = id)
     | ARIf (id, IPIfKeyword) ->
         (function TIfKeyword id' -> id = id' | _ -> false)
     | ARIf (id, IPThenKeyword) ->
@@ -1829,7 +1856,9 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRightPartial id ->
         (function TRightPartial (id', _) -> id = id' | _ -> false)
     | ARString id ->
-        (function TString (id', _) -> id = id' | _ -> false)
+        (* FIXME doesn't account for multi-line strings! *)
+        (function
+        | TString (id', _) -> id = id' | _ -> false)
     | ARVariable id ->
         (function TVariable (id', _) -> id = id' | _ -> false)
     | ARInvalid ->
