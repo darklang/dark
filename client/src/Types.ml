@@ -415,6 +415,142 @@ and dval =
   | DOption of optionT
   | DResult of resultT
   | DBytes of bytes
+[@@deriving show {with_path = false}]
+
+(* ----------------------------- *)
+(* Referencing parts of an AST *)
+(* at the caret level *)
+(* ----------------------------- *)
+
+(* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
+   based on which specific parts of the AST we actually want to represent via astRef *)
+
+type astFloatPart =
+  | FPWhole
+  | FPDecimal
+[@@deriving show {with_path = false}]
+
+type astLetPart =
+  | LPKeyword
+  | LPVarName
+  | LPAssignment
+  | LPValue
+  | LPBody
+[@@deriving show {with_path = false}]
+
+type astIfPart =
+  | IPIfKeyword
+  | IPCondition
+  | IPThenKeyword
+  | IPThenBody
+  | IPElseKeyword
+  | IPElseBody
+[@@deriving show {with_path = false}]
+
+type astBinOpPart =
+  | BOPLHS
+  | BOPOperator
+  | BOPRHS
+[@@deriving show {with_path = false}]
+
+type astLambdaPart =
+  | LPKeyword
+  | LPVarName of (* index of the var *) int
+  | LPSeparator of (* index of the var *) int
+  | LPArrow
+  | LPBody
+[@@deriving show {with_path = false}]
+
+type astFieldAccessPart =
+  | FAPRHS
+  | FAPFieldname
+[@@deriving show {with_path = false}]
+
+type astFnCallPart =
+  | FCPFnName
+  | FCPArg of (* index of the argument *) int
+[@@deriving show {with_path = false}]
+
+type astRecordPart =
+  | RPOpen
+  | RPFieldname of (* index of the <fieldname,value> pair *) int
+  | RPFieldSep of (* index of the <fieldname,value> pair *) int
+  | RPFieldValue of (* index of the <fieldname,value> pair *) int
+  | RPClose
+[@@deriving show {with_path = false}]
+
+type astPipePart =
+  | PPPipeKeyword of (* index of the pipe *) int
+  | PPPipedExpr of (* index of the pipe *) int
+[@@deriving show {with_path = false}]
+
+type astConstructorPart =
+  | CPName
+  | CPValue of int
+[@@deriving show {with_path = false}]
+
+type astListPart =
+  | LPOpen
+  | LPClose
+  | LPSeparator of int
+[@@deriving show {with_path = false}]
+
+type astMatchPart =
+  | MPKeyword
+  | MPMatchExpr
+  | MPBranchPattern of (* index of the branch *) int
+  | MPBranchSep of (* index of the branch *) int
+  | MPBranchValue of (* index of the branch *) int
+[@@deriving show {with_path = false}]
+
+(* An astRef represents a reference to a specific part of an AST node,
+   such as a specific Record Fieldname rather than just the record.
+   Why not use a fluidToken for this purpose?
+   A single construct such as a string might map to multiple fluidTokens,
+   but when describing a part of the ast (for example with caretTarget),
+   we often don't want to care about the details of the tokenization;
+   we can represent concepts like "the caret position at the end of this
+   string" without needing to know if it is a TString relative to a combination
+   of TStringMLStart, TStringMLMiddle, TStringMLEnd.
+   
+   The IDs below all refer to the AST node id
+    *)
+type astRef =
+  | ARInteger of id
+  | ARBool of id
+  | ARString of id
+  | ARFloat of id * astFloatPart
+  | ARNull of id
+  | ARBlank of id
+  | ARLet of id * astLetPart
+  | ARIf of id * astIfPart
+  | ARBinOp of id * astBinOpPart
+  | ARFieldAccess of id * astFieldAccessPart
+  | ARVariable of id
+  | ARFnCall of id * astFnCallPart
+  | ARPartial of id
+  | ARRightPartial of id
+  | ARList of id * astListPart
+  | ARRecord of id * astRecordPart
+  | ARPipe of id * astPipePart
+  | ARConstructor of id * astConstructorPart
+  | ARMatch of id * astMatchPart
+  (* for use if something that should never happen happened *)
+  | ARInvalid
+[@@deriving show {with_path = false}]
+
+(* | ARFeatureFlag is not yet supported *)
+(* | ARPattern is not yet supported *)
+
+(* A caretTarget represents a distinct caret location within the AST.
+   By combining a reference to part of the AST and a caret offset
+   into that part of the AST, we can uniquely represent a place
+   for the caret to jump during AST transformations, even ones that
+   drastically change the token stream. *)
+type caretTarget =
+  { astRef : astRef
+  ; offset : int }
+[@@deriving show {with_path = false}]
 
 (* ----------------------------- *)
 (* Mouse *)
@@ -899,12 +1035,32 @@ and apiError =
   ; reload : bool
   ; importance : errorImportance }
 
+(* tlidSelectTarget represents a target inside a TLID for use
+   by the `Select` modification.
+   
+   In Fluid, we should probably use STCaret in all cases --
+   knowing the id of an ast node (via STID) is insufficient
+   to know where to place the caret within that node.
+   In non-fluid, the concept of a caret doesn't really exist;
+   we select nodes at any nesting level as a whole, so STID is
+   sufficient.
+
+   If we want to select a toplevel as a whole but don't have a
+   specific id in mind, we use STTopLevelRoot. There's a few
+   places where we do this as a fallback when we expected to find
+   an id but couldn't (they used to use Some(id) with an implicit
+   fallback to None). *)
+and tlidSelectTarget =
+  | STCaret of caretTarget
+  | STID of id
+  | STTopLevelRoot
+
 and modification =
   | HandleAPIError of apiError
   | DisplayAndReportError of string * string option * string option
   | DisplayError of string
   | ClearError
-  | Select of tlid * id option
+  | Select of tlid * tlidSelectTarget
   | SelectCommand of tlid * id
   | SetHover of tlid * id
   | ClearHover of tlid * id
@@ -1508,123 +1664,3 @@ and permission =
   | Read
   | ReadWrite
 [@@deriving show eq ord]
-
-(* ----------------------------- *)
-(* Referencing parts of an AST *)
-(* at the caret level *)
-(* ----------------------------- *)
-
-(* NOTE(JULIAN): the ast*Parts below are sketches of the types; they will likely change
-   based on which specific parts of the AST we actually want to represent via astRef *)
-type astFloatPart =
-  | FPWhole
-  | FPDecimal
-
-type astLetPart =
-  | LPKeyword
-  | LPVarName
-  | LPAssignment
-  | LPValue
-  | LPBody
-
-type astIfPart =
-  | IPIfKeyword
-  | IPCondition
-  | IPThenKeyword
-  | IPThenBody
-  | IPElseKeyword
-  | IPElseBody
-
-type astBinOpPart =
-  | BOPLHS
-  | BOPOperator
-  | BOPRHS
-
-type astLambdaPart =
-  | LPKeyword
-  | LPVarName of (* index of the var *) int
-  | LPSeparator of (* index of the var *) int
-  | LPArrow
-  | LPBody
-
-type astFieldAccessPart =
-  | FAPRHS
-  | FAPFieldname
-
-type astFnCallPart =
-  | FCPFnName
-  | FCPArg of (* index of the argument *) int
-
-type astRecordPart =
-  | RPOpen
-  | RPFieldname of (* index of the <fieldname,value> pair *) int
-  | RPFieldSep of (* index of the <fieldname,value> pair *) int
-  | RPFieldValue of (* index of the <fieldname,value> pair *) int
-  | RPClose
-
-type astPipePart =
-  | PPPipeKeyword of (* index of the pipe *) int
-  | PPPipedExpr of (* index of the pipe *) int
-
-type astConstructorPart =
-  | CPName
-  | CPValue of int
-
-type astListPart =
-  | LPOpen
-  | LPClose
-  | LPSeparator of int
-
-type astMatchPart =
-  | MPKeyword
-  | MPMatchExpr
-  | MPBranchPattern of (* index of the branch *) int
-  | MPBranchSep of (* index of the branch *) int
-  | MPBranchValue of (* index of the branch *) int
-
-(* An astRef represents a reference to a specific part of an AST node,
-   such as a specific Record Fieldname rather than just the record.
-   Why not use a fluidToken for this purpose?
-   A single construct such as a string might map to multiple fluidTokens,
-   but when describing a part of the ast (for example with caretTarget),
-   we often don't want to care about the details of the tokenization;
-   we can represent concepts like "the caret position at the end of this
-   string" without needing to know if it is a TString relative to a combination
-   of TStringMLStart, TStringMLMiddle, TStringMLEnd.
-
-   The IDs below all refer to the AST node id
-    *)
-type astRef =
-  | ARBinOp of id * astBinOpPart
-  | ARBlank of id
-  | ARBool of id
-  | ARConstructor of id * astConstructorPart
-  | ARFieldAccess of id * astFieldAccessPart
-  | ARFloat of id * astFloatPart
-  | ARFnCall of id
-  | ARIf of id * astIfPart
-  | ARInteger of id
-  | ARLet of id * astLetPart
-  | ARList of id * astListPart
-  | ARMatch of id * astMatchPart
-  | ARNull of id
-  | ARPartial of id
-  | ARRightPartial of id
-  | ARString of id
-  | ARVariable of id
-  | ARRecord of id * astRecordPart
-  | ARPipe of id * astPipePart
-  (* for use if something that should never happen happened *)
-  | ARInvalid
-
-(* | ARFeatureFlag is not yet supported *)
-(* | ARPattern is not yet supported *)
-
-(* A caretTarget represents a distinct caret location within the AST.
-   By combining a reference to part of the AST and a caret offset
-   into that part of the AST, we can uniquely represent a place
-   for the caret to jump during AST transformations, even ones that
-   drastically change the token stream. *)
-type caretTarget =
-  { astRef : astRef
-  ; offset : int }

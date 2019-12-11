@@ -30,8 +30,9 @@ let executeCommand
       NoChange
 
 
+(* endCommandExecution closes the command palette *)
 let endCommandExecution (tlid : tlid) (id : id) : modification =
-  Many [AutocompleteMod ACReset; Select (tlid, Some id)]
+  Many [AutocompleteMod ACReset; Select (tlid, STID id)]
 
 
 let commands : command list =
