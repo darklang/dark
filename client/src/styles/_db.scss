@@ -152,16 +152,21 @@
   }
 
   .dbtitle {
-    background-image: url("/_db.png");
-    background-position: left center;
-    background-repeat: no-repeat;
-    padding-left: 20px;
-    /* Adjust according to image size to push text across. */
     margin-bottom: 10px;
     margin: 0 auto;
 
+    width: 100%;
+    text-align: center;
+    border-bottom: 1px solid #b8b8b8;
+    padding-bottom: $spacing-medium;
+
     /* center the db name */
     &::before {
+      background-image: url("/_db.png");
+      background-position: left center;
+      background-repeat: no-repeat;
+      padding-left: 20px;
+      /* Adjust according to image size to push text across. */
       content: "DB: ";
       font-weight: bold;
       font-size: 110%;
