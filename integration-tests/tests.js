@@ -893,7 +893,7 @@ test("execute_function_works", async t => {
 
   let v1 = await Selector(".selected .live-value").innerText;
 
-  await t.click(Selector(".fa-redo"));
+  await t.click(Selector(".fa-redo")).click(Selector(".fncall"));
 
   let v2 = await Selector(".selected .live-value").innerText;
 
