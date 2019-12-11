@@ -366,7 +366,9 @@ since they are essentially both commands just acting upon different things. */
         list-style-type: none; // remove bullet points
         padding: 0 1ch;
         height: 16px;
-
+        &:hover {
+          background: lighten($dropdown-selected-background, 5%);
+        }
         .version {
           @extend .fluid-fn-version;
         }
@@ -377,16 +379,6 @@ since they are essentially both commands just acting upon different things. */
           text-transform: lowercase;
           font-family: monospace;
           color: darken($dropdown-foreground, 15%);
-        }
-      }
-    }
-    ul:hover {
-      .fluid-selected,
-      li {
-        background: transparent;
-        &:hover {
-          background-color: $highlight-color;
-          color: darken(white, 5%);
         }
       }
     }
