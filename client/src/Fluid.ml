@@ -5593,20 +5593,30 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             (* if tab is wrapping... *)
             if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
             then
-              (* toggle through spec headers *)
-              (* if on first spec header that is blank
-               * set cursor to select that *)
+              (* get the first blank spec header, or fall back to NoChange *)
               match tl with
-              | TLHandler {spec = {name = Blank id; _}; _} ->
-                  (enter id, ast, s)
-              | TLHandler {spec = {space = Blank id; _}; _} ->
-                  (enter id, ast, s)
-              | TLHandler {spec = {modifier = Blank id; _}; _} ->
-                  (enter id, ast, s)
+              | TLHandler {spec; _} ->
+                ( match SpecHeaders.firstBlank spec with
+                | Some id ->
+                    (enter id, ast, s)
+                | None ->
+                    (NoChange, newAST, newState) )
+              | _ ->
+                  (NoChange, newAST, newState)
+            else if newState.lastKey = K.Tab
+                    && newState.newPos <= newState.oldPos
+            then
+              (* get the last blank spec header, or fall back to NoChange *)
+              match tl with
+              | TLHandler {spec; _} ->
+                ( match SpecHeaders.lastBlank spec with
+                | Some id ->
+                    (enter id, ast, s)
+                | None ->
+                    (NoChange, newAST, newState) )
               | _ ->
                   (NoChange, newAST, newState)
             else (NoChange, newAST, newState)
-            (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
           in
           let cmd =
             match newState.ac.index with
