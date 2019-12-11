@@ -1019,6 +1019,13 @@ let () =
         ( "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
         , "{\n  a : \"b\"\n  c : [1,2]\n  d : 4.5\n}"
         , 35 ) ;
+      t
+        "pasting text into a string doesn't use the json conversion"
+        (str "")
+        (pasteText ~clipboard:"[ 1 , 5 ]" (1, 1))
+        ( "\"[ 1 , 5 ]\""
+        , (* this is wrong due to how the test works *) "[1,5]"
+        , 10 ) ;
       () ) ;
   describe "Feature Flags" (fun () ->
       (* TODO: test feature flags, not yet in fluid *) () ) ;
@@ -1031,6 +1038,10 @@ let () =
       in
       roundtrip (EBlank (gid ())) ;
       roundtrip (EInteger (gid (), "6")) ;
+      (* TODO: broken. These are broken because they are copied as strings
+       * without quotes, and then parsed as JSON. *)
+      (* roundtrip (EString (gid (), "[1 , 5]")) ; *)
+      (* roundtrip (EString (gid (), "12345678987654321.12345678987654321")) ; *)
       roundtrip aPipe ;
       roundtrip
         (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
