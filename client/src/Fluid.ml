@@ -1856,7 +1856,9 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRightPartial id ->
         (function TRightPartial (id', _) -> id = id' | _ -> false)
     | ARString id ->
-        (function TString (id', _) -> id = id' | _ -> false)
+        (* FIXME doesn't account for multi-line strings! *)
+        (function
+        | TString (id', _) -> id = id' | _ -> false)
     | ARVariable id ->
         (function TVariable (id', _) -> id = id' | _ -> false)
     | ARInvalid ->
