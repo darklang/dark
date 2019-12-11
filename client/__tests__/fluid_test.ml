@@ -3229,6 +3229,11 @@ let () =
         (selectionPress K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
       ts
+        "K.ShiftEnter doesn't persist selection"
+        anInt
+        (selectionPress K.ShiftEnter 0 5)
+        ("12345\n|>___\n", (None, 8)) ;
+      ts
         "K.SelectAll selects all"
         longLets
         (key K.SelectAll 4)
