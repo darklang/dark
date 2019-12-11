@@ -23,7 +23,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 }
 
 .fluid-variant .live-values {
-  display: none;
+  display: block;
   position: absolute;
   right: calc(#{"100% + 30px"});
 
@@ -40,10 +40,6 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   color: $live-value-foreground;
 
   background-color: $live-value-background;
-
-  &.show {
-    display: block;
-  }
 
   .copy-value {
     position: absolute;
