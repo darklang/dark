@@ -2376,21 +2376,11 @@ let () =
         aFullFnCall
         (enter 12)
         "let _ = Int::add 5 5\n~___" ;
-      test "enter at the start of ast also creates let" (fun () ->
-          (* Test doesn't work wrapped *)
-          expect
-            (let ast, state =
-               processMsg
-                 [ ( K.Enter
-                   , { shiftKey = false
-                     ; altKey = false
-                     ; metaKey = false
-                     ; ctrlKey = false } ) ]
-                 Defaults.defaultFluidState
-                 anInt
-             in
-             (eToString state ast, state.newPos))
-          |> toEqual ("let *** = ___\n12345", 14) ) ;
+      t
+        "enter at the start of ast also creates let"
+        anInt
+        (enter 0)
+        "let *** = ___\n~12345" ;
       () ) ;
   describe "Pipes" (fun () ->
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
