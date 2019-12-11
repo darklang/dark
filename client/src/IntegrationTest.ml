@@ -984,6 +984,28 @@ let fluid_fn_pg_change (_m : model) : testResult =
   pass
 
 
+let fluid_fieldname_autocomplete_closes (m : model) : testResult =
+  if m.fluidState.ac.index = None
+  then pass
+  else fail ("autocomplete is not clear", m.fluidState.ac.index)
+
+
+let creating_an_http_handler_focuses_the_verb (m : model) : testResult =
+  match m.cursorState with
+  | Entering (Filling (tlid, id)) ->
+      let tl = TL.get m tlid in
+      ( match tl with
+      | Some (TLHandler h) ->
+          let verbID = h.spec.modifier |> Blank.toID in
+          if verbID = id
+          then pass
+          else fail ("VerbID did not match ID", (verbID, id))
+      | _ ->
+          fail ("Expected TLHandler, got something else", tl) )
+  | _ ->
+      fail ("m.cursorState not (Entering (Filling _, _))", m.cursorState)
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1148,5 +1170,9 @@ let trigger (test_name : string) : integrationTestState =
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
         fluid_fn_pg_change
+    | "fluid_fieldname_autocomplete_closes" ->
+        fluid_fieldname_autocomplete_closes
+    | "creating_an_http_handler_focuses_the_verb" ->
+        creating_an_http_handler_focuses_the_verb
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
