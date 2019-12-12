@@ -3924,27 +3924,13 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       (* Deleting *)
       | K.Backspace, L (TPatternString _, ti), _
       | K.Backspace, L (TString _, ti), _
-        when s.selectionStart = Some ti.startPos
-            || s.selectionStart == Some ti.endPos ->
-          deleteSelection ~state:s ~ast
-      | K.Backspace, L (TPatternString _, ti), _
-      | K.Backspace, L (TString _, ti), _
         when pos = ti.endPos ->
-          (* backspace, when no selection should move into a string, not delete it *)
+          (* Backspace should move into a string, not delete it *)
           (ast, moveOneLeft pos s)
-      | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
-        when Option.isSome s.selectionStart ->
-          deleteSelection ~state:s ~ast
       | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
           doBackspace ~pos ti ast s
-      | K.Backspace, _, R (TPatternBlank _, _)
-        when Option.isSome s.selectionStart ->
-          deleteSelection ~state:s ~ast
       | K.Backspace, _, R (TPatternBlank _, ti) ->
           doBackspace ~pos ti ast s
-      | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
-        ->
-          deleteSelection ~state:s ~ast
       | K.Backspace, L (_, ti), _ ->
           doBackspace ~pos ti ast s
       | K.Delete, _, R (_, ti) ->
@@ -3998,134 +3984,90 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
                     let s = moveToAstRef s ast (ARBlank id) in
                     (ast, s) )
             |> Option.withDefault ~default:(ast, s)
-        | K.ShiftEnter, left, _ ->
-            let doPipeline ast s =
-              let startPos, endPos = fluidGetSelectionRange s in
-              let findParent = startPos = endPos in
-              let topmostID =
-                getTopmostSelectionID startPos endPos ~state:s ast
-              in
-              Option.map topmostID ~f:(fun id ->
-                  doShiftEnter ~findParent id ast s )
-              |> Option.withDefault ~default:(ast, s)
+          in
+          ( match left with
+          | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
+              let ast, s = acEnter ti ast s K.Enter in
+              doPipeline ast s
+          | _ ->
+              doPipeline ast s )
+      (* Special autocomplete entries *)
+      (* press dot while in a variable entry *)
+      | K.Period, L (TPartial _, ti), _
+        when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+          acStartField ti ast s
+      (* Tab to next blank *)
+      | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
+          (ast, moveToNextBlank ~pos ast s)
+      | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
+          (ast, moveToPrevBlank ~pos ast s)
+      | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
+          (ast, selectAll ~pos ast s)
+      (* TODO: press comma while in an expr in a list *)
+      (* TODO: press comma while in an expr in a record *)
+      (* TODO: press equals when in a let *)
+      (* TODO: press colon when in a record field *)
+      (* Left/Right movement *)
+      | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
+          (ast, goToEndOfWord ~pos ast ti s)
+      | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
+          (ast, goToStartOfWord ~pos ast ti s)
+      | K.Left, L (_, ti), _ ->
+          (ast, doLeft ~pos ti s |> acMaybeShow ti)
+      | K.Right, _, R (_, ti) ->
+          (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
+      | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
+          (ast, moveToStartOfLine ast ti s)
+      | K.GoToEndOfLine, _, R (_, ti) ->
+          (ast, moveToEndOfLine ast ti s)
+      | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
+    ->
+        (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+            The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
+            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
+            K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
+        ( match fluidGetOptionalSelectionRange s with
+        | Some selRange ->
+            deleteCaretRange ~state:s ~ast selRange
+        | None ->
+            deleteCaretRange
+              ~state:s
+              ~ast
+              (s.newPos, getStartOfLineCaretPos ast ti s) )
+      | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
+        (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
+            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
+            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
+            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
+        ( match fluidGetOptionalSelectionRange s with
+        | Some selRange ->
+            deleteCaretRange ~state:s ~ast selRange
+        | None ->
+            deleteCaretRange
+              ~state:s
+              ~ast
+              (s.newPos, getEndOfLineCaretPos ast ti s) )
+      | K.DeleteNextWord, _, R (_, ti) ->
+        ( match fluidGetOptionalSelectionRange s with
+        | Some selRange ->
+            deleteCaretRange ~state:s ~ast selRange
+        | None ->
+            let movedState = goToEndOfWord ~pos ast ti s in
+            let newAst, newState =
+              deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
             in
-            ( match left with
-            | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
-                let ast, s = acEnter ti ast s K.Enter in
-                doPipeline ast s
-            | _ ->
-                doPipeline ast s )
-        (* Special autocomplete entries *)
-        (* press dot while in a variable entry *)
-        | K.Period, L (TPartial _, ti), _
-          when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
-            acStartField ti ast s
-        (* Tab to next blank *)
-        | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
-            (ast, moveToNextBlank ~pos ast s)
-        | K.ShiftTab, _, R (_, _) | K.ShiftTab, L (_, _), _ ->
-            (ast, moveToPrevBlank ~pos ast s)
-        | K.SelectAll, _, R (_, _) | K.SelectAll, L (_, _), _ ->
-            (ast, selectAll ~pos ast s)
-        (* TODO: press comma while in an expr in a list *)
-        (* TODO: press comma while in an expr in a record *)
-        (* TODO: press equals when in a let *)
-        (* TODO: press colon when in a record field *)
-        (* Left/Right movement *)
-        | K.GoToEndOfWord, _, R (_, ti) | K.GoToEndOfWord, L (_, ti), _ ->
-            (ast, goToEndOfWord ~pos ast ti s)
-        | K.GoToStartOfWord, _, R (_, ti) | K.GoToStartOfWord, L (_, ti), _ ->
-            (ast, goToStartOfWord ~pos ast ti s)
-        | K.Left, L (_, ti), _ ->
-            (ast, doLeft ~pos ti s |> acMaybeShow ti)
-        | K.Right, _, R (_, ti) ->
-            (ast, doRight ~pos ~next:mNext ti s |> acMaybeShow ti)
-        | K.GoToStartOfLine, _, R (_, ti) | K.GoToStartOfLine, L (_, ti), _ ->
-            (ast, moveToStartOfLine ast ti s)
-        | K.GoToEndOfLine, _, R (_, ti) ->
-            (ast, moveToEndOfLine ast ti s)
-        | K.DeleteToStartOfLine, _, R (_, ti)
-        | K.DeleteToStartOfLine, L (_, ti), _ ->
-          (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-              The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
-              For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
-              K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
-          ( match fluidGetOptionalSelectionRange s with
-          | Some selRange ->
-              deleteCaretRange ~state:s ~ast selRange
-          | None ->
-              deleteCaretRange
-                ~state:s
-                ~ast
-                (s.newPos, getStartOfLineCaretPos ast ti s) )
-        | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _
-      ->
-          (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
-              The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
-              For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
-              This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
-          ( match fluidGetOptionalSelectionRange s with
-          | Some selRange ->
-              deleteCaretRange ~state:s ~ast selRange
-          | None ->
-              deleteCaretRange
-                ~state:s
-                ~ast
-                (s.newPos, getEndOfLineCaretPos ast ti s) )
-        | K.DeleteNextWord, _, R (_, ti) ->
-          ( match fluidGetOptionalSelectionRange s with
-          | Some selRange ->
-              deleteCaretRange ~state:s ~ast selRange
-          | None ->
-              let movedState = goToEndOfWord ~pos ast ti s in
-              let newAst, newState =
-                deleteCaretRange ~state:s ~ast (pos, movedState.newPos)
-              in
-              if newAst = ast && newState.newPos = pos
-              then (newAst, movedState)
-              else (newAst, newState) )
-        | K.DeletePrevWord, L (_, ti), _ ->
-          ( match fluidGetOptionalSelectionRange s with
-          | Some selRange ->
-              deleteCaretRange ~state:s ~ast selRange
-          | None ->
-              let rangeStart =
-                if Token.isStringToken ti.token && pos != ti.startPos
-                then getBegOfWordInStrCaretPos ~pos ti
-                else ti.startPos
-              in
-              deleteCaretRange ~state:s ~ast (rangeStart, pos) )
-        | K.Up, _, _ ->
-            (ast, doUp ~pos ast s)
-        | K.Down, _, _ ->
-            (ast, doDown ~pos ast s)
-        | K.Space, _, R (TSep _, _) ->
-            (ast, moveOneRight pos s)
-        (* comma - add another of the thing *)
-        | K.Comma, L (TListOpen _, toTheLeft), _
-        | K.Comma, L (TLambdaSymbol _, toTheLeft), _
-        | K.Comma, L (TLambdaVar _, toTheLeft), _
-          when onEdge ->
-            doInsert ~pos keyChar toTheLeft ast s
-        | K.Comma, _, R (TLambdaVar (id, _, index, _), _) when onEdge ->
-            (insertLambdaVar ~index id ~name:"" ast, s)
-        | K.Comma, L (t, ti), _ ->
-            if onEdge
-            then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
-            else doInsert ~pos keyChar ti ast s
-        (* list-specific insertions *)
-        | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1
-          ->
-            (* Allow pressing close curly to go over the last curly *)
-            (ast, moveOneRight pos s)
-        (* Record-specific insertions *)
-        | K.Enter, L (TRecordOpen id, _), _ ->
-            let newAST = addRecordRowAt 0 id ast in
-            let newPos =
-              posFromCaretTarget
-                s
-                newAST
-                {astRef = ARRecord (id, RPFieldname 0); offset = 0}
+            if newAst = ast && newState.newPos = pos
+            then (newAst, movedState)
+            else (newAst, newState) )
+      | K.DeletePrevWord, L (_, ti), _ ->
+        ( match fluidGetOptionalSelectionRange s with
+        | Some selRange ->
+            deleteCaretRange ~state:s ~ast selRange
+        | None ->
+            let rangeStart =
+              if Token.isStringToken ti.token && pos != ti.startPos
+              then getBegOfWordInStrCaretPos ~pos ti
+              else ti.startPos
             in
             deleteCaretRange ~state:s ~ast (rangeStart, pos) )
       | K.Up, _, _ ->
@@ -4368,81 +4310,81 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | _ ->
           (* Unknown *)
           (ast, report ("Unknown action: " ^ K.toName key) s)
-  in
-  let newAST, newState =
-    (* This is a hack to make Enter create a new entry in matches and pipes
-     * at the end of an AST. Matches/Pipes generate newlines at the end of
-     * the canvas: we don't want those newlines to appear in editor, however,
-     * we also can't get rid of them because it's a significant challenge to
-     * know what to do in those cases without that information. So instead, we
-     * allow them to be created and deal with the consequences.
-     *
-     * They don't appear in the browser, so we can ignore that.
-     *
-     * The major consequence is that there is an extra space at the end of the
-     * AST (the one after the newline). Users can put their cursor all the way
-     * to the end of the AST, and then they press left and the cursor doesn't
-     * move (since the browser doesn't display the final newline, the cursor
-     * goes to the same spot).
-     *
-     * We handle this by checking if we're in that situation and moving the
-     * cursor back to the right place if so.
-     *
-     * TODO: there may be ways of getting the cursor to the end without going
-     * through this code, if so we need to move it. *)
-    let tokens = toTokens newState newAST in
-    let text = tokensToString tokens in
-    let last = List.last tokens in
-    match last with
-    | Some {token = TNewline _} when String.length text = newState.newPos ->
-        (newAST, {newState with newPos = newState.newPos - 1})
-    | _ ->
-        (newAST, newState)
-  in
-  (* If we were on a partial and have moved off it, we may want to commit that
-   * partial. This is done here because the logic is different that clicking.
-   *
-   * We "commit the partial" using the old state, and then we do the action
-   * again to make sure we go to the right place for the new canvas. *)
-  if recursing
-  then (newAST, newState)
-  else
-    match (toTheLeft, toTheRight) with
-    | L (TPartial (_, str), ti), _
-    | _, R (TPartial (_, str), ti)
-    (* When pressing an infix character, it's hard to tell whether to commit or
-     * not.  If the partial is an int, or a function that returns one, pressing
-     * +, -, etc  should lead to committing and then doing the action.
-     *
-     * However, if the partial is a valid function such as +, then pressing +
-     * again could be an attempt to make ++, not `+ + ___`.
-     *
-     * So if the new function _could_ be valid, don't commit. *)
-      when key = K.Right || key = K.Left || keyIsInfix ->
-        let shouldCommit =
-          match keyChar with
-          | None ->
-              true
-          | Some keyChar ->
-              let newQueryString = str ^ String.fromChar keyChar in
-              s.ac.allCompletions
-              |> List.filter ~f:(fun aci ->
-                     String.contains ~substring:newQueryString (AC.asName aci)
-                 )
-              |> ( == ) []
-        in
-        if shouldCommit
-        then
-          let committedAST = commitIfValid newState.newPos ti (newAST, s) in
-          updateKey
-            ~recursing:true
-            key
-            committedAST
-            (* keep the actions for debugging *)
-            {s with actions = newState.actions}
-        else (newAST, newState)
-    | _ ->
-        (newAST, newState)
+    in
+    let newAST, newState =
+      (* This is a hack to make Enter create a new entry in matches and pipes
+      * at the end of an AST. Matches/Pipes generate newlines at the end of
+      * the canvas: we don't want those newlines to appear in editor, however,
+      * we also can't get rid of them because it's a significant challenge to
+      * know what to do in those cases without that information. So instead, we
+      * allow them to be created and deal with the consequences.
+      *
+      * They don't appear in the browser, so we can ignore that.
+      *
+      * The major consequence is that there is an extra space at the end of the
+      * AST (the one after the newline). Users can put their cursor all the way
+      * to the end of the AST, and then they press left and the cursor doesn't
+      * move (since the browser doesn't display the final newline, the cursor
+      * goes to the same spot).
+      *
+      * We handle this by checking if we're in that situation and moving the
+      * cursor back to the right place if so.
+      *
+      * TODO: there may be ways of getting the cursor to the end without going
+      * through this code, if so we need to move it. *)
+      let tokens = toTokens newState newAST in
+      let text = tokensToString tokens in
+      let last = List.last tokens in
+      match last with
+      | Some {token = TNewline _} when String.length text = newState.newPos ->
+          (newAST, {newState with newPos = newState.newPos - 1})
+      | _ ->
+          (newAST, newState)
+    in
+    (* If we were on a partial and have moved off it, we may want to commit that
+    * partial. This is done here because the logic is different that clicking.
+    *
+    * We "commit the partial" using the old state, and then we do the action
+    * again to make sure we go to the right place for the new canvas. *)
+    if recursing
+    then (newAST, newState)
+    else
+      match (toTheLeft, toTheRight) with
+      | L (TPartial (_, str), ti), _
+      | _, R (TPartial (_, str), ti)
+      (* When pressing an infix character, it's hard to tell whether to commit or
+      * not.  If the partial is an int, or a function that returns one, pressing
+      * +, -, etc  should lead to committing and then doing the action.
+      *
+      * However, if the partial is a valid function such as +, then pressing +
+      * again could be an attempt to make ++, not `+ + ___`.
+      *
+      * So if the new function _could_ be valid, don't commit. *)
+        when key = K.Right || key = K.Left || keyIsInfix ->
+          let shouldCommit =
+            match keyChar with
+            | None ->
+                true
+            | Some keyChar ->
+                let newQueryString = str ^ String.fromChar keyChar in
+                s.ac.allCompletions
+                |> List.filter ~f:(fun aci ->
+                      String.contains ~substring:newQueryString (AC.asName aci)
+                  )
+                |> ( == ) []
+          in
+          if shouldCommit
+          then
+            let committedAST = commitIfValid newState.newPos ti (newAST, s) in
+            updateKey
+              ~recursing:true
+              key
+              committedAST
+              (* keep the actions for debugging *)
+              {s with actions = newState.actions}
+          else (newAST, newState)
+      | _ ->
+          (newAST, newState)
 
 
 (* deleteCaretRange is equivalent to pressing backspace starting from the larger of the two caret positions
