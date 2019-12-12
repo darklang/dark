@@ -1221,9 +1221,19 @@ let update_ (msg : msg) (m : model) : modification =
                 else SetCursorState origCursorState
               else
                 (* if we haven't moved, treat this as a single click and not a attempted drag *)
-                Select (draggingTLID, STTopLevelRoot)
+                let defaultBehaviour = Select (draggingTLID, STTopLevelRoot) in
+                ( match origCursorState with
+                | Entering (Filling _ as cursor) ->
+                    Many [Entry.commit m cursor; defaultBehaviour]
+                | _ ->
+                    defaultBehaviour )
           | None ->
               SetCursorState origCursorState )
+        | Entering (Filling _ as cursor) ->
+            Many
+              [ Entry.commit m cursor
+              ; Select (tlid, STTopLevelRoot)
+              ; FluidEndClick ]
         | _ ->
             Many [Select (tlid, STTopLevelRoot); FluidEndClick]
       else NoChange
