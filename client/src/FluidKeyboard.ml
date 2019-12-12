@@ -119,177 +119,6 @@ and side =
   | RightHand
 [@@deriving show]
 
-let fromKeyboardEvent
-    (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) :
-    key =
-  let isMac = getBrowserPlatform () = Mac in
-  let osCmdKeyHeld = if isMac then meta else ctrl in
-  let isMacCmdHeld = isMac && meta in
-  match key with
-  (*************
-   * Shortcuts *
-   *************)
-  | "a" when osCmdKeyHeld ->
-      SelectAll
-  | "a" when ctrl ->
-      GoToStartOfLine
-  | "d" when ctrl ->
-      Delete
-  | "e" when ctrl ->
-      GoToEndOfLine
-  | "y" when (not isMac) && ctrl && not shift ->
-      (* CTRL+Y is Windows redo
-      but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
-      See https://support.google.com/chrome/answer/157179?hl=en *)
-      Redo
-  | "z" when shift && osCmdKeyHeld ->
-      Redo
-  | "z" when osCmdKeyHeld ->
-      Undo
-  | "Backspace" when isMacCmdHeld ->
-      DeleteToStartOfLine
-  | "Backspace" when (isMac && alt) || ((not isMac) && ctrl) ->
-      DeletePrevWord
-  | "Delete" when isMacCmdHeld ->
-      DeleteToEndOfLine
-  | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
-      DeleteNextWord
-  | "ArrowLeft" when meta ->
-      GoToStartOfLine
-  | "ArrowLeft" when (isMac && alt) || ctrl ->
-      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToStartOfWord
-  | "ArrowRight" when meta ->
-      GoToEndOfLine
-  | "ArrowRight" when (isMac && alt) || ctrl ->
-      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      GoToEndOfWord
-  (************
-   * Movement *
-   ************)
-  | "Backspace" ->
-      Backspace
-  | "Delete" ->
-      Delete
-  | "Tab" when shift ->
-      ShiftTab
-  | "Tab" ->
-      Tab
-  | "Enter" when shift ->
-      ShiftEnter
-  | "Enter" ->
-      Enter
-  | "Escape" ->
-      Escape
-  | "PageUp" ->
-      PageUp
-  | "PageDown" ->
-      PageDown
-  | "End" ->
-      End
-  | "Home" ->
-      Home
-  | "ArrowUp" ->
-      Up
-  | "ArrowDown" ->
-      Down
-  | "ArrowLeft" ->
-      Left
-  | "ArrowRight" ->
-      Right
-  (*************
-   * Modifiers *
-   *************)
-  | "Shift" ->
-      Shift None
-  | "Ctrl" ->
-      Ctrl None
-  | "Alt" ->
-      Alt
-  | "CapsLock" ->
-      CapsLock
-  (***********
-   * Symbols *
-   ***********)
-  | "!" ->
-      ExclamationMark
-  | "@" ->
-      At
-  | "#" ->
-      Hash
-  | "$" ->
-      Dollar
-  | "%" ->
-      Percent
-  | "^" ->
-      Caret
-  | "&" ->
-      Ampersand
-  | "*" ->
-      Multiply
-  | "(" ->
-      LeftParens
-  | ")" ->
-      RightParens
-  | "-" ->
-      Minus
-  | "_" ->
-      Underscore
-  | "=" ->
-      Equals
-  | "+" ->
-      Plus
-  | "/" ->
-      ForwardSlash
-  | "?" ->
-      QuestionMark
-  | "|" ->
-      Pipe
-  | "`" ->
-      Backtick
-  | "~" ->
-      Tilde
-  | ";" ->
-      SemiColon
-  | ":" ->
-      Colon
-  | "." ->
-      Period
-  | "<" ->
-      LessThan
-  | ">" ->
-      GreaterThan
-  | "'" ->
-      SingleQuote
-  | "\"" ->
-      DoubleQuote
-  | "[" ->
-      LeftSquareBracket
-  | "]" ->
-      RightSquareBracket
-  | "{" ->
-      LeftCurlyBrace
-  | "}" ->
-      RightCurlyBrace
-  (********
-   * Text *
-   ********)
-  | " " ->
-      Space
-  | _ when String.length key = 1 ->
-    ( match Char.fromString key with
-    | Some ('a' .. 'z' as c) | Some ('A' .. 'Z' as c) ->
-        Letter c
-    | Some ('0' .. '9' as n) ->
-        Number n
-    | Some _ | None ->
-        Unknown key )
-  | _ ->
-      Unknown key
-
-
 let toChar key : char option =
   match key with
   | Space ->
@@ -416,184 +245,10 @@ let toChar key : char option =
       None
 
 
-let toName (key : key) : string =
-  match key with
-  | Space ->
-      "Space"
-  | ExclamationMark ->
-      "ExclamationMark"
-  | DoubleQuote ->
-      "DoubleQuote"
-  | Hash ->
-      "Hash"
-  | Dollar ->
-      "Dollar"
-  | Percent ->
-      "Percent"
-  | Ampersand ->
-      "Ampersand"
-  | SingleQuote ->
-      "SingleQuote"
-  | LeftParens ->
-      "LeftParens"
-  | RightParens ->
-      "RightParens"
-  | Multiply ->
-      "Multiply"
-  | Plus ->
-      "Plus"
-  | Comma ->
-      "Comma"
-  | Minus ->
-      "Minus"
-  | Period ->
-      "Period"
-  | ForwardSlash ->
-      "ForwardSlash"
-  | Colon ->
-      "Colon"
-  | SemiColon ->
-      "SemiColon"
-  | LessThan ->
-      "LessThan"
-  | Equals ->
-      "Equals"
-  | GreaterThan ->
-      "GreaterThan"
-  | QuestionMark ->
-      "QuestionMark"
-  | At ->
-      "At"
-  | Letter l ->
-      String.fromChar l
-  | Number n ->
-      String.fromChar n
-  | LeftSquareBracket ->
-      "LeftSquareBracket"
-  | RightSquareBracket ->
-      "RightSquareBracket"
-  | Backslash ->
-      "Backslash"
-  | Caret ->
-      "Caret"
-  | Underscore ->
-      "Underscore"
-  | Backtick ->
-      "Backtick"
-  | LeftCurlyBrace ->
-      "LeftCurlyBrace"
-  | Pipe ->
-      "Pipe"
-  | RightCurlyBrace ->
-      "RightCurlyBrace"
-  | Tilde ->
-      "Tilde"
-  | Left ->
-      "Left"
-  | Right ->
-      "Right"
-  | Up ->
-      "Up"
-  | Down ->
-      "Down"
-  | Shift _ ->
-      "Shift"
-  | Ctrl _ ->
-      "Ctrl"
-  | Alt ->
-      "Alt"
-  | Tab ->
-      "Tab"
-  | ShiftTab ->
-      "Tab"
-  | CapsLock ->
-      "CapsLock"
-  | Escape ->
-      "Escape"
-  | Enter ->
-      "Enter"
-  | ShiftEnter ->
-      "ShiftEnter"
-  | Backspace ->
-      "Backspace"
-  | Delete ->
-      "Delete"
-  | PageUp ->
-      "PageUp"
-  | PageDown ->
-      "PageDown"
-  | End ->
-      "End"
-  | Home ->
-      "Home"
-  | Insert ->
-      "Insert"
-  | PrintScreen ->
-      "PrintScreen"
-  | PauseBreak ->
-      "PauseBreak"
-  | Windows ->
-      "Windows"
-  | Command ->
-      "Command"
-  | ChromeSearch ->
-      "ChromeSearch"
-  | NumLock ->
-      "NumLock"
-  | ScrollLock ->
-      "ScrollLock"
-  | F1 ->
-      "F1"
-  | F2 ->
-      "F2"
-  | F3 ->
-      "F3"
-  | F4 ->
-      "F4"
-  | F5 ->
-      "F5"
-  | F6 ->
-      "F6"
-  | F7 ->
-      "F7"
-  | F8 ->
-      "F8"
-  | F9 ->
-      "F9"
-  | F10 ->
-      "F10"
-  | F11 ->
-      "F11"
-  | F12 ->
-      "F12"
-  | Unknown hint ->
-      "Unknown: " ^ hint
-  | GoToStartOfLine ->
-      "GoToStartOfLine"
-  | GoToEndOfLine ->
-      "GoToEndOfLine"
-  | DeletePrevWord ->
-      "DeletePrevWord"
-  | DeleteNextWord ->
-      "DeleteNextWord"
-  | DeleteToStartOfLine ->
-      "DeleteToStartOfLine"
-  | DeleteToEndOfLine ->
-      "DeleteToEndOfLine"
-  | GoToStartOfWord ->
-      "GoToStartOfWord"
-  | GoToEndOfWord ->
-      "GoToEndOfWord"
-  | Undo ->
-      "Undo"
-  | Redo ->
-      "Redo"
-  | SelectAll ->
-      "SelectAll"
+let toName = show_key
 
-
-let fromChar (char : char) : key =
-  match char with
+let fromChar (c : char) : key =
+  match c with
   | ' ' ->
       Space
   | '!' ->
@@ -622,14 +277,28 @@ let fromChar (char : char) : key =
       Comma
   | '-' ->
       Minus
+  | '_' ->
+      Underscore
   | '.' ->
       Period
   | '/' ->
       ForwardSlash
+  | '\\' ->
+      Backslash
+  | '|' ->
+      Pipe
   | ':' ->
       Colon
   | ';' ->
       SemiColon
+  | '[' ->
+      LeftSquareBracket
+  | ']' ->
+      RightSquareBracket
+  | '{' ->
+      LeftCurlyBrace
+  | '}' ->
+      RightCurlyBrace
   | '<' ->
       LessThan
   | '=' ->
@@ -641,11 +310,116 @@ let fromChar (char : char) : key =
   | '@' ->
       At
   | '0' .. '9' ->
-      Number char
+      Number c
   | 'A' .. 'Z' | 'a' .. 'z' ->
-      Letter char
+      Letter c
   | _ ->
-      Unknown (String.fromChar char)
+      Unknown (String.fromChar c)
+
+
+let fromKeyboardEvent
+    (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) :
+    key =
+  let isMac = getBrowserPlatform () = Mac in
+  let osCmdKeyHeld = if isMac then meta else ctrl in
+  let isMacCmdHeld = isMac && meta in
+  match key with
+  (*************
+   * Shortcuts *
+   *************)
+  | "a" when osCmdKeyHeld ->
+      SelectAll
+  | "a" when ctrl ->
+      GoToStartOfLine
+  | "d" when ctrl ->
+      Delete
+  | "e" when ctrl ->
+      GoToEndOfLine
+  | "y" when (not isMac) && ctrl && not shift ->
+      (* CTRL+Y is Windows redo
+      but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
+      See https://support.google.com/chrome/answer/157179?hl=en *)
+      Redo
+  | "z" when shift && osCmdKeyHeld ->
+      Redo
+  | "z" when osCmdKeyHeld ->
+      Undo
+  | "Backspace" when isMacCmdHeld ->
+      DeleteToStartOfLine
+  | "Backspace" when (isMac && alt) || ((not isMac) && ctrl) ->
+      DeletePrevWord
+  | "Delete" when isMacCmdHeld ->
+      DeleteToEndOfLine
+  | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
+      DeleteNextWord
+  | "ArrowLeft" when meta ->
+      GoToStartOfLine
+  | "ArrowLeft" when (isMac && alt) || ctrl ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      GoToStartOfWord
+  | "ArrowRight" when meta ->
+      GoToEndOfLine
+  | "ArrowRight" when (isMac && alt) || ctrl ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      GoToEndOfWord
+  (************
+   * Movement *
+   ************)
+  | "PageUp" ->
+      PageUp
+  | "PageDown" ->
+      PageDown
+  | "End" ->
+      End
+  | "Home" ->
+      Home
+  | "ArrowUp" ->
+      Up
+  | "ArrowDown" ->
+      Down
+  | "ArrowLeft" ->
+      Left
+  | "ArrowRight" ->
+      Right
+  (*************
+   * Modifiers *
+   *************)
+  | "Shift" ->
+      Shift None
+  | "Ctrl" ->
+      Ctrl None
+  | "Alt" ->
+      Alt
+  | "CapsLock" ->
+      CapsLock
+  (********
+   * Misc *
+   ********)
+  | "Backspace" ->
+      Backspace
+  | "Delete" ->
+      Delete
+  | "Tab" when shift ->
+      ShiftTab
+  | "Tab" ->
+      Tab
+  | "Enter" when shift ->
+      ShiftEnter
+  | "Enter" ->
+      Enter
+  | "Escape" ->
+      Escape
+  (****************
+   * Single Chars *
+   ****************)
+  | _ when String.length key = 1 ->
+      Char.fromString key
+      |> Option.map ~f:fromChar
+      |> Option.withDefault ~default:(Unknown key)
+  | _ ->
+      Unknown key
 
 
 type keyEvent =
