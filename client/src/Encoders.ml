@@ -697,9 +697,15 @@ let handlerProp (p : Types.handlerProp) : Js.Json.t =
     ; ("showActions", bool p.showActions) ]
 
 
+let editorSettings (es : Types.editorSettings) : Js.Json.t =
+  object_
+    [ ("runTimers", bool es.runTimers)
+    ; ("showFluidDebugger", bool es.showFluidDebugger) ]
+
+
 let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
   object_
-    [ ("timersEnabled", bool se.timersEnabled)
+    [ ("editorSettings", editorSettings se.editorSettings)
     ; ("cursorState", cursorState se.cursorState)
     ; ("routingTableOpenDetails", tcStrSet se.routingTableOpenDetails)
     ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)

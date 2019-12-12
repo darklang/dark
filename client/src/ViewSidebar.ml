@@ -714,14 +714,28 @@ let adminDebuggerView (m : model) : msg Html.html =
           (Html.text (show_cursorState m.cursorState)) ]
   in
   let toggleTimer =
-    let timerText =
-      if m.timersEnabled then "Disable Timers" else "Enable Timers"
-    in
     Html.div
-      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ -> ToggleTimers)
+      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
+            ToggleEditorSetting
+              (fun es -> {es with runTimers = not es.runTimers}) )
       ; Html.class' "checkbox-row" ]
-      [ Html.input' [Html.type' "checkbox"; Html.checked m.timersEnabled] []
-      ; Html.p [] [Html.text timerText] ]
+      [ Html.input'
+          [Html.type' "checkbox"; Html.checked m.editorSettings.runTimers]
+          []
+      ; Html.p [] [Html.text "Run Timers"] ]
+  in
+  let toggleFluidDebugger =
+    Html.div
+      [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
+            ToggleEditorSetting
+              (fun es -> {es with showFluidDebugger = not es.showFluidDebugger})
+        )
+      ; Html.class' "checkbox-row" ]
+      [ Html.input'
+          [ Html.type' "checkbox"
+          ; Html.checked m.editorSettings.showFluidDebugger ]
+          []
+      ; Html.p [] [Html.text "Show Fluid Debugger"] ]
   in
   let debugger =
     Html.a
@@ -741,7 +755,8 @@ let adminDebuggerView (m : model) : msg Html.html =
   let hoverView =
     [ Html.div
         [Html.class' "hover admin-state"]
-        [stateInfo; toggleTimer; debugger; saveTestButton] ]
+        [stateInfo; toggleTimer; toggleFluidDebugger; debugger; saveTestButton]
+    ]
   in
   let icon =
     Html.div
@@ -833,7 +848,7 @@ let rtCacheKey m =
     |> TD.mapValues ~f:(fun (g : group) -> TL.sortkey (TLGroup g))
   , tlidOf m.cursorState
   , m.environment
-  , m.timersEnabled
+  , m.editorSettings
   , m.error
   , m.permission
   , m.currentPage )
