@@ -47,6 +47,21 @@ let t_test_filter_slash () =
     loaded
 
 
+let t_list_literals () =
+  let blankId = fid () in
+  let ast = f (ListLiteral [f (Value "1"); Blank blankId]) in
+  let dvalStore = exec_save_dvals ast in
+  check_condition
+    "Blank in a list evaluates to Incomplete"
+    (IDTable.find_exn dvalStore blankId)
+    ~f:(function
+      | DIncomplete _ ->
+          true
+      | _ ->
+          false )
+
+
 let suite =
   [ ("Missing functions still check the rail", `Quick, t_on_the_rail)
-  ; ("Filter / from /:rest", `Quick, t_test_filter_slash) ]
+  ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
+  ; ("Analysis on List listerals", `Quick, t_list_literals) ]
