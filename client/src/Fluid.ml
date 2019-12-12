@@ -3970,24 +3970,18 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.startPos + 2 ->
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Deleting *)
+    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
+      ->
+        deleteSelection ~state:s ~ast
     | K.Backspace, L (TPatternString _, ti), _
     | K.Backspace, L (TString _, ti), _
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank _, _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
-    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
-      ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, ti) ->

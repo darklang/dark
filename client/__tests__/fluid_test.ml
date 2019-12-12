@@ -693,6 +693,11 @@ let () =
         aStr
         (key K.DeleteNextWord 3)
         "\"so~ string\"" ;
+      ts
+        "When the entire string is selected, backspace will delete entire string, returning a blank"
+        aStr
+        (selectionPress K.Backspace 0 13)
+        ("___", (None, 0)) ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
