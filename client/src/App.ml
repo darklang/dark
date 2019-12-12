@@ -1097,6 +1097,10 @@ let update_ (msg : msg) (m : model) : modification =
         Entry.submit newm cursor Entry.StayHere
     | _ ->
         NoChange )
+  | FluidMsg (FluidUpdateDropdownIndex index) ->
+      if VariantTesting.isFluid m.tests
+      then Fluid.update m (FluidUpdateDropdownIndex index)
+      else NoChange
   | FluidMsg (FluidAutocompleteClick item) ->
     ( match unwrapCursorState m.cursorState with
     | FluidEntering _ ->
