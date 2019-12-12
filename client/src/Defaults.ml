@@ -20,7 +20,7 @@ let pageWidth : int = 500
 let unsetCSRF : string = "UNSET_CSRF"
 
 let defaultEditor : serializableEditor =
-  { timersEnabled = true
+  { editorSettings = {runTimers = true; showFluidDebugger = false}
   ; cursorState = Deselected
   ; routingTableOpenDetails = StrSet.empty
   ; tlTraceIDs = TLIDDict.empty
@@ -115,7 +115,6 @@ let defaultModel : model =
   ; integrationTestState = NoIntegrationTest
   ; visibility = PageVisibility.Visible (* partially saved in editor *)
   ; syncState = StrSet.empty
-  ; timersEnabled = true (* saved in editor *)
   ; cursorState = Deselected
   ; executingFunctions = []
   ; tlTraceIDs = TLIDDict.empty
@@ -149,4 +148,5 @@ let defaultModel : model =
   ; toast = defaultToast
   ; account = defaultAccount
   ; worker_schedules = StrDict.empty
-  ; searchCache = TLIDDict.empty }
+  ; searchCache = TLIDDict.empty
+  ; editorSettings = {showFluidDebugger = false; runTimers = true} }

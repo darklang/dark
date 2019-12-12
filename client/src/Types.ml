@@ -1035,6 +1035,11 @@ and apiError =
   ; reload : bool
   ; importance : errorImportance }
 
+(* Editor settings are global settings on the editor. Initially, these are only things that admins use for debugging - in the future they could be extended to editor settings *)
+and editorSettings =
+  { showFluidDebugger : bool
+  ; runTimers : bool }
+
 (* tlidSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
    
@@ -1211,7 +1216,7 @@ and msg =
   | LocationChange of Web.Location.location [@printer opaque "LocationChange"]
   | FinishIntegrationTest
   | SaveTestButton
-  | ToggleTimers
+  | ToggleEditorSetting of (editorSettings -> editorSettings)
   | ExecuteFunctionButton of tlid * id * string
   | CreateHandlerFrom404 of fourOhFour
   | TimerFire of timerAction * Tea.Time.t [@printer opaque "TimerFire"]
@@ -1597,7 +1602,6 @@ and model =
   ; integrationTestState : integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
-  ; timersEnabled : bool
   ; executingFunctions : (tlid * id) list
   ; tlTraceIDs : tlTraceIDs (* This is TLID id to traceID map *)
   ; featureFlags : flagsVS
@@ -1647,11 +1651,12 @@ and model =
   ; username : string
   ; account : account
   ; worker_schedules : string StrDict.t
-  ; searchCache : string TLIDDict.t }
+  ; searchCache : string TLIDDict.t
+  ; editorSettings : editorSettings }
 
 (* Values that we serialize *)
 and serializableEditor =
-  { timersEnabled : bool
+  { editorSettings : editorSettings
   ; cursorState : cursorState
   ; routingTableOpenDetails : StrSet.t
   ; tlTraceIDs : tlTraceIDs
