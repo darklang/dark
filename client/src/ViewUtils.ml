@@ -106,7 +106,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
                  Some res )
   ; ac = m.complete
   ; showEntry = true
-  ; showLivevalue = true
+  ; showLivevalue = false
   ; dbLocked = DB.isLocked m tlid
   ; ufns = m.userFunctions |> TLIDDict.values
   ; fns = m.builtInFunctions

@@ -4352,7 +4352,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         doInsert ~pos keyChar toTheLeft ast s
     (*
      * Caret between empty record symbols {}
-     * Adds new initial record row with the typed 
+     * Adds new initial record row with the typed
      * value as the key (if value entered is valid),
      * then move caret to end of key *)
     | _, L (TRecordOpen id, _), R (TRecordClose _, _) ->
@@ -6026,7 +6026,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       indicators
   in
   let liveValue =
-    if tlidOf vs.cursorState = Some tlid
+    if vs.cursorState = FluidEntering tlid
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
