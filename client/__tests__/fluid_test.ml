@@ -3105,7 +3105,7 @@ let () =
         "autocomplete for Nothing at end of a line"
         (if' b (partial "Nothing" b) b)
         (space 21)
-        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
+        "if ___\nthen\n  Nothing\n~else\n  ___" ;
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
