@@ -118,7 +118,8 @@ let find (id : id) (expr : expr) : pointerData option =
   expr
   |> allData
   |> List.filter ~f:(fun d -> id = P.toID d)
-  |> assertFn "no data with ID found" ~debug:(expr, id) ~f:(( <> ) [])
+  |> assertFn "no data with ID found" ~debug:(expr, id) ~f:(fun list ->
+         List.length list > 0 || id = FluidToken.fakeid )
   (* guard against dups *)
   |> List.head
 
