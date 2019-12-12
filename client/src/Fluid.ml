@@ -3953,12 +3953,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       (* Autocomplete finish *)
       | _, L (_, ti), _
         when isAutocompleting ti s
-            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+             && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
         ->
           acEnter ti ast s key
       | _, _, R (_, ti)
         when isAutocompleting ti s
-            && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
+             && [K.Enter; K.Tab; K.ShiftTab; K.Space] |> List.member ~value:key
         ->
           acEnter ti ast s key
       (* When we type a letter/number after an infix operator, complete and
@@ -3974,7 +3974,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           let doPipeline ast s =
             let startPos, endPos = fluidGetSelectionRange s in
             let findParent = startPos = endPos in
-            let topmostID = getTopmostSelectionID startPos endPos ~state:s ast in
+            let topmostID =
+              getTopmostSelectionID startPos endPos ~state:s ast
+            in
             Option.map topmostID ~f:(fun id ->
                 let ast, s, blankId = createPipe ~findParent id ast s in
                 match blankId with
@@ -4020,8 +4022,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           (ast, moveToStartOfLine ast ti s)
       | K.GoToEndOfLine, _, R (_, ti) ->
           (ast, moveToEndOfLine ast ti s)
-      | K.DeleteToStartOfLine, _, R (_, ti) | K.DeleteToStartOfLine, L (_, ti), _
-    ->
+      | K.DeleteToStartOfLine, _, R (_, ti)
+      | K.DeleteToStartOfLine, L (_, ti), _ ->
         (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
             The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
             For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
@@ -4034,7 +4036,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               ~state:s
               ~ast
               (s.newPos, getStartOfLineCaretPos ast ti s) )
-      | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _ ->
+      | K.DeleteToEndOfLine, _, R (_, ti) | K.DeleteToEndOfLine, L (_, ti), _
+    ->
         (* The behavior of this action is not well specified -- every editor we've seen has slightly different behavior.
             The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
             For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
@@ -4089,10 +4092,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
           else doInsert ~pos keyChar ti ast s
       (* list-specific insertions *)
-      | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
+      | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1
+        ->
           (* Allow pressing close curly to go over the last curly *)
           (ast, moveOneRight pos s)
-      | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1 ->
+      | K.RightSquareBracket, _, R (TListClose _, ti) when pos = ti.endPos - 1
+        ->
           (* Allow pressing close square to go over the last square *)
           (ast, moveOneRight pos s)
       (* String-specific insertions *)
@@ -4144,12 +4149,17 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         | Some (EPipe _) ->
             let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
             let s =
-              moveToCaretTarget s ast (caretTargetForBeginningOfExpr blankId ast)
+              moveToCaretTarget
+                s
+                ast
+                (caretTargetForBeginningOfExpr blankId ast)
             in
             (ast, s)
         | Some (ERecord _) ->
             let ast = addRecordRowAt idx parentId ast in
-            let s = moveToAstRef s ast (ARRecord (parentId, RPFieldname idx)) in
+            let s =
+              moveToAstRef s ast (ARRecord (parentId, RPFieldname idx))
+            in
             (ast, s)
         | Some (EMatch _) ->
             let ast, s = addMatchPatternAt parentId idx ast s in
@@ -4162,7 +4172,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       (*
       * Caret at end of line with nothing in newline. *)
       | K.Enter, L (lt, lti), R (TNewline None, rti)
-        when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
+        when not
+               (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
         ->
           wrapInLet lti ast s
       (*
@@ -4175,9 +4186,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       * unless the next line starts with a blank, in which case we go to it. *)
       | K.Enter, L _, R (TNewline (Some (id, _, _)), ti) ->
           if mNext
-            |> Option.map ~f:(fun n ->
+             |> Option.map ~f:(fun n ->
                     match n.token with TBlank _ -> true | _ -> false )
-            |> Option.withDefault ~default:false
+             |> Option.withDefault ~default:false
           then (ast, doRight ~pos ~next:mNext ti s)
           else
             let ast, s, letId = makeIntoLetBody id ast s in
@@ -4225,7 +4236,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
               else
                 let ast, s, _ = addPipeExprAt parentId (idx + 1) ast s in
                 let s =
-                  moveToAstRef s ast (ARPipe (parentId, PPPipeKeyword (idx + 1)))
+                  moveToAstRef
+                    s
+                    ast
+                    (ARPipe (parentId, PPPipeKeyword (idx + 1)))
                 in
                 (ast, s)
           | Some (ERecord _) ->
@@ -4310,9 +4324,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       | _ ->
           (* Unknown *)
           (ast, report ("Unknown action: " ^ K.toName key) s)
-    in
-    let newAST, newState =
-      (* This is a hack to make Enter create a new entry in matches and pipes
+  in
+  let newAST, newState =
+    (* This is a hack to make Enter create a new entry in matches and pipes
       * at the end of an AST. Matches/Pipes generate newlines at the end of
       * the canvas: we don't want those newlines to appear in editor, however,
       * we also can't get rid of them because it's a significant challenge to
@@ -4332,27 +4346,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       *
       * TODO: there may be ways of getting the cursor to the end without going
       * through this code, if so we need to move it. *)
-      let tokens = toTokens newState newAST in
-      let text = tokensToString tokens in
-      let last = List.last tokens in
-      match last with
-      | Some {token = TNewline _} when String.length text = newState.newPos ->
-          (newAST, {newState with newPos = newState.newPos - 1})
-      | _ ->
-          (newAST, newState)
-    in
-    (* If we were on a partial and have moved off it, we may want to commit that
+    let tokens = toTokens newState newAST in
+    let text = tokensToString tokens in
+    let last = List.last tokens in
+    match last with
+    | Some {token = TNewline _} when String.length text = newState.newPos ->
+        (newAST, {newState with newPos = newState.newPos - 1})
+    | _ ->
+        (newAST, newState)
+  in
+  (* If we were on a partial and have moved off it, we may want to commit that
     * partial. This is done here because the logic is different that clicking.
     *
     * We "commit the partial" using the old state, and then we do the action
     * again to make sure we go to the right place for the new canvas. *)
-    if recursing
-    then (newAST, newState)
-    else
-      match (toTheLeft, toTheRight) with
-      | L (TPartial (_, str), ti), _
-      | _, R (TPartial (_, str), ti)
-      (* When pressing an infix character, it's hard to tell whether to commit or
+  if recursing
+  then (newAST, newState)
+  else
+    match (toTheLeft, toTheRight) with
+    | L (TPartial (_, str), ti), _
+    | _, R (TPartial (_, str), ti)
+    (* When pressing an infix character, it's hard to tell whether to commit or
       * not.  If the partial is an int, or a function that returns one, pressing
       * +, -, etc  should lead to committing and then doing the action.
       *
@@ -4360,31 +4374,31 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       * again could be an attempt to make ++, not `+ + ___`.
       *
       * So if the new function _could_ be valid, don't commit. *)
-        when key = K.Right || key = K.Left || keyIsInfix ->
-          let shouldCommit =
-            match keyChar with
-            | None ->
-                true
-            | Some keyChar ->
-                let newQueryString = str ^ String.fromChar keyChar in
-                s.ac.allCompletions
-                |> List.filter ~f:(fun aci ->
-                      String.contains ~substring:newQueryString (AC.asName aci)
-                  )
-                |> ( == ) []
-          in
-          if shouldCommit
-          then
-            let committedAST = commitIfValid newState.newPos ti (newAST, s) in
-            updateKey
-              ~recursing:true
-              key
-              committedAST
-              (* keep the actions for debugging *)
-              {s with actions = newState.actions}
-          else (newAST, newState)
-      | _ ->
-          (newAST, newState)
+      when key = K.Right || key = K.Left || keyIsInfix ->
+        let shouldCommit =
+          match keyChar with
+          | None ->
+              true
+          | Some keyChar ->
+              let newQueryString = str ^ String.fromChar keyChar in
+              s.ac.allCompletions
+              |> List.filter ~f:(fun aci ->
+                     String.contains ~substring:newQueryString (AC.asName aci)
+                 )
+              |> ( == ) []
+        in
+        if shouldCommit
+        then
+          let committedAST = commitIfValid newState.newPos ti (newAST, s) in
+          updateKey
+            ~recursing:true
+            key
+            committedAST
+            (* keep the actions for debugging *)
+            {s with actions = newState.actions}
+        else (newAST, newState)
+    | _ ->
+        (newAST, newState)
 
 
 (* deleteCaretRange is equivalent to pressing backspace starting from the larger of the two caret positions
