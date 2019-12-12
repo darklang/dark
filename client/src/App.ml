@@ -1220,12 +1220,12 @@ let update_ (msg : msg) (m : model) : modification =
                         ]
                 else SetCursorState origCursorState
               else
-                Select (draggingTLID, None)
-                (* if we haven't moved, treat this as a single click  and not a attempted drag*)
+                (* if we haven't moved, treat this as a single click and not a attempted drag *)
+                Select (draggingTLID, STTopLevelRoot)
           | None ->
               SetCursorState origCursorState )
         | _ ->
-            Many [Select (tlid, None); FluidEndClick]
+            Many [Select (tlid, STTopLevelRoot); FluidEndClick]
       else NoChange
   | BlankOrClick (targetExnID, targetID, event) ->
       let select tlid id =
