@@ -697,6 +697,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             analyses =
               Analysis.record m.analyses traceID (LoadableSuccess dvals) }
         in
+        let m, _ =
+          updateMod (Fluid.update m FluidUpdateAutocomplete) (m, Cmd.none)
+        in
         processAutocompleteMods m [ACRegenerate]
     | UpdateDBStats statsStore ->
         let newStore =

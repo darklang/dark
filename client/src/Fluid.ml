@@ -609,7 +609,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
   let open Builder in
   let ghostPartial id newName oldName =
-    let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
@@ -757,7 +756,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName oldName in
+      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
       let start b =
         match lexpr with
         | EPipeTarget _ ->
@@ -787,25 +786,33 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany versionToken
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let ghost = ghostPartial id newName oldName in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id args
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let oldText = ViewUtils.partialName oldName in
+      let ghost = ghostPartial id newText oldText in
+      b |> add partial |> addMany ghost |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
-      let ghost = ghostPartial id newName oldName in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id exprs
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldName in
+      b |> add partial |> addMany ghost |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany
            [ TFieldOp (id, (* lhs *) eid expr)
            ; TFieldName (id, fieldID, fieldname) ]
+  | EPartial
+      (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname)) ->
+      let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldFieldname in
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TFieldOp (id, eid expr); partial]
+      |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
@@ -949,11 +956,16 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure (s : state) (e : fluidExpr) : string =
+let eToStructure ?(includeIDs = false) (s : state) (e : fluidExpr) : string =
   e
   |> toTokens s
   |> List.map ~f:(fun ti ->
-         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+         "<"
+         ^ Token.toTypeName ti.token
+         ^ (if includeIDs then "(" ^ (Token.tid ti.token |> deID) ^ ")" else "")
+         ^ ":"
+         ^ Token.toText ti.token
+         ^ ">" )
   |> String.join ~sep:""
 
 
@@ -1378,8 +1390,20 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
 (* updateExpr searches `ast` for an expression `e` with the given `id` and when
  * found replaces `e` with `f e`. *)
 let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
-  let rec run e = if id = eid e then f e else recurse ~f:run e in
-  run ast
+  let found = ref false in
+  let rec run e =
+    if id = eid e
+    then (
+      found := true ;
+      f e )
+    else recurse ~f:run e
+  in
+  let finished = run ast in
+  asserT
+    ~debug:(id, ast)
+    "didn't find the id in the expression to update"
+    !found ;
+  finished
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
@@ -2111,20 +2135,25 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
 let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (id, expr, fieldID, _) ->
-          EFieldAccess (id, expr, fieldID, str)
+      | EPartial (id, _, (EFieldAccess _ as fa)) ->
+          EPartial (id, str, fa)
+      | EFieldAccess _ ->
+          EPartial (gid (), str, e)
       | _ ->
           recover "not a field in replaceFieldName" ~debug:e e )
 
 
 let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
+  updateExpr id ast ~f:(fun e ->
+      EPartial (gid (), "", EFieldAccess (fieldID, e, gid (), "")) )
 
 
 let removeField (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
+          faExpr
+      | EPartial (_, _, EFieldAccess (_, faExpr, _, _)) ->
           faExpr
       | _ ->
           recover "not a fieldAccess in removeField" ~debug:e e )
@@ -2263,6 +2292,9 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       then EString (gid (), String.slice ~from:1 ~to_:(-1) str)
       else
         match e with
+        | EPartial (_, _, (EFieldAccess _ as oldVal)) ->
+            (* This is allowed to be the empty string. *)
+            EPartial (id, str, oldVal)
         | EPartial (id, _, oldVal) ->
             asserT
               ~debug:str
@@ -2558,6 +2590,9 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithRightPartial (f str) id ast
   | TFieldName (id, _, str) ->
       replaceFieldName (f str) id ast
+  | TFieldPartial (id, _, _, str) ->
+      (* replace the partial's name, not the field's *)
+      replaceWithPartial (f str) id ast
   | TTrue id ->
       replaceWithPartial (f "true") id ast
   | TFalse id ->
@@ -3038,8 +3073,10 @@ let updateFromACItem
         let newExpr = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = replaceExpr ~newExpr id ast in
         (newAST, String.length name)
-    | ( TFieldName _
-      , Some (EFieldAccess (faID, labelid, expr, _))
+    | ( (TFieldName _ | TFieldPartial _ | TBlank _)
+      , Some
+          ( EFieldAccess (faID, labelid, expr, _)
+          | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
       , _
       , EFieldAccess (_, _, _, newname) ) ->
         let newExpr = EFieldAccess (faID, labelid, expr, newname) in
@@ -3092,20 +3129,29 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
-(* Convert the expression at ti into a FieldAccess, using the currently
+(* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
 let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction ~ti "acStartField" s in
-  match AC.highlighted s.ac with
-  | None ->
-      (ast, s)
-  | Some entry ->
+  match (AC.highlighted s.ac, ti.token) with
+  | Some (FACField fieldname as entry), TFieldName (faID, _, _)
+  | Some (FACField fieldname as entry), TFieldPartial (_, faID, _, _) ->
+      let ast, s = updateFromACItem entry ti ast s K.Enter in
+      let newAST = exprToFieldAccess faID (gid ()) ast in
+      let length = String.length fieldname + 1 in
+      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      (newAST, newState)
+  | Some entry, _ ->
       let newExpr, length = acToExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
+      let newExpr =
+        EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
+      in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
+  | _ ->
+      (ast, s)
 
 
 (* -------------------- *)
@@ -3300,6 +3346,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TNullToken _
     | TVariable _
     | TFieldName _
+    | TFieldPartial _
     | TLetLHS _
     | TPatternInteger _
     | TPatternNullToken _
@@ -3449,6 +3496,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TRightPartial _
   | TFieldName _
+  | TFieldPartial _
   | TLetLHS _
   | TPatternNullToken _
   | TPatternTrue _
@@ -3595,6 +3643,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when not (isIdentifierChar letterStr) ->
@@ -3603,6 +3652,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
@@ -3628,6 +3678,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (newAST, Exactly (newState.newPos + 1))
     | TRecordFieldname _
     | TFieldName _
+    | TFieldPartial _
     | TVariable _
     | TPartial _
     | TRightPartial _
@@ -4002,6 +4053,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
+    | K.Period, L (TFieldPartial _, ti), _
+    | K.Period, _, R (TFieldPartial _, ti)
+      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
+        acStartField ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
         (ast, moveToNextBlank ~pos ast s)
@@ -4357,7 +4412,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   else
     match (toTheLeft, toTheRight) with
     | L (TPartial (_, str), ti), _
+    | L (TFieldPartial (_, _, _, str), ti), _
     | _, R (TPartial (_, str), ti)
+    | _, R (TFieldPartial (_, _, _, str), ti)
     (* When pressing an infix character, it's hard to tell whether to commit or
      * not.  If the partial is an int, or a function that returns one, pressing
      * +, -, etc  should lead to committing and then doing the action.
@@ -5360,6 +5417,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
+    | FluidUpdateAutocomplete ->
+        (* updateAutocomplete has already been run, so nothing more to do *)
+        (ast, s)
     | FluidMouseUp (_, selection) ->
         updateMouseUp s ast selection
     | FluidCut ->
@@ -5484,6 +5544,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsFilter _
   | FluidCommandsClick _
   | FluidAutocompleteClick _
+  | FluidUpdateAutocomplete
   | FluidMouseUp _ ->
       let tlid =
         match msg with
@@ -6004,6 +6065,8 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
+    ; dtText "acEntryCount"
+    ; Html.dd [] [Html.text (s.ac.completions |> List.length |> string_of_int)]
     ; dtText "upDownCol"
     ; Html.dd
         []

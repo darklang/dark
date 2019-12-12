@@ -139,6 +139,10 @@ let isVariable (aci : autocompleteItem) : bool =
   match aci with FACVariable _ -> true | _ -> false
 
 
+let isField (aci : autocompleteItem) : bool =
+  match aci with FACField _ -> true | _ -> false
+
+
 (* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)
@@ -207,7 +211,7 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
   let traceID = Analysis.getSelectedTraceID m tlid in
   let id =
     match ti.token with
-    | TFieldName (_, fieldID, _) ->
+    | TFieldPartial (_, _, fieldID, _) | TFieldName (_, fieldID, _) ->
         fieldID
     | _ ->
         FluidToken.tid ti.token
@@ -421,7 +425,7 @@ let generate
     match ti.token with
     | TPatternBlank _ | TPatternVariable _ ->
         generatePatterns ti a queryString
-    | TFieldName _ ->
+    | TFieldName _ | TFieldPartial _ ->
         generateFields dval
     | _ ->
         generateExprs m tl a ti
@@ -498,8 +502,28 @@ let refilter
   let oldQueryString =
     match old.query with Some (_, ti) -> toQueryString ti | _ -> ""
   in
+  let isFieldPartial =
+    match ti.token with TFieldPartial _ -> true | _ -> false
+  in
   let index =
-    if queryString = "" || newCount = 0
+    if isFieldPartial
+    then
+      if queryString = ""
+      then
+        (* Show autocomplete - the fist item - when there's no text. If we
+         * just deleted the text, reset to the top. *)
+        Some 0
+      else if oldQueryString = "" && old.index = Some 0
+      then
+        (* If we didn't actually select the old value, don't cling to it. *)
+        Some 0
+      else if Option.isSome oldHighlightNewIndex
+      then
+        (* Otherwise we did select something, so let's find it. *)
+        oldHighlightNewIndex
+      else (* Always show fields. *)
+        Some 0
+    else if queryString = "" || newCount = 0
     then (* Do nothing if no queryString or autocomplete list *)
       None
     else if oldQueryString = queryString

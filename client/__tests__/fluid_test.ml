@@ -2,6 +2,7 @@ open Jest
 open Expect
 open Tc
 open Types
+open Prelude
 open Fluid
 open Fluid_test_data
 module Regex = Util.Regex
@@ -97,11 +98,15 @@ let () =
           ~key:"94167980-f909-527e-a4af-bc3155f586d3"
           ~value:
             (LoadableSuccess
-               (StrDict.singleton
-                  ~key:"12"
-                  ~value:
-                    (DObj
-                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+               (StrDict.fromList
+                  [ ( "12"
+                    , DObj
+                        (StrDict.fromList [("body", DNull); ("formBody", DNull)])
+                    )
+                  ; ( "13"
+                    , DObj
+                        (StrDict.fromList [("title", DNull); ("author", DNull)])
+                    ) ]))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
@@ -218,7 +223,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "expr before" (eToStructure s ast) ) ;
+      Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
@@ -258,12 +263,14 @@ let () =
       else newState.newPos
     in
     let selPos =
-      Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      if wrap
+      then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      else newState.selectionStart
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
-          | TRightPartial _ | TPartial _ ->
+          | TRightPartial _ | TPartial _ | TFieldPartial _ ->
               true
           | _ ->
               false )
@@ -271,7 +278,7 @@ let () =
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState result) ) ;
+      Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
     ( (eToString s result, (selPos, finalPos))
     , if partialsFound then ContainsPartial else NoPartial )
   in
@@ -1388,24 +1395,24 @@ let () =
         "___~" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
+      tp "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
       t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
-      t "del middle of fieldname" aField (del 5) "obj.f~eld" ;
-      t "del fieldname" aShortField (del 4) "obj.~***" ;
-      t "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      t "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
+      tp "del middle of fieldname" aField (del 5) "obj.f~eld@" ;
+      tp "del fieldname" aShortField (del 4) "obj.~***" ;
+      tp "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      tp "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
       tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
-      t "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
-      t "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
+      tp "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
+      tp "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      t "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
-      t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
-      t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
+      tp "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
+      tp "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
+      tp "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
@@ -1437,36 +1444,60 @@ let () =
         aNestedField
         (ctrlRight 5)
         "obj.field~.field2" ;
-      t
+      tp
         "DeletePrevWord in middle of fieldname deletes to beg of fieldname"
         aNestedField
         (key K.DeletePrevWord 6)
-        "obj.~eld.field2" ;
-      t
+        "obj.~eld@@.field2" ;
+      tp
         "DeletePrevWord at end of fieldname deletes entire fieldname"
         aNestedField
         (key K.DeletePrevWord 9)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
       t
         "DeletePrevWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeletePrevWord 4)
         "obj~.field2" ;
-      t
+      tp
         "DeleteNextWord in middle of fieldname deletes to end of fieldname"
         aNestedField
         (key K.DeleteNextWord 6)
-        "obj.fi~.field2" ;
+        "obj.fi~@l@.field2" ;
       t
         "DeleteNextWord at end of fieldname deletes next fieldname"
         aNestedField
         (key K.DeleteNextWord 9)
         "obj.field~" ;
-      t
+      tp
         "DeleteNextWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeleteNextWord 4)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
+      tp
+        "insert dot to complete partial field"
+        (EPartial
+           ( gid ()
+           , "body"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
+        (ins ~clone:false '.' 11)
+        "request.body.~***" ;
+      tp
+        "insert dot even when no content in the field"
+        (EVariable (ID "12", "request"))
+        (keys ~clone:false [K.Period; K.Period] 7)
+        "request.body.~***" ;
+      tp
+        "bs fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (bs 5)
+        "___.~***" ;
+      tp
+        "del fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (del 4)
+        "___.~***" ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -3073,9 +3104,49 @@ let () =
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (fieldAccess (EVariable (ID "12", "request")) "bo")
+        (EPartial
+           ( gid ()
+           , "bo"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
         (enter ~clone:false 10)
         "request.body~" ;
+      t
+        "autocomplete shows first alphabetical item for fields"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.author~" ;
+      t
+        "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.title~" ;
+      t
+        "autocomplete for field autocommits"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "x"
+           , EPartial
+               ( gid ()
+               , "body"
+               , EFieldAccess
+                   (gid (), EVariable (ID "12", "request"), gid (), "longfield")
+               )
+           , EBlank (gid ()) ))
+        (* Right should make it commit *)
+        (key ~clone:false K.Right 20)
+        "let x = request.body\n~___" ;
+      tp
+        "autocomplete for field is committed by dot"
+        (EPartial
+           ( gid ()
+           , "bod"
+           , EFieldAccess
+               (gid (), EVariable (ID "12", "request"), gid (), "longfield") ))
+        (* Dot should select the autocomplete *)
+        (key ~clone:false K.Period 11)
+        "request.body.~***" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
