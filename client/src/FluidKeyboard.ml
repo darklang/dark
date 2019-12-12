@@ -112,250 +112,182 @@ type key =
   | Undo
   | Redo
   | SelectAll
+[@@deriving show]
 
 and side =
   | LeftHand
   | RightHand
 [@@deriving show]
 
-let fromKeyboardCode
-    (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) (code : int) : key
-    =
+let fromKeyboardEvent
+    (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) :
+    key =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in
-  match code with
-  | 8 ->
-      if isMacCmdHeld
-      then DeleteToStartOfLine
-      else if (isMac && alt) || ((not isMac) && ctrl)
-      then DeletePrevWord
-      else Backspace
-  | 9 ->
-      if shift then ShiftTab else Tab
-  | 13 ->
-      if shift then ShiftEnter else Enter
-  | 16 ->
-      Shift None
-  | 17 ->
-      Ctrl None
-  | 18 ->
-      Alt
-  | 19 ->
-      PauseBreak
-  | 20 ->
-      CapsLock
-  | 27 ->
-      Escape
-  | 32 ->
-      Space
-  | 33 ->
-      PageUp
-  | 34 ->
-      PageDown
-  | 35 ->
-      End
-  | 36 ->
-      Home
-  | 37 ->
-      if meta
-      then GoToStartOfLine
-      else if (isMac && alt) || ctrl
-              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      then GoToStartOfWord
-      else Left
-  | 38 ->
-      Up
-  | 39 ->
-      if meta
-      then GoToEndOfLine
-      else if (isMac && alt) || ctrl
-              (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
-       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
-      then GoToEndOfWord
-      else Right
-  | 40 ->
-      Down
-  | 45 ->
-      Insert
-  | 46 ->
-      if isMacCmdHeld
-      then DeleteToEndOfLine
-      else if (isMac && alt) || ((not isMac) && ctrl)
-      then DeleteNextWord
-      else Delete
-  | 48 ->
-      if shift then RightParens else Number '0'
-  | 49 ->
-      if shift then ExclamationMark else Number '1'
-  | 50 ->
-      if shift then At else Number '2'
-  | 51 ->
-      if shift then Hash else Number '3'
-  | 52 ->
-      if shift then Dollar else Number '4'
-  | 53 ->
-      if shift then Percent else Number '5'
-  | 54 ->
-      if shift then Caret else Number '6'
-  | 55 ->
-      if shift then Ampersand else Number '7'
-  | 56 ->
-      if shift then Multiply else Number '8'
-  | 57 ->
-      if shift then LeftParens else Number '9'
-  | 65 ->
-      if osCmdKeyHeld
-      then SelectAll
-      else if ctrl
-      then GoToStartOfLine
-      else Letter (if shift then 'A' else 'a')
-  | 66 ->
-      Letter (if shift then 'B' else 'b')
-  | 67 ->
-      Letter (if shift then 'C' else 'c')
-  | 68 ->
-      if ctrl then Delete else Letter (if shift then 'D' else 'd')
-  | 69 ->
-      if ctrl then GoToEndOfLine else Letter (if shift then 'E' else 'e')
-  | 70 ->
-      Letter (if shift then 'F' else 'f')
-  | 71 ->
-      Letter (if shift then 'G' else 'g')
-  | 72 ->
-      Letter (if shift then 'H' else 'h')
-  | 73 ->
-      Letter (if shift then 'I' else 'i')
-  | 74 ->
-      Letter (if shift then 'J' else 'j')
-  | 75 ->
-      Letter (if shift then 'K' else 'k')
-  | 76 ->
-      Letter (if shift then 'L' else 'l')
-  | 77 ->
-      Letter (if shift then 'M' else 'm')
-  | 78 ->
-      Letter (if shift then 'N' else 'n')
-  | 79 ->
-      Letter (if shift then 'O' else 'o')
-  | 80 ->
-      Letter (if shift then 'P' else 'p')
-  | 81 ->
-      Letter (if shift then 'Q' else 'q')
-  | 82 ->
-      Letter (if shift then 'R' else 'r')
-  | 83 ->
-      Letter (if shift then 'S' else 's')
-  | 84 ->
-      Letter (if shift then 'T' else 't')
-  | 85 ->
-      Letter (if shift then 'U' else 'u')
-  | 86 ->
-      Letter (if shift then 'V' else 'v')
-  | 87 ->
-      Letter (if shift then 'W' else 'w')
-  | 88 ->
-      Letter (if shift then 'X' else 'x')
-  | 89 ->
+  match key with
+  (*************
+   * Shortcuts *
+   *************)
+  | "a" when osCmdKeyHeld ->
+      SelectAll
+  | "a" when ctrl ->
+      GoToStartOfLine
+  | "d" when ctrl ->
+      Delete
+  | "e" when ctrl ->
+      GoToEndOfLine
+  | "y" when (not isMac) && ctrl && not shift ->
       (* CTRL+Y is Windows redo
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
       See https://support.google.com/chrome/answer/157179?hl=en *)
-      if (not isMac) && ctrl && not shift
-      then Redo
-      else Letter (if shift then 'Y' else 'y')
-  | 90 ->
-      if osCmdKeyHeld
-      then if shift then Redo else Undo
-      else Letter (if shift then 'Z' else 'z')
-  | 91 ->
-      Windows
-  | 92 ->
-      Windows
-  (* Number pad - just pretend it's the same, though no shift versions *)
-  | 96 ->
-      Number '0'
-  | 97 ->
-      Number '1'
-  | 98 ->
-      Number '2'
-  | 99 ->
-      Number '3'
-  | 100 ->
-      Number '4'
-  | 101 ->
-      Number '5'
-  | 102 ->
-      Number '6'
-  | 103 ->
-      Number '7'
-  | 104 ->
-      Number '8'
-  | 105 ->
-      Number '9'
-  | 106 ->
+      Redo
+  | "z" when shift && osCmdKeyHeld ->
+      Redo
+  | "z" when osCmdKeyHeld ->
+      Undo
+  | "Backspace" when isMacCmdHeld ->
+      DeleteToStartOfLine
+  | "Backspace" when (isMac && alt) || ((not isMac) && ctrl) ->
+      DeletePrevWord
+  | "Delete" when isMacCmdHeld ->
+      DeleteToEndOfLine
+  | "Delete" when (isMac && alt) || ((not isMac) && ctrl) ->
+      DeleteNextWord
+  | "ArrowLeft" when meta ->
+      GoToStartOfLine
+  | "ArrowLeft" when (isMac && alt) || ctrl ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      GoToStartOfWord
+  | "ArrowRight" when meta ->
+      GoToEndOfLine
+  | "ArrowRight" when (isMac && alt) || ctrl ->
+      (* Allowing Ctrl on macs because it doesnt override any default mac cursor movements.
+       * Default behaivor is desktop switching where the OS swallows the event unless disabled *)
+      GoToEndOfWord
+  (************
+   * Movement *
+   ************)
+  | "Backspace" ->
+      Backspace
+  | "Delete" ->
+      Delete
+  | "Tab" when shift ->
+      ShiftTab
+  | "Tab" ->
+      Tab
+  | "Enter" when shift ->
+      ShiftEnter
+  | "Enter" ->
+      Enter
+  | "Escape" ->
+      Escape
+  | "PageUp" ->
+      PageUp
+  | "PageDown" ->
+      PageDown
+  | "End" ->
+      End
+  | "Home" ->
+      Home
+  | "ArrowUp" ->
+      Up
+  | "ArrowDown" ->
+      Down
+  | "ArrowLeft" ->
+      Left
+  | "ArrowRight" ->
+      Right
+  (*************
+   * Modifiers *
+   *************)
+  | "Shift" ->
+      Shift None
+  | "Ctrl" ->
+      Ctrl None
+  | "Alt" ->
+      Alt
+  | "CapsLock" ->
+      CapsLock
+  (***********
+   * Symbols *
+   ***********)
+  | "!" ->
+      ExclamationMark
+  | "@" ->
+      At
+  | "#" ->
+      Hash
+  | "$" ->
+      Dollar
+  | "%" ->
+      Percent
+  | "^" ->
+      Caret
+  | "&" ->
+      Ampersand
+  | "*" ->
       Multiply
-  | 107 ->
-      Plus
-  | 109 ->
+  | "(" ->
+      LeftParens
+  | ")" ->
+      RightParens
+  | "-" ->
       Minus
-  | 110 ->
-      Period
-  | 111 ->
+  | "_" ->
+      Underscore
+  | "=" ->
+      Equals
+  | "+" ->
+      Plus
+  | "/" ->
       ForwardSlash
-  | 112 ->
-      F1
-  | 113 ->
-      F2
-  | 114 ->
-      F3
-  | 115 ->
-      F4
-  | 116 ->
-      F5
-  | 117 ->
-      F6
-  | 118 ->
-      F7
-  | 119 ->
-      F8
-  | 120 ->
-      F9
-  | 121 ->
-      F10
-  | 122 ->
-      F11
-  | 123 ->
-      F12
-  | 144 ->
-      NumLock
-  | 145 ->
-      ScrollLock
-  (* rhs of keyboard *)
-  | 186 ->
-      if shift then Colon else SemiColon
-  | 187 ->
-      if shift then Plus else Equals
-  | 188 ->
-      if shift then LessThan else Comma
-  | 189 ->
-      if shift then Underscore else Minus
-  | 190 ->
-      if shift then GreaterThan else Period
-  | 191 ->
-      if shift then QuestionMark else ForwardSlash
-  | 192 ->
-      if shift then Tilde else Backtick
-  | 219 ->
-      if shift then LeftCurlyBrace else LeftSquareBracket
-  | 220 ->
-      if shift then Pipe else Backslash
-  | 221 ->
-      if shift then RightCurlyBrace else RightSquareBracket
-  | 222 ->
-      if shift then DoubleQuote else SingleQuote
+  | "?" ->
+      QuestionMark
+  | "|" ->
+      Pipe
+  | "`" ->
+      Backtick
+  | "~" ->
+      Tilde
+  | ";" ->
+      SemiColon
+  | ":" ->
+      Colon
+  | "." ->
+      Period
+  | "<" ->
+      LessThan
+  | ">" ->
+      GreaterThan
+  | "'" ->
+      SingleQuote
+  | "\"" ->
+      DoubleQuote
+  | "[" ->
+      LeftSquareBracket
+  | "]" ->
+      RightSquareBracket
+  | "{" ->
+      LeftCurlyBrace
+  | "}" ->
+      RightCurlyBrace
+  (********
+   * Text *
+   ********)
+  | " " ->
+      Space
+  | _ when String.length key = 1 ->
+    ( match Char.fromString key with
+    | Some ('a' .. 'z' as c) | Some ('A' .. 'Z' as c) ->
+        Letter c
+    | Some ('0' .. '9' as n) ->
+        Number n
+    | Some _ | None ->
+        Unknown key )
   | _ ->
-      Unknown (string_of_int code)
+      Unknown key
 
 
 let toChar key : char option =
@@ -726,15 +658,17 @@ type keyEvent =
 
 let keyEvent j =
   let open Json.Decode in
-  let ctrl = field "ctrlKey" bool j in
   let shift = field "shiftKey" bool j in
-  let meta = field "metaKey" bool j in
+  let ctrl = field "ctrlKey" bool j in
   let alt = field "altKey" bool j in
-  { key = field "keyCode" int j |> fromKeyboardCode shift ctrl meta alt
-  ; shiftKey = field "shiftKey" bool j
-  ; ctrlKey = field "ctrlKey" bool j
-  ; altKey = field "altKey" bool j
-  ; metaKey = field "metaKey" bool j }
+  let meta = field "metaKey" bool j in
+  let key = field "key" string j in
+  let parsedKey = fromKeyboardEvent key shift ctrl meta alt in
+  { key = parsedKey
+  ; shiftKey = shift
+  ; ctrlKey = ctrl
+  ; altKey = alt
+  ; metaKey = meta }
 
 
 let registerGlobal name key tagger =
