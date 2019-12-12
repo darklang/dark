@@ -420,6 +420,13 @@ let exec_userfn (prog : string) : dval =
   result
 
 
+let exec_save_dvals ?(canvas_name = "test") (ast : expr) :
+    Analysis_types.dval_store =
+  let c, state, input_vars = test_execution_data ~canvas_name [] in
+  let _, dvstore, _ = Ast.execute_saving_intermediates input_vars state ast in
+  dvstore
+
+
 (* Sample values *)
 let sample_dvals =
   [ ("int", Dval.dint 5)
