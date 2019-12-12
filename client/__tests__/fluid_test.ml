@@ -3591,4 +3591,34 @@ let () =
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
       () ) ;
+  describe "Property-based testing" (fun () ->
+      let testsToRun = 0 in
+      (* These tests are used to find tests that violate some property.
+       * Write a test that will work for any input, and the runner will
+       * generate `testsToRun` number of tests to check it.
+       *
+       * Use the Jest `--bail 1` option to stop after the first failure.
+       *
+       * Tests are deterministic based on the in Fluid_fuzzer.ml. Try other
+       * seeds to find other tests.
+       *
+       * This isn't designed to run in CI, but rather to help the programmer
+       * finding tests cases that are broken.
+       *
+       * After finding a failure, add a real test case above to prevent
+       * regression. *)
+      try
+        for i = 1 to testsToRun do
+          let testcase = Fluid_fuzzer.generateExpr () in
+          let text = eToString defaultTestState testcase in
+          Js.log2 "text" text ;
+          Js.log2 "structure" (eToStructure defaultTestState testcase) ;
+          let length = String.length text in
+          t
+            ("delete-all deletes all #" ^ string_of_int i ^ ": " ^ text)
+            testcase
+            (keys ~wrap:false [K.SelectAll; K.Backspace] (length - 1))
+            "~___"
+        done
+      with _ -> () ) ;
   ()
