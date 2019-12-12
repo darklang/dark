@@ -232,7 +232,7 @@ let rec exec
      are created propagate incompletes instead of ignoring *)
         exprs
         |> List.filter_map ~f:(fun e ->
-              (* exe each list item to store their values, but don't count the incompletes as list items *)
+               (* exe each list item to store their values, but don't count the incompletes as list items *)
                match exe st e with DIncomplete _ -> None | dv -> Some dv )
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
     | Filled (_, ObjectLiteral pairs) ->
