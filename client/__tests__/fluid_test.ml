@@ -66,9 +66,11 @@ type hasPartial =
 
 type testResult = (string * (int option * int)) * hasPartial
 
-type shiftState =
-  | ShiftHeld
-  | ShiftNotHeld
+type modifierKeys =
+  { shiftKey : bool
+  ; altKey : bool
+  ; metaKey : bool
+  ; ctrlKey : bool }
 
 let () =
   let m =
@@ -165,31 +167,28 @@ let () =
           ; fnInfix = false } ] }
   in
   let processMsg
-      (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
+      (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
-    List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
+    List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
         updateMsg
           m
           h.hTLID
           ast
           (FluidKeyPress
              { key
-             ; shiftKey = shiftHeld = ShiftHeld
-             ; altKey = false
-             ; metaKey = false
-             ; ctrlKey = false })
+             ; shiftKey = modifierKeys.shiftKey
+             ; altKey = modifierKeys.altKey
+             ; metaKey = modifierKeys.metaKey
+             ; ctrlKey = modifierKeys.ctrlKey })
           s )
-  in
-  let getShiftState (shiftHeld : bool) : shiftState =
-    if shiftHeld then ShiftHeld else ShiftNotHeld
   in
   let process
       ~(debug : bool)
       ~(clone : bool)
       ~(wrap : bool)
-      (keys : (K.key * shiftState) list)
+      (keys : (K.key * modifierKeys) list)
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
@@ -290,7 +289,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.Delete, getShiftState shiftHeld)]
+      [ ( K.Delete
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -306,7 +309,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.Backspace, getShiftState shiftHeld)]
+      [ ( K.Backspace
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -322,7 +329,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.Tab, getShiftState shiftHeld)]
+      [ ( K.Tab
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -338,7 +349,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.GoToStartOfWord, getShiftState shiftHeld)]
+      [ ( K.GoToStartOfWord
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -354,7 +369,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.GoToEndOfWord, getShiftState shiftHeld)]
+      [ ( K.GoToEndOfWord
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -370,7 +389,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.ShiftTab, getShiftState shiftHeld)]
+      [ ( K.ShiftTab
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -386,7 +409,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.Space, getShiftState shiftHeld)]
+      [ ( K.Space
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -402,7 +429,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(K.Enter, getShiftState shiftHeld)]
+      [ ( K.Enter
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -415,7 +446,18 @@ let () =
       (key : K.key)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(key, getShiftState shiftHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let selectionPress
       ?(wrap = true)
@@ -430,7 +472,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(key, getShiftState shiftHeld)]
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       (Some selectionStart)
       pos
       expr
@@ -447,7 +493,14 @@ let () =
       ~wrap
       ~debug
       ~clone
-      (List.map ~f:(fun key -> (key, getShiftState shiftHeld)) keys)
+      (List.map
+         ~f:(fun key ->
+           ( key
+           , { shiftKey = shiftHeld
+             ; altKey = false
+             ; metaKey = false
+             ; ctrlKey = false } ) )
+         keys)
       None
       pos
       expr
@@ -456,7 +509,7 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
-      (keys : (K.key * shiftState) list)
+      (keys : (K.key * modifierKeys) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug keys None pos expr
@@ -470,7 +523,18 @@ let () =
       (pos : int)
       (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap ~debug ~clone [(key, getShiftState shiftHeld)] None pos expr
+    process
+      ~wrap
+      ~debug
+      ~clone
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
@@ -2286,7 +2350,11 @@ let () =
           expect
             (let ast, state =
                processMsg
-                 [(K.Enter, ShiftNotHeld)]
+                 [ ( K.Enter
+                   , { shiftKey = false
+                     ; altKey = false
+                     ; metaKey = false
+                     ; ctrlKey = false } ) ]
                  Defaults.defaultFluidState
                  anInt
              in
@@ -3241,19 +3309,37 @@ let () =
       ts
         "shift right selects"
         longLets
-        (modkeys [(K.Right, ShiftHeld)] 0)
+        (modkeys
+           [ ( K.Right
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
-        (modkeys [(K.Down, ShiftHeld)] 4)
+        (modkeys
+           [ ( K.Down
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
-        (modkeys [(K.Left, ShiftHeld)] 52)
+        (modkeys
+           [ ( K.Left
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 52, 48) ) ;
       ts
