@@ -107,6 +107,8 @@ let has_valid_spec (h : handler) : bool =
   (* Legacy workers with arbitrary module may have any modifier, but new
    * workers must have "_" *)
   match module_for h with
+  (* Cannot use module_type here, as we only want explicitly module = "WORKER",
+   * not any `Worker. *)
   | Some m when String.Caseless.equal "worker" m ->
       modifier_for h = Some "_"
   | Some m when String.Caseless.equal "repl" m ->
