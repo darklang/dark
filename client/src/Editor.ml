@@ -44,7 +44,7 @@ let editor2model (e : serializableEditor) : model =
                    HandlerExpanded ) } )
   in
   { m with
-    timersEnabled = e.timersEnabled
+    editorSettings = e.editorSettings
   ; cursorState = e.cursorState |> stripDragging
   ; routingTableOpenDetails = e.routingTableOpenDetails
   ; tlTraceIDs = e.tlTraceIDs
@@ -57,7 +57,7 @@ let editor2model (e : serializableEditor) : model =
 
 
 let model2editor (m : model) : serializableEditor =
-  { timersEnabled = m.timersEnabled (* are timers enabled *)
+  { editorSettings = m.editorSettings
   ; cursorState = m.cursorState
   ; routingTableOpenDetails =
       m.routingTableOpenDetails (* state of the routing table *)

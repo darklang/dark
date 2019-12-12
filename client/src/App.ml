@@ -1057,10 +1057,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
   (newm, Cmd.batch [cmd; newcmd])
 
 
-let toggleTimers (m : model) : model =
-  {m with timersEnabled = not m.timersEnabled}
-
-
 let findCenter (m : model) : pos =
   let {x; y} =
     match m.currentPage with
@@ -1341,8 +1337,8 @@ let update_ (msg : msg) (m : model) : modification =
           else RPC ([DeleteDBCol (tlid, nameId)], FocusNothing)
       | None ->
           NoChange )
-  | ToggleTimers ->
-      TweakModel toggleTimers
+  | ToggleEditorSetting fn ->
+      TweakModel (fun m -> {m with editorSettings = fn m.editorSettings})
   | SaveTestButton ->
       MakeCmd (RPC.saveTest m)
   | FinishIntegrationTest ->
@@ -2012,7 +2008,11 @@ let update_ (msg : msg) (m : model) : modification =
   | LogoutOfDark ->
       Many
         [ MakeCmd (RPC.logout m)
-        ; TweakModel (fun m -> {m with timersEnabled = false}) ]
+        ; TweakModel
+            (fun m ->
+              { m with
+                editorSettings = {m.editorSettings with runTimers = false} } )
+        ]
   | LogoutRPCCallback ->
       (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
       Native.Ext.redirect "/login" ;
@@ -2081,7 +2081,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
         []
   in
   let timers =
-    if m.timersEnabled
+    if m.editorSettings.runTimers
     then
       match m.visibility with
       | Hidden ->
