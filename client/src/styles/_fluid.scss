@@ -41,6 +41,10 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
   background-color: $live-value-background;
 
+  &.no-background {
+    background-color: transparent;
+  }
+
   .copy-value {
     position: absolute;
     top: -4px;
@@ -57,6 +61,11 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   .jump-src:hover {
     color: $blue;
     cursor: pointer;
+  }
+
+  img.spinner {
+    width: 16px;
+    height: 16px;
   }
 }
 
