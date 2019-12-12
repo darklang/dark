@@ -619,6 +619,10 @@ let toDebugInfo (t : token) : string =
       "offset=" ^ string_of_int offset
   | TNewline (Some (_, pid, Some idx)) ->
       "parent=" ^ deID pid ^ " idx=" ^ string_of_int idx
+  | TNewline (Some (_, pid, None)) ->
+      "parent=" ^ deID pid ^ " idx=none"
+  | TNewline None ->
+      "no parent"
   | TPipe (_, idx, len) ->
       Printf.sprintf "idx=%d len=%d" idx len
   | TMatchSep (_, idx) ->
