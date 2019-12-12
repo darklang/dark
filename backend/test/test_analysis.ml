@@ -63,4 +63,5 @@ let t_list_literals () =
 
 let suite =
   [ ("Missing functions still check the rail", `Quick, t_on_the_rail)
-  ; ("Filter / from /:rest", `Quick, t_test_filter_slash) ]
+  ; ("Filter / from /:rest", `Quick, t_test_filter_slash)
+  ; ("Analysis on List listerals", `Quick, t_list_literals) ]
