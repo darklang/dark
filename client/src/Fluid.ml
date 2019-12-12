@@ -675,7 +675,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
            if reflow
            then
              b
-             |> addNewlineIfNeeded (Some (id, id, None))
+             |> addNewlineIfNeeded (Some (id, id, Some (offset + i)))
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
@@ -4200,7 +4200,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Caret on end-of-line.
      * Following newline contains a parent and index, meaning we're inside some
      * special construct. Special-case each of those. *)
-    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
+    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), ti) ->
       ( match findExpr parentId ast with
       | Some (EPipe _) ->
           let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
@@ -4218,6 +4218,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
           in
           (ast, s)
+      | Some (EFnCall _) ->
+          (* Pressing enter at the end of an FnCall's expression should just
+           * move right. We don't know what's next, so we just want to
+           * literally go to whatever's on the other side of the newline.
+           * *)
+          (ast, doRight ~pos ~next:mNext ti s)
       | _ ->
           (ast, s) )
     (*
