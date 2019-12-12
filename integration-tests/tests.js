@@ -1309,4 +1309,30 @@ test("fluid_fieldname_autocomplete_closes", async t => {
 
 test("creating_an_http_handler_focuses_the_verb", async t => {
   await createHTTPHandler(t);
+
+  await t
+    .pressKey("down") // enter AC
+    .expect(acHighlightedText("GET"))
+    .ok();
+});
+
+test("tabbing_from_an_http_handler_spec_to_ast", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("down") // enter AC
+    .expect(acHighlightedText("request"))
+    .ok();
+});
+
+test("tabbing_from_an_http_handler_spec_past_ast_back_to_verb", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("tab") // ast -> loop back to verb;
+    .pressKey("down") // enter AC
+    .expect(acHighlightedText("GET"))
+    .ok();
 });
