@@ -84,8 +84,8 @@ let defaultFullQuery ?(tl = defaultToplevel) (m : model) (query : string) :
     match tl with
     | TLHandler {ast; _} | TLFunc {ufAST = ast; _} ->
         ast
-        |> fromExpr m.fluidState
-        |> toTokens m.fluidState
+        |> fromExpr m.fluidState.ac.functions
+        |> toTokens m.fluidState.ac.functions
         |> List.head
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->
@@ -216,7 +216,7 @@ let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
     match TL.get m tlid with
     | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
         ast
-        |> fromExpr m.fluidState
+        |> fromExpr m.fluidState.ac.functions
         |> Fluid.getToken {m.fluidState with newPos = pos}
         |> Option.withDefault ~default:defaultTokenInfo
     | _ ->

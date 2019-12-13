@@ -93,8 +93,8 @@ type ast = fluidExpr [@@deriving show]
 
 type state = Types.fluidState
 
-let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
-    =
+let rec fromExpr ?(inPipe = false) (fns : function_ list) (expr : Types.expr) :
+    fluidExpr =
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
@@ -137,7 +137,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     |> Option.or_ asFloat
     |> Option.withDefault ~default:`Unknown
   in
-  let f = fromExpr s in
+  let f = fromExpr fns in
   match expr with
   | Blank id ->
       EBlank id
@@ -163,9 +163,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         (* add a pipetarget in the front *)
         let args = if inPipe then EPipeTarget (gid ()) :: args else args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
-        let fn =
-          List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
-        in
+        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
         ( match fn with
         | Some fn when fn.fnInfix ->
           ( match args with
@@ -178,7 +176,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     | Thread exprs ->
       ( match exprs with
       | head :: tail ->
-          EPipe (id, f head :: List.map ~f:(fromExpr s ~inPipe:true) tail)
+          EPipe (id, f head :: List.map ~f:(fromExpr fns ~inPipe:true) tail)
       | _ ->
           recover "empty pipe" ~debug:expr (newB ()) )
     | Lambda (varnames, exprs) ->
@@ -243,12 +241,12 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
           , varToName msg
           , Blank.toID msg
           , f cond
-          , fromExpr ~inPipe s casea
-          , fromExpr ~inPipe s caseb )
+          , fromExpr ~inPipe fns casea
+          , fromExpr ~inPipe fns caseb )
     | FluidPartial (str, oldExpr) ->
-        EPartial (id, str, fromExpr ~inPipe s oldExpr)
+        EPartial (id, str, fromExpr ~inPipe fns oldExpr)
     | FluidRightPartial (str, oldExpr) ->
-        ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
+        ERightPartial (id, str, fromExpr ~inPipe fns oldExpr) )
 
 
 let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
@@ -269,7 +267,7 @@ let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
                let newM = removeHandlerTransientState m in
                newM.fluidState
            in
-           (fromExpr state genericAst, state) )
+           (fromExpr state.ac.functions genericAst, state) )
   in
   maybeFluidAstAndState
 
@@ -605,8 +603,9 @@ module Builder = struct
   let asTokens (b : t) : fluidToken list = b.tokens
 end
 
-let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
-  let fromExpr e b = toTokens' s e b in
+let rec toTokens' (fns : function_ list) (e : ast) (b : Builder.t) : Builder.t
+    =
+  let fromExpr e b = toTokens' fns e b in
   let open Builder in
   let ghostPartial id newName oldName =
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
@@ -621,7 +620,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       match (e, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
           let name =
-            s.ac.functions
+            fns
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters )
@@ -937,17 +936,17 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let toTokens (s : state) (e : ast) : tokenInfo list =
-  toTokens' s e Builder.empty
+let toTokens (fns : function_ list) (e : ast) : tokenInfo list =
+  toTokens' fns e Builder.empty
   |> Builder.asTokens
   |> tidy
   |> validateTokens
   |> infoize ~pos:0
 
 
-let eToString (s : state) (e : ast) : string =
+let eToString (fns : function_ list) (e : ast) : string =
   e
-  |> toTokens s
+  |> toTokens fns
   |> List.map ~f:(fun ti -> Token.toTestText ti.token)
   |> String.join ~sep:""
 
@@ -956,9 +955,10 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure ?(includeIDs = false) (s : state) (e : fluidExpr) : string =
+let eToStructure ?(includeIDs = false) (fns : function_ list) (e : fluidExpr) :
+    string =
   e
-  |> toTokens s
+  |> toTokens fns
   |> List.map ~f:(fun ti ->
          "<"
          ^ Token.toTypeName ti.token
@@ -1438,7 +1438,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos < ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (List.reverse (toTokens s ast)) in
+  let newPos = getNextWS (List.reverse (toTokens s.ac.functions ast)) in
   setPosition ~resetUD:true s newPos
 
 
@@ -1455,7 +1455,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
       | _ ->
           if pos > ti.startPos then getNextWS rest else ti.startPos )
   in
-  let newPos = getNextWS (toTokens s ast) in
+  let newPos = getNextWS (toTokens s.ac.functions ast) in
   setPosition ~resetUD:true s newPos
 
 
@@ -1463,7 +1463,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : ast) (s : state) : state =
  caret pos at the start of the line containing the given tokenInfo *)
 let getStartOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
-    toTokens s ast
+    toTokens s.ac.functions ast
     |> List.find ~f:(fun info ->
            if info.startRow == ti.startRow
            then
@@ -1522,7 +1522,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
  caret pos at the end of the line containing the given tokenInfo *)
 let getEndOfLineCaretPos (ast : ast) (ti : tokenInfo) (s : state) : int =
   let token =
-    toTokens s ast
+    toTokens s.ac.functions ast
     |> List.reverse
     |> List.find ~f:(fun info -> info.startRow == ti.startRow)
     |> Option.withDefault ~default:ti
@@ -1558,7 +1558,7 @@ let goToStartOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) :
   (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let previousToken =
-    toTokens s ast
+    toTokens s.ac.functions ast
     |> List.reverse
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos > t.startPos)
   in
@@ -1577,7 +1577,7 @@ let goToEndOfWord ~(pos : int) (ast : ast) (ti : tokenInfo) (s : state) : state
   (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let nextToken =
-    toTokens s ast
+    toTokens s.ac.functions ast
     |> List.find ~f:(fun t -> Token.isTextToken t.token && pos < t.endPos)
   in
   let newPos =
@@ -1623,7 +1623,7 @@ let moveTo (newPos : int) (s : state) : state =
  * with its location. If blank, will go to the start of the blank *)
 let moveToEndOfTarget (target : id) (ast : ast) (s : state) : state =
   let s = recordAction "moveToEndOfTarget" s in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   match
     List.find (List.reverse tokens) ~f:(fun ti ->
         FluidToken.tid ti.token = target )
@@ -1655,7 +1655,7 @@ let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
 
 let moveToNextBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let newPos = getNextBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -1682,7 +1682,7 @@ let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
 
 let moveToPrevBlank ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let newPos = getPrevBlankPos pos tokens in
   setPosition ~resetUD:true s newPos
 
@@ -1695,7 +1695,7 @@ let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
 
 
 let selectAll ~(pos : int) (ast : ast) (s : state) : state =
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let last = List.last tokens in
   let lastPos = match last with Some l -> l.endPos | None -> 0 in
   {s with newPos = lastPos; oldPos = pos; selectionStart = Some 0}
@@ -1725,7 +1725,7 @@ let doRight
 
 let doUp ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doUp" s in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   if row = 0
@@ -1737,7 +1737,7 @@ let doUp ~(pos : int) (ast : ast) (s : state) : state =
 
 let doDown ~(pos : int) (ast : ast) (s : state) : state =
   let s = recordAction ~pos "doDown" s in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let {row; col} = gridFor ~pos tokens in
   let col = match s.upDownCol with None -> col | Some savedCol -> savedCol in
   let pos = adjustedPosFor ~row:(row + 1) ~col tokens in
@@ -1757,7 +1757,7 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
    jump after a transformation. *)
 let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     int =
-  let infos = toTokens s ast in
+  let infos = toTokens s.ac.functions ast in
   (* The conditional logic here is a bit nasty, but essentially we're first
    * looking at which kind of astRef we got and then for each one, specifying
    * the function we'll use in List.find to find the correct token.
@@ -2888,7 +2888,7 @@ let acMoveDown (s : state) : state =
 let acMoveBasedOnKey
     (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
     state =
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let nextBlank = getNextBlankPos s.newPos tokens in
   let prevBlank = getPrevBlankPos s.newPos tokens in
   let newPos =
@@ -3040,7 +3040,7 @@ let updateFromACItem
               let newExpr = EPipe (gid (), [expr; newB ()]) in
               replaceExpr (eid expr) ast ~newExpr
         in
-        let tokens = toTokens s newAST in
+        let tokens = toTokens s.ac.functions newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
         (newAST, nextBlank - ti.startPos)
     | TPartial _, _, Some (EPipe _), EBinOp (bID, name, _, rhs, str) ->
@@ -3173,7 +3173,7 @@ type newPosition =
   | AtTarget of caretTarget
 
 let adjustPosForReflow
-    ~state
+    ~(state : fluidState)
     (newAST : fluidExpr)
     (oldTI : tokenInfo)
     (oldPos : int)
@@ -3187,7 +3187,7 @@ let adjustPosForReflow
    * the old token in the new token stream, and then doing the appropriate
    * adjustment. There are definitely places this won't work, but I haven't
    * found them yet. *)
-  let newTokens = toTokens state newAST in
+  let newTokens = toTokens state.ac.functions newAST in
   let newTI =
     List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
   in
@@ -3374,7 +3374,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replacePatternWithPartial (f str) mID id ast, LeftOne)
     | TPipe (id, i, _) ->
         let newPosition =
-          match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+          match
+            getTokensAtPosition ~pos:ti.startPos (toTokens s.ac.functions ast)
+          with
           | Some leftTI, _, _ ->
               let newState = doLeft ~pos:ti.startPos leftTI s in
               Exactly newState.newPos
@@ -3530,7 +3532,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         if i + 2 = length
         then
           (* when deleting the last element, go to the end of the previous element *)
-          match getTokensAtPosition ~pos:ti.startPos (toTokens s ast) with
+          match
+            getTokensAtPosition ~pos:ti.startPos (toTokens s.ac.functions ast)
+          with
           | Some leftTI, _, _ ->
               doLeft ~pos:ti.startPos leftTI s
           | _ ->
@@ -3800,8 +3804,10 @@ let maybeOpenCmd (m : Types.model) : Types.modification =
   Toplevel.selected m
   |> Option.andThen ~f:(fun tl ->
          TL.rootExpr tl
-         |> Option.andThen ~f:(fun ast -> Some (fromExpr m.fluidState ast))
-         |> Option.andThen ~f:(fun ast -> Some (toTokens m.fluidState ast))
+         |> Option.andThen ~f:(fun ast ->
+                Some (fromExpr m.fluidState.ac.functions ast) )
+         |> Option.andThen ~f:(fun ast ->
+                Some (toTokens m.fluidState.ac.functions ast) )
          |> Option.withDefault ~default:[]
          |> getCurrentToken
          |> Option.andThen ~f:(fun ti ->
@@ -3840,8 +3846,12 @@ let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
       None
 
 
-let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
-  toTokens state ast
+let tokensInRange
+    (selStartPos : int)
+    (selEndPos : int)
+    ~(state : fluidState)
+    (ast : fluidExpr) : fluidTokenInfo list =
+  toTokens state.ac.functions ast
   (* this condition is a little flaky, sometimes selects wrong tokens *)
   |> List.filter ~f:(fun t ->
          (* selectionStart within token *)
@@ -3854,7 +3864,9 @@ let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
          || (selStartPos < t.endPos && t.endPos <= selEndPos) )
 
 
-let getTopmostSelectionID startPos endPos ~state ast : id option =
+let getTopmostSelectionID
+    (startPos : int) (endPos : int) ~(state : fluidState) (ast : fluidExpr) :
+    id option =
   let asExpr = toExpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ~state ast
@@ -3877,7 +3889,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     ast * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   (* These might be the same token *)
   let toTheLeft, toTheRight, mNext = getNeighbours ~pos tokens in
   let onEdge =
@@ -4024,7 +4036,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     | K.Letter _, L (TRightPartial (_, _), ti), _
       when onEdge ->
         let ast, s = acEnter ti ast s K.Tab in
-        getLeftTokenAt s.newPos (toTokens s ast |> List.reverse)
+        getLeftTokenAt s.newPos (toTokens s.ac.functions ast |> List.reverse)
         |> Option.map ~f:(fun ti -> doInsert ~pos:s.newPos keyChar ti ast s)
         |> Option.withDefault ~default:(ast, s)
     | K.ShiftEnter, left, _ ->
@@ -4399,7 +4411,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      *
      * TODO: there may be ways of getting the cursor to the end without going
      * through this code, if so we need to move it. *)
-    let tokens = toTokens newState newAST in
+    let tokens = toTokens newState.ac.functions newAST in
     let text = tokensToString tokens in
     let last = List.last tokens in
     match last with
@@ -4487,7 +4499,7 @@ and deleteSelection ~state ~ast : ast * fluidState =
 
 
 let getToken (s : fluidState) (ast : fluidExpr) : tokenInfo option =
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
    * in updateKey. It's pretty complex and it tells us what token a keystroke
@@ -4533,7 +4545,7 @@ let updateAutocomplete m tlid ast s : fluidState =
 
 let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     ast * fluidState =
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let lastPos =
     tokens
     |> List.last
@@ -4572,7 +4584,8 @@ let shouldDoDefaultAction (key : K.key) : bool =
       true
 
 
-let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
+let exprRangeInAst ~(state : fluidState) ~(ast : fluidExpr) (exprID : id) :
+    (int * int) option =
   (* get the beginning and end of the range from
     * the expression's first and last token
     * by cross-referencing the tokens it evaluates to via toTokens
@@ -4583,10 +4596,10 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
     * (e.g. a FnCall `Int::add 1 2`) might be for a sub-expression and have a
     * different ID, (in the above case the last token TInt(2) belongs to the
     * second sub-expr of the FnCall) *)
-  let astTokens = toTokens state ast in
+  let astTokens = toTokens state.ac.functions ast in
   let exprTokens =
     findExpr exprID ast
-    |> Option.map ~f:(toTokens state)
+    |> Option.map ~f:(toTokens state.ac.functions)
     |> Option.withDefault ~default:[]
   in
   let exprStartToken, exprEndToken =
@@ -4632,7 +4645,7 @@ let trimQuotes s : string =
 
 
 let clone ~(state : state) (ast : fluidExpr) : fluidExpr =
-  ast |> toExpr ~inPipe:false |> AST.clone |> fromExpr state
+  ast |> toExpr ~inPipe:false |> AST.clone |> fromExpr state.ac.functions
 
 
 let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
@@ -5127,7 +5140,7 @@ let jsonToExpr (jsonStr : string) : fluidExpr =
   with _ -> EString (gid (), jsonStr)
 
 
-let clipboardContentsToExpr ~state (data : clipboardContents) :
+let clipboardContentsToExpr (fns : function_ list) (data : clipboardContents) :
     fluidExpr option =
   match data with
   | `Json json ->
@@ -5135,7 +5148,7 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
         let data = Decoders.pointerData json |> TL.clonePointerData in
         match data with
         | PExpr expr ->
-            Some (fromExpr state expr)
+            Some (fromExpr fns expr)
         | _ ->
             (* We could support more but don't yet *)
             recover "not a pexpr" ~debug:data None
@@ -5146,12 +5159,13 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
-let clipboardContentsToString ~state (data : clipboardContents) : string =
+let clipboardContentsToString (fns : function_ list) (data : clipboardContents)
+    : string =
   match data with
   | `Json _ ->
       data
-      |> clipboardContentsToExpr ~state
-      |> Option.map ~f:(eToString state)
+      |> clipboardContentsToExpr fns
+      |> Option.map ~f:(eToString fns)
       |> Option.withDefault ~default:""
       |> trimQuotes
   | `Text text ->
@@ -5173,17 +5187,18 @@ let getStringIndex ti pos : int =
 
 
 let pasteOverSelection ~state ~ast data : ast * fluidState =
+  let fns = state.ac.functions in
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
-  let clipboardExpr = clipboardContentsToExpr ~state data in
-  let text = clipboardContentsToString ~state data in
+  let clipboardExpr = clipboardContentsToExpr fns data in
+  let text = clipboardContentsToString fns data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
-        (clipboardExpr |> eToString state |> String.length) + collapsedSelStart
+        (clipboardExpr |> eToString fns |> String.length) + collapsedSelStart
       in
       (replaceExpr ~newExpr:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
@@ -5348,8 +5363,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       ( newAST
       , { state with
           newPos =
-            collapsedSelStart + String.length (eToString state exprToPaste) }
-      )
+            collapsedSelStart + String.length (eToString fns exprToPaste) } )
   (* inserting other expressions into list *)
   | ( Some exprToPaste
     , Some (EList (_, items))
@@ -5364,8 +5378,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       ( newAST
       , { state with
           newPos =
-            collapsedSelStart + String.length (eToString state exprToPaste) }
-      )
+            collapsedSelStart + String.length (eToString fns exprToPaste) } )
   (* TODO:
    * - inserting pipe after expression
    * - *)
@@ -5377,7 +5390,7 @@ let fluidDataFromModel m : (fluidState * fluidExpr) option =
   match Toplevel.selectedAST m with
   | Some expr ->
       let s = m.fluidState in
-      Some (s, fromExpr s expr)
+      Some (s, fromExpr s.ac.functions expr)
   | None ->
       None
 
@@ -5526,7 +5539,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              | None ->
                  None )
       |> Option.map ~f:(fun (tl, expr) ->
-             let ast = fromExpr s expr in
+             let ast = fromExpr s.ac.functions expr in
              let fluidState =
                let fs = moveToEndOfTarget id ast s in
                {fs with errorDvSrc = SourceId id}
@@ -5570,7 +5583,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       ( match (tl, ast) with
       | Some tl, Some ast ->
           let tlid = TL.id tl in
-          let ast = fromExpr s ast in
+          let ast = fromExpr s.ac.functions ast in
           let newAST, newState = updateMsg m tlid ast msg s in
           let eventSpecMod, newAST, newState =
             let enter id = Enter (Filling (tlid, id)) in
@@ -5615,7 +5628,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                 [ Types.TweakModel (fun m -> TL.withAST m tlid asExpr)
                 ; Toplevel.setSelectedAST m asExpr
                 ; requestAnalysis
-                ; UpdateASTCache (tlid, eToString s newAST) ]
+                ; UpdateASTCache (tlid, eToString s.ac.functions newAST) ]
             else Types.NoChange
           in
           Types.Many
@@ -5718,24 +5731,24 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
       Vdom.noNode
 
 
-let fnForToken state token : function_ option =
+let fnForToken (fns : function_ list) token : function_ option =
   match token with
   | TBinOp (_, fnName)
   | TFnVersion (_, _, _, fnName)
   | TFnName (_, _, _, fnName, _) ->
-      Some (Functions.findByNameInList fnName state.ac.functions)
+      Some (Functions.findByNameInList fnName fns)
   | _ ->
       None
 
 
-let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
+let fnArgExprs (fns : function_ list) (token : token) (ast : fluidExpr) :
     fluidExpr list =
   let id = Token.tid token in
   let previous =
     toExpr ast
     |> AST.threadPrevious id
     |> Option.toList
-    |> List.map ~f:(fromExpr state)
+    |> List.map ~f:(fromExpr fns)
   in
   let exprs =
     match findExpr id ast with
@@ -5749,12 +5762,11 @@ let fnArgExprs (token : token) (ast : fluidExpr) (state : state) :
   previous @ exprs
 
 
-let viewPlayIcon
-    ~(vs : ViewUtils.viewState) ~state (ast : ast) (ti : tokenInfo) :
+let viewPlayIcon ~(vs : ViewUtils.viewState) (ast : ast) (ti : tokenInfo) :
     Types.msg Html.html =
-  match fnForToken state ti.token with
+  match fnForToken vs.fns ti.token with
   | Some fn ->
-      let allExprs = fnArgExprs ti.token ast state in
+      let allExprs = fnArgExprs vs.fns ti.token ast in
       let argIDs = List.map ~f:eid allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
@@ -5767,9 +5779,9 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
-    Types.msg Html.html list =
-  let l = ast |> toTokens state in
+let toHtml ~(vs : ViewUtils.viewState) ~tlid ~(state : fluidState) (ast : ast)
+    : Types.msg Html.html list =
+  let l = ast |> toTokens vs.fns in
   (* Gets the source of a DIncomplete given an expr id *)
   let sourceOfExprValue id =
     if FluidToken.validID id
@@ -5922,7 +5934,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
           (innerNode @ nested)
       in
       if vs.permission = Some ReadWrite
-      then [element [dropdown (); viewPlayIcon ast ti ~vs ~state]]
+      then [element [dropdown (); viewPlayIcon ~vs ast ti]]
       else [element []] )
   |> List.flatten
 
@@ -5940,8 +5952,8 @@ let viewLiveValue
   let renderTokenLv token id =
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
-      let fn = fnForToken state token in
-      let args = fnArgExprs token ast state |> List.map ~f:eid in
+      let fn = fnForToken vs.fns token in
+      let args = fnArgExprs vs.fns token ast |> List.map ~f:eid in
       Option.andThen fn ~f:(fun fn ->
           if fn.fnPreviewExecutionSafe
           then None
@@ -6021,7 +6033,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     Html.on ~key event decodeNothing
   in
   let eventKey = "keydown" ^ show_tlid tlid ^ string_of_bool cmdOpen in
-  let tokenInfos = ast |> toTokens state in
+  let tokenInfos = ast |> toTokens vs.fns in
   let errorRail =
     let indicators =
       tokenInfos
@@ -6050,7 +6062,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
 
 
 let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
-  let tokens = toTokens s ast in
+  let tokens = toTokens s.ac.functions ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
   let posData =
@@ -6157,8 +6169,10 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
 (* -------------------- *)
 
 let selectedASTAsText (m : model) : string option =
-  let s = m.fluidState in
-  TL.selectedAST m |> Option.map ~f:(fromExpr s) |> Option.map ~f:(eToString s)
+  let fns = m.fluidState.ac.functions in
+  TL.selectedAST m
+  |> Option.map ~f:(fromExpr fns)
+  |> Option.map ~f:(eToString fns)
 
 
 let renderCallback (m : model) : unit =
@@ -6209,4 +6223,5 @@ let stripFluidConstructsFromHandlers (hs : handler list) : handler list =
   List.map hs ~f:(fun h -> {h with ast = stripConstructs h.ast})
 
 
-let exprToStr (s : state) (e : expr) : string = e |> fromExpr s |> eToString s
+let exprToStr (fns : function_ list) (e : expr) : string =
+  e |> fromExpr fns |> eToString fns

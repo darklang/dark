@@ -463,7 +463,7 @@ let view (vs : viewState) (e : expr) =
   then
     [ Html.div
         [Html.class' "fluid-ast"]
-        (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e)) ]
+        (Fluid.viewAST ~vs (Fluid.fromExpr vs.fns e)) ]
   else
     let showRail = AST.usesRail e in
     let errorRail =

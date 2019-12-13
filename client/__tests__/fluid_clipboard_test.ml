@@ -39,8 +39,8 @@ let () =
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
     let clipboardData state e =
       Clipboard.getData e
-      |> Fluid.clipboardContentsToExpr ~state
-      |> Option.map ~f:(fun expr -> eToString state expr)
+      |> Fluid.clipboardContentsToExpr state.ac.functions
+      |> Option.map ~f:(fun expr -> eToString state.ac.functions expr)
       |> Option.withDefault ~default:"Nothing in clipboard"
     in
     let h = Fluid_utils.h ast in
@@ -61,7 +61,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "ast before" (eToStructure s ast) ;
+      Js.log2 "ast before" (eToStructure s.ac.functions ast) ;
       Js.log2 "clipboard before" (clipboardData s e) ) ;
     let mod_ = App.update_ msg m in
     let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
@@ -69,15 +69,15 @@ let () =
     let newAST =
       TL.selectedAST newM
       |> Option.withDefault ~default:(Blank.new_ ())
-      |> fromExpr newState
+      |> fromExpr s.ac.functions
     in
     let finalPos = newState.newPos in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState newAST) ;
+      Js.log2 "expr after" (eToStructure s.ac.functions newAST) ;
       Js.log2 "clipboard after" (clipboardData newState e) ) ;
-    (eToString newState newAST, clipboardData newState e, finalPos)
+    (eToString s.ac.functions newAST, clipboardData newState e, finalPos)
   in
   let copy ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
       =
@@ -122,8 +122,7 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ (eToString [] initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () ->
         expect (fn initial |> insertCursor)
@@ -131,8 +130,8 @@ let () =
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
-    let emptyState = Defaults.defaultFluidState in
-    let expectedString = eToString emptyState ast in
+    let fns = [] in
+    let expectedString = eToString fns ast in
     test
       ( name
       ^ " - `"
@@ -141,10 +140,10 @@ let () =
       (fun () ->
         let pos = String.length expectedString in
         let e = clipboardEvent () in
-        let clipboardData state e =
+        let clipboardData e =
           Clipboard.getData e
-          |> Fluid.clipboardContentsToExpr ~state
-          |> Option.map ~f:(fun expr -> eToString state expr)
+          |> Fluid.clipboardContentsToExpr []
+          |> Option.map ~f:(fun expr -> eToString fns expr)
           |> Option.withDefault ~default:"Nothing in clipboard"
         in
         let h = Fluid_utils.h ast in
@@ -165,19 +164,18 @@ let () =
         if debug
         then (
           Js.log2 "state before " (Fluid_utils.debugState s) ;
-          Js.log2 "ast before" (eToStructure s ast) ;
-          Js.log2 "clipboard before" (clipboardData s e) ) ;
+          Js.log2 "ast before" (eToStructure fns ast) ;
+          Js.log2 "clipboard before" (clipboardData e) ) ;
         let mod_ = App.update_ (ClipboardCutEvent e) m in
         let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
         let mod_ = App.update_ (ClipboardPasteEvent e) newM in
         let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
-        let newState = newM.fluidState in
         let newAST =
           TL.selectedAST newM
           |> Option.withDefault ~default:(Blank.new_ ())
-          |> fromExpr newState
+          |> fromExpr []
         in
-        expect expectedString |> toEqual (eToString newState newAST) )
+        expect expectedString |> toEqual (eToString fns newAST) )
   in
   let pipeOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in

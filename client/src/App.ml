@@ -1034,7 +1034,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
-        let exprToString ast = Fluid.exprToStr m.fluidState ast in
+        let exprToString ast = Fluid.exprToStr m.fluidState.ac.functions ast in
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->

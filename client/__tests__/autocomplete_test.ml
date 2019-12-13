@@ -804,7 +804,7 @@ let () =
               ~cursorState
               ()
           in
-          let exprToStr ast = Fluid.exprToStr m.fluidState ast in
+          let exprToStr ast = Fluid.exprToStr sampleFunctions ast in
           let searchCache =
             m.searchCache
             |> TLIDDict.insert ~tlid:http.hTLID ~value:(exprToStr http.ast)

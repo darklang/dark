@@ -269,8 +269,8 @@ let () =
       let exprToString expr : string =
         expr
         |> Tuple2.first
-        |> Fluid.fromExpr Defaults.defaultFluidState
-        |> Fluid.eToString Defaults.defaultFluidState
+        |> Fluid.fromExpr builtInFunctions
+        |> Fluid.eToString builtInFunctions
       in
       test "with sole expression" (fun () ->
           let expr = B.newF (Value "4") in

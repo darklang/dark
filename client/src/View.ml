@@ -125,7 +125,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     if VariantTesting.isFluid m.tests
     then
       TL.getAST tl
-      |> Option.map ~f:(Fluid.fromExpr m.fluidState)
+      |> Option.map ~f:(Fluid.fromExpr m.fluidState.ac.functions)
       |> Option.andThen ~f:(Fluid.getToken m.fluidState)
       |> Option.map ~f:(fun ti -> FluidToken.tid ti.token)
       |> Option.orElse (idOf m.cursorState)
@@ -461,7 +461,10 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
+    then
+      [ Fluid.viewStatus
+          (Fluid.fromExpr m.fluidState.ac.functions ast)
+          m.fluidState ]
     else []
   in
   let viewDocs =

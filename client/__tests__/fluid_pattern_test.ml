@@ -58,7 +58,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "pattern before" (eToStructure s ast) ) ;
+      Js.log2 "pattern before" (eToStructure s.ac.functions ast) ) ;
     let newAST, newState =
       let h = h ast in
       let m = {m with handlers = Handlers.fromList [h]} in
@@ -80,12 +80,12 @@ let () =
       | EMatch (_, _, [(pat, _)]) ->
           pat
       | _ ->
-          failwith ("can't match: " ^ eToString s newAST)
+          failwith ("can't match: " ^ eToString s.ac.functions newAST)
     in
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "pattern after" (eToStructure newState newAST) ) ;
+      Js.log2 "pattern after" (eToStructure s.ac.functions newAST) ) ;
     (pToString result, max 0 (newState.newPos - extra))
   in
   let del ?(debug = false) (pos : int) (pat : fluidPattern) : string * int =

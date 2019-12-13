@@ -206,7 +206,7 @@ let () =
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
       ast
-      |> toTokens {s with newPos = pos}
+      |> toTokens s.ac.functions
       |> List.filter ~f:(fun ti ->
              FluidToken.isNewline ti.token && ti.startPos < pos )
       |> List.length
@@ -223,7 +223,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
+      Js.log2 "expr before" (eToStructure ~includeIDs:true s.ac.functions ast) ) ;
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
@@ -232,7 +232,7 @@ let () =
       | expr when not wrap ->
           expr
       | expr ->
-          failwith ("the wrapper is broken: " ^ eToString s expr)
+          failwith ("the wrapper is broken: " ^ eToString s.ac.functions expr)
     in
     let removeWrapperFromCaretPos (p : int) : int =
       let endPos = ref (p - wrapperOffset) in
@@ -240,7 +240,7 @@ let () =
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
       result
-      |> toTokens newState
+      |> toTokens s.ac.functions
       |> List.iter ~f:(fun ti ->
              match ti.token with
              | TNewline _ when !endPos > ti.endPos ->
@@ -248,7 +248,7 @@ let () =
              | _ ->
                  () ) ;
       let last =
-        toTokens newState result
+        toTokens s.ac.functions result
         |> List.last
         |> deOption "last"
         |> fun x -> x.endPos
@@ -268,7 +268,7 @@ let () =
       else newState.selectionStart
     in
     let partialsFound =
-      List.any (toTokens newState result) ~f:(fun ti ->
+      List.any (toTokens s.ac.functions result) ~f:(fun ti ->
           match ti.token with
           | TRightPartial _ | TPartial _ | TFieldPartial _ ->
               true
@@ -278,8 +278,10 @@ let () =
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
-    ( (eToString s result, (selPos, finalPos))
+      Js.log2
+        "expr after"
+        (eToStructure ~includeIDs:true s.ac.functions result) ) ;
+    ( (eToString s.ac.functions result, (selPos, finalPos))
     , if partialsFound then ContainsPartial else NoPartial )
   in
   let render (expr : fluidExpr) : testResult =
@@ -559,8 +561,7 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ (eToString [] initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () ->
         expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial)
@@ -582,8 +583,7 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ (eToString [] initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () ->
         expect (fn initial |> insertCaret)
@@ -600,8 +600,7 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+      ^ (eToString [] initial |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
   in
@@ -3160,7 +3159,7 @@ let () =
       (*     expect (bs (EVariable (5, "request"))). *)
       () ) ;
   describe "Movement" (fun () ->
-      let tokens = toTokens m.fluidState complexExpr in
+      let tokens = toTokens m.fluidState.ac.functions complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let s = Defaults.defaultFluidState in
       let ast = complexExpr in
@@ -3270,7 +3269,7 @@ let () =
              | ELet (_, _, _, EBool (_, false), _) ->
                  "success"
              | _ ->
-                 eToStructure s ast)
+                 eToStructure s.ac.functions ast)
           |> toEqual "success" ) ;
       t
         "moving right off a function autocompletes it anyway"
@@ -3466,7 +3465,7 @@ let () =
           let id = ID "543" in
           expect
             (let ast = EString (id, "test") in
-             let tokens = toTokens m.fluidState ast in
+             let tokens = toTokens m.fluidState.ac.functions ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in
