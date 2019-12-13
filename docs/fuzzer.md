@@ -48,3 +48,6 @@ regression.
 
 Tests are deterministic based on the in Fluid_fuzzer.ml. Set the seed in each test.
 
+Fuzz testing is a work in progress, and you'll probably have to talk to Paul
+to get it to work for you.
+
