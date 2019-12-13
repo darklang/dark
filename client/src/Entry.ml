@@ -322,11 +322,11 @@ let parseAst
           |> List.find ~f:(fun f -> Some f.fnName = fnname)
           |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
           |> (function
-               | None | Some {paramBlock_args = []} ->
+               | None | Some {paramBlock_args = []; _} ->
                    (* add default value if empty or not found*)
                    ["var"]
-               | Some {paramBlock_args} ->
-                   paramBlock_args)
+               | Some params ->
+                   params.paramBlock_args)
           |> List.map ~f:(fun str -> B.newF str)
         in
         Some (F (eid, Lambda (lambdaArgs, b2))) )

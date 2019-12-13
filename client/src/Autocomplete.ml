@@ -34,8 +34,8 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction {fnName} ->
-      fnName
+  | ACFunction fn ->
+      fn.fnName
   | ACField name ->
       name
   | ACVariable (name, _) ->
@@ -294,17 +294,16 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatibleThreadParam ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters
+let findCompatibleThreadParam (fn : function_) (tipe : tipe) : parameter option
+    =
+  fn.fnParameters
   |> List.head
   |> Option.andThen ~f:(fun fst ->
          if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
 
-let findParamByType ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
+let findParamByType (fn : function_) (tipe : tipe) : parameter option =
+  fn.fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
 let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
