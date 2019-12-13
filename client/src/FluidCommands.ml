@@ -20,14 +20,16 @@ let reset : fluidCommandState =
 
 
 let commandsFor (tl : toplevel) (id : id) : command list =
+  (* NB: do not structurally compare entire Command.command records here, as
+   * they contain functions, which BS cannot compare.*)
   let filterForRail rail =
     Commands.commands
     |> List.filter ~f:(fun c ->
-           if rail = Rail
-           then c <> Commands.putFunctionOnRail
-           else if rail = NoRail
-           then c <> Commands.takeFunctionOffRail
-           else true )
+           match rail with
+           | Rail ->
+               c.commandName <> Commands.putFunctionOnRail.commandName
+           | NoRail ->
+               c.commandName <> Commands.takeFunctionOffRail.commandName )
   in
   Toplevel.getAST tl
   |> Option.andThen ~f:(fun x -> AST.find id x)
@@ -39,8 +41,9 @@ let commandsFor (tl : toplevel) (id : id) : command list =
              let cmds =
                Commands.commands
                |> List.filter ~f:(fun c ->
-                      c <> Commands.putFunctionOnRail
-                      && c <> Commands.takeFunctionOffRail )
+                      c.commandName <> Commands.putFunctionOnRail.commandName
+                      && c.commandName
+                         <> Commands.takeFunctionOffRail.commandName )
              in
              Some cmds )
   |> Option.withDefault ~default:Commands.commands
