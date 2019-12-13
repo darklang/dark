@@ -25,11 +25,11 @@ let commandsFor (tl : toplevel) (id : id) : command list =
   let filterForRail rail =
     Commands.commands
     |> List.filter ~f:(fun c ->
-           if rail = Rail
-           then c.commandName != Commands.putFunctionOnRail.commandName
-           else if rail = NoRail
-           then c.commandName != Commands.takeFunctionOffRail.commandName
-           else true )
+           match rail with
+           | Rail ->
+               c.commandName <> Commands.putFunctionOnRail.commandName
+           | NoRail ->
+               c.commandName <> Commands.takeFunctionOffRail.commandName )
   in
   Toplevel.getAST tl
   |> Option.andThen ~f:(fun x -> AST.find id x)
@@ -41,9 +41,9 @@ let commandsFor (tl : toplevel) (id : id) : command list =
              let cmds =
                Commands.commands
                |> List.filter ~f:(fun c ->
-                      c.commandName != Commands.putFunctionOnRail.commandName
+                      c.commandName <> Commands.putFunctionOnRail.commandName
                       && c.commandName
-                         != Commands.takeFunctionOffRail.commandName )
+                         <> Commands.takeFunctionOffRail.commandName )
              in
              Some cmds )
   |> Option.withDefault ~default:Commands.commands
