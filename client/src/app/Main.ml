@@ -1824,7 +1824,7 @@ let update_ (msg : msg) (m : model) : modification =
            ~importance:IgnorableError
            ~reload:false
            err)
-  | FluidMsg FluidCopy | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
+  | FluidMsg FluidCut | FluidMsg (FluidPaste _) ->
       recover "Fluid functions should not happen here" ~debug:msg NoChange
   | FluidMsg (FluidCommandsFilter query) ->
       TweakModel

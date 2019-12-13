@@ -1127,7 +1127,6 @@ and modification =
 (* ------------------- *)
 and fluidMsg =
   | FluidAutocompleteClick of fluidAutocompleteItem
-  | FluidCopy
   | FluidKeyPress of FluidKeyboard.keyEvent
   | FluidTextInput of FluidTextInput.t
   | FluidCut
