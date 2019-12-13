@@ -102,7 +102,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         (* if we're selecting an expression,
                    go 'up' to selecting the toplevel only *)
         | Some _ ->
-            Select (tlid, None)
+            Select (tlid, STTopLevelRoot)
         (* if we're selecting a toplevel only, deselect. *)
         | None ->
             Deselect )
@@ -441,7 +441,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 | Some (TLHandler h) ->
                     let replacement = AST.closeBlanks h.ast in
                     if replacement = h.ast
-                    then Many [Select (tlid, Some p); AutocompleteMod ACReset]
+                    then Many [Select (tlid, STID p); AutocompleteMod ACReset]
                     else
                       (* TODO: in this case, when filling a keyname on an
                            * object, nothing happens which is unexpected *)
@@ -449,7 +449,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                         ( [SetHandler (tlid, h.pos, {h with ast = replacement})]
                         , FocusNext (tlid, None) )
                 | _ ->
-                    Many [Select (tlid, Some p); AutocompleteMod ACReset] ) )
+                    Many [Select (tlid, STID p); AutocompleteMod ACReset] ) )
           | Key.Up ->
               AutocompleteMod ACSelectUp (* NB: see `stopKeys` in ui.html *)
           | Key.Down ->

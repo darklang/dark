@@ -7,6 +7,7 @@ open Fluid
 module AC = FluidAutocomplete
 module B = Blank
 module K = FluidKeyboard
+open Fluid_test_data
 
 let sampleFunctions : function_ list =
   [ ("Twit::somefunc", TObj)
@@ -47,18 +48,13 @@ let sampleFunctions : function_ list =
          ; fnDeprecated = fnName = "Some::deprecated" } )
 
 
-let defaultTLID = gtlid ()
+let defaultTLID = TLID "7"
 
 let defaultID = gid ()
 
 let defaultID2 = gid ()
 
 let defaultExpr = EBlank defaultID
-
-let aMatchExpr
-    ?(mID = defaultID) ?(patID = gid ()) ?(pattern = FPBlank (mID, patID)) () =
-  EMatch (mID, EVariable (gid (), "request"), [(pattern, EBool (gid (), true))])
-
 
 let defaultToplevel =
   TLHandler
@@ -122,7 +118,18 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
-  ; builtInFunctions = sampleFunctions }
+  ; builtInFunctions = sampleFunctions
+  ; analyses =
+      StrDict.singleton (* The default traceID for TLID 7 *)
+        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
+        ~value:
+          (LoadableSuccess
+             (StrDict.singleton
+                ~key:"12"
+                ~value:
+                  (DObj
+                     (StrDict.fromList [("title", DNull); ("author", DNull)]))))
+  }
 
 
 let aHandler
@@ -204,30 +211,18 @@ let enteringHandler ?(space : string option = None) ?(expr = defaultExpr) () :
 
 
 (* AC targeting a tlid and pointer *)
-let acFor
-    ?(target = Some (defaultTLID, PExpr (toExpr defaultExpr))) (m : model) :
-    AC.autocomplete =
-  let tlid, ti =
-    match target with
-    | Some (tlid, PExpr expr) ->
-        let ti =
-          fromExpr Defaults.defaultModel.fluidState expr
-          |> toTokens Defaults.defaultModel.fluidState
-          |> List.filter ~f:(fun ti -> FluidToken.isAutocompletable ti.token)
-          |> List.head
-          |> Option.withDefault ~default:defaultTokenInfo
-        in
-        (tlid, ti)
+let acFor ?(tlid = defaultTLID) ?(pos = 0) (m : model) : AC.autocomplete =
+  let ti =
+    match TL.get m tlid with
+    | Some (TLHandler {ast; _}) | Some (TLFunc {ufAST = ast; _}) ->
+        ast
+        |> fromExpr m.fluidState
+        |> Fluid.getToken {m.fluidState with newPos = pos}
+        |> Option.withDefault ~default:defaultTokenInfo
     | _ ->
-        (defaultTLID, defaultTokenInfo)
+        defaultTokenInfo
   in
-  match m.cursorState with
-  | Entering (Creating _) ->
-      AC.regenerate m (AC.init m) (tlid, ti)
-  | Entering (Filling _) ->
-      AC.regenerate m (AC.init m) (tlid, ti)
-  | _ ->
-      AC.regenerate m (AC.init m) (tlid, ti)
+  AC.regenerate m (AC.init m) (tlid, ti)
 
 
 let setQuery (m : model) (q : string) (a : AC.autocomplete) : AC.autocomplete =
@@ -284,18 +279,6 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
 
 let () =
   describe "autocomplete" (fun () ->
-      (* TODO: not yet working in fluid
-      describe "generation" (fun () ->
-          test
-            "invalidated cursor state/acFor still produces a valid autocomplete"
-            (fun () ->
-              expect (fun () ->
-                  defaultModel ~cursorState:(fillingCS ()) ()
-                  |> fun x -> acFor x )
-              |> not_
-              |> toThrow ) ;
-          () ) ;
-          *)
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
           let tl = TLHandler (aHandler ~space ()) in
@@ -328,11 +311,10 @@ let () =
                 |> AC.highlighted
                 |> Option.map ~f:AC.asName )
               |> toEqual (Some "Twit::someOtherFunc") ) ;
-          (* TODO: not yet working in fluid
-           test "Returning to empty unselects" (fun () ->
+          test "Returning to empty unselects" (fun () ->
               expect
                 (acFor m |> setQuery m "lis" |> setQuery m "" |> AC.highlighted)
-              |> toEqual None ) ; *)
+              |> toEqual None ) ;
           test "resetting the query refilters" (fun () ->
               expect
                 ( acFor m
@@ -527,8 +509,7 @@ let () =
                    |> setQuery m "event"
                    |> itemPresent (FACVariable ("event", None)) ])
               |> toEqual [true; true] ) ;
-          (* TODO: not yet working in fluid
-           * test "functions have DB names in the autocomplete" (fun () ->
+          test "functions have DB names in the autocomplete" (fun () ->
               let blankid = ID "123" in
               let dbNameBlank = EBlank blankid in
               let fntlid = TLID "fn123" in
@@ -546,14 +527,10 @@ let () =
                   ~userFunctions:[fn]
                   ()
               in
-              let target = Some (fntlid, PExpr (toExpr dbNameBlank)) in
-              let ac = acFor ~target m in
-              Js.log2
-                "DB name completions blankOr: "
-                ( List.map ~f:AC.show_autocompleteItem ac.completions
-                |> String.join ~sep:"; " ) ;
-              expect (ac |> itemPresent (FACVariable "MyDB")) |> toEqual true
-          ) ;*)
+              let ac = acFor ~tlid:fntlid ~pos:14 m in
+              expect
+                (ac |> itemPresent (FACVariable ("MyDB", Some (DDB "MyDB"))))
+              |> toEqual true ) ;
           () ) ;
       describe "filter" (fun () ->
           test "Cannot use DB variable when type of blank isn't TDB" (fun () ->
@@ -664,7 +641,7 @@ let () =
               let mID = ID "1234" in
               let patID = ID "456" in
               let pattern = FPVariable (mID, patID, "o") in
-              let expr = aMatchExpr ~mID ~patID ~pattern () in
+              let expr = match' b [(pattern, b)] in
               let m =
                 defaultModel
                   ~cursorState:(fillingCS ~tlid ~_id:patID ())
@@ -673,9 +650,8 @@ let () =
                 |> fun m -> {m with builtInFunctions = []}
               in
               expect
-                ( acFor ~target:(Some (tlid, PExpr (toExpr expr))) m
+                ( acFor ~tlid ~pos:13 m
                 |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
                 |> List.map ~f:(fun x -> AC.asName x) )
               |> toEqual ["o"; "Ok"; "Nothing"; "Error"] ) ;
           () ) ;

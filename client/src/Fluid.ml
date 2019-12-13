@@ -251,6 +251,29 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
 
 
+let astAndStateFromTLID (m : model) (tlid : tlid) : (ast * state) option =
+  (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
+    accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
+  let removeHandlerTransientState m =
+    {m with fluidState = {m.fluidState with ac = AC.reset m}}
+  in
+  let maybeFluidAstAndState =
+    TL.get m tlid
+    |> Option.andThen ~f:TL.getAST
+    |> Option.map ~f:(fun genericAst ->
+           let state =
+             (* We need to discard transient state if the selected handler has changed *)
+             if Some tlid = tlidOf m.cursorState
+             then m.fluidState
+             else
+               let newM = removeHandlerTransientState m in
+               newM.fluidState
+           in
+           (fromExpr state genericAst, state) )
+  in
+  maybeFluidAstAndState
+
+
 let literalToString
     (v :
       [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
@@ -586,7 +609,6 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
   let fromExpr e b = toTokens' s e b in
   let open Builder in
   let ghostPartial id newName oldName =
-    let oldName = ViewUtils.partialName oldName in
     let ghostSuffix = String.dropLeft ~count:(String.length newName) oldName in
     if ghostSuffix = "" then [] else [TPartialGhost (id, ghostSuffix)]
   in
@@ -653,7 +675,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
            if reflow
            then
              b
-             |> addNewlineIfNeeded (Some (id, id, None))
+             |> addNewlineIfNeeded (Some (id, id, Some (offset + i)))
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
@@ -734,7 +756,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany [TBinOp (id, op); TSep id]
       |> nest ~indent:0 ~placeholderFor:(Some (op, 1)) rexpr
   | EPartial (id, newName, EBinOp (_, oldName, lexpr, rexpr, _ster)) ->
-      let ghost = ghostPartial id newName oldName in
+      let ghost = ghostPartial id newName (ViewUtils.partialName oldName) in
       let start b =
         match lexpr with
         | EPipeTarget _ ->
@@ -764,25 +786,33 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       |> addMany versionToken
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
-      let ghost = ghostPartial id newName oldName in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id args
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let oldText = ViewUtils.partialName oldName in
+      let ghost = ghostPartial id newText oldText in
+      b |> add partial |> addMany ghost |> addArgs oldName id args
   | EConstructor (id, _, name, exprs) ->
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
-      let ghost = ghostPartial id newName oldName in
-      b
-      |> add (TPartial (id, newName))
-      |> addMany ghost
-      |> addArgs oldName id exprs
+      let partial = TPartial (id, newName) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldName in
+      b |> add partial |> addMany ghost |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany
            [ TFieldOp (id, (* lhs *) eid expr)
            ; TFieldName (id, fieldID, fieldname) ]
+  | EPartial
+      (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname)) ->
+      let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
+      let newText = Token.toText partial in
+      let ghost = ghostPartial id newText oldFieldname in
+      b
+      |> addNested ~f:(fromExpr expr)
+      |> addMany [TFieldOp (id, eid expr); partial]
+      |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
   | ELambda (id, names, body) ->
@@ -926,11 +956,16 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure (s : state) (e : fluidExpr) : string =
+let eToStructure ?(includeIDs = false) (s : state) (e : fluidExpr) : string =
   e
   |> toTokens s
   |> List.map ~f:(fun ti ->
-         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+         "<"
+         ^ Token.toTypeName ti.token
+         ^ (if includeIDs then "(" ^ (Token.tid ti.token |> deID) ^ ")" else "")
+         ^ ":"
+         ^ Token.toText ti.token
+         ^ ">" )
   |> String.join ~sep:""
 
 
@@ -1355,8 +1390,20 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
 (* updateExpr searches `ast` for an expression `e` with the given `id` and when
  * found replaces `e` with `f e`. *)
 let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
-  let rec run e = if id = eid e then f e else recurse ~f:run e in
-  run ast
+  let found = ref false in
+  let rec run e =
+    if id = eid e
+    then (
+      found := true ;
+      f e )
+    else recurse ~f:run e
+  in
+  let finished = run ast in
+  asserT
+    ~debug:(id, ast)
+    "didn't find the id in the expression to update"
+    !found ;
+  finished
 
 
 let replaceExpr ~(newExpr : fluidExpr) (id : id) (ast : ast) : ast =
@@ -1744,8 +1791,12 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         (function TFloatWhole (id', _) -> id = id' | _ -> false)
     | ARFloat (id, FPDecimal) ->
         (function TFloatFraction (id', _) -> id = id' | _ -> false)
-    | ARFnCall id ->
+    | ARFnCall (id, FCPFnName) ->
         (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
+    | ARFnCall (id, FCPArg _idx) ->
+        (* FIXME no way to get function arg by index *)
+        (function
+        | e -> Token.tid e = id)
     | ARIf (id, IPIfKeyword) ->
         (function TIfKeyword id' -> id = id' | _ -> false)
     | ARIf (id, IPThenKeyword) ->
@@ -1829,7 +1880,9 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRightPartial id ->
         (function TRightPartial (id', _) -> id = id' | _ -> false)
     | ARString id ->
-        (function TString (id', _) -> id = id' | _ -> false)
+        (* FIXME doesn't account for multi-line strings! *)
+        (function
+        | TString (id', _) -> id = id' | _ -> false)
     | ARVariable id ->
         (function TVariable (id', _) -> id = id' | _ -> false)
     | ARInvalid ->
@@ -2082,20 +2135,25 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
 let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
-      | EFieldAccess (id, expr, fieldID, _) ->
-          EFieldAccess (id, expr, fieldID, str)
+      | EPartial (id, _, (EFieldAccess _ as fa)) ->
+          EPartial (id, str, fa)
+      | EFieldAccess _ ->
+          EPartial (gid (), str, e)
       | _ ->
           recover "not a field in replaceFieldName" ~debug:e e )
 
 
 let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
-  updateExpr id ast ~f:(fun e -> EFieldAccess (fieldID, e, gid (), ""))
+  updateExpr id ast ~f:(fun e ->
+      EPartial (gid (), "", EFieldAccess (fieldID, e, gid (), "")) )
 
 
 let removeField (id : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
+          faExpr
+      | EPartial (_, _, EFieldAccess (_, faExpr, _, _)) ->
           faExpr
       | _ ->
           recover "not a fieldAccess in removeField" ~debug:e e )
@@ -2234,6 +2292,9 @@ let replaceWithPartial (str : string) (id : id) (ast : ast) : ast =
       then EString (gid (), String.slice ~from:1 ~to_:(-1) str)
       else
         match e with
+        | EPartial (_, _, (EFieldAccess _ as oldVal)) ->
+            (* This is allowed to be the empty string. *)
+            EPartial (id, str, oldVal)
         | EPartial (id, _, oldVal) ->
             asserT
               ~debug:str
@@ -2529,6 +2590,9 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replaceWithRightPartial (f str) id ast
   | TFieldName (id, _, str) ->
       replaceFieldName (f str) id ast
+  | TFieldPartial (id, _, _, str) ->
+      (* replace the partial's name, not the field's *)
+      replaceWithPartial (f str) id ast
   | TTrue id ->
       replaceWithPartial (f "true") id ast
   | TFalse id ->
@@ -3009,8 +3073,10 @@ let updateFromACItem
         let newExpr = EBinOp (bID, name, oldExpr, rhs, str) in
         let newAST = replaceExpr ~newExpr id ast in
         (newAST, String.length name)
-    | ( TFieldName _
-      , Some (EFieldAccess (faID, labelid, expr, _))
+    | ( (TFieldName _ | TFieldPartial _ | TBlank _)
+      , Some
+          ( EFieldAccess (faID, labelid, expr, _)
+          | EPartial (_, _, EFieldAccess (faID, labelid, expr, _)) )
       , _
       , EFieldAccess (_, _, _, newname) ) ->
         let newExpr = EFieldAccess (faID, labelid, expr, newname) in
@@ -3063,20 +3129,29 @@ let acMaybeCommit (newPos : int) (ast : ast) (s : fluidState) : ast =
       ast
 
 
-(* Convert the expression at ti into a FieldAccess, using the currently
+(* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
 let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   let s = recordAction ~ti "acStartField" s in
-  match AC.highlighted s.ac with
-  | None ->
-      (ast, s)
-  | Some entry ->
+  match (AC.highlighted s.ac, ti.token) with
+  | Some (FACField fieldname as entry), TFieldName (faID, _, _)
+  | Some (FACField fieldname as entry), TFieldPartial (_, faID, _, _) ->
+      let ast, s = updateFromACItem entry ti ast s K.Enter in
+      let newAST = exprToFieldAccess faID (gid ()) ast in
+      let length = String.length fieldname + 1 in
+      let newState = s |> moveTo (ti.startPos + length) |> acClear in
+      (newAST, newState)
+  | Some entry, _ ->
       let newExpr, length = acToExpr entry in
-      let newExpr = EFieldAccess (gid (), newExpr, gid (), "") in
+      let newExpr =
+        EPartial (gid (), "", EFieldAccess (gid (), newExpr, gid (), ""))
+      in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
       let newAST = replaceExpr ~newExpr (Token.tid ti.token) ast in
       (newAST, newState)
+  | _ ->
+      (ast, s)
 
 
 (* -------------------- *)
@@ -3271,6 +3346,7 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TNullToken _
     | TVariable _
     | TFieldName _
+    | TFieldPartial _
     | TLetLHS _
     | TPatternInteger _
     | TPatternNullToken _
@@ -3420,6 +3496,7 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
   | TPartial _
   | TRightPartial _
   | TFieldName _
+  | TFieldPartial _
   | TLetLHS _
   | TPatternNullToken _
   | TPatternTrue _
@@ -3566,6 +3643,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when not (isIdentifierChar letterStr) ->
@@ -3574,6 +3652,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TPatternVariable _
     | TLetLHS _
     | TFieldName _
+    | TFieldPartial _
     | TLambdaVar _
     | TRecordFieldname _
       when isNumber letterStr && (offset = 0 || FluidToken.isBlank ti.token) ->
@@ -3599,6 +3678,7 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (newAST, Exactly (newState.newPos + 1))
     | TRecordFieldname _
     | TFieldName _
+    | TFieldPartial _
     | TVariable _
     | TPartial _
     | TRightPartial _
@@ -3890,24 +3970,18 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.startPos + 2 ->
         (ast, moveToNextNonWhitespaceToken ~pos ast s)
     (* Deleting *)
+    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
+      ->
+        deleteSelection ~state:s ~ast
     | K.Backspace, L (TPatternString _, ti), _
     | K.Backspace, L (TString _, ti), _
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
         doBackspace ~pos ti ast s
-    | K.Backspace, _, R (TPatternBlank _, _)
-      when Option.isSome s.selectionStart ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
-    | (K.Delete, _, _ | K.Backspace, _, _) when Option.isSome s.selectionStart
-      ->
-        deleteSelection ~state:s ~ast
     | K.Backspace, L (_, ti), _ ->
         doBackspace ~pos ti ast s
     | K.Delete, _, R (_, ti) ->
@@ -3972,6 +4046,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     (* press dot while in a variable entry *)
     | K.Period, L (TPartial _, ti), _
       when Option.map ~f:AC.isVariable (AC.highlighted s.ac) = Some true ->
+        acStartField ti ast s
+    | K.Period, L (TFieldPartial _, ti), _
+    | K.Period, _, R (TFieldPartial _, ti)
+      when Option.map ~f:AC.isField (AC.highlighted s.ac) = Some true ->
         acStartField ti ast s
     (* Tab to next blank *)
     | K.Tab, _, R (_, _) | K.Tab, L (_, _), _ ->
@@ -4116,7 +4194,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * Caret on end-of-line.
      * Following newline contains a parent and index, meaning we're inside some
      * special construct. Special-case each of those. *)
-    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), _) ->
+    | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), ti) ->
       ( match findExpr parentId ast with
       | Some (EPipe _) ->
           let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
@@ -4134,6 +4212,12 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
           in
           (ast, s)
+      | Some (EFnCall _) ->
+          (* Pressing enter at the end of an FnCall's expression should just
+           * move right. We don't know what's next, so we just want to
+           * literally go to whatever's on the other side of the newline.
+           * *)
+          (ast, doRight ~pos ~next:mNext ti s)
       | _ ->
           (ast, s) )
     (*
@@ -4328,7 +4412,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
   else
     match (toTheLeft, toTheRight) with
     | L (TPartial (_, str), ti), _
+    | L (TFieldPartial (_, _, _, str), ti), _
     | _, R (TPartial (_, str), ti)
+    | _, R (TFieldPartial (_, _, _, str), ti)
     (* When pressing an infix character, it's hard to tell whether to commit or
      * not.  If the partial is an int, or a function that returns one, pressing
      * +, -, etc  should lead to committing and then doing the action.
@@ -5054,6 +5140,20 @@ let clipboardContentsToExpr ~state (data : clipboardContents) :
       None
 
 
+let clipboardContentsToString ~state (data : clipboardContents) : string =
+  match data with
+  | `Json _ ->
+      data
+      |> clipboardContentsToExpr ~state
+      |> Option.map ~f:(eToString state)
+      |> Option.withDefault ~default:""
+      |> trimQuotes
+  | `Text text ->
+      text
+  | `None ->
+      ""
+
+
 let getStringIndex ti pos : int =
   match ti.token with
   | TString (_, _) ->
@@ -5073,6 +5173,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   let expr = Option.andThen exprID ~f:(fun id -> findExpr id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr = clipboardContentsToExpr ~state data in
+  let text = clipboardContentsToString ~state data in
   match (clipboardExpr, expr, token) with
   | Some clipboardExpr, Some (EBlank exprID), _ ->
       let newPos =
@@ -5092,17 +5193,18 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting other kinds of expressions into string *)
-  | Some clipboardExpr, Some (EString (_, str)), Some ti ->
-      let insert = eToString state clipboardExpr |> trimQuotes in
+  | _, Some (EString (_, str)), Some ti ->
       let index = getStringIndex ti state.newPos in
-      let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
+      let newExpr =
+        EString (gid (), String.insertAt ~insert:text ~index str)
+      in
       let newAST =
         exprID
         |> Option.map ~f:(fun id -> replaceExpr ~newExpr id ast)
         |> Option.withDefault ~default:ast
       in
       (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
-      let newPos = state.newPos + String.length insert in
+      let newPos = state.newPos + String.length text in
       (newAST, {state with newPos})
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
@@ -5315,6 +5417,9 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
   let s = updateAutocomplete m tlid ast s in
   let newAST, newState =
     match msg with
+    | FluidUpdateAutocomplete ->
+        (* updateAutocomplete has already been run, so nothing more to do *)
+        (ast, s)
     | FluidMouseUp (_, selection) ->
         updateMouseUp s ast selection
     | FluidCut ->
@@ -5363,7 +5468,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         let selectionStart =
           if key = K.SelectAll
           then newState.selectionStart
-          else if shiftKey
+          else if shiftKey && not (key = K.ShiftEnter)
+                  (* We dont want to persist selection on ShiftEnter *)
           then s.selectionStart
           else None
         in
@@ -5384,6 +5490,12 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   let s = m.fluidState in
   let s = {s with error = None; oldPos = s.newPos; actions = []} in
   match msg with
+  | FluidUpdateDropdownIndex index when FluidCommands.isOpened m.fluidState.cp
+    ->
+      FluidCommands.cpSetIndex m index s
+  | FluidUpdateDropdownIndex index ->
+      let newState = acSetIndex index s in
+      Types.TweakModel (fun m -> {m with fluidState = newState})
   | FluidKeyPress {key} when key = K.Undo ->
       KeyPress.undo_redo m false
   | FluidKeyPress {key} when key = K.Redo ->
@@ -5445,6 +5557,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidCommandsFilter _
   | FluidCommandsClick _
   | FluidAutocompleteClick _
+  | FluidUpdateAutocomplete
   | FluidMouseUp _ ->
       let tlid =
         match msg with
@@ -5541,7 +5654,11 @@ let viewAutocomplete (ac : Types.fluidAutocompleteState) : Types.msg Html.html
           ; ViewEntry.defaultPasteHandler
           ; ViewUtils.nothingMouseEvent "mousedown"
           ; ViewUtils.eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                FluidMsg (FluidAutocompleteClick item) ) ]
+                FluidMsg (FluidAutocompleteClick item) )
+          ; ViewUtils.eventBoth
+              ~key:("ac-mousemove" ^ name)
+              "mousemove"
+              (fun _ -> FluidMsg (FluidUpdateDropdownIndex i) ) ]
           [ Html.text fnDisplayName
           ; versionView
           ; Html.span [Html.class' "types"] [Html.text <| AC.asTypeString item]
@@ -5814,83 +5931,81 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
 let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
-  let goToSrcView text tid =
-    Html.div
-      [ ViewUtils.eventNoPropagation
-          ~key:("lv-src-" ^ deID tid)
-          "click"
-          (fun _ -> FluidMsg (FluidFocusOnToken tid))
-      ; Html.class' "jump-src" ]
-      [Html.text text]
+  (* Renders dval*)
+  let renderDval dval canCopy =
+    let text = Runtime.toRepr dval in
+    [ Html.text text
+    ; (if canCopy then viewCopyButton tlid text else Vdom.noNode) ]
   in
-  let liveValue, show, offset =
-    let none = ([Vdom.noNode], false, 0) in
-    getToken state ast
-    |> Option.map ~f:(fun ti ->
-           let fn = fnForToken state ti.token in
-           let args = fnArgExprs ti.token ast state |> List.map ~f:eid in
-           let row = ti.startRow in
-           let id = Token.analysisID ti.token in
-           let fnText =
-             Option.and_then fn ~f:(fun fn ->
-                 if fn.fnPreviewExecutionSafe
-                 then None
-                 else
-                   let id = Token.tid ti.token in
-                   ViewFnExecution.fnExecutionStatus vs fn id args
-                   |> ViewFnExecution.executionError
-                   |> Option.some )
-           in
-           if FluidToken.validID id
-           then
-             let lvHtml dval =
-               let text = Runtime.toRepr dval in
-               ([Html.text text; viewCopyButton tlid text], true, ti.startRow)
-             in
-             match AC.highlighted state.ac with
-             | Some (FACVariable (_, Some dval)) ->
-                 lvHtml dval
-             | Some _ ->
-                 (* Showing a livevalue when the autocomplete is showing
-                  * is confusing, except in particular situations. *)
-                 none
-             | None ->
-               ( match Analysis.getLiveValueLoadable vs.analysisStore id with
-               | LoadableSuccess (DIncomplete _) when Option.isSome fnText ->
-                   let text = Option.withDefault ~default:"" fnText in
-                   ([Html.text text], true, ti.startRow)
-               | LoadableSuccess (DIncomplete (SourceId srcId))
-                 when srcId <> id ->
-                   ( [goToSrcView "<Incomplete> Click to locate source" srcId]
-                   , true
-                   , ti.startRow )
-               | LoadableSuccess (DIncomplete _) ->
-                   ([Html.text "<Incomplete>"], true, ti.startRow)
-               | LoadableSuccess (DError (SourceId srcId, _)) when srcId <> id
-                 ->
-                   (* Here we don't show the error message since the user can't do anything to fix it until they are focused on the source or the error *)
-                   ( [goToSrcView "<Error> Click to locate source" srcId]
-                   , true
-                   , ti.startRow )
-               | LoadableSuccess (DError (_, msg)) ->
-                   ([Html.text ("<Error: " ^ msg ^ ">")], true, ti.startRow)
-               | LoadableSuccess dval ->
-                   lvHtml dval
-               | LoadableNotInitialized | LoadableLoading _ ->
-                   ([ViewUtils.fontAwesome "spinner"], true, row)
-               | LoadableError err ->
-                   ([Html.text ("Error loading live value: " ^ err)], true, row)
-               )
-           else none )
-    |> Option.withDefault ~default:none
+  (* Renders live value for token *)
+  let renderTokenLv token id =
+    let fnLoading =
+      (* If fn needs to be manually executed, check status *)
+      let fn = fnForToken state token in
+      let args = fnArgExprs token ast state |> List.map ~f:eid in
+      Option.andThen fn ~f:(fun fn ->
+          if fn.fnPreviewExecutionSafe
+          then None
+          else
+            let id = Token.tid token in
+            ViewFnExecution.fnExecutionStatus vs fn id args
+            |> ViewFnExecution.executionError
+            |> Option.some )
+    in
+    match Analysis.getLiveValueLoadable vs.analysisStore id with
+    | LoadableSuccess (DIncomplete _) when Option.isSome fnLoading ->
+        [Html.text (Option.withDefault ~default:"" fnLoading)]
+    | LoadableSuccess (DIncomplete (SourceId srcId) as dv)
+    | LoadableSuccess (DError (SourceId srcId, _) as dv)
+      when srcId <> id ->
+        let msg =
+          "<"
+          ^ (dv |> Runtime.typeOf |> Runtime.tipe2str)
+          ^ "> Click to locate source"
+        in
+        [ Html.div
+            [ ViewUtils.eventNoPropagation
+                ~key:("lv-src-" ^ deID srcId)
+                "click"
+                (fun _ -> FluidMsg (FluidFocusOnToken srcId))
+            ; Html.class' "jump-src" ]
+            [Html.text msg] ]
+    | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
+      ->
+        renderDval dv false
+    | LoadableSuccess dval ->
+        renderDval dval true
+    | LoadableNotInitialized | LoadableLoading _ ->
+        [ViewUtils.fontAwesome "spinner"]
+    | LoadableError err ->
+        [Html.text ("Error loading live value: " ^ err)]
   in
-  let offset = float_of_int offset +. 1.5 in
-  Html.div
-    [ Html.classList [("live-values", true); ("show", show)]
-    ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
-    ; Attrs.autofocus false
-    ; Vdom.attribute "" "spellcheck" "false" ]
-    liveValue
+  getToken state ast
+  |> Option.andThen ~f:(fun ti ->
+         let row = ti.startRow in
+         let content =
+           match AC.highlighted state.ac with
+           | Some (FACVariable (_, Some dv)) ->
+               (* If autocomplete is open and a variable is highlighted, then show its dval *)
+               Some (renderDval dv true)
+           | _ ->
+               (* Else show live value of current token *)
+               let token = ti.token in
+               let id = Token.analysisID token in
+               if Token.validID id then Some (renderTokenLv token id) else None
+         in
+         Option.pair content (Some row) )
+  (* Render live value to the side *)
+  |> Option.map ~f:(fun (content, row) ->
+         let offset = float_of_int row +. 1.5 in
+         Html.div
+           [ Html.classList [("live-values", true)]
+           ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
+           ; Attrs.autofocus false
+           ; Vdom.attribute "" "spellcheck" "false" ]
+           content )
+  (* If there's a failure at any point, we don't render the live-value wrapper *)
+  |> Option.withDefault ~default:Vdom.noNode
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
@@ -5920,7 +6035,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       indicators
   in
   let liveValue =
-    if tlidOf vs.cursorState = Some tlid
+    if vs.cursorState = FluidEntering tlid
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
@@ -5965,6 +6080,8 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             ( s.ac.index
             |> Option.map ~f:string_of_int
             |> Option.withDefault ~default:"None" ) ]
+    ; dtText "acEntryCount"
+    ; Html.dd [] [Html.text (s.ac.completions |> List.length |> string_of_int)]
     ; dtText "upDownCol"
     ; Html.dd
         []

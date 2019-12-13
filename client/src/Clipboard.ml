@@ -103,7 +103,7 @@ let getData (e : clipboardEvent) : clipboardContents =
   if json <> ""
   then (
     try `Json (Json.parseOrRaise json) with _ ->
-      reportError "could not parse" json ;
+      reportError "could not parse clipboard data" json ;
       `None )
   else
     let text = e##clipboardData##getData "text/plain" in

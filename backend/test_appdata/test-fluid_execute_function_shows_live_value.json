@@ -1,0 +1,45 @@
+[
+  [ "TLSavepoint", 1013604333 ],
+  [
+    "SetHandler",
+    1013604333,
+    { "x": 614, "y": 70 },
+    {
+      "tlid": 1013604333,
+      "ast": [
+        "Filled",
+        1334251057,
+        [
+          "FnCall",
+          "Crypto::sha256",
+          [
+            [
+              "Filled",
+              744235252,
+              [
+                "Thread",
+                [
+                  [ "Filled", 1045574047, [ "Value", "\"hello\"" ] ],
+                  [
+                    "Filled",
+                    1623144612,
+                    [ "FnCall", "String::toBytes", [] ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Filled", 1861672265, "REPL" ],
+        "name": [ "Filled", 804531585, "violentLemur" ],
+        "modifier": [ "Filled", 764655620, "_" ],
+        "types": {
+          "input": [ "Blank", 1709621411 ],
+          "output": [ "Blank", 1623278628 ]
+        }
+      }
+    }
+  ]
+]

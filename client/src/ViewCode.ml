@@ -458,6 +458,7 @@ and viewNExpr
 
 
 let view (vs : viewState) (e : expr) =
+  let vs = {vs with showLivevalue = true} in
   if VariantTesting.isFluid vs.testVariants
   then
     [ Html.div

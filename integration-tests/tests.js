@@ -1066,6 +1066,26 @@ test("extract_from_function", async t => {
     .pressKey("enter");
 });
 
+test("fluid_execute_function_shows_live_value", async t => {
+  /* NOTE: This test is intended to determine if clicking a play button in fluid
+  makes the live value visible. There is some extra complication in that clicking
+  on a play button as it stands does not actually "count" as clicking on the play button
+  unless the handler is "active" with a placed caret. To account for this, we
+  click on "hello" within Crypto::sha256 ("hello" |> String::toBytes) after focusing
+  in order to place the caret. Then we click on the button and see if the live value
+  corresponds to the result of `Crypto::sha256`. */
+  await t
+    .navigateTo("#handler=1013604333")
+    .expect(available(".id-1334251057 .execution-button"))
+    .ok()
+    .click(Selector(".id-1045574047.fluid-string"))
+    .click(Selector(".id-1334251057 .execution-button"))
+    .expect(available(".selected .live-values"))
+    .ok()
+    .expect(Selector(".selected .live-values").innerText)
+    .eql("<Bytes: length=32>");
+});
+
 test("fluid_single_click_on_token_in_deselected_handler_focuses", async t => {
   await t
     .expect(available(".id-2068425241.fluid-let-lhs"))
@@ -1271,18 +1291,4 @@ test("fluid_fn_pg_change", async t => {
 
   //Make sure we stay on the page
   await t.expect(available(".tl-1464810122")).ok({ timeout: 1000 });
-});
-
-test("fluid_fieldname_autocomplete_closes", async t => {
-  // Highlight the fieldname (it takes 2 single-clicks right now)
-  await t.click(Selector(".fluid-field-name"));
-  await t.click(Selector(".fluid-field-name"));
-
-  // Cause the autocomplete to appear
-  await t.pressKey("left");
-  // Check the autocomplete has appeared
-  await t.expect(available("#fluid-dropdown")).ok({ timeout: 1000 });
-
-  // Complete the autocomplete
-  await t.pressKey("enter");
 });
