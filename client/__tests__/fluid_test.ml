@@ -3615,7 +3615,7 @@ let () =
           Js.log2 "structure" (eToStructure defaultTestState testcase) ;
           let length = String.length text in
           t
-            ("delete-all deletes all #" ^ string_of_int i ^ ": " ^ text)
+            ("delete-all deletes all #" ^ string_of_int i)
             testcase
             (keys ~wrap:false [K.SelectAll; K.Backspace] (length - 1))
             "~___"
