@@ -842,11 +842,13 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         b
         |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
-               addIter fields b ~f:(fun i (aid, fname, expr) b ->
+               addIter fields b ~f:(fun i (fieldID, fieldName, expr) b ->
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
-                   |> add (TRecordFieldname (id, aid, i, fname))
-                   |> add (TRecordSep (id, i, aid))
+                   |> add
+                        (TRecordFieldname
+                           {recordID = id; fieldID; index = i; fieldName})
+                   |> add (TRecordSep (id, i, fieldID))
                    |> addNested ~f:(fromExpr expr) ) )
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
@@ -1866,7 +1868,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         (function TRecordClose id' -> id = id' | _ -> false)
     | ARRecord (id, RPFieldname idx) ->
         (function
-        | TRecordFieldname (id', _, idx', _) ->
+        | TRecordFieldname {recordID = id'; index = idx'} ->
             id = id' && idx = idx'
         | _ ->
             false)
@@ -2576,8 +2578,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str, _) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordFieldname (id, _, index, str) ->
-      replaceRecordField ~index (f str) id ast
+  | TRecordFieldname {recordID; index; fieldName} ->
+      replaceRecordField ~index (f fieldName) recordID ast
   | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
   | TLambdaVar (id, _, index, str) ->
@@ -3302,8 +3304,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TRecordFieldname (id, _, i, "") when pos = ti.startPos ->
-        (removeRecordField id i ast, LeftThree)
+    | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
+      ->
+        (removeRecordField recordID index ast, LeftThree)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TBlank _
@@ -3996,7 +3999,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
+    | K.Backspace, _, R (TRecordFieldname {fieldName = ""}, ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
@@ -4961,14 +4964,15 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | EList (_, exprs), _ ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
-    | ERecord (_, entries), _ ->
+    | ERecord (id, entries), _ ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
           tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordFieldname (_, _, index, newKey) ->
+                 | TRecordFieldname {recordID; index; fieldName = newKey}
+                   when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
