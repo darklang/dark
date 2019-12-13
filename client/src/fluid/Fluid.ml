@@ -4855,7 +4855,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidMouseDown _
   | FluidKeyPress _
   | FluidTextInput _
-  | FluidCopy
   | FluidPaste _
   | FluidCut
   | FluidCommandsFilter _
