@@ -2,6 +2,8 @@ open Jest
 open Expect
 open Tc
 
+(* See docs/fuzzer.md for documentation on how to use this. *)
+
 (* aim is to be deterministic *)
 let seed = ref 1.0
 
