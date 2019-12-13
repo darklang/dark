@@ -5535,11 +5535,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       KeyPress.undo_redo m false
   | FluidKeyPress {key} when key = K.Redo ->
       KeyPress.undo_redo m true
-  (*
-   * alt-x opens command palatte. On macOS, is key = '≈', which we have to hack
-   * in with bucklescript UTF-16 literals because OCaml is terrible. NOTE: we
-   * cannot use the event.code here or it would be broken on software mapped
-   * keyboard layouts. *)
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
   | FluidKeyPress {key; metaKey; ctrlKey}
