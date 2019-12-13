@@ -1157,16 +1157,11 @@ let trigger (test_name : string) : integrationTestState =
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
         fluid_fn_pg_change
-<<<<<<< HEAD
-    | "fluid_fieldname_autocomplete_closes" ->
-        fluid_fieldname_autocomplete_closes
     | "creating_an_http_handler_focuses_the_verb" ->
         creating_an_http_handler_focuses_the_verb
     | "tabbing_from_an_http_handler_spec_to_ast" ->
         tabbing_from_an_http_handler_spec_to_ast
     | "tabbing_from_an_http_handler_spec_past_ast_back_to_verb" ->
         tabbing_from_an_http_handler_spec_past_ast_back_to_verb
-=======
->>>>>>> 08f2e5e90... Remove flaky test
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )
