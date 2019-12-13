@@ -201,7 +201,16 @@ $toplevel-shadow-front: 1px 2px 4px 2px $black1;
       cursor: pointer;
     }
 
-    @include is-executing();
+    &.is-executing {
+      background-image: url("/icons/redo.svg");
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+
+      i {
+        display: none;
+      }
+    }
 
     &.inactive {
       display: inline;

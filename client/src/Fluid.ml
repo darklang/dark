@@ -5925,7 +5925,10 @@ let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
   let spinner =
-    Html.img [Html.class' "spinner" ; Html.src ("//" ^ Native.Ext.staticHost () ^ "/icons/spinner.svg")] []
+    Html.img
+      [ Html.class' "spinner"
+      ; Html.src ("//" ^ Native.Ext.staticHost () ^ "/icons/spinner.svg") ]
+      []
   in
   (* Renders dval*)
   let renderDval dval canCopy =
@@ -5995,7 +5998,8 @@ let viewLiveValue
   |> Option.map ~f:(fun (content, row) ->
          let offset = float_of_int row +. 1.5 in
          Html.div
-           [ Html.classList [("live-values", true); ("no-background", content = [spinner])]
+           [ Html.classList
+               [("live-values", true); ("no-background", content = [spinner])]
            ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
            ; Attrs.autofocus false
            ; Vdom.attribute "" "spellcheck" "false" ]
