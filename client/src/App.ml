@@ -1132,9 +1132,12 @@ let update_ (msg : msg) (m : model) : modification =
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many [Entry.commit m cursor; defaultBehaviour]
+              Many
+                [ Entry.commit m cursor
+                ; defaultBehaviour
+                ; Fluid.update m FluidCloseAutocomplete ]
           | _ ->
-              defaultBehaviour
+              Many [defaultBehaviour; Fluid.update m FluidCloseAutocomplete]
         else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
