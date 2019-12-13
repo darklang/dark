@@ -370,7 +370,8 @@ let execute_ops
         ; user_fns
         ; user_tipes
         ; account_id
-        ; canvas_id }
+        ; canvas_id
+        ; fail_fn = _ }
       , input_vars ) =
     test_execution_data ~trace_id ops
   in
