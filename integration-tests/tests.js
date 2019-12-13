@@ -1326,3 +1326,14 @@ test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async t => {
     .expect(acHighlightedText("GET"))
     .ok();
 });
+
+test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("shift+tab") // ast -> back to route;
+    .pressKey("down") // enter route
+    .expect(acHighlightedText("/"))
+    .ok();
+});

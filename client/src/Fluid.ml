@@ -5603,8 +5603,8 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                     (NoChange, newAST, newState) )
               | _ ->
                   (NoChange, newAST, newState)
-            else if newState.lastKey = K.Tab
-                    && newState.newPos <= newState.oldPos
+            else if newState.lastKey = K.ShiftTab
+                    && newState.newPos >= newState.oldPos
             then
               (* get the last blank spec header, or fall back to NoChange *)
               match tl with
