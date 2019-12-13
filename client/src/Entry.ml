@@ -230,7 +230,8 @@ let newDB (name : string) (pos : pos) (m : model) : modification =
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
-  let pos = {x = pos.x - 17; y = pos.y - 70} in
+  let pos = {x = pos.x + 17; y = pos.y + 200} in
+  Debug.loG "submitOmniAction" pos;
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->

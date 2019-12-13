@@ -329,35 +329,6 @@ let viewCanvas (m : model) : msg Html.html =
       | None ->
           [] )
   in
-  let canvasTransform =
-    let offset = m.canvasProps.offset in
-    let x = string_of_int (-offset.x) in
-    let y = string_of_int (-offset.y) in
-    ("transform", "translate(" ^ x ^ "px, " ^ y ^ "px)")
-  in
-  let styles =
-    [ ( "transition"
-      , if m.canvasProps.panAnimation = AnimateTransition
-        then "transform 0.5s"
-        else "unset" )
-    ; canvasTransform ]
-  in
-  let overlay =
-    let show =
-      match m.currentPage with
-      | FocusedHandler _ | FocusedDB _ ->
-          true
-      | Architecture ->
-        ( match unwrapCursorState m.cursorState with
-        | Entering (Creating _) ->
-            true
-        | _ ->
-            false )
-      | _ ->
-          false
-    in
-    Html.div [Html.classList [("overlay", true); ("show", show)]] []
-  in
   let pageClass =
     match m.currentPage with
     | Architecture ->
@@ -376,10 +347,8 @@ let viewCanvas (m : model) : msg Html.html =
   Html.div
     [ Html.id "canvas"
     ; Html.class' pageClass
-    ; Html.styles styles
-    ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
-          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
-    (overlay :: allDivs)
+    ]
+    (allDivs)
 
 
 let viewMinimap (data : string option) : msg Html.html =

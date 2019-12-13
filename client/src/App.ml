@@ -956,10 +956,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | MoveCanvasTo (offset, panAnimation) ->
+        let w, h = Native.Ext.appScrollLimits () in
+        let x = Util.clamp offset.x 0 w in
+        let y = Util.clamp offset.y 0 h in
+        let offset = {x; y} in
         let newCanvasProps =
           { m.canvasProps with
             offset; panAnimation; lastOffset = Some m.canvasProps.offset }
         in
+        Native.Ext.appScrollTo offset.x offset.y;
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
       ( match TL.get m tlid with
