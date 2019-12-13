@@ -204,7 +204,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 ( match info with
                 | None ->
                     DOption OptNothing
-                | Some {username; name; email} ->
+                | Some {username; name; email; admin = _} ->
                     DOption
                       (OptJust
                          (Dval.to_dobj_exn
