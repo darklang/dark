@@ -99,14 +99,16 @@ let () =
           ~value:
             (LoadableSuccess
                (StrDict.fromList
-                  [ ( "12"
+                  [ ( "fake-acdata1"
                     , DObj
                         (StrDict.fromList [("body", DNull); ("formBody", DNull)])
                     )
-                  ; ( "13"
+                  ; ( "fake-acdata2"
                     , DObj
                         (StrDict.fromList [("title", DNull); ("author", DNull)])
-                    ) ]))
+                    )
+                  ; ("fake-acdata3", DObj (StrDict.fromList [("body", DInt 5)]))
+                  ]))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
@@ -1484,13 +1486,14 @@ let () =
         (EPartial
            ( gid ()
            , "body"
-           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           , EFieldAccess
+               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "")
            ))
         (ins ~clone:false '.' 11)
         "request.body.~***" ;
       tp
         "insert dot even when no content in the field"
-        (EVariable (ID "12", "request"))
+        (EVariable (ID "fake-acdata1", "request"))
         (keys ~clone:false [K.Period; K.Period] 7)
         "request.body.~***" ;
       tp
@@ -3011,6 +3014,8 @@ let () =
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
+      (* Note that many of these autocomplete tests use ~clone:false
+     because they rely on fake data defined under ids prefixed with `fake-acdata` *)
       t
         "space autocompletes correctly"
         (partial "if" b)
@@ -3112,18 +3117,19 @@ let () =
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           , EFieldAccess
+               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "")
            ))
         (enter ~clone:false 10)
         "request.body~" ;
       t
         "autocomplete shows first alphabetical item for fields"
-        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
         (keys [K.Period; K.Enter] ~clone:false 23)
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
-        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
         (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
         "let request = 5\nrequest.title~" ;
       t
@@ -3136,8 +3142,10 @@ let () =
                ( gid ()
                , "body"
                , EFieldAccess
-                   (gid (), EVariable (ID "12", "request"), gid (), "longfield")
-               )
+                   ( gid ()
+                   , EVariable (ID "fake-acdata1", "request")
+                   , gid ()
+                   , "longfield" ) )
            , EBlank (gid ()) ))
         (* Right should make it commit *)
         (key ~clone:false K.Right 20)
@@ -3148,16 +3156,66 @@ let () =
            ( gid ()
            , "bod"
            , EFieldAccess
-               (gid (), EVariable (ID "12", "request"), gid (), "longfield") ))
+               ( gid ()
+               , EVariable (ID "fake-acdata1", "request")
+               , gid ()
+               , "longfield" ) ))
         (* Dot should select the autocomplete *)
         (key ~clone:false K.Period 11)
         "request.body.~***" ;
+      t
+        "autocomplete with space moves to next non-whitespace rather than blank"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "request"
+           , ERecord
+               ( gid ()
+               , [ (gid (), "body", EInteger (gid (), "5"))
+                 ; (gid (), "blank", EBlank (gid ())) ] )
+           , ELet
+               ( gid ()
+               , gid ()
+               , "foo"
+               , EPartial
+                   ( gid ()
+                   , "bo"
+                   , EFieldAccess
+                       ( gid ()
+                       , EVariable (ID "fake-acdata3", "request")
+                       , gid ()
+                       , "" ) )
+               , EVariable (gid (), "foo") ) ))
+        (space ~clone:false 105)
+        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
+      t
+        "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "request"
+           , ERecord (gid (), [(gid (), "body", EInteger (gid (), "5"))])
+           , ELet
+               ( gid ()
+               , gid ()
+               , "foo"
+               , EPartial
+                   ( gid ()
+                   , "bo"
+                   , EFieldAccess
+                       ( gid ()
+                       , EVariable (ID "fake-acdata3", "request")
+                       , gid ()
+                       , "" ) )
+               , EVariable (gid (), "foo") ) ))
+        (tab ~clone:false 77)
+        "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
       (*   (EMatch *)
       (*      ( gid () *)
-      (*      , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo") *)
+      (*      , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo") *)
       (*      , [] )) *)
       (*   (enter 18) *)
       (*   ("match request.body", 18) ; *)
