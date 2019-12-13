@@ -1473,7 +1473,11 @@ and fluidToken =
   (* 2nd int is the number of pipe segments there are *)
   | TPipe of id * int * int
   | TRecordOpen of id
-  | TRecordFieldname of id * analysisId * int * string
+  | TRecordFieldname of
+      { recordID : id
+      ; fieldID : id
+      ; index : int
+      ; fieldName : string }
   | TRecordSep of id * int * analysisId
   | TRecordClose of id
   | TMatchKeyword of id
