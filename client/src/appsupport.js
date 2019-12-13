@@ -67,13 +67,7 @@ function isHandledByFluid(evt) {
   // which is all printable ascii characters
   var printableChar = /^[ -~]$/.test(evt.key);
 
-  var editingKey = [
-    "Backspace",
-    "Delete",
-    "Tab",
-    "Enter",
-    "Space",
-  ].includes(evt.key);
+  var editingKey = ["Backspace", "Delete", "Tab", "Enter", "Space"].includes(evt.key);
 
   var movementKey = [
     "ArrowLeft",
@@ -115,16 +109,24 @@ function isHandledByFluid(evt) {
     ].includes(evt.key);
 
   // special case the command palette on mac, where alt-x registers as `≈`
-  if (evt.key == "≈" && evt.altKey) { return true; }
+  if (evt.key == "≈" && evt.altKey) {
+    return true;
+  }
 
   // stop non-ascii because right now it wrecks the editor state.
-  if (!validAscii) { return true; }
+  if (!validAscii) {
+    return true;
+  }
 
   // don't handle anything with command, unless it's something we care about.
-  if (cmdShortcut && !handledCmdShortcut) { return false; }
+  if (cmdShortcut && !handledCmdShortcut) {
+    return false;
+  }
 
   // don't handle anything with ctrl, unless it's something we care about.
-  if (ctrlShortcut && !handledCtrlShortcut) { return false; }
+  if (ctrlShortcut && !handledCtrlShortcut) {
+    return false;
+  }
 
   // Otherwise (valid ASCII without cmd or ctrl), then we want it.
   // Notes:
