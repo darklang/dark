@@ -46,7 +46,11 @@ let selectNextToplevel (m : model) (cur : tlid option) : modification =
   let next =
     cur |> Option.andThen ~f:(fun value -> Util.listNextWrap ~value tls)
   in
-  match next with Some nextId -> Select (nextId, None) | None -> Deselect
+  match next with
+  | Some nextId ->
+      Select (nextId, STTopLevelRoot)
+  | None ->
+      Deselect
 
 
 (* ------------------------------- *)
@@ -182,7 +186,11 @@ let move
     (fn : htmlSizing list -> id -> id option)
     (default : id option) : modification =
   let newMId = findTargetId tlid mId fn default in
-  Select (tlid, newMId)
+  match newMId with
+  | Some id ->
+      Select (tlid, STID id)
+  | None ->
+      Select (tlid, STTopLevelRoot)
 
 
 let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
@@ -197,7 +205,8 @@ let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
       |> Option.andThen ~f:(TL.firstChild tl)
       |> Option.orElse pd
       |> Option.map ~f:P.toID
-      |> fun id -> Select (tlid, id)
+      |> Option.map ~f:(fun id -> Select (tlid, STID id))
+      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
 
 
 let enterDB (m : model) (db : db) (tl : toplevel) (id : id) : modification =
@@ -329,7 +338,8 @@ let selectUpLevel (m : model) (tlid : tlid) (cur : id option) : modification =
       pd
       |> Option.andThen ~f:(TL.getParentOf tl)
       |> Option.map ~f:P.toID
-      |> fun id -> Select (tlid, id)
+      |> Option.map ~f:(fun id -> Select (tlid, STID id))
+      |> Option.withDefault ~default:(Select (tlid, STTopLevelRoot))
 
 
 (* ------------------------------- *)
@@ -378,9 +388,14 @@ let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = TL.getNextBlank tl pd in
-      let nextId = Option.map nextBlankPd ~f:P.toID in
+      (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
+      let nextIdTarget =
+        Option.map nextBlankPd ~f:P.toID
+        |> Option.map ~f:(fun id -> STID id)
+        |> Option.withDefault ~default:STTopLevelRoot
+      in
       maybeEnterFluid
-        ~nonFluidCursorMod:(Select (tlid, nextId))
+        ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
         m
         tlid
         pd
@@ -413,9 +428,14 @@ let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
   | Some tl ->
       let pd = Option.andThen ~f:(TL.find tl) cur in
       let nextBlankPd = pd |> TL.getPrevBlank tl in
-      let nextId = nextBlankPd |> Option.map ~f:P.toID in
+      (* TODO(JULIAN): This should probably do something better if there is no next blank -- wrap around? *)
+      let nextIdTarget =
+        Option.map nextBlankPd ~f:P.toID
+        |> Option.map ~f:(fun id -> STID id)
+        |> Option.withDefault ~default:STTopLevelRoot
+      in
       maybeEnterFluid
-        ~nonFluidCursorMod:(Select (tlid, nextId))
+        ~nonFluidCursorMod:(Select (tlid, nextIdTarget))
         m
         tlid
         pd

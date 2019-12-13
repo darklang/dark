@@ -7,16 +7,11 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
 
 (* fluid, but no status box *)
 let isFluidForCustomers (vts : variantTest list) : bool =
-  List.member ~value:FluidWithoutStatusVariant vts
-
-
-let isFluidV2 (vts : variantTest list) : bool =
   List.member ~value:FluidVariant vts
 
 
 let isFluid (vts : variantTest list) : bool =
-  List.member ~value:FluidVariant vts
-  || List.member ~value:FluidWithoutStatusVariant vts
+  List.member ~value:FluidVariant vts || List.member ~value:FluidVariant vts
 
 
 let libtwitterAvailable (vts : variantTest list) : bool =
@@ -58,9 +53,7 @@ let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
       || String.contains urlString ~substring:"fluid=false"
       || String.contains urlString ~substring:"fluid=0"
     in
-    if isFluid vts || containsFluid
-    then vts
-    else vts @ [FluidWithoutStatusVariant]
+    if isFluid vts || containsFluid then vts else vts @ [FluidVariant]
   else vts
 
 
@@ -72,10 +65,8 @@ let toVariantTest (s : string * bool) : variantTest option =
     ( match String.toLower test with
     | "stub" ->
         Some StubVariant
-    | "fluidv2" ->
+    | "fluidv2" | "fluid" ->
         Some FluidVariant
-    | "fluid" ->
-        Some FluidWithoutStatusVariant
     | "libtwitter" ->
         Some LibtwitterVariant
     | "groups" ->
@@ -92,8 +83,6 @@ let toCSSClass (vt : variantTest) : string =
     | StubVariant ->
         "stub"
     | FluidVariant ->
-        "fluid"
-    | FluidWithoutStatusVariant ->
         "fluid"
     | LibtwitterVariant ->
         "libtwitter"

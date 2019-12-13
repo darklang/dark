@@ -2,6 +2,7 @@ open Jest
 open Expect
 open Tc
 open Types
+open Prelude
 open Fluid
 open Fluid_test_data
 module Regex = Util.Regex
@@ -66,9 +67,11 @@ type hasPartial =
 
 type testResult = (string * (int option * int)) * hasPartial
 
-type shiftState =
-  | ShiftHeld
-  | ShiftNotHeld
+type modifierKeys =
+  { shiftKey : bool
+  ; altKey : bool
+  ; metaKey : bool
+  ; ctrlKey : bool }
 
 let () =
   let m =
@@ -95,11 +98,15 @@ let () =
           ~key:"94167980-f909-527e-a4af-bc3155f586d3"
           ~value:
             (LoadableSuccess
-               (StrDict.singleton
-                  ~key:"12"
-                  ~value:
-                    (DObj
-                       (StrDict.fromList [("body", DNull); ("formBody", DNull)]))))
+               (StrDict.fromList
+                  [ ( "12"
+                    , DObj
+                        (StrDict.fromList [("body", DNull); ("formBody", DNull)])
+                    )
+                  ; ( "13"
+                    , DObj
+                        (StrDict.fromList [("title", DNull); ("author", DNull)])
+                    ) ]))
     ; builtInFunctions =
         [ infixFn "<" TInt TBool
         ; infixFn "+" TInt TInt
@@ -165,28 +172,28 @@ let () =
           ; fnInfix = false } ] }
   in
   let processMsg
-      (keys : (K.key * shiftState) list) (s : fluidState) (ast : ast) :
+      (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
       ast * fluidState =
     let h = Fluid_utils.h ast in
     let m = {m with handlers = Handlers.fromList [h]} in
-    List.foldl keys ~init:(ast, s) ~f:(fun (key, shiftHeld) (ast, s) ->
+    List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
         updateMsg
           m
           h.hTLID
           ast
           (FluidKeyPress
              { key
-             ; shiftKey = shiftHeld = ShiftHeld
-             ; altKey = false
-             ; metaKey = false
-             ; ctrlKey = false })
+             ; shiftKey = modifierKeys.shiftKey
+             ; altKey = modifierKeys.altKey
+             ; metaKey = modifierKeys.metaKey
+             ; ctrlKey = modifierKeys.ctrlKey })
           s )
   in
   let process
       ~(debug : bool)
       ~(clone : bool)
       ~(wrap : bool)
-      (keys : (K.key * shiftState) list)
+      (keys : (K.key * modifierKeys) list)
       (selectionStart : int option)
       (pos : int)
       (ast : ast) : testResult =
@@ -216,7 +223,7 @@ let () =
     if debug
     then (
       Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "expr before" (eToStructure s ast) ) ;
+      Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
     let newAST, newState = processMsg keys s ast in
     let result =
       match newAST with
@@ -256,12 +263,14 @@ let () =
       else newState.newPos
     in
     let selPos =
-      Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      if wrap
+      then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+      else newState.selectionStart
     in
     let partialsFound =
       List.any (toTokens newState result) ~f:(fun ti ->
           match ti.token with
-          | TRightPartial _ | TPartial _ ->
+          | TRightPartial _ | TPartial _ | TFieldPartial _ ->
               true
           | _ ->
               false )
@@ -269,7 +278,7 @@ let () =
     if debug
     then (
       Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure newState result) ) ;
+      Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
     ( (eToString s result, (selPos, finalPos))
     , if partialsFound then ContainsPartial else NoPartial )
   in
@@ -280,37 +289,78 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Delete, ShiftNotHeld)] None pos expr
-  in
-  let bs
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Backspace, ShiftNotHeld)] None pos expr
-  in
-  let tab
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Tab, ShiftNotHeld)] None pos expr
-  in
-  let ctrlLeft
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
     process
       ~wrap
       ~clone
       ~debug
-      [(K.GoToStartOfWord, ShiftNotHeld)]
+      [ ( K.Delete
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
+  in
+  let bs
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.Backspace
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
+  in
+  let tab
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.Tab
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
+  in
+  let ctrlLeft
+      ?(wrap = true)
+      ?(debug = false)
+      ?(clone = true)
+      ?(shiftHeld = false)
+      (pos : int)
+      (expr : fluidExpr) : testResult =
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.GoToStartOfWord
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       None
       pos
       expr
@@ -319,47 +369,108 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.GoToEndOfWord, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.GoToEndOfWord
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let shiftTab
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.ShiftTab, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.ShiftTab
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let space
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Space, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.Space
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let enter
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(K.Enter, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( K.Enter
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let key
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (key : K.key)
       (pos : int)
       (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug [(key, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~clone
+      ~debug
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   let selectionPress
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (key : K.key)
       (selectionStart : int)
       (pos : int)
@@ -368,7 +479,11 @@ let () =
       ~wrap
       ~clone
       ~debug
-      [(key, ShiftNotHeld)]
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
       (Some selectionStart)
       pos
       expr
@@ -377,6 +492,7 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
+      ?(shiftHeld = false)
       (keys : K.key list)
       (pos : int)
       (expr : fluidExpr) : testResult =
@@ -384,7 +500,14 @@ let () =
       ~wrap
       ~debug
       ~clone
-      (List.map ~f:(fun key -> (key, ShiftNotHeld)) keys)
+      (List.map
+         ~f:(fun key ->
+           ( key
+           , { shiftKey = shiftHeld
+             ; altKey = false
+             ; metaKey = false
+             ; ctrlKey = false } ) )
+         keys)
       None
       pos
       expr
@@ -393,7 +516,7 @@ let () =
       ?(wrap = true)
       ?(debug = false)
       ?(clone = true)
-      (keys : (K.key * shiftState) list)
+      (keys : (K.key * modifierKeys) list)
       (pos : int)
       (expr : fluidExpr) : testResult =
     process ~wrap ~clone ~debug keys None pos expr
@@ -402,11 +525,23 @@ let () =
       ?(debug = false)
       ?(wrap = true)
       ?(clone = true)
+      ?(shiftHeld = false)
       (char : char)
       (pos : int)
       (expr : fluidExpr) : testResult =
     let key = K.fromChar char in
-    process ~wrap ~debug ~clone [(key, ShiftNotHeld)] None pos expr
+    process
+      ~wrap
+      ~debug
+      ~clone
+      [ ( key
+        , { shiftKey = shiftHeld
+          ; altKey = false
+          ; metaKey = false
+          ; ctrlKey = false } ) ]
+      None
+      pos
+      expr
   in
   (* Test expecting no partials found and an expected caret position but no selection *)
   let t
@@ -558,6 +693,11 @@ let () =
         aStr
         (key K.DeleteNextWord 3)
         "\"so~ string\"" ;
+      ts
+        "When the entire string is selected, backspace will delete entire string, returning a blank"
+        aStr
+        (selectionPress K.Backspace 0 13)
+        ("___", (None, 0)) ;
       () ) ;
   describe "Multi-line Strings" (fun () ->
       t
@@ -1260,24 +1400,24 @@ let () =
         "___~" ;
       () ) ;
   describe "Fields" (fun () ->
-      t "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
+      tp "insert middle of fieldname" aField (ins 'c' 5) "obj.fc~ield" ;
       t "cant insert invalid chars fieldname" aField (ins '$' 5) "obj.f~ield" ;
-      t "del middle of fieldname" aField (del 5) "obj.f~eld" ;
-      t "del fieldname" aShortField (del 4) "obj.~***" ;
-      t "bs fieldname" aShortField (bs 5) "obj.~***" ;
-      t "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
+      tp "del middle of fieldname" aField (del 5) "obj.f~eld@" ;
+      tp "del fieldname" aShortField (del 4) "obj.~***" ;
+      tp "bs fieldname" aShortField (bs 5) "obj.~***" ;
+      tp "insert end of fieldname" aField (ins 'c' 9) "obj.fieldc~" ;
       tp "insert end of varname" aField (ins 'c' 3) "objc~.field" ;
-      t "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
-      t "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
+      tp "insert start of fieldname" aField (ins 'c' 4) "obj.c~field" ;
+      tp "insert blank fieldname" aBlankField (ins 'c' 4) "obj.c~" ;
       t "del fieldop with name" aShortField (del 3) "obj~" ;
       t "bs fieldop with name" aShortField (bs 4) "obj~" ;
       t "del fieldop with blank" aBlankField (del 3) "obj~" ;
       t "bs fieldop with blank" aBlankField (bs 4) "obj~" ;
       t "del fieldop in nested" aNestedField (del 3) "obj~.field2" ;
       t "bs fieldop in nested" aNestedField (bs 4) "obj~.field2" ;
-      t "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
-      t "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
-      t "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
+      tp "add dot after variable" aVar (ins '.' 8) "variable.~***" ;
+      tp "add dot after partial " aPartialVar (ins '.' 3) "request.~***" ;
+      tp "add dot after field" aField (ins '.' 9) "obj.field.~***" ;
       t "insert space in blank " aBlankField (space 4) "obj.~***" ;
       t
         "ctrl+left in name moves to beg of name"
@@ -1309,36 +1449,60 @@ let () =
         aNestedField
         (ctrlRight 5)
         "obj.field~.field2" ;
-      t
+      tp
         "DeletePrevWord in middle of fieldname deletes to beg of fieldname"
         aNestedField
         (key K.DeletePrevWord 6)
-        "obj.~eld.field2" ;
-      t
+        "obj.~eld@@.field2" ;
+      tp
         "DeletePrevWord at end of fieldname deletes entire fieldname"
         aNestedField
         (key K.DeletePrevWord 9)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
       t
         "DeletePrevWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeletePrevWord 4)
         "obj~.field2" ;
-      t
+      tp
         "DeleteNextWord in middle of fieldname deletes to end of fieldname"
         aNestedField
         (key K.DeleteNextWord 6)
-        "obj.fi~.field2" ;
+        "obj.fi~@l@.field2" ;
       t
         "DeleteNextWord at end of fieldname deletes next fieldname"
         aNestedField
         (key K.DeleteNextWord 9)
         "obj.field~" ;
-      t
+      tp
         "DeleteNextWord at end of dot deletes fieldname"
         aNestedField
         (key K.DeleteNextWord 4)
-        "obj.~***.field2" ;
+        "obj.~***@@.field2" ;
+      tp
+        "insert dot to complete partial field"
+        (EPartial
+           ( gid ()
+           , "body"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
+        (ins ~clone:false '.' 11)
+        "request.body.~***" ;
+      tp
+        "insert dot even when no content in the field"
+        (EVariable (ID "12", "request"))
+        (keys ~clone:false [K.Period; K.Period] 7)
+        "request.body.~***" ;
+      tp
+        "bs fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (bs 5)
+        "___.~***" ;
+      tp
+        "del fieldpartial character"
+        (partial "a" (fieldAccess b ""))
+        (del 4)
+        "___.~***" ;
       () ) ;
   describe "Functions" (fun () ->
       t
@@ -2217,17 +2381,21 @@ let () =
         aFullFnCall
         (enter 12)
         "let _ = Int::add 5 5\n~___" ;
-      test "enter at the start of ast also creates let" (fun () ->
-          (* Test doesn't work wrapped *)
-          expect
-            (let ast, state =
-               processMsg
-                 [(K.Enter, ShiftNotHeld)]
-                 Defaults.defaultFluidState
-                 anInt
-             in
-             (eToString state ast, state.newPos))
-          |> toEqual ("let *** = ___\n12345", 14) ) ;
+      t
+        "enter at the end of non-final arg, should just go to next line: #1"
+        (let' "x" (fn "Int::add" [record [("", int "5")]; int "6"]) b)
+        (enter 60)
+        "let x = Int::add\n          {\n            *** : 5\n          }\n          ~6\n___" ;
+      t
+        "enter at the end of a non-final arg should just go to next line: #2"
+        (fn "Int::add" [record [("", int "5")]; int "6"])
+        (enter 28)
+        "Int::add\n  {\n    *** : 5\n  }\n  ~6" ;
+      t
+        "enter at the start of ast also creates let"
+        anInt
+        (enter 0)
+        "let *** = ___\n~12345" ;
       () ) ;
   describe "Pipes" (fun () ->
       (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
@@ -2941,9 +3109,49 @@ let () =
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
-        (fieldAccess (EVariable (ID "12", "request")) "bo")
+        (EPartial
+           ( gid ()
+           , "bo"
+           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           ))
         (enter ~clone:false 10)
         "request.body~" ;
+      t
+        "autocomplete shows first alphabetical item for fields"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.author~" ;
+      t
+        "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
+        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
+        "let request = 5\nrequest.title~" ;
+      t
+        "autocomplete for field autocommits"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "x"
+           , EPartial
+               ( gid ()
+               , "body"
+               , EFieldAccess
+                   (gid (), EVariable (ID "12", "request"), gid (), "longfield")
+               )
+           , EBlank (gid ()) ))
+        (* Right should make it commit *)
+        (key ~clone:false K.Right 20)
+        "let x = request.body\n~___" ;
+      tp
+        "autocomplete for field is committed by dot"
+        (EPartial
+           ( gid ()
+           , "bod"
+           , EFieldAccess
+               (gid (), EVariable (ID "12", "request"), gid (), "longfield") ))
+        (* Dot should select the autocomplete *)
+        (key ~clone:false K.Period 11)
+        "request.body.~***" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
@@ -3177,19 +3385,37 @@ let () =
       ts
         "shift right selects"
         longLets
-        (modkeys [(K.Right, ShiftHeld)] 0)
+        (modkeys
+           [ ( K.Right
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           0)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 0, 4) ) ;
       ts
         "shift down selects"
         longLets
-        (modkeys [(K.Down, ShiftHeld)] 4)
+        (modkeys
+           [ ( K.Down
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           4)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 4, 52) ) ;
       ts
         "shift left selects"
         longLets
-        (modkeys [(K.Left, ShiftHeld)] 52)
+        (modkeys
+           [ ( K.Left
+             , { shiftKey = true
+               ; altKey = false
+               ; metaKey = false
+               ; ctrlKey = false } ) ]
+           52)
         ( "let firstLetName = \"ABCDEFGHIJKLMNOPQRSTUVWXYZ\"\nlet secondLetName = \"0123456789\"\n\"RESULT\""
         , (Some 52, 48) ) ;
       ts
@@ -3221,13 +3447,18 @@ let () =
       t
         "selecting an expression pipes from it 1"
         (binop "+" (int "4") (int "5"))
-        (selectionPress K.ShiftEnter 4 5)
+        (selectionPress ~shiftHeld:true K.ShiftEnter 4 5)
         "4 + 5\n    |>~___\n" ;
       t
         "selecting an expression pipes from it 2"
         (binop "+" (int "4") (int "5"))
-        (selectionPress K.ShiftEnter 5 4)
+        (selectionPress ~shiftHeld:true K.ShiftEnter 5 4)
         "4 + 5\n    |>~___\n" ;
+      ts
+        "K.ShiftEnter doesn't persist selection"
+        anInt
+        (selectionPress ~shiftHeld:true K.ShiftEnter 0 5)
+        ("12345\n|>___\n", (None, 8)) ;
       ts
         "K.SelectAll selects all"
         longLets
