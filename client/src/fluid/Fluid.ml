@@ -3238,7 +3238,7 @@ let orderRangeFromSmallToBig ((rangeBegin, rangeEnd) : int * int) : int * int =
 
 (* Always returns a selection represented as two ints with the smaller int first.
    The numbers are identical if there is no selection. *)
-let fluidGetSelectionRange (s : fluidState) : int * int =
+let getSelectionRange (s : fluidState) : int * int =
   match s.selectionStart with
   | Some beginIdx when beginIdx < s.newPos ->
       (beginIdx, s.newPos)
@@ -3248,11 +3248,11 @@ let fluidGetSelectionRange (s : fluidState) : int * int =
       (s.newPos, s.newPos)
 
 
-let fluidGetCollapsedSelectionStart (s : fluidState) : int =
-  fluidGetSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
+let getCollapsedSelectionStart (s : fluidState) : int =
+  getSelectionRange s |> orderRangeFromSmallToBig |> Tuple2.first
 
 
-let fluidGetOptionalSelectionRange (s : fluidState) : (int * int) option =
+let getOptionalSelectionRange (s : fluidState) : (int * int) option =
   let endIdx = s.newPos in
   match s.selectionStart with
   | Some beginIdx ->
@@ -3445,7 +3445,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         |> Option.withDefault ~default:(ast, s)
     | K.ShiftEnter, left, _ ->
         let doPipeline ast s =
-          let startPos, endPos = fluidGetSelectionRange s in
+          let startPos, endPos = getSelectionRange s in
           let findParent = startPos = endPos in
           let topmostID = getTopmostSelectionID startPos endPos ast in
           Option.map topmostID ~f:(fun id ->
@@ -3504,7 +3504,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
            The behavior we use here is: if there is a selection, delete it instead of deleting to start of line (like XCode but not VSCode).
            For expedience, delete to the visual start of line rather than the "real" start of line. This is symmetric with
            K.DeleteToEndOfLine but does not match any code editors we've seen. It does match many non-code text editors. *)
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3517,14 +3517,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
            The behavior we use here is: if there is a selection, delete it instead of deleting to end of line (like XCode and VSCode).
            For expedience, in the presence of wrapping, delete to the visual end of line rather than the "real" end of line.
            This matches the behavior of XCode and VSCode. Most standard non-code text editors do not implement this command. *)
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
           deleteCaretRange ~state:s ~ast (s.newPos, getEndOfLineCaretPos ast ti)
       )
     | K.DeleteNextWord, _, R (_, ti) ->
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3536,7 +3536,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           then (newAst, movedState)
           else (newAst, newState) )
     | K.DeletePrevWord, L (_, ti), _ ->
-      ( match fluidGetOptionalSelectionRange s with
+      ( match getOptionalSelectionRange s with
       | Some selRange ->
           deleteCaretRange ~state:s ~ast selRange
       | None ->
@@ -3921,7 +3921,7 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
 and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
-  fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
+  getSelectionRange state |> deleteCaretRange ~state ~ast
 
 
 let updateAutocomplete m tlid (ast : ast) s : fluidState =
@@ -4469,7 +4469,7 @@ let pasteOverSelection ~state ~(ast : ast) data : E.t * fluidState =
   let token = getToken state ast in
   let exprID = token |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
   let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
-  let collapsedSelStart = fluidGetCollapsedSelectionStart state in
+  let collapsedSelStart = getCollapsedSelectionStart state in
   let clipboardExpr = Clipboard.clipboardContentsToExpr data in
   let text = Clipboard.clipboardContentsToString data in
   match (clipboardExpr, expr, token) with
@@ -4678,7 +4678,7 @@ let fluidDataFromModel m : (fluidState * E.t) option =
 let getCopySelection (m : model) : clipboardContents =
   match fluidDataFromModel m with
   | Some (state, ast) ->
-      fluidGetOptionalSelectionRange state
+      getOptionalSelectionRange state
       |> Option.andThen ~f:(reconstructExprFromRange ~ast)
       |> Option.map ~f:Clipboard.exprToClipboardContents
       |> Option.withDefault ~default:`None
@@ -4752,9 +4752,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
          place the caret on the side of the selection in the direction
          of the pressed arrow key *)
         let newPos =
-          let left, right =
-            fluidGetSelectionRange s |> orderRangeFromSmallToBig
-          in
+          let left, right = getSelectionRange s |> orderRangeFromSmallToBig in
           if key = K.Left then left else right
         in
         (ast, {s with lastKey = key; newPos; selectionStart = None})
