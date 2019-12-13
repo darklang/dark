@@ -1045,4 +1045,5 @@ let () =
       roundtrip (fn "HttpClient::post_v4" [str ""]) ;
       roundtrip longString ;
       roundtrip (let' "myVariable" longString b) ;
+      roundtrip (record [("a", record [("b", str "c")])]) ;
       () )
