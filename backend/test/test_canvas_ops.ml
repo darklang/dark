@@ -250,6 +250,38 @@ let t_canvas_verification_duplicate_renaming () =
   AT.check AT.bool "should not verify" false (Result.is_ok c)
 
 
+let t_canvas_verification_invalid_worker_module_modifier () =
+  let h = handler (ast_for "5") in
+  let spec = {h.spec with modifier = b (); module_ = f "WORKER"} in
+  let ops = [hop {h with spec}] in
+  let c = ops2c "test-verify-worker-modifier" ops in
+  AT.check AT.bool "should not verify" false (Result.is_ok c)
+
+
+let t_canvas_verification_valid_worker_module_modifier () =
+  let h = handler (ast_for "5") in
+  let spec = {h.spec with modifier = f "_"; module_ = f "WORKER"} in
+  let ops = [hop {h with spec}] in
+  let c = ops2c "test-verify-worker-modifier" ops in
+  AT.check AT.bool "should not verify" true (Result.is_ok c)
+
+
+let t_canvas_verification_valid_legacy_module_modifier () =
+  let h = handler (ast_for "5") in
+  let spec = {h.spec with modifier = b (); module_ = f "LEGACY"} in
+  let ops = [hop {h with spec}] in
+  let c = ops2c "test-verify-legacy-modifier" ops in
+  AT.check AT.bool "should not verify" true (Result.is_ok c)
+
+
+let t_canvas_verification_invalid_repl_module_modifier () =
+  let h = handler (ast_for "5") in
+  let spec = {h.spec with modifier = b (); module_ = f "REPL"} in
+  let ops = [hop {h with spec}] in
+  let c = ops2c "test-verify-worker-modifier" ops in
+  AT.check AT.bool "should not verify" false (Result.is_ok c)
+
+
 let t_canvas_verification_no_error () =
   let ops =
     [ Op.CreateDBWithBlankOr (dbid, pos, nameid, "Books")
@@ -298,6 +330,18 @@ let suite =
   ; ( "Canvas verification catches inconsistency post undo"
     , `Quick
     , t_canvas_verification_undo_rename_duped_name )
+  ; ( "Canvas verification disallows arbitrary WORKER modifiers"
+    , `Quick
+    , t_canvas_verification_invalid_worker_module_modifier )
+  ; ( "Canvas verification allows only _ modifier on WORKER handlers"
+    , `Quick
+    , t_canvas_verification_valid_worker_module_modifier )
+  ; ( "Canvas verification allows arbitrary modifiers on non-WORKER handlers"
+    , `Quick
+    , t_canvas_verification_valid_legacy_module_modifier )
+  ; ( "Canvas verification disallows arbitrary REPL modifiers"
+    , `Quick
+    , t_canvas_verification_invalid_repl_module_modifier )
   ; ( "Loading handler via HTTP router loads user tipes"
     , `Quick
     , t_http_oplist_loads_user_tipes ) ]
