@@ -694,29 +694,20 @@ let submitACItem
           | PEventSpace space, ACEventSpace value, TLHandler h ->
               let new_ = B.newF value in
               let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
-              let replacedModifier =
+              let replacement2 =
+                (* Trello ticket for this: https://trello.com/c/xTitDxAs*)
                 match (replacement.space, space) with
                 | F (_, newSpace), F (_, oldSpace) when newSpace == oldSpace ->
                     replacement
-                (*
-                 * If becoming a WORKER or REPL, set modifier to "_" as it's invalid otherwise *)
-                | F (_, "REPL"), _ | F (_, "WORKER"), _ ->
-                    SpecHeaders.replaceEventModifier
-                      (B.toID h.spec.modifier)
-                      (B.newF "_")
-                      replacement
-                (*
-                 * Remove modifier when switching between any other types *)
                 | _, _ ->
                     SpecHeaders.replaceEventModifier
                       (B.toID h.spec.modifier)
                       (B.new_ ())
                       replacement
               in
-              let replacedName =
-                match (replacedModifier.space, h.spec.name) with
-                (*
-                 * If from a REPL, drop repl_ prefix and lowercase *)
+              let replacement3 =
+                (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
+                match (replacement2.space, h.spec.name) with
                 | F (_, newSpace), F (_, name)
                   when newSpace <> "REPL"
                        && String.startsWith
@@ -725,9 +716,7 @@ let submitACItem
                     SpecHeaders.replaceEventName
                       (B.toID h.spec.name)
                       (B.new_ ())
-                      replacedModifier
-                (*
-                 * If from an HTTP, strip leading slash and any colons *)
+                      replacement2
                 | F (_, newSpace), F (_, name)
                   when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
                   ->
@@ -737,19 +726,17 @@ let submitACItem
                          ( String.dropLeft ~count:1 name
                          |> String.split ~on:":"
                          |> String.join ~sep:"" ))
-                      replacedModifier
-                (*
-                 * If becoming an HTTP, add a slash at beginning *)
+                      replacement2
                 | F (_, "HTTP"), F (_, name)
                   when not (String.startsWith ~prefix:"/" name) ->
                     SpecHeaders.replaceEventName
                       (B.toID h.spec.name)
                       (B.newF ("/" ^ name))
-                      replacedModifier
+                      replacement2
                 | _, _ ->
-                    replacedModifier
+                    replacement2
               in
-              saveH {h with spec = replacedName} (PEventSpace new_)
+              saveH {h with spec = replacement3} (PEventSpace new_)
           | PField _, ACField fieldname, _ ->
               let fieldname =
                 if String.startsWith ~prefix:"." fieldname

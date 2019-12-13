@@ -255,18 +255,6 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
  * an invariant across eg. all handlers.
  * *)
 let verify (c : canvas ref) : (unit, string list) Result.t =
-  let module H = Libexecution.Handler in
-  let invalid_handlers =
-    !c.handlers
-    |> TL.handlers
-    |> List.filter ~f:(fun h -> H.has_valid_spec h |> not)
-    |> List.map ~f:(fun h ->
-           Printf.sprintf
-             "Invalid handler spec: (%s, %s, %s)"
-             (string_of_id h.tlid)
-             (H.module_for h |> Option.value ~default:"None")
-             (H.modifier_for h |> Option.value ~default:"None") )
-  in
   let duped_db_names =
     !c.dbs
     |> TL.dbs
@@ -285,8 +273,7 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
            in
            Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs) )
   in
-  let errors = invalid_handlers @ duped_db_names in
-  match errors with [] -> Ok () | _ -> Error errors
+  match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
 
 let add_ops (c : canvas ref) (oldops : Op.op list) (newops : Op.op list) : unit
