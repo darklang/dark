@@ -202,7 +202,7 @@ and generateExpr () =
   | 14 ->
       lambda (generateList ~f:generateName ()) (generateExpr ())
   | 15 ->
-      pipe (generateExpr ()) (generateList ~f:generateExpr ())
+      pipe (generateExpr ()) (generateList ~f:generatePipeArgumentExpr ())
   | 16 ->
       binop (generateInfixName ()) (generateExpr ()) (generateExpr ())
   | 17 ->
