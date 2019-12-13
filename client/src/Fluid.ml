@@ -4943,14 +4943,16 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | EList (_, exprs), _ ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
-    | ERecord (_, entries), _ ->
+    | ERecord (recordID, entries), _ ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
           tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordFieldname (_, _, index, newKey) ->
+                 | TRecordFieldname (fieldID, _, index, newKey)
+                   when fieldID = recordID (* watch out for nested records *)
+                   ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
