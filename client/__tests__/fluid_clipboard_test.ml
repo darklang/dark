@@ -132,6 +132,7 @@ let () =
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
     let emptyState = Defaults.defaultFluidState in
+    let ast = Fluid.clone ~state:emptyState ast in
     let expectedString = eToString emptyState ast in
     test
       ( name
