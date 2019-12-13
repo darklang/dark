@@ -340,7 +340,7 @@ let fromKeyboardEvent
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
       See https://support.google.com/chrome/answer/157179?hl=en *)
       Redo
-  | "z" when shift && osCmdKeyHeld ->
+  | "Z" when shift && osCmdKeyHeld ->
       Redo
   | "z" when osCmdKeyHeld ->
       Undo
