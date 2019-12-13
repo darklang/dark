@@ -1,7 +1,7 @@
 (library
   (name libservice)
   (modes native)
-  (flags (-warn-error +A))
+  (flags (-warn-error +A -w +9))
   (preprocess (pps lwt_ppx))
   (libraries  libcommon
               core

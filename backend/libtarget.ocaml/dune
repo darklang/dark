@@ -3,7 +3,7 @@
   (public_name libtarget.ocaml)
   (implements libtarget)
   (modes native)
-  (flags (-warn-error +A))
+  (flags (-warn-error +A -w +9))
   (preprocess (pps  ppx_bin_prot
                     ppx_compare
                     ppx_deriving.std
