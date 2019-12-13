@@ -95,6 +95,10 @@ type state = Types.fluidState
 
 let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     =
+  let fns =
+    assertFn ~f:(( <> ) []) "empty functions passed to fromExpr" s.ac.functions
+  in
+  let f = fromExpr s in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
@@ -137,7 +141,6 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     |> Option.or_ asFloat
     |> Option.withDefault ~default:`Unknown
   in
-  let f = fromExpr s in
   match expr with
   | Blank id ->
       EBlank id
@@ -163,9 +166,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         (* add a pipetarget in the front *)
         let args = if inPipe then EPipeTarget (gid ()) :: args else args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
-        let fn =
-          List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
-        in
+        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
         ( match fn with
         | Some fn when fn.fnInfix ->
           ( match args with
@@ -606,6 +607,12 @@ module Builder = struct
 end
 
 let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
+  let fns =
+    assertFn
+      ~f:(( <> ) [])
+      "empty functions passed to toTokens'"
+      s.ac.functions
+  in
   let fromExpr e b = toTokens' s e b in
   let open Builder in
   let ghostPartial id newName oldName =
@@ -621,7 +628,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       match (e, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
           let name =
-            s.ac.functions
+            fns
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters )
@@ -2334,9 +2341,15 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 
 let replacePartialWithArguments
     ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
+  let fns =
+    assertFn
+      ~f:(( <> ) [])
+      "empty functions passed to replacePartialWithArguments"
+      s.ac.functions
+  in
   let getFunctionParams fnname count varExprs =
     List.map (List.range 0 count) ~f:(fun index ->
-        s.ac.functions
+        fns
         |> List.find ~f:(fun f -> f.fnName = fnname)
         |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
         |> Option.map ~f:(fun p ->
