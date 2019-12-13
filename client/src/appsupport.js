@@ -109,6 +109,7 @@ function isHandledByFluid(evt) {
     ].includes(evt.key);
 
   // special case the command palette on mac, where alt-x registers as `≈`
+  // see FluidKeyboard.ml where this is translated to a (Letter 'x').
   if (evt.key == "≈" && evt.altKey) {
     return true;
   }
