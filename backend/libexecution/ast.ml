@@ -240,13 +240,13 @@ let rec exec
         |> List.filter_map ~f:(fun (k, v) ->
                match (k, v) with
                | Filled (_, keyname), v ->
-                   let expr = exe st v in
-                   trace_blank k expr st ;
-                   ( match expr with
+                   let value = exe st v in
+                   trace_blank k value st ;
+                   ( match value with
                    | DIncomplete _ ->
                        None
                    | _ ->
-                       Some (keyname, expr) )
+                       Some (keyname, value) )
                | _, v ->
                    ignore (exe st v) ;
                    None )
