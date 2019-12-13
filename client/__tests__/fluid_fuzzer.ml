@@ -45,14 +45,28 @@ let rec generateFieldAccessExpr () =
       var (generateName ())
 
 
-let rec generateExpr () =
+let rec generatePipeArgumentExpr () =
   let open Fluid_test_data in
-  match range 16 with
+  match range 4 with
+  | 0 ->
+      lambda (generateList ~f:generateName ()) (generateExpr ())
+  | 1 ->
+      b
+  | 2 ->
+      fn (generateName ()) (pipeTarget :: generateList ~f:generateExpr ())
+  | 3 ->
+      binop (generateName ()) pipeTarget (generateExpr ())
+  | _ ->
+      b
+
+
+and generateExpr () =
+  let open Fluid_test_data in
+  match range 17 with
   | 0 ->
       b
-  (* We know string deletion is broken right now *)
-  (* | 1 -> *)
-  (*     str (generateString ()) *)
+  | 1 ->
+      str (generateString ())
   | 2 ->
       int (Int.toString (range 9))
   | 3 ->
@@ -82,6 +96,8 @@ let rec generateExpr () =
       lambda (generateList ~f:generateName ()) (generateExpr ())
   | 15 ->
       pipe (generateExpr ()) (generateList ~f:generateExpr ())
+  | 16 ->
+      binop (generateName ()) (generateExpr ()) (generateExpr ())
   | _ ->
       b
 
