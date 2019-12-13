@@ -5542,8 +5542,6 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
    * keyboard layouts. *)
   | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
       maybeOpenCmd m
-  | FluidKeyPress {key; altKey} when altKey && key = K.Unknown {js|≈|js} ->
-      maybeOpenCmd m
   | FluidKeyPress {key; metaKey; ctrlKey}
     when (metaKey || ctrlKey) && key = K.Letter 'k' ->
       KeyPress.openOmnibox m
