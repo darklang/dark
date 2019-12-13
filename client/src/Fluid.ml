@@ -5542,6 +5542,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              then FluidSetState fluidState
              else Many [moveMod; FluidSetState fluidState] )
       |> Option.withDefault ~default:NoChange
+  | FluidCloseAutocomplete ->
+      let fluidState = initAC m.fluidState m in
+      FluidSetState fluidState
   | FluidMouseDown _
   | FluidKeyPress _
   | FluidCopy

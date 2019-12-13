@@ -1168,6 +1168,7 @@ and fluidMsg =
   | FluidUpdateAutocomplete
   (* Index of the dropdown(autocomplete or command palette) item *)
   | FluidUpdateDropdownIndex of int
+  | FluidCloseAutocomplete
 
 and msg =
   | GlobalClick of mouseEvent
