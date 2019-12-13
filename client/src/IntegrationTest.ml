@@ -984,11 +984,11 @@ let fluid_fn_pg_change (_m : model) : testResult =
   pass
 
 
-let creating_an_http_handler_focuses_the_verb (_m : model) : testResult = pass
+let fluid_creating_an_http_handler_focuses_the_verb (_m : model) : testResult = pass
 
-let tabbing_from_an_http_handler_spec_to_ast (_m : model) : testResult = pass
+let fluid_tabbing_from_an_http_handler_spec_to_ast (_m : model) : testResult = pass
 
-let tabbing_from_an_http_handler_spec_past_ast_back_to_verb (_m : model) :
+let fluid_tabbing_from_handler_spec_past_ast_back_to_verb (_m : model) :
     testResult =
   pass
 
@@ -1157,11 +1157,11 @@ let trigger (test_name : string) : integrationTestState =
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
         fluid_fn_pg_change
-    | "creating_an_http_handler_focuses_the_verb" ->
-        creating_an_http_handler_focuses_the_verb
-    | "tabbing_from_an_http_handler_spec_to_ast" ->
-        tabbing_from_an_http_handler_spec_to_ast
-    | "tabbing_from_an_http_handler_spec_past_ast_back_to_verb" ->
-        tabbing_from_an_http_handler_spec_past_ast_back_to_verb
+    | "fluid_creating_an_http_handler_focuses_the_verb" ->
+        fluid_creating_an_http_handler_focuses_the_verb
+    | "fluid_tabbing_from_an_http_handler_spec_to_ast" ->
+        fluid_tabbing_from_an_http_handler_spec_to_ast
+    | "fluid_tabbing_from_handler_spec_past_ast_back_to_verb" ->
+        fluid_tabbing_from_handler_spec_past_ast_back_to_verb
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

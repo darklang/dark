@@ -185,6 +185,10 @@ function acHighlightedText() {
   return Selector(".autocomplete-item.highlighted").textContent;
 }
 
+function fluidAcSelectedText() {
+  return Selector(".autocomplete-item.fluid-selected").textContent;
+}
+
 const scrollBy = ClientFunction((id, dx, dy) => {
   document.getElementById(id).scrollBy(dx, dy);
 });
@@ -1293,7 +1297,7 @@ test("fluid_fn_pg_change", async t => {
   await t.expect(available(".tl-1464810122")).ok({ timeout: 1000 });
 });
 
-test("creating_an_http_handler_focuses_the_verb", async t => {
+test("fluid_creating_an_http_handler_focuses_the_verb", async t => {
   await createHTTPHandler(t);
 
   await t
@@ -1302,17 +1306,17 @@ test("creating_an_http_handler_focuses_the_verb", async t => {
     .ok();
 });
 
-test("tabbing_from_an_http_handler_spec_to_ast", async t => {
+test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
   await createHTTPHandler(t);
   await t
     .pressKey("tab") // verb -> route
     .pressKey("tab") // route -> ast
-    .pressKey("down") // enter AC
-    .expect(acHighlightedText("request"))
+    .pressKey("r") // enter AC
+    .expect(fluidAcSelectedText("request"))
     .ok();
 });
 
-test("tabbing_from_an_http_handler_spec_past_ast_back_to_verb", async t => {
+test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async t => {
   await createHTTPHandler(t);
   await t
     .pressKey("tab") // verb -> route
