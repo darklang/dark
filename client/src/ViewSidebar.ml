@@ -200,7 +200,9 @@ let f404Category (m : model) : category =
   ; classname = "fof"
   ; iconAction = None
   ; entries =
-      List.map f404s ~f:(fun ({space; path; modifier} as fof) ->
+      List.map
+        f404s
+        ~f:(fun ({space; path; modifier; timestamp = _; traceID = _} as fof) ->
           Entry
             { name = (if space = "HTTP" then path else space ^ "::" ^ path)
             ; uses = None

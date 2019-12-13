@@ -1825,7 +1825,8 @@ let update_ (msg : msg) (m : model) : modification =
       NoChange
   | PageVisibilityChange vis ->
       TweakModel (fun m_ -> {m_ with visibility = vis})
-  | CreateHandlerFrom404 ({space; path; modifier} as fof) ->
+  | CreateHandlerFrom404
+      ({space; path; modifier; timestamp = _; traceID = _} as fof) ->
       let center = findCenter m in
       let tlid =
         if VariantTesting.variantIsActive m GridLayout
