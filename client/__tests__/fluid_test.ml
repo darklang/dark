@@ -3593,6 +3593,7 @@ let () =
       () ) ;
   describe "Property-based testing" (fun () ->
       let testsToRun = 0 in
+      let onlyTest = None in
       (* These tests are used to find tests that violate some property.
        * Write a test that will work for any input, and the runner will
        * generate `testsToRun` number of tests to check it.
@@ -3611,14 +3612,18 @@ let () =
         for i = 1 to testsToRun do
           let testcase = Fluid_fuzzer.generateExpr () in
           let text = eToString defaultTestState testcase in
+          Js.log2 "index" i ;
           Js.log2 "text" text ;
           Js.log2 "structure" (eToStructure defaultTestState testcase) ;
           let length = String.length text in
-          t
-            ("delete-all deletes all #" ^ string_of_int i)
-            testcase
-            (keys ~wrap:false [K.SelectAll; K.Backspace] (length - 1))
-            "~___"
+          if onlyTest = None || onlyTest = Some i
+          then
+            t
+              ("delete-all deletes all #" ^ string_of_int i)
+              testcase
+              (keys ~wrap:false [K.SelectAll; K.Backspace] (length - 1))
+              "~___"
+          else ()
         done
       with _ -> () ) ;
   ()
