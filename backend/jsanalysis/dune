@@ -1,7 +1,7 @@
 (executable
   (name jsanalysis)
   (public_name jsanalysis)
-  (flags (-no-check-prims -g -warn-error +A))
+  (flags (-no-check-prims -g -warn-error +A -w +9))
   (js_of_ocaml
     (flags (--setenv FORCE_DROP_INLINE_TEST=true
 

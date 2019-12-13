@@ -1,6 +1,6 @@
 (executable
   (name test)
-  (flags (-warn-error +A))
+  (flags (-warn-error +A -w +9))
   (preprocess (pps lwt_ppx
                    ppx_bin_prot
                    ppx_compare
