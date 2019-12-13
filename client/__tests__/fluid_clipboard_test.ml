@@ -1032,20 +1032,17 @@ let () =
       (* TODO: test feature flags, not yet in fluid *) () ) ;
   describe "Copy/paste roundtrip" (fun () ->
       let longString =
-        EString
-          ( gid ()
-          , "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
-          )
+        str
+          "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz"
       in
-      roundtrip (EBlank (gid ())) ;
-      roundtrip (EInteger (gid (), "6")) ;
+      roundtrip b ;
+      roundtrip (int "6") ;
       (* TODO: broken. These are broken because they are copied as strings
        * without quotes, and then parsed as JSON. *)
       (* roundtrip (EString (gid (), "[1 , 5]")) ; *)
       (* roundtrip (EString (gid (), "12345678987654321.12345678987654321")) ; *)
       roundtrip aPipe ;
-      roundtrip
-        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail)) ;
+      roundtrip (fn "HttpClient::post_v4" [str ""]) ;
       roundtrip longString ;
-      roundtrip (ELet (gid (), gid (), "myVariable", longString, newB ())) ;
+      roundtrip (let' "myVariable" longString b) ;
       () )
