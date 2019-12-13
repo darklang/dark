@@ -17,6 +17,8 @@ let float' (whole : string) (fraction : string) : fluidExpr =
   EFloat (gid (), whole, fraction)
 
 
+let null : fluidExpr = ENull (gid ())
+
 let record (rows : (string * fluidExpr) list) : fluidExpr =
   ERecord (gid (), List.map rows ~f:(fun (k, v) -> (gid (), k, v)))
 
@@ -57,6 +59,18 @@ let let' (varName : string) (rhs : fluidExpr) (body : fluidExpr) : fluidExpr =
   ELet (gid (), gid (), varName, rhs, body)
 
 
+let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
+  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
+
+
+let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
+  EPipe (gid (), first :: rest)
+
+
+let constructor (name : string) (args : fluidExpr list) : fluidExpr =
+  EConstructor (gid (), gid (), name, args)
+
+
 let match' (cond : fluidExpr) (matches : (fluidPattern * fluidExpr) list) :
     fluidExpr =
   EMatch (gid (), cond, matches)
@@ -66,13 +80,22 @@ let pInt (int : string) : fluidPattern = FPInteger (gid (), gid (), int)
 
 let pVar (name : string) : fluidPattern = FPVariable (gid (), gid (), name)
 
-let lambda (varNames : string list) (body : fluidExpr) : fluidExpr =
-  ELambda (gid (), List.map varNames ~f:(fun name -> (gid (), name)), body)
+let pConstructor (name : string) (patterns : fluidPattern list) : fluidPattern
+    =
+  FPConstructor (gid (), gid (), name, patterns)
 
 
-let pipe (first : fluidExpr) (rest : fluidExpr list) : fluidExpr =
-  EPipe (gid (), first :: rest)
+let pBool (b : bool) : fluidPattern = FPBool (gid (), gid (), b)
 
+let pString (str : string) : fluidPattern = FPString (gid (), gid (), str)
+
+let pFloat (whole : string) (fraction : string) : fluidPattern =
+  FPFloat (gid (), gid (), whole, fraction)
+
+
+let pNull : fluidPattern = FPNull (gid (), gid ())
+
+let pBlank : fluidPattern = FPBlank (gid (), gid ())
 
 (* ---------------- *)
 (* test data *)
