@@ -414,8 +414,10 @@ let fromKeyboardEvent
   (****************
    * Single Chars *
    ****************)
-  (* special-case alt-x on mac, which comes in like this *)
-  (* for now, you cannot type non-ASCII chars, but when you can we can't just
+  (*
+   * alt-x opens command palatte. On macOS, is key = '≈', which we have to hack
+   * in with bucklescript UTF-16 literals because OCaml is terrible.
+   * TODO: For now, you cannot type non-ASCII chars, but when you can we can't just
    * magically make this an 'x'. *)
   | {js|≈|js} ->
       Letter 'x'
