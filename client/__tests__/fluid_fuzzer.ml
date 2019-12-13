@@ -5,12 +5,15 @@ open Tc
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
 (* aim is to be deterministic *)
-let seed = ref 1.0
+let defaultSeed = 1.0
+
+let state = ref defaultSeed
+
+let setSeed (seed : int) : unit = state := float_of_int seed
 
 let random () : float =
-  let x = Js_math.sin !seed *. 10000.0 in
-  seed := !seed +. 1.0 ;
-  x -. float_of_int (Js_math.floor x)
+  state := Js_math.sin !state *. 10000.0 ;
+  !state -. float_of_int (Js_math.floor !state)
 
 
 let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
