@@ -2039,7 +2039,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m ->
               {m with canvasProps = {m.canvasProps with minimap = None}} )
-        ; MakeCmd (Url.navigateTo Architecture) ]
+        ; MakeCmd (Url.navigateTo Architecture)
+        ; Fluid.update m FluidCloseAutocomplete ]
   | DismissErrorBar ->
       ClearError
   | PauseWorker workerName ->
