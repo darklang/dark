@@ -1,6 +1,7 @@
 open Jest
 open Expect
 open Tc
+open Types
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
@@ -220,6 +221,34 @@ and generateExpr () =
         (generateList () ~f:(fun () -> (generatePattern (), generateExpr ())))
   | _ ->
       b
+
+
+let remove (_id : id) (ast : fluidExpr) : fluidExpr = ast
+
+let rec reduce
+    (ast : fluidExpr)
+    (testFn : fluidExpr -> fluidExpr * fluidState)
+    (checkFn : fluidExpr -> fluidState -> bool) : fluidExpr =
+  let result, _ =
+    List.foldl
+      ~init:(ast, true)
+      (AST.allData (Fluid.toExpr ast))
+      ~f:(fun pointer (ast, continue) ->
+        if not continue
+        then (ast, false)
+        else
+          let id = Pointer.toID pointer in
+          let adjustedTestcase = remove id ast in
+          let newAST, newState = testFn adjustedTestcase in
+          let passed = checkFn newAST newState in
+          if passed
+          then (* keep trying *)
+            (adjustedTestcase, true)
+          else
+            (* reduce it via recursion, and stop trying here *)
+            (reduce adjustedTestcase testFn checkFn, false) )
+  in
+  result
 
 
 let () = test "empty test to satisfy jest" (fun () -> expect true |> toBe true)

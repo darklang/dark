@@ -1,5 +1,6 @@
 open Jest
 open Tc
+open Types
 open Fluid
 open Fluid_test_data
 module Regex = Util.Regex
@@ -7,25 +8,84 @@ module B = Blank
 module K = FluidKeyboard
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
+type modifierKeys =
+  { shiftKey : bool
+  ; altKey : bool
+  ; metaKey : bool
+  ; ctrlKey : bool }
+
+let noModifiers =
+  {shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
+
+
+let processMsg
+    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
+    ast * fluidState =
+  let h = Fluid_utils.h ast in
+  let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+  List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
+      updateMsg
+        m
+        h.hTLID
+        ast
+        (FluidKeyPress
+           { key
+           ; shiftKey = modifierKeys.shiftKey
+           ; altKey = modifierKeys.altKey
+           ; metaKey = modifierKeys.metaKey
+           ; ctrlKey = modifierKeys.ctrlKey })
+        s )
+
+
+let insertCaret (index : int) (str : string) : string =
+  let caretString = "~" in
+  let a, b = String.splitAt ~index str in
+  String.join ~sep:caretString [a; b]
+
+
+(* See docs/fuzzer.md for documentation on how to use this. *)
+
+let toText ast = eToString defaultTestState ast
+
+let testFn testcase =
+  let text = toText testcase in
+  let length = String.length text in
+  processMsg
+    [ (K.SelectAll, {noModifiers with shiftKey = true})
+    ; (K.Backspace, noModifiers) ]
+    {defaultTestState with newPos = length - 1}
+    testcase
+
+
+let testChecker (newAST : fluidExpr) (newState : fluidState) =
+  toText newAST = "___" && newState.newPos = 0
+
+
+let testName = "delete-all deletes all"
 
 let () =
   describe "Fixing delete-all" (fun () ->
-      let testsToRun = 0 in
-      let state = defaultTestState in
-      (* See docs/fuzzer.md for documentation on how to use this. *)
+      let testsToRun = 3 in
       try
         for i = 1 to testsToRun do
-          Fluid_fuzzer.setSeed i ;
-          let testcase = Fluid_fuzzer.generateExpr () in
-          let text = eToString state testcase in
-          Js.log2 "index" i ;
-          Js.log2 "text" text ;
-          Js.log2 "structure" (eToStructure state testcase) ;
-          let length = String.length text in
-          Fluid_test.t
-            ("delete-all deletes all #" ^ string_of_int i)
-            testcase
-            (Fluid_test.keys ~wrap:false [K.SelectAll; K.Backspace] (length - 1))
-            "~___"
+          let name = testName ^ ": " ^ string_of_int i in
+          test name (fun () ->
+              Fluid_fuzzer.setSeed i ;
+              let testcase = Fluid_fuzzer.generateExpr () in
+              Js.log2 "testing" name ;
+              let newAST, newState = testFn testcase in
+              Js.log2 "checking" name ;
+              let passed = testChecker newAST newState in
+              if passed = false
+              then (
+                Js.log2 "failed" name ;
+                let reduced =
+                  Fluid_fuzzer.reduce testcase testFn testChecker
+                in
+                let text = toText reduced in
+                Js.log2 "text" text ;
+                Js.log2 "structure" (eToStructure defaultTestState reduced) ;
+                fail "Unexpected AST" )
+              else pass )
         done
       with _ -> () )
