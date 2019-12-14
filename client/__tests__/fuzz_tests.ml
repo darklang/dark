@@ -82,7 +82,7 @@ let () =
                 in
                 let text = toText reduced in
                 Js.log2 "text" text ;
-                Js.log2 "structure" (eToStructure defaultTestState reduced) ;
+                (* Js.log2 "structure" (eToStructure defaultTestState reduced) ; *)
                 expect false |> toEqual true )
               else expect true |> toEqual true )
         done
