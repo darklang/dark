@@ -3,19 +3,31 @@ let domTests = ref false
 let process_cmdline_args () =
   let command = ref None in
   Tc.Array.iter Sys.argv ~f:(fun str ->
-      match !command with
-      | None ->
-          if str = "--pattern"
-          then command := Some "--pattern"
-          else if str = "--dom"
-          then domTests := true
-          else if str = "--verbose"
-          then Tester.verbose := true
-      | Some "--pattern" ->
+      match (!command, str) with
+      | None, "--pattern" ->
+          command := Some "--pattern"
+      | None, "--dom" ->
+          domTests := true
+      | None, "--verbose" ->
+          Tester.verbose := true
+      | None, "--help" ->
+          Js.log
+            "Run Dark's client-side unit tests. Supported arguments:\n  --dom: run the DOM tests (slow)\n  --verbose: print test names\n  --help: Print this message\n  --pattern 'some-regex': Run any test that contains this regex"
+      | Some "--pattern", str ->
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
+      | None, _
+        when Tc.String.contains
+               str
+               ~substring:"lib/js/__tests__/unittests.bs.js" ->
+          (* ignore the filename (can't use the whole name as
+           * assert-in-container rewrites it *)
+          ()
+      | None, "/usr/bin/node" ->
+          (* ignore *)
+          ()
       | _ ->
-          failwith ("Unsupported command line argument: " ^ str) )
+          Js.log ("Unsupported command line argument: " ^ str) )
 
 
 let () =
