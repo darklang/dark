@@ -40,7 +40,6 @@
     "build:analysiswrapper": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/AnalysisWrapper.bs.js --standalone analysiswrapper -o ../backend/static/analysiswrapper.js",
     "copy:static": "cp -rf static/* ../backend/static/",
     "build": "run-s build:bsb build:js build:appsupport build:fetcher build:analysiswrapper copy:static",
-    "test": "jest",
-    "test:watch": "jest --watch"
+    "test": "cd .. && runtests --dom"
   }
 }
