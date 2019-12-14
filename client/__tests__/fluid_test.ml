@@ -73,110 +73,6 @@ type modifierKeys =
   ; metaKey : bool
   ; ctrlKey : bool }
 
-let defaultTestModel =
-  let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
-      Types.parameter =
-    { paramName = name
-    ; paramTipe = t
-    ; paramBlock_args = blockArgs
-    ; paramOptional = opt
-    ; paramDescription = "" }
-  in
-  let infixFn op tipe rtTipe =
-    { fnName = op
-    ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
-    ; fnReturnTipe = rtTipe
-    ; fnDescription = "Some infix function"
-    ; fnPreviewExecutionSafe = true
-    ; fnDeprecated = false
-    ; fnInfix = true }
-  in
-  { Defaults.defaultModel with
-    analyses =
-      StrDict.singleton (* The default traceID for TLID 7 *)
-        ~key:"94167980-f909-527e-a4af-bc3155f586d3"
-        ~value:
-          (LoadableSuccess
-             (StrDict.fromList
-                [ ( "fake-acdata1"
-                  , DObj
-                      (StrDict.fromList [("body", DNull); ("formBody", DNull)])
-                  )
-                ; ( "fake-acdata2"
-                  , DObj
-                      (StrDict.fromList [("title", DNull); ("author", DNull)])
-                  )
-                ; ("fake-acdata3", DObj (StrDict.fromList [("body", DInt 5)]))
-                ]))
-  ; builtInFunctions =
-      [ infixFn "<" TInt TBool
-      ; infixFn "+" TInt TInt
-      ; infixFn "++" TStr TStr
-      ; infixFn "==" TAny TBool
-      ; infixFn "<=" TInt TBool
-      ; infixFn "||" TBool TBool
-      ; { fnName = "Int::add"
-        ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-        ; fnReturnTipe = TInt
-        ; fnDescription = "Add two ints"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "Int::sqrt"
-        ; fnParameters = [fnParam "a" TInt false]
-        ; fnReturnTipe = TInt
-        ; fnDescription = "Get the square root of an Int"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "HttpClient::post_v4"
-        ; fnParameters =
-            [ fnParam "url" TStr false
-            ; fnParam "body" TAny false
-            ; fnParam "query" TObj false
-            ; fnParam "headers" TObj false ]
-        ; fnReturnTipe = TResult
-        ; fnDescription = "Make blocking HTTP POST call to `uri`."
-        ; fnPreviewExecutionSafe = false
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "DB::getAll_v1"
-        ; fnParameters = [fnParam "table" TDB false]
-        ; fnReturnTipe = TList
-        ; fnDescription = "get all"
-        ; fnPreviewExecutionSafe = false
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "Dict::map"
-        ; fnParameters =
-            [ fnParam "dict" TObj false
-            ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-        ; fnReturnTipe = TObj
-        ; fnDescription =
-            "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "List::append"
-        ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
-        ; fnReturnTipe = TList
-        ; fnDescription = "append list"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false }
-      ; { fnName = "List::empty"
-        ; fnParameters = []
-        ; fnReturnTipe = TList
-        ; fnDescription = "empty list"
-        ; fnPreviewExecutionSafe = true
-        ; fnDeprecated = false
-        ; fnInfix = false } ] }
-
-
-let defaultTestState =
-  {Defaults.defaultFluidState with ac = AC.reset defaultTestModel}
-
-
 let processMsg
     (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
     ast * fluidState =
@@ -557,7 +453,7 @@ let t
   test
     ( name
     ^ " - `"
-    ^ ( eToString Defaults.defaultFluidState initial
+    ^ ( eToString defaultTestState initial
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -580,7 +476,7 @@ let tp
   test
     ( name
     ^ " - `"
-    ^ ( eToString Defaults.defaultFluidState initial
+    ^ ( eToString defaultTestState initial
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () ->
@@ -599,7 +495,7 @@ let ts
   test
     ( name
     ^ " - `"
-    ^ ( eToString Defaults.defaultFluidState initial
+    ^ ( eToString defaultTestState initial
       |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
     ^ "`" )
     (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
@@ -3222,7 +3118,7 @@ let () =
       (*     expect (bs (EVariable (5, "request"))). *)
       () ) ;
   describe "Movement" (fun () ->
-      let s = Defaults.defaultFluidState in
+      let s = defaultTestState in
       let tokens = toTokens s complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
       let ast = complexExpr in
