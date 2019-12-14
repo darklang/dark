@@ -72,7 +72,7 @@ let init (flagString : string) (location : Web.Location.location) =
     Flags.fromString flagString
   in
   let variants =
-    VariantTesting.enabledVariantTests
+    VariantTesting.enabledVariantTests ()
     (* Forcing fluid for darklings *)
     |> VariantTesting.forceFluid isAdmin username
   in
@@ -109,7 +109,8 @@ let init (flagString : string) (location : Web.Location.location) =
     ; clientOpCtrId = createClientOpCtrId
     ; isAdmin
     ; buildHash
-    ; username }
+    ; username
+    ; teaDebuggerEnabled = Url.isDebugging () }
   in
   let timeStamp = Js.Date.now () /. 1000.0 in
   let avMessage : avatarModelMessage =
@@ -119,7 +120,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; timestamp = timeStamp }
   in
   let m = {m with fluidState = Fluid.initAC m.fluidState m} in
-  if Url.isIntegrationTest
+  if Url.isIntegrationTest ()
   then (m, Cmd.batch [RPC.integration m m.canvasName])
   else
     ( m

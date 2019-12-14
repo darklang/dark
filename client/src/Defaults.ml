@@ -149,4 +149,5 @@ let defaultModel : model =
   ; account = defaultAccount
   ; worker_schedules = StrDict.empty
   ; searchCache = TLIDDict.empty
-  ; editorSettings = {showFluidDebugger = false; runTimers = true} }
+  ; editorSettings = {showFluidDebugger = false; runTimers = true}
+  ; teaDebuggerEnabled = false }
