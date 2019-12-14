@@ -1,5 +1,4 @@
-open Jest
-open Expect
+open Tester
 open Tc
 open Types
 open Prelude
@@ -22,7 +21,7 @@ let h ast =
   ; pos = {x = 0; y = 0} }
 
 
-let () =
+let run () =
   let mID = gid () in
   let aStr = FPString (mID, gid (), "some string") in
   let emptyStr = FPString (mID, gid (), "") in

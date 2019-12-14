@@ -1,9 +1,8 @@
+open Tester
 open Tc
 open Types
 open Autocomplete
 open Prelude
-open Jest
-open Expect
 module B = Blank
 
 let sampleFunctions : function_ list =
@@ -191,17 +190,18 @@ let itemPresent (aci : autocompleteItem) (ac : autocomplete) : bool =
   List.member ~value:aci ac.completions
 
 
-let () =
+let run () =
   describe "autocomplete" (fun () ->
       describe "generation" (fun () ->
           test
             "invalidated cursor state/acFor still produces a valid autocomplete"
             (fun () ->
-              expect (fun () ->
-                  defaultModel ~cursorState:(fillingCS ()) ()
-                  |> fun x -> acFor x )
-              |> not_
-              |> toThrow ) ;
+              try
+                defaultModel ~cursorState:(fillingCS ()) ()
+                |> fun x ->
+                acFor x |> ignore ;
+                pass ()
+              with _ -> fail () ) ;
           test "variable that holds value will have dval tiped" (fun () ->
               expect (ACVariable ("cookies", Some (DInt 3)) |> asTypeString)
               |> toEqual "Int" ) ;
@@ -369,8 +369,12 @@ let () =
                 |> fun x -> x.index )
               |> toEqual 1 ) ;
           test "scrolling backward works if we haven't searched yet" (fun () ->
-              expect (acFor m |> selectUp |> selectUp |> fun x -> x.index)
-              |> toBeGreaterThan 15 ) ;
+              expect
+                ( acFor m
+                |> selectUp
+                |> selectUp
+                |> fun x -> x.index |> ( <= ) 15 )
+              |> toBe true ) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acFor m
@@ -407,9 +411,9 @@ let () =
                 ( acFor m
                 |> setQuery m ""
                 |> (fun x -> x.completions)
-                |> List.length )
-              |> not_
-              |> toEqual 0 ) ;
+                |> List.length
+                |> ( <> ) 0 )
+              |> toEqual true ) ;
           test
             "ordering = startsWith then case match then case insensitive match"
             (fun () ->

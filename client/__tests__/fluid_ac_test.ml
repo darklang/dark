@@ -1,8 +1,7 @@
+open Tester
 open Tc
 open Types
 open Prelude
-open Jest
-open Expect
 open Fluid
 module AC = FluidAutocomplete
 module B = Blank
@@ -277,7 +276,7 @@ let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
   ; visible = ac.index = None }
 
 
-let () =
+let run () =
   describe "autocomplete" (fun () ->
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in

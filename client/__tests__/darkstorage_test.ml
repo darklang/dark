@@ -1,7 +1,6 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 module Ds = DarkStorage
 
 let d2 =
@@ -27,7 +26,7 @@ let d3 =
 
 let originalList : staticDeploy list = [d2; d1; d3]
 
-let () =
+let run () =
   describe "appendDeploy" (fun () ->
       test "sort by lastUpdate timestamp" (fun () ->
           let sortedList = [d3; d2; d1] in

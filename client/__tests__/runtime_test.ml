@@ -1,9 +1,8 @@
+open Tester
 open! Tc
-open Jest
-open Expect
 open Runtime
 
-let () =
+let run () =
   describe "validStringLiteral" (fun () ->
       let t name subject expected =
         test name (fun () ->

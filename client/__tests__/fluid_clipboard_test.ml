@@ -1,5 +1,4 @@
-open Jest
-open Expect
+open Tester
 open Tc
 open Types
 open Prelude
@@ -35,7 +34,7 @@ let clipboardEvent () =
     ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
 
 
-let () =
+let run () =
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
     let clipboardData state e =
       Clipboard.getData e

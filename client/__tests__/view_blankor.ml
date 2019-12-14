@@ -1,11 +1,10 @@
+open Tester
 open! Tc
 open Prelude
 open Types
-open Jest
-open Expect
 open ViewBlankOr
 
-let () =
+let run () =
   describe "placeholdersDisplayed" (fun () ->
       test "shows placeholders in user functions" (fun () ->
           let id = gid () in

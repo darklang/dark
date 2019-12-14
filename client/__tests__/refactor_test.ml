@@ -1,13 +1,12 @@
+open Tester
 open! Tc
-open Jest
-open Expect
 open Types
 module B = Blank
 module D = Defaults
 module R = Refactor
 module TL = Toplevel
 
-let () =
+let run () =
   describe "takeOffRail & putOnRail" (fun () ->
       let f1 =
         { fnName = "Result::resulty"
