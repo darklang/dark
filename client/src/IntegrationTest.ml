@@ -984,6 +984,24 @@ let fluid_fn_pg_change (_m : model) : testResult =
   pass
 
 
+let fluid_creating_an_http_handler_focuses_the_verb (_m : model) : testResult =
+  pass
+
+
+let fluid_tabbing_from_an_http_handler_spec_to_ast (_m : model) : testResult =
+  pass
+
+
+let fluid_tabbing_from_handler_spec_past_ast_back_to_verb (_m : model) :
+    testResult =
+  pass
+
+
+let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) :
+    testResult =
+  pass
+
+
 let trigger (test_name : string) : integrationTestState =
   let name = String.dropLeft ~count:5 test_name in
   IntegrationTestExpectation
@@ -1148,5 +1166,13 @@ let trigger (test_name : string) : integrationTestState =
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
         fluid_fn_pg_change
+    | "fluid_creating_an_http_handler_focuses_the_verb" ->
+        fluid_creating_an_http_handler_focuses_the_verb
+    | "fluid_tabbing_from_an_http_handler_spec_to_ast" ->
+        fluid_tabbing_from_an_http_handler_spec_to_ast
+    | "fluid_tabbing_from_handler_spec_past_ast_back_to_verb" ->
+        fluid_tabbing_from_handler_spec_past_ast_back_to_verb
+    | "fluid_shift_tabbing_from_handler_ast_back_to_route" ->
+        fluid_shift_tabbing_from_handler_ast_back_to_route
     | n ->
         failwith ("Test " ^ n ^ " not added to IntegrationTest.trigger") )

@@ -62,4 +62,21 @@ let delete (pd : pointerData) (hs : handlerSpec) (newID : id) : handlerSpec =
 
 
 let allData (spec : handlerSpec) : pointerData list =
-  [PEventSpace spec.space; PEventName spec.name; PEventModifier spec.modifier]
+  [PEventSpace spec.space; PEventModifier spec.modifier; PEventName spec.name]
+
+
+let firstBlank (spec : handlerSpec) : Types.id option =
+  spec
+  |> allData
+  |> List.filter ~f:Pointer.isBlank
+  |> List.head
+  |> Option.map ~f:Pointer.toID
+
+
+let lastBlank (spec : handlerSpec) : Types.id option =
+  spec
+  |> allData
+  |> List.filter ~f:Pointer.isBlank
+  |> List.reverse
+  |> List.head
+  |> Option.map ~f:Pointer.toID
