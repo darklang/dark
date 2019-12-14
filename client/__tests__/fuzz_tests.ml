@@ -61,22 +61,22 @@ let testChecker (newAST : fluidExpr) (newState : fluidState) =
 
 let testName = "delete-all deletes all"
 
-let run () =
+let () =
   describe "Fixing delete-all" (fun () ->
       let testsToRun = 3 in
       try
         for i = 1 to testsToRun do
-          let name = testName ^ ": " ^ string_of_int i in
+          let name = testName ^ " #" ^ string_of_int i in
           test name (fun () ->
               Fluid_fuzzer.setSeed i ;
               let testcase = Fluid_fuzzer.generateExpr () in
-              Js.log2 "testing" name ;
+              Js.log2 "testing: " name ;
               let newAST, newState = testFn testcase in
-              Js.log2 "checking" name ;
+              Js.log2 "checking: " name ;
               let passed = testChecker newAST newState in
               if passed = false
               then (
-                Js.log2 "failed" name ;
+                Js.log2 "failed: " name ;
                 let reduced =
                   Fluid_fuzzer.reduce testcase testFn testChecker
                 in
