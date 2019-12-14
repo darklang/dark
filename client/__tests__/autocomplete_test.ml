@@ -70,6 +70,10 @@ let defaultModel
   ; userFunctions = Functions.fromList userFunctions
   ; userTipes = UserTypes.fromList userTipes
   ; cursorState
+  ; fluidState =
+      { Defaults.defaultFluidState with
+        ac = {Defaults.defaultFluidState.ac with functions = sampleFunctions}
+      }
   ; builtInFunctions = sampleFunctions }
 
 

@@ -1,6 +1,7 @@
 open Jest
 open Tc
 open Fluid
+open Fluid_test_data
 module Regex = Util.Regex
 module B = Blank
 module K = FluidKeyboard
@@ -10,7 +11,7 @@ module K = FluidKeyboard
 let () =
   describe "Fixing delete-all" (fun () ->
       let testsToRun = 0 in
-      let state = Fluid_test.defaultTestState in
+      let state = defaultTestState in
       (* See docs/fuzzer.md for documentation on how to use this. *)
       try
         for i = 1 to testsToRun do
