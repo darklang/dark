@@ -260,23 +260,29 @@ let () =
               ; name = B.newF "/src"
               ; modifier = B.newF "POST" } }
         in
-        let model =
+        let m =
           { D.defaultModel with
             builtInFunctions; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
         in
-        (model, TLHandler tl)
+        let m =
+          { m with
+            fluidState =
+              {Defaults.defaultFluidState with ac = FluidAutocomplete.reset m}
+          }
+        in
+        (m, TLHandler tl)
       in
-      let exprToString expr : string =
+      let exprToString m expr : string =
         expr
         |> Tuple2.first
-        |> Fluid.fromExpr Defaults.defaultFluidState
-        |> Fluid.eToString Defaults.defaultFluidState
+        |> Fluid.fromExpr m.fluidState
+        |> Fluid.eToString m.fluidState
       in
       test "with sole expression" (fun () ->
           let expr = B.newF (Value "4") in
           let ast = expr in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
           |> toEqual "let var = 4\nvar" ) ;
       test "with expression inside let" (fun () ->
           let expr =
@@ -288,7 +294,7 @@ let () =
           in
           let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
           |> toEqual "let b = 5\nlet var = Int::add b 4\nvar" ) ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
@@ -319,7 +325,7 @@ let () =
             |> B.newF
           in
           let m, tl = modelAndTl ast in
-          expect (R.extractVarInAst m tl expr ast "var" |> exprToString)
+          expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
           |> toEqual
-               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___\nvar\n|>Dict::set \"id\" id\n"
+               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"
       ) )

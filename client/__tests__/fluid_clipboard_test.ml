@@ -45,24 +45,19 @@ let () =
     in
     let h = Fluid_utils.h ast in
     let m =
-      { Defaults.defaultModel with
+      { defaultTestModel with
         tests = [FluidVariant]
       ; handlers = Handlers.fromList [h]
-      ; cursorState = FluidEntering h.hTLID }
+      ; cursorState = FluidEntering h.hTLID
+      ; fluidState =
+          { defaultTestState with
+            selectionStart = Some start; oldPos = pos; newPos = pos } }
     in
-    let s =
-      { Defaults.defaultFluidState with
-        ac = AC.reset m
-      ; selectionStart = Some start
-      ; oldPos = pos
-      ; newPos = pos }
-    in
-    let m = {m with fluidState = s} in
     if debug
     then (
-      Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "ast before" (eToStructure s ast) ;
-      Js.log2 "clipboard before" (clipboardData s e) ) ;
+      Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
+      Js.log2 "ast before" (eToStructure m.fluidState ast) ;
+      Js.log2 "clipboard before" (clipboardData m.fluidState e) ) ;
     let mod_ = App.update_ msg m in
     let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
     let newState = newM.fluidState in
@@ -122,7 +117,7 @@ let () =
     test
       ( name
       ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
+      ^ ( eToString defaultTestState initial
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
@@ -131,7 +126,7 @@ let () =
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
-    let emptyState = Defaults.defaultFluidState in
+    let emptyState = defaultTestState in
     let ast = Fluid.clone ~state:emptyState ast in
     let expectedString = eToString emptyState ast in
     test
@@ -150,24 +145,19 @@ let () =
         in
         let h = Fluid_utils.h ast in
         let m =
-          { Defaults.defaultModel with
+          { defaultTestModel with
             tests = [FluidVariant]
           ; handlers = Handlers.fromList [h]
-          ; cursorState = FluidEntering h.hTLID }
+          ; cursorState = FluidEntering h.hTLID
+          ; fluidState =
+              { defaultTestState with
+                selectionStart = Some 0; oldPos = pos; newPos = pos } }
         in
-        let s =
-          { Defaults.defaultFluidState with
-            ac = AC.reset m
-          ; selectionStart = Some 0
-          ; oldPos = pos
-          ; newPos = pos }
-        in
-        let m = {m with fluidState = s} in
         if debug
         then (
-          Js.log2 "state before " (Fluid_utils.debugState s) ;
-          Js.log2 "ast before" (eToStructure s ast) ;
-          Js.log2 "clipboard before" (clipboardData s e) ) ;
+          Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
+          Js.log2 "ast before" (eToStructure m.fluidState ast) ;
+          Js.log2 "clipboard before" (clipboardData m.fluidState e) ) ;
         let mod_ = App.update_ (ClipboardCutEvent e) m in
         let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
         let mod_ = App.update_ (ClipboardPasteEvent e) newM in
@@ -268,7 +258,7 @@ let () =
         "cutting an int adds an EInteger to clipboard and leaves a blank 2"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "1000")], NoRail))
         (cut (10, 14))
-        ("Int::sqrt ___", "1000", 10) ;
+        ("Int::sqrt _________", "1000", 10) ;
       t
         "cutting part of an int adds part of the EInteger to clipboard and leaves the remaining EInteger"
         (EInteger (gid (), "1234"))
@@ -853,19 +843,19 @@ let () =
   describe "Functions" (fun () ->
       t
         "copying a function name adds an EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
+        (fn "Int::sqrt" [int "122"])
         (copy (0, 9))
-        ("Int::sqrt 122", "Int::sqrt ___", 9) ;
+        ("Int::sqrt 122", "Int::sqrt _________", 9) ;
       t
         "copying a function name with a version adds an EFnCall, not a partial"
-        (EFnCall (gid (), "HttpClient::post_v4", [EString (gid (), "")], NoRail))
+        (fn "HttpClient::post_v4" [str ""])
         (copy (0, 18))
-        ("HttpClient::postv4 \"\"", "HttpClient::postv4 ___", 18) ;
+        ("HttpClient::postv4 \"\"", "HttpClient::postv4 ______________", 18) ;
       t
         "copying part of a function name adds a partial EFnCall w blank arguments to clipboard"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
+        (fn "Int::sqrt" [int "122"])
         (copy (0, 4))
-        ("Int::sqrt 122", "Int:@sqr@ ___", 4) ;
+        ("Int::sqrt 122", "Int:@sqr@ _________", 4) ;
       t
         "copying a function's argument adds the argument's expression to clipboard"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
@@ -875,17 +865,17 @@ let () =
         "cutting a function name adds an EFnCall w blank arguments to clipboard and leaves a blank"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 9))
-        ("___", "Int::sqrt ___", 0) ;
+        ("___", "Int::sqrt _________", 0) ;
       t
         "cutting part of a fn name adds a partial EFnCall w blank arguments to clipboard and leaves a partial"
         (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
         (cut (0, 4))
-        (":sqrt@qr@ 122", "Int:@sqr@ ___", 0) ;
+        (":sqrt@qr@ 122", "Int:@sqr@ _________", 0) ;
       t
         "cutting a function's argument adds the argument's expression to clipboard and leaves a blank there"
-        (EFnCall (gid (), "Int::sqrt", [EInteger (gid (), "122")], NoRail))
+        (fn "Int::sqrt" [int "122"])
         (cut (10, 13))
-        ("Int::sqrt ___", "122", 10) ;
+        ("Int::sqrt _________", "122", 10) ;
       () ) ;
   describe "Pipes" (fun () ->
       t
