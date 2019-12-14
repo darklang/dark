@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+cd client
+nodejs lib/js/__tests__/fuzz_tests.bs.js "$@"
+
