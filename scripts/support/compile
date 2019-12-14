@@ -365,6 +365,9 @@ def mark(should, f):
     # part of this step.
     should.client_build = True
 
+  elif "client/bsconfig.json" in f:
+    should.client_build = True
+
   elif "client/src/appsupport.js" in f:
     should.appsupport_build = True
 
