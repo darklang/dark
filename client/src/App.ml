@@ -49,7 +49,7 @@ let createClientOpCtrId : string =
   BsUuid.Uuid.V4.create () |> BsUuid.Uuid.V4.toString
 
 
-let manageBrowserId : string =
+let manageBrowserId () : string =
   (* Setting the browser id in session storage so it is stored per tab *)
   match Dom.Storage.getItem "browserId" Dom.Storage.sessionStorage with
   | Some browserId ->
@@ -105,7 +105,7 @@ let init (flagString : string) (location : Web.Location.location) =
     ; origin = location.origin
     ; environment
     ; csrfToken
-    ; browserId = manageBrowserId
+    ; browserId = manageBrowserId ()
     ; clientOpCtrId = createClientOpCtrId
     ; isAdmin
     ; buildHash
