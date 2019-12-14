@@ -44,7 +44,7 @@ let () =
   let aVar = FPVariable (mID, gid (), "variable") in
   let aShortVar = FPVariable (mID, gid (), "v") in
   let aConstructor = FPConstructor (mID, gid (), "Just", [b ()]) in
-  let m = Defaults.defaultModel in
+  let m = Fluid_test_data.defaultTestModel in
   let process
       ~(debug : bool) (keys : K.key list) (pos : int) (pat : fluidPattern) :
       string * int =
@@ -52,7 +52,7 @@ let () =
     let extra = 12 in
     let pos = pos + extra in
     let s =
-      { Defaults.defaultFluidState with
+      { Fluid_test_data.defaultTestState with
         ac = AC.reset m; oldPos = pos; newPos = pos }
     in
     if debug

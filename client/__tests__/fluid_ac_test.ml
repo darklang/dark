@@ -111,7 +111,7 @@ let defaultModel
     ?(userTipes = [])
     ~cursorState
     () : model =
-  let default = Defaults.defaultModel in
+  let default = Fluid_test_data.defaultTestModel in
   { default with
     handlers = Handlers.fromList handlers
   ; dbs = DB.fromList dbs
