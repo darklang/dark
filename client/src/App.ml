@@ -964,8 +964,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           { m.canvasProps with
             offset; panAnimation; lastOffset = Some m.canvasProps.offset }
         in
-        Native.Ext.appScrollTo offset.x offset.y;
-        ({m with canvasProps = newCanvasProps}, Cmd.none)
+        let moveCmd = Tea_cmd.call (fun _ -> Native.Ext.appScrollTo offset.x offset.y) in 
+        ({m with canvasProps = newCanvasProps}, moveCmd )
     | CenterCanvasOn tlid ->
       ( match TL.get m tlid with
       | Some tl ->

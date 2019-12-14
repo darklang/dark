@@ -81,6 +81,8 @@ module Ext = struct
 
   external scrollTo : Dom.element -> int -> int -> unit = "scrollTo" [@@bs.send]
 
+  external scrollBy : Dom.element -> int -> int -> unit = "scrollBy" [@@bs.send]
+
   external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
 
   external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
@@ -106,6 +108,11 @@ module Ext = struct
 
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
+  
+  let appScrollBy (x : int) (y : int) : unit  =
+    match (querySelector "#app") with
+    | Some app -> scrollBy app x y
+    | None -> ()
 
   let appScrollTo (x : int) (y : int) : unit  =
     match (querySelector "#app") with
