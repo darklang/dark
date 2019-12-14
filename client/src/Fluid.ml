@@ -5702,7 +5702,7 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
+let viewErrorIndicator ~analysisStore ~state ti : Types.msg Html.html =
   let returnTipe name =
     let fn = Functions.findByNameInList name state.ac.functions in
     Runtime.tipe2str fn.fnReturnTipe
@@ -5722,13 +5722,18 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
   | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
+      let event =
+        Vdom.noProp
+        (* TEMPORARY DISABLE
+          ViewUtils.eventNoPropagation	
+            ~key:("er-" ^ show_id id)	
+            "click"	
+            (fun _ -> TakeOffErrorRail (tlid, id)) *)
+      in
       Html.div
         [ Html.class' (String.join ~sep:" " cls)
         ; Html.styles [("top", offset)]
-        ; ViewUtils.eventNoPropagation
-            ~key:("er-" ^ show_id id)
-            "click"
-            (fun _ -> TakeOffErrorRail (tlid, id)) ]
+        ; event ]
         []
   | _ ->
       Vdom.noNode
@@ -6041,8 +6046,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   let errorRail =
     let indicators =
       tokenInfos
-      |> List.map ~f:(fun ti ->
-             viewErrorIndicator ~tlid ~analysisStore ~state ti )
+      |> List.map ~f:(fun ti -> viewErrorIndicator ~analysisStore ~state ti)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div
