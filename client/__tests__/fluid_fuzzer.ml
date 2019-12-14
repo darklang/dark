@@ -1,5 +1,3 @@
-open Jest
-open Expect
 open Tc
 open Types
 
@@ -249,6 +247,3 @@ let rec reduce
             (reduce adjustedTestcase testFn checkFn, false) )
   in
   result
-
-
-let () = test "empty test to satisfy jest" (fun () -> expect true |> toBe true)

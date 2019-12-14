@@ -1,5 +1,3 @@
-open Jest
-open Expect
 open Types
 open Fluid
 module B = Blank
@@ -25,6 +23,3 @@ let h ast : handler =
       { space = Blank.newF "HTTP"
       ; name = Blank.newF "/test"
       ; modifier = Blank.newF "GET" } }
-
-
-let () = test "empty test to satisfy jest" (fun () -> expect true |> toBe true)

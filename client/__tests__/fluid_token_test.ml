@@ -1,10 +1,9 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 open FluidToken
 
-let () =
+let run () =
   describe "analysisID of token" (fun () ->
       test "returns id of varBind if token is TLetLHS" (fun () ->
           let leftLetToken = TLetLHS (ID "1", ID "2", "a") in

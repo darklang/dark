@@ -1,25 +1,25 @@
+open Tester
 open Tc
 open Types
-open Jest
 
 let testRoundtrip decoder encoder (name : string) (v : 'a) =
   test ("roundtrip " ^ name) (fun () ->
-      Expect.expect v |> Expect.toEqual (v |> encoder |> decoder) )
+      expect v |> toEqual (v |> encoder |> decoder) )
 
 
 let rtDval = testRoundtrip Decoders.dval Encoders.dval
 
-let () =
+let run () =
   describe "compatible with server JSON encoding" (fun () ->
       test "obj uses list" (fun () ->
-          Expect.expect "[\"DObj\",{\"foo\":[\"DInt\",5]}]"
-          |> Expect.toEqual
+          expect "[\"DObj\",{\"foo\":[\"DInt\",5]}]"
+          |> toEqual
                ( DObj (StrDict.fromList [("foo", DInt 5)])
                |> Encoders.dval
                |> Js.Json.stringify ) ) ;
       test "dresp shape" (fun () ->
-          Expect.expect "[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]"
-          |> Expect.toEqual
+          expect "[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]"
+          |> toEqual
                ( DResp (Response (401, []), DNull)
                |> Encoders.dval
                |> Js.Json.stringify ) ) ;

@@ -1,10 +1,8 @@
-open Jest
+open Tester
 open Tc
 open Types
 open Fluid
 open Fluid_test_data
-module Regex = Util.Regex
-module B = Blank
 module K = FluidKeyboard
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
@@ -63,7 +61,7 @@ let testChecker (newAST : fluidExpr) (newState : fluidState) =
 
 let testName = "delete-all deletes all"
 
-let () =
+let run () =
   describe "Fixing delete-all" (fun () ->
       let testsToRun = 3 in
       try
@@ -85,7 +83,7 @@ let () =
                 let text = toText reduced in
                 Js.log2 "text" text ;
                 Js.log2 "structure" (eToStructure defaultTestState reduced) ;
-                fail "Unexpected AST" )
-              else pass )
+                expect false |> toEqual true )
+              else expect true |> toEqual true )
         done
       with _ -> () )

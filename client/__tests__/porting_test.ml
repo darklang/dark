@@ -1,8 +1,7 @@
+open Tester
 open Tc
-open Jest
-open Expect
 
-let () =
+let run () =
   describe "toOption" (fun () ->
       test "it returns None when the value equals a sentinel" (fun () ->
           expect (Option.toOption ~sentinel:3 3) |> toEqual None ) ;
