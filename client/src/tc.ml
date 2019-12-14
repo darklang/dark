@@ -18,8 +18,15 @@ include (
     with module Option := Tablecloth.Option
     with module Int := Tablecloth.Int
     with module String := Tablecloth.String
+    with module Array := Tablecloth.Array
      and module Result := Tablecloth.Result
      and module List := Tablecloth.List )
+
+module Array = struct
+  include Tablecloth.Array
+
+  let iter ~(f : 'a -> unit) (arr : 'a array) : unit = Belt.Array.forEach arr f
+end
 
 module Option = struct
   include Tablecloth.Option
