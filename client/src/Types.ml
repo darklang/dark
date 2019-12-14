@@ -1603,7 +1603,9 @@ and model =
   ; analyses : analyses
   ; f404s : fourOhFour list
   ; unlockedDBs : unlockedDBs
-  ; integrationTestState : integrationTestState
+  ; integrationTestState
+      (* State of individual integration tests *) :
+      integrationTestState
   ; visibility : PageVisibility.visibility
   ; syncState : syncState
   ; executingFunctions : (tlid * id) list
@@ -1656,7 +1658,8 @@ and model =
   ; account : account
   ; worker_schedules : string StrDict.t
   ; searchCache : string TLIDDict.t
-  ; editorSettings : editorSettings }
+  ; editorSettings : editorSettings
+  ; teaDebuggerEnabled : bool }
 
 (* Values that we serialize *)
 and serializableEditor =

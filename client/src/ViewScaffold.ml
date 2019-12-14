@@ -2,12 +2,12 @@ open Types
 open Tc
 open Prelude
 
-let debuggerLinkLoc () =
+let debuggerLinkLoc m =
   let loc = Tea_navigation.getLocation () in
   let newSearch =
-    Url.queryParams
+    Url.queryParams ()
     |> List.filter ~f:(fun (k, _) -> k <> "debugger")
-    |> (fun x -> if Url.isDebugging then x else ("debugger", true) :: x)
+    |> (fun x -> if m.teaDebuggerEnabled then x else ("debugger", true) :: x)
     |> List.map ~f:(fun (k, v) -> k ^ "=" ^ if v then "1" else "0")
     |> String.join ~sep:"&"
     |> fun x -> if x = "" then "" else "?" ^ x

@@ -107,8 +107,8 @@ let uniqueTests (xs : variantTest list) : variantTest list =
 
 let expandTest (vt : variantTest) : variantTest list = match vt with x -> [x]
 
-let enabledVariantTests : variantTest list =
-  Url.queryParams
+let enabledVariantTests () : variantTest list =
+  Url.queryParams ()
   |> List.filterMap ~f:toVariantTest
   |> List.map ~f:expandTest
   |> List.flatten
