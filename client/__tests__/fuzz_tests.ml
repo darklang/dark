@@ -46,12 +46,10 @@ let insertCaret (index : int) (str : string) : string =
 let toText ast = eToString defaultTestState ast
 
 let testFn testcase =
-  let text = toText testcase in
-  let length = String.length text in
   processMsg
     [ (K.SelectAll, {noModifiers with shiftKey = true})
     ; (K.Backspace, noModifiers) ]
-    {defaultTestState with newPos = length - 1}
+    defaultTestState
     testcase
 
 
