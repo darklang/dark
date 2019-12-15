@@ -224,31 +224,29 @@ and generateExpr () =
 let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
   let open Fluid in
   let f = remove id in
-  let firstChild children =
-    match children with
-    | [] ->
-        newB ()
-    | [first] ->
-        first
-    | _ ->
-        (* we'll let the algorithm remove some other stuff first *)
-        expr
-  in
   if eid expr = id
   then
     (* If we can clearly unwrap the expression by replacing the only
      * non-blank child, then we do it. Otherwise we return the current
      * expression, and will try again on a later iteration. *)
+    let firstChild children =
+      match children with
+      | [] ->
+          newB ()
+      | [first] ->
+          first
+      | _ ->
+          (* we'll let the algorithm remove some other stuff first *)
+          expr
+    in
     match expr with
-    | EInteger _
-    | EBlank _
-    | EString _
-    | EVariable _
-    | EBool _
-    | ENull _
-    | EPipeTarget _
-    | EFloat _ ->
+    | EInteger _ | EString _ | EVariable _ | EBool _ | ENull _ | EFloat _ ->
         newB ()
+    | EBlank _ ->
+        expr
+    | EPipeTarget _ ->
+        (* dont remove pipetargets from here *)
+        expr
     | ELet (_, _, _, EBlank _, next) ->
         next
     | ELet (_, _, _, rhs, EBlank _) ->
@@ -270,7 +268,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
     | EFieldAccess (_, expr, _, _) ->
         expr
     | EFnCall (_, _, exprs, _) ->
-        firstChild exprs
+      (match firstChild exprs with EPipeTarget _ -> newB () | other -> other)
     | ELambda (_, _, expr) ->
         expr
     | EList (_, exprs) ->
@@ -302,6 +300,13 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
     | EFeatureFlag _ ->
         expr
   else
+    let processList exprs =
+      (* Strip blanks from lists rather than process them. We strip only blanks
+     * because we want other expressions the opportunity to process themselves.
+     * *)
+      List.filterMap exprs ~f:(fun e ->
+          match e with EBlank bid when id = bid -> None | _ -> Some (f e) )
+    in
     match expr with
     | EInteger _
     | EBlank _
@@ -321,21 +326,44 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
     | EFieldAccess (id, expr, fieldID, fieldname) ->
         EFieldAccess (id, f expr, fieldID, fieldname)
     | EFnCall (id, name, exprs, ster) ->
-        EFnCall (id, name, List.map ~f exprs, ster)
+        EFnCall (id, name, processList exprs, ster)
     | ELambda (id, names, expr) ->
         ELambda (id, names, f expr)
     | EList (id, exprs) ->
-        EList (id, List.map ~f exprs)
-    | EMatch (id, mexpr, pairs) ->
+        EList (id, processList exprs)
+    | EMatch (mid, mexpr, pairs) ->
         EMatch
-          (id, f mexpr, List.map ~f:(fun (name, expr) -> (name, f expr)) pairs)
-    | ERecord (id, fields) ->
+          ( mid
+          , f mexpr
+          , List.filterMap
+              ~f:(fun (pattern, expr) ->
+                if eid expr = id || Fluid.pid pattern = id
+                then None
+                else Some (pattern, f expr) )
+              pairs )
+    | ERecord (rid, fields) ->
         ERecord
-          (id, List.map ~f:(fun (id, name, expr) -> (id, name, f expr)) fields)
+          ( rid
+          , List.filterMap
+              ~f:(fun (fid, name, expr) ->
+                if fid = id || eid expr = id
+                then None
+                else Some (fid, name, f expr) )
+              fields )
     | EPipe (id, exprs) ->
-        EPipe (id, List.map ~f exprs)
+      ( match processList exprs with
+      | [EBlank _; EBinOp (id, op, EPipeTarget ptid, rexpr, ster)]
+      | [EBinOp (id, op, EPipeTarget ptid, rexpr, ster); EBlank _] ->
+          EBinOp (id, op, EBlank ptid, rexpr, ster)
+      | [EBlank _; EFnCall (id, name, EPipeTarget ptid :: tail, ster)]
+      | [EFnCall (id, name, EPipeTarget ptid :: tail, ster); EBlank _] ->
+          EFnCall (id, name, EBlank ptid :: tail, ster)
+      | [justOne] ->
+          justOne
+      | newExprs ->
+          EPipe (id, newExprs) )
     | EConstructor (id, nameID, name, exprs) ->
-        EConstructor (id, nameID, name, List.map ~f exprs)
+        EConstructor (id, nameID, name, processList exprs)
     | EOldExpr _ ->
         expr
     | EPartial (id, str, oldExpr) ->
