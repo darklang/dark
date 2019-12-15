@@ -346,46 +346,76 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
         EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
 
 
-let rec reduce
+let toText (e : fluidExpr) = Fluid.eToString Fluid_test_data.defaultTestState e
+
+let pointerToText p : string =
+  match p with
+  | PExpr e ->
+      toText (Fluid.fromExpr Fluid_test_data.defaultTestState e)
+  | PField b
+  | PVarBind b
+  | PKey b
+  | PFFMsg b
+  | PFnName b
+  | PFnCallName b
+  | PConstructorName b ->
+      Blank.toMaybe b |> Option.withDefault ~default:"blank"
+  | PPattern _ ->
+      "pattern TODO"
+  | _ ->
+      "not valid here"
+
+
+let verbosityThreshold = 30
+
+let debugAST length msg e : unit =
+  if length < verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
+
+
+let reduce
     (ast : fluidExpr)
     (testFn : fluidExpr -> fluidExpr * fluidState)
     (checkFn : fluidExpr -> fluidState -> bool) : fluidExpr =
-  let ids =
-    ast
-    |> fun x ->
-    Fluid.toExpr x
-    |> AST.allData
-    |> List.map ~f:Pointer.toID
-    |> List.indexedMap ~f:(fun i v -> (i, v))
-  in
-  let length = List.length ids in
-  let result, _ =
-    List.foldl ids ~init:(ast, true) ~f:(fun (idx, id) (ast, continue) ->
-        if not continue
-        then (ast, false)
-        else (
-          Js.log2 "removing expression " (idx, length, id) ;
-          let adjustedTestcase = remove id ast in
-          if ast = adjustedTestcase
-          then (
-            Js.log "no change, trying again" ;
-            (ast, true) )
-          else
-            let newAST, newState = testFn adjustedTestcase in
-            let passed = checkFn newAST newState in
-            if passed
-            then (
-              Js.log "removed the good bit, trying again" ;
-              (ast, true) )
-            else (
-              Js.log
-                "Success! We've reduced and it still fails. Let's go again!" ;
-              Js.log2
-                "newAST"
-                (Fluid.eToString
-                   Fluid_test_data.defaultTestState
-                   adjustedTestcase) ;
-              (reduce adjustedTestcase testFn checkFn, false) ) ) )
-  in
-  Js.log "I guess we're done" ;
-  result
+  let sentinel = Fluid_test_data.int "56756756" in
+  let oldAST = ref sentinel in
+  let newAST = ref ast in
+  while oldAST <> newAST do
+    Js.log2 "starting to reduce\n" (toText !newAST) ;
+    oldAST := !newAST ;
+    let pointers =
+      !newAST
+      |> fun x ->
+      Fluid.toExpr x |> AST.allData |> List.indexedMap ~f:(fun i v -> (i, v))
+    in
+    let length = List.length pointers in
+    let latestAST = ref !newAST in
+    List.iter pointers ~f:(fun (idx, pointer) ->
+        ( try
+            let id = Pointer.toID pointer in
+            Js.log2 "removing " (idx, length, id) ;
+            let reducedAST = remove id !latestAST in
+            if !latestAST = reducedAST
+            then Js.log "no change, trying next id"
+            else
+              let newAST, newState = testFn reducedAST in
+              let passed = checkFn newAST newState in
+              if passed
+              then (
+                Js.log "removed the good bit, trying next id" ;
+                debugAST length "started with" !latestAST ;
+                debugAST length "result was" reducedAST ;
+                debugAST length "after testing" newAST ;
+                Js.log2 "pos is" newState.newPos )
+              else (
+                Js.log
+                  "Success! We've reduced and it still fails. Let's keep going!" ;
+                debugAST length "started with" !latestAST ;
+                debugAST length "result was" reducedAST ;
+                debugAST length "after testing" newAST ;
+                Js.log2 "pos is" newState.newPos ;
+                latestAST := reducedAST )
+          with _ -> Js.log "Exception, let's skip this one" ) ;
+        Js.log "\n\n" ) ;
+    newAST := !latestAST
+  done ;
+  !newAST
