@@ -82,8 +82,8 @@ let () =
                   Fluid_fuzzer.reduce testcase testFn testChecker
                 in
                 let text = toText reduced in
-                Js.log2 "text" text ;
-                (* Js.log2 "structure" (eToStructure defaultTestState reduced) ; *)
+                Js.log2 "finished program:\n" text ;
+                Js.log2 "structure" (show_fluidExpr reduced) ;
                 expect false |> toEqual true )
               else expect true |> toEqual true )
         done
