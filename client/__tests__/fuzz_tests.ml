@@ -67,7 +67,10 @@ let () =
           let name = testName ^ " #" ^ string_of_int i in
           test name (fun () ->
               Fluid_fuzzer.setSeed i ;
-              let testcase = Fluid_fuzzer.generateExpr () in
+              let testcase =
+                Fluid_fuzzer.generateExpr ()
+                |> Fluid.clone ~state:defaultTestState
+              in
               Js.log2 "testing: " name ;
               let newAST, newState = testFn testcase in
               Js.log2 "checking: " name ;
