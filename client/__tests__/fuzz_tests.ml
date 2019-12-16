@@ -35,12 +35,8 @@ let process_cmdline_args () =
       | Some "--verbosityThreshold", str ->
           Fluid_fuzzer.verbosityThreshold := int_of_string str ;
           command := None
-      | None, _
-        when Tc.String.contains
-               str
-               ~substring:"lib/js/__tests__/fuzz_tests.bs.js" ->
-          (* ignore the filename (can't use the whole name as
-           * assert-in-container rewrites it *)
+      | None, _ when Tc.String.endsWith str ~suffix:"fuzz_tests.bs.js" ->
+          (* ignore the filename *)
           ()
       | None, "/usr/bin/node" ->
           (* ignore *)
