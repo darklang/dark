@@ -488,25 +488,25 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
         | Key.K ->
             if osCmdKeyHeld then Entry.openOmnibox m else NoChange
         | Key.A ->
-            if event.ctrlKey then Viewport.pageLeft m else NoChange
+            if event.ctrlKey then Viewport.pageLeft () else NoChange
         | Key.E ->
-            if event.ctrlKey then Viewport.pageRight m else NoChange
+            if event.ctrlKey then Viewport.pageRight () else NoChange
         | Key.F ->
-            if event.ctrlKey then Viewport.pageDown m else NoChange
+            if event.ctrlKey then Viewport.pageDown () else NoChange
         | Key.B ->
-            if event.ctrlKey then Viewport.pageUp m else NoChange
+            if event.ctrlKey then Viewport.pageUp () else NoChange
         | Key.PageUp ->
-            Viewport.pageUp m
+            Viewport.pageUp ()
         | Key.PageDown ->
-            Viewport.pageDown m
+            Viewport.pageDown ()
         | Key.Up ->
-            Viewport.moveUp m (* NB: see `stopKeys` in ui.html *)
+            Viewport.moveUp () (* NB: see `stopKeys` in ui.html *)
         | Key.Down ->
-            Viewport.moveDown m (* NB: see `stopKeys` in ui.html *)
+            Viewport.moveDown () (* NB: see `stopKeys` in ui.html *)
         | Key.Left ->
-            Viewport.moveLeft m
+            Viewport.moveLeft ()
         | Key.Right ->
-            Viewport.moveRight m
+            Viewport.moveRight ()
         | Key.Zero ->
             Viewport.moveToOrigin
         | Key.Tab ->

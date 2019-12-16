@@ -16,40 +16,25 @@ let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
-let moveCanvasBy (m : model) (x : int) (y : int) : modification =
-  let dx, dy =
-    if VariantTesting.variantIsActive m GridLayout
-    then (x / 2, y / 2)
-    else (x, y)
-  in
-  let offset = m.canvasProps.offset in
-  let pos = addPos offset {x = dx; y = dy} in
-  MoveCanvasTo (pos, DontAnimateTransition)
+let pageUp () : modification =
+  MoveCanvasBy (0,-1*Native.Window.viewportHeight)
 
+let pageDown () : modification = MoveCanvasBy (0,Native.Window.viewportHeight)
 
-let pageUp (m : model) : modification =
-  moveCanvasBy m 0 (-1 * Defaults.pageHeight)
+let pageLeft () : modification =
+  MoveCanvasBy (-1*Native.Window.viewportWidth, 0)
 
+let pageRight () : modification = MoveCanvasBy (Native.Window.viewportWidth, 0)
 
-let pageDown (m : model) : modification = moveCanvasBy m 0 Defaults.pageHeight
+let moveUp () : modification =
+  MoveCanvasBy (0, -1 * Defaults.moveSize)
 
-let pageLeft (m : model) : modification =
-  moveCanvasBy m (-1 * Defaults.pageWidth) 0
+let moveDown () : modification = MoveCanvasBy (0, Defaults.moveSize)
 
+let moveLeft () : modification =
+  MoveCanvasBy (-1 * Defaults.moveSize, 0)
 
-let pageRight (m : model) : modification = moveCanvasBy m Defaults.pageWidth 0
-
-let moveUp (m : model) : modification =
-  moveCanvasBy m 0 (-1 * Defaults.moveSize)
-
-
-let moveDown (m : model) : modification = moveCanvasBy m 0 Defaults.moveSize
-
-let moveLeft (m : model) : modification =
-  moveCanvasBy m (-1 * Defaults.moveSize) 0
-
-
-let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
+let moveRight () : modification = MoveCanvasBy (Defaults.moveSize, 0)
 
 let moveToOrigin : modification =
   MoveCanvasTo (Defaults.origin, DontAnimateTransition)
