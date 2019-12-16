@@ -138,6 +138,8 @@ let tlid j = TLID (wireIdentifier j)
 
 let pos j : pos = {x = field "x" int j; y = field "y" int j}
 
+let absPos j : pos = {x = abs (field "x" int j); y = abs (field "y" int j)}
+
 let vPos j : vPos = {vx = field "vx" int j; vy = field "vy" int j}
 
 let blankOr d =
@@ -486,7 +488,7 @@ let db pos j : db =
 
 
 let toplevel j : toplevel =
-  let pos = field "pos" pos j in
+  let pos = field "pos" absPos j in
   let variant =
     variants
       [ ("Handler", variant1 (fun x -> TLHandler x) (handler pos))
