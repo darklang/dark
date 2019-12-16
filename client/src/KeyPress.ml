@@ -66,9 +66,9 @@ let undo_redo (m : model) (redo : bool) : modification =
 let openOmnibox (m : model) : modification =
   match m.currentPage with
   | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-      Many [Deselect; Entry.openOmnibox m]
+      Many [Deselect; Entry.openOmnibox None]
   | FocusedFn _ | FocusedType _ ->
-      Entry.openOmnibox m
+      Entry.openOmnibox None
 
 
 let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
@@ -484,9 +484,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
       | Architecture ->
         ( match event.keyCode with
         | Key.Enter ->
-            Entry.openOmnibox m
+            Entry.openOmnibox None
         | Key.K ->
-            if osCmdKeyHeld then Entry.openOmnibox m else NoChange
+            if osCmdKeyHeld then Entry.openOmnibox None else NoChange
         | Key.A ->
             if event.ctrlKey then Viewport.pageLeft () else NoChange
         | Key.E ->

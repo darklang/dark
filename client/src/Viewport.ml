@@ -7,8 +7,11 @@ let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 
 let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
 
-let toAbsolute (m : model) (pos : vPos) : pos =
-  let topleft = m.canvasProps.offset in
+let toAbsolute (pos : vPos) : pos =
+  let topleft = 
+    let x, y = Native.Ext.appScrollPos ()
+    in {x; y}
+  in
   addPos {x = pos.vx; y = pos.vy} topleft
 
 

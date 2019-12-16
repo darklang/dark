@@ -10,8 +10,16 @@ module RT = Runtime
 module TL = Toplevel
 module Regex = Util.Regex
 
-let openOmnibox (m : model) : modification =
-  Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
+let openOmnibox (vPos : vPos option) : modification =
+  let vp =
+    match vPos with
+    | Some p -> p
+    | None ->
+      (* Let's try to get this closer to center top *)
+      {vx = Native.Window.viewportWidth/2 - 200 ; vy = 200}
+  in
+  let pos = Viewport.toAbsolute vp in
+  Enter (Creating pos)
 
 
 (* --------------------- *)
@@ -230,8 +238,7 @@ let newDB (name : string) (pos : pos) (m : model) : modification =
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
-  let pos = {x = pos.x + 17; y = pos.y + 200} in
-  Debug.loG "submitOmniAction" pos;
+  let pos = {x = pos.x ; y = pos.y - 100} in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->

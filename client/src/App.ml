@@ -1140,7 +1140,7 @@ let update_ (msg : msg) (m : model) : modification =
           | Deselected ->
               Many
                 [ AutocompleteMod ACReset
-                ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
+                ; Entry.openOmnibox (Some event.mePos) ]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
               Many [Entry.commit m cursor; defaultBehaviour]
@@ -1460,7 +1460,7 @@ let update_ (msg : msg) (m : model) : modification =
           let newMod = Groups.upsert m newGroup in
           ( match m.cursorState with
           | Dragging (_, _, _, origCursorState) ->
-              let mePos = Viewport.toAbsolute m event.mePos in
+              let mePos = Viewport.toAbsolute event.mePos in
               let gTlid = Groups.posInGroup mePos m.groups |> List.head in
               (* Check if the new pos is in another group *)
               ( match gTlid with
