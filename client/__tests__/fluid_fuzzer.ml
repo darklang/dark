@@ -279,7 +279,7 @@ module FuzzTest = struct
   type t =
     { name : string
     ; fn : fluidExpr -> fluidExpr * fluidState
-    ; check : fluidExpr -> fluidState -> bool }
+    ; check : testcase:fluidExpr -> newAST:fluidExpr -> fluidState -> bool }
 end
 
 (* ------------------ *)
@@ -461,7 +461,7 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
             then Js.log "no change, trying next id"
             else
               let newAST, newState = test.fn reducedAST in
-              let passed = test.check newAST newState in
+              let passed = test.check ~testcase:reducedAST ~newAST newState in
               if passed
               then (
                 Js.log "removed the good bit, trying next id" ;
@@ -500,7 +500,7 @@ let runTest (test : FuzzTest.t) : unit =
           Js.log2 "testing: " name ;
           let newAST, newState = test.fn testcase in
           Js.log2 "checking: " name ;
-          let passed = test.check newAST newState in
+          let passed = test.check ~testcase ~newAST newState in
           if passed = false
           then (
             Js.log2 "failed: " name ;
