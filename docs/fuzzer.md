@@ -41,6 +41,8 @@ To test it, call:
 
   scripts/runfuzzer
 
+The fuzzer will generate programs until it finds one that breaks. After that, it will automatically reduce the program to try and find the smallest representative program that maintains that behaviour.
+
 Once you've found a failure, add that test to the test suite to prevent
 regression. 
 
