@@ -12,7 +12,13 @@ let () =
       test
         "returns id of record field name if token is TRecordFieldname "
         (fun () ->
-          let leftLetToken = TRecordFieldname (ID "1", ID "2", 1, "name") in
+          let leftLetToken =
+            TRecordFieldname
+              { recordID = ID "1"
+              ; fieldID = ID "2"
+              ; index = 1
+              ; fieldName = "name" }
+          in
           expect (analysisID leftLetToken) |> toEqual (ID "2") ) ;
       test "return ids of" (fun () ->
           let lambdaVar = TLambdaVar (ID "1", ID "2", 1, "var") in

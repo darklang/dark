@@ -166,13 +166,27 @@ let newHandler m space name modifier pos =
     ; hTLID = tlid
     ; pos }
   in
+  let idToEnter =
+    (* TL.getNextBlank requires that there be a tl in the model to operate on;
+     * here, we're setting an ID to focus before the model is updated, so we
+     * generate our list of pointerDatas here *)
+    (* Fallback to ast if spec has no blanks *)
+    handler.spec
+    |> SpecHeaders.firstBlank
+    |> Option.withDefault ~default:(handler.ast |> Blank.toID)
+  in
   let fluidMods =
     if VariantTesting.isFluid m.tests
     then
       let s = m.fluidState in
       let newS = {s with newPos = 0} in
+      let cursorState =
+        if idToEnter = (handler.ast |> Blank.toID)
+        then FluidEntering tlid
+        else Entering (Filling (tlid, idToEnter))
+      in
       [ TweakModel (fun m -> {m with fluidState = newS})
-      ; SetCursorState (FluidEntering tlid) ]
+      ; SetCursorState cursorState ]
     else []
   in
   let pageChanges =
@@ -694,20 +708,29 @@ let submitACItem
           | PEventSpace space, ACEventSpace value, TLHandler h ->
               let new_ = B.newF value in
               let replacement = SpecHeaders.replaceEventSpace id new_ h.spec in
-              let replacement2 =
-                (* Trello ticket for this: https://trello.com/c/xTitDxAs*)
+              let replacedModifier =
                 match (replacement.space, space) with
                 | F (_, newSpace), F (_, oldSpace) when newSpace == oldSpace ->
                     replacement
+                (*
+                 * If becoming a WORKER or REPL, set modifier to "_" as it's invalid otherwise *)
+                | F (_, "REPL"), _ | F (_, "WORKER"), _ ->
+                    SpecHeaders.replaceEventModifier
+                      (B.toID h.spec.modifier)
+                      (B.newF "_")
+                      replacement
+                (*
+                 * Remove modifier when switching between any other types *)
                 | _, _ ->
                     SpecHeaders.replaceEventModifier
                       (B.toID h.spec.modifier)
                       (B.new_ ())
                       replacement
               in
-              let replacement3 =
-                (* Trello ticket with spec for this: https://trello.com/c/AmeAZMgF *)
-                match (replacement2.space, h.spec.name) with
+              let replacedName =
+                match (replacedModifier.space, h.spec.name) with
+                (*
+                 * If from a REPL, drop repl_ prefix and lowercase *)
                 | F (_, newSpace), F (_, name)
                   when newSpace <> "REPL"
                        && String.startsWith
@@ -716,7 +739,9 @@ let submitACItem
                     SpecHeaders.replaceEventName
                       (B.toID h.spec.name)
                       (B.new_ ())
-                      replacement2
+                      replacedModifier
+                (*
+                 * If from an HTTP, strip leading slash and any colons *)
                 | F (_, newSpace), F (_, name)
                   when newSpace <> "HTTP" && String.startsWith ~prefix:"/" name
                   ->
@@ -726,17 +751,19 @@ let submitACItem
                          ( String.dropLeft ~count:1 name
                          |> String.split ~on:":"
                          |> String.join ~sep:"" ))
-                      replacement2
+                      replacedModifier
+                (*
+                 * If becoming an HTTP, add a slash at beginning *)
                 | F (_, "HTTP"), F (_, name)
                   when not (String.startsWith ~prefix:"/" name) ->
                     SpecHeaders.replaceEventName
                       (B.toID h.spec.name)
                       (B.newF ("/" ^ name))
-                      replacement2
+                      replacedModifier
                 | _, _ ->
-                    replacement2
+                    replacedModifier
               in
-              saveH {h with spec = replacement3} (PEventSpace new_)
+              saveH {h with spec = replacedName} (PEventSpace new_)
           | PField _, ACField fieldname, _ ->
               let fieldname =
                 if String.startsWith ~prefix:"." fieldname
