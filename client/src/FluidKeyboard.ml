@@ -251,6 +251,10 @@ let fromChar (c : char) : key =
   match c with
   | ' ' ->
       Space
+  | '`' ->
+      Backtick
+  | '~' ->
+      Tilde
   | '!' ->
       ExclamationMark
   | '"' ->
@@ -261,6 +265,8 @@ let fromChar (c : char) : key =
       Dollar
   | '%' ->
       Percent
+  | '^' ->
+      Caret
   | '&' ->
       Ampersand
   | '\'' ->
