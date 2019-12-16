@@ -41,8 +41,10 @@ To test it, call:
 
   scripts/runfuzzer
 
-Once you've fpund a failiure, add that test to the test suite to prevent
+Once you've found a failure, add that test to the test suite to prevent
 regression. 
+
+Use `--help` to see how to control the output and what tests are run.
 
 ## Other info
 
