@@ -87,7 +87,8 @@ let processMsg
 let deleteAllTest : FuzzTest.t =
   { name = "delete-all deletes all"
   ; check =
-      (fun newAST newState -> toText newAST = "___" && newState.newPos = 0)
+      (fun ~testcase:_ ~newAST newState ->
+        toText newAST = "___" && newState.newPos = 0 )
   ; fn =
       (fun testcase ->
         processMsg
@@ -97,6 +98,12 @@ let deleteAllTest : FuzzTest.t =
           testcase ) }
 
 
+let copyPasteTest : FuzzTest.t =
+  { name = "copy paste roundtrips successfully"
+  ; check = (fun ~testcase ~newAST _ -> toText testcase = toText newAST)
+  ; fn = (fun testcase -> Fluid_clipboard_test.execute_roundtrip testcase) }
+
+
 (* ------------------ *)
 (* Run the tests *)
 (* ------------------ *)
@@ -104,4 +111,6 @@ let deleteAllTest : FuzzTest.t =
 (* See docs/fuzzer.md for documentation on how to use this. *)
 let () =
   process_cmdline_args () ;
-  runTest deleteAllTest
+  runTest deleteAllTest ;
+  runTest copyPasteTest ;
+  ()
