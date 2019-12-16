@@ -371,6 +371,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
       List.filterMap exprs ~f:(fun e ->
           match e with EBlank bid when id = bid -> None | _ -> Some (f e) )
     in
+    let fStr strid str = if strid = id then "" else str in
     match expr with
     | EInteger _
     | EBlank _
@@ -382,16 +383,22 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
     | EFloat _ ->
         expr
     | ELet (id, lhsID, name, rhs, next) ->
-        ELet (id, lhsID, name, f rhs, f next)
+        ELet (id, lhsID, fStr lhsID name, f rhs, f next)
     | EIf (id, cond, ifexpr, elseexpr) ->
         EIf (id, f cond, f ifexpr, f elseexpr)
     | EBinOp (id, op, lexpr, rexpr, ster) ->
         EBinOp (id, op, f lexpr, f rexpr, ster)
     | EFieldAccess (id, expr, fieldID, fieldname) ->
-        EFieldAccess (id, f expr, fieldID, fieldname)
+        EFieldAccess (id, f expr, fieldID, fStr fieldID fieldname)
     | EFnCall (id, name, exprs, ster) ->
         EFnCall (id, name, processList exprs, ster)
     | ELambda (id, names, expr) ->
+        let names =
+          names
+          |> List.filterMap ~f:(fun (nid, name) ->
+                 if nid = id then None else Some (nid, name) )
+          |> fun x -> if x = [] then List.take ~count:1 names else x
+        in
         ELambda (id, names, f expr)
     | EList (id, exprs) ->
         EList (id, processList exprs)
