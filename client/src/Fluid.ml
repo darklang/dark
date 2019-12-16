@@ -2347,6 +2347,17 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
       | _ ->
           recover "Not a record in addRecordRowToTheBack" ~debug:e e )
 
+let recordFieldAtIndex (recordID: id) (index:int) (ast : ast) : (id * fluidName * fluidExpr) option =
+  findExpr recordID ast
+  |> Option.andThen ~f:(fun (expr) -> match expr with
+            | (ERecord (_,fields)) -> Some fields
+            | _ -> None )
+  |> Option.andThen ~f:(fun (fields) -> List.getAt ~index:index fields)
+
+let recordExprIdAtIndex (recordID: id) (index:int) (ast : ast) : id option =
+  match recordFieldAtIndex recordID index ast with
+  | Some (_, _, fluidExpr) -> Some (eid fluidExpr)
+  | _ -> None
 
 (* ---------------- *)
 (* Partials *)
@@ -3377,7 +3388,13 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
     | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
       ->
-        (removeRecordField recordID index ast, LeftThree)
+        let newAst = (removeRecordField recordID index ast) in
+        let maybeExprID : id option = recordExprIdAtIndex recordID (index-1) newAst in
+        let target : caretTarget =
+          (match maybeExprID with
+          | None -> { astRef = ARRecord (recordID, RPOpen); offset = 1 (* right after the open paren *) }
+          | Some exprId -> caretTargetForLastPartOfExpr exprId newAst) in
+        (newAst, AtTarget target)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TBlank _
