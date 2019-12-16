@@ -500,7 +500,7 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
 (* ------------------ *)
 let runTest (test : FuzzTest.t) : unit =
   try
-    for i = !initialSeed to !initialSeed + !count do
+    for i = !initialSeed to !initialSeed + !count - 1 do
       let name = test.name ^ " #" ^ string_of_int i in
       Tester.test name (fun () ->
           setSeed i ;
