@@ -479,7 +479,7 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
                 then Js.log2 "pos is" newState.newPos ;
                 latestAST := reducedAST )
           with _ -> Js.log "Exception, let's skip this one" ) ;
-        Js.log "\n\n" ) ;
+        Js.log "\n" ) ;
     newAST := !latestAST
   done ;
   !newAST
