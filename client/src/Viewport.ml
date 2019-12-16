@@ -122,3 +122,11 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       (xTarget, yTarget)
   | None ->
       (None, None)
+
+
+let moveCanvasBy (x: int) (y: int) : msg Tea.Cmd.t =
+  Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y)
+
+let moveCanvasTo (x: int) (y: int) : msg Tea.Cmd.t =
+  Debug.loG "moveCanvasTo" (x, y);
+  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y)

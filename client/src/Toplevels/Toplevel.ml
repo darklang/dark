@@ -610,3 +610,9 @@ let setSelectedAST (m : model) (ast : expr) : modification =
         recover "no ast in DBs" ~debug:tl NoChange
     | TLGroup _ ->
         recover "no ast in Groups" ~debug:tl NoChange )
+
+let getPos (tl : toplevel) : pos option =
+    match tl with
+    | TLHandler h -> Some h.pos
+    | TLDB db -> Some db.pos
+    | _ -> None

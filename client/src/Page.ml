@@ -1,6 +1,6 @@
 open Tc
 open Types
-open Prelude
+
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
@@ -82,8 +82,17 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
   ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
   }
 
+let moveToCmd (m : model) (tlid : tlid) : msg Cmd.t =
+  TL.get m tlid
+  |> Option.andThen ~f:TL.getPos
+  |> Option.map ~f:(fun p -> (* TODO(alice) figureout if sidebar is opened *)
+    let x = if p.x + 245 < Native.Window.viewportWidth then 0 else p.x in
+    let y = if p.y + 100 < Native.Window.viewportHeight then 0 else p.y in
+    Viewport.moveCanvasTo (x + 100) (y + 50)
+  )
+  |> Option.withDefault ~default:Cmd.none
 
-let setPage (m : model) (oldPage : page) (newPage : page) : model =
+let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
   match (oldPage, newPage) with
   | Architecture, FocusedFn tlid
   | FocusedHandler _, FocusedFn tlid
@@ -96,12 +105,12 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
-      { m with
+      ({ m with
         currentPage = newPage
       ; canvasProps =
           { m.canvasProps with
             lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
-      ; cursorState = Selecting (tlid, None) }
+      ; cursorState = Selecting (tlid, None) }, Cmd.none)
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
   | FocusedFn oldtlid, FocusedType newtlid
@@ -110,13 +119,13 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
     * Check they are not the same user function;
     * reset offset to origin, just in case user moved around on the fn page
     *)
-      if oldtlid == newtlid
-      then m
+      if oldtlid = newtlid
+      then (m, Cmd.none)
       else
-        { m with
+        ({ m with
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-        ; cursorState = Selecting (newtlid, None) }
+        ; cursorState = Selecting (newtlid, None) }, Cmd.none)
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
@@ -126,25 +135,22 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from Fn/Type to focused DB/hanlder
     * Jump to position where the toplevel is located
     *)
-      let tl = TL.get m tlid in
-      let offset =
-        Option.map ~f:(TL.pos >> Viewport.toCenteredOn) tl
-        |> recoverOpt "tl not found" ~default:m.canvasProps.offset
-      in
-      { m with
+      let cmd = moveToCmd m tlid in
+      ({ m with
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
-      ; canvasProps =
-          {m.canvasProps with offset; lastOffset = None; minimap = None} }
+      }, cmd)
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
-  *)
-      TL.get m tlid
-      |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
-      |> recoverOpt "switching to missing tl" ~default:m
+  *)  
+    let cmd = moveToCmd m tlid in
+    ({ m with
+    currentPage = newPage
+  ; cursorState = Selecting (tlid, None)
+  }, cmd)
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
   | FocusedHandler (otlid, _), FocusedGroup (tlid, _)
@@ -157,13 +163,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
       (* Going from focused db/handler to another focused db/handler
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos
-  *)
-      if otlid = tlid
-      then m
-      else
-        TL.get m tlid
-        |> Option.map ~f:(fun tl -> calculatePanOffset m tl newPage)
-        |> recoverOpt "switching to missing tl" ~default:m
+  *) (* TODO(alice) if it's witin view don't move *)
+    if otlid = tlid then (m, Cmd.none) else ({ m with
+    currentPage = newPage
+  ; cursorState = Selecting (tlid, None)
+  }, moveToCmd m tlid)
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
@@ -175,15 +179,15 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         | None ->
             m.canvasProps.offset
       in
-      { m with
+      ({ m with
         currentPage = newPage
       ; canvasProps =
-          {m.canvasProps with offset; lastOffset = None; minimap = None} }
+          {m.canvasProps with offset; lastOffset = None; minimap = None} }, Cmd.none)
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect
     *)
-      {m with currentPage = newPage; cursorState = Deselected}
+      ({m with currentPage = newPage; cursorState = Deselected}, Cmd.none)
 
 
 let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =

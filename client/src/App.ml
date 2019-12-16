@@ -474,11 +474,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
           let cap = Page.capMinimap m.currentPage page in
-          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
-          (Page.setPage m m.currentPage page, cmds)
+          let newM, pageCmd = Page.setPage m m.currentPage page in
+          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: pageCmd :: cap) in
+          (newM, cmds)
         else
-          ( Page.setPage m m.currentPage Architecture
-          , Url.updateUrl Architecture )
+          let newM, pageCmd = Page.setPage m m.currentPage Architecture in
+          ( newM
+          , Cmd.batch [Url.updateUrl Architecture ; pageCmd] )
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
@@ -520,8 +522,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           match TL.get m tlid with
           | Some tl when tlidOf m.cursorState <> Some tlid ->
               let page = TL.asPage tl false in
-              let m = Page.setPage m m.currentPage page in
-              (m, Url.updateUrl page)
+              let m, moveCmd = Page.setPage m m.currentPage page in
+              (m, Cmd.batch [Url.updateUrl page; moveCmd])
           | _ ->
               (m, Cmd.none)
         in
@@ -566,7 +568,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         then
           let m = Editor.closeMenu m in
           let hashcmd = [Url.updateUrl Architecture] in
-          let m = Page.setPage m m.currentPage Architecture in
+          let m, mvCmd = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
           let timeStamp = Js.Date.now () /. 1000.0 in
@@ -577,7 +579,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = timeStamp }
           in
           let commands =
-            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage]
+            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage] @ [mvCmd]
           in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
@@ -956,7 +958,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | MoveCanvasBy (x, y) ->
-      let moveCmd = Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y) in 
+      let moveCmd = Viewport.moveCanvasBy x y in 
       (m, moveCmd )
     | MoveCanvasTo (offset, panAnimation) ->
         let w, h = Native.Ext.appScrollLimits () in
