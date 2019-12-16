@@ -27,7 +27,7 @@ let process_cmdline_args () =
           Tester.pattern := Some (Js.Re.fromString str) ;
           command := None
       | Some "--count", str ->
-          Fluid_fuzzer.initialSeed := int_of_string str ;
+          Fluid_fuzzer.count := int_of_string str ;
           command := None
       | Some "--initialSeed", str ->
           Fluid_fuzzer.initialSeed := int_of_string str ;
