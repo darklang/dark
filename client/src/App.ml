@@ -955,6 +955,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           List.filter ~f:isComplete m.executingFunctions
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
+    | MoveCanvasBy (x, y) ->
+      let moveCmd = Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y) in 
+      (m, moveCmd )
     | MoveCanvasTo (offset, panAnimation) ->
         let w, h = Native.Ext.appScrollLimits () in
         let x = Util.clamp offset.x 0 w in
@@ -1147,7 +1150,8 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      Viewport.moveCanvasBy m x y
+      (* Viewport.moveCanvasBy m x y *)
+    MoveCanvasBy (x, y)
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with

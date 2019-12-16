@@ -1103,6 +1103,7 @@ and modification =
   | ExecutingFunctionBegan of tlid * id
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
+  | MoveCanvasBy of int * int
   | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
