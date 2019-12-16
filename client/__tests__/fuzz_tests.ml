@@ -106,6 +106,7 @@ let copyPasteTest : FuzzTest.t =
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 let () =
+  Tester.verbose := true ;
   process_cmdline_args () ;
   runTest deleteAllTest ;
   runTest copyPasteTest ;
