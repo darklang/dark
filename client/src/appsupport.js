@@ -110,13 +110,13 @@ function isHandledByFluid(evt) {
 
   // special case the command palette on mac, where alt-x registers as `≈`
   // see FluidKeyboard.ml where this is translated to a (Letter 'x').
-  if (evt.key == "≈" && evt.altKey) {
+  if (evt.key == "≈" && evt.altKey && !evt.metaKey && !evt.CtrlKey) {
     return true;
   }
 
   // stop non-ascii because right now it wrecks the editor state.
   if (!validAscii) {
-    return true;
+    return false;
   }
 
   // don't handle anything with command, unless it's something we care about.
