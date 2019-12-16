@@ -1,3 +1,5 @@
+(* See docs/unittests.md for documentation on how to use this. *)
+
 open Tc
 
 module Private = struct
