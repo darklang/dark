@@ -1,10 +1,9 @@
+open Tester
 open Types
 open Analysis
-open Jest
-open Expect
 module B = Blank
 
-let () =
+let run () =
   describe "requestAnalysis" (fun () ->
       test "on tlid not found" (fun () ->
           let m =

@@ -1,7 +1,6 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 open Prelude
 module B = Blank
 module D = Defaults
@@ -25,7 +24,7 @@ let aHandler
   TLHandler {ast = expr; spec; hTLID = tlid; pos}
 
 
-let () =
+let run () =
   describe "calculatePanOffset" (fun () ->
       let m = D.defaultModel in
       let tl = aHandler ~pos:{x = 500; y = 500} () in

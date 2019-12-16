@@ -1,5 +1,4 @@
-open Jest
-open Expect
+open Tester
 open Tc
 open Types
 open Prelude
@@ -501,7 +500,7 @@ let ts
     (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
 
 
-let () =
+let run () =
   describe "Strings" (fun () ->
       t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;

@@ -1,7 +1,6 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 open AST
 module B = Blank
 
@@ -32,7 +31,7 @@ let completion =
         ; fnInfix = false } ] }
 
 
-let () =
+let run () =
   describe "ast" (fun () ->
       let id1 = ID "5" in
       let id2 = ID "10" in

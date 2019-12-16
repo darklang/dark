@@ -131,7 +131,7 @@ let splitOnEquals (s : string) : (string * bool) option =
       None
 
 
-let queryParams : (string * bool) list =
+let queryParams () : (string * bool) list =
   let search = (Tea_navigation.getLocation ()).search in
   match String.uncons search with
   | Some ('?', rest) ->
@@ -144,11 +144,11 @@ let queryParams : (string * bool) list =
 
 
 let queryParamSet (name : string) : bool =
-  List.find ~f:(fun (k, v) -> if k = name then v else false) queryParams
+  List.find ~f:(fun (k, v) -> if k = name then v else false) (queryParams ())
   |> Option.withDefault ~default:(name, false)
   |> Tuple2.second
 
 
-let isDebugging = queryParamSet "debugger"
+let isDebugging () = queryParamSet "debugger"
 
-let isIntegrationTest = queryParamSet "integration-test"
+let isIntegrationTest () = queryParamSet "integration-test"

@@ -602,10 +602,3 @@ let defaultTestModel =
                 ]))
   ; builtInFunctions = defaultTestFunctions
   ; fluidState = defaultTestState }
-
-
-let () =
-  let open Jest in
-  let open Expect in
-  (* empty test needed to stop jest complaining about this fix *)
-  test "empty" (fun _ -> expect () |> toEqual ())
