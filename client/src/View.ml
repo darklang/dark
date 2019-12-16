@@ -329,6 +329,17 @@ let viewCanvas (m : model) : msg Html.html =
       | None ->
           [] )
   in
+  let overlay =
+    let showOverlay =
+      match m.currentPage with
+      | FocusedHandler _ | FocusedDB _ ->	
+        true
+      | Architecture ->
+        (match unwrapCursorState m.cursorState with Entering (Creating _) -> true | _ -> false)
+      | _ -> false
+    in
+    if showOverlay then Html.div [Html.class' "overlay"] [] else Vdom.noNode
+  in
   let pageClass =
     match m.currentPage with
     | Architecture ->
@@ -351,7 +362,7 @@ let viewCanvas (m : model) : msg Html.html =
     [ Html.id "canvas"
     ; Html.class' (pageClass ^ " " ^ sidebarStateClass)
     ]
-    (allDivs)
+    (overlay :: allDivs)
 
 
 let viewMinimap (data : string option) : msg Html.html =

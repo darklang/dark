@@ -30,6 +30,10 @@
   left: 320px;
 }
 
+.omnibox {
+  z-index: 60;
+}
+
 .entry {
   form {
     #search-container {

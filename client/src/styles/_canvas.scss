@@ -205,15 +205,11 @@ body #app * {
   position: fixed;
   top: -1 * $ridiculously-large;
   left: -1 * $ridiculously-large;
-  display: none;
+  display: block;
   height: 2 * $ridiculously-large;
   width: 2 * $ridiculously-large;
   overflow: visible;
   background-color: rgba(72, 72, 72, 0.75);
-
-  &.show {
-    display: block;
-  }
 }
 
 .toast {
