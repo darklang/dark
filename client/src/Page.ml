@@ -85,15 +85,12 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
 let moveToCmd (m : model) (tlid : tlid) : msg Cmd.t =
   TL.get m tlid
   |> Option.andThen ~f:TL.getPos
-  |> Option.map ~f:(fun p ->
-    let x = match p.x - 200 with nx when nx > 0 -> nx | _ -> 0 in
-    let y = match p.y - 100 with ny when ny > 0 -> ny | _ -> 0 in
-    Viewport.moveCanvasTo x y
-  )
+  |> Option.map ~f:Viewport.moveCanvasToPos
   |> Option.withDefault ~default:Cmd.none
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
   match (oldPage, newPage) with
+  (* Arch to Special Space *)
   | Architecture, FocusedFn tlid
   | FocusedHandler _, FocusedFn tlid
   | FocusedDB _, FocusedFn tlid
@@ -105,12 +102,17 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       (* Going from non-fn/type page to fn/type page.
     * Save the canvas position; set offset to origin
     *)
+      let savePos =
+        let x, y = Native.Ext.appScrollPos () in
+        {x; y}
+      in
       ({ m with
         currentPage = newPage
       ; canvasProps =
           { m.canvasProps with
-            lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
+            lastOffset = Some savePos; offset = Defaults.origin }
       ; cursorState = Selecting (tlid, None) }, Cmd.none)
+  (* Special space to another special space *)
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
   | FocusedFn oldtlid, FocusedType newtlid
@@ -126,6 +128,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
         ; cursorState = Selecting (newtlid, None) }, Cmd.none)
+  (* Special space to Arch *)
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
   | FocusedFn _, FocusedGroup (tlid, _)
@@ -140,17 +143,22 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
         currentPage = newPage
       ; cursorState = Selecting (tlid, None)
       }, cmd)
+  (* Arch to Arch Focused *)
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
   *)  
-    let cmd = moveToCmd m tlid in
+    let cmd =
+      if Viewport.isToplevelVisible tlid
+      then Cmd.none else moveToCmd m tlid
+    in
     ({ m with
     currentPage = newPage
   ; cursorState = Selecting (tlid, None)
   }, cmd)
+  (* Arch Focused to Arch Focused *)
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
   | FocusedHandler (otlid, _), FocusedGroup (tlid, _)
@@ -163,26 +171,31 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       (* Going from focused db/handler to another focused db/handler
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos
-  *) (* TODO(alice) if it's witin view don't move *)
+  *)
+    let cmd =
+      if Viewport.isToplevelVisible tlid
+      then Cmd.none else moveToCmd m tlid
+    in
     if otlid = tlid then (m, Cmd.none) else ({ m with
     currentPage = newPage
   ; cursorState = Selecting (tlid, None)
-  }, moveToCmd m tlid)
+  }, cmd)
+  (* Special space to Special space *)
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
     *)
-      let offset =
+      let cmd = 
         match m.canvasProps.lastOffset with
         | Some lo ->
-            lo
+            Viewport.moveCanvasTo lo.x lo.y
         | None ->
-            m.canvasProps.offset
+            Cmd.none
       in
       ({ m with
         currentPage = newPage
       ; canvasProps =
-          {m.canvasProps with offset; lastOffset = None; minimap = None} }, Cmd.none)
+          {m.canvasProps with lastOffset = None; minimap = None} }, cmd)
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect

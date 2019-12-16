@@ -1152,7 +1152,6 @@ let update_ (msg : msg) (m : model) : modification =
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
   | MouseWheel (x, y) ->
-      (* Viewport.moveCanvasBy m x y *)
     MoveCanvasBy (x, y)
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =

@@ -79,6 +79,10 @@ module Ext = struct
 
   external scrollWidth : Dom.element -> int = "scrollWidth" [@@bs.get]
 
+  external scrollTop : Dom.element -> int = "scrollTop" [@@bs.get]
+
+  external scrollLeft : Dom.element -> int = "scrollLeft" [@@bs.get]
+
   external scrollTo : Dom.element -> int -> int -> unit = "scrollTo" [@@bs.send]
 
   external scrollBy : Dom.element -> int -> int -> unit = "scrollBy" [@@bs.send]
@@ -118,6 +122,11 @@ module Ext = struct
     match (querySelector "#app") with
     | Some app -> scrollTo app x y
     | None -> ()
+  
+  let appScrollPos () : (int * int) =
+    match (querySelector "#app") with
+    | Some app -> (scrollLeft app,scrollTop app)
+    | None -> (0, 0)
   
   let appScrollLimits () : (int * int) =
     match (querySelector "#app") with

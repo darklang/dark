@@ -19,6 +19,8 @@ let pageWidth : int = 500
 
 let unsetCSRF : string = "UNSET_CSRF"
 
+let tlSpacing : pos = {x = 100; y = 100}
+
 let defaultEditor : serializableEditor =
   { editorSettings = {runTimers = true; showFluidDebugger = false}
   ; cursorState = Deselected

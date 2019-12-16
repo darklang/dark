@@ -54,6 +54,10 @@ let moveRight (m : model) : modification = moveCanvasBy m Defaults.moveSize 0
 let moveToOrigin : modification =
   MoveCanvasTo (Defaults.origin, DontAnimateTransition)
 
+let sidebarWidth () : int =
+  Native.Ext.querySelector "#sidebar-left"
+  |> Option.map ~f:Native.Ext.clientWidth
+  |> recoverOpt "can't find sidebar HTML body" ~default:320
 
 (* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
   Default values (when we can't find get elements from dom) are based on
@@ -62,11 +66,7 @@ let moveToOrigin : modification =
 *)
 let centerCanvasOn (tl : toplevel) : pos =
   let windowWidth = Native.Window.viewportWidth in
-  let sidebarWidth =
-    Native.Ext.querySelector "#sidebar-left"
-    |> Option.map ~f:Native.Ext.clientWidth
-    |> Option.withDefault ~default:320
-  in
+  let sidebarWidth = sidebarWidth () in
   let tlWidth =
     let tle =
       Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID (TL.id tl))
@@ -77,18 +77,13 @@ let centerCanvasOn (tl : toplevel) : pos =
   let offsetLeft = sidebarWidth + availWidth in
   {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
 
-
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
 let moveToToken (id : id) (tl : toplevel) : int option * int option =
   let tokenSelector = ".id-" ^ Prelude.deID id in
   let tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
   match Native.Ext.querySelector tokenSelector with
   | Some tokenDom ->
-      let sidebarWidth =
-        Native.Ext.querySelector "#sidebar-left"
-        |> Option.map ~f:Native.Ext.clientWidth
-        |> recoverOpt "can't find sidebar HTML body" ~default:320
-      in
+      let sidebarWidth = sidebarWidth () in
       let viewport : Native.rect =
         { id = "#canvas"
         ; top = 0
@@ -123,10 +118,45 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
   | None ->
       (None, None)
 
+let isToplevelVisible ?(isFullyInside = true) (tlid : tlid) : bool =
+  let viewport : Native.rect =
+    let sidebar = sidebarWidth () in
+    { id = "#canvas"
+    ; top = 0
+    ; left = sidebar
+    ; right = Native.Window.viewportWidth
+    ; bottom = Native.Window.viewportHeight }
+  in
+  let id = Prelude.showTLID tlid in
+  Native.Ext.querySelector (".toplevel.tl-" ^ id)
+  |> Option.map ~f:(fun tl -> 
+    let rect = Native.Ext.getBoundingClient tl id in
+    if isFullyInside
+    then 
+      rect.top > viewport.top &&
+      rect.left > viewport.left &&
+      rect.right < viewport.right &&
+      rect.bottom < viewport.bottom
+    else
+      rect.top > viewport.top ||
+      rect.left > viewport.left ||
+      rect.right < viewport.right ||
+      rect.bottom < viewport.bottom
+  )
+  |> Option.withDefault ~default:false
 
 let moveCanvasBy (x: int) (y: int) : msg Tea.Cmd.t =
   Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y)
 
 let moveCanvasTo (x: int) (y: int) : msg Tea.Cmd.t =
-  Debug.loG "moveCanvasTo" (x, y);
   Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y)
+
+let moveCanvasToPos (pos : pos) : msg Tea.Cmd.t =
+  let mx, my = Native.Ext.appScrollLimits () in
+  let o = Defaults.tlSpacing in
+  let x =
+    let sidebarOffset = sidebarWidth () in
+    Util.clamp (pos.x - sidebarOffset - o.x) 0 mx
+  in
+  let y = Util.clamp (pos.y - o.y) 0 my in
+  moveCanvasTo x y
