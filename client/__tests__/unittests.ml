@@ -30,25 +30,26 @@ let process_cmdline_args () =
 
 (* See docs/unittests.md for documentation on how to use this. *)
 let () =
+  let open Tester in
   process_cmdline_args () ;
-  Analysis_test.run () ;
-  Ast_test.run () ;
-  Autocomplete_test.run () ;
-  Curl_test.run () ;
-  Fluid_clipboard_test.run () ;
-  Darkstorage_test.run () ;
-  Fluid_ac_test.run () ;
-  Fluid_pattern_test.run () ;
-  Fluid_test.run () ;
-  Fluid_token_test.run () ;
-  Introspect_test.run () ;
-  Porting_test.run () ;
-  Refactor_test.run () ;
-  Rpc_test.run () ;
-  Runtime_test.run () ;
-  View_blankor.run () ;
+  describe "Analysis_test" Analysis_test.run ;
+  describe "Ast_test" Ast_test.run ;
+  describe "Autocomplete_test" Autocomplete_test.run ;
+  describe "Curl_test" Curl_test.run ;
+  describe "Fluid_clipboard_test" Fluid_clipboard_test.run ;
+  describe "Darkstorage_test" Darkstorage_test.run ;
+  describe "Fluid_ac_test" Fluid_ac_test.run ;
+  describe "Fluid_pattern_test" Fluid_pattern_test.run ;
+  describe "Fluid_test" Fluid_test.run ;
+  describe "Fluid_token_test" Fluid_token_test.run ;
+  describe "Introspect_test" Introspect_test.run ;
+  describe "Porting_test" Porting_test.run ;
+  describe "Refactor_test" Refactor_test.run ;
+  describe "Rpc_test" Rpc_test.run ;
+  describe "Runtime_test" Runtime_test.run ;
+  describe "View_blankor" View_blankor.run ;
   if !domTests
   then (
     DOMSupport.init () ;
-    Page_test.run () ) ;
+    describe "Page_test" Page_test.run ) ;
   Tester.finish ()
