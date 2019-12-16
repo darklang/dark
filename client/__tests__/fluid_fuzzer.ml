@@ -286,163 +286,140 @@ end
 (* Test case reduction *)
 (* ------------------ *)
 
-let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
-  let f = remove id in
-  if eid expr = id
-  then
-    (* If we can clearly unwrap the expression by replacing the only
-     * non-blank child, then we do it. Otherwise we return the current
-     * expression, and will try again on a later iteration. *)
-    let firstChild children =
-      match children with
-      | [] ->
-          newB ()
-      | [first] ->
-          first
-      | _ ->
-          (* we'll let the algorithm remove some other stuff first *)
-          expr
-    in
+let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
+  let f = unwrap id in
+  let childOr (exprs : fluidExpr list) =
+    List.find exprs ~f:(fun e -> eid e = id)
+  in
+  let newExpr =
     match expr with
-    | EInteger _ | EString _ | EVariable _ | EBool _ | ENull _ | EFloat _ ->
-        newB ()
-    | EBlank _ ->
-        expr
-    | EPipeTarget _ ->
-        (* dont remove pipetargets from here *)
-        expr
-    | ELet (_, _, _, EBlank _, next) ->
-        next
-    | ELet (_, _, _, rhs, EBlank _) ->
-        rhs
-    | ELet _ ->
-        expr
-    | EIf (_, EBlank _, EBlank _, elseexpr) ->
-        elseexpr
-    | EIf (_, EBlank _, ifexpr, EBlank _) ->
-        ifexpr
-    | EIf (_, cond, EBlank _, EBlank _) ->
-        cond
-    | EIf _ ->
-        expr
-    | EBinOp (_, _, EBlank _, rexpr, _) ->
-        rexpr
-    | EBinOp (_, _, lexpr, _, _) ->
-        lexpr
+    | ELet (_, _, _, rhs, next) ->
+        childOr [rhs; next]
+    | EIf (_, cond, ifexpr, elseexpr) ->
+        childOr [cond; ifexpr; elseexpr]
+    | EBinOp (_, _, lexpr, rexpr, _) ->
+        childOr [lexpr; rexpr]
     | EFieldAccess (_, expr, _, _) ->
-        expr
+        childOr [expr]
     | EFnCall (_, _, exprs, _) ->
-      (match firstChild exprs with EPipeTarget _ -> newB () | other -> other)
-    | ELambda (_, _, expr) ->
-        expr
+        childOr exprs
+    | ELambda (_, _, body) ->
+        childOr [body]
     | EList (_, exprs) ->
-        firstChild exprs
-    | EMatch (_, EBlank _, pairs) ->
-        pairs |> List.map ~f:Tuple2.second |> firstChild
-    | EMatch (_, mexpr, []) ->
-        mexpr
-    | EMatch _ ->
-        expr
+        childOr exprs
+    | EMatch (_, mexpr, pairs) ->
+        childOr (mexpr :: List.map ~f:Tuple2.second pairs)
     | ERecord (_, fields) ->
-        fields |> List.map ~f:Tuple3.third |> firstChild
+        childOr (List.map ~f:Tuple3.third fields)
     | EPipe (_, exprs) ->
-        firstChild exprs
+        childOr exprs
     | EConstructor (_, _, _, exprs) ->
-        firstChild exprs
-    | EOldExpr _ ->
-        expr
+        childOr exprs
     | EPartial (_, _, oldExpr) ->
-        oldExpr
+        childOr [oldExpr]
     | ERightPartial (_, _, oldExpr) ->
-        oldExpr
-    | EFeatureFlag (_, _, _, cond, EBlank _, EBlank _) ->
-        cond
-    | EFeatureFlag (_, _, _, EBlank _, casea, EBlank _) ->
-        casea
-    | EFeatureFlag (_, _, _, EBlank _, EBlank _, caseb) ->
-        caseb
-    | EFeatureFlag _ ->
-        expr
-  else
-    let processList exprs =
-      (* Strip blanks from lists rather than process them. We strip only blanks
-     * because we want other expressions the opportunity to process themselves.
-     * *)
-      List.filterMap exprs ~f:(fun e ->
-          match e with EBlank bid when id = bid -> None | _ -> Some (f e) )
-    in
-    let fStr strid str = if strid = id then "" else str in
+        childOr [oldExpr]
+    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+        childOr [cond; casea; caseb]
+    | _ ->
+        None
+  in
+  let newExpr = Option.withDefault ~default:expr newExpr in
+  recurse ~f newExpr
+
+
+let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
+  let f = blankVarNames id in
+  let fStr strid str = if strid = id then "" else str in
+  let newExpr =
     match expr with
-    | EInteger _
-    | EBlank _
-    | EString _
-    | EVariable _
-    | EBool _
-    | ENull _
-    | EPipeTarget _
-    | EFloat _ ->
-        expr
     | ELet (id, lhsID, name, rhs, next) ->
-        ELet (id, lhsID, fStr lhsID name, f rhs, f next)
-    | EIf (id, cond, ifexpr, elseexpr) ->
-        EIf (id, f cond, f ifexpr, f elseexpr)
-    | EBinOp (id, op, lexpr, rexpr, ster) ->
-        EBinOp (id, op, f lexpr, f rexpr, ster)
+        ELet (id, lhsID, fStr lhsID name, rhs, next)
     | EFieldAccess (id, expr, fieldID, fieldname) ->
-        EFieldAccess (id, f expr, fieldID, fStr fieldID fieldname)
-    | EFnCall (id, name, exprs, ster) ->
-        EFnCall (id, name, processList exprs, ster)
+        EFieldAccess (id, expr, fieldID, fStr fieldID fieldname)
     | ELambda (id, names, expr) ->
         let names =
-          names
-          |> List.filterMap ~f:(fun (nid, name) ->
-                 if nid = id then None else Some (nid, name) )
-          |> fun x -> if x = [] then List.take ~count:1 names else x
+          List.map names ~f:(fun (nid, name) ->
+              if nid = id then (nid, "") else (nid, name) )
         in
-        ELambda (id, names, f expr)
-    | EList (id, exprs) ->
-        EList (id, processList exprs)
-    | EMatch (mid, mexpr, pairs) ->
-        EMatch
-          ( mid
-          , f mexpr
-          , List.filterMap
-              ~f:(fun (pattern, expr) ->
-                if eid expr = id || Fluid.pid pattern = id
-                then None
-                else Some (pattern, f expr) )
-              pairs )
+        ELambda (id, names, expr)
     | ERecord (rid, fields) ->
         ERecord
           ( rid
-          , List.filterMap
+          , List.map
               ~f:(fun (fid, name, expr) ->
-                if fid = id || eid expr = id
-                then None
-                else Some (fid, name, f expr) )
+                if fid = id then (fid, "", expr) else (fid, name, expr) )
               fields )
-    | EPipe (id, exprs) ->
-      ( match processList exprs with
-      | [EBlank _; EBinOp (id, op, EPipeTarget ptid, rexpr, ster)]
-      | [EBinOp (id, op, EPipeTarget ptid, rexpr, ster); EBlank _] ->
-          EBinOp (id, op, EBlank ptid, rexpr, ster)
-      | [EBlank _; EFnCall (id, name, EPipeTarget ptid :: tail, ster)]
-      | [EFnCall (id, name, EPipeTarget ptid :: tail, ster); EBlank _] ->
-          EFnCall (id, name, EBlank ptid :: tail, ster)
-      | [justOne] ->
-          justOne
-      | newExprs ->
-          EPipe (id, newExprs) )
-    | EConstructor (id, nameID, name, exprs) ->
-        EConstructor (id, nameID, name, processList exprs)
-    | EOldExpr _ ->
+    | _ ->
         expr
-    | EPartial (id, str, oldExpr) ->
-        EPartial (id, str, f oldExpr)
-    | ERightPartial (id, str, oldExpr) ->
-        ERightPartial (id, str, f oldExpr)
-    | EFeatureFlag (id, msg, msgid, cond, casea, caseb) ->
-        EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
+  in
+  recurse ~f newExpr
+
+
+let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
+  let r e = remove id e in
+  let f e = if eid e = id then EBlank id else remove id e in
+  let removeFromList exprs = List.filter exprs ~f:(fun e -> eid e <> id) in
+  if eid expr = id
+  then EBlank id
+  else
+    let newExpr =
+      match expr with
+      | EFieldAccess (id, expr, fieldID, fieldname) ->
+          if id = fieldID
+          then expr
+          else EFieldAccess (id, r expr, fieldID, fieldname)
+      | EFnCall (id, name, exprs, ster) ->
+          EFnCall (id, name, removeFromList exprs, ster)
+      | ELambda (id, names, expr) ->
+          let names =
+            names
+            |> List.filterMap ~f:(fun (nid, name) ->
+                   if nid = id then None else Some (nid, name) )
+            |> fun x -> if x = [] then List.take ~count:1 names else x
+          in
+          ELambda (id, names, f expr)
+      | EList (id, exprs) ->
+          EList (id, removeFromList exprs)
+      | EMatch (mid, mexpr, pairs) ->
+          EMatch
+            ( mid
+            , f mexpr
+            , List.filterMap
+                ~f:(fun (pattern, expr) ->
+                  if eid expr = id || Fluid.pid pattern = id
+                  then None
+                  else Some (pattern, expr) )
+                pairs )
+      | ERecord (rid, fields) ->
+          ERecord
+            ( rid
+            , List.filterMap
+                ~f:(fun (fid, name, expr) ->
+                  if eid expr = id || fid = id
+                  then None
+                  else Some (fid, name, expr) )
+                fields )
+      | EPipe (id, exprs) ->
+        ( match removeFromList exprs with
+        | [EBlank _; EBinOp (id, op, EPipeTarget ptid, rexpr, ster)]
+        | [EBinOp (id, op, EPipeTarget ptid, rexpr, ster); EBlank _] ->
+            EBinOp (id, op, EBlank ptid, rexpr, ster)
+        | [EBlank _; EFnCall (id, name, EPipeTarget ptid :: tail, ster)]
+        | [EFnCall (id, name, EPipeTarget ptid :: tail, ster); EBlank _] ->
+            EFnCall (id, name, EBlank ptid :: tail, ster)
+        | [justOne] ->
+            justOne
+        | [] ->
+            EBlank id
+        | newExprs ->
+            EPipe (id, newExprs) )
+      | EConstructor (id, nameID, name, exprs) ->
+          EConstructor (id, nameID, name, removeFromList exprs)
+      | _ ->
+          expr
+    in
+    recurse ~f newExpr
 
 
 let reduce (test : FuzzTest.t) (ast : fluidExpr) =
@@ -483,7 +460,7 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
                 if length < !verbosityThreshold
                 then Js.log2 "pos is" newState.newPos ;
                 latestAST := reducedAST )
-          with _ -> Js.log "Exception, let's skip this one" ) ;
+          with e -> Js.log2 "Exception, let's skip this one" e ) ;
         Js.log "\n" ) ;
     !latestAST
   in
@@ -493,7 +470,12 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
   while oldAST <> newAST do
     Js.log2 "starting to reduce\n" (toText !newAST) ;
     oldAST := !newAST ;
-    let latestAST = !newAST |> runThrough "removing" remove in
+    let latestAST =
+      !newAST
+      |> runThrough "unwrapping" unwrap
+      |> runThrough "removing" remove
+      |> runThrough "blankVarNames" blankVarNames
+    in
     newAST := latestAST
   done ;
   !newAST
