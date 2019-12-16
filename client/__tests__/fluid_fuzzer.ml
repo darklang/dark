@@ -448,7 +448,10 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
     let pointers =
       !newAST
       |> fun x ->
-      Fluid.toExpr x |> AST.allData |> List.indexedMap ~f:(fun i v -> (i, v))
+      Fluid.toExpr x
+      |> AST.allData
+      |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
+      |> List.indexedMap ~f:(fun i v -> (i, v))
     in
     let length = List.length pointers in
     let latestAST = ref !newAST in
