@@ -1937,7 +1937,8 @@ let moveToAstRef
  * corresponding to the "very end" of that ast. The concept of "very end"
  * is related to an understanding of the tokenization of the ast, even though
  * this function doesn't explicitly depend on any tokenization functions. *)
-let rec caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
+let rec caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget
+    =
   let expr = findExpr astPartId ast in
   match expr with
   | Some (EVariable (id, str)) ->
@@ -1945,53 +1946,62 @@ let rec caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget 
   | Some (EFieldAccess (id, _, _, fieldName)) ->
       { astRef = ARFieldAccess (id, FAPFieldname)
       ; offset = String.length fieldName }
-  | Some (EInteger (id, valueStr)) -> 
-    {astRef = ARInteger id; offset = String.length valueStr}
-  | Some (EBool (id, true)) -> 
-    {astRef = ARBool id; offset = String.length "true"}
-  | Some (EBool (id, false)) -> 
-    {astRef = ARBool id; offset = String.length "false"}
+  | Some (EInteger (id, valueStr)) ->
+      {astRef = ARInteger id; offset = String.length valueStr}
+  | Some (EBool (id, true)) ->
+      {astRef = ARBool id; offset = String.length "true"}
+  | Some (EBool (id, false)) ->
+      {astRef = ARBool id; offset = String.length "false"}
   | Some (EString (id, _)) ->
-    {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
-  | Some (EFloat (id, _, decimalStr)) -> 
-    {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
+      {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+  | Some (EFloat (id, _, decimalStr)) ->
+      {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
   | Some (ENull id) ->
-    {astRef = ARNull id; offset = String.length "null"}
+      {astRef = ARNull id; offset = String.length "null"}
   | Some (EBlank id) ->
-    {astRef = ARBlank id; offset = 3 (* It might be better to return offset 0 here,
-                                        because we might not want to be in the actual end of the blank? *)}
+      { astRef = ARBlank id
+      ; offset =
+          3
+          (* It might be better to return offset 0 here,
+             because we might not want to be in the actual end of the blank? *)
+      }
   | Some (ELet (_, _, _, _, bodyExpr)) ->
-    caretTargetForLastPartOfExpr (eid bodyExpr) ast
+      caretTargetForLastPartOfExpr (eid bodyExpr) ast
   | Some (EIf (_, _, _, elseExpr)) ->
-    caretTargetForLastPartOfExpr (eid elseExpr) ast
+      caretTargetForLastPartOfExpr (eid elseExpr) ast
   | Some (EBinOp (_, _, _, rhsExpr, _)) ->
-    caretTargetForLastPartOfExpr (eid rhsExpr) ast
+      caretTargetForLastPartOfExpr (eid rhsExpr) ast
   | Some (ELambda (_, _, bodyExpr)) ->
-    caretTargetForLastPartOfExpr (eid bodyExpr) ast
+      caretTargetForLastPartOfExpr (eid bodyExpr) ast
   | Some (EFnCall (id, fnName, argExprs, _)) ->
-     (match List.last argExprs with
-     | Some lastExpr -> caretTargetForLastPartOfExpr (eid lastExpr) ast
-     | None -> (* TODO(JULIAN): this doesn't include the function version... *)
-      { astRef = ARFnCall (id, FCPFnName); offset = String.length fnName })
+    ( match List.last argExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr (eid lastExpr) ast
+    | None ->
+        (* TODO(JULIAN): this doesn't include the function version... *)
+        {astRef = ARFnCall (id, FCPFnName); offset = String.length fnName} )
   | Some (EPartial (id, str, _)) ->
-    (* Intentionally using the thing that was typed; not the existing expr *)
-    { astRef = ARPartial id; offset = String.length str }
+      (* Intentionally using the thing that was typed; not the existing expr *)
+      {astRef = ARPartial id; offset = String.length str}
   | Some (ERightPartial (id, str, _)) ->
-    (* XXX(JULIAN): Unclear if we should be differentiating with EPartial... *)
-    { astRef = ARPartial id; offset = String.length str }
+      (* XXX(JULIAN): Unclear if we should be differentiating with EPartial... *)
+      {astRef = ARPartial id; offset = String.length str}
   | Some (EList (id, _)) ->
-    { astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *) }
+      {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
   | Some (ERecord (id, _)) ->
-    { astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *) }
+      {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
   | Some (EPipe (id, pipeExprs)) ->
-     (match List.last pipeExprs with
-     | Some lastExpr -> caretTargetForLastPartOfExpr (eid lastExpr) ast
-     | None ->
-      { astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>" })
+    ( match List.last pipeExprs with
+    | Some lastExpr ->
+        caretTargetForLastPartOfExpr (eid lastExpr) ast
+    | None ->
+        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
   | Some (EMatch (_, matchedExpr, matchItems)) ->
-     (match List.last matchItems with
-     | Some (_,branchBody) -> caretTargetForLastPartOfExpr (eid branchBody) ast
-     | None -> caretTargetForLastPartOfExpr (eid matchedExpr) ast)
+    ( match List.last matchItems with
+    | Some (_, branchBody) ->
+        caretTargetForLastPartOfExpr (eid branchBody) ast
+    | None ->
+        caretTargetForLastPartOfExpr (eid matchedExpr) ast )
   | Some (EConstructor (_, _, _, _))
   | Some (EFeatureFlag (_, _, _, _, _, _))
   | Some (EPipeTarget _)
@@ -2347,17 +2357,22 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
       | _ ->
           recover "Not a record in addRecordRowToTheBack" ~debug:e e )
 
-let recordFieldAtIndex (recordID: id) (index:int) (ast : ast) : (id * fluidName * fluidExpr) option =
-  findExpr recordID ast
-  |> Option.andThen ~f:(fun (expr) -> match expr with
-            | (ERecord (_,fields)) -> Some fields
-            | _ -> None )
-  |> Option.andThen ~f:(fun (fields) -> List.getAt ~index:index fields)
 
-let recordExprIdAtIndex (recordID: id) (index:int) (ast : ast) : id option =
+let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
+    (id * fluidName * fluidExpr) option =
+  findExpr recordID ast
+  |> Option.andThen ~f:(fun expr ->
+         match expr with ERecord (_, fields) -> Some fields | _ -> None )
+  |> Option.andThen ~f:(fun fields -> List.getAt ~index fields)
+
+
+let recordExprIdAtIndex (recordID : id) (index : int) (ast : ast) : id option =
   match recordFieldAtIndex recordID index ast with
-  | Some (_, _, fluidExpr) -> Some (eid fluidExpr)
-  | _ -> None
+  | Some (_, _, fluidExpr) ->
+      Some (eid fluidExpr)
+  | _ ->
+      None
+
 
 (* ---------------- *)
 (* Partials *)
@@ -3388,12 +3403,18 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
     | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
       ->
-        let newAst = (removeRecordField recordID index ast) in
-        let maybeExprID : id option = recordExprIdAtIndex recordID (index-1) newAst in
+        let newAst = removeRecordField recordID index ast in
+        let maybeExprID : id option =
+          recordExprIdAtIndex recordID (index - 1) newAst
+        in
         let target : caretTarget =
-          (match maybeExprID with
-          | None -> { astRef = ARRecord (recordID, RPOpen); offset = 1 (* right after the open paren *) }
-          | Some exprId -> caretTargetForLastPartOfExpr exprId newAst) in
+          match maybeExprID with
+          | None ->
+              { astRef = ARRecord (recordID, RPOpen)
+              ; offset = 1 (* right after the open paren *) }
+          | Some exprId ->
+              caretTargetForLastPartOfExpr exprId newAst
+        in
         (newAst, AtTarget target)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
