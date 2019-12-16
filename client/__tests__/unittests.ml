@@ -5,7 +5,7 @@ let process_cmdline_args () =
   Tc.Array.iter Sys.argv ~f:(fun str ->
       match (!command, str) with
       | None, "--pattern" ->
-          command := Some "--pattern"
+          command := Some str
       | None, "--dom" ->
           domTests := true
       | None, "--verbose" ->

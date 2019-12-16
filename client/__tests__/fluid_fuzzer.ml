@@ -1,7 +1,58 @@
 open Tc
 open Types
+open Fluid
+open Fluid_test_data
+open Tester
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
+
+(* ------------------ *)
+(* Settings *)
+(* ------------------ *)
+
+let defaultVerbosityThreshold = 20
+
+let verbosityThreshold = ref defaultVerbosityThreshold
+
+let defaultInitialSeed = 0
+
+let initialSeed = ref defaultInitialSeed
+
+let defaultCount = 3
+
+let count = ref defaultCount
+
+(* ------------------ *)
+(* Debugging *)
+(* ------------------ *)
+
+let toText ast = eToString defaultTestState ast
+
+let pointerToText p : string =
+  match p with
+  | PExpr e ->
+      toText (Fluid.fromExpr Fluid_test_data.defaultTestState e)
+  | PField b
+  | PVarBind b
+  | PKey b
+  | PFFMsg b
+  | PFnName b
+  | PFnCallName b
+  | PConstructorName b ->
+      Blank.toMaybe b |> Option.withDefault ~default:"blank"
+  | PPattern _ ->
+      "pattern TODO"
+  | _ ->
+      "not valid here"
+
+
+let debugAST (length : int) (msg : string) (e : fluidExpr) : unit =
+  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
+
+
+(* ------------------ *)
+(* Deterministic random number generator *)
+(* ------------------ *)
 
 (* aim is to be deterministic *)
 let defaultSeed = 1.0
@@ -16,6 +67,10 @@ let random () : float =
 
 
 let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
+
+(* ------------------ *)
+(* AST generators *)
+(* ------------------ *)
 
 let generateLength maxLength = max 0 (1 + range (maxLength - 1))
 
@@ -125,7 +180,6 @@ let generateFnName () =
 
 (* Fields can only have a subset of expressions in the fieldAccess *)
 let rec generateFieldAccessExpr () =
-  let open Fluid_test_data in
   match range 2 with
   | 1 ->
       var (generateName ())
@@ -136,7 +190,6 @@ let rec generateFieldAccessExpr () =
 
 
 let rec generatePattern () =
-  let open Fluid_test_data in
   match range 7 with
   | 0 ->
       pInt (Int.toString (range 500))
@@ -157,7 +210,6 @@ let rec generatePattern () =
 
 
 let rec generatePipeArgumentExpr () =
-  let open Fluid_test_data in
   match range 4 with
   | 0 ->
       lambda (generateList ~f:generateName ()) (generateExpr ())
@@ -172,7 +224,6 @@ let rec generatePipeArgumentExpr () =
 
 
 and generateExpr () =
-  let open Fluid_test_data in
   match range 17 with
   | 0 ->
       b
@@ -221,8 +272,21 @@ and generateExpr () =
       b
 
 
+(* ------------------ *)
+(* Fuzz Test definition *)
+(* ------------------ *)
+module FuzzTest = struct
+  type t =
+    { name : string
+    ; fn : fluidExpr -> fluidExpr * fluidState
+    ; check : fluidExpr -> fluidState -> bool }
+end
+
+(* ------------------ *)
+(* Test case reduction *)
+(* ------------------ *)
+
 let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
-  let open Fluid in
   let f = remove id in
   if eid expr = id
   then
@@ -374,36 +438,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
         EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
 
 
-let toText (e : fluidExpr) = Fluid.eToString Fluid_test_data.defaultTestState e
-
-let pointerToText p : string =
-  match p with
-  | PExpr e ->
-      toText (Fluid.fromExpr Fluid_test_data.defaultTestState e)
-  | PField b
-  | PVarBind b
-  | PKey b
-  | PFFMsg b
-  | PFnName b
-  | PFnCallName b
-  | PConstructorName b ->
-      Blank.toMaybe b |> Option.withDefault ~default:"blank"
-  | PPattern _ ->
-      "pattern TODO"
-  | _ ->
-      "not valid here"
-
-
-let verbosityThreshold = 30
-
-let debugAST length msg e : unit =
-  if length < verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
-
-
-let reduce
-    (ast : fluidExpr)
-    (testFn : fluidExpr -> fluidExpr * fluidState)
-    (checkFn : fluidExpr -> fluidState -> bool) : fluidExpr =
+let reduce (test : FuzzTest.t) (ast : fluidExpr) =
   let sentinel = Fluid_test_data.int "56756756" in
   let oldAST = ref sentinel in
   let newAST = ref ast in
@@ -425,8 +460,8 @@ let reduce
             if !latestAST = reducedAST
             then Js.log "no change, trying next id"
             else
-              let newAST, newState = testFn reducedAST in
-              let passed = checkFn newAST newState in
+              let newAST, newState = test.fn reducedAST in
+              let passed = test.check newAST newState in
               if passed
               then (
                 Js.log "removed the good bit, trying next id" ;
@@ -440,10 +475,40 @@ let reduce
                 debugAST length "started with" !latestAST ;
                 debugAST length "result was" reducedAST ;
                 debugAST length "after testing" newAST ;
-                Js.log2 "pos is" newState.newPos ;
+                if length < !verbosityThreshold
+                then Js.log2 "pos is" newState.newPos ;
                 latestAST := reducedAST )
           with _ -> Js.log "Exception, let's skip this one" ) ;
         Js.log "\n\n" ) ;
     newAST := !latestAST
   done ;
   !newAST
+
+
+(* ------------------ *)
+(* Driver *)
+(* ------------------ *)
+let runTest (test : FuzzTest.t) : unit =
+  try
+    for i = !initialSeed to !initialSeed + !count do
+      let name = test.name ^ " #" ^ string_of_int i in
+      Tester.test name (fun () ->
+          setSeed i ;
+          let testcase =
+            generateExpr () |> Fluid.clone ~state:defaultTestState
+          in
+          Js.log2 "testing: " name ;
+          let newAST, newState = test.fn testcase in
+          Js.log2 "checking: " name ;
+          let passed = test.check newAST newState in
+          if passed = false
+          then (
+            Js.log2 "failed: " name ;
+            let reduced = reduce test testcase in
+            let text = toText reduced in
+            Js.log2 "finished program:\n" text ;
+            Js.log2 "structure" (show_fluidExpr reduced) ;
+            fail () )
+          else pass () )
+    done
+  with _ -> ()
