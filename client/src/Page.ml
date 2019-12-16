@@ -85,10 +85,10 @@ let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
 let moveToCmd (m : model) (tlid : tlid) : msg Cmd.t =
   TL.get m tlid
   |> Option.andThen ~f:TL.getPos
-  |> Option.map ~f:(fun p -> (* TODO(alice) figureout if sidebar is opened *)
-    let x = if p.x + 245 < Native.Window.viewportWidth then 0 else p.x in
-    let y = if p.y + 100 < Native.Window.viewportHeight then 0 else p.y in
-    Viewport.moveCanvasTo (x + 100) (y + 50)
+  |> Option.map ~f:(fun p ->
+    let x = match p.x - 200 with nx when nx > 0 -> nx | _ -> 0 in
+    let y = match p.y - 100 with ny when ny > 0 -> ny | _ -> 0 in
+    Viewport.moveCanvasTo x y
   )
   |> Option.withDefault ~default:Cmd.none
 
