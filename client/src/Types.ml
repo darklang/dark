@@ -430,6 +430,12 @@ type astFloatPart =
   | FPDecimal
 [@@deriving show {with_path = false}]
 
+type astStringPart =
+  | SPOpenQuote
+  | SPText
+  | SPCloseQuote
+[@@deriving show {with_path = false}]
+
 type astLetPart =
   | LPKeyword
   | LPVarName
@@ -518,7 +524,7 @@ type astMatchPart =
 type astRef =
   | ARInteger of id
   | ARBool of id
-  | ARString of id
+  | ARString of id * astStringPart
   | ARFloat of id * astFloatPart
   | ARNull of id
   | ARBlank of id
