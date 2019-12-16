@@ -739,11 +739,12 @@ let adminDebuggerView (m : model) : msg Html.html =
   in
   let debugger =
     Html.a
-      [ Html.href (ViewScaffold.debuggerLinkLoc ())
+      [ Html.href (ViewScaffold.debuggerLinkLoc m)
       ; Html.class' "state-info-row debugger" ]
       [ Html.text
-          (if Url.isDebugging then "Disable Debugger" else "Enable Debugger")
-      ]
+          ( if m.teaDebuggerEnabled
+          then "Disable Debugger"
+          else "Enable Debugger" ) ]
   in
   let saveTestButton =
     Html.a

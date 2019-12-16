@@ -1,5 +1,4 @@
-open Jest
-open Expect
+open Tester
 open Tc
 open Types
 open Prelude
@@ -35,7 +34,36 @@ let clipboardEvent () =
     ; preventDefault = [%bs.raw {| function () { return null; } |}] }]
 
 
-let () =
+let execute_roundtrip (ast : fluidExpr) =
+  let emptyState = defaultTestState in
+  let ast = Fluid.clone ~state:emptyState ast in
+  let expectedString = eToString emptyState ast in
+  let pos = String.length expectedString in
+  let e = clipboardEvent () in
+  let h = Fluid_utils.h ast in
+  let m =
+    { defaultTestModel with
+      tests = [FluidVariant]
+    ; handlers = Handlers.fromList [h]
+    ; cursorState = FluidEntering h.hTLID
+    ; fluidState =
+        { defaultTestState with
+          selectionStart = Some 0; oldPos = pos; newPos = pos } }
+  in
+  let mod_ = App.update_ (ClipboardCutEvent e) m in
+  let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
+  let mod_ = App.update_ (ClipboardPasteEvent e) newM in
+  let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
+  let newState = newM.fluidState in
+  let newAST =
+    TL.selectedAST newM
+    |> Option.withDefault ~default:(Blank.new_ ())
+    |> fromExpr newState
+  in
+  (newAST, newState)
+
+
+let run () =
   let process (e : clipboardEvent) ~debug (start, pos) ast msg : testResult =
     let clipboardData state e =
       Clipboard.getData e
@@ -127,7 +155,6 @@ let () =
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
     let emptyState = defaultTestState in
-    let ast = Fluid.clone ~state:emptyState ast in
     let expectedString = eToString emptyState ast in
     test
       ( name
@@ -135,39 +162,8 @@ let () =
       ^ (expectedString |> Regex.replace ~re:(Regex.regex "\n") ~repl:" ")
       ^ "`" )
       (fun () ->
-        let pos = String.length expectedString in
-        let e = clipboardEvent () in
-        let clipboardData state e =
-          Clipboard.getData e
-          |> Fluid.clipboardContentsToExpr ~state
-          |> Option.map ~f:(fun expr -> eToString state expr)
-          |> Option.withDefault ~default:"Nothing in clipboard"
-        in
-        let h = Fluid_utils.h ast in
-        let m =
-          { defaultTestModel with
-            tests = [FluidVariant]
-          ; handlers = Handlers.fromList [h]
-          ; cursorState = FluidEntering h.hTLID
-          ; fluidState =
-              { defaultTestState with
-                selectionStart = Some 0; oldPos = pos; newPos = pos } }
-        in
-        if debug
-        then (
-          Js.log2 "state before " (Fluid_utils.debugState m.fluidState) ;
-          Js.log2 "ast before" (eToStructure m.fluidState ast) ;
-          Js.log2 "clipboard before" (clipboardData m.fluidState e) ) ;
-        let mod_ = App.update_ (ClipboardCutEvent e) m in
-        let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
-        let mod_ = App.update_ (ClipboardPasteEvent e) newM in
-        let newM, _cmd = App.updateMod mod_ (newM, Cmd.none) in
-        let newState = newM.fluidState in
-        let newAST =
-          TL.selectedAST newM
-          |> Option.withDefault ~default:(Blank.new_ ())
-          |> fromExpr newState
-        in
+        if debug then Js.log2 "ast before" (eToStructure defaultTestState ast) ;
+        let newAST, newState = execute_roundtrip ast in
         expect expectedString |> toEqual (eToString newState newAST) )
   in
   let pipeOn expr fns = EPipe (gid (), expr :: fns) in

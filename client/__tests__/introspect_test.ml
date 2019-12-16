@@ -1,13 +1,12 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 open Prelude
 open Introspect
 module TL = Toplevel
 module B = Blank
 
-let () =
+let run () =
   describe "Introspect" (fun () ->
       let h1tlid = gtlid () in
       let h1data =

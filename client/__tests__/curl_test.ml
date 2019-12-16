@@ -1,7 +1,6 @@
+open Tester
 open! Tc
 open Types
-open Jest
-open Expect
 open Curl
 module B = Blank
 
@@ -28,7 +27,7 @@ let makeModel ?(handlers = []) ?(traces = StrDict.empty) ~cursorState () :
   ; traces }
 
 
-let () =
+let run () =
   describe "strAsBodyCurl" (fun () ->
       test "returns jsonfied curl flag" (fun () ->
           expect (strAsBodyCurl (DStr "{\"a\":1,\"b\":false}"))

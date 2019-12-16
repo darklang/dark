@@ -1,8 +1,58 @@
-open Jest
-open Expect
 open Tc
+open Types
+open Fluid
+open Fluid_test_data
+open Tester
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
+
+(* ------------------ *)
+(* Settings *)
+(* ------------------ *)
+
+let defaultVerbosityThreshold = 20
+
+let verbosityThreshold = ref defaultVerbosityThreshold
+
+let defaultInitialSeed = 0
+
+let initialSeed = ref defaultInitialSeed
+
+let defaultCount = 3
+
+let count = ref defaultCount
+
+(* ------------------ *)
+(* Debugging *)
+(* ------------------ *)
+
+let toText ast = eToString defaultTestState ast
+
+let pointerToText p : string =
+  match p with
+  | PExpr e ->
+      toText (Fluid.fromExpr Fluid_test_data.defaultTestState e)
+  | PField b
+  | PVarBind b
+  | PKey b
+  | PFFMsg b
+  | PFnName b
+  | PFnCallName b
+  | PConstructorName b ->
+      Blank.toMaybe b |> Option.withDefault ~default:"blank"
+  | PPattern _ ->
+      "pattern TODO"
+  | _ ->
+      "not valid here"
+
+
+let debugAST (length : int) (msg : string) (e : fluidExpr) : unit =
+  if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
+
+
+(* ------------------ *)
+(* Deterministic random number generator *)
+(* ------------------ *)
 
 (* aim is to be deterministic *)
 let defaultSeed = 1.0
@@ -17,6 +67,10 @@ let random () : float =
 
 
 let range (max : int) : int = Js_math.floor (float_of_int max *. random ())
+
+(* ------------------ *)
+(* AST generators *)
+(* ------------------ *)
 
 let generateLength maxLength = max 0 (1 + range (maxLength - 1))
 
@@ -126,7 +180,6 @@ let generateFnName () =
 
 (* Fields can only have a subset of expressions in the fieldAccess *)
 let rec generateFieldAccessExpr () =
-  let open Fluid_test_data in
   match range 2 with
   | 1 ->
       var (generateName ())
@@ -137,7 +190,6 @@ let rec generateFieldAccessExpr () =
 
 
 let rec generatePattern () =
-  let open Fluid_test_data in
   match range 7 with
   | 0 ->
       pInt (Int.toString (range 500))
@@ -158,7 +210,6 @@ let rec generatePattern () =
 
 
 let rec generatePipeArgumentExpr () =
-  let open Fluid_test_data in
   match range 4 with
   | 0 ->
       lambda (generateList ~f:generateName ()) (generateExpr ())
@@ -173,7 +224,6 @@ let rec generatePipeArgumentExpr () =
 
 
 and generateExpr () =
-  let open Fluid_test_data in
   match range 17 with
   | 0 ->
       b
@@ -222,4 +272,239 @@ and generateExpr () =
       b
 
 
-let () = test "empty test to satisfy jest" (fun () -> expect true |> toBe true)
+(* ------------------ *)
+(* Fuzz Test definition *)
+(* ------------------ *)
+module FuzzTest = struct
+  type t =
+    { name : string
+    ; fn : fluidExpr -> fluidExpr * fluidState
+    ; check : testcase:fluidExpr -> newAST:fluidExpr -> fluidState -> bool }
+end
+
+(* ------------------ *)
+(* Test case reduction *)
+(* ------------------ *)
+
+let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
+  let f = unwrap id in
+  let childOr (exprs : fluidExpr list) =
+    List.find exprs ~f:(fun e -> eid e = id)
+  in
+  let newExpr =
+    match expr with
+    | ELet (_, _, _, rhs, next) ->
+        childOr [rhs; next]
+    | EIf (_, cond, ifexpr, elseexpr) ->
+        childOr [cond; ifexpr; elseexpr]
+    | EBinOp (_, _, lexpr, rexpr, _) ->
+        childOr [lexpr; rexpr]
+    | EFieldAccess (_, expr, _, _) ->
+        childOr [expr]
+    | EFnCall (_, _, exprs, _) ->
+        childOr exprs
+    | ELambda (_, _, body) ->
+        childOr [body]
+    | EList (_, exprs) ->
+        childOr exprs
+    | EMatch (_, mexpr, pairs) ->
+        childOr (mexpr :: List.map ~f:Tuple2.second pairs)
+    | ERecord (_, fields) ->
+        childOr (List.map ~f:Tuple3.third fields)
+    | EPipe (_, exprs) ->
+        childOr exprs
+    | EConstructor (_, _, _, exprs) ->
+        childOr exprs
+    | EPartial (_, _, oldExpr) ->
+        childOr [oldExpr]
+    | ERightPartial (_, _, oldExpr) ->
+        childOr [oldExpr]
+    | EFeatureFlag (_, _, _, cond, casea, caseb) ->
+        childOr [cond; casea; caseb]
+    | _ ->
+        None
+  in
+  let newExpr = Option.withDefault ~default:expr newExpr in
+  recurse ~f newExpr
+
+
+let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
+  let f = blankVarNames id in
+  let fStr strid str = if strid = id then "" else str in
+  let newExpr =
+    match expr with
+    | ELet (id, lhsID, name, rhs, next) ->
+        ELet (id, lhsID, fStr lhsID name, rhs, next)
+    | EFieldAccess (id, expr, fieldID, fieldname) ->
+        EFieldAccess (id, expr, fieldID, fStr fieldID fieldname)
+    | ELambda (id, names, expr) ->
+        let names =
+          List.map names ~f:(fun (nid, name) ->
+              if nid = id then (nid, "") else (nid, name) )
+        in
+        ELambda (id, names, expr)
+    | ERecord (rid, fields) ->
+        ERecord
+          ( rid
+          , List.map
+              ~f:(fun (fid, name, expr) ->
+                if fid = id then (fid, "", expr) else (fid, name, expr) )
+              fields )
+    | _ ->
+        expr
+  in
+  recurse ~f newExpr
+
+
+let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
+  let r e = remove id e in
+  let f e = if eid e = id then EBlank id else remove id e in
+  let removeFromList exprs = List.filter exprs ~f:(fun e -> eid e <> id) in
+  if eid expr = id
+  then EBlank id
+  else
+    let newExpr =
+      match expr with
+      | EFieldAccess (id, expr, fieldID, fieldname) ->
+          if id = fieldID
+          then expr
+          else EFieldAccess (id, r expr, fieldID, fieldname)
+      | EFnCall (id, name, exprs, ster) ->
+          EFnCall (id, name, removeFromList exprs, ster)
+      | ELambda (id, names, expr) ->
+          let names =
+            names
+            |> List.filterMap ~f:(fun (nid, name) ->
+                   if nid = id then None else Some (nid, name) )
+            |> fun x -> if x = [] then List.take ~count:1 names else x
+          in
+          ELambda (id, names, f expr)
+      | EList (id, exprs) ->
+          EList (id, removeFromList exprs)
+      | EMatch (mid, mexpr, pairs) ->
+          EMatch
+            ( mid
+            , f mexpr
+            , List.filterMap
+                ~f:(fun (pattern, expr) ->
+                  if eid expr = id || Fluid.pid pattern = id
+                  then None
+                  else Some (pattern, expr) )
+                pairs )
+      | ERecord (rid, fields) ->
+          ERecord
+            ( rid
+            , List.filterMap
+                ~f:(fun (fid, name, expr) ->
+                  if eid expr = id || fid = id
+                  then None
+                  else Some (fid, name, expr) )
+                fields )
+      | EPipe (id, exprs) ->
+        ( match removeFromList exprs with
+        | [EBlank _; EBinOp (id, op, EPipeTarget ptid, rexpr, ster)]
+        | [EBinOp (id, op, EPipeTarget ptid, rexpr, ster); EBlank _] ->
+            EBinOp (id, op, EBlank ptid, rexpr, ster)
+        | [EBlank _; EFnCall (id, name, EPipeTarget ptid :: tail, ster)]
+        | [EFnCall (id, name, EPipeTarget ptid :: tail, ster); EBlank _] ->
+            EFnCall (id, name, EBlank ptid :: tail, ster)
+        | [justOne] ->
+            justOne
+        | [] ->
+            EBlank id
+        | newExprs ->
+            EPipe (id, newExprs) )
+      | EConstructor (id, nameID, name, exprs) ->
+          EConstructor (id, nameID, name, removeFromList exprs)
+      | _ ->
+          expr
+    in
+    recurse ~f newExpr
+
+
+let reduce (test : FuzzTest.t) (ast : fluidExpr) =
+  let runThrough msg reducer ast =
+    let pointers =
+      ast
+      |> fun x ->
+      Fluid.toExpr x
+      |> AST.allData
+      |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
+      |> List.indexedMap ~f:(fun i v -> (i, v))
+    in
+    let length = List.length pointers in
+    let latestAST = ref ast in
+    List.iter pointers ~f:(fun (idx, pointer) ->
+        ( try
+            let id = Pointer.toID pointer in
+            Js.log2 msg (idx, length, id) ;
+            let reducedAST = reducer id !latestAST in
+            if !latestAST = reducedAST
+            then Js.log "no change, trying next id"
+            else
+              let newAST, newState = test.fn reducedAST in
+              let passed = test.check ~testcase:reducedAST ~newAST newState in
+              if passed
+              then (
+                Js.log "removed the good bit, trying next id" ;
+                debugAST length "started with" !latestAST ;
+                debugAST length "result was" reducedAST ;
+                debugAST length "after testing" newAST ;
+                Js.log2 "pos is" newState.newPos )
+              else (
+                Js.log
+                  "Success! We've reduced and it still fails. Let's keep going!" ;
+                debugAST length "started with" !latestAST ;
+                debugAST length "result was" reducedAST ;
+                debugAST length "after testing" newAST ;
+                if length < !verbosityThreshold
+                then Js.log2 "pos is" newState.newPos ;
+                latestAST := reducedAST )
+          with e -> Js.log2 "Exception, let's skip this one" e ) ;
+        Js.log "\n" ) ;
+    !latestAST
+  in
+  let sentinel = Fluid_test_data.int "56756756" in
+  let oldAST = ref sentinel in
+  let newAST = ref ast in
+  while oldAST <> newAST do
+    Js.log2 "starting to reduce\n" (toText !newAST) ;
+    oldAST := !newAST ;
+    let latestAST =
+      !newAST
+      |> runThrough "unwrapping" unwrap
+      |> runThrough "removing" remove
+      |> runThrough "blankVarNames" blankVarNames
+    in
+    newAST := latestAST
+  done ;
+  !newAST
+
+
+(* ------------------ *)
+(* Driver *)
+(* ------------------ *)
+let runTest (test : FuzzTest.t) : unit =
+  try
+    for i = !initialSeed to !initialSeed + !count - 1 do
+      let name = test.name ^ " #" ^ string_of_int i in
+      Tester.test name (fun () ->
+          setSeed i ;
+          let testcase =
+            generateExpr () |> Fluid.clone ~state:defaultTestState
+          in
+          Js.log2 "testing: " name ;
+          let newAST, newState = test.fn testcase in
+          Js.log2 "checking: " name ;
+          let passed = test.check ~testcase ~newAST newState in
+          if passed = false
+          then (
+            Js.log2 "failed: " name ;
+            let reduced = reduce test testcase in
+            let text = toText reduced in
+            Js.log2 "finished program:\n" text ;
+            Js.log2 "structure" (show_fluidExpr reduced) ;
+            fail () )
+          else pass () )
+    done
+  with _ -> ()
