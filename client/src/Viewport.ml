@@ -137,7 +137,7 @@ let moveCanvasBy (x: int) (y: int) : msg Tea.Cmd.t =
   Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y)
 
 let moveCanvasTo (x: int) (y: int) : msg Tea.Cmd.t =
-  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y)
+  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y ~smooth:false)
 
 let moveCanvasToPos (pos : pos) : msg Tea.Cmd.t =
   let mx, my = Native.Ext.appScrollLimits () in
@@ -147,4 +147,4 @@ let moveCanvasToPos (pos : pos) : msg Tea.Cmd.t =
     Util.clamp (pos.x - sidebarOffset - o.x) 0 mx
   in
   let y = Util.clamp (pos.y - o.y) 0 my in
-  moveCanvasTo x y
+  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y ~smooth:true)

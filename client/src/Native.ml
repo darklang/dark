@@ -56,6 +56,10 @@ type list_pos =
   { atoms : rect list
   ; nested : rect list }
 
+type scrollOptions = {
+  top: int ; left: int; behavior : string
+}
+
 type jsRect = string Js.Dict.t
 
 type jsRectArr = jsRect array Js.Dict.t
@@ -83,7 +87,7 @@ module Ext = struct
 
   external scrollLeft : Dom.element -> int = "scrollLeft" [@@bs.get]
 
-  external scrollTo : Dom.element -> int -> int -> unit = "scrollTo" [@@bs.send]
+  external scrollTo : Dom.element -> scrollOptions -> unit = "scrollTo" [@@bs.send]
 
   external scrollBy : Dom.element -> int -> int -> unit = "scrollBy" [@@bs.send]
 
@@ -118,9 +122,9 @@ module Ext = struct
     | Some app -> scrollBy app x y
     | None -> ()
 
-  let appScrollTo (x : int) (y : int) : unit  =
+  let appScrollTo (x : int) (y : int) ~(smooth : bool) : unit  =
     match (querySelector "#app") with
-    | Some app -> scrollTo app x y
+    | Some app -> scrollTo app {top = y; left = x; behavior = if smooth then "smooth" else "auto"}
     | None -> ()
   
   let appScrollPos () : (int * int) =
