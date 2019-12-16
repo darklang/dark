@@ -446,14 +446,9 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
 
 
 let reduce (test : FuzzTest.t) (ast : fluidExpr) =
-  let sentinel = Fluid_test_data.int "56756756" in
-  let oldAST = ref sentinel in
-  let newAST = ref ast in
-  while oldAST <> newAST do
-    Js.log2 "starting to reduce\n" (toText !newAST) ;
-    oldAST := !newAST ;
+  let runThrough msg reducer ast =
     let pointers =
-      !newAST
+      ast
       |> fun x ->
       Fluid.toExpr x
       |> AST.allData
@@ -461,12 +456,12 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
       |> List.indexedMap ~f:(fun i v -> (i, v))
     in
     let length = List.length pointers in
-    let latestAST = ref !newAST in
+    let latestAST = ref ast in
     List.iter pointers ~f:(fun (idx, pointer) ->
         ( try
             let id = Pointer.toID pointer in
-            Js.log2 "removing " (idx, length, id) ;
-            let reducedAST = remove id !latestAST in
+            Js.log2 msg (idx, length, id) ;
+            let reducedAST = reducer id !latestAST in
             if !latestAST = reducedAST
             then Js.log "no change, trying next id"
             else
@@ -490,7 +485,16 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
                 latestAST := reducedAST )
           with _ -> Js.log "Exception, let's skip this one" ) ;
         Js.log "\n" ) ;
-    newAST := !latestAST
+    !latestAST
+  in
+  let sentinel = Fluid_test_data.int "56756756" in
+  let oldAST = ref sentinel in
+  let newAST = ref ast in
+  while oldAST <> newAST do
+    Js.log2 "starting to reduce\n" (toText !newAST) ;
+    oldAST := !newAST ;
+    let latestAST = !newAST |> runThrough "removing" remove in
+    newAST := latestAST
   done ;
   !newAST
 
