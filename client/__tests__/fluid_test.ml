@@ -73,538 +73,435 @@ type modifierKeys =
   ; metaKey : bool
   ; ctrlKey : bool }
 
-let () =
-  let m =
-    let fnParam (name : string) (t : tipe) ?(blockArgs = []) (opt : bool) :
-        Types.parameter =
-      { paramName = name
-      ; paramTipe = t
-      ; paramBlock_args = blockArgs
-      ; paramOptional = opt
-      ; paramDescription = "" }
-    in
-    let infixFn op tipe rtTipe =
-      { fnName = op
-      ; fnParameters = [fnParam "a" tipe false; fnParam "b" tipe false]
-      ; fnReturnTipe = rtTipe
-      ; fnDescription = "Some infix function"
-      ; fnPreviewExecutionSafe = true
-      ; fnDeprecated = false
-      ; fnInfix = true }
-    in
-    { Defaults.defaultModel with
-      analyses =
-        StrDict.singleton (* The default traceID for TLID 7 *)
-          ~key:"94167980-f909-527e-a4af-bc3155f586d3"
-          ~value:
-            (LoadableSuccess
-               (StrDict.fromList
-                  [ ( "12"
-                    , DObj
-                        (StrDict.fromList [("body", DNull); ("formBody", DNull)])
-                    )
-                  ; ( "13"
-                    , DObj
-                        (StrDict.fromList [("title", DNull); ("author", DNull)])
-                    ) ]))
-    ; builtInFunctions =
-        [ infixFn "<" TInt TBool
-        ; infixFn "+" TInt TInt
-        ; infixFn "++" TStr TStr
-        ; infixFn "==" TAny TBool
-        ; infixFn "<=" TInt TBool
-        ; infixFn "||" TBool TBool
-        ; { fnName = "Int::add"
-          ; fnParameters = [fnParam "a" TInt false; fnParam "b" TInt false]
-          ; fnReturnTipe = TInt
-          ; fnDescription = "Add two ints"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "Int::sqrt"
-          ; fnParameters = [fnParam "a" TInt false]
-          ; fnReturnTipe = TInt
-          ; fnDescription = "Get the square root of an Int"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "HttpClient::post_v4"
-          ; fnParameters =
-              [ fnParam "url" TStr false
-              ; fnParam "body" TAny false
-              ; fnParam "query" TObj false
-              ; fnParam "headers" TObj false ]
-          ; fnReturnTipe = TResult
-          ; fnDescription = "Make blocking HTTP POST call to `uri`."
-          ; fnPreviewExecutionSafe = false
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "DB::getAll_v1"
-          ; fnParameters = [fnParam "table" TDB false]
-          ; fnReturnTipe = TList
-          ; fnDescription = "get all"
-          ; fnPreviewExecutionSafe = false
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "Dict::map"
-          ; fnParameters =
-              [ fnParam "dict" TObj false
-              ; fnParam "f" TBlock false ~blockArgs:["key"; "value"] ]
-          ; fnReturnTipe = TObj
-          ; fnDescription =
-              "Iterates each `key` and `value` in Dictionary `dict` and mutates it according to the provided lambda"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "List::append"
-          ; fnParameters = [fnParam "l1" TList false; fnParam "l2" TList false]
-          ; fnReturnTipe = TList
-          ; fnDescription = "append list"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false }
-        ; { fnName = "List::empty"
-          ; fnParameters = []
-          ; fnReturnTipe = TList
-          ; fnDescription = "empty list"
-          ; fnPreviewExecutionSafe = true
-          ; fnDeprecated = false
-          ; fnInfix = false } ] }
-  in
-  let processMsg
-      (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
-      ast * fluidState =
-    let h = Fluid_utils.h ast in
-    let m = {m with handlers = Handlers.fromList [h]} in
-    List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
-        updateMsg
-          m
-          h.hTLID
-          ast
-          (FluidKeyPress
-             { key
-             ; shiftKey = modifierKeys.shiftKey
-             ; altKey = modifierKeys.altKey
-             ; metaKey = modifierKeys.metaKey
-             ; ctrlKey = modifierKeys.ctrlKey })
-          s )
-  in
-  let process
-      ~(debug : bool)
-      ~(clone : bool)
-      ~(wrap : bool)
-      (keys : (K.key * modifierKeys) list)
-      (selectionStart : int option)
-      (pos : int)
-      (ast : ast) : testResult =
-    let s = {Defaults.defaultFluidState with ac = AC.reset m} in
-    let ast = if clone then Fluid.clone ~state:s ast else ast in
-    let newlinesBefore (pos : int) =
-      (* How many newlines occur before the pos, it'll be indented by 2 for
+let processMsg
+    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
+    ast * fluidState =
+  let h = Fluid_utils.h ast in
+  let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
+  List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
+      updateMsg
+        m
+        h.hTLID
+        ast
+        (FluidKeyPress
+           { key
+           ; shiftKey = modifierKeys.shiftKey
+           ; altKey = modifierKeys.altKey
+           ; metaKey = modifierKeys.metaKey
+           ; ctrlKey = modifierKeys.ctrlKey })
+        s )
+
+
+let process
+    ~(debug : bool)
+    ~(clone : bool)
+    ~(wrap : bool)
+    (keys : (K.key * modifierKeys) list)
+    (selectionStart : int option)
+    (pos : int)
+    (ast : ast) : testResult =
+  let s = defaultTestState in
+  let ast = if clone then Fluid.clone ~state:s ast else ast in
+  let newlinesBefore (pos : int) =
+    (* How many newlines occur before the pos, it'll be indented by 2 for
        * each newline, once the expr is wrapped in an if, so we need to add
        * 2*nl to get the pos in place. (Note: it's correct to just count them,
        * as opposed to the iterative approach we do later, because we're using
        * the old ast that has no newlines. *)
-      ast
-      |> toTokens {s with newPos = pos}
-      |> List.filter ~f:(fun ti ->
-             FluidToken.isNewline ti.token && ti.startPos < pos )
-      |> List.length
-    in
-    let ast = if wrap then if' (bool true) ast (int "5") else ast in
-    (* See the "Wrap" block comment at the top of the file for an explanation of this *)
-    let wrapperOffset = 15 in
-    let addWrapper pos =
-      if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
-    in
-    let pos = addWrapper pos in
-    let selectionStart = Option.map selectionStart ~f:addWrapper in
-    let s = {s with oldPos = pos; newPos = pos; selectionStart} in
-    if debug
-    then (
-      Js.log2 "state before " (Fluid_utils.debugState s) ;
-      Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
-    let newAST, newState = processMsg keys s ast in
-    let result =
-      match newAST with
-      | EIf (_, _, expr, _) when wrap ->
-          expr
-      | expr when not wrap ->
-          expr
-      | expr ->
-          failwith ("the wrapper is broken: " ^ eToString s expr)
-    in
-    let removeWrapperFromCaretPos (p : int) : int =
-      let endPos = ref (p - wrapperOffset) in
-      (* Account for the newlines as we find them, or else we won't know our
+    ast
+    |> toTokens {s with newPos = pos}
+    |> List.filter ~f:(fun ti ->
+           FluidToken.isNewline ti.token && ti.startPos < pos )
+    |> List.length
+  in
+  let ast = if wrap then if' (bool true) ast (int "5") else ast in
+  (* See the "Wrap" block comment at the top of the file for an explanation of this *)
+  let wrapperOffset = 15 in
+  let addWrapper pos =
+    if wrap then pos + wrapperOffset + (newlinesBefore pos * 2) else pos
+  in
+  let pos = addWrapper pos in
+  let selectionStart = Option.map selectionStart ~f:addWrapper in
+  let s = {s with oldPos = pos; newPos = pos; selectionStart} in
+  if debug
+  then (
+    Js.log2 "state before " (Fluid_utils.debugState s) ;
+    Js.log2 "expr before" (eToStructure ~includeIDs:true s ast) ) ;
+  let newAST, newState = processMsg keys s ast in
+  let result =
+    match newAST with
+    | EIf (_, _, expr, _) when wrap ->
+        expr
+    | expr when not wrap ->
+        expr
+    | expr ->
+        failwith ("the wrapper is broken: " ^ eToString s expr)
+  in
+  let removeWrapperFromCaretPos (p : int) : int =
+    let endPos = ref (p - wrapperOffset) in
+    (* Account for the newlines as we find them, or else we won't know our
        * position to find the newlines correctly. There'll be extra indentation,
        * so we need to subtract those to get the pos we expect. *)
-      result
-      |> toTokens newState
-      |> List.iter ~f:(fun ti ->
-             match ti.token with
-             | TNewline _ when !endPos > ti.endPos ->
-                 endPos := !endPos - 2
-             | _ ->
-                 () ) ;
-      let last =
-        toTokens newState result
-        |> List.last
-        |> deOption "last"
-        |> fun x -> x.endPos
-      in
-      (* even though the wrapper allows tests to go past the start and end, it's
+    result
+    |> toTokens newState
+    |> List.iter ~f:(fun ti ->
+           match ti.token with
+           | TNewline _ when !endPos > ti.endPos ->
+               endPos := !endPos - 2
+           | _ ->
+               () ) ;
+    let last =
+      toTokens newState result
+      |> List.last
+      |> deOption "last"
+      |> fun x -> x.endPos
+    in
+    (* even though the wrapper allows tests to go past the start and end, it's
           * weird to test for *)
-      max 0 (min last !endPos)
-    in
-    let finalPos =
-      if wrap
-      then removeWrapperFromCaretPos newState.newPos
-      else newState.newPos
-    in
-    let selPos =
-      if wrap
-      then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
-      else newState.selectionStart
-    in
-    let partialsFound =
-      List.any (toTokens newState result) ~f:(fun ti ->
-          match ti.token with
-          | TRightPartial _ | TPartial _ | TFieldPartial _ ->
-              true
-          | _ ->
-              false )
-    in
-    if debug
-    then (
-      Js.log2 "state after" (Fluid_utils.debugState newState) ;
-      Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
-    ( (eToString s result, (selPos, finalPos))
-    , if partialsFound then ContainsPartial else NoPartial )
+    max 0 (min last !endPos)
   in
-  let render (expr : fluidExpr) : testResult =
-    process ~wrap:true ~clone:false ~debug:false [] None 0 expr
+  let finalPos =
+    if wrap then removeWrapperFromCaretPos newState.newPos else newState.newPos
   in
-  let del
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.Delete
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
+  let selPos =
+    if wrap
+    then Option.map newState.selectionStart ~f:removeWrapperFromCaretPos
+    else newState.selectionStart
   in
-  let bs
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.Backspace
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
+  let partialsFound =
+    List.any (toTokens newState result) ~f:(fun ti ->
+        match ti.token with
+        | TRightPartial _ | TPartial _ | TFieldPartial _ ->
+            true
+        | _ ->
+            false )
   in
-  let tab
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.Tab
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
+  if debug
+  then (
+    Js.log2 "state after" (Fluid_utils.debugState newState) ;
+    Js.log2 "expr after" (eToStructure ~includeIDs:true newState result) ) ;
+  ( (eToString s result, (selPos, finalPos))
+  , if partialsFound then ContainsPartial else NoPartial )
+
+
+let render (expr : fluidExpr) : testResult =
+  process ~wrap:true ~clone:false ~debug:false [] None 0 expr
+
+
+let del
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.Delete
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let bs
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.Backspace
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let tab
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.Tab
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let ctrlLeft
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.GoToStartOfWord
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let ctrlRight
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.GoToEndOfWord
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let shiftTab
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.ShiftTab
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let space
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.Space
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let enter
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( K.Enter
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let key
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (key : K.key)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( key
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+let selectionPress
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (key : K.key)
+    (selectionStart : int)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~clone
+    ~debug
+    [ ( key
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    (Some selectionStart)
+    pos
+    expr
+
+
+let keys
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (keys : K.key list)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process
+    ~wrap
+    ~debug
+    ~clone
+    (List.map
+       ~f:(fun key ->
+         ( key
+         , { shiftKey = shiftHeld
+           ; altKey = false
+           ; metaKey = false
+           ; ctrlKey = false } ) )
+       keys)
+    None
+    pos
+    expr
+
+
+let modkeys
+    ?(wrap = true)
+    ?(debug = false)
+    ?(clone = true)
+    (keys : (K.key * modifierKeys) list)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  process ~wrap ~clone ~debug keys None pos expr
+
+
+let ins
+    ?(debug = false)
+    ?(wrap = true)
+    ?(clone = true)
+    ?(shiftHeld = false)
+    (char : char)
+    (pos : int)
+    (expr : fluidExpr) : testResult =
+  let key = K.fromChar char in
+  process
+    ~wrap
+    ~debug
+    ~clone
+    [ ( key
+      , {shiftKey = shiftHeld; altKey = false; metaKey = false; ctrlKey = false}
+      ) ]
+    None
+    pos
+    expr
+
+
+(* Test expecting no partials found and an expected caret position but no selection *)
+let t
+    (name : string)
+    (initial : fluidExpr)
+    (fn : fluidExpr -> testResult)
+    (expectedStr : string) =
+  let insertCaret
+      (((str, (_selection, caret)), res) :
+        (string * (int option * int)) * hasPartial) : string * hasPartial =
+    let caretString = "~" in
+    match str |> String.splitAt ~index:caret with a, b ->
+      ([a; b] |> String.join ~sep:caretString, res)
   in
-  let ctrlLeft
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.GoToStartOfWord
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
+  test
+    ( name
+    ^ " - `"
+    ^ ( eToString defaultTestState initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`" )
+    (fun () ->
+      expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial) )
+
+
+(* Test expecting partials found and an expected caret position but no selection *)
+let tp
+    (name : string)
+    (initial : fluidExpr)
+    (fn : fluidExpr -> testResult)
+    (expectedStr : string) =
+  let insertCaret
+      (((str, (_selection, caret)), res) :
+        (string * (int option * int)) * hasPartial) : string * hasPartial =
+    let caretString = "~" in
+    match str |> String.splitAt ~index:caret with a, b ->
+      ([a; b] |> String.join ~sep:caretString, res)
   in
-  let ctrlRight
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.GoToEndOfWord
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  let shiftTab
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.ShiftTab
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  let space
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.Space
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  let enter
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( K.Enter
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  let key
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (key : K.key)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( key
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  let selectionPress
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (key : K.key)
-      (selectionStart : int)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~clone
-      ~debug
-      [ ( key
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      (Some selectionStart)
-      pos
-      expr
-  in
-  let keys
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (keys : K.key list)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process
-      ~wrap
-      ~debug
-      ~clone
-      (List.map
-         ~f:(fun key ->
-           ( key
-           , { shiftKey = shiftHeld
-             ; altKey = false
-             ; metaKey = false
-             ; ctrlKey = false } ) )
-         keys)
-      None
-      pos
-      expr
-  in
-  let modkeys
-      ?(wrap = true)
-      ?(debug = false)
-      ?(clone = true)
-      (keys : (K.key * modifierKeys) list)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    process ~wrap ~clone ~debug keys None pos expr
-  in
-  let ins
-      ?(debug = false)
-      ?(wrap = true)
-      ?(clone = true)
-      ?(shiftHeld = false)
-      (char : char)
-      (pos : int)
-      (expr : fluidExpr) : testResult =
-    let key = K.fromChar char in
-    process
-      ~wrap
-      ~debug
-      ~clone
-      [ ( key
-        , { shiftKey = shiftHeld
-          ; altKey = false
-          ; metaKey = false
-          ; ctrlKey = false } ) ]
-      None
-      pos
-      expr
-  in
-  (* Test expecting no partials found and an expected caret position but no selection *)
-  let t
-      (name : string)
-      (initial : fluidExpr)
-      (fn : fluidExpr -> testResult)
-      (expectedStr : string) =
-    let insertCaret
-        (((str, (_selection, caret)), res) :
-          (string * (int option * int)) * hasPartial) : string * hasPartial =
-      let caretString = "~" in
-      match str |> String.splitAt ~index:caret with a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
-    in
-    test
-      ( name
-      ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-      ^ "`" )
-      (fun () ->
-        expect (fn initial |> insertCaret) |> toEqual (expectedStr, NoPartial)
-        )
-  in
-  (* Test expecting partials found and an expected caret position but no selection *)
-  let tp
-      (name : string)
-      (initial : fluidExpr)
-      (fn : fluidExpr -> testResult)
-      (expectedStr : string) =
-    let insertCaret
-        (((str, (_selection, caret)), res) :
-          (string * (int option * int)) * hasPartial) : string * hasPartial =
-      let caretString = "~" in
-      match str |> String.splitAt ~index:caret with a, b ->
-        ([a; b] |> String.join ~sep:caretString, res)
-    in
-    test
-      ( name
-      ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-      ^ "`" )
-      (fun () ->
-        expect (fn initial |> insertCaret)
-        |> toEqual (expectedStr, ContainsPartial) )
-  in
-  (* Test expecting no partials found and an expected resulting selection *)
-  let ts
-      (name : string)
-      (initial : fluidExpr)
-      (fn : fluidExpr -> testResult)
-      ((expectedString, (expectedSelStart, expectedPos)) :
-        string * (int option * int)) =
-    let expected = (expectedString, (expectedSelStart, expectedPos)) in
-    test
-      ( name
-      ^ " - `"
-      ^ ( eToString Defaults.defaultFluidState initial
-        |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
-      ^ "`" )
-      (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
-  in
+  test
+    ( name
+    ^ " - `"
+    ^ ( eToString defaultTestState initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`" )
+    (fun () ->
+      expect (fn initial |> insertCaret)
+      |> toEqual (expectedStr, ContainsPartial) )
+
+
+(* Test expecting no partials found and an expected resulting selection *)
+let ts
+    (name : string)
+    (initial : fluidExpr)
+    (fn : fluidExpr -> testResult)
+    ((expectedString, (expectedSelStart, expectedPos)) :
+      string * (int option * int)) =
+  let expected = (expectedString, (expectedSelStart, expectedPos)) in
+  test
+    ( name
+    ^ " - `"
+    ^ ( eToString defaultTestState initial
+      |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
+    ^ "`" )
+    (fun () -> expect (fn initial) |> toEqual (expected, NoPartial))
+
+
+let () =
   describe "Strings" (fun () ->
       t "insert mid string" aStr (ins 'c' 3) "\"soc~me string\"" ;
       t "del mid string" aStr (del 3) "\"so~e string\"" ;
@@ -1484,13 +1381,14 @@ let () =
         (EPartial
            ( gid ()
            , "body"
-           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           , EFieldAccess
+               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "")
            ))
         (ins ~clone:false '.' 11)
         "request.body.~***" ;
       tp
         "insert dot even when no content in the field"
-        (EVariable (ID "12", "request"))
+        (EVariable (ID "fake-acdata1", "request"))
         (keys ~clone:false [K.Period; K.Period] 7)
         "request.body.~***" ;
       tp
@@ -3011,6 +2909,8 @@ let () =
         "{\n  f1 : 56~\n  f2 : 78\n}" ;
       () ) ;
   describe "Autocomplete" (fun () ->
+      (* Note that many of these autocomplete tests use ~clone:false
+     because they rely on fake data defined under ids prefixed with `fake-acdata` *)
       t
         "space autocompletes correctly"
         (partial "if" b)
@@ -3105,25 +3005,26 @@ let () =
         "autocomplete for Nothing at end of a line"
         (if' b (partial "Nothing" b) b)
         (space 21)
-        "if ___\nthen\n  Nothing~\nelse\n  ___" ;
+        "if ___\nthen\n  Nothing\n~else\n  ___" ;
       t "autocomplete for Error" (partial "Error" b) (enter 5) "Error ~___" ;
       t
         "autocomplete for field"
         (EPartial
            ( gid ()
            , "bo"
-           , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "")
+           , EFieldAccess
+               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "")
            ))
         (enter ~clone:false 10)
         "request.body~" ;
       t
         "autocomplete shows first alphabetical item for fields"
-        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
         (keys [K.Period; K.Enter] ~clone:false 23)
         "let request = 5\nrequest.author~" ;
       t
         "autocomplete doesn't stick on the first alphabetical item for fields, when it refines further"
-        (let' "request" (int "5") (EVariable (ID "13", "request")))
+        (let' "request" (int "5") (EVariable (ID "fake-acdata2", "request")))
         (keys [K.Period; K.Letter 't'; K.Enter] ~clone:false 23)
         "let request = 5\nrequest.title~" ;
       t
@@ -3136,8 +3037,10 @@ let () =
                ( gid ()
                , "body"
                , EFieldAccess
-                   (gid (), EVariable (ID "12", "request"), gid (), "longfield")
-               )
+                   ( gid ()
+                   , EVariable (ID "fake-acdata1", "request")
+                   , gid ()
+                   , "longfield" ) )
            , EBlank (gid ()) ))
         (* Right should make it commit *)
         (key ~clone:false K.Right 20)
@@ -3148,16 +3051,66 @@ let () =
            ( gid ()
            , "bod"
            , EFieldAccess
-               (gid (), EVariable (ID "12", "request"), gid (), "longfield") ))
+               ( gid ()
+               , EVariable (ID "fake-acdata1", "request")
+               , gid ()
+               , "longfield" ) ))
         (* Dot should select the autocomplete *)
         (key ~clone:false K.Period 11)
         "request.body.~***" ;
+      t
+        "autocomplete with space moves to next non-whitespace rather than blank"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "request"
+           , ERecord
+               ( gid ()
+               , [ (gid (), "body", EInteger (gid (), "5"))
+                 ; (gid (), "blank", EBlank (gid ())) ] )
+           , ELet
+               ( gid ()
+               , gid ()
+               , "foo"
+               , EPartial
+                   ( gid ()
+                   , "bo"
+                   , EFieldAccess
+                       ( gid ()
+                       , EVariable (ID "fake-acdata3", "request")
+                       , gid ()
+                       , "" ) )
+               , EVariable (gid (), "foo") ) ))
+        (space ~clone:false 105)
+        "let request = {\n                body : 5\n                blank : ___\n              }\nlet foo = request.body\n~foo" ;
+      t
+        "autocomplete with tab in presence of no blanks places caret at end of autocompleted thing"
+        (ELet
+           ( gid ()
+           , gid ()
+           , "request"
+           , ERecord (gid (), [(gid (), "body", EInteger (gid (), "5"))])
+           , ELet
+               ( gid ()
+               , gid ()
+               , "foo"
+               , EPartial
+                   ( gid ()
+                   , "bo"
+                   , EFieldAccess
+                       ( gid ()
+                       , EVariable (ID "fake-acdata3", "request")
+                       , gid ()
+                       , "" ) )
+               , EVariable (gid (), "foo") ) ))
+        (tab ~clone:false 77)
+        "let request = {\n                body : 5\n              }\nlet foo = request.body~\nfoo" ;
       (* TODO: this doesn't work but should *)
       (* t *)
       (*   "autocomplete for field in body" *)
       (*   (EMatch *)
       (*      ( gid () *)
-      (*      , EFieldAccess (gid (), EVariable (ID "12", "request"), gid (), "bo") *)
+      (*      , EFieldAccess (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "bo") *)
       (*      , [] )) *)
       (*   (enter 18) *)
       (*   ("match request.body", 18) ; *)
@@ -3165,9 +3118,9 @@ let () =
       (*     expect (bs (EVariable (5, "request"))). *)
       () ) ;
   describe "Movement" (fun () ->
-      let tokens = toTokens m.fluidState complexExpr in
+      let s = defaultTestState in
+      let tokens = toTokens s complexExpr in
       let len = tokens |> List.map ~f:(fun ti -> ti.token) |> length in
-      let s = Defaults.defaultFluidState in
       let ast = complexExpr in
       test "gridFor - 1" (fun () ->
           expect (gridFor ~pos:116 tokens) |> toEqual {row = 2; col = 2} ) ;
@@ -3267,7 +3220,9 @@ let () =
              moveTo 14 s
              |> (fun s ->
                   let h = Fluid_utils.h ast in
-                  let m = {m with handlers = Handlers.fromList [h]} in
+                  let m =
+                    {defaultTestModel with handlers = Handlers.fromList [h]}
+                  in
                   updateAutocomplete m h.hTLID ast s )
              |> (fun s -> updateMouseClick 0 ast s)
              |> fun (ast, s) ->
@@ -3471,7 +3426,7 @@ let () =
           let id = ID "543" in
           expect
             (let ast = EString (id, "test") in
-             let tokens = toTokens m.fluidState ast in
+             let tokens = toTokens defaultTestState ast in
              Fluid.getNeighbours ~pos:3 tokens)
           |> toEqual
                (let token = TString (id, "test") in

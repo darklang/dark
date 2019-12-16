@@ -185,6 +185,10 @@ function acHighlightedText() {
   return Selector(".autocomplete-item.highlighted").textContent;
 }
 
+function fluidAcSelectedText() {
+  return Selector(".autocomplete-item.fluid-selected").textContent;
+}
+
 const scrollBy = ClientFunction((id, dx, dy) => {
   document.getElementById(id).scrollBy(dx, dy);
 });
@@ -197,12 +201,12 @@ test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
   await createHTTPHandler(t);
   await t
     // add headers
-    .typeText("#entry-box", "/spec_name")
-    .pressKey("enter")
-
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST"))
     .ok()
+    .pressKey("enter")
+
+    .typeText("#entry-box", "/spec_name")
     .pressKey("enter")
 
     // edit space
@@ -216,12 +220,12 @@ test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
   await createHTTPHandler(t);
   await t
     // add headers
-    .typeText("#entry-box", "/spec_name")
-    .pressKey("enter")
-
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST"))
     .ok()
+    .pressKey("enter")
+
+    .typeText("#entry-box", "/spec_name")
     .pressKey("enter")
 
     // edit space
@@ -235,12 +239,12 @@ test("switching_from_http_space_removes_variable_colons", async t => {
   await createHTTPHandler(t);
   await t
     // add headers
-    .typeText("#entry-box", "/spec_name/:variable")
-    .pressKey("enter")
-
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST"))
     .ok()
+    .pressKey("enter")
+
+    .typeText("#entry-box", "/spec_name/:variable")
     .pressKey("enter")
 
     // edit space
@@ -453,12 +457,12 @@ test("right_number_of_blanks", async t => {
 test("ellen_hello_world_demo", async t => {
   await createHTTPHandler(t);
   await t
-    // route
-    .typeText("#entry-box", "/hello")
-    .pressKey("enter")
-
     // verb
     .typeText("#entry-box", "g")
+    .pressKey("enter")
+
+    // route
+    .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
     // string
@@ -470,12 +474,12 @@ test("editing_headers", async t => {
   await createHTTPHandler(t);
   await t
     // add headers
-    .typeText("#entry-box", "/hello")
-    .pressKey("enter")
-
     .typeText("#entry-box", "PO")
     .expect(acHighlightedText("POST"))
     .ok()
+    .pressKey("enter")
+
+    .typeText("#entry-box", "/hello")
     .pressKey("enter")
 
     // edit them
@@ -561,9 +565,9 @@ test("focus_on_cond_in_new_tl_with_if", async t => {
 test("dont_shift_focus_after_filling_last_blank", async t => {
   await createHTTPHandler(t);
   await t
-    .typeText("#entry-box", "/")
-    .pressKey("enter")
     .typeText("#entry-box", "GET")
+    .pressKey("enter")
+    .typeText("#entry-box", "/")
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter");
@@ -1291,4 +1295,45 @@ test("fluid_fn_pg_change", async t => {
 
   //Make sure we stay on the page
   await t.expect(available(".tl-1464810122")).ok({ timeout: 1000 });
+});
+
+test("fluid_creating_an_http_handler_focuses_the_verb", async t => {
+  await createHTTPHandler(t);
+
+  await t
+    .pressKey("down") // enter AC
+    .expect(acHighlightedText("GET"))
+    .ok();
+});
+
+test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("r") // enter AC
+    .expect(fluidAcSelectedText("request"))
+    .ok();
+});
+
+test("fluid_tabbing_from_handler_spec_past_ast_back_to_verb", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("tab") // ast -> loop back to verb;
+    .pressKey("down") // enter AC
+    .expect(acHighlightedText("GET"))
+    .ok();
+});
+
+test("fluid_shift_tabbing_from_handler_ast_back_to_route", async t => {
+  await createHTTPHandler(t);
+  await t
+    .pressKey("tab") // verb -> route
+    .pressKey("tab") // route -> ast
+    .pressKey("shift+tab") // ast -> back to route;
+    .pressKey("down") // enter route
+    .expect(acHighlightedText("/"))
+    .ok();
 });

@@ -95,6 +95,10 @@ type state = Types.fluidState
 
 let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     =
+  let fns =
+    assertFn ~f:(( <> ) []) "empty functions passed to fromExpr" s.ac.functions
+  in
+  let f = fromExpr s in
   let varToName var = match var with Blank _ -> "" | F (_, name) -> name in
   let parseString str :
       [> `Bool of bool
@@ -137,7 +141,6 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     |> Option.or_ asFloat
     |> Option.withDefault ~default:`Unknown
   in
-  let f = fromExpr s in
   match expr with
   | Blank id ->
       EBlank id
@@ -163,9 +166,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
         (* add a pipetarget in the front *)
         let args = if inPipe then EPipeTarget (gid ()) :: args else args in
         let fnCall = EFnCall (id, varToName name, args, ster) in
-        let fn =
-          List.find s.ac.functions ~f:(fun fn -> fn.fnName = varToName name)
-        in
+        let fn = List.find fns ~f:(fun fn -> fn.fnName = varToName name) in
         ( match fn with
         | Some fn when fn.fnInfix ->
           ( match args with
@@ -606,6 +607,12 @@ module Builder = struct
 end
 
 let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
+  let fns =
+    assertFn
+      ~f:(( <> ) [])
+      "empty functions passed to toTokens'"
+      s.ac.functions
+  in
   let fromExpr e b = toTokens' s e b in
   let open Builder in
   let ghostPartial id newName oldName =
@@ -621,7 +628,7 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
       match (e, placeholderFor) with
       | EBlank id, Some (fnname, pos) ->
           let name =
-            s.ac.functions
+            fns
             |> List.find ~f:(fun f -> f.fnName = fnname)
             |> Option.andThen ~f:(fun fn ->
                    List.getAt ~index:pos fn.fnParameters )
@@ -842,11 +849,13 @@ let rec toTokens' (s : state) (e : ast) (b : Builder.t) : Builder.t =
         b
         |> add (TRecordOpen id)
         |> indentBy ~indent:2 ~f:(fun b ->
-               addIter fields b ~f:(fun i (aid, fname, expr) b ->
+               addIter fields b ~f:(fun i (fieldID, fieldName, expr) b ->
                    b
                    |> addNewlineIfNeeded (Some (id, id, Some i))
-                   |> add (TRecordFieldname (id, aid, i, fname))
-                   |> add (TRecordSep (id, i, aid))
+                   |> add
+                        (TRecordFieldname
+                           {recordID = id; fieldID; index = i; fieldName})
+                   |> add (TRecordSep (id, i, fieldID))
                    |> addNested ~f:(fromExpr expr) ) )
         |> addMany
              [ TNewline (Some (id, id, Some (List.length fields)))
@@ -1866,7 +1875,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         (function TRecordClose id' -> id = id' | _ -> false)
     | ARRecord (id, RPFieldname idx) ->
         (function
-        | TRecordFieldname (id', _, idx', _) ->
+        | TRecordFieldname {recordID = id'; index = idx'} ->
             id = id' && idx = idx'
         | _ ->
             false)
@@ -2332,9 +2341,15 @@ let deletePartial (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
 
 let replacePartialWithArguments
     ~(newExpr : fluidExpr) (id : id) (s : state) (ast : ast) : ast =
+  let fns =
+    assertFn
+      ~f:(( <> ) [])
+      "empty functions passed to replacePartialWithArguments"
+      s.ac.functions
+  in
   let getFunctionParams fnname count varExprs =
     List.map (List.range 0 count) ~f:(fun index ->
-        s.ac.functions
+        fns
         |> List.find ~f:(fun f -> f.fnName = fnname)
         |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
         |> Option.map ~f:(fun p ->
@@ -2576,8 +2591,8 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str, _) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordFieldname (id, _, index, str) ->
-      replaceRecordField ~index (f str) id ast
+  | TRecordFieldname {recordID; index; fieldName} ->
+      replaceRecordField ~index (f fieldName) recordID ast
   | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
   | TLambdaVar (id, _, index, str) ->
@@ -2885,34 +2900,52 @@ let acMoveDown (s : state) : state =
   acSetIndex index s
 
 
+(* acMoveBasedOnKey produces a new state with the caret placed in a position that
+   makes sense for the specific key that was pressed to confirm the autocomplete.
+   
+   It accepts:
+   - the pressed key,
+   - the caret position at which the autocompleted token begins,
+   - an "offset" that corresponds to how many additional steps the caret should take to get
+      from there to where the caret would end up with no special handling,
+   - the state after the completion has been added to the ast
+   - the ast after the completion has been added *)
 let acMoveBasedOnKey
-    (key : K.key) (startPos : int) (offset : int) (s : state) (ast : ast) :
-    state =
+    (key : K.key)
+    (posAtStartOfACedToken : int)
+    (offset : int)
+    (s : state)
+    (ast : ast) : state =
   let tokens = toTokens s ast in
-  let nextBlank = getNextBlankPos s.newPos tokens in
-  let prevBlank = getPrevBlankPos s.newPos tokens in
+  let posAtEndOfACedToken = posAtStartOfACedToken + offset in
   let newPos =
     match key with
     | K.Tab ->
-        nextBlank
+      ( match getNextBlank s.newPos tokens with
+      | Some nextBlankTi ->
+          nextBlankTi.startPos
+      | None ->
+          posAtEndOfACedToken )
     | K.ShiftTab ->
-        prevBlank
+      ( match getPrevBlank s.newPos tokens with
+      | Some prevBlankTi ->
+          prevBlankTi.startPos
+      | None ->
+          posAtStartOfACedToken )
     | K.Enter ->
-        startPos + offset
+        posAtEndOfACedToken
     | K.Space ->
-        let thisTi =
-          List.find ~f:(fun ti -> ti.startPos = startPos + offset) tokens
+        let newS =
+          (* TODO: consider skipping over non-whitespace separators
+             as well, such as the commas in a list:
+              we currently do [aced|,___]
+              but could do    [aced,|___]
+           *)
+          moveToNextNonWhitespaceToken ~pos:posAtEndOfACedToken ast s
         in
-        ( match thisTi with
-        (* Only move forward to skip over a separator *)
-        (* TODO: are there more separators we should consider here? *)
-        | Some {token = TSep _} ->
-            min nextBlank (startPos + offset + 1)
-        | _ ->
-            (* if new position is after next blank, stay in next blank *)
-            startPos + offset )
+        newS.newPos
     | _ ->
-        s.newPos
+        posAtEndOfACedToken
   in
   let newState = moveTo newPos (acClear s) in
   newState
@@ -3284,8 +3317,9 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TRecordFieldname (id, _, i, "") when pos = ti.startPos ->
-        (removeRecordField id i ast, LeftThree)
+    | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
+      ->
+        (removeRecordField recordID index ast, LeftThree)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TBlank _
@@ -3978,7 +4012,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname (_, _, _, ""), ti) ->
+    | K.Backspace, _, R (TRecordFieldname {fieldName = ""}, ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
@@ -4943,14 +4977,15 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
     | EList (_, exprs), _ ->
         let newExprs = List.map exprs ~f:reconstructExpr |> Option.values in
         Some (EList (id, newExprs))
-    | ERecord (_, entries), _ ->
+    | ERecord (id, entries), _ ->
         let newEntries =
           (* looping through original set of tokens (before transforming them into tuples)
            * so we can get the index field *)
           tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordFieldname (_, _, index, newKey) ->
+                 | TRecordFieldname {recordID; index; fieldName = newKey}
+                   when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
                           ~f:
@@ -5571,20 +5606,30 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
             (* if tab is wrapping... *)
             if newState.lastKey = K.Tab && newState.newPos <= newState.oldPos
             then
-              (* toggle through spec headers *)
-              (* if on first spec header that is blank
-               * set cursor to select that *)
+              (* get the first blank spec header, or fall back to NoChange *)
               match tl with
-              | TLHandler {spec = {name = Blank id; _}; _} ->
-                  (enter id, ast, s)
-              | TLHandler {spec = {space = Blank id; _}; _} ->
-                  (enter id, ast, s)
-              | TLHandler {spec = {modifier = Blank id; _}; _} ->
-                  (enter id, ast, s)
+              | TLHandler {spec; _} ->
+                ( match SpecHeaders.firstBlank spec with
+                | Some id ->
+                    (enter id, ast, s)
+                | None ->
+                    (NoChange, newAST, newState) )
+              | _ ->
+                  (NoChange, newAST, newState)
+            else if newState.lastKey = K.ShiftTab
+                    && newState.newPos >= newState.oldPos
+            then
+              (* get the last blank spec header, or fall back to NoChange *)
+              match tl with
+              | TLHandler {spec; _} ->
+                ( match SpecHeaders.lastBlank spec with
+                | Some id ->
+                    (enter id, ast, s)
+                | None ->
+                    (NoChange, newAST, newState) )
               | _ ->
                   (NoChange, newAST, newState)
             else (NoChange, newAST, newState)
-            (* the above logic is slightly duplicated from Selection.toggleBlankTypes *)
           in
           let cmd =
             match newState.ac.index with
@@ -5680,7 +5725,7 @@ let viewCopyButton tlid value : msg Html.html =
     [ViewUtils.fontAwesome "copy"]
 
 
-let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
+let viewErrorIndicator ~analysisStore ~state ti : Types.msg Html.html =
   let returnTipe name =
     let fn = Functions.findByNameInList name state.ac.functions in
     Runtime.tipe2str fn.fnReturnTipe
@@ -5700,13 +5745,18 @@ let viewErrorIndicator ~tlid ~analysisStore ~state ti : Types.msg Html.html =
   | TFnName (id, _, _, fnName, Rail) ->
       let offset = string_of_int ti.startRow ^ "rem" in
       let cls = ["error-indicator"; returnTipe fnName; sentToRail id] in
+      let event =
+        Vdom.noProp
+        (* TEMPORARY DISABLE
+          ViewUtils.eventNoPropagation	
+            ~key:("er-" ^ show_id id)	
+            "click"	
+            (fun _ -> TakeOffErrorRail (tlid, id)) *)
+      in
       Html.div
         [ Html.class' (String.join ~sep:" " cls)
         ; Html.styles [("top", offset)]
-        ; ViewUtils.eventNoPropagation
-            ~key:("er-" ^ show_id id)
-            "click"
-            (fun _ -> TakeOffErrorRail (tlid, id)) ]
+        ; event ]
         []
   | _ ->
       Vdom.noNode
@@ -6019,8 +6069,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   let errorRail =
     let indicators =
       tokenInfos
-      |> List.map ~f:(fun ti ->
-             viewErrorIndicator ~tlid ~analysisStore ~state ti )
+      |> List.map ~f:(fun ti -> viewErrorIndicator ~analysisStore ~state ti)
     in
     let hasMaybeErrors = List.any ~f:(fun e -> e <> Vdom.noNode) indicators in
     Html.div

@@ -92,8 +92,6 @@ let dark_arrayBuffer_from_b64url =
       bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
     }
 
-    console.log(arraybuffer);
-    console.log(arraybuffer.byteLength);
     return arraybuffer;
   }
 |}]
