@@ -1,3 +1,5 @@
+(* See docs/unittests.md for documentation on how to use this. *)
+
 let domTests = ref false
 
 let process_cmdline_args () =
@@ -30,6 +32,7 @@ let process_cmdline_args () =
           Js.log ("Unsupported command line argument: " ^ str) )
 
 
+(* See docs/unittests.md for documentation on how to use this. *)
 let () =
   process_cmdline_args () ;
   Analysis_test.run () ;
