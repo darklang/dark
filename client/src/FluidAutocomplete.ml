@@ -643,3 +643,18 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
 
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
+
+let updateAutocompleteVisability (m : model) : model =
+  let oldTlid =
+    match m.fluidState.ac.query with
+    | Some (tlid, _) ->
+        Some tlid
+    | None ->
+        tlidOf m.cursorState
+  in
+  let newTlid = tlidOf m.cursorState in
+  if isOpened m.fluidState.ac && oldTlid <> newTlid
+  then
+    let newAc = init m in
+    {m with fluidState = {m.fluidState with ac = newAc}}
+  else m

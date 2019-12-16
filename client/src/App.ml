@@ -1054,6 +1054,10 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
+  (* Instead of finding each case where the user can change the focused toplevel or focus on the canvas,
+   * check if the focused toplevel tlid(via the cursorstate) still matches the fluid autocomplete query tlid
+   * after the model has been updated *)
+  let newm = FluidAutocomplete.updateAutocompleteVisability newm in
   (newm, Cmd.batch [cmd; newcmd])
 
 
@@ -1132,12 +1136,9 @@ let update_ (msg : msg) (m : model) : modification =
                 ; Enter (Creating (Viewport.toAbsolute m event.mePos)) ]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
-              Many
-                [ Entry.commit m cursor
-                ; defaultBehaviour
-                ; Fluid.update m FluidCloseAutocomplete ]
+              Many [Entry.commit m cursor; defaultBehaviour]
           | _ ->
-              Many [defaultBehaviour; Fluid.update m FluidCloseAutocomplete]
+              defaultBehaviour
         else NoChange )
   | BlankOrMouseEnter (tlid, id, _) ->
       SetHover (tlid, id)
@@ -2039,8 +2040,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m ->
               {m with canvasProps = {m.canvasProps with minimap = None}} )
-        ; MakeCmd (Url.navigateTo Architecture)
-        ; Fluid.update m FluidCloseAutocomplete ]
+        ; Deselect
+        ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
       ClearError
   | PauseWorker workerName ->
