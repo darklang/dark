@@ -1,6 +1,5 @@
 open Tc
 open Types
-
 module Cmd = Tea.Cmd
 module Navigation = Tea.Navigation
 module TL = Toplevel
@@ -42,51 +41,12 @@ let offsetForGrid (tlid : tlid) (offset : pos) : pos =
   |> Option.withDefault ~default:offset
 
 
-let calculatePanOffset (m : model) (tl : toplevel) (page : page) : model =
-  let center =
-    match page with
-    | FocusedHandler (_, center)
-    | FocusedDB (_, center)
-    | FocusedGroup (_, center) ->
-        center
-    | _ ->
-        false
-  in
-  let offset =
-    if VariantTesting.variantIsActive m GridLayout
-    then
-      m.canvasProps.offset
-      (* offsetForGrid (TL.id tl) m.canvasProps.offset (if m.sidebarOpen then 320 else 60) *)
-    else if center
-    then Viewport.centerCanvasOn tl
-    else m.canvasProps.offset
-  in
-  let panAnimation =
-    if offset <> m.canvasProps.offset
-    then AnimateTransition
-    else DontAnimateTransition
-  in
-  let boId =
-    let idInToplevel id =
-      match TL.find tl id with Some _ -> Some id | None -> None
-    in
-    match m.cursorState with
-    | Selecting (tlid, sid) when tlid = TL.id tl ->
-      (match sid with Some id -> idInToplevel id | None -> None)
-    | _ ->
-        None
-  in
-  { m with
-    currentPage = page
-  ; cursorState = Selecting (TL.id tl, boId)
-  ; canvasProps = {m.canvasProps with offset; panAnimation; lastOffset = None}
-  }
-
 let moveToCmd (m : model) (tlid : tlid) : msg Cmd.t =
   TL.get m tlid
-  |> Option.andThen ~f:TL.getPos
+  |> Option.map ~f:TL.pos
   |> Option.map ~f:Viewport.moveCanvasToPos
   |> Option.withDefault ~default:Cmd.none
+
 
 let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
   match (oldPage, newPage) with
@@ -106,12 +66,13 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
         let x, y = Native.Ext.appScrollPos () in
         {x; y}
       in
-      ({ m with
-        currentPage = newPage
-      ; canvasProps =
-          { m.canvasProps with
-            lastOffset = Some savePos; offset = Defaults.origin }
-      ; cursorState = Selecting (tlid, None) }, Viewport.moveCanvasTo 0 0)
+      ( { m with
+          currentPage = newPage
+        ; canvasProps =
+            { m.canvasProps with
+              lastOffset = Some savePos; offset = Defaults.origin }
+        ; cursorState = Selecting (tlid, None) }
+      , Viewport.moveCanvasTo 0 0 )
   (* Special space to another special space *)
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
@@ -124,10 +85,11 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       if oldtlid = newtlid
       then (m, Cmd.none)
       else
-        ({ m with
-          currentPage = newPage
-        ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-        ; cursorState = Selecting (newtlid, None) }, Viewport.moveCanvasTo 0 0)
+        ( { m with
+            currentPage = newPage
+          ; canvasProps = {m.canvasProps with offset = Defaults.origin}
+          ; cursorState = Selecting (newtlid, None) }
+        , Viewport.moveCanvasTo 0 0 )
   (* Special space to Arch *)
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
@@ -139,25 +101,20 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
     * Jump to position where the toplevel is located
     *)
       let cmd = moveToCmd m tlid in
-      ({ m with
-        currentPage = newPage
-      ; cursorState = Selecting (tlid, None)
-      }, cmd)
+      ( {m with currentPage = newPage; cursorState = Selecting (tlid, None)}
+      , cmd )
   (* Arch to Arch Focused *)
   | Architecture, FocusedHandler (tlid, _)
   | Architecture, FocusedDB (tlid, _)
   | Architecture, FocusedGroup (tlid, _) ->
       (* Going from Architecture to focused db/handler
   * Figure out if you can stay where you are or animate pan to toplevel pos
-  *)  
-    let cmd =
-      if Viewport.isToplevelVisible tlid
-      then Cmd.none else moveToCmd m tlid
-    in
-    ({ m with
-    currentPage = newPage
-  ; cursorState = Selecting (tlid, None)
-  }, cmd)
+  *)
+      let cmd =
+        if Viewport.isToplevelVisible tlid then Cmd.none else moveToCmd m tlid
+      in
+      ( {m with currentPage = newPage; cursorState = Selecting (tlid, None)}
+      , cmd )
   (* Arch Focused to Arch Focused *)
   | FocusedHandler (otlid, _), FocusedHandler (tlid, _)
   | FocusedHandler (otlid, _), FocusedDB (tlid, _)
@@ -172,30 +129,31 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos
   *)
-    let cmd =
-      if Viewport.isToplevelVisible tlid
-      then Cmd.none else moveToCmd m tlid
-    in
-    if otlid = tlid then (m, Cmd.none) else ({ m with
-    currentPage = newPage
-  ; cursorState = Selecting (tlid, None)
-  }, cmd)
+      let cmd =
+        if Viewport.isToplevelVisible tlid then Cmd.none else moveToCmd m tlid
+      in
+      if otlid = tlid
+      then (m, Cmd.none)
+      else
+        ( {m with currentPage = newPage; cursorState = Selecting (tlid, None)}
+        , cmd )
   (* Special space to Special space *)
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture
     * Return to the previous position you were on the canvas
     *)
-      let cmd = 
+      let cmd =
         match m.canvasProps.lastOffset with
         | Some lo ->
             Viewport.moveCanvasTo lo.x lo.y
         | None ->
             Cmd.none
       in
-      ({ m with
-        currentPage = newPage
-      ; canvasProps =
-          {m.canvasProps with lastOffset = None; minimap = None} }, cmd)
+      ( { m with
+          currentPage = newPage
+        ; canvasProps = {m.canvasProps with lastOffset = None; minimap = None}
+        }
+      , cmd )
   | _, Architecture ->
       (* Anything else to Architecture
     * Stay where you are, Deselect

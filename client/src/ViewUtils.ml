@@ -265,8 +265,8 @@ let placeHtml
     then Vdom.noProp
     else
       Html.styles
-        [ ("left", (string_of_int pos.x) ^ "px")
-        ; ("top", (string_of_int pos.y) ^ "px") ]
+        [ ("left", string_of_int pos.x ^ "px")
+        ; ("top", string_of_int pos.y ^ "px") ]
   in
   Html.div [Html.classList (("node", true) :: classes); styles] html
 

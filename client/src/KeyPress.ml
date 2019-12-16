@@ -306,8 +306,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               |> Option.map ~f:(Refactor.putOnRail m tl)
               |> Option.withDefault ~default:NoChange
           else NoChange
-      | Key.O, Some _ ->
-          if event.altKey then CenterCanvasOn tlid else NoChange
       | Key.K, Some _ ->
           if osCmdKeyHeld then openOmnibox m else NoChange
       | Key.Unknown _, Some _ ->
@@ -507,8 +505,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             Viewport.moveLeft ()
         | Key.Right ->
             Viewport.moveRight ()
-        | Key.Zero ->
-            Viewport.moveToOrigin
         | Key.Tab ->
             Selection.selectNextToplevel m None
             (* NB: see `stopKeys` in ui.html *)

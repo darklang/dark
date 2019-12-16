@@ -13,10 +13,11 @@ module Regex = Util.Regex
 let openOmnibox (vPos : vPos option) : modification =
   let vp =
     match vPos with
-    | Some p -> p
+    | Some p ->
+        p
     | None ->
-      (* Let's try to get this closer to center top *)
-      {vx = Native.Window.viewportWidth/2 - 200 ; vy = 200}
+        (* Let's try to get this closer to center top *)
+        Viewport.centerTop
   in
   let pos = Viewport.toAbsolute vp in
   Enter (Creating pos)
@@ -238,7 +239,7 @@ let newDB (name : string) (pos : pos) (m : model) : modification =
 
 let submitOmniAction (m : model) (pos : pos) (action : omniAction) :
     modification =
-  let pos = {x = pos.x ; y = pos.y - 100} in
+  let pos = {x = pos.x; y = pos.y - 100} in
   let unused = Some "_" in
   match action with
   | NewDB maybeName ->

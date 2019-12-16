@@ -745,17 +745,6 @@ let return_to_architecture_on_deselect (m : model) : testResult =
       fail ~f:show_page m.currentPage
 
 
-let fn_page_returns_to_lastpos (m : model) : testResult =
-  match TL.get m (TLID "123") with
-  | Some tl ->
-      let centerPos = Viewport.centerCanvasOn tl in
-      if m.canvasProps.offset = centerPos
-      then pass
-      else fail ~f:show_pos m.canvasProps.offset
-  | None ->
-      fail "no tl found"
-
-
 let fn_page_to_handler_pos (_m : model) : testResult = pass
 
 let load_with_unnamed_function (_m : model) : testResult = pass
@@ -1120,8 +1109,6 @@ let trigger (test_name : string) : integrationTestState =
         fourohfours_parse
     | "return_to_architecture_on_deselect" ->
         return_to_architecture_on_deselect
-    | "fn_page_returns_to_lastpos" ->
-        fn_page_returns_to_lastpos
     | "fn_page_to_handler_pos" ->
         fn_page_to_handler_pos
     | "autocomplete_visible_height" ->

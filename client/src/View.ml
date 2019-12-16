@@ -332,11 +332,16 @@ let viewCanvas (m : model) : msg Html.html =
   let overlay =
     let showOverlay =
       match m.currentPage with
-      | FocusedHandler _ | FocusedDB _ ->	
-        true
+      | FocusedHandler _ | FocusedDB _ ->
+          true
       | Architecture ->
-        (match unwrapCursorState m.cursorState with Entering (Creating _) -> true | _ -> false)
-      | _ -> false
+        ( match unwrapCursorState m.cursorState with
+        | Entering (Creating _) ->
+            true
+        | _ ->
+            false )
+      | _ ->
+          false
     in
     if showOverlay then Html.div [Html.class' "overlay"] [] else Vdom.noNode
   in
@@ -359,9 +364,7 @@ let viewCanvas (m : model) : msg Html.html =
     if m.sidebarOpen then "sidebar-open" else "sidebar-close"
   in
   Html.div
-    [ Html.id "canvas"
-    ; Html.class' (pageClass ^ " " ^ sidebarStateClass)
-    ]
+    [Html.id "canvas"; Html.class' (pageClass ^ " " ^ sidebarStateClass)]
     (overlay :: allDivs)
 
 

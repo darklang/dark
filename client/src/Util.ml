@@ -2,7 +2,9 @@ open Tc
 
 let random (a : unit) : int = Native.Random.random a
 
-let clamp (x : int) (min : int) (max : int) : int = if x < min then min else if x > max then max else x
+let clamp (x : int) (min : int) (max : int) : int =
+  if x < min then min else if x > max then max else x
+
 
 let findIndex ~(f : 'a -> bool) (l : 'a list) : (int * 'a) option =
   List.find ~f:(fun (_, a) -> f a) (List.indexedMap ~f:Tuple2.create l)

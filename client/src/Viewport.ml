@@ -8,62 +8,44 @@ let addPos (a : pos) (b : pos) : pos = {x = a.x + b.x; y = a.y + b.y}
 let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
 
 let toAbsolute (pos : vPos) : pos =
-  let topleft = 
-    let x, y = Native.Ext.appScrollPos ()
-    in {x; y}
+  let topleft =
+    let x, y = Native.Ext.appScrollPos () in
+    {x; y}
   in
   addPos {x = pos.vx; y = pos.vy} topleft
 
+
+let centerTop : vPos = {vx = (Native.Window.viewportWidth / 2) - 200; vy = 200}
 
 let toCenteredOn (pos : pos) : pos = subPos pos Defaults.centerPos
 
 let toCenter (pos : pos) : pos = addPos pos Defaults.centerPos
 
 let pageUp () : modification =
-  MoveCanvasBy (0,-1*Native.Window.viewportHeight)
+  MoveCanvasBy (0, -1 * Native.Window.viewportHeight)
 
-let pageDown () : modification = MoveCanvasBy (0,Native.Window.viewportHeight)
+
+let pageDown () : modification = MoveCanvasBy (0, Native.Window.viewportHeight)
 
 let pageLeft () : modification =
-  MoveCanvasBy (-1*Native.Window.viewportWidth, 0)
+  MoveCanvasBy (-1 * Native.Window.viewportWidth, 0)
+
 
 let pageRight () : modification = MoveCanvasBy (Native.Window.viewportWidth, 0)
 
-let moveUp () : modification =
-  MoveCanvasBy (0, -1 * Defaults.moveSize)
+let moveUp () : modification = MoveCanvasBy (0, -1 * Defaults.moveSize)
 
 let moveDown () : modification = MoveCanvasBy (0, Defaults.moveSize)
 
-let moveLeft () : modification =
-  MoveCanvasBy (-1 * Defaults.moveSize, 0)
+let moveLeft () : modification = MoveCanvasBy (-1 * Defaults.moveSize, 0)
 
 let moveRight () : modification = MoveCanvasBy (Defaults.moveSize, 0)
-
-let moveToOrigin : modification =
-  MoveCanvasTo (Defaults.origin, DontAnimateTransition)
 
 let sidebarWidth () : int =
   Native.Ext.querySelector "#sidebar-left"
   |> Option.map ~f:Native.Ext.clientWidth
   |> recoverOpt "can't find sidebar HTML body" ~default:320
 
-(* Centers the toplevel on canvas based on windowWidth and sidebarWidth 
-  Default values (when we can't find get elements from dom) are based on
-  min-widths defined in app.less. At some point we will want to find a
-  less volatile method for the constant definitions.
-*)
-let centerCanvasOn (tl : toplevel) : pos =
-  let windowWidth = Native.Window.viewportWidth in
-  let sidebarWidth = sidebarWidth () in
-  let tlWidth =
-    let tle =
-      Native.Ext.querySelector (".toplevel.tl-" ^ Prelude.showTLID (TL.id tl))
-    in
-    match tle with Some e -> Native.Ext.clientWidth e | None -> 245
-  in
-  let availWidth = (windowWidth - tlWidth) / 3 in
-  let offsetLeft = sidebarWidth + availWidth in
-  {x = (TL.pos tl).x - offsetLeft; y = (TL.pos tl).y - 200}
 
 (* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
 let moveToToken (id : id) (tl : toplevel) : int option * int option =
@@ -84,14 +66,14 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       (* If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis. *)
       let xTarget =
         if tokenBox.left < viewport.left
-        then Some (-1*(viewport.left - tokenBox.left + 20))
+        then Some (-1 * (viewport.left - tokenBox.left + 20))
         else if tokenBox.right > viewport.right
         then Some (tokenBox.right - viewport.right + 20)
         else None
       in
       let yTarget =
         if tokenBox.top < viewport.top
-        then Some (-1*(viewport.top - tokenBox.top + 20))
+        then Some (-1 * (viewport.top - tokenBox.top + 20))
         else if tokenBox.bottom > viewport.bottom
         then Some (tokenBox.bottom - viewport.bottom + 20)
         else None
@@ -99,6 +81,7 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       (xTarget, yTarget)
   | None ->
       (None, None)
+
 
 let isToplevelVisible ?(isFullyInside = true) (tlid : tlid) : bool =
   let viewport : Native.rect =
@@ -111,27 +94,29 @@ let isToplevelVisible ?(isFullyInside = true) (tlid : tlid) : bool =
   in
   let id = Prelude.showTLID tlid in
   Native.Ext.querySelector (".toplevel.tl-" ^ id)
-  |> Option.map ~f:(fun tl -> 
-    let rect = Native.Ext.getBoundingClient tl id in
-    if isFullyInside
-    then 
-      rect.top > viewport.top &&
-      rect.left > viewport.left &&
-      rect.right < viewport.right &&
-      rect.bottom < viewport.bottom
-    else
-      rect.top > viewport.top ||
-      rect.left > viewport.left ||
-      rect.right < viewport.right ||
-      rect.bottom < viewport.bottom
-  )
+  |> Option.map ~f:(fun tl ->
+         let rect = Native.Ext.getBoundingClient tl id in
+         if isFullyInside
+         then
+           rect.top > viewport.top
+           && rect.left > viewport.left
+           && rect.right < viewport.right
+           && rect.bottom < viewport.bottom
+         else
+           rect.top > viewport.top
+           || rect.left > viewport.left
+           || rect.right < viewport.right
+           || rect.bottom < viewport.bottom )
   |> Option.withDefault ~default:false
 
-let moveCanvasBy (x: int) (y: int) : msg Tea.Cmd.t =
+
+let moveCanvasBy (x : int) (y : int) : msg Tea.Cmd.t =
   Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y)
 
-let moveCanvasTo (x: int) (y: int) : msg Tea.Cmd.t =
+
+let moveCanvasTo (x : int) (y : int) : msg Tea.Cmd.t =
   Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y ~smooth:false)
+
 
 let moveCanvasToPos (pos : pos) : msg Tea.Cmd.t =
   let mx, my = Native.Ext.appScrollLimits () in

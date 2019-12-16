@@ -5564,8 +5564,10 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
                match Viewport.moveToToken id tl with
                | Some dx, Some dy ->
                    MoveCanvasBy (dx, dy)
-               | Some dx, None -> MoveCanvasBy (dx, 0)
-               | None, Some dy -> MoveCanvasBy (0, dy)
+               | Some dx, None ->
+                   MoveCanvasBy (dx, 0)
+               | None, Some dy ->
+                   MoveCanvasBy (0, dy)
                | None, None ->
                    NoChange
              in

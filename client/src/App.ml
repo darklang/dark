@@ -475,12 +475,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           in
           let cap = Page.capMinimap m.currentPage page in
           let newM, pageCmd = Page.setPage m m.currentPage page in
-          let cmds = Cmd.batch (RPC.sendPresence m avMessage :: pageCmd :: cap) in
+          let cmds =
+            Cmd.batch (RPC.sendPresence m avMessage :: pageCmd :: cap)
+          in
           (newM, cmds)
         else
           let newM, pageCmd = Page.setPage m m.currentPage Architecture in
-          ( newM
-          , Cmd.batch [Url.updateUrl Architecture ; pageCmd] )
+          (newM, Cmd.batch [Url.updateUrl Architecture; pageCmd])
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
@@ -579,7 +580,11 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = timeStamp }
           in
           let commands =
-            hashcmd @ closeBlanks m @ [acCmd] @ [RPC.sendPresence m avMessage] @ [mvCmd]
+            hashcmd
+            @ closeBlanks m
+            @ [acCmd]
+            @ [RPC.sendPresence m avMessage]
+            @ [mvCmd]
           in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
@@ -958,31 +963,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with executingFunctions = nexecutingFunctions}, Cmd.none)
     | MoveCanvasBy (x, y) ->
-      let moveCmd = Viewport.moveCanvasBy x y in 
-      (m, moveCmd )
-    | MoveCanvasTo (offset, panAnimation) ->
-        let w, h = Native.Ext.appScrollLimits () in
-        let x = Util.clamp offset.x 0 w in
-        let y = Util.clamp offset.y 0 h in
-        let offset = {x; y} in
-        let newCanvasProps =
-          { m.canvasProps with
-            offset; panAnimation; lastOffset = Some m.canvasProps.offset }
-        in
-        let smooth = panAnimation = AnimateTransition in
-        let moveCmd = Tea_cmd.call (fun _ -> Native.Ext.appScrollTo offset.x offset.y ~smooth) in 
-        ({m with canvasProps = newCanvasProps}, moveCmd )
-    | CenterCanvasOn tlid ->
-      ( match TL.get m tlid with
-      | Some tl ->
-          ( { m with
-              canvasProps =
-                { m.canvasProps with
-                  offset = Viewport.centerCanvasOn tl
-                ; panAnimation = AnimateTransition } }
-          , Cmd.none )
-      | None ->
-          (m, Cmd.none) )
+        let moveCmd = Viewport.moveCanvasBy x y in
+        (m, moveCmd)
     | TriggerHandlerRPC tlid ->
         let traceID = Analysis.getSelectedTraceID m tlid in
         ( match Option.andThen traceID ~f:(Analysis.getTrace m tlid) with
@@ -1073,7 +1055,7 @@ let findCenter (m : model) : pos =
   let {x; y} =
     match m.currentPage with
     | Architecture | FocusedHandler _ | FocusedDB _ | FocusedGroup _ ->
-        Viewport.toCenter m.canvasProps.offset
+        Viewport.toAbsolute Viewport.centerTop
     | _ ->
         Defaults.centerPos
   in
@@ -1140,8 +1122,7 @@ let update_ (msg : msg) (m : model) : modification =
           match unwrapCursorState m.cursorState with
           | Deselected ->
               Many
-                [ AutocompleteMod ACReset
-                ; Entry.openOmnibox (Some event.mePos) ]
+                [AutocompleteMod ACReset; Entry.openOmnibox (Some event.mePos)]
           | Entering (Filling _ as cursor) ->
               (* If we click away from an entry box, commit it before doing the default behaviour *)
               Many [Entry.commit m cursor; defaultBehaviour]
@@ -1152,8 +1133,6 @@ let update_ (msg : msg) (m : model) : modification =
       SetHover (tlid, id)
   | BlankOrMouseLeave (tlid, id, _) ->
       ClearHover (tlid, id)
-  | MouseWheel (x, y) ->
-    MoveCanvasBy (x, y)
   | TraceMouseEnter (tlid, traceID, _) ->
       let traceCmd =
         match Analysis.getTrace m tlid traceID with
@@ -2133,17 +2112,6 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           then PageVisibilityChange Visible
           else PageVisibilityChange Hidden ) ]
   in
-  let mousewheelSubs = []
-    (* if (m.canvasProps.enablePan && not (isACOpened m))
-       (* TODO: disabled this cause it was buggy and it completely fucked up
-        * ellen's demo. We need to make sure targets are always set perfectly
-        * for this to never get stuck, which feels optimistic. *)
-       || VariantTesting.variantIsActive m GridLayout
-    then
-      [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
-            MouseWheel (dx, dy) ) ]
-    else [] *)
-  in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
           ReceiveAnalysis s )
@@ -2181,7 +2149,6 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        ; timers
        ; visibility
        ; onError
-       ; mousewheelSubs
        ; analysisSubs
        ; onCaptureView ])
 

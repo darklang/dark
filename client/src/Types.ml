@@ -1104,7 +1104,6 @@ and modification =
   | ExecutingFunctionRPC of tlid * id * string
   | ExecutingFunctionComplete of (tlid * id) list
   | MoveCanvasBy of int * int
-  | MoveCanvasTo of pos * isTransitionAnimated
   | UpdateTraces of traces
   | OverrideTraces of traces
   | UpdateTraceFunctionResult of
@@ -1123,7 +1122,6 @@ and modification =
        -> modification)
   | SetTypes of userTipe list * userTipe list * bool
   | SetPermission of permission option
-  | CenterCanvasOn of tlid
   | InitIntrospect of toplevel list
   | RefreshUsages of tlid list
   | UpdateDBStatsRPC of tlid
@@ -1234,7 +1232,6 @@ and msg =
   | BlankOrDoubleClick of tlid * id * mouseEvent
   | BlankOrMouseEnter of tlid * id * mouseEvent
   | BlankOrMouseLeave of tlid * id * mouseEvent
-  | MouseWheel of int * int
   | TraceClick of tlid * traceID * mouseEvent
   | TraceMouseEnter of tlid * traceID * mouseEvent
   | TraceMouseLeave of tlid * traceID * mouseEvent

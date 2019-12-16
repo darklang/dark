@@ -56,9 +56,10 @@ type list_pos =
   { atoms : rect list
   ; nested : rect list }
 
-type scrollOptions = {
-  top: int ; left: int; behavior : string
-}
+type scrollOptions =
+  { top : int
+  ; left : int
+  ; behavior : string }
 
 type jsRect = string Js.Dict.t
 
@@ -87,9 +88,11 @@ module Ext = struct
 
   external scrollLeft : Dom.element -> int = "scrollLeft" [@@bs.get]
 
-  external scrollTo : Dom.element -> scrollOptions -> unit = "scrollTo" [@@bs.send]
+  external scrollTo : Dom.element -> scrollOptions -> unit = "scrollTo"
+    [@@bs.send]
 
-  external scrollBy : Dom.element -> scrollOptions -> unit = "scrollBy" [@@bs.send]
+  external scrollBy : Dom.element -> scrollOptions -> unit = "scrollBy"
+    [@@bs.send]
 
   external clientWidth : Dom.element -> int = "clientWidth" [@@bs.get]
 
@@ -116,26 +119,41 @@ module Ext = struct
 
   let querySelector (s : string) : Dom.element option =
     Js.Nullable.toOption (_querySelector s)
-  
-  let appScrollBy (x : int) (y : int) : unit  =
-    match (querySelector "#app") with
-    | Some app -> scrollBy app {top = y; left = x; behavior = "smooth" }
-    | None -> ()
 
-  let appScrollTo (x : int) (y : int) ~(smooth : bool) : unit  =
-    match (querySelector "#app") with
-    | Some app -> scrollTo app {top = y; left = x; behavior = if smooth then "smooth" else "auto"}
-    | None -> ()
-  
-  let appScrollPos () : (int * int) =
-    match (querySelector "#app") with
-    | Some app -> (scrollLeft app,scrollTop app)
-    | None -> (0, 0)
-  
-  let appScrollLimits () : (int * int) =
-    match (querySelector "#app") with
-    | Some app -> (scrollWidth app,scrollHeight app)
-    | None -> (0, 0)
+
+  let appScrollBy (x : int) (y : int) : unit =
+    match querySelector "#app" with
+    | Some app ->
+        scrollBy app {top = y; left = x; behavior = "smooth"}
+    | None ->
+        ()
+
+
+  let appScrollTo (x : int) (y : int) ~(smooth : bool) : unit =
+    match querySelector "#app" with
+    | Some app ->
+        scrollTo
+          app
+          {top = y; left = x; behavior = (if smooth then "smooth" else "auto")}
+    | None ->
+        ()
+
+
+  let appScrollPos () : int * int =
+    match querySelector "#app" with
+    | Some app ->
+        (scrollLeft app, scrollTop app)
+    | None ->
+        (0, 0)
+
+
+  let appScrollLimits () : int * int =
+    match querySelector "#app" with
+    | Some app ->
+        (scrollWidth app, scrollHeight app)
+    | None ->
+        (0, 0)
+
 
   external offsetTop : Dom.element -> int = "offsetTop" [@@bs.get]
 
