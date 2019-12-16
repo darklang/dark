@@ -5563,13 +5563,9 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
              let moveMod =
                match Viewport.moveToToken id tl with
                | Some dx, Some dy ->
-                   MoveCanvasTo ({x = dx; y = dy}, AnimateTransition)
-               | Some dx, None ->
-                   MoveCanvasTo
-                     ({x = dx; y = m.canvasProps.offset.y}, AnimateTransition)
-               | None, Some dy ->
-                   MoveCanvasTo
-                     ({x = m.canvasProps.offset.x; y = dy}, AnimateTransition)
+                   MoveCanvasBy (dx, dy)
+               | Some dx, None -> MoveCanvasBy (dx, 0)
+               | None, Some dy -> MoveCanvasBy (0, dy)
                | None, None ->
                    NoChange
              in

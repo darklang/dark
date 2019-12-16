@@ -111,7 +111,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       ; canvasProps =
           { m.canvasProps with
             lastOffset = Some savePos; offset = Defaults.origin }
-      ; cursorState = Selecting (tlid, None) }, Cmd.none)
+      ; cursorState = Selecting (tlid, None) }, Viewport.moveCanvasTo 0 0)
   (* Special space to another special space *)
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid
@@ -127,7 +127,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
         ({ m with
           currentPage = newPage
         ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-        ; cursorState = Selecting (newtlid, None) }, Cmd.none)
+        ; cursorState = Selecting (newtlid, None) }, Viewport.moveCanvasTo 0 0)
   (* Special space to Arch *)
   | FocusedFn _, FocusedHandler (tlid, _)
   | FocusedFn _, FocusedDB (tlid, _)
