@@ -2808,8 +2808,7 @@ let run () =
         "backspacing empty record field clears entry"
         emptyRowRecord
         (bs 4)
-        (* TODO: buggy. Should be 1 *)
-        "{}~" ;
+        "{~}" ;
       t
         "pressing enter at start to insert field places the caret correctly"
         functionWrappedEmptyRecord
