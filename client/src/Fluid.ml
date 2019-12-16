@@ -4321,6 +4321,25 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (key, toTheLeft, toTheRight) with
+    (* Entering a string escape *)
+    | K.Backslash, L (TString _, _), R (TString (id, _), ti) when pos != 0 ->
+        (* I think this is correct but depends on how we 'render' strings - that
+         * is, it is correct because we display '"', which bumps pos by 1. *)
+        let newAst =
+          updateExpr
+            ~f:(function
+              | EString (_, str) as old_expr ->
+                  let new_str =
+                    String.splitAt ~index:(pos - 1) str
+                    |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
+                  in
+                  EPartial (id, new_str, old_expr)
+              | e ->
+                  e (* TODO can't happen *))
+            id
+            ast
+        in
+        (newAst, moveOneRight (ti.startPos + pos - 1) s)
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
@@ -4808,6 +4827,64 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
+    | L (TPartial (id, _), _), _ ->
+        let invalid_escapes_in_string (str : string) : string list =
+          let valid_escape_chars = ["n"; "\\"] in
+          let captures =
+            (* Capture any single character following a '\'. Escaping is
+             * terrible here. *)
+            (* takes a unit arg so we create a new re value every time we run -
+             * the re value contains state *)
+            (* Non-capturing group of even number (inc'l 0) of slashes handles
+             * '\\\o' - recognizes that the first pair is a valid sequence
+             * ('\\'), and the second is not ('\o') *)
+            let re () = [%re "/(?:\\\\\\\\)*\\\\(.)/g"] in
+            let rec matches (acc : Js.Re.result list) (re : Js.Re.t) :
+                Js.Re.result list =
+              match Util.Regex.matches ~re str with
+              | None ->
+                  acc
+              | Some r ->
+                  matches (r :: acc) re
+            in
+            matches [] (re ())
+            |> List.map ~f:Js.Re.captures
+            |> List.filterMap ~f:(function
+                   | [|_whole_match; capture|] ->
+                       Some capture
+                   | _ ->
+                       None )
+            |> List.filterMap ~f:Js.Nullable.toOption
+          in
+          captures
+          |> List.filter ~f:(fun c ->
+                 not (List.member ~value:c valid_escape_chars) )
+        in
+        let newAST =
+          (* findExpr, because we may have updated the partial above with an
+           * insert or delete *)
+          let str =
+            match findExpr id newAST with
+            | Some (EPartial (_, str, _)) ->
+                str
+            | _ ->
+                ""
+            (* TODO can't happen, fail here *)
+          in
+          let invalid_escapes = invalid_escapes_in_string str in
+          if not (List.isEmpty invalid_escapes)
+          then newAST
+          else
+            updateExpr
+              ~f:(function
+                | EPartial (_, _, EString _) ->
+                    EString (id, str)
+                | e ->
+                    e (* no-op *))
+              id
+              ast
+        in
+        (newAST, newState)
     | _ ->
         (newAST, newState)
 
