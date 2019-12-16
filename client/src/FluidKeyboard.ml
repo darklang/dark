@@ -419,18 +419,38 @@ let fromKeyboardEvent
       Escape
   (****************
    * Single Chars *
-   ****************)
-  (*
-   * alt-x opens command palatte. On macOS, is key = '≈', which we have to hack
-   * in with bucklescript UTF-16 literals because OCaml is terrible.
-   * TODO: For now, you cannot type non-ASCII chars, but when you can we can't just
-   * magically make this an 'x'. *)
-  | {js|≈|js} ->
-      Letter 'x'
+   ****************
+
+   *~*~*~*~ HERE BE DRAGONS ~*~*~*~*
+   * alt-x opens command palatte.
+   *
+   * On macOS, is key = '≈', which we have to hack in with bucklescript JS
+   * literals because OCaml is terrible.
+   *
+   * As a bonus, bucklescript doesn't seem to parse this correctly if it's in a
+   * match conditional, meaning you still get UTF-8 escape sequences in the JS
+   * instead of an unescaped JS literal. So...
+   *
+   * DON'T DO THIS:
+   *   | {js|≈|js} ->
+   * or you end up with this in the JS:
+   *   case "\xe2\x89\x88" :
+   * whereas what you want is this:
+   *   case "≈" :
+   *
+   * An if statement seems to work correctly, so we use that instead.
+   *
+   * FIXME: This also means it's impossible to type the literal character '≈' in our
+   * editor right now, which we probably should fix at some point. This all
+   * points to the fact that it may be easier to do shortcuts with Cmd/Ctrl
+   * instead of Alt. *)
   | _ when String.length key = 1 ->
-      Char.fromString key
-      |> Option.map ~f:fromChar
-      |> Option.withDefault ~default:(Unknown key)
+      if key = {js|≈|js}
+      then Letter 'x'
+      else
+        Char.fromString key
+        |> Option.map ~f:fromChar
+        |> Option.withDefault ~default:(Unknown key)
   | _ ->
       Unknown key
 
