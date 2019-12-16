@@ -344,9 +344,12 @@ let viewCanvas (m : model) : msg Html.html =
     | FocusedGroup _ ->
         "focused-group"
   in
+  let sidebarStateClass =
+    if m.sidebarOpen then "sidebar-open" else "sidebar-close"
+  in
   Html.div
     [ Html.id "canvas"
-    ; Html.class' pageClass
+    ; Html.class' (pageClass ^ " " ^ sidebarStateClass)
     ]
     (allDivs)
 

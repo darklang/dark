@@ -2132,8 +2132,8 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           then PageVisibilityChange Visible
           else PageVisibilityChange Hidden ) ]
   in
-  let mousewheelSubs =
-    if (m.canvasProps.enablePan && not (isACOpened m))
+  let mousewheelSubs = []
+    (* if (m.canvasProps.enablePan && not (isACOpened m))
        (* TODO: disabled this cause it was buggy and it completely fucked up
         * ellen's demo. We need to make sure targets are always set perfectly
         * for this to never get stuck, which feels optimistic. *)
@@ -2141,7 +2141,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     then
       [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
             MouseWheel (dx, dy) ) ]
-    else []
+    else [] *)
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->

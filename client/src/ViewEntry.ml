@@ -196,11 +196,9 @@ let viewEntry (m : model) : msg Html.html =
         if VariantTesting.variantIsActive m GridLayout
         then Vdom.noProp
         else
-          let offset = m.canvasProps.offset in
-          let loc = Viewport.subPos pos offset in
           Html.styles
-            [ ("left", string_of_int loc.x ^ "px")
-            ; ("top", string_of_int loc.y ^ "px") ]
+            [ ("left", string_of_int pos.x ^ "px")
+            ; ("top", string_of_int pos.y ^ "px") ]
       in
       Html.div
         [Html.class' "omnibox"; styleProp]
