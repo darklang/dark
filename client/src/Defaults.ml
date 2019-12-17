@@ -28,7 +28,6 @@ let defaultEditor : serializableEditor =
   ; tlTraceIDs = TLIDDict.empty
   ; featureFlags = StrDict.empty
   ; handlerProps = TLIDDict.empty
-  ; canvasPos = origin
   ; lastReload = None
   ; sidebarOpen = true
   ; showTopbar = false }
@@ -54,9 +53,7 @@ let defaultFluidState : fluidState =
   ; midClick = false }
 
 
-let defaultCanvasProps : canvasProps =
-  {offset = origin; lastOffset = None; minimap = None}
-
+let defaultCanvasProps : canvasProps = {lastOffset = None; minimap = None}
 
 let defaultHandlerProp : handlerProp =
   { handlerLock = false

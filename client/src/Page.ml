@@ -68,9 +68,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       in
       ( { m with
           currentPage = newPage
-        ; canvasProps =
-            { m.canvasProps with
-              lastOffset = Some savePos; offset = Defaults.origin }
+        ; canvasProps = {m.canvasProps with lastOffset = Some savePos}
         ; cursorState = Selecting (tlid, None) }
       , Viewport.moveCanvasTo 0 0 )
   (* Special space to another special space *)
@@ -86,9 +84,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       then (m, Cmd.none)
       else
         ( { m with
-            currentPage = newPage
-          ; canvasProps = {m.canvasProps with offset = Defaults.origin}
-          ; cursorState = Selecting (newtlid, None) }
+            currentPage = newPage; cursorState = Selecting (newtlid, None) }
         , Viewport.moveCanvasTo 0 0 )
   (* Special space to Arch *)
   | FocusedFn _, FocusedHandler (tlid, _)
@@ -151,8 +147,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       in
       ( { m with
           currentPage = newPage
-        ; canvasProps = {m.canvasProps with lastOffset = None; minimap = None}
-        }
+        ; canvasProps = {lastOffset = None; minimap = None} }
       , cmd )
   | _, Architecture ->
       (* Anything else to Architecture

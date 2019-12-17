@@ -378,7 +378,6 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
       withDefault StrDict.empty (field "featureFlags" (dict bool)) j
   ; handlerProps =
       withDefault StrDict.empty (field "handlerProps" (dict handlerProp)) j
-  ; canvasPos = withDefault Defaults.origin (field "canvasPos" pos) j
   ; lastReload = optional (field "lastReload" jsDate) j
   ; sidebarOpen =
       withDefault

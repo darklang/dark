@@ -1012,8 +1012,7 @@ and toast =
   ; toastPos : vPos option }
 
 and canvasProps =
-  { offset : pos (* TODO(alice) rm *)
-  ; lastOffset : pos option
+  { lastOffset : pos option
   ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -1659,7 +1658,6 @@ and serializableEditor =
   ; tlTraceIDs : tlTraceIDs
   ; featureFlags : flagsVS
   ; handlerProps : handlerProp TLIDDict.t
-  ; canvasPos : pos
   ; lastReload : (Js.Date.t[@opaque]) option
   ; sidebarOpen : bool
   ; showTopbar : bool }

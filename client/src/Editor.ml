@@ -50,7 +50,6 @@ let editor2model (e : serializableEditor) : model =
   ; tlTraceIDs = e.tlTraceIDs
   ; featureFlags = e.featureFlags
   ; handlerProps = finalHandlerStates e.handlerProps
-  ; canvasProps = {m.canvasProps with offset = e.canvasPos}
   ; lastReload = e.lastReload
   ; sidebarOpen = e.sidebarOpen
   ; showTopbar = e.showTopbar }
@@ -64,7 +63,6 @@ let model2editor (m : model) : serializableEditor =
   ; tlTraceIDs = m.tlTraceIDs (* what trace is selected *)
   ; featureFlags = m.featureFlags (* which flags are expanded *)
   ; handlerProps = m.handlerProps
-  ; canvasPos = m.canvasProps.offset
   ; lastReload = m.lastReload
   ; sidebarOpen = m.sidebarOpen
   ; showTopbar = m.showTopbar }

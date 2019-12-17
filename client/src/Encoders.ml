@@ -711,7 +711,6 @@ let serializableEditor (se : Types.serializableEditor) : Js.Json.t =
     ; ("tlTraceIDs", tcStrDict traceID se.tlTraceIDs)
     ; ("featureFlags", tcStrDict bool se.featureFlags)
     ; ("handlerProps", tcStrDict handlerProp se.handlerProps)
-    ; ("canvasPos", pos se.canvasPos)
     ; ( "lastReload"
       , nullable string (Option.map ~f:Js.Date.toString se.lastReload) )
     ; ("sidebarOpen", bool se.sidebarOpen)
