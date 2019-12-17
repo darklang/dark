@@ -7,7 +7,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
-    ; d = "Respond with HTTP status `code` and `response` body"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
     ; f =
         InProcess
           (function
@@ -26,7 +27,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; r = TResp
     ; d =
-        "Respond with HTTP status `code` and `response` body and `headers` headers"
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
     ; f =
         InProcess
           (function
@@ -41,7 +42,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "response" TAny]
     ; r = TResp
-    ; d = "Respond with HTTP status 200 and `response` body"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
     ; f =
         InProcess
           (function
@@ -53,7 +55,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
     ; f =
         InProcess
           (function
@@ -71,7 +73,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\""
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
     ; f =
         InProcess
           (function
@@ -89,7 +91,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
     ; f =
         InProcess
           (function
@@ -107,7 +109,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "url" TStr]
     ; r = TResp
-    ; d = "Redirect to url"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
     ; f =
         InProcess
           (function
@@ -121,7 +124,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = [par "error" TStr]
     ; r = TResp
-    ; d = "Respond with a 400 and an error message"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
     ; f =
         InProcess
           (function
@@ -135,7 +139,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TResp
-    ; d = "Respond with 404 Not Found"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with 404 Not Found."
     ; f =
         InProcess
           (function
@@ -146,7 +151,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TResp
-    ; d = "Respond with 401 Unauthorized"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with 401 Unauthorized."
     ; f =
         InProcess
           (function
@@ -157,7 +163,8 @@ let fns : Lib.shortfn list =
     ; ins = []
     ; p = []
     ; r = TResp
-    ; d = "Respond with 403 Forbidden"
+    ; d =
+        "Returns a Response object that can be returned from an HTTP handler to respond with 403 Forbidden."
     ; f =
         InProcess
           (function
