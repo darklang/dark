@@ -1054,9 +1054,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  (* Instead of finding each case where the user can change the focused toplevel or focus on the canvas,
-   * check if the focused toplevel tlid(via the cursorstate) still matches the fluid autocomplete query tlid
-   * after the model has been updated *)
   let newm = FluidAutocomplete.updateAutocompleteVisability newm in
   (newm, Cmd.batch [cmd; newcmd])
 
