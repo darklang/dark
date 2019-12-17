@@ -1938,8 +1938,7 @@ let moveToAstRef
  * is related to an understanding of the tokenization of the ast, even though
  * this function doesn't explicitly depend on any tokenization functions. *)
 let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
-  let rec caretTargetForLastPartOfExpr' (expr : fluidExpr) : caretTarget =
-    match expr with
+  let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | EVariable (id, str) ->
         {astRef = ARVariable id; offset = String.length str}
     | EFieldAccess (id, _, _, fieldName) ->
@@ -2008,14 +2007,13 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
           caretTargetForLastPartOfExpr' lastExpr
       | None ->
           {astRef = ARConstructor (id, CPName); offset = String.length name} )
-    | EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _ ->
+    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _) as expr ->
         recover
           "we don't yet support caretTargetForLastPartOfExpr for this"
           ~debug:expr
           {astRef = ARInvalid; offset = 0}
   in
-  let maybeExpr = findExpr astPartId ast in
-  match maybeExpr with
+  match findExpr astPartId ast with
   | Some expr ->
       caretTargetForLastPartOfExpr' expr
   | None ->
