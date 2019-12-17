@@ -47,10 +47,9 @@ let sidebarWidth () : int =
   |> recoverOpt "can't find sidebar HTML body" ~default:320
 
 
-(* Checks to see is the token's dom element within viewport, if not returns the new targetX and/or targetY to move the user to, in the canvas *)
-let moveToToken (id : id) (tl : toplevel) : int option * int option =
+(* Checks to see is the token's dom element within viewport, if not returns the the dx,dy to scroll by to bring the element within view *)
+let moveToToken (id : id) : int * int =
   let tokenSelector = ".id-" ^ Prelude.deID id in
-  let _tlSelector = ".tl-" ^ Prelude.deTLID (TL.id tl) in
   match Native.Ext.querySelector tokenSelector with
   | Some tokenDom ->
       let sidebarWidth = sidebarWidth () in
@@ -66,21 +65,21 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       (* If the token's DOM element is out of viewport, we want to shift the canvas transform to bring it within view. To make the transition seem smooth, ideally we want only either move by y-axis or x-axis. Sometimes we might have to both by both axis. But since the only use case for this function at the moment is to find code from several statements before where you are currently looking at, the most likely case is the that the token we are looking for is above the top fold, therefore we are likely going to move by only the y-axis. *)
       let xTarget =
         if tokenBox.left < viewport.left
-        then Some (-1 * (viewport.left - tokenBox.left + 20))
+        then -1 * (viewport.left - tokenBox.left + 20)
         else if tokenBox.right > viewport.right
-        then Some (tokenBox.right - viewport.right + 20)
-        else None
+        then tokenBox.right - viewport.right + 20
+        else 0
       in
       let yTarget =
         if tokenBox.top < viewport.top
-        then Some (-1 * (viewport.top - tokenBox.top + 20))
+        then -1 * (viewport.top - tokenBox.top + 20)
         else if tokenBox.bottom > viewport.bottom
-        then Some (tokenBox.bottom - viewport.bottom + 20)
-        else None
+        then tokenBox.bottom - viewport.bottom + 20
+        else 0
       in
       (xTarget, yTarget)
   | None ->
-      (None, None)
+      (0, 0)
 
 
 let isToplevelVisible ?(isFullyInside = true) (tlid : tlid) : bool =

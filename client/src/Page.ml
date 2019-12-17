@@ -125,14 +125,15 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
   * Check it is a different tl;
   * figure out if you can stay where you are or animate pan to toplevel pos
   *)
-      let cmd =
-        if Viewport.isToplevelVisible tlid then Cmd.none else moveToCmd m tlid
-      in
       if otlid = tlid
       then (m, Cmd.none)
+      else if Viewport.isToplevelVisible tlid
+      then
+        ( {m with currentPage = newPage; cursorState = Selecting (tlid, None)}
+        , Cmd.none )
       else
         ( {m with currentPage = newPage; cursorState = Selecting (tlid, None)}
-        , cmd )
+        , moveToCmd m tlid )
   (* Special space to Special space *)
   | FocusedFn _, Architecture | FocusedType _, Architecture ->
       (* Going from fn back to Architecture

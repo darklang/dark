@@ -5548,30 +5548,16 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
       (* Spec for Show token of expression: https://docs.google.com/document/d/13-jcP5xKe_Du-TMF7m4aPuDNKYjExAUZZ_Dk3MDSUtg/edit#heading=h.h1l570vp6wch *)
       tlidOf m.cursorState
       |> Option.andThen ~f:(fun tlid -> TL.get m tlid)
-      |> Option.andThen ~f:(fun tl ->
-             match TL.getAST tl with
-             | Some expr ->
-                 Some (tl, expr)
-             | None ->
-                 None )
-      |> Option.map ~f:(fun (tl, expr) ->
+      |> Option.andThen ~f:TL.getAST
+      |> Option.map ~f:(fun expr ->
              let ast = fromExpr s expr in
              let fluidState =
                let fs = moveToEndOfTarget id ast s in
                {fs with errorDvSrc = SourceId id}
              in
-             let moveMod =
-               match Viewport.moveToToken id tl with
-               | Some dx, Some dy ->
-                   MoveCanvasBy (dx, dy)
-               | Some dx, None ->
-                   MoveCanvasBy (dx, 0)
-               | None, Some dy ->
-                   MoveCanvasBy (0, dy)
-               | None, None ->
-                   NoChange
-             in
-             if moveMod = NoChange
+             let dx, dy = Viewport.moveToToken id in
+             let moveMod = MoveCanvasBy (dx, dy) in
+             if dx = 0 && dy = 0
              then FluidSetState fluidState
              else Many [moveMod; FluidSetState fluidState] )
       |> Option.withDefault ~default:NoChange
