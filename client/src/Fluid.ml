@@ -1937,79 +1937,87 @@ let moveToAstRef
  * corresponding to the "very end" of that ast. The concept of "very end"
  * is related to an understanding of the tokenization of the ast, even though
  * this function doesn't explicitly depend on any tokenization functions. *)
-let rec caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget
-    =
-  let expr = findExpr astPartId ast in
-  match expr with
-  | Some (EVariable (id, str)) ->
-      {astRef = ARVariable id; offset = String.length str}
-  | Some (EFieldAccess (id, _, _, fieldName)) ->
-      { astRef = ARFieldAccess (id, FAPFieldname)
-      ; offset = String.length fieldName }
-  | Some (EInteger (id, valueStr)) ->
-      {astRef = ARInteger id; offset = String.length valueStr}
-  | Some (EBool (id, true)) ->
-      {astRef = ARBool id; offset = String.length "true"}
-  | Some (EBool (id, false)) ->
-      {astRef = ARBool id; offset = String.length "false"}
-  | Some (EString (id, _)) ->
-      {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
-  | Some (EFloat (id, _, decimalStr)) ->
-      {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
-  | Some (ENull id) ->
-      {astRef = ARNull id; offset = String.length "null"}
-  | Some (EBlank id) ->
-      { astRef = ARBlank id
-      ; offset =
-          3
-          (* It might be better to return offset 0 here,
-             because we might not want to be in the actual end of the blank? *)
-      }
-  | Some (ELet (_, _, _, _, bodyExpr)) ->
-      caretTargetForLastPartOfExpr (eid bodyExpr) ast
-  | Some (EIf (_, _, _, elseExpr)) ->
-      caretTargetForLastPartOfExpr (eid elseExpr) ast
-  | Some (EBinOp (_, _, _, rhsExpr, _)) ->
-      caretTargetForLastPartOfExpr (eid rhsExpr) ast
-  | Some (ELambda (_, _, bodyExpr)) ->
-      caretTargetForLastPartOfExpr (eid bodyExpr) ast
-  | Some (EFnCall (id, fnName, argExprs, _)) ->
-    ( match List.last argExprs with
-    | Some lastExpr ->
-        caretTargetForLastPartOfExpr (eid lastExpr) ast
-    | None ->
-        (* TODO(JULIAN): this doesn't include the function version... *)
-        {astRef = ARFnCall (id, FCPFnName); offset = String.length fnName} )
-  | Some (EPartial (id, str, _)) ->
-      (* Intentionally using the thing that was typed; not the existing expr *)
-      {astRef = ARPartial id; offset = String.length str}
-  | Some (ERightPartial (id, str, _)) ->
-      (* XXX(JULIAN): Unclear if we should be differentiating with EPartial... *)
-      {astRef = ARPartial id; offset = String.length str}
-  | Some (EList (id, _)) ->
-      {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
-  | Some (ERecord (id, _)) ->
-      {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
-  | Some (EPipe (id, pipeExprs)) ->
-    ( match List.last pipeExprs with
-    | Some lastExpr ->
-        caretTargetForLastPartOfExpr (eid lastExpr) ast
-    | None ->
-        {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"} )
-  | Some (EMatch (_, matchedExpr, matchItems)) ->
-    ( match List.last matchItems with
-    | Some (_, branchBody) ->
-        caretTargetForLastPartOfExpr (eid branchBody) ast
-    | None ->
-        caretTargetForLastPartOfExpr (eid matchedExpr) ast )
-  | Some (EConstructor (_, _, _, _))
-  | Some (EFeatureFlag (_, _, _, _, _, _))
-  | Some (EPipeTarget _)
-  | Some (EOldExpr _) ->
-      recover
-        "we don't yet support caretTargetForLastPartOfExpr for this"
-        ~debug:expr
-        {astRef = ARInvalid; offset = 0}
+let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
+  let rec caretTargetForLastPartOfExpr' (expr : fluidExpr) : caretTarget =
+    match expr with
+    | EVariable (id, str) ->
+        {astRef = ARVariable id; offset = String.length str}
+    | EFieldAccess (id, _, _, fieldName) ->
+        { astRef = ARFieldAccess (id, FAPFieldname)
+        ; offset = String.length fieldName }
+    | EInteger (id, valueStr) ->
+        {astRef = ARInteger id; offset = String.length valueStr}
+    | EBool (id, true) ->
+        {astRef = ARBool id; offset = String.length "true"}
+    | EBool (id, false) ->
+        {astRef = ARBool id; offset = String.length "false"}
+    | EString (id, _) ->
+        {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+    | EFloat (id, _, decimalStr) ->
+        {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
+    | ENull id ->
+        {astRef = ARNull id; offset = String.length "null"}
+    | EBlank id ->
+        { astRef = ARBlank id
+        ; offset =
+            3
+            (* It might be better to return offset 0 here,
+              because we might not want to be in the actual end of the blank? *)
+        }
+    | ELet (_, _, _, _, bodyExpr) ->
+        caretTargetForLastPartOfExpr' bodyExpr
+    | EIf (_, _, _, elseExpr) ->
+        caretTargetForLastPartOfExpr' elseExpr
+    | EBinOp (_, _, _, rhsExpr, _) ->
+        caretTargetForLastPartOfExpr' rhsExpr
+    | ELambda (_, _, bodyExpr) ->
+        caretTargetForLastPartOfExpr' bodyExpr
+    | EFnCall (id, fnName, argExprs, _) ->
+      ( match List.last argExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          { astRef = ARFnCall (id, FCPFnName)
+          ; offset = fnName |> ViewUtils.partialName |> String.length } )
+    | EPartial (id, str, _) ->
+        (* Intentionally using the thing that was typed; not the existing expr *)
+        {astRef = ARPartial id; offset = String.length str}
+    | ERightPartial (id, str, _) ->
+        (* XXX(JULIAN): Unclear if we should be differentiating with EPartial... *)
+        {astRef = ARPartial id; offset = String.length str}
+    | EList (id, _) ->
+        {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
+    | ERecord (id, _) ->
+        {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
+    | EPipe (id, pipeExprs) ->
+      ( match List.last pipeExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"}
+      )
+    | EMatch (_, matchedExpr, matchItems) ->
+      ( match List.last matchItems with
+      | Some (_, branchBody) ->
+          caretTargetForLastPartOfExpr' branchBody
+      | None ->
+          caretTargetForLastPartOfExpr' matchedExpr )
+    | EConstructor (id, _, name, containedExprs) ->
+      ( match List.last containedExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          {astRef = ARConstructor (id, CPName); offset = String.length name} )
+    | EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _ ->
+        recover
+          "we don't yet support caretTargetForLastPartOfExpr for this"
+          ~debug:expr
+          {astRef = ARInvalid; offset = 0}
+  in
+  let maybeExpr = findExpr astPartId ast in
+  match maybeExpr with
+  | Some expr ->
+      caretTargetForLastPartOfExpr' expr
   | None ->
       recover
         "caretTargetForLastPartOfExpr got an id outside of the AST"
