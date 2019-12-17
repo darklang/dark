@@ -77,13 +77,22 @@ let print_test_skip name : unit =
   Js.log (testIndent () ^ {j|🙅|j} ^ " " ^ name)
 
 
-let print_test_end name (success : Private.success) : unit =
+let print_test_end name (t : Private.t) : unit =
   let open Private in
   let shortName = String.slice ~from:0 ~to_:60 name in
-  if success = Passed
-  then Js.log (testIndent () ^ {j|✅|j} ^ " " ^ shortName)
-  else if success = Failed
-  then Js.log (testIndent () ^ {j|❌|j} ^ " " ^ name)
+  if t.success = Passed
+  then Js.log @@ testIndent () ^ {j|✅|j} ^ " " ^ shortName
+  else if t.success = Failed
+  then (
+    Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name ;
+    Js.log
+    @@ testIndent ()
+    ^ "Expected: "
+    ^ Option.withDefault ~default:"None" t.expected ;
+    Js.log
+    @@ testIndent ()
+    ^ "Actual: "
+    ^ Option.withDefault ~default:"None" t.actual )
   else print_test_skip name
 
 
@@ -109,7 +118,10 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
         let fullname = String.join ~sep:" " (name :: !categories) in
         Util.Regex.contains ~re:pattern fullname
   in
-  if shouldRun then runningTest := name else print_test_skip name ;
+  if shouldRun
+  then runningTest := name
+  else if not !verbose
+  then print_test_skip name ;
   let result =
     if shouldRun
     then testFn ()
@@ -121,7 +133,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
       ; expected = None }
   in
   if shouldRun && (result.success = Failed || !verbose)
-  then print_test_end name result.success ;
+  then print_test_end name result ;
   results := result :: !results
 
 
@@ -130,7 +142,7 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
 (* ------------------ *)
 let expect (value : 'a) = Private.Expect value
 
-let toEqual (actual : 'a) (Expect expected : 'a Private.expectation) =
+let toEqual (expected : 'a) (Expect actual : 'a Private.expectation) =
   let open Private in
   if actual = expected
   then
