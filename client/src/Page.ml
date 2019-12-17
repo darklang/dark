@@ -156,7 +156,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
       ({m with currentPage = newPage; cursorState = Deselected}, Cmd.none)
 
 
-let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
+let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t =
   match (oldPage, newPage) with
   | Architecture, FocusedFn _
   | FocusedHandler _, FocusedFn _
@@ -164,9 +164,9 @@ let capMinimap (oldPage : page) (newPage : page) : msg Cmd.t list =
   | Architecture, FocusedType _
   | FocusedHandler _, FocusedType _
   | FocusedDB _, FocusedType _ ->
-      [Native.OnCaptureView.capture ()]
+      Native.OnCaptureView.capture ()
   | _ ->
-      []
+      Cmd.none
 
 
 (* Go back to Architecture view if user is on the type/fn page

@@ -474,14 +474,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = Js.Date.now () /. 1000.0 }
           in
           let cap = Page.capMinimap m.currentPage page in
-          let newM, pageCmd = Page.setPage m m.currentPage page in
-          let cmds =
-            Cmd.batch (RPC.sendPresence m avMessage :: pageCmd :: cap)
-          in
+          let newM, mvCmd = Page.setPage m m.currentPage page in
+          let cmds = Cmd.batch [RPC.sendPresence m avMessage; mvCmd; cap] in
           (newM, cmds)
         else
-          let newM, pageCmd = Page.setPage m m.currentPage Architecture in
-          (newM, Cmd.batch [Url.updateUrl Architecture; pageCmd])
+          let newM, mvCmd = Page.setPage m m.currentPage Architecture in
+          (newM, Cmd.batch [Url.updateUrl Architecture; mvCmd])
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
@@ -558,17 +556,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; timestamp = timeStamp }
         in
         let commands =
-          [hashcmd]
-          @ closeBlanks m
-          @ [acCmd; afCmd]
-          @ [RPC.sendPresence m avMessage]
+          (hashcmd :: closeBlanks m)
+          @ [acCmd; afCmd; RPC.sendPresence m avMessage]
         in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
         then
           let m = Editor.closeMenu m in
-          let hashcmd = [Url.updateUrl Architecture] in
+          let hashcmd = Url.updateUrl Architecture in
           let m, mvCmd = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
@@ -580,11 +576,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; timestamp = timeStamp }
           in
           let commands =
-            hashcmd
-            @ closeBlanks m
-            @ [acCmd]
-            @ [RPC.sendPresence m avMessage]
-            @ [mvCmd]
+            (hashcmd :: closeBlanks m)
+            @ [acCmd; RPC.sendPresence m avMessage; mvCmd]
           in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
