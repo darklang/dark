@@ -1888,9 +1888,6 @@ let update_ (msg : msg) (m : model) : modification =
         ; MakeCmd (Url.navigateTo (FocusedType tipe.utTLID)) ]
   | LockHandler (tlid, locked) ->
       TweakModel (Editor.setHandlerLock tlid locked)
-  | EnablePanning pan ->
-      TweakModel
-        (fun m -> {m with canvasProps = {m.canvasProps with enablePan = pan}})
   | ClipboardCopyEvent e ->
       let toast =
         TweakModel
@@ -1942,12 +1939,6 @@ let update_ (msg : msg) (m : model) : modification =
         ^ "\"" )
   | UpdateHandlerState (tlid, state) ->
       TweakModel (Editor.setHandlerState tlid state)
-  | CanvasPanAnimationEnd ->
-      TweakModel
-        (fun m ->
-          { m with
-            canvasProps =
-              {m.canvasProps with panAnimation = DontAnimateTransition} } )
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->

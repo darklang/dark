@@ -55,11 +55,7 @@ let defaultFluidState : fluidState =
 
 
 let defaultCanvasProps : canvasProps =
-  { offset = origin
-  ; enablePan = true
-  ; lastOffset = None
-  ; panAnimation = DontAnimateTransition
-  ; minimap = None }
+  {offset = origin; lastOffset = None; minimap = None}
 
 
 let defaultHandlerProp : handlerProp =

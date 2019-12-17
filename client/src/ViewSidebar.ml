@@ -808,11 +808,7 @@ let viewSidebar_ (m : model) : msg Html.html =
   let html =
     Html.div
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
-      ; nothingMouseEvent "mouseup"
-      ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-            EnablePanning false )
-      ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-            EnablePanning true ) ]
+      ; nothingMouseEvent "mouseup" ]
       ( [toggleSidebar m]
       @ [ Html.div
             [Html.classList [("groups", true); ("groups-closed", isClosed)]]

@@ -1011,15 +1011,9 @@ and toast =
   { toastMessage : string option
   ; toastPos : vPos option }
 
-and isTransitionAnimated =
-  | AnimateTransition
-  | DontAnimateTransition
-
 and canvasProps =
-  { offset : pos
-  ; enablePan : bool
+  { offset : pos (* TODO(alice) rm *)
   ; lastOffset : pos option
-  ; panAnimation : isTransitionAnimated
   ; minimap : string option }
 
 and httpError = (string Tea.Http.error[@opaque])
@@ -1250,7 +1244,6 @@ and msg =
   | LockHandler of tlid * bool
   | ReceiveAnalysis of performAnalysisResult
   | ReceiveFetch of fetchResult
-  | EnablePanning of bool
   | StartMigration of tlid
   | AbandonMigration of tlid
   | DeleteColInDB of tlid * id
@@ -1262,7 +1255,6 @@ and msg =
   | ClipboardCopyLivevalue of string * vPos
   | EventDecoderError of string * string * string
   | UpdateHandlerState of tlid * handlerState
-  | CanvasPanAnimationEnd
   | GoTo of page
   | SetHoveringReferences of tlid * id list
   | TriggerSendPresenceCallback of (unit, httpError) Tea.Result.t
