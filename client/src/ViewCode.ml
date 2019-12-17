@@ -665,7 +665,7 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
     let e =
       Native.Ext.querySelector (".toplevel.tl-" ^ id ^ " .handler-body")
     in
-    match e with Some el -> Native.Ext.scrollHeight el | None -> 0
+    match e with Some el -> Native.Scroll.scrollHeight el | None -> 0
   in
   match state with
   | HandlerExpanding ->

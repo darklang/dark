@@ -9,7 +9,7 @@ let subPos (a : pos) (b : pos) : pos = {x = a.x - b.x; y = a.y - b.y}
 
 let toAbsolute (pos : vPos) : pos =
   let topleft =
-    let x, y = Native.Ext.appScrollPos () in
+    let x, y = Native.Scroll.appScrollPos () in
     {x; y}
   in
   addPos {x = pos.vx; y = pos.vy} topleft
@@ -110,19 +110,19 @@ let isToplevelVisible ?(isFullyInside = true) (tlid : tlid) : bool =
 
 
 let moveCanvasBy (x : int) (y : int) : msg Tea.Cmd.t =
-  Tea_cmd.call (fun _ -> Native.Ext.appScrollBy x y)
+  Tea_cmd.call (fun _ -> Native.Scroll.appScrollBy x y)
 
 
 let moveCanvasTo (x : int) (y : int) : msg Tea.Cmd.t =
-  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y ~smooth:false)
+  Tea_cmd.call (fun _ -> Native.Scroll.appScrollTo x y ~smooth:false)
 
 
 let moveCanvasToPos (pos : pos) : msg Tea.Cmd.t =
-  let mx, my = Native.Ext.appScrollLimits () in
+  let mx, my = Native.Scroll.appScrollLimits () in
   let o = Defaults.tlSpacing in
   let x =
     let sidebarOffset = sidebarWidth () in
     Util.clamp (pos.x - sidebarOffset - o.x) 0 mx
   in
   let y = Util.clamp (pos.y - o.y) 0 my in
-  Tea_cmd.call (fun _ -> Native.Ext.appScrollTo x y ~smooth:true)
+  Tea_cmd.call (fun _ -> Native.Scroll.appScrollTo x y ~smooth:true)

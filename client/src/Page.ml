@@ -63,7 +63,7 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model * msg Cmd.t =
     * Save the canvas position; set offset to origin
     *)
       let savePos =
-        let x, y = Native.Ext.appScrollPos () in
+        let x, y = Native.Scroll.appScrollPos () in
         {x; y}
       in
       ( { m with
