@@ -655,6 +655,6 @@ let updateAutocompleteVisability (m : model) : model =
   let newTlid = tlidOf m.cursorState in
   if isOpened m.fluidState.ac && oldTlid <> newTlid
   then
-    let newAc = init m in
+    let newAc = reset m in
     {m with fluidState = {m.fluidState with ac = newAc}}
   else m
