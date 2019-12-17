@@ -2358,6 +2358,8 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
           recover "Not a record in addRecordRowToTheBack" ~debug:e e )
 
 
+(* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
+   or None if the record has no field with that index *)
 let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
     (id * fluidName * fluidExpr) option =
   findExpr recordID ast
@@ -2366,6 +2368,8 @@ let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
   |> Option.andThen ~f:(fun fields -> List.getAt ~index fields)
 
 
+(* recordExprIdAtIndex gets the id of the field value for the record in the ast
+   with recordID at index, or None if the record has no field with that index  *)
 let recordExprIdAtIndex (recordID : id) (index : int) (ast : ast) : id option =
   match recordFieldAtIndex recordID index ast with
   | Some (_, _, fluidExpr) ->
@@ -3404,14 +3408,12 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
     | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
       ->
         let newAst = removeRecordField recordID index ast in
-        let maybeExprID : id option =
-          recordExprIdAtIndex recordID (index - 1) newAst
-        in
-        let target : caretTarget =
+        let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
+        let target =
           match maybeExprID with
           | None ->
               { astRef = ARRecord (recordID, RPOpen)
-              ; offset = 1 (* right after the open paren *) }
+              ; offset = 1 (* right after the { *) }
           | Some exprId ->
               caretTargetForLastPartOfExpr exprId newAst
         in

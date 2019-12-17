@@ -1413,7 +1413,7 @@ and fluidExpr =
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of id
-  (* The 2nd id is for the name *)
+  (* EFeatureFlag: id, msg, msgID, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
   | EOldExpr of expr
 
@@ -1424,7 +1424,7 @@ and analysisId = id
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
-  (* multi-line strings, id, segment, full-string, offset *)
+  (* multi-line strings: id, segment, start offset, full-string *)
   | TStringMLStart of id * string * int * string
   | TStringMLMiddle of id * string * int * string
   | TStringMLEnd of id * string * int * string
