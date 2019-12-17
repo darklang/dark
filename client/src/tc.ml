@@ -74,6 +74,14 @@ end
 module List = struct
   include Tablecloth.List
 
+  (* From https://github.com/ocaml/ocaml/blob/trunk/stdlib/list.ml *)
+  let rec findMap f = function
+    | [] ->
+        None
+    | x :: l ->
+      (match f x with Some _ as result -> result | None -> findMap f l)
+
+
   let findWithIndex ~(f : int -> 'a -> bool) (l : 'a list) : int option =
     let rec findIndexHelper
         ~(i : int) ~(predicate : int -> 'a -> bool) (l : 'a list) : int option
