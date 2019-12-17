@@ -1034,14 +1034,17 @@ test("fn_page_to_handler_pos", async t => {
     .navigateTo("#fn=890")
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 });
-  const fnOffset = await Selector("#canvas").getStyleProperty("transform");
+
+  const fnX = await Selector("#app").scrollLeft;
+  const fnY = await Selector('#app').scrollTop;
 
   await t
     .navigateTo("#handler=123")
     .expect(available(".tl-123"))
     .ok({ timeout: 1000 });
 
-  await t.expect(Selector("#canvas").getStyleProperty("transform")).notEql(fnOffset);
+  await t.expect(Selector("#app").scrollTop).notEql(fnY);
+  await t.expect(Selector("#app").scrollLeft).notEql(fnX);
 });
 
 test("autocomplete_visible_height", async t => {
