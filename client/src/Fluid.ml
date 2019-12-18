@@ -1938,77 +1938,75 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     *)
     | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
         posForTi ti
-    | ARString (id, SPOpenQuote), TStringMLStart (id', str, _, _) when id = id'
-      ->
-        let len = String.length str + 1 (* to account for open quote *) in
-        if ct.offset > len
-        then (* Must be in a later token *)
-          None
-        else (* Within current token *)
-          posForTi ti
-    | ( ARString (id, SPOpenQuote)
-      , TStringMLMiddle (id', str, startOffsetIntoString, _) )
-      when id = id' ->
-        let len = String.length str in
-        let offsetInStr =
-          ct.offset + 1
-          (* to account for open quote in the start *)
-        in
-        let endOffset = startOffsetIntoString + len in
-        if offsetInStr > endOffset
-        then (* Must be in later token *)
-          None
-        else
-          (* Within current token *)
+    | ARString (id, SPOpenQuote), tok ->
+      ( match tok with
+      | TStringMLStart (id', str, _, _) when id = id' ->
+          let len = String.length str + 1 (* to account for open quote *) in
+          if ct.offset > len
+          then (* Must be in a later token *)
+            None
+          else (* Within current token *)
+            posForTi ti
+      | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
+          let len = String.length str in
+          let offsetInStr =
+            ct.offset + 1
+            (* to account for open quote in the start *)
+          in
+          let endOffset = startOffsetIntoString + len in
+          if offsetInStr > endOffset
+          then (* Must be in later token *)
+            None
+          else
+            (* Within current token *)
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
+          (* Must be in this token because it's the last token in the string *)
+          let offsetInStr =
+            ct.offset + 1
+            (* to account for open quote in the start *)
+          in
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ( ARString (id, SPOpenQuote)
-      , TStringMLEnd (id', _, startOffsetIntoString, _) )
-      when id = id' ->
-        (* Must be in this token because it's the last token in the string *)
-        let offsetInStr =
-          ct.offset + 1
-          (* to account for open quote in the start *)
-        in
-        clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ARString (id, SPText), TString (id', _) when id = id' ->
-        clampedPosForTi ti (ct.offset + 1)
-    | ARString (id, SPText), TStringMLStart (id', str, _, _) when id = id' ->
-        let len = String.length str in
-        if ct.offset > len
-        then (* Must be in a later token *)
-          None
-        else (* Within current token *)
+      | _ ->
+          None )
+    | ARString (id, SPText), tok ->
+      ( match tok with
+      | TString (id', _) when id = id' ->
           clampedPosForTi ti (ct.offset + 1)
-    | ( ARString (id, SPText)
-      , TStringMLMiddle (id', str, startOffsetIntoString, _) )
-      when id = id' ->
-        let len = String.length str in
-        let offsetInStr = ct.offset in
-        let endOffset = startOffsetIntoString + len in
-        if offsetInStr > endOffset
-        then (* Must be in later token *)
-          None
-        else
-          (* Within current token *)
+      | TStringMLStart (id', str, _, _) when id = id' ->
+          let len = String.length str in
+          if ct.offset > len
+          then (* Must be in a later token *)
+            None
+          else (* Within current token *)
+            clampedPosForTi ti (ct.offset + 1)
+      | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
+          let len = String.length str in
+          let offsetInStr = ct.offset in
+          let endOffset = startOffsetIntoString + len in
+          if offsetInStr > endOffset
+          then (* Must be in later token *)
+            None
+          else
+            (* Within current token *)
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
+          (* Must be in this token because it's the last token in the string *)
+          let offsetInStr = ct.offset in
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ARString (id, SPText), TStringMLEnd (id', _, startOffsetIntoString, _)
-      when id = id' ->
-        (* Must be in this token because it's the last token in the string *)
-        let offsetInStr = ct.offset in
-        clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
-        clampedPosForTi ti (ct.offset + String.length str + 1)
-    | ARString (id, SPCloseQuote), TStringMLStart (id', _, _, _)
-    | ARString (id, SPCloseQuote), TStringMLMiddle (id', _, _, _)
-      when id = id' ->
-        None
-    | ARString (id, SPCloseQuote), TStringMLEnd (id', str, _, _) when id = id'
-      ->
-        clampedPosForTi ti (ct.offset + String.length str)
-    | ARString (_, SPOpenQuote), _
-    | ARString (_, SPText), _
-    | ARString (_, SPCloseQuote), _ ->
-        None
+      | _ ->
+          None )
+    | ARString (id, SPCloseQuote), tok ->
+      ( match tok with
+      | TString (id', str) when id = id' ->
+          clampedPosForTi ti (ct.offset + String.length str + 1)
+      | (TStringMLStart (id', _, _, _) | TStringMLMiddle (id', _, _, _))
+        when id = id' ->
+          None
+      | TStringMLEnd (id', str, _, _) when id = id' ->
+          clampedPosForTi ti (ct.offset + String.length str)
+      | _ ->
+          None )
     (* Variable *)
     | ARVariable id, TVariable (id', _) when id = id' ->
         posForTi ti
