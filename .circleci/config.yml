@@ -181,7 +181,7 @@ commands:
           name: "Wait for container"
           command: |
             # --foreground because this is run in a script by circle
-            timeout --foreground 5m scripts/wait-until-container-ready
+            timeout --foreground 10m scripts/wait-until-container-ready
   wait-for-server:
     steps:
       - wait-for-container
@@ -189,7 +189,7 @@ commands:
           name: "Wait for server"
           command: |
             # --foreground because this is run in a script by circle
-            timeout --foreground 5m scripts/wait-until-server-ready
+            timeout --foreground 10m scripts/wait-until-server-ready
   auth-with-gcp:
     steps:
       - run:
