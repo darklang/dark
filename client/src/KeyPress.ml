@@ -384,9 +384,7 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
                 then AutocompleteMod (ACSetQuery (m.complete.value ^ " "))
                 else NoChange
             | _ ->
-                if m.complete.value = "=" || AC.isStringEntry m.complete
-                then NoChange
-                else Entry.submit m cursor Entry.GotoNext )
+                NoChange )
           | Key.Enter ->
               if AC.isLargeStringEntry m.complete
               then AutocompleteMod (ACSetQuery m.complete.value)

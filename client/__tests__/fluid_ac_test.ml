@@ -26,6 +26,7 @@ let sampleFunctions : function_ list =
   ; ("HTTP::options", TAny)
   ; ("Some::deprecated", TAny)
   ; ("DB::deleteAll", TDB)
+  ; ("DB::generateKey", TStr)
   ; ("DB::getAll_v2", TList)
   ; ("DB::getAll_v1", TList)
     (* ordering is deliberate - we want the query to order s.t. get is before getAll *)
@@ -298,6 +299,12 @@ let run () =
       ) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
+          let acForQueries (qs : string list) =
+            List.foldl qs ~init:(acFor m) ~f:(setQuery m)
+            |> (fun x -> x.completions)
+            |> List.map ~f:AC.asName
+          in
+          let acForQuery (q : string) = acForQueries [q] in
           test "empty autocomplete doesn't highlight" (fun () ->
               expect (acFor m |> fun x -> x.index) |> toEqual None ) ;
           test
@@ -326,53 +333,24 @@ let run () =
           test "deprecated functions are removed" (fun () ->
               expect (acFor m |> setQuery m "deprecated" |> AC.highlighted)
               |> toEqual None ) ;
+          test "sorts correctly without typing ::" (fun () ->
+              expect (acForQuery "dbget" |> List.head)
+              |> toEqual (Some "DB::get_v1") ) ;
           test "lowercase search still finds uppercase results" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "listh"
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName )
-              |> toEqual ["List::head"] ) ;
+              expect (acForQuery "listh") |> toEqual ["List::head"] ) ;
           test "DB::get_v1 occurs before DB::getAll_v1" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "DB::get"
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> List.head )
+              expect (acForQuery "DB::get" |> List.head)
               |> toEqual (Some "DB::get_v1") ) ;
           test "DB::getAll_v1 occurs before DB::getAll_v2" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "DB::getA"
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName
-                |> List.head )
+              expect (acForQuery "DB::getA" |> List.head)
               |> toEqual (Some "DB::getAll_v1") ) ;
           test "DB::getAll_v2 is reachable" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "DB::getA"
-                |> (fun x -> x.completions)
-                |> List.map ~f:AC.asName )
+              expect (acForQuery "DB::getA")
               |> toEqual ["DB::getAll_v1"; "DB::getAll_v2"] ) ;
           test "search finds only prefixed" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "twit::y"
-                |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
-                |> List.map ~f:AC.asName )
-              |> toEqual ["Twit::yetAnother"] ) ;
+              expect (acForQuery "twit::y") |> toEqual ["Twit::yetAnother"] ) ;
           test "show results when the only option is the setQuery m" (fun () ->
-              expect
-                ( acFor m
-                |> setQuery m "List::head"
-                |> (fun x -> x.completions)
-                (* |> List.filter ~f:isStaticItem *)
-                |> List.map ~f:AC.asName
-                |> List.length )
-              |> toEqual 1 ) ;
+              expect (acForQuery "List::head" |> List.length) |> toEqual 1 ) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acFor m

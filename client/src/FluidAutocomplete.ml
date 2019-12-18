@@ -439,10 +439,12 @@ let filter
     (candidates0 : autocompleteItem list)
     ((tl, ti, dval, queryString) : fullQuery) :
     autocompleteItem list * autocompleteItem list =
-  let lcq = queryString |> String.toLower in
+  let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
+  let lcq = queryString |> String.toLower |> stripColons in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
+    |> stripColons
   in
   (* split into different lists *)
   let candidates1, notSubstring =
@@ -643,3 +645,18 @@ let rec documentationForItem (aci : autocompleteItem) : string option =
 
 
 let isOpened (ac : fluidAutocompleteState) : bool = Option.isSome ac.index
+
+let updateAutocompleteVisability (m : model) : model =
+  let oldTlid =
+    match m.fluidState.ac.query with
+    | Some (tlid, _) ->
+        Some tlid
+    | None ->
+        tlidOf m.cursorState
+  in
+  let newTlid = tlidOf m.cursorState in
+  if isOpened m.fluidState.ac && oldTlid <> newTlid
+  then
+    let newAc = reset m in
+    {m with fluidState = {m.fluidState with ac = newAc}}
+  else m
