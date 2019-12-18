@@ -1798,85 +1798,52 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
       int option =
     match (ct.astRef, ti.token) with
     (* Binop *)
-    | ARBinOp (id, BOPOperator), TBinOp (id', _) when id = id' ->
-        posForTi ti
-    | ARBinOp (_, BOPOperator), _ ->
-        None
+    | ARBinOp (id, BOPOperator), TBinOp (id', _) when id = id' -> posForTi ti
     (* Blank *)
-    | ARBlank id, TBlank id' when id = id' ->
-        posForTi ti
-    | ARBlank _, _ ->
-        None
+    | ARBlank id, TBlank id' when id = id' -> posForTi ti
     (* Bool *)
-    | ARBool id, (TTrue id' | TFalse id') when id = id' ->
-        posForTi ti
-    | ARBool _, _ ->
-        None
+    | ARBool id, (TTrue id' | TFalse id') when id = id' -> posForTi ti
     (* Constructor *)
-    | ARConstructor (id, CPName), TConstructorName (id', _) when id = id' ->
-        posForTi ti
-    | ARConstructor (_, CPName), _ ->
-        None
+    | ARConstructor (id, CPName), TConstructorName (id', _) when id = id' -> posForTi ti
     (* Field Access *)
-    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _) when id = id' ->
-        posForTi ti
-    | ARFieldAccess (_, FAPFieldname), _ ->
-        None
+    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _) when id = id' -> posForTi ti
     (* Float *)
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
-    | ARFloat (id, FPDecimal), TFloatFraction (id', _)
-      when id = id' ->
-        posForTi ti
-    | ARFloat (_, FPWhole), _ | ARFloat (_, FPDecimal), _ ->
-        None
+    | ARFloat (id, FPDecimal), TFloatFraction (id', _) when id = id' -> posForTi ti
     (* FnCall *)
-    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _) when id = id' ->
-        posForTi ti
-    | ARFnCall (_, FCPFnName), _ ->
-        None
+    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _) when id = id' -> posForTi ti
     (* If *)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
-    | ARIf (id, IPElseKeyword), TIfElseKeyword id'
-      when id = id' ->
-        posForTi ti
-    | ARIf (_, IPIfKeyword), _
-    | ARIf (_, IPThenKeyword), _
-    | ARIf (_, IPElseKeyword), _ ->
-        None
+    | ARIf (id, IPElseKeyword), TIfElseKeyword id' when id = id' -> posForTi ti
     (* Integer *)
-    | ARInteger id, TInteger (id', _) when id = id' ->
-        posForTi ti
-    | ARInteger _, _ ->
-        None
+    | ARInteger id, TInteger (id', _) when id = id' -> posForTi ti
     (* Let *)
     | ARLet (id, LPKeyword), TLetKeyword (id', _)
     | ARLet (id, LPVarName), TLetLHS (id', _, _)
-    | ARLet (id, LPAssignment), TLetAssignment (id', _)
-      when id = id' ->
-        posForTi ti
-    | ARLet (_, LPKeyword), _
-    | ARLet (_, LPVarName), _
-    | ARLet (_, LPAssignment), _ ->
-        None
+    | ARLet (id, LPAssignment), TLetAssignment (id', _) when id = id' -> posForTi ti
     (* List *)
     | ARList (id, LPOpen), TListOpen id'
-    | ARList (id, LPClose), TListClose id'
-      when id = id' ->
-        posForTi ti
-    | ARList (id, LPSeparator idx), TListSep (id', idx')
-      when id = id' && idx = idx' ->
-        posForTi ti
-    | ARList (_, LPOpen), _
-    | ARList (_, LPClose), _
-    | ARList (_, LPSeparator _), _ ->
-        None
+    | ARList (id, LPClose), TListClose id' when id = id' -> posForTi ti
     (* Match *)
-    | ARMatch (id, MPKeyword), TMatchKeyword id' when id = id' ->
-        posForTi ti
-    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
-      when id = id' && idx = idx' ->
-        posForTi ti
+    | ARMatch (id, MPKeyword), TMatchKeyword id' when id = id' -> posForTi ti
+    (* Null *)
+    | ARNull id, TNullToken id' when id = id' -> posForTi ti
+    (* Partial *)
+    | ARPartial id, TPartial (id', _) when id = id' -> posForTi ti
+    (* Right Partial *)
+    | ARRightPartial id, TRightPartial (id', _) when id = id' -> posForTi ti
+    (* Record *)
+    | ARRecord (id, RPOpen), TRecordOpen id'
+    | ARRecord (id, RPClose), TRecordClose id' when id = id' -> posForTi ti
+    (* Variable *)
+    | ARVariable id, TVariable (id', _) when id = id' -> posForTi ti
+
+
+    (* List *)
+    | ARList (id, LPSeparator idx), TListSep (id', idx') when id = id' && idx = idx' -> posForTi ti
+    (* Match *)
+    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx') when id = id' && idx = idx' -> posForTi ti
     | ( ARMatch (id, MPBranchPattern idx)
       , 
         (* Seems a bit fishy? *)
@@ -1891,56 +1858,27 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         | TPatternFloatPoint (id', _, idx')
         | TPatternFloatFraction (id', _, _, idx')
         | TPatternBlank (id', _, idx') ) )
-      when id = id' && idx = idx' ->
-        posForTi ti
-    | ARMatch (_, MPKeyword), _
-    | ARMatch (_, MPBranchSep _), _
-    | ARMatch (_, MPBranchPattern _), _ ->
-        None
-    (* Null *)
-    | ARNull id, TNullToken id' when id = id' ->
-        posForTi ti
-    | ARNull _, _ ->
-        None
-    (* Partial *)
-    | ARPartial id, TPartial (id', _) when id = id' ->
-        posForTi ti
-    | ARPartial _, _ ->
-        None
-    (* Right Partial *)
-    | ARRightPartial id, TRightPartial (id', _) when id = id' ->
-        posForTi ti
-    | ARRightPartial _, _ ->
-        None
+                                                          when id = id' && idx = idx' -> posForTi ti
     (* Pipe *)
-    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
-      when id = id' && idx = idx' ->
-        posForTi ti
-    | ARPipe (_, PPPipeKeyword _), _ ->
-        None
+    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _) when id = id' && idx = idx' -> posForTi ti
     (* Record *)
-    | ARRecord (id, RPOpen), TRecordOpen id'
-    | ARRecord (id, RPClose), TRecordClose id'
-      when id = id' ->
-        posForTi ti
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
-    | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
-      when id = id' && idx = idx' ->
-        posForTi ti
-    | ARRecord (_, RPOpen), _
-    | ARRecord (_, RPClose), _
-    | ARRecord (_, RPFieldname _), _
-    | ARRecord (_, RPFieldSep _), _ ->
-        None
-    (* Single-line Strings *)
+    | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _) when id = id' && idx = idx' -> posForTi ti
+
+    (*
+    * Single-line Strings
+    *)
     | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
         posForTi ti
     | ARString (id, SPText), TString (id', _) when id = id' ->
         clampedPosForTi ti (ct.offset + 1)
     | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
         clampedPosForTi ti (ct.offset + String.length str + 1)
-    (* Multi-line Strings *)
+
+    (* 
+    * Multi-line Strings
+    *)
     | ARString (id, SPOpenQuote), tok ->
       ( match tok with
       | TStringMLStart (id', str, _, _) when id = id' ->
@@ -2006,9 +1944,74 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
           clampedPosForTi ti (ct.offset + String.length str)
       | _ ->
           None )
-    (* Variable *)
-    | ARVariable id, TVariable (id', _) when id = id' ->
-        posForTi ti
+    (* 
+    * Exhaustiveness satisfaction for astRefs
+    *)
+    | ARBinOp (_, BOPOperator), _ ->
+        None
+
+    | ARBlank _, _ ->
+        None
+
+    | ARBool _, _ ->
+        None
+
+    | ARConstructor (_, CPName), _ ->
+        None
+
+    | ARFieldAccess (_, FAPFieldname), _ ->
+        None
+
+    | ARFloat (_, FPWhole), _ | ARFloat (_, FPDecimal), _ ->
+        None
+
+    | ARFnCall (_, FCPFnName), _ ->
+        None
+
+    | ARIf (_, IPIfKeyword), _
+    | ARIf (_, IPThenKeyword), _
+    | ARIf (_, IPElseKeyword), _ ->
+        None
+
+    | ARInteger _, _ ->
+        None
+
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPVarName), _
+    | ARLet (_, LPAssignment), _ ->
+        None
+
+
+    | ARList (_, LPOpen), _
+    | ARList (_, LPClose), _
+    | ARList (_, LPSeparator _), _ ->
+        None
+
+
+    | ARMatch (_, MPKeyword), _
+    | ARMatch (_, MPBranchSep _), _
+    | ARMatch (_, MPBranchPattern _), _ ->
+        None
+
+    | ARNull _, _ ->
+        None
+
+    | ARPartial _, _ ->
+        None
+
+    | ARRightPartial _, _ ->
+        None
+
+    | ARPipe (_, PPPipeKeyword _), _ ->
+        None
+
+
+    | ARRecord (_, RPOpen), _
+    | ARRecord (_, RPClose), _
+    | ARRecord (_, RPFieldname _), _
+    | ARRecord (_, RPFieldSep _), _ ->
+        None
+
     | ARVariable _, _ ->
         None
     (* Invalid *)
