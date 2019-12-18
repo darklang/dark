@@ -1794,90 +1794,161 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
      or None if the passed token isn't one we care about. The function will be used below
      as part of a List.findMap
    *)
-  let targetAndTokenInfoToMaybeCaretPos ((ct,ti):(caretTarget*tokenInfo)) : int option =
+  let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * tokenInfo) :
+      int option =
     match (ct.astRef, ti.token) with
-    | ARBinOp (id, BOPOperator), TBinOp (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARBinOp (_id, BOPOperator), _ -> None
-    | ARBlank id, TBlank id' when id = id' -> posForTi ti
-    | (* _ *)ARBlank _id, _ -> None
-    | ARBool id, (TTrue id' | TFalse id') when id = id' -> posForTi ti
-    | (* _ *)ARBool _id, _ -> None
-    | ARConstructor (id, CPName), TConstructorName (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARConstructor (_id, CPName), _ -> None
-    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _) when id = id' -> posForTi ti
-    | (* _ *)ARFieldAccess (_id, FAPFieldname), _ -> None
-    | ARFloat (id, FPWhole), TFloatWhole (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARFloat (_id, FPWhole), _ -> None
-    | ARFloat (id, FPDecimal), TFloatFraction (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARFloat (_id, FPDecimal), _ -> None
-    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _) when id = id' -> posForTi ti
-    | (* _ *)ARFnCall (_id, FCPFnName), _ -> None
-    | ARIf (id, IPIfKeyword), TIfKeyword id' when id = id' -> posForTi ti
-    | (* _ *)ARIf (_id, IPIfKeyword), _ -> None
-    | ARIf (id, IPThenKeyword), TIfThenKeyword id' when id = id' -> posForTi ti
-    | (* _ *)ARIf (_id, IPThenKeyword), _ -> None
-    | ARIf (id, IPElseKeyword), TIfElseKeyword id' when id = id' -> posForTi ti
-    | (* _ *)ARIf (_id, IPElseKeyword), _ -> None
-    | ARInteger id, TInteger (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARInteger _id, _ -> None
-    | ARLet (id, LPKeyword), TLetKeyword (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARLet (_id, LPKeyword), _ -> None
-    | ARLet (id, LPVarName), TLetLHS (id', _, _) when id = id' -> posForTi ti
-    | (* _ *)ARLet (_id, LPVarName), _ -> None
-    | ARLet (id, LPAssignment), TLetAssignment (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARLet (_id, LPAssignment), _ -> None
-    | ARList (id, LPOpen), TListOpen id' when id = id' -> posForTi ti
-    | (* _ *)ARList (_id, LPOpen), _ -> None
-    | ARList (id, LPClose), TListClose id' when id = id' -> posForTi ti
-    | (* _ *)ARList (_id, LPClose), _ -> None
-    | ARList (id, LPSeparator idx), TListSep (id', idx') when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARList (_id, LPSeparator _idx), _ -> None
-    | ARMatch (id, MPKeyword), TMatchKeyword id' when id = id' -> posForTi ti
-    | (* _ *)ARMatch (_id, MPKeyword), _ -> None
-    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx') when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARMatch (_id, MPBranchSep _idx), _ -> None
-    (* Seems a bit fishy? *)
-    | ARMatch (id, MPBranchPattern idx), ( ( TPatternVariable (id', _, _, idx')
-            | TPatternConstructorName (id', _, _, idx')
-            | TPatternInteger (id', _, _, idx')
-            | TPatternString (id', _, _, idx')
-            | TPatternTrue (id', _, idx')
-            | TPatternFalse (id', _, idx')
-            | TPatternNullToken (id', _, idx')
-            | TPatternFloatWhole (id', _, _, idx')
-            | TPatternFloatPoint (id', _, idx')
-            | TPatternFloatFraction (id', _, _, idx')
-            | TPatternBlank (id', _, idx') )
-          ) when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARMatch (_id, MPBranchPattern _idx), _ -> None
-    | ARNull id, TNullToken id' when id = id' -> posForTi ti
-    | (*  *)ARNull _id, _ -> None
-    | ARPartial id, TPartial (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARPartial _id, _ -> None
-    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _) when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARPipe (_id, PPPipeKeyword _idx), _ -> None
-    | ARRecord (id, RPOpen), TRecordOpen id' when id = id' -> posForTi ti
-    | (* _ *)ARRecord (_id, RPOpen), _ -> None
-    | ARRecord (id, RPClose), TRecordClose id' when id = id' -> posForTi ti
-    | (* _ *)ARRecord (_id, RPClose), _ -> None
-    | ARRecord (id, RPFieldname idx), TRecordFieldname {recordID = id'; index = idx'} when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARRecord (_id, RPFieldname _idx), _ -> None
-    | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _) when id = id' && idx = idx' -> posForTi ti
-    | (* _ *)ARRecord (_id, RPFieldSep _idx), _ -> None
-    | ARRightPartial id, TRightPartial (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARRightPartial _id, _ -> None
+    (* Binop *)
+    | ARBinOp (id, BOPOperator), TBinOp (id', _) when id = id' ->
+        posForTi ti
+    | ARBinOp (_, BOPOperator), _ ->
+        None
+    (* Blank *)
+    | ARBlank id, TBlank id' when id = id' ->
+        posForTi ti
+    | ARBlank _, _ ->
+        None
+    (* Bool *)
+    | ARBool id, (TTrue id' | TFalse id') when id = id' ->
+        posForTi ti
+    | ARBool _, _ ->
+        None
+    (* Constructor *)
+    | ARConstructor (id, CPName), TConstructorName (id', _) when id = id' ->
+        posForTi ti
+    | ARConstructor (_, CPName), _ ->
+        None
+    (* Field Access *)
+    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _) when id = id' ->
+        posForTi ti
+    | ARFieldAccess (_, FAPFieldname), _ ->
+        None
+    (* Float *)
+    | ARFloat (id, FPWhole), TFloatWhole (id', _)
+    | ARFloat (id, FPDecimal), TFloatFraction (id', _)
+      when id = id' ->
+        posForTi ti
+    | ARFloat (_, FPWhole), _ | ARFloat (_, FPDecimal), _ ->
+        None
+    (* FnCall *)
+    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _) when id = id' ->
+        posForTi ti
+    | ARFnCall (_, FCPFnName), _ ->
+        None
+    (* If *)
+    | ARIf (id, IPIfKeyword), TIfKeyword id'
+    | ARIf (id, IPThenKeyword), TIfThenKeyword id'
+    | ARIf (id, IPElseKeyword), TIfElseKeyword id'
+      when id = id' ->
+        posForTi ti
+    | ARIf (_, IPIfKeyword), _
+    | ARIf (_, IPThenKeyword), _
+    | ARIf (_, IPElseKeyword), _ ->
+        None
+    (* Integer *)
+    | ARInteger id, TInteger (id', _) when id = id' ->
+        posForTi ti
+    | ARInteger _, _ ->
+        None
+    (* Let *)
+    | ARLet (id, LPKeyword), TLetKeyword (id', _)
+    | ARLet (id, LPVarName), TLetLHS (id', _, _)
+    | ARLet (id, LPAssignment), TLetAssignment (id', _)
+      when id = id' ->
+        posForTi ti
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPVarName), _
+    | ARLet (_, LPAssignment), _ ->
+        None
+    (* List *)
+    | ARList (id, LPOpen), TListOpen id'
+    | ARList (id, LPClose), TListClose id'
+      when id = id' ->
+        posForTi ti
+    | ARList (id, LPSeparator idx), TListSep (id', idx')
+      when id = id' && idx = idx' ->
+        posForTi ti
+    | ARList (_, LPOpen), _
+    | ARList (_, LPClose), _
+    | ARList (_, LPSeparator _), _ ->
+        None
+    (* Match *)
+    | ARMatch (id, MPKeyword), TMatchKeyword id' when id = id' ->
+        posForTi ti
+    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
+      when id = id' && idx = idx' ->
+        posForTi ti
+    | ( ARMatch (id, MPBranchPattern idx)
+      , 
+        (* Seems a bit fishy? *)
+        ( TPatternVariable (id', _, _, idx')
+        | TPatternConstructorName (id', _, _, idx')
+        | TPatternInteger (id', _, _, idx')
+        | TPatternString (id', _, _, idx')
+        | TPatternTrue (id', _, idx')
+        | TPatternFalse (id', _, idx')
+        | TPatternNullToken (id', _, idx')
+        | TPatternFloatWhole (id', _, _, idx')
+        | TPatternFloatPoint (id', _, idx')
+        | TPatternFloatFraction (id', _, _, idx')
+        | TPatternBlank (id', _, idx') ) )
+      when id = id' && idx = idx' ->
+        posForTi ti
+    | ARMatch (_, MPKeyword), _
+    | ARMatch (_, MPBranchSep _), _
+    | ARMatch (_, MPBranchPattern _), _ ->
+        None
+    (* Null *)
+    | ARNull id, TNullToken id' when id = id' ->
+        posForTi ti
+    | ARNull _, _ ->
+        None
+    (* Partial *)
+    | ARPartial id, TPartial (id', _) when id = id' ->
+        posForTi ti
+    | ARPartial _, _ ->
+        None
+    (* Right Partial *)
+    | ARRightPartial id, TRightPartial (id', _) when id = id' ->
+        posForTi ti
+    | ARRightPartial _, _ ->
+        None
+    (* Pipe *)
+    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
+      when id = id' && idx = idx' ->
+        posForTi ti
+    | ARPipe (_, PPPipeKeyword _), _ ->
+        None
+    (* Record *)
+    | ARRecord (id, RPOpen), TRecordOpen id'
+    | ARRecord (id, RPClose), TRecordClose id'
+      when id = id' ->
+        posForTi ti
+    | ( ARRecord (id, RPFieldname idx)
+      , TRecordFieldname {recordID = id'; index = idx'} )
+    | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
+      when id = id' && idx = idx' ->
+        posForTi ti
+    | ARRecord (_, RPOpen), _
+    | ARRecord (_, RPClose), _
+    | ARRecord (_, RPFieldname _), _
+    | ARRecord (_, RPFieldSep _), _ ->
+        None
     (* 
     * Strings
     *)
-    | ARString (id, SPOpenQuote), TString (id', _) when id = id' -> posForTi ti
-    | ARString (id, SPOpenQuote), TStringMLStart (id', str, _, _) when id = id' ->
+    | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
+        posForTi ti
+    | ARString (id, SPOpenQuote), TStringMLStart (id', str, _, _) when id = id'
+      ->
         let len = String.length str + 1 (* to account for open quote *) in
         if ct.offset > len
         then (* Must be in a later token *)
           None
         else (* Within current token *)
           posForTi ti
-    | ARString (id, SPOpenQuote), TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
+    | ( ARString (id, SPOpenQuote)
+      , TStringMLMiddle (id', str, startOffsetIntoString, _) )
+      when id = id' ->
         let len = String.length str in
         let offsetInStr =
           ct.offset + 1
@@ -1890,55 +1961,66 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         else
           (* Within current token *)
           clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ARString (id, SPOpenQuote), TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
+    | ( ARString (id, SPOpenQuote)
+      , TStringMLEnd (id', _, startOffsetIntoString, _) )
+      when id = id' ->
         (* Must be in this token because it's the last token in the string *)
         let offsetInStr =
           ct.offset + 1
           (* to account for open quote in the start *)
         in
         clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | (* _ *)ARString (_id, SPOpenQuote), _ -> None
     | ARString (id, SPText), TString (id', _) when id = id' ->
-            clampedPosForTi ti (ct.offset + 1)
+        clampedPosForTi ti (ct.offset + 1)
     | ARString (id, SPText), TStringMLStart (id', str, _, _) when id = id' ->
-            let len = String.length str in
-            if ct.offset > len
-            then (* Must be in a later token *)
-              None
-            else (* Within current token *)
-              clampedPosForTi ti (ct.offset + 1)
-    | ARString (id, SPText), TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
-            let len = String.length str in
-            let offsetInStr = ct.offset in
-            let endOffset = startOffsetIntoString + len in
-            if offsetInStr > endOffset
-            then (* Must be in later token *)
-              None
-            else
-              (* Within current token *)
-              clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | ARString (id, SPText), TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
-            (* Must be in this token because it's the last token in the string *)
-            let offsetInStr = ct.offset in
-            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
-    | (* _ *)ARString (_id, SPText), _ -> None
+        let len = String.length str in
+        if ct.offset > len
+        then (* Must be in a later token *)
+          None
+        else (* Within current token *)
+          clampedPosForTi ti (ct.offset + 1)
+    | ( ARString (id, SPText)
+      , TStringMLMiddle (id', str, startOffsetIntoString, _) )
+      when id = id' ->
+        let len = String.length str in
+        let offsetInStr = ct.offset in
+        let endOffset = startOffsetIntoString + len in
+        if offsetInStr > endOffset
+        then (* Must be in later token *)
+          None
+        else
+          (* Within current token *)
+          clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+    | ARString (id, SPText), TStringMLEnd (id', _, startOffsetIntoString, _)
+      when id = id' ->
+        (* Must be in this token because it's the last token in the string *)
+        let offsetInStr = ct.offset in
+        clampedPosForTi ti (offsetInStr - startOffsetIntoString)
     | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
-            clampedPosForTi ti (ct.offset + String.length str + 1)
-    | ARString (id, SPCloseQuote), TStringMLStart (id', _, _, _) when id = id' ->
+        clampedPosForTi ti (ct.offset + String.length str + 1)
+    | ARString (id, SPCloseQuote), TStringMLStart (id', _, _, _)
+    | ARString (id, SPCloseQuote), TStringMLMiddle (id', _, _, _)
+      when id = id' ->
         None
-    | ARString (id, SPCloseQuote), TStringMLMiddle (id', _, _, _) when id = id' ->
-        None
-    | ARString (id, SPCloseQuote), TStringMLEnd (id', str, _, _) when id = id' ->
+    | ARString (id, SPCloseQuote), TStringMLEnd (id', str, _, _) when id = id'
+      ->
         clampedPosForTi ti (ct.offset + String.length str)
-    | (* _ *)ARString (_id, SPCloseQuote), _ -> None
-    | ARVariable id, TVariable (id', _) when id = id' -> posForTi ti
-    | (* _ *)ARVariable _id, _ -> None
-    | ARInvalid, _ -> None
+    | ARString (_, SPOpenQuote), _
+    | ARString (_, SPText), _
+    | ARString (_, SPCloseQuote), _ ->
+        None
+    (* Variable *)
+    | ARVariable id, TVariable (id', _) when id = id' ->
+        posForTi ti
+    | ARVariable _, _ ->
+        None
+    (* Invalid *)
+    | ARInvalid, _ ->
+        None
   in
   match
     infos
-    |> List.findMap ~f:(fun ti ->
-           targetAndTokenInfoToMaybeCaretPos (ct, ti) )
+    |> List.findMap ~f:(fun ti -> targetAndTokenInfoToMaybeCaretPos (ct, ti))
   with
   | Some newPos ->
       newPos
