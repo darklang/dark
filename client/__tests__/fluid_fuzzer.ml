@@ -3,6 +3,7 @@ open Types
 open Fluid
 open Fluid_test_data
 open Tester
+module Expression = FluidExpression
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
@@ -289,7 +290,7 @@ end
 let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
   let f = unwrap id in
   let childOr (exprs : fluidExpr list) =
-    List.find exprs ~f:(fun e -> eid e = id)
+    List.find exprs ~f:(fun e -> Expression.id e = id)
   in
   let newExpr =
     match expr with
@@ -358,9 +359,11 @@ let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
 
 let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
   let r e = remove id e in
-  let f e = if eid e = id then EBlank id else remove id e in
-  let removeFromList exprs = List.filter exprs ~f:(fun e -> eid e <> id) in
-  if eid expr = id
+  let f e = if Expression.id e = id then EBlank id else remove id e in
+  let removeFromList exprs =
+    List.filter exprs ~f:(fun e -> Expression.id e <> id)
+  in
+  if Expression.id expr = id
   then EBlank id
   else
     let newExpr =
@@ -387,7 +390,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
             , f mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
-                  if eid expr = id || Fluid.pid pattern = id
+                  if Expression.id expr = id || Fluid.pid pattern = id
                   then None
                   else Some (pattern, expr) )
                 pairs )
@@ -396,7 +399,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
             ( rid
             , List.filterMap
                 ~f:(fun (fid, name, expr) ->
-                  if eid expr = id || fid = id
+                  if Expression.id expr = id || fid = id
                   then None
                   else Some (fid, name, expr) )
                 fields )
@@ -427,7 +430,7 @@ let reduce (test : FuzzTest.t) (ast : fluidExpr) =
     let pointers =
       ast
       |> fun x ->
-      Fluid.toExpr x
+      FluidExpression.toNexpr x
       |> AST.allData
       |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
       |> List.indexedMap ~f:(fun i v -> (i, v))
