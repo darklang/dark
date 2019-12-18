@@ -1769,216 +1769,250 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
   let infos = toTokens s ast in
   (* The conditional logic here is a bit nasty, but essentially we're first
    * looking at which kind of astRef we got and then for each one, specifying
-   * the function we'll use in List.find to find the correct token.
+   * the function we'll use in List.findMap to find the correct token and immediately
+   * map it to the corresponding caretPos.
    *
    * This is purposefully verbose, as we want to ensure we have an exhaustive
-   * mtch. Please do not use '_' in any of the astRef match conditions or
+   * match. Please do not use '_' in any of the astRef match conditions or
    * refactor in any way that removes the exhaustive matching of the astRefs.
+   *
+   *
+   * NOTE(JULIAN): I attempted a refactor that didn't specialize on ct.astRef
+   * and instead did a List.findMap with a function matching on ct.astRef,ti.token.
+   * It didn't go well because it spread logic for single concepts across multiple
+   * groups and made it hard to exhaustively match against ct.astRef. Hopefully that
+   * helps if/when someone attempts a different formulation of the algorithm here.
+   *
    *
    * NB: These were somewhat hastily added and are very possibly incorrect.
    * Please fix.
    *)
-  let _newPos : int option = (infos |> List.findMap ~f:(fun (ti) ->
-  match (ct.astRef, ti.token) with
-  | (ARBinOp (id, BOPOperator), TBinOp (id', _))
-  | (ARBlank id, TBlank id')
-  | (ARBool id, (TTrue id' | TFalse id'))
-  | (ARConstructor (id, CPName), TConstructorName (id', _))
-  | (* CPValue is bad and this is wrong *) (ARConstructor (id, CPValue _), TConstructorName (id', _))
-  | (ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _))
-  | (ARFloat (id, FPWhole), TFloatWhole (id', _))
-  | (ARFloat (id, FPDecimal), TFloatFraction (id', _))
-  | (ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _))
-  | (ARIf (id, IPIfKeyword), TIfKeyword id')
-  | (ARIf (id, IPThenKeyword), TIfThenKeyword id')
-  | (ARIf (id, IPElseKeyword), TIfElseKeyword id')
-  | (ARInteger id, TInteger (id', _))
-  | (ARLet (id, LPKeyword), TLetKeyword (id', _))
-  | (ARLet (id, LPVarName), TLetLHS (id', _, _))
-  | (ARLet (id, LPAssignment), TLetAssignment (id', _))
-  | (ARList (id, LPOpen), TListOpen id')
-  | (ARList (id, LPClose), TListClose id')
-  | (ARMatch (id, MPKeyword), TMatchKeyword id')
-  | (ARNull id, TNullToken id')
-  | (ARPartial id, TPartial (id', _))
-  | (ARRecord (id, RPOpen), TRecordOpen id')
-  | (ARRecord (id, RPClose), TRecordClose id')
-  | (ARRightPartial id, TRightPartial (id', _))
-  | (ARVariable id, TVariable (id', _))
-   ->
-      if id = id' then Some (ti.startPos + min ct.offset ti.length)
-      else None
-  | (ARList (id, LPSeparator idx), TListSep (id', idx'))
-  | (ARMatch (id, MPBranchSep idx), TMatchSep (id', idx'))
-  | (ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _))
-  | (ARRecord (id, RPFieldname idx), TRecordFieldname {recordID = id'; index = idx'; _})
-  | (ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _))
-  | (* Seems a bit fishy *)(ARMatch (id, MPBranchPattern idx), 
-        (TPatternVariable (id', _, _, idx')
-        | TPatternConstructorName (id', _, _, idx')
-        | TPatternInteger (id', _, _, idx')
-        | TPatternString (id', _, _, idx')
-        | TPatternTrue (id', _, idx')
-        | TPatternFalse (id', _, idx')
-        | TPatternNullToken (id', _, idx')
-        | TPatternFloatWhole (id', _, _, idx')
-        | TPatternFloatPoint (id', _, idx')
-        | TPatternFloatFraction (id', _, _, idx')
-        | TPatternBlank (id', _, idx')))
-   ->
-      if id = id' && idx = idx' then Some (ti.startPos + min ct.offset ti.length)
-      else None
-  | (* BOPLHS and BOPRHS are bad *)((ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS)), tok)
-  | (* FAPRHS is bad *) (ARFieldAccess (id, FAPRHS), tok)
-  | (* IPCondition, IPThenBody, IPElseBody are bad! *)((ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody)), tok)
-  | (* LPValue and LPBody are bad *)((ARLet (id, LPValue) | ARLet (id, LPBody)), tok)
-  | (* MPMatchExpr is bad (and no way to get match branch value by index) *)(ARMatch (id, MPMatchExpr), tok) ->
-    if Token.tid tok = id then Some (ti.startPos + min ct.offset ti.length)
-    else None
-  | (* FCPArg is bad (and no way to get function arg by index) *)(ARFnCall (id, FCPArg _idx), tok)
-  | (* PPPipedExpr is bad (and no way to get pipe expression by index) *)(ARPipe (id, PPPipedExpr _idx), tok)
-  | (* RPFieldValue is bad (no way to get field value by index) *) (ARRecord (id, RPFieldValue _idx), tok) ->
-    if Token.tid tok = id then Some (ti.startPos + min ct.offset ti.length)
-    else None
-  (* Strings (currently, ml strings are not handled!) *)
-  | (ARString (id, SPOpenQuote), TString (id', _))
-  | (ARString (id, SPText), TString (id', _))
-  | (ARString (id, SPCloseQuote), TString (id', _)) ->
-      if id = id' then Some (ti.startPos + min ct.offset ti.length)
-      else None
-  | (ARInvalid, _) -> None
-   )) in
-  let f =
+  
+  (* posForTi is the most common way of going from a single token info to a caretPos.
+    It only really makes sense for situations where there is a 1:1 correspondence
+    between an ASTRef and a token. It does not make sense for ASTRefs that scan across
+    multiple tokens (eg Multiline Strings) *)
+  let posForTi ti : int option =
+    Some (ti.startPos + min ct.offset ti.length)
+  in
+  let nestedExprHandler id = function
+    | tok, ti when Token.tid tok = id ->
+        posForTi ti
+    | _ ->
+        None
+  in
+  (* tokenAndTokenInfoToMaybeCaretPos takes a token and tokenInfo and produces
+     the corresponding token-stream-global caretPos within the token stream,
+     or None if the passed token isn't one we care about. The function is specialized
+     for the specific astRef passed to the top-level function, and will be used below
+     as part of a List.findMap
+     
+     XXX(JULIAN): I call out several of these matches as "bad", by which I mean that
+     we should probably remove them from the definition for ASTRef -- it is likely that
+     nested expressions can be found more effectively in calling code. For example,
+     rather than using `ARBinOp (id, BOPRHS)` as a target, one could use a function like
+     `caretTargetForLastPartOfExpr` to grab the end of it. *)
+  let tokenAndTokenInfoToMaybeCaretPos =
     match ct.astRef with
+    (* BOPLHS and BOPRHS are bad *)
     | ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
     | ARBinOp (id, BOPOperator) ->
-        (function TBinOp (id', _) -> id = id' | _ -> false)
+        (function
+        | TBinOp (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARBlank id ->
-        (function TBlank id' -> id = id' | _ -> false)
+        (function TBlank id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARBool id ->
-        (function TTrue id' | TFalse id' -> id = id' | _ -> false)
+        (function
+        | (TTrue id' | TFalse id'), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
     | ARConstructor (id, CPName) ->
-        (function TConstructorName (id', _) -> id = id' | _ -> false)
+        (function
+        | TConstructorName (id', _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* CPValue is bad *)
     | ARConstructor (id, CPValue _) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
     | ARFieldAccess (id, FAPFieldname) ->
-        (function TFieldName (id', _, _) -> id = id' | _ -> false)
+        (function
+        | TFieldName (id', _, _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* FAPRHS is bad *)
     | ARFieldAccess (id, FAPRHS) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
     | ARFloat (id, FPWhole) ->
-        (function TFloatWhole (id', _) -> id = id' | _ -> false)
+        (function
+        | TFloatWhole (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARFloat (id, FPDecimal) ->
-        (function TFloatFraction (id', _) -> id = id' | _ -> false)
+        (function
+        | TFloatFraction (id', _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
     | ARFnCall (id, FCPFnName) ->
-        (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
+        (function
+        | TFnName (id', _, _, _, _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* FCPArg is bad *)
     | ARFnCall (id, FCPArg _idx) ->
         (* FIXME no way to get function arg by index *)
-        (function
-        | e -> Token.tid e = id)
+        nestedExprHandler id
     | ARIf (id, IPIfKeyword) ->
-        (function TIfKeyword id' -> id = id' | _ -> false)
+        (function
+        | TIfKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARIf (id, IPThenKeyword) ->
-        (function TIfThenKeyword id' -> id = id' | _ -> false)
+        (function
+        | TIfThenKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARIf (id, IPElseKeyword) ->
-        (function TIfElseKeyword id' -> id = id' | _ -> false)
+        (function
+        | TIfElseKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
+    (* IPCondition, IPThenBody, IPElseBody are bad! *)
     | ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
     | ARInteger id ->
-        (function TInteger (id', _) -> id = id' | _ -> false)
+        (function
+        | TInteger (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARLet (id, LPKeyword) ->
-        (function TLetKeyword (id', _) -> id = id' | _ -> false)
+        (function
+        | TLetKeyword (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARLet (id, LPVarName) ->
-        (function TLetLHS (id', _, _) -> id = id' | _ -> false)
+        (function
+        | TLetLHS (id', _, _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARLet (id, LPAssignment) ->
-        (function TLetAssignment (id', _) -> id = id' | _ -> false)
+        (function
+        | TLetAssignment (id', _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* LPValue and LPBody are bad *)
     | ARLet (id, LPValue) | ARLet (id, LPBody) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
     | ARList (id, LPOpen) ->
-        (function TListOpen id' -> id = id' | _ -> false)
+        (function
+        | TListOpen id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARList (id, LPClose) ->
-        (function TListClose id' -> id = id' | _ -> false)
+        (function
+        | TListClose id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARList (id, LPSeparator idx) ->
         (function
-        | TListSep (id', idx') -> id = id' && idx = idx' | _ -> false)
+        | TListSep (id', idx'), ti when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
     | ARMatch (id, MPKeyword) ->
-        (function TMatchKeyword id' -> id = id' | _ -> false)
+        (function
+        | TMatchKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
+    (* MPMatchExpr is bad *)
     | ARMatch (id, MPMatchExpr) ->
-        (function e -> Token.tid e = id)
+        nestedExprHandler id
+    (* MPBranchValue is bad *)
     | ARMatch (id, MPBranchValue _idx) ->
         (* FIXME no way to get match branch value by index *)
-        (function
-        | e -> Token.tid e = id)
+        nestedExprHandler id
     | ARMatch (id, MPBranchSep idx) ->
         (function
-        | TMatchSep (id', idx') -> id = id' && idx = idx' | _ -> false)
+        | TMatchSep (id', idx'), ti when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* Seems a bit fishy? *)
     | ARMatch (id, MPBranchPattern idx) ->
         (function
-        | TPatternVariable (id', _, _, idx')
-        | TPatternConstructorName (id', _, _, idx')
-        | TPatternInteger (id', _, _, idx')
-        | TPatternString (id', _, _, idx')
-        | TPatternTrue (id', _, idx')
-        | TPatternFalse (id', _, idx')
-        | TPatternNullToken (id', _, idx')
-        | TPatternFloatWhole (id', _, _, idx')
-        | TPatternFloatPoint (id', _, idx')
-        | TPatternFloatFraction (id', _, _, idx')
-        | TPatternBlank (id', _, idx') ->
-            id = id' && idx = idx'
-        | _ ->
-            false)
+        | ( ( TPatternVariable (id', _, _, idx')
+            | TPatternConstructorName (id', _, _, idx')
+            | TPatternInteger (id', _, _, idx')
+            | TPatternString (id', _, _, idx')
+            | TPatternTrue (id', _, idx')
+            | TPatternFalse (id', _, idx')
+            | TPatternNullToken (id', _, idx')
+            | TPatternFloatWhole (id', _, _, idx')
+            | TPatternFloatPoint (id', _, idx')
+            | TPatternFloatFraction (id', _, _, idx')
+            | TPatternBlank (id', _, idx') )
+          , ti )
+          when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
     | ARNull id ->
-        (function TNullToken id' -> id = id' | _ -> false)
+        (function
+        | TNullToken id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARPartial id ->
-        (function TPartial (id', _) -> id = id' | _ -> false)
+        (function
+        | TPartial (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARPipe (id, PPPipeKeyword idx) ->
         (function
-        | TPipe (id', idx', _) -> id = id' && idx = idx' | _ -> false)
+        | TPipe (id', idx', _), ti when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* PPPipedExpr is bad *)
     | ARPipe (id, PPPipedExpr _idx) ->
         (* FIXME no way to get pipe expression by index *)
-        (function
-        | e -> Token.tid e = id)
+        nestedExprHandler id
     | ARRecord (id, RPOpen) ->
-        (function TRecordOpen id' -> id = id' | _ -> false)
+        (function
+        | TRecordOpen id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARRecord (id, RPClose) ->
-        (function TRecordClose id' -> id = id' | _ -> false)
+        (function
+        | TRecordClose id', ti when id = id' -> posForTi ti | _, _ -> None)
     | ARRecord (id, RPFieldname idx) ->
         (function
-        | TRecordFieldname {recordID = id'; index = idx'} ->
-            id = id' && idx = idx'
-        | _ ->
-            false)
+        | TRecordFieldname {recordID = id'; index = idx'}, ti
+          when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
     | ARRecord (id, RPFieldSep idx) ->
         (function
-        | TRecordSep (id', idx', _) -> id = id' && idx = idx' | _ -> false)
+        | TRecordSep (id', idx', _), ti when id = id' && idx = idx' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* RPFieldValue is bad *)
     | ARRecord (id, RPFieldValue _idx) ->
         (* FIXME no way to get field value by index *)
-        (function
-        | e -> Token.tid e = id)
+        nestedExprHandler id
     | ARRightPartial id ->
-        (function TRightPartial (id', _) -> id = id' | _ -> false)
+        (function
+        | TRightPartial (id', _), ti when id = id' ->
+            posForTi ti
+        | _, _ ->
+            None)
+    (* Strings (currently, ml strings are not handled!) *)
     | ARString (id, SPOpenQuote) ->
         (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes! *)
         (function
-        | TString (id', _) -> id = id' | _ -> false)
+        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARString (id, SPText) ->
         (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes!*)
         (function
-        | TString (id', _) -> id = id' | _ -> false)
+        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARString (id, SPCloseQuote) ->
         (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes!*)
         (function
-        | TString (id', _) -> id = id' | _ -> false)
+        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARVariable id ->
-        (function TVariable (id', _) -> id = id' | _ -> false)
+        (function
+        | TVariable (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
     | ARInvalid ->
-        (function _ -> false)
+        (function _, _ -> None)
   in
-  let tokenInfo = List.find infos ~f:(fun ti -> f ti.token) in
-  match tokenInfo with
-  | Some ti ->
-      ti.startPos + min ct.offset ti.length
+  match
+    infos
+    |> List.findMap ~f:(fun ti ->
+           tokenAndTokenInfoToMaybeCaretPos (ti.token, ti) )
+  with
+  | Some newPos ->
+      newPos
   | None ->
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
