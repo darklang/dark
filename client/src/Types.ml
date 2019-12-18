@@ -440,59 +440,65 @@ type astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
-  | LPValue
-  | LPBody
+  (* We intentionally don't have LPValue and LPBody
+     because those are expressions *)
 [@@deriving show {with_path = false}]
 
 type astIfPart =
+  (* We intentionally don't have IPCondition, IPThenBody, IPElseBody
+     because those are expressions *)
   | IPIfKeyword
-  | IPCondition
   | IPThenKeyword
-  | IPThenBody
   | IPElseKeyword
-  | IPElseBody
 [@@deriving show {with_path = false}]
 
 type astBinOpPart =
-  | BOPLHS
+  (* We intentionally don't have BOPLHS and BOPRHS
+   because those are nested expressions *)
   | BOPOperator
-  | BOPRHS
 [@@deriving show {with_path = false}]
 
 type astLambdaPart =
+  (* We intentionally don't have LPBody
+    because that's a nested expression *)
   | LPKeyword
   | LPVarName of (* index of the var *) int
   | LPSeparator of (* index of the var *) int
   | LPArrow
-  | LPBody
 [@@deriving show {with_path = false}]
 
 type astFieldAccessPart =
-  | FAPRHS
+  (* We intentionally don't have FAPLHS
+     because the thing before the dot is
+     an expression *)
   | FAPFieldname
 [@@deriving show {with_path = false}]
 
 type astFnCallPart =
+  (* We intentionally don't have FCPArg of int
+     because those are expressions *)
   | FCPFnName
-  | FCPArg of (* index of the argument *) int
 [@@deriving show {with_path = false}]
 
 type astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
   | RPFieldSep of (* index of the <fieldname,value> pair *) int
-  | RPFieldValue of (* index of the <fieldname,value> pair *) int
+  (* We intentionally don't have RPFieldValue of int
+    because those are expressions *)
   | RPClose
 [@@deriving show {with_path = false}]
 
 type astPipePart =
   | PPPipeKeyword of (* index of the pipe *) int
-  | PPPipedExpr of (* index of the pipe *) int
+  (* We intentionally don't have PPPipedExpr of int because
+     those are expressions *)
 [@@deriving show {with_path = false}]
 
 type astConstructorPart =
   | CPName
-  | CPValue of int
+  (* We intentionally don't have CPValue of int because
+    those are expressions *)
 [@@deriving show {with_path = false}]
 
 type astListPart =
@@ -503,10 +509,10 @@ type astListPart =
 
 type astMatchPart =
   | MPKeyword
-  | MPMatchExpr
+  (* We intentionally don't have MPMatchExpr and MPBranchValue of int
+     because those are expressions *)
   | MPBranchPattern of (* index of the branch *) int
   | MPBranchSep of (* index of the branch *) int
-  | MPBranchValue of (* index of the branch *) int
 [@@deriving show {with_path = false}]
 
 (* An astRef represents a reference to a specific part of an AST node,
@@ -541,6 +547,7 @@ type astRef =
   | ARPipe of id * astPipePart
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
+  (* | ARLambda of id * astLambdaPart *)
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
