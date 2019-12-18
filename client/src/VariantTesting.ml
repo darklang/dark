@@ -22,26 +22,7 @@ let libtwitterAvailable (vts : variantTest list) : bool =
 (* To turn off fluid, add the ?fluidv2=0 or ?fluidv2=false *)
 let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
     variantTest list =
-  let shouldForceFluid =
-    let exemptUsers =
-      [ "cordeliamurphy"
-      ; "eagon"
-      ; "geoffrey"
-      ; "hkgumbs"
-      ; "jgaskins"
-      ; "listo"
-      ; "maximfilimonov"
-      ; "pmmck"
-      ; "renee"
-      ; "rockspot"
-      ; "stevehind"
-      ; "trown"
-        (* XXX(JULIAN): The `test` user is here as a hack while we 
-         fix integration tests to run in fluid *)
-      ; "test" ]
-    in
-    not (List.member ~value:username exemptUsers)
-  in
+  let shouldForceFluid = username <> "test" in
   if shouldForceFluid
   then
     (* Checking to see if fluid is set to false *)
