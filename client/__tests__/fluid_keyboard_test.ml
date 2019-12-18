@@ -1,12 +1,11 @@
-open! Tc
-open Jest
-open Expect
+open Tc
+open Tester
 open FluidKeyboard
 
-let () =
+let run () =
   describe "key handling" (fun () ->
       testAll
-        "fromChar and toChar roundtrip every printable ASCII character"
+        "roundtrips every printable ASCII character"
         (List.range 32 126)
         (fun i ->
           let c = Char.fromCode i |> Option.valueExn in
