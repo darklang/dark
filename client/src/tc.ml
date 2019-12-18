@@ -77,11 +77,10 @@ module List = struct
   (* From https://github.com/janestreet/base/blob/eaab227499b36bb90c2537bc6358a2d5caf75227/src/list.ml#L247 *)
   let findMap t ~f =
     let rec loop = function
-      | [] -> None
+      | [] ->
+          None
       | x :: l ->
-        (match f x with
-        | None -> loop l
-        | Some _ as r -> r)
+        (match f x with None -> loop l | Some _ as r -> r)
     in
     loop t
 

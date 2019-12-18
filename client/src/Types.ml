@@ -1413,7 +1413,7 @@ and fluidExpr =
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of id
-  (* EFeatureFlag: id, msg, msgID, condExpr, caseAExpr, caseBExpr *)
+  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
   | EOldExpr of expr
 
