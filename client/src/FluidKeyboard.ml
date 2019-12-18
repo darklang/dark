@@ -377,10 +377,14 @@ let fromKeyboardEvent
       PageUp
   | "PageDown" ->
       PageDown
+  | "End" when ctrl ->
+      GoToStartOfLine
   | "End" ->
-      End
+      GoToEndOfLine
+  | "Home" when ctrl ->
+      GoToEndOfLine
   | "Home" ->
-      Home
+      GoToStartOfLine
   | "ArrowUp" ->
       Up
   | "ArrowDown" ->
