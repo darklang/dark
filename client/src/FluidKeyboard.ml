@@ -78,8 +78,6 @@ type key =
   | Delete
   | PageUp
   | PageDown
-  | End
-  | Home
   | Insert
   | PrintScreen
   | PauseBreak
@@ -206,8 +204,6 @@ let toChar key : char option =
   | Delete
   | PageUp
   | PageDown
-  | End
-  | Home
   | Insert
   | PrintScreen
   | PauseBreak
