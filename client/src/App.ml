@@ -254,6 +254,14 @@ let isACOpened (m : model) : bool =
   else AC.isOpened m.complete
 
 
+let updateDropdownVisabilty (m : model) : model =
+  if FluidAutocomplete.isOpened m.fluidState.ac
+  then FluidAutocomplete.updateAutocompleteVisability m
+  else if FluidCommands.isOpened m.fluidState.cp
+  then FluidCommands.updateCommandPaletteVisability m
+  else m
+
+
 let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     model * msg Cmd.t =
   if m.integrationTestState <> NoIntegrationTest
@@ -1055,7 +1063,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
-  let newm = FluidAutocomplete.updateAutocompleteVisability newm in
+  let newm = updateDropdownVisabilty newm in
   (newm, Cmd.batch [cmd; newcmd])
 
 
