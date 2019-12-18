@@ -1797,52 +1797,33 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
   let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * tokenInfo) :
       int option =
     match (ct.astRef, ti.token) with
-    (* Binop *)
     | ARBinOp (id, BOPOperator), TBinOp (id', _)
-    (* Blank *)
     | ARBlank id, TBlank id'
-    (* Bool *)
     | ARBool id, (TTrue id' | TFalse id')
-    (* Constructor *)
     | ARConstructor (id, CPName), TConstructorName (id', _)
-    (* Field Access *)
     | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
-    (* Float *)
     | ARFloat (id, FPWhole), TFloatWhole (id', _)
     | ARFloat (id, FPDecimal), TFloatFraction (id', _)
-    (* FnCall *)
     | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
-    (* If *)
     | ARIf (id, IPIfKeyword), TIfKeyword id'
     | ARIf (id, IPThenKeyword), TIfThenKeyword id'
     | ARIf (id, IPElseKeyword), TIfElseKeyword id'
-    (* Integer *)
     | ARInteger id, TInteger (id', _)
-    (* Let *)
     | ARLet (id, LPKeyword), TLetKeyword (id', _)
     | ARLet (id, LPVarName), TLetLHS (id', _, _)
     | ARLet (id, LPAssignment), TLetAssignment (id', _)
-    (* List *)
     | ARList (id, LPOpen), TListOpen id'
     | ARList (id, LPClose), TListClose id'
-    (* Match *)
     | ARMatch (id, MPKeyword), TMatchKeyword id'
-    (* Null *)
     | ARNull id, TNullToken id'
-    (* Partial *)
     | ARPartial id, TPartial (id', _)
-    (* Right Partial *)
     | ARRightPartial id, TRightPartial (id', _)
-    (* Record *)
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
-    (* Variable *)
     | ARVariable id, TVariable (id', _)
       when id = id' ->
         posForTi ti
-    (* List *)
     | ARList (id, LPSeparator idx), TListSep (id', idx')
-    (* Match *)
     | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
     | ( ARMatch (id, MPBranchPattern idx)
       , 
@@ -1858,9 +1839,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         | TPatternFloatPoint (id', _, idx')
         | TPatternFloatFraction (id', _, _, idx')
         | TPatternBlank (id', _, idx') ) )
-    (* Pipe *)
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
-    (* Record *)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
@@ -1946,53 +1925,35 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     (* 
     * Exhaustiveness satisfaction for astRefs
     *)
-    (* Binop *)
     | ARBinOp (_, BOPOperator), _
-    (* Blank *)
     | ARBlank _, _
-    (* Bool *)
     | ARBool _, _
-    (* Constructor *)
     | ARConstructor (_, CPName), _
-    (* Field Access *)
     | ARFieldAccess (_, FAPFieldname), _
-    (* Float *)
     | ARFloat (_, FPWhole), _
     | ARFloat (_, FPDecimal), _
-    (* FnCall *)
     | ARFnCall (_, FCPFnName), _
-    (* If *)
     | ARIf (_, IPIfKeyword), _
     | ARIf (_, IPThenKeyword), _
     | ARIf (_, IPElseKeyword), _
-    (* Integer *)
     | ARInteger _, _
-    (* Let *)
     | ARLet (_, LPKeyword), _
     | ARLet (_, LPVarName), _
     | ARLet (_, LPAssignment), _
-    (* List *)
     | ARList (_, LPOpen), _
     | ARList (_, LPClose), _
     | ARList (_, LPSeparator _), _
-    (* Match *)
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchSep _), _
     | ARMatch (_, MPBranchPattern _), _
-    (* Null *)
     | ARNull _, _
-    (* Partial *)
     | ARPartial _, _
-    (* Right Partial *)
     | ARRightPartial _, _
-    (* Pipe *)
     | ARPipe (_, PPPipeKeyword _), _
-    (* Record *)
     | ARRecord (_, RPOpen), _
     | ARRecord (_, RPClose), _
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _
-    (* Variable *)
     | ARVariable _, _ ->
         None
     (* Invalid *)
