@@ -1933,11 +1933,14 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _ ->
         None
-    (* 
-    * Strings
-    *)
+    (* Single-line Strings *)
     | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
         posForTi ti
+    | ARString (id, SPText), TString (id', _) when id = id' ->
+        clampedPosForTi ti (ct.offset + 1)
+    | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
+        clampedPosForTi ti (ct.offset + String.length str + 1)
+    (* Multi-line Strings *)
     | ARString (id, SPOpenQuote), tok ->
       ( match tok with
       | TStringMLStart (id', str, _, _) when id = id' ->
@@ -1971,8 +1974,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
           None )
     | ARString (id, SPText), tok ->
       ( match tok with
-      | TString (id', _) when id = id' ->
-          clampedPosForTi ti (ct.offset + 1)
       | TStringMLStart (id', str, _, _) when id = id' ->
           let len = String.length str in
           if ct.offset > len
@@ -1998,8 +1999,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
           None )
     | ARString (id, SPCloseQuote), tok ->
       ( match tok with
-      | TString (id', str) when id = id' ->
-          clampedPosForTi ti (ct.offset + String.length str + 1)
       | (TStringMLStart (id', _, _, _) | TStringMLMiddle (id', _, _, _))
         when id = id' ->
           None
