@@ -439,10 +439,12 @@ let filter
     (candidates0 : autocompleteItem list)
     ((tl, ti, dval, queryString) : fullQuery) :
     autocompleteItem list * autocompleteItem list =
-  let lcq = queryString |> String.toLower in
+  let stripColons = Regex.replace ~re:(Regex.regex "::") ~repl:"" in
+  let lcq = queryString |> String.toLower |> stripColons in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
     |> Regex.replace ~re:(Regex.regex {js|⟶|js}) ~repl:"->"
+    |> stripColons
   in
   (* split into different lists *)
   let candidates1, notSubstring =
