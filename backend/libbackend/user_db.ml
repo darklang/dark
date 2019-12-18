@@ -525,8 +525,8 @@ let set_col_name id name db =
 let change_col_name id name db =
   let change col =
     match col with
-    | Filled (hid, oldname), Filled (tipeid, tipename) when hid = id ->
-        (Filled (hid, name), Filled (tipeid, tipename))
+    | Filled (hid, oldname), tipe when hid = id ->
+        (Filled (hid, name), tipe)
     | _ ->
         col
   in
