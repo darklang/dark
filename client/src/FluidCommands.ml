@@ -228,3 +228,18 @@ let updateCmds (m : Types.model) (keyEvt : K.keyEvent) : Types.modification =
 
 
 let isOpened (cp : fluidCommandState) : bool = cp.location <> None
+
+let updateCommandPaletteVisability (m : model) : model =
+  let oldTlid =
+    match m.fluidState.cp.location with
+    | Some (tlid, _) ->
+        Some tlid
+    | None ->
+        tlidOf m.cursorState
+  in
+  let newTlid = tlidOf m.cursorState in
+  if isOpened m.fluidState.cp && oldTlid <> newTlid
+  then
+    let newCp = reset in
+    {m with fluidState = {m.fluidState with cp = newCp}}
+  else m
