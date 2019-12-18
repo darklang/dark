@@ -10,6 +10,12 @@ commands:
   ##########################
   copy-into-container:
     steps:
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs .
+            du -hs *
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
           name: Copy app directory into dev container
@@ -67,6 +73,12 @@ commands:
             - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
             - v12-<< parameters.project >>
       - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs dotcargo/*
+      - run:
           name: Set up volume for cargo
           command: |
             mkdir -p dotcargo
@@ -84,6 +96,13 @@ commands:
           command: |
             docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
             docker cp vols:/home/dark/.cargo dotcargo
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs << parameters.project >>/target
+            du -hs dotcargo/*
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
           name: "Save << parameters.project >> cache"
@@ -247,6 +266,12 @@ jobs:
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs backend/*
+      - run:
           # Everything else is copied in via copy-into-container, but it
           # doesn't include this because it's not in /home/dark/app.
           name: Set up volume for dotesy
@@ -277,6 +302,12 @@ jobs:
             docker cp vols:/home/dark/app/backend/node_modules backend/
             docker cp vols:/home/dark/app/backend/static/. backend/static
             docker cp vols:/home/dark/.esy dotesy
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs backend/*
       - save_cache:
           name: "Save daily backend cache"
           paths:
@@ -351,6 +382,14 @@ jobs:
             docker cp vols:/home/dark/app/client/node_modules client
             docker cp vols:/home/dark/app/client/lib client
             docker cp vols:/home/dark/app/backend/static/. backend/static
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs .
+            du -hs client/node_modules
+            du -hs client/lib
+            du -hs backend/static
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
@@ -398,6 +437,14 @@ jobs:
             - v9-client-{{ checksum "rundir/minus2-timestamp" }}
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
 
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs backend/*
+            du -hs client/*
+
       - copy-into-container
       - run-background-container
 
@@ -432,7 +479,13 @@ jobs:
             - v9-client-{{ checksum "rundir/minus1-timestamp" }}
             - v9-client-{{ checksum "rundir/minus2-timestamp" }}
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
-
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs backend/*
+            du -hs client/*
       - rust-setup: { project: "queue-scheduler" }
       - copy-into-container
       - run-background-container
@@ -449,6 +502,12 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
+      - run:
+          name: du -hs
+          command: |
+            set +e
+            du -hs *
+            du -hs backend/*
       - copy-into-container
       - run-background-container
       # Now that the workspaces have combined, we need to regenerate etags.json
