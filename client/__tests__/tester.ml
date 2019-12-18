@@ -79,7 +79,7 @@ let print_test_skip name : unit =
 
 let print_test_end name (t : Private.t) : unit =
   let open Private in
-  let shortName = String.slice ~from:0 ~to_:60 name in
+  let shortName = String.slice ~from:0 ~to_:68 name in
   if t.success = Passed
   then Js.log @@ testIndent () ^ {j|✅|j} ^ " " ^ shortName
   else if t.success = Failed
@@ -135,6 +135,14 @@ let test (name : string) (testFn : unit -> Private.t) : unit =
   if shouldRun && (result.success = Failed || !verbose)
   then print_test_end name result ;
   results := result :: !results
+
+
+let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
+    =
+  items
+  |> List.iter ~f:(fun item ->
+         let name' = {j|$name  - $item|j} in
+         test name' (fun () -> testFn item) )
 
 
 (* ------------------ *)
