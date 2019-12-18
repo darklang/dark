@@ -8,7 +8,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body."
     ; f =
         InProcess
           (function
@@ -27,7 +27,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code`, `response` body, and `headers`."
     ; f =
         InProcess
           (function
@@ -43,7 +43,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status 200 and `response` body."
     ; f =
         InProcess
           (function
@@ -55,7 +55,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\"."
     ; f =
         InProcess
           (function
@@ -73,7 +73,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"text/plain\"."
     ; f =
         InProcess
           (function
@@ -91,7 +91,7 @@ let fns : Lib.shortfn list =
     ; p = [par "response" TAny; par "code" TInt]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+        "Returns a Response that can be returned from an HTTP handler to respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
     ; f =
         InProcess
           (function
@@ -110,7 +110,7 @@ let fns : Lib.shortfn list =
     ; p = [par "url" TStr]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
+        "Returns a Response that can be returned from an HTTP handler to respond with a 302 redirect to `url`."
     ; f =
         InProcess
           (function
@@ -125,7 +125,7 @@ let fns : Lib.shortfn list =
     ; p = [par "error" TStr]
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
+        "Returns a Response that can be returned from an HTTP handler to respond with a 400 status and string `error` message."
     ; f =
         InProcess
           (function
@@ -140,7 +140,7 @@ let fns : Lib.shortfn list =
     ; p = []
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with 404 Not Found."
+        "Returns a Response that can be returned from an HTTP handler to respond with 404 Not Found."
     ; f =
         InProcess
           (function
@@ -152,7 +152,7 @@ let fns : Lib.shortfn list =
     ; p = []
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with 401 Unauthorized."
+        "Returns a Response that can be returned from an HTTP handler to respond with 401 Unauthorized."
     ; f =
         InProcess
           (function
@@ -164,7 +164,7 @@ let fns : Lib.shortfn list =
     ; p = []
     ; r = TResp
     ; d =
-        "Returns a Response object that can be returned from an HTTP handler to respond with 403 Forbidden."
+        "Returns a Response that can be returned from an HTTP handler to respond with 403 Forbidden."
     ; f =
         InProcess
           (function
