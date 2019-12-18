@@ -1795,6 +1795,9 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
   let posForTi ti : int option =
     Some (ti.startPos + min ct.offset ti.length)
   in
+  let clampedPosForTi ti pos : int option =
+    Some (ti.startPos + max 0 (min pos ti.length))
+  in
   let nestedExprHandler id = function
     | tok, ti when Token.tid tok = id ->
         posForTi ti
@@ -1987,19 +1990,83 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* Strings (currently, ml strings are not handled!) *)
+    (* 
+    * Strings
+    *)
     | ARString (id, SPOpenQuote) ->
-        (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes! *)
         (function
-        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
+        | TString (id', _), ti when id = id' ->
+            posForTi ti
+        | TStringMLStart (id', str, _, _), ti when id = id' ->
+            let len = String.length str + 1 (* to account for open quote *) in
+            if ct.offset > len
+            then (* Must be in a later token *)
+              None
+            else (* Within current token *)
+              posForTi ti
+        | TStringMLMiddle (id', str, startOffsetIntoString, _), ti
+          when id = id' ->
+            let len = String.length str in
+            let offsetInStr =
+              ct.offset + 1
+              (* to account for open quote in the start *)
+            in
+            let endOffset = startOffsetIntoString + len in
+            if offsetInStr > endOffset
+            then (* Must be in later token *)
+              None
+            else
+              (* Within current token *)
+              clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+        | TStringMLEnd (id', _, startOffsetIntoString, _), ti when id = id' ->
+            (* Must be in this token because it's the last token in the string *)
+            let offsetInStr =
+              ct.offset + 1
+              (* to account for open quote in the start *)
+            in
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+        | _, _ ->
+            None)
     | ARString (id, SPText) ->
-        (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes!*)
         (function
-        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
+        | TString (id', _), ti when id = id' ->
+            clampedPosForTi ti (ct.offset + 1)
+        | TStringMLStart (id', str, _, _), ti when id = id' ->
+            let len = String.length str in
+            if ct.offset > len
+            then (* Must be in a later token *)
+              None
+            else (* Within current token *)
+              clampedPosForTi ti (ct.offset + 1)
+        | TStringMLMiddle (id', str, startOffsetIntoString, _), ti
+          when id = id' ->
+            let len = String.length str in
+            let offsetInStr = ct.offset in
+            let endOffset = startOffsetIntoString + len in
+            if offsetInStr > endOffset
+            then (* Must be in later token *)
+              None
+            else
+              (* Within current token *)
+              clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+        | TStringMLEnd (id', _, startOffsetIntoString, _), ti when id = id' ->
+            (* Must be in this token because it's the last token in the string *)
+            let offsetInStr = ct.offset in
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+        | _, _ ->
+            None)
     | ARString (id, SPCloseQuote) ->
-        (* FIXME doesn't account for multi-line strings! Also doesn't consider quotes!*)
         (function
-        | TString (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
+        | TString (id', str), ti when id = id' ->
+            clampedPosForTi ti (ct.offset + String.length str + 1)
+        | TStringMLStart (id', _, _, _), _ when id = id' ->
+            None
+        | TStringMLMiddle (id', _, _, _), _ when id = id' ->
+            None
+        | TStringMLEnd (id', str, _, _), ti when id = id' ->
+            clampedPosForTi ti (ct.offset + String.length str)
+        | _, _ ->
+            None)
     | ARVariable id ->
         (function
         | TVariable (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
