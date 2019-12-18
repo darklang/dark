@@ -504,7 +504,7 @@ type astPatternPart =
    we can represent concepts like "the caret position at the end of this
    string" without needing to know if it is a TString relative to a combination
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
-   
+
    The IDs below all refer to the AST node id
 
    NOTE(JULIAN): We intentionally do not have any astRefs that include
@@ -1040,7 +1040,7 @@ and editorSettings =
 
 (* tlidSelectTarget represents a target inside a TLID for use
    by the `Select` modification.
-   
+
    In Fluid, we should probably use STCaret in all cases --
    knowing the id of an ast node (via STID) is insufficient
    to know where to place the caret within that node.
