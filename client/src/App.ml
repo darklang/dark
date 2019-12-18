@@ -1055,6 +1055,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | Many mods ->
         List.foldl ~f:updateMod ~init:(m, Cmd.none) mods
   in
+  let newm = FluidAutocomplete.updateAutocompleteVisability newm in
   (newm, Cmd.batch [cmd; newcmd])
 
 
@@ -2037,6 +2038,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (fun m ->
               {m with canvasProps = {m.canvasProps with minimap = None}} )
+        ; Deselect
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
       ClearError

@@ -60,33 +60,81 @@ window.stopKeys = stopKeys;
 // Fluid
 // ---------------------------
 
-function isHandledByFluid(event) {
+function isHandledByFluid(evt) {
   var isMac = window.navigator.platform == "MacIntel";
-  var isLinux = window.navigator.platform.includes("Linux");
-  var knownPlatform = isMac || isLinux;
-  // Keys specifically handled by fluid
-  var isCtrlFluidKeyPress =
-    event.ctrlKey &&
-    [65 /* a */, 69 /* e */, 68 /* d */, 8 /* Backspace */, 46 /* Delete */].includes(
-      event.key,
-    );
-  var isAltFluidKeyPress =
-    event.altKey &&
-    [88 /* x */, 8 /* Backspace */, 46 /* Delete */].includes(event.keyCode);
-  var isMacMetaFluidKeyPress =
-    isMac &&
-    event.metaKey &&
-    [8 /* Backspace */, 37 /* Left */, 39 /* Right */, 46 /* Delete */].includes(
-      event.keyCode,
-    );
-  var isFluidKeyPress = !event.metaKey && !event.ctrlKey && !event.altKey;
-  return (
-    !knownPlatform ||
-    isCtrlFluidKeyPress ||
-    isAltFluidKeyPress ||
-    isFluidKeyPress ||
-    isMacMetaFluidKeyPress
-  );
+
+  // ascii space (32) - tilde (126),
+  // which is all printable ascii characters
+  var printableChar = /^[ -~]$/.test(evt.key);
+
+  var editingKey = ["Backspace", "Delete", "Tab", "Enter", "Space"].includes(evt.key);
+
+  var movementKey = [
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowDown",
+    "ArrowUp",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+    "Escape",
+  ].includes(evt.key);
+
+  // these are all the keys we handle, without regard for modifiers
+  var validAscii = printableChar || editingKey || movementKey;
+
+  var cmdShortcut = isMac && evt.metaKey;
+  var handledCmdShortcut =
+    cmdShortcut &&
+    [
+      "a", // select all
+      "z", // undo
+      "Z", // redo
+      "Left", // beginning of line
+      "Right", // end of line
+      "Backspace", // backspace to beginning of line
+      "Delete", // delete to end of line
+    ].includes(evt.key);
+
+  var ctrlShortcut = evt.ctrlKey;
+  var handledCtrlShortcut =
+    ctrlShortcut &&
+    [
+      "a", // start of line (mac) / select all (other)
+      "e", // end of line
+      "d", // delete
+      "Backspace", // backspace word
+      "Delete", // delete word
+    ].includes(evt.key);
+
+  // special case the command palette on mac, where alt-x registers as `≈`
+  // see FluidKeyboard.ml where this is translated to a (Letter 'x').
+  if (evt.key == "≈" && evt.altKey && !evt.metaKey && !evt.CtrlKey) {
+    return true;
+  }
+
+  // stop non-ascii because right now it wrecks the editor state.
+  if (!validAscii) {
+    return false;
+  }
+
+  // don't handle anything with command, unless it's something we care about.
+  if (cmdShortcut && !handledCmdShortcut) {
+    return false;
+  }
+
+  // don't handle anything with ctrl, unless it's something we care about.
+  if (ctrlShortcut && !handledCtrlShortcut) {
+    return false;
+  }
+
+  // Otherwise (valid ASCII without cmd or ctrl), then we want it.
+  // Notes:
+  // Alt is often used to type ascii chars on non-US layouts, so we
+  // actually do want to capture anything with alt.
+  // Same with shift: any non-cmd/ctrl keypress with shift is fine.
+  return true;
 }
 
 function fluidStopKeys(event) {
