@@ -1798,28 +1798,14 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
   let clampedPosForTi ti pos : int option =
     Some (ti.startPos + max 0 (min pos ti.length))
   in
-  let nestedExprHandler id = function
-    | tok, ti when Token.tid tok = id ->
-        posForTi ti
-    | _ ->
-        None
-  in
   (* tokenAndTokenInfoToMaybeCaretPos takes a token and tokenInfo and produces
      the corresponding token-stream-global caretPos within the token stream,
      or None if the passed token isn't one we care about. The function is specialized
      for the specific astRef passed to the top-level function, and will be used below
      as part of a List.findMap
-     
-     XXX(JULIAN): I call out several of these matches as "bad", by which I mean that
-     we should probably remove them from the definition for ASTRef -- it is likely that
-     nested expressions can be found more effectively in calling code. For example,
-     rather than using `ARBinOp (id, BOPRHS)` as a target, one could use a function like
-     `caretTargetForLastPartOfExpr` to grab the end of it. *)
+   *)
   let tokenAndTokenInfoToMaybeCaretPos =
     match ct.astRef with
-    (* BOPLHS and BOPRHS are bad *)
-    | ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS) ->
-        nestedExprHandler id
     | ARBinOp (id, BOPOperator) ->
         (function
         | TBinOp (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1837,18 +1823,12 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* CPValue is bad *)
-    | ARConstructor (id, CPValue _) ->
-        nestedExprHandler id
     | ARFieldAccess (id, FAPFieldname) ->
         (function
         | TFieldName (id', _, _), ti when id = id' ->
             posForTi ti
         | _, _ ->
             None)
-    (* FAPRHS is bad *)
-    | ARFieldAccess (id, FAPRHS) ->
-        nestedExprHandler id
     | ARFloat (id, FPWhole) ->
         (function
         | TFloatWhole (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1864,10 +1844,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* FCPArg is bad *)
-    | ARFnCall (id, FCPArg _idx) ->
-        (* FIXME no way to get function arg by index *)
-        nestedExprHandler id
     | ARIf (id, IPIfKeyword) ->
         (function
         | TIfKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1877,9 +1853,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARIf (id, IPElseKeyword) ->
         (function
         | TIfElseKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
-    (* IPCondition, IPThenBody, IPElseBody are bad! *)
-    | ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody) ->
-        nestedExprHandler id
     | ARInteger id ->
         (function
         | TInteger (id', _), ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1895,9 +1868,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* LPValue and LPBody are bad *)
-    | ARLet (id, LPValue) | ARLet (id, LPBody) ->
-        nestedExprHandler id
     | ARList (id, LPOpen) ->
         (function
         | TListOpen id', ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1913,13 +1883,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARMatch (id, MPKeyword) ->
         (function
         | TMatchKeyword id', ti when id = id' -> posForTi ti | _, _ -> None)
-    (* MPMatchExpr is bad *)
-    | ARMatch (id, MPMatchExpr) ->
-        nestedExprHandler id
-    (* MPBranchValue is bad *)
-    | ARMatch (id, MPBranchValue _idx) ->
-        (* FIXME no way to get match branch value by index *)
-        nestedExprHandler id
     | ARMatch (id, MPBranchSep idx) ->
         (function
         | TMatchSep (id', idx'), ti when id = id' && idx = idx' ->
@@ -1957,10 +1920,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* PPPipedExpr is bad *)
-    | ARPipe (id, PPPipedExpr _idx) ->
-        (* FIXME no way to get pipe expression by index *)
-        nestedExprHandler id
     | ARRecord (id, RPOpen) ->
         (function
         | TRecordOpen id', ti when id = id' -> posForTi ti | _, _ -> None)
@@ -1980,10 +1939,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
             posForTi ti
         | _, _ ->
             None)
-    (* RPFieldValue is bad *)
-    | ARRecord (id, RPFieldValue _idx) ->
-        (* FIXME no way to get field value by index *)
-        nestedExprHandler id
     | ARRightPartial id ->
         (function
         | TRightPartial (id', _), ti when id = id' ->
