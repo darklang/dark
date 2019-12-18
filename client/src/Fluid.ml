@@ -1778,6 +1778,76 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
    * NB: These were somewhat hastily added and are very possibly incorrect.
    * Please fix.
    *)
+  let _newPos : int option = (infos |> List.findMap ~f:(fun (ti) ->
+  match (ct.astRef, ti.token) with
+  | (ARBinOp (id, BOPOperator), TBinOp (id', _))
+  | (ARBlank id, TBlank id')
+  | (ARBool id, (TTrue id' | TFalse id'))
+  | (ARConstructor (id, CPName), TConstructorName (id', _))
+  | (* CPValue is bad and this is wrong *) (ARConstructor (id, CPValue _), TConstructorName (id', _))
+  | (ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _))
+  | (ARFloat (id, FPWhole), TFloatWhole (id', _))
+  | (ARFloat (id, FPDecimal), TFloatFraction (id', _))
+  | (ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _))
+  | (ARIf (id, IPIfKeyword), TIfKeyword id')
+  | (ARIf (id, IPThenKeyword), TIfThenKeyword id')
+  | (ARIf (id, IPElseKeyword), TIfElseKeyword id')
+  | (ARInteger id, TInteger (id', _))
+  | (ARLet (id, LPKeyword), TLetKeyword (id', _))
+  | (ARLet (id, LPVarName), TLetLHS (id', _, _))
+  | (ARLet (id, LPAssignment), TLetAssignment (id', _))
+  | (ARList (id, LPOpen), TListOpen id')
+  | (ARList (id, LPClose), TListClose id')
+  | (ARMatch (id, MPKeyword), TMatchKeyword id')
+  | (ARNull id, TNullToken id')
+  | (ARPartial id, TPartial (id', _))
+  | (ARRecord (id, RPOpen), TRecordOpen id')
+  | (ARRecord (id, RPClose), TRecordClose id')
+  | (ARRightPartial id, TRightPartial (id', _))
+  | (ARVariable id, TVariable (id', _))
+   ->
+      if id = id' then Some (ti.startPos + min ct.offset ti.length)
+      else None
+  | (ARList (id, LPSeparator idx), TListSep (id', idx'))
+  | (ARMatch (id, MPBranchSep idx), TMatchSep (id', idx'))
+  | (ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _))
+  | (ARRecord (id, RPFieldname idx), TRecordFieldname {recordID = id'; index = idx'; _})
+  | (ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _))
+  | (* Seems a bit fishy *)(ARMatch (id, MPBranchPattern idx), 
+        (TPatternVariable (id', _, _, idx')
+        | TPatternConstructorName (id', _, _, idx')
+        | TPatternInteger (id', _, _, idx')
+        | TPatternString (id', _, _, idx')
+        | TPatternTrue (id', _, idx')
+        | TPatternFalse (id', _, idx')
+        | TPatternNullToken (id', _, idx')
+        | TPatternFloatWhole (id', _, _, idx')
+        | TPatternFloatPoint (id', _, idx')
+        | TPatternFloatFraction (id', _, _, idx')
+        | TPatternBlank (id', _, idx')))
+   ->
+      if id = id' && idx = idx' then Some (ti.startPos + min ct.offset ti.length)
+      else None
+  | (* BOPLHS and BOPRHS are bad *)((ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS)), tok)
+  | (* FAPRHS is bad *) (ARFieldAccess (id, FAPRHS), tok)
+  | (* IPCondition, IPThenBody, IPElseBody are bad! *)((ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody)), tok)
+  | (* LPValue and LPBody are bad *)((ARLet (id, LPValue) | ARLet (id, LPBody)), tok)
+  | (* MPMatchExpr is bad (and no way to get match branch value by index) *)(ARMatch (id, MPMatchExpr), tok) ->
+    if Token.tid tok = id then Some (ti.startPos + min ct.offset ti.length)
+    else None
+  | (* FCPArg is bad (and no way to get function arg by index) *)(ARFnCall (id, FCPArg _idx), tok)
+  | (* PPPipedExpr is bad (and no way to get pipe expression by index) *)(ARPipe (id, PPPipedExpr _idx), tok)
+  | (* RPFieldValue is bad (no way to get field value by index) *) (ARRecord (id, RPFieldValue _idx), tok) ->
+    if Token.tid tok = id then Some (ti.startPos + min ct.offset ti.length)
+    else None
+  (* Strings (currently, ml strings are not handled!) *)
+  | (ARString (id, SPOpenQuote), TString (id', _))
+  | (ARString (id, SPText), TString (id', _))
+  | (ARString (id, SPCloseQuote), TString (id', _)) ->
+      if id = id' then Some (ti.startPos + min ct.offset ti.length)
+      else None
+  | (ARInvalid, _) -> None
+   )) in
   let f =
     match ct.astRef with
     | ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS) ->
