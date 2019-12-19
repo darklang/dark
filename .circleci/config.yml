@@ -5,18 +5,20 @@ executors:
       - image: docker:stable-git
 
 commands:
+  show-large-files-and-directories:
+    steps:
+      - run:
+          command: |
+            # show any file or directory over 50M in size
+            find . -size +50M -exec du -h {} \;
+            du -ht 50M
+
   ##########################
   # Getting into the remote container
   ##########################
   copy-into-container:
     steps:
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs .
-            du -hs *
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
           name: Copy app directory into dev container
@@ -72,20 +74,13 @@ commands:
       project:
         type: string
     steps:
-
       - restore_cache:
           keys:
             # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
             - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
             - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
             - v14-<< parameters.project >>
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs dotcargo/*
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - run:
           name: Set up volume for cargo
           command: |
@@ -95,7 +90,7 @@ commands:
             time rm -Rf dotcargo # don't copy it a second time when we copy-into-container
       - set-ownership: { path: "/home/dark/.cargo" }
 
-  rust-cache:
+  rust-finish:
     parameters:
       project:
         type: string
@@ -104,16 +99,26 @@ commands:
           name: Copy out generated files and caches
           command: |
             set -x
+            # clean ~./cargo sources before copy
+            time docker run -i --volumes-from vols alpine sh -c 'cargo cache -a'
             time docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
             time docker cp vols:/home/dark/.cargo dotcargo
+
+      - show-large-files-and-directories
+
+      # must persist to workspace first, as next step will remove built release artifact
+      - persist_to_workspace:
+          root: "."
+          paths: [ << parameters.project >>/target/release/dark-<< parameters.project >> ]
+
+      # https://github.com/rust-lang/cargo/issues/5885
       - run:
+          name: Cleanup frequently changing rust artifacts
           command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs << parameters.project >>/target
-            du -hs dotcargo/*
-            du --human-readable --count --threshold=5M
+            find ./*/target/release -maxdepth 1 -type f -delete
+            rm -rf ./target/release/{deps,.fingerprint}/dark*
+            rm -f  ./target/.rustc_info.json
+
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
           name: "Save << parameters.project >> cache"
@@ -240,10 +245,7 @@ jobs:
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
-      - rust-cache: { project: "stroller" }
-      - persist_to_workspace:
-          root: "."
-          paths: [ stroller/target/release/dark-stroller ]
+      - rust-finish: { project: "stroller" }
 
   build-queue-scheduler:
     executor: my-executor
@@ -257,10 +259,7 @@ jobs:
       - wait-for-container
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
-      - rust-cache: { project: "queue-scheduler" }
-      - persist_to_workspace:
-          root: "."
-          paths: [ queue-scheduler/target/release/dark-queue-scheduler ]
+      - rust-finish: { project: "queue-scheduler" }
 
   build-backend:
     executor: my-executor
@@ -276,12 +275,7 @@ jobs:
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
-      - run:
-          command: |
-            set +ex
-            du -hs *
-            du -hs backend/*
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - run:
           # Everything else is copied in via copy-into-container, but it
           # doesn't include this because it's not in /home/dark/app.
@@ -316,13 +310,7 @@ jobs:
             time docker cp vols:/home/dark/app/backend/node_modules backend/
             time docker cp vols:/home/dark/app/backend/static/. backend/static
             time docker cp vols:/home/dark/.esy dotesy
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs backend/*
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - save_cache:
           name: "Save daily backend cache"
           paths:
@@ -401,15 +389,7 @@ jobs:
             time docker cp vols:/home/dark/app/client/node_modules client
             time docker cp vols:/home/dark/app/client/lib client
             time docker cp vols:/home/dark/app/backend/static/. backend/static
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs .
-            du -hs client/node_modules
-            du -hs client/lib
-            du -hs backend/static
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
@@ -457,16 +437,7 @@ jobs:
             - v9-client-{{ checksum "rundir/minus1-timestamp" }}
             - v9-client-{{ checksum "rundir/minus2-timestamp" }}
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
-
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs backend/*
-            du -hs client/*
-            du --human-readable --count --threshold=5M
-
+      - show-large-files-and-directories
       - copy-into-container
       - run-background-container
 
@@ -494,14 +465,7 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs backend/*
-            du -hs client/*
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - rust-setup: { project: "queue-scheduler" }
       - copy-into-container
       - run-background-container
@@ -518,13 +482,7 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
-      - run:
-          command: |
-            set +e
-            set -x
-            du -hs *
-            du -hs backend/*
-            du --human-readable --count --threshold=5M
+      - show-large-files-and-directories
       - copy-into-container
       - run-background-container
       # Now that the workspaces have combined, we need to regenerate etags.json
@@ -556,6 +514,7 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
+      - show-large-files-and-directories
       - copy-into-container
       - run-background-container
       - wait-for-container
