@@ -29,15 +29,19 @@ RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+RUN curl -sSL https://nginx.org/keys/nginx_signing.key | apt-key add -
+
 
 # We want postgres 9.6, but it is not in ubuntu 18.04
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
 
+RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
+
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_11.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_13.x bionic main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_13.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
     echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -56,6 +60,8 @@ RUN echo "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_releas
 # - apt-transport-https for npm
 # - expect for unbuffer
 # - most libs re for ocaml
+# - net-tools for netstat
+# - esy packages need texinfo
 RUN DEBIAN_FRONTEND=noninteractive \
     apt update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive \
@@ -84,7 +90,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       chromium-browser \
       firefox \
       gnupg \
-      nodejs \
+      nodejs=13.5.0-1nodesource1 \
       google-chrome-stable \
       dnsmasq \
       cron \
@@ -111,6 +117,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libssl-ocaml-dev \
       zlib1g-dev \
       pv \
+      net-tools \
+      nginx=1.16.1-1~bionic \
+      bash-completion \
+      texinfo \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -141,16 +151,10 @@ ENV LC_ALL en_US.UTF-8
 # Frontend
 ############################
 USER root
-# node 11.11 introduced a bug that cased all Jest tests to fail.
-# It is fixed in 11.12, so for now we force our containers to update to 11.12
-#
-# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
-# And then 11.14
-RUN apt update && apt install -y nodejs=11.15.0-1nodesource1
 
-RUN npm install -g yarn@1.12.3
+RUN npm install -g yarn@1.21.1
 
-RUN npm install -g esy@0.5.6 --unsafe-perm=true
+RUN npm install -g esy@0.5.7 --unsafe-perm=true
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -177,20 +181,43 @@ RUN sudo chown postgres:postgres -R /etc/postgresql
 RUN sudo chown postgres:postgres -R /var/log/postgresql
 RUN sudo chown postgres:postgres -R /var/lib/postgresql
 
+############################
+# Nginx
+############################
+# We could mount these files into the container, but then we'd also want to make
+# scripts/support/compile restart runserver if either of the nginx files
+# changed, and I'd rather not add to the complexity of that file right now.
+# nginx changes should be infrequent, making users restart scripts/builder is
+# fine
+RUN sudo rm /etc/nginx/conf.d/default.conf \
+  && sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx.conf
+RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
+RUN sudo chown -R dark:dark /var/log/nginx
+
+############################
+# Kubernetes
+############################
+RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
+
 
 ############################
 # Google cloud
 ############################
 # New authentication for docker - not supported via apt
 user root
-RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
-    | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr \
+RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.0.0/docker-credential-gcr_linux_amd64-2.0.0.tar.gz" \
+    | tar xz --to-stdout ./docker-credential-gcr > /usr/bin/docker-credential-gcr \
     && chmod +x /usr/bin/docker-credential-gcr
 
 RUN docker-credential-gcr config --token-source="gcloud"
 
 # crcmod for gsutil
 RUN pip install -U crcmod
+
+############################
+# Pip packages
+############################
+RUN pip install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Ocaml
@@ -274,34 +301,10 @@ RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-int
 USER dark
 ENV TERM=xterm-256color
 
+
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-RUN sudo apt install -y net-tools # for netstat
-
-RUN wget https://nginx.org/keys/nginx_signing.key && sudo apt-key add nginx_signing.key \
-    && echo deb https://nginx.org/packages/ubuntu/ bionic nginx \
-        | sudo tee -a /etc/apt/sources.list.d/nginx.list
-RUN sudo apt update && DEBIAN_FRONTEND=noninteractive sudo -E apt install -y nginx=1.16.1-1~bionic
-
-# We could mount these files into the container, but then we'd also want to make
-# scripts/support/compile restart runserver if either of the nginx files
-# changed, and I'd rather not add to the complexity of that file right now.
-# nginx changes should be infrequent, making users restart scripts/builder is
-# fine
-RUN sudo rm /etc/nginx/conf.d/default.conf \
-  && sudo ln -s /home/dark/app/scripts/support/nginx.conf /etc/nginx/conf.d/nginx.conf
-RUN sudo rm -r /etc/nginx/nginx.conf && sudo ln -s /home/dark/app/scripts/support/base-nginx.conf /etc/nginx/nginx.conf
-RUN sudo chown -R dark:dark /var/log/nginx
-
-RUN sudo apt install -y bash-completion \
-    && sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /dev/null
-
-# Esy packages need makeinfo
-RUN sudo apt update && DEBIAN_FRONTEND=noninteractive sudo -E apt install -y texinfo
-
-RUN pip install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Finish
