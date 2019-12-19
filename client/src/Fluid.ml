@@ -2039,8 +2039,8 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
         (* Intentionally using the thing that was typed; not the existing expr *)
         {astRef = ARPartial id; offset = String.length str}
     | ERightPartial (id, str, _) ->
-        (* XXX(JULIAN): Unclear if we should be differentiating with EPartial... *)
-        {astRef = ARPartial id; offset = String.length str}
+        (* Intentionally using the thing that was typed; not the existing expr *)
+        {astRef = ARRightPartial id; offset = String.length str}
     | EList (id, _) ->
         {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
     | ERecord (id, _) ->
