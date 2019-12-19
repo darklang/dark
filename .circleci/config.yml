@@ -162,6 +162,17 @@ commands:
   ##########################
   # Initializing the containers
   ##########################
+
+  setup-cache-names:
+    steps:
+      - run:
+          name: "Setup cache names"
+          command: |
+            date +"%F" > rundir/today-timestamp
+            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
+            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
+            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
+
   initialize:
     steps:
       - setup_remote_docker:
@@ -187,14 +198,7 @@ commands:
           # coreutils for gnu date
           command: |
             apk add --update bash coreutils jq
-
-      - run:
-          name: "Setup cache names"
-          command: |
-            date +"%F" > rundir/today-timestamp
-            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
-            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
-            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
+      - setup-cache-names
 
 
   ##########################
@@ -392,7 +396,6 @@ jobs:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
       - checkout
-      - initialize
       - restore_cache:
           keys:
             - v9-client-{{ checksum "client/package.json" }}
@@ -402,10 +405,7 @@ jobs:
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
-      - copy-into-container
-      - run: scripts/builder --compile-client --test
-      - run-background-container
-      - wait-for-container
+      - run: scripts/support/build-server --compile-client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - run:
@@ -434,16 +434,13 @@ jobs:
             - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
       - run:
-          name: Copy out artifacts
+          name: Prepare artifacts
           when: always
           command: |
-            set -x
-            time mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-            time cp backend/static/etags.json artifacts
-            ls -la backend/static > artifacts/asset-list.txt
+            cp backend/static/etags.json rundir
+            ls -la backend/static > rundir/asset-list.txt
       - store_artifacts:
-          path: artifacts
+          path: /home/dark/app/rundir
       - store_test_results:
           path: artifacts/rundir/test_results
 
