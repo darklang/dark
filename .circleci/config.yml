@@ -398,11 +398,10 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - v0d-client-{{ checksum "client/package.json" }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}
+            - v0d-client
       - clean-caches: { path: "client/node_modules" }
       - clean-caches: { path: "client/lib" }
       - run: scripts/support/build-server --compile-client --test
@@ -419,11 +418,11 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "client/package.json" }}
+          key: v0d-client-{{ checksum "client/package.json" }}
       - save_cache:
           name: "Save daily client cache"
           paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "rundir/today-timestamp" }}
+          key: v0d-client-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
