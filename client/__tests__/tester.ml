@@ -200,8 +200,10 @@ let finish () =
   let skipCount = List.length skips |> string_of_int in
   Js.log "\n\n" ;
   if fails = []
-  then Js.log ("Passed " ^ successCount ^ " tests (" ^ skipCount ^ " skipped)")
-  else
+  then (
+    Js.log ("Passed " ^ successCount ^ " tests (" ^ skipCount ^ " skipped)") ;
+    exit 0 )
+  else (
     Js.log
       ( "Failed "
       ^ failCount
@@ -210,4 +212,4 @@ let finish () =
       ^ " passed, "
       ^ skipCount
       ^ " skipped)" ) ;
-  ()
+    exit 1 )
