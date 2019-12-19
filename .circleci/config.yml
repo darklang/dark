@@ -119,12 +119,6 @@ commands:
             - dotcargo/registry/cache/
             - dotcargo/git/db/
           key: v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
-      # TODO: we should not be persisting the entire thing. Let's see what's needed
-      # - persist_to_workspace:
-      #     root: "."
-      #     paths:
-      #       - << parameters.project>>/target
-
 
   ##########################
   # Caches
@@ -242,6 +236,9 @@ jobs:
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-cache: { project: "stroller" }
+      - persist_to_workspace:
+          root: "."
+          paths: [ stroller/target/release/dark-stroller ]
 
   build-queue-scheduler:
     executor: my-executor
@@ -256,6 +253,9 @@ jobs:
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-cache: { project: "queue-scheduler" }
+      - persist_to_workspace:
+          root: "."
+          paths: [ queue-scheduler/target/release/dark-queue-scheduler ]
 
   build-backend:
     executor: my-executor
@@ -331,7 +331,9 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/_build/default/bin
+            - backend/_build/default/bin/server.exe
+            - backend/_build/default/bin/queue_worker.exe
+            - backend/_build/default/bin/cron_checker.exe
             - backend/static/analysis.js
       - run:
           name: Copy out artifacts
