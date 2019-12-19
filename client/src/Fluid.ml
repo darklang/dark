@@ -2090,49 +2090,61 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
 
 (* caretTargetForBeginningOfExpr returns a caretTarget representing the
  * beginning of the expression in `ast` having the given `id`. *)
-let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EInteger (id, _)) ->
-      {astRef = ARInteger id; offset = 0}
-  | Some (EBool (id, _)) ->
-      {astRef = ARBool id; offset = 0}
-  | Some (EString (id, _)) ->
-      {astRef = ARString (id, SPOpenQuote); offset = 0}
-  | Some (EFloat (id, _, _)) ->
-      {astRef = ARFloat (id, FPWhole); offset = 0}
-  | Some (ENull id) ->
-      {astRef = ARNull id; offset = 0}
-  | Some (EBlank id) ->
-      {astRef = ARBlank id; offset = 0}
-  | Some (ELet (id, _, _, _, _)) ->
-      {astRef = ARLet (id, LPKeyword); offset = 0}
-  | Some (EIf (id, _, _, _)) ->
-      {astRef = ARIf (id, IPIfKeyword); offset = 0}
-  | Some (EMatch (id, _, _)) ->
-      {astRef = ARMatch (id, MPKeyword); offset = 0}
-  | Some (EBinOp _)
-  | Some (EFnCall _)
-  | Some (ELambda _)
-  | Some (EFieldAccess _)
-  | Some (EVariable _)
-  | Some (EPartial _)
-  | Some (ERightPartial _)
-  | Some (EList _)
-  | Some (ERecord _)
-  | Some (EPipe _)
-  | Some (EConstructor _)
-  | Some (EPipeTarget _)
-  | Some (EFeatureFlag _)
-  | Some (EOldExpr _) ->
-      recover
-        "unhandled expr in caretTargetForBeginningOfExpr"
-        ~debug:(id, expr)
-        {astRef = ARInvalid; offset = 0}
+let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
+  let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
+    | EInteger (id, _) ->
+        {astRef = ARInteger id; offset = 0}
+    | EBool (id, _) ->
+        {astRef = ARBool id; offset = 0}
+    | EString (id, _) ->
+        {astRef = ARString (id, SPOpenQuote); offset = 0}
+    | EFloat (id, _, _) ->
+        {astRef = ARFloat (id, FPWhole); offset = 0}
+    | ENull id ->
+        {astRef = ARNull id; offset = 0}
+    | EBlank id ->
+        {astRef = ARBlank id; offset = 0}
+    | ELet (id, _, _, _, _) ->
+        {astRef = ARLet (id, LPKeyword); offset = 0}
+    | EIf (id, _, _, _) ->
+        {astRef = ARIf (id, IPIfKeyword); offset = 0}
+    | EMatch (id, _, _) ->
+        {astRef = ARMatch (id, MPKeyword); offset = 0}
+    | EBinOp (_, _, lhsExpr, _, _) ->
+        caretTargetForBeginningOfExpr' lhsExpr
+    | EFnCall (id, _, _, _) ->
+        {astRef = ARFnCall (id, FCPFnName); offset = 0}
+    | ELambda (id, _, _) ->
+        {astRef = ARLambda (id, LPKeyword); offset = 0}
+    | EFieldAccess (_, expr, _, _) ->
+        caretTargetForBeginningOfExpr' expr
+    | EVariable (id, _) ->
+        {astRef = ARVariable id; offset = 0}
+    | EPartial (id, _, _) ->
+        {astRef = ARPartial id; offset = 0}
+    | ERightPartial (id, _, _) ->
+        {astRef = ARRightPartial id; offset = 0}
+    | EList (id, _) ->
+        {astRef = ARList (id, LPOpen); offset = 0}
+    | ERecord (id, _) ->
+        {astRef = ARRecord (id, RPOpen); offset = 0}
+    | EPipe (id, _) ->
+        {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+    | EConstructor (id, _, _, _) ->
+        {astRef = ARConstructor (id, CPName); offset = 0}
+    | (EFeatureFlag _ | EPipeTarget _ | EOldExpr _) as expr ->
+        recover
+          "unhandled expr in caretTargetForBeginningOfExpr"
+          ~debug:(astPartId, expr)
+          {astRef = ARInvalid; offset = 0}
+  in
+  match findExpr astPartId ast with
+  | Some expr ->
+      caretTargetForBeginningOfExpr' expr
   | None ->
       recover
-        "expr not found in caretTargetForBeginningOfExpr"
-        ~debug:(id, expr)
+        "caretTargetForBeginningOfExpr got an id outside of the AST"
+        ~debug:astPartId
         {astRef = ARInvalid; offset = 0}
 
 
