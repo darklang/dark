@@ -251,7 +251,12 @@ jobs:
           | grep 'DOCKER\|NO_PROXY' \
           | sed 's/^/export /' \
           > /root/docker-env
-      - run: docker build -t dark .
+      - run: apk add python3 --update-cache 
+      - run: pip3 install awscli --upgrade --user
+      - run: docker build -t dark-ci .
+      - run: docker tag dark-ci:latest 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+      - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
+      - run: docker push 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
 
   build-stroller:
     executor: my-executor
