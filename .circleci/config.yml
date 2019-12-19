@@ -533,18 +533,25 @@ jobs:
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
 
+  build-container:
+    executor: my-executor
+    steps:
+      - run: echo "hello world"
+
 
 workflows:
   version: 2
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - build-backend
-      - build-client
-      - build-queue-scheduler
-      - build-stroller
+      - build-container
       - build-postgres-honeytail
       - validate-honeycomb-config
+
+      - build-backend: { requires: [ build-container ] }
+      - build-client: { requires: [ build-container ] }
+      - build-stroller: { requires: [ build-container ] }
+      - build-queue-scheduler: { requires: [ build-container ] }
 
       # expensive tests
       - rust-integration-tests:
