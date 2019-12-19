@@ -269,10 +269,10 @@ jobs:
       - initialize
       - restore_cache:
           keys:
-            - v11-backend-{{ checksum "rundir/today-timestamp" }}
-            - v11-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v11-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v11-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - v12-backend-{{ checksum "rundir/today-timestamp" }}
+            - v12-backend-{{ checksum "rundir/minus1-timestamp" }}
+            - v12-backend-{{ checksum "rundir/minus2-timestamp" }}
+            - v12-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
@@ -331,7 +331,7 @@ jobs:
             - backend/node_modules
             - backend/static
             - dotesy
-          key: v11-backend-{{ checksum "rundir/today-timestamp" }}
+          key: v12-backend-{{ checksum "rundir/today-timestamp" }}
       - persist_to_workspace:
           root: "."
           paths:
