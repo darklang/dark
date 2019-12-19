@@ -11,16 +11,17 @@ commands:
   copy-into-container:
     steps:
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs .
             du -hs *
+            du --human-readable --count --threshold=5M
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
           name: Copy app directory into dev container
           command: |
-            docker cp . vols:/home/dark/app
+            time docker cp . vols:/home/dark/app
       - set-ownership:
           path: "/home/dark/app"
 
@@ -53,15 +54,19 @@ commands:
           name: Copy out artifacts
           when: always
           command: |
+            set -x
             mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
-            docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
+            time docker cp vols:/home/dark/app/rundir artifacts/rundir
+            time docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
             ls -la backend/static > artifacts/asset-list.txt
       - store_artifacts:
           path: artifacts
       - store_test_results:
           path: artifacts/rundir/test_results
 
+  ##########################
+  # Rust
+  ##########################
   rust-setup:
     parameters:
       project:
@@ -73,17 +78,19 @@ commands:
             - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
             - v12-<< parameters.project >>
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs dotcargo/*
+            du --human-readable --count --threshold=5M
       - run:
           name: Set up volume for cargo
           command: |
-            mkdir -p dotcargo
-            docker cp dotcargo/. vols:/home/dark/.cargo
-            rm -Rf dotcargo # don't copy it a second time when we copy-into-container
+            set -x
+            time mkdir -p dotcargo
+            time docker cp dotcargo/. vols:/home/dark/.cargo
+            time rm -Rf dotcargo # don't copy it a second time when we copy-into-container
       - set-ownership: { path: "/home/dark/.cargo" }
 
   rust-cache:
@@ -94,15 +101,17 @@ commands:
       - run:
           name: Copy out generated files and caches
           command: |
-            docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
-            docker cp vols:/home/dark/.cargo dotcargo
+            set -x
+            time docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
+            time docker cp vols:/home/dark/.cargo dotcargo
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs << parameters.project >>/target
             du -hs dotcargo/*
+            du --human-readable --count --threshold=5M
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
           name: "Save << parameters.project >> cache"
@@ -113,11 +122,6 @@ commands:
             - dotcargo/registry/cache/
             - dotcargo/git/db/
           key: v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - << parameters.project>>/target
-
 
   ##########################
   # Caches
@@ -235,6 +239,9 @@ jobs:
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-cache: { project: "stroller" }
+      - persist_to_workspace:
+          root: "."
+          paths: [ stroller/target/release/dark-stroller ]
 
   build-queue-scheduler:
     executor: my-executor
@@ -249,6 +256,9 @@ jobs:
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-cache: { project: "queue-scheduler" }
+      - persist_to_workspace:
+          root: "."
+          paths: [ queue-scheduler/target/release/dark-queue-scheduler ]
 
   build-backend:
     executor: my-executor
@@ -262,23 +272,23 @@ jobs:
             - v11-backend-{{ checksum "rundir/minus2-timestamp" }}
             - v11-backend-{{ checksum "rundir/minus3-timestamp" }}
       - clean-caches: { path: "backend/_build" }
-      - clean-caches: { path: "dotesy" }
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - run:
-          name: du -hs
           command: |
-            set +e
+            set +ex
             du -hs *
             du -hs backend/*
+            du --human-readable --count --threshold=5M
       - run:
           # Everything else is copied in via copy-into-container, but it
           # doesn't include this because it's not in /home/dark/app.
           name: Set up volume for dotesy
           command: |
+            set -x
             mkdir -p dotesy
-            docker cp dotesy/. vols:/home/dark/.esy
-            rm -Rf dotesy # don't copy it a second time
+            time docker cp dotesy/. vols:/home/dark/.esy
+            time rm -Rf dotesy # don't copy it a second time
       - set-ownership:
           path: "/home/dark/.esy"
       - copy-into-container
@@ -293,21 +303,24 @@ jobs:
       - run:
           name: Reduce size of esy cache
           command: |
+            set -x
             ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
       - run:
           name: Copy out generated files and caches
           command: |
-            docker cp vols:/home/dark/app/backend/_build backend/
-            docker cp vols:/home/dark/app/backend/_esy backend/
-            docker cp vols:/home/dark/app/backend/node_modules backend/
-            docker cp vols:/home/dark/app/backend/static/. backend/static
-            docker cp vols:/home/dark/.esy dotesy
+            set -x
+            time docker cp vols:/home/dark/app/backend/_build backend/
+            time docker cp vols:/home/dark/app/backend/_esy backend/
+            time docker cp vols:/home/dark/app/backend/node_modules backend/
+            time docker cp vols:/home/dark/app/backend/static/. backend/static
+            time docker cp vols:/home/dark/.esy dotesy
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs backend/*
+            du --human-readable --count --threshold=5M
       - save_cache:
           name: "Save daily backend cache"
           paths:
@@ -321,14 +334,17 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/_build
+            - backend/_build/default/bin/server.exe
+            - backend/_build/default/bin/queue_worker.exe
+            - backend/_build/default/bin/cron_checker.exe
             - backend/static/analysis.js
       - run:
           name: Copy out artifacts
           when: always
           command: |
+            set -x
             mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
+            time docker cp vols:/home/dark/app/rundir artifacts/rundir
       - store_artifacts:
           path: artifacts
       - store_test_results:
@@ -379,17 +395,19 @@ jobs:
       - run:
           name: Copy out generated files and caches
           command: |
-            docker cp vols:/home/dark/app/client/node_modules client
-            docker cp vols:/home/dark/app/client/lib client
-            docker cp vols:/home/dark/app/backend/static/. backend/static
+            set -x
+            time docker cp vols:/home/dark/app/client/node_modules client
+            time docker cp vols:/home/dark/app/client/lib client
+            time docker cp vols:/home/dark/app/backend/static/. backend/static
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs .
             du -hs client/node_modules
             du -hs client/lib
             du -hs backend/static
+            du --human-readable --count --threshold=5M
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
@@ -411,9 +429,10 @@ jobs:
           name: Copy out artifacts
           when: always
           command: |
-            mkdir -p artifacts
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
-            cp backend/static/etags.json artifacts
+            set -x
+            time mkdir -p artifacts
+            time docker cp vols:/home/dark/app/rundir artifacts/rundir
+            time cp backend/static/etags.json artifacts
             ls -la backend/static > artifacts/asset-list.txt
       - store_artifacts:
           path: artifacts
@@ -438,12 +457,13 @@ jobs:
             - v9-client-{{ checksum "rundir/minus3-timestamp" }}
 
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs backend/*
             du -hs client/*
+            du --human-readable --count --threshold=5M
 
       - copy-into-container
       - run-background-container
@@ -472,20 +492,14 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
-      - restore_cache:
-          keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs backend/*
             du -hs client/*
+            du --human-readable --count --threshold=5M
       - rust-setup: { project: "queue-scheduler" }
       - copy-into-container
       - run-background-container
@@ -503,11 +517,12 @@ jobs:
       - initialize
       - attach_workspace: { at: "." }
       - run:
-          name: du -hs
           command: |
             set +e
+            set -x
             du -hs *
             du -hs backend/*
+            du --human-readable --count --threshold=5M
       - copy-into-container
       - run-background-container
       # Now that the workspaces have combined, we need to regenerate etags.json
@@ -519,14 +534,15 @@ jobs:
       - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
       - run: |
+          set -x
           mkdir gcr-image-ids
-          docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-          docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-          docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-          docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-          docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
-          docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-          docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+          time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+          time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+          time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+          time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+          time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
+          time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+          time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
           paths: [ gcr-image-ids ]
