@@ -81,7 +81,6 @@ commands:
             - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
             - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
             - v14-<< parameters.project >>
-      - show-large-files-and-directories
       - run:
           name: Set up volume for cargo
           command: |
@@ -116,10 +115,8 @@ commands:
       - run:
           name: Cleanup frequently changing rust artifacts
           command: |
-            find << parameters.project >>/target/debug -maxdepth 1 -type f -delete
-            find << parameters.project >>/target/release -maxdepth 1 -type f -delete
+            find << parameters.project >>/target -maxdepth 2 -type f -delete
             rm -rf << parameters.project >>/target/{debug,release}/{deps,.fingerprint}/dark*
-            rm -f  << parameters.project >>/target/.rustc_info.json
 
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
