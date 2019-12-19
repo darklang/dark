@@ -492,13 +492,6 @@ jobs:
       - checkout
       - initialize
       - attach_workspace: { at: "." }
-      - restore_cache:
-          keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
       - run:
           command: |
             set +e
