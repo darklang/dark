@@ -3480,4 +3480,38 @@ let run () =
       t "can tab to lambda blank" aLambda (tab 0) "\\~*** -> ___" ;
       t "can shift tab to field blank" aBlankField (shiftTab 0) "obj.~***" ;
       () ) ;
+  describe "String escaping" (fun () -> ()) ;
+  tp
+    "typing \\ in a string makes it a partial"
+    aStr
+    (key K.Backslash 3)
+    (* TODO this works in a handler with _only_ a string, but if you wrap it in
+     * anything else (let, if, etc) you get "some string\\~" *)
+    "so\\~me string" ;
+  t
+    "typing n after an escape in a partial creates a newline"
+    aStrEscape
+    (ins 'n' 3)
+    "\"so\n~me string\"" ;
+  t
+    "typing \\ after an escape in a partial creates a visible backslash"
+    aStrEscape
+    (key K.Backslash 3)
+    "\"so\\~me string\"" ;
+  t
+    "typing \\ after an escape in a partial creates a visible backslash and back to a partial"
+    aStrEscape
+    (keys [K.Backslash; K.Backslash] 3)
+    "so\\\\\\~me string" ;
+  t
+    "deleting the \\ in a partial brings back the string"
+    aStrEscape
+    (del 2)
+    (* TODO: cursor ends up before the o, not after, that's incorrect *)
+    "\"so~me string\"" ;
+  tp
+    "typing an unsupported char after an escape leaves us with a partial"
+    aStrEscape
+    (ins 'f' 3)
+    "so\\f~me string" ;
   ()
