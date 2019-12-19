@@ -1767,84 +1767,68 @@ let doDown ~(pos : int) (ast : ast) (s : state) : state =
 let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     int =
   let infos = toTokens s ast in
-  (* The conditional logic here is a bit nasty, but essentially we're first
-   * looking at which kind of astRef we got and then for each one, specifying
-   * the function we'll use in List.find to find the correct token.
+  (* Essentially we're using List.findMap to map a function that
+   * matches across astref,token combinations (exhaustively matching astref but not token)
+   * to determine the corresponding caretPos.
    *
    * This is purposefully verbose, as we want to ensure we have an exhaustive
-   * mtch. Please do not use '_' in any of the astRef match conditions or
+   * match. Please do not use '_' in any of the astRef match conditions or
    * refactor in any way that removes the exhaustive matching of the astRefs.
    *
    * NB: These were somewhat hastily added and are very possibly incorrect.
    * Please fix.
    *)
-  let f =
-    match ct.astRef with
-    | ARBinOp (id, BOPLHS) | ARBinOp (id, BOPRHS) ->
-        (function e -> Token.tid e = id)
-    | ARBinOp (id, BOPOperator) ->
-        (function TBinOp (id', _) -> id = id' | _ -> false)
-    | ARBlank id ->
-        (function TBlank id' -> id = id' | _ -> false)
-    | ARBool id ->
-        (function TTrue id' | TFalse id' -> id = id' | _ -> false)
-    | ARConstructor (id, CPName) ->
-        (function TConstructorName (id', _) -> id = id' | _ -> false)
-    | ARConstructor (id, CPValue _) ->
-        (function e -> Token.tid e = id)
-    | ARFieldAccess (id, FAPFieldname) ->
-        (function TFieldName (id', _, _) -> id = id' | _ -> false)
-    | ARFieldAccess (id, FAPRHS) ->
-        (function e -> Token.tid e = id)
-    | ARFloat (id, FPWhole) ->
-        (function TFloatWhole (id', _) -> id = id' | _ -> false)
-    | ARFloat (id, FPDecimal) ->
-        (function TFloatFraction (id', _) -> id = id' | _ -> false)
-    | ARFnCall (id, FCPFnName) ->
-        (function TFnName (id', _, _, _, _) -> id = id' | _ -> false)
-    | ARFnCall (id, FCPArg _idx) ->
-        (* FIXME no way to get function arg by index *)
-        (function
-        | e -> Token.tid e = id)
-    | ARIf (id, IPIfKeyword) ->
-        (function TIfKeyword id' -> id = id' | _ -> false)
-    | ARIf (id, IPThenKeyword) ->
-        (function TIfThenKeyword id' -> id = id' | _ -> false)
-    | ARIf (id, IPElseKeyword) ->
-        (function TIfElseKeyword id' -> id = id' | _ -> false)
-    | ARIf (id, IPCondition) | ARIf (id, IPThenBody) | ARIf (id, IPElseBody) ->
-        (function e -> Token.tid e = id)
-    | ARInteger id ->
-        (function TInteger (id', _) -> id = id' | _ -> false)
-    | ARLet (id, LPKeyword) ->
-        (function TLetKeyword (id', _) -> id = id' | _ -> false)
-    | ARLet (id, LPVarName) ->
-        (function TLetLHS (id', _, _) -> id = id' | _ -> false)
-    | ARLet (id, LPAssignment) ->
-        (function TLetAssignment (id', _) -> id = id' | _ -> false)
-    | ARLet (id, LPValue) | ARLet (id, LPBody) ->
-        (function e -> Token.tid e = id)
-    | ARList (id, LPOpen) ->
-        (function TListOpen id' -> id = id' | _ -> false)
-    | ARList (id, LPClose) ->
-        (function TListClose id' -> id = id' | _ -> false)
-    | ARList (id, LPSeparator idx) ->
-        (function
-        | TListSep (id', idx') -> id = id' && idx = idx' | _ -> false)
-    | ARMatch (id, MPKeyword) ->
-        (function TMatchKeyword id' -> id = id' | _ -> false)
-    | ARMatch (id, MPMatchExpr) ->
-        (function e -> Token.tid e = id)
-    | ARMatch (id, MPBranchValue _idx) ->
-        (* FIXME no way to get match branch value by index *)
-        (function
-        | e -> Token.tid e = id)
-    | ARMatch (id, MPBranchSep idx) ->
-        (function
-        | TMatchSep (id', idx') -> id = id' && idx = idx' | _ -> false)
-    | ARMatch (id, MPBranchPattern idx) ->
-        (function
-        | TPatternVariable (id', _, _, idx')
+  
+  (* posForTi is the most common way of going from a single token info to a caretPos.
+    It only really makes sense for situations where there is a 1:1 correspondence
+    between an ASTRef and a token. It does not make sense for ASTRefs that scan across
+    multiple tokens (eg Multiline Strings) *)
+  let posForTi ti : int option =
+    Some (ti.startPos + min ct.offset ti.length)
+  in
+  let clampedPosForTi ti pos : int option =
+    Some (ti.startPos + max 0 (min pos ti.length))
+  in
+  (* targetAndTokenInfoToMaybeCaretPos takes a caretTarget and tokenInfo and produces
+     the corresponding token-stream-global caretPos within the token stream,
+     or None if the passed token isn't one we care about. The function will be used below
+     as part of a List.findMap
+   *)
+  let targetAndTokenInfoToMaybeCaretPos ((ct, ti) : caretTarget * tokenInfo) :
+      int option =
+    match (ct.astRef, ti.token) with
+    | ARBinOp (id, BOPOperator), TBinOp (id', _)
+    | ARBlank id, TBlank id'
+    | ARBool id, (TTrue id' | TFalse id')
+    | ARConstructor (id, CPName), TConstructorName (id', _)
+    | ARFieldAccess (id, FAPFieldname), TFieldName (id', _, _)
+    | ARFloat (id, FPWhole), TFloatWhole (id', _)
+    | ARFloat (id, FPDecimal), TFloatFraction (id', _)
+    | ARFnCall (id, FCPFnName), TFnName (id', _, _, _, _)
+    | ARIf (id, IPIfKeyword), TIfKeyword id'
+    | ARIf (id, IPThenKeyword), TIfThenKeyword id'
+    | ARIf (id, IPElseKeyword), TIfElseKeyword id'
+    | ARInteger id, TInteger (id', _)
+    | ARLet (id, LPKeyword), TLetKeyword (id', _)
+    | ARLet (id, LPVarName), TLetLHS (id', _, _)
+    | ARLet (id, LPAssignment), TLetAssignment (id', _)
+    | ARList (id, LPOpen), TListOpen id'
+    | ARList (id, LPClose), TListClose id'
+    | ARMatch (id, MPKeyword), TMatchKeyword id'
+    | ARNull id, TNullToken id'
+    | ARPartial id, TPartial (id', _)
+    | ARRightPartial id, TRightPartial (id', _)
+    | ARRecord (id, RPOpen), TRecordOpen id'
+    | ARRecord (id, RPClose), TRecordClose id'
+    | ARVariable id, TVariable (id', _)
+      when id = id' ->
+        posForTi ti
+    | ARList (id, LPSeparator idx), TListSep (id', idx')
+    | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
+    | ( ARMatch (id, MPBranchPattern idx)
+      , 
+        (* Seems a bit fishy? *)
+        ( TPatternVariable (id', _, _, idx')
         | TPatternConstructorName (id', _, _, idx')
         | TPatternInteger (id', _, _, idx')
         | TPatternString (id', _, _, idx')
@@ -1854,53 +1838,134 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         | TPatternFloatWhole (id', _, _, idx')
         | TPatternFloatPoint (id', _, idx')
         | TPatternFloatFraction (id', _, _, idx')
-        | TPatternBlank (id', _, idx') ->
-            id = id' && idx = idx'
-        | _ ->
-            false)
-    | ARNull id ->
-        (function TNullToken id' -> id = id' | _ -> false)
-    | ARPartial id ->
-        (function TPartial (id', _) -> id = id' | _ -> false)
-    | ARPipe (id, PPPipeKeyword idx) ->
-        (function
-        | TPipe (id', idx', _) -> id = id' && idx = idx' | _ -> false)
-    | ARPipe (id, PPPipedExpr _idx) ->
-        (* FIXME no way to get pipe expression by index *)
-        (function
-        | e -> Token.tid e = id)
-    | ARRecord (id, RPOpen) ->
-        (function TRecordOpen id' -> id = id' | _ -> false)
-    | ARRecord (id, RPClose) ->
-        (function TRecordClose id' -> id = id' | _ -> false)
-    | ARRecord (id, RPFieldname idx) ->
-        (function
-        | TRecordFieldname {recordID = id'; index = idx'} ->
-            id = id' && idx = idx'
-        | _ ->
-            false)
-    | ARRecord (id, RPFieldSep idx) ->
-        (function
-        | TRecordSep (id', idx', _) -> id = id' && idx = idx' | _ -> false)
-    | ARRecord (id, RPFieldValue _idx) ->
-        (* FIXME no way to get field value by index *)
-        (function
-        | e -> Token.tid e = id)
-    | ARRightPartial id ->
-        (function TRightPartial (id', _) -> id = id' | _ -> false)
-    | ARString id ->
-        (* FIXME doesn't account for multi-line strings! *)
-        (function
-        | TString (id', _) -> id = id' | _ -> false)
-    | ARVariable id ->
-        (function TVariable (id', _) -> id = id' | _ -> false)
-    | ARInvalid ->
-        (function _ -> false)
+        | TPatternBlank (id', _, idx') ) )
+    | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
+    | ( ARRecord (id, RPFieldname idx)
+      , TRecordFieldname {recordID = id'; index = idx'} )
+    | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
+      when id = id' && idx = idx' ->
+        posForTi ti
+    (*
+    * Single-line Strings
+    *)
+    | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
+        posForTi ti
+    | ARString (id, SPText), TString (id', _) when id = id' ->
+        clampedPosForTi ti (ct.offset + 1)
+    | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
+        clampedPosForTi ti (ct.offset + String.length str + 1)
+    (* 
+    * Multi-line Strings
+    *)
+    | ARString (id, SPOpenQuote), tok ->
+      ( match tok with
+      | TStringMLStart (id', str, _, _) when id = id' ->
+          let len = String.length str + 1 (* to account for open quote *) in
+          if ct.offset > len
+          then (* Must be in a later token *)
+            None
+          else (* Within current token *)
+            posForTi ti
+      | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
+          let len = String.length str in
+          let offsetInStr =
+            ct.offset + 1
+            (* to account for open quote in the start *)
+          in
+          let endOffset = startOffsetIntoString + len in
+          if offsetInStr > endOffset
+          then (* Must be in later token *)
+            None
+          else
+            (* Within current token *)
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
+          (* Must be in this token because it's the last token in the string *)
+          let offsetInStr =
+            ct.offset + 1
+            (* to account for open quote in the start *)
+          in
+          clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | _ ->
+          None )
+    | ARString (id, SPText), tok ->
+      ( match tok with
+      | TStringMLStart (id', str, _, _) when id = id' ->
+          let len = String.length str in
+          if ct.offset > len
+          then (* Must be in a later token *)
+            None
+          else (* Within current token *)
+            clampedPosForTi ti (ct.offset + 1)
+      | TStringMLMiddle (id', str, startOffsetIntoString, _) when id = id' ->
+          let len = String.length str in
+          let offsetInStr = ct.offset in
+          let endOffset = startOffsetIntoString + len in
+          if offsetInStr > endOffset
+          then (* Must be in later token *)
+            None
+          else
+            (* Within current token *)
+            clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | TStringMLEnd (id', _, startOffsetIntoString, _) when id = id' ->
+          (* Must be in this token because it's the last token in the string *)
+          let offsetInStr = ct.offset in
+          clampedPosForTi ti (offsetInStr - startOffsetIntoString)
+      | _ ->
+          None )
+    | ARString (id, SPCloseQuote), tok ->
+      ( match tok with
+      | (TStringMLStart (id', _, _, _) | TStringMLMiddle (id', _, _, _))
+        when id = id' ->
+          None
+      | TStringMLEnd (id', str, _, _) when id = id' ->
+          clampedPosForTi ti (ct.offset + String.length str)
+      | _ ->
+          None )
+    (* 
+    * Exhaustiveness satisfaction for astRefs
+    *)
+    | ARBinOp (_, BOPOperator), _
+    | ARBlank _, _
+    | ARBool _, _
+    | ARConstructor (_, CPName), _
+    | ARFieldAccess (_, FAPFieldname), _
+    | ARFloat (_, FPWhole), _
+    | ARFloat (_, FPDecimal), _
+    | ARFnCall (_, FCPFnName), _
+    | ARIf (_, IPIfKeyword), _
+    | ARIf (_, IPThenKeyword), _
+    | ARIf (_, IPElseKeyword), _
+    | ARInteger _, _
+    | ARLet (_, LPKeyword), _
+    | ARLet (_, LPVarName), _
+    | ARLet (_, LPAssignment), _
+    | ARList (_, LPOpen), _
+    | ARList (_, LPClose), _
+    | ARList (_, LPSeparator _), _
+    | ARMatch (_, MPKeyword), _
+    | ARMatch (_, MPBranchSep _), _
+    | ARMatch (_, MPBranchPattern _), _
+    | ARNull _, _
+    | ARPartial _, _
+    | ARRightPartial _, _
+    | ARPipe (_, PPPipeKeyword _), _
+    | ARRecord (_, RPOpen), _
+    | ARRecord (_, RPClose), _
+    | ARRecord (_, RPFieldname _), _
+    | ARRecord (_, RPFieldSep _), _
+    | ARVariable _, _ ->
+        None
+    (* Invalid *)
+    | ARInvalid, _ ->
+        None
   in
-  let tokenInfo = List.find infos ~f:(fun ti -> f ti.token) in
-  match tokenInfo with
-  | Some ti ->
-      ti.startPos + min ct.offset ti.length
+  match
+    infos
+    |> List.findMap ~f:(fun ti -> targetAndTokenInfoToMaybeCaretPos (ct, ti))
+  with
+  | Some newPos ->
+      newPos
   | None ->
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
@@ -1925,27 +1990,93 @@ let moveToAstRef
   moveToCaretTarget s ast {astRef; offset}
 
 
-(* caretTargetForLastPartOfExpr takes a fluidExpr and produces a caretTarget
- * corresponding to the "very end" of that fluidExpr. The concept of "very end"
- * is related to an understanding of the tokenization of the expr, even though
+(* caretTargetForLastPartOfExpr takes an ast and produces a caretTarget
+ * corresponding to the "very end" of that ast. The concept of "very end"
+ * is related to an understanding of the tokenization of the ast, even though
  * this function doesn't explicitly depend on any tokenization functions. *)
-let caretTargetForLastPartOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EVariable (id, str)) ->
-      {astRef = ARVariable id; offset = String.length str}
-  | Some (EFieldAccess (id, _, _, fieldName)) ->
-      { astRef = ARFieldAccess (id, FAPFieldname)
-      ; offset = String.length fieldName }
+let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
+  let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
+    | EVariable (id, str) ->
+        {astRef = ARVariable id; offset = String.length str}
+    | EFieldAccess (id, _, _, fieldName) ->
+        { astRef = ARFieldAccess (id, FAPFieldname)
+        ; offset = String.length fieldName }
+    | EInteger (id, valueStr) ->
+        {astRef = ARInteger id; offset = String.length valueStr}
+    | EBool (id, true) ->
+        {astRef = ARBool id; offset = String.length "true"}
+    | EBool (id, false) ->
+        {astRef = ARBool id; offset = String.length "false"}
+    | EString (id, _) ->
+        {astRef = ARString (id, SPCloseQuote); offset = 1 (* end of quote *)}
+    | EFloat (id, _, decimalStr) ->
+        {astRef = ARFloat (id, FPDecimal); offset = String.length decimalStr}
+    | ENull id ->
+        {astRef = ARNull id; offset = String.length "null"}
+    | EBlank id ->
+        { astRef = ARBlank id
+        ; offset =
+            3
+            (* It might be better to return offset 0 here,
+              because we might not want to be in the actual end of the blank? *)
+        }
+    | ELet (_, _, _, _, bodyExpr) ->
+        caretTargetForLastPartOfExpr' bodyExpr
+    | EIf (_, _, _, elseExpr) ->
+        caretTargetForLastPartOfExpr' elseExpr
+    | EBinOp (_, _, _, rhsExpr, _) ->
+        caretTargetForLastPartOfExpr' rhsExpr
+    | ELambda (_, _, bodyExpr) ->
+        caretTargetForLastPartOfExpr' bodyExpr
+    | EFnCall (id, fnName, argExprs, _) ->
+      ( match List.last argExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          { astRef = ARFnCall (id, FCPFnName)
+          ; offset = fnName |> ViewUtils.partialName |> String.length } )
+    | EPartial (id, str, _) ->
+        (* Intentionally using the thing that was typed; not the existing expr *)
+        {astRef = ARPartial id; offset = String.length str}
+    | ERightPartial (id, str, _) ->
+        (* Intentionally using the thing that was typed; not the existing expr *)
+        {astRef = ARRightPartial id; offset = String.length str}
+    | EList (id, _) ->
+        {astRef = ARList (id, LPClose); offset = 1 (* End of the close ] *)}
+    | ERecord (id, _) ->
+        {astRef = ARRecord (id, RPClose); offset = 1 (* End of the close } *)}
+    | EPipe (id, pipeExprs) ->
+      ( match List.last pipeExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          {astRef = ARPipe (id, PPPipeKeyword 0); offset = String.length "|>"}
+      )
+    | EMatch (_, matchedExpr, matchItems) ->
+      ( match List.last matchItems with
+      | Some (_, branchBody) ->
+          caretTargetForLastPartOfExpr' branchBody
+      | None ->
+          caretTargetForLastPartOfExpr' matchedExpr )
+    | EConstructor (id, _, name, containedExprs) ->
+      ( match List.last containedExprs with
+      | Some lastExpr ->
+          caretTargetForLastPartOfExpr' lastExpr
+      | None ->
+          {astRef = ARConstructor (id, CPName); offset = String.length name} )
+    | (EFeatureFlag (_, _, _, _, _, _) | EPipeTarget _ | EOldExpr _) as expr ->
+        recover
+          "we don't yet support caretTargetForLastPartOfExpr for this"
+          ~debug:expr
+          {astRef = ARInvalid; offset = 0}
+  in
+  match findExpr astPartId ast with
+  | Some expr ->
+      caretTargetForLastPartOfExpr' expr
   | None ->
       recover
         "caretTargetForLastPartOfExpr got an id outside of the AST"
-        ~debug:id
-        {astRef = ARInvalid; offset = 0}
-  | _ ->
-      recover
-        "we don't yet support caretTargetForLastPartOfExpr for this"
-        ~debug:expr
+        ~debug:astPartId
         {astRef = ARInvalid; offset = 0}
 
 
@@ -1959,7 +2090,7 @@ let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
   | Some (EBool (id, _)) ->
       {astRef = ARBool id; offset = 0}
   | Some (EString (id, _)) ->
-      {astRef = ARString id; offset = 0}
+      {astRef = ARString (id, SPOpenQuote); offset = 0}
   | Some (EFloat (id, _, _)) ->
       {astRef = ARFloat (id, FPWhole); offset = 0}
   | Some (ENull id) ->
@@ -2288,6 +2419,26 @@ let addRecordRowToBack (id : id) (ast : ast) : ast =
           ERecord (id, fields @ [(gid (), "", newB ())])
       | _ ->
           recover "Not a record in addRecordRowToTheBack" ~debug:e e )
+
+
+(* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
+   or None if the record has no field with that index *)
+let recordFieldAtIndex (recordID : id) (index : int) (ast : ast) :
+    (id * fluidName * fluidExpr) option =
+  findExpr recordID ast
+  |> Option.andThen ~f:(fun expr ->
+         match expr with ERecord (_, fields) -> Some fields | _ -> None )
+  |> Option.andThen ~f:(fun fields -> List.getAt ~index fields)
+
+
+(* recordExprIdAtIndex gets the id of the field value for the record in the ast
+   with recordID at index, or None if the record has no field with that index  *)
+let recordExprIdAtIndex (recordID : id) (index : int) (ast : ast) : id option =
+  match recordFieldAtIndex recordID index ast with
+  | Some (_, _, fluidExpr) ->
+      Some (eid fluidExpr)
+  | _ ->
+      None
 
 
 (* ---------------- *)
@@ -3319,7 +3470,17 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
     | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
       ->
-        (removeRecordField recordID index ast, LeftThree)
+        let newAst = removeRecordField recordID index ast in
+        let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
+        let target =
+          match maybeExprID with
+          | None ->
+              { astRef = ARRecord (recordID, RPOpen)
+              ; offset = 1 (* right after the { *) }
+          | Some exprId ->
+              caretTargetForLastPartOfExpr exprId newAst
+        in
+        (newAst, AtTarget target)
     | TPatternBlank (mID, id, _) when pos = ti.startPos ->
         (removePatternRow mID id ast, LeftThree)
     | TBlank _

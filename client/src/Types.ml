@@ -430,64 +430,48 @@ type astFloatPart =
   | FPDecimal
 [@@deriving show {with_path = false}]
 
+type astStringPart =
+  | SPOpenQuote
+  | SPText
+  | SPCloseQuote
+[@@deriving show {with_path = false}]
+
 type astLetPart =
   | LPKeyword
   | LPVarName
   | LPAssignment
-  | LPValue
-  | LPBody
 [@@deriving show {with_path = false}]
 
 type astIfPart =
   | IPIfKeyword
-  | IPCondition
   | IPThenKeyword
-  | IPThenBody
   | IPElseKeyword
-  | IPElseBody
 [@@deriving show {with_path = false}]
 
-type astBinOpPart =
-  | BOPLHS
-  | BOPOperator
-  | BOPRHS
-[@@deriving show {with_path = false}]
+type astBinOpPart = BOPOperator [@@deriving show {with_path = false}]
 
 type astLambdaPart =
   | LPKeyword
   | LPVarName of (* index of the var *) int
   | LPSeparator of (* index of the var *) int
   | LPArrow
-  | LPBody
 [@@deriving show {with_path = false}]
 
-type astFieldAccessPart =
-  | FAPRHS
-  | FAPFieldname
-[@@deriving show {with_path = false}]
+type astFieldAccessPart = FAPFieldname [@@deriving show {with_path = false}]
 
-type astFnCallPart =
-  | FCPFnName
-  | FCPArg of (* index of the argument *) int
-[@@deriving show {with_path = false}]
+type astFnCallPart = FCPFnName [@@deriving show {with_path = false}]
 
 type astRecordPart =
   | RPOpen
   | RPFieldname of (* index of the <fieldname,value> pair *) int
   | RPFieldSep of (* index of the <fieldname,value> pair *) int
-  | RPFieldValue of (* index of the <fieldname,value> pair *) int
   | RPClose
 [@@deriving show {with_path = false}]
 
-type astPipePart =
-  | PPPipeKeyword of (* index of the pipe *) int
-  | PPPipedExpr of (* index of the pipe *) int
+type astPipePart = PPPipeKeyword of (* index of the pipe *) int
 [@@deriving show {with_path = false}]
 
-type astConstructorPart =
-  | CPName
-  | CPValue of int
-[@@deriving show {with_path = false}]
+type astConstructorPart = CPName [@@deriving show {with_path = false}]
 
 type astListPart =
   | LPOpen
@@ -497,10 +481,8 @@ type astListPart =
 
 type astMatchPart =
   | MPKeyword
-  | MPMatchExpr
   | MPBranchPattern of (* index of the branch *) int
   | MPBranchSep of (* index of the branch *) int
-  | MPBranchValue of (* index of the branch *) int
 [@@deriving show {with_path = false}]
 
 (* An astRef represents a reference to a specific part of an AST node,
@@ -514,11 +496,16 @@ type astMatchPart =
    of TStringMLStart, TStringMLMiddle, TStringMLEnd.
    
    The IDs below all refer to the AST node id
+
+   NOTE(JULIAN): We intentionally do not have any astRefs that include
+   parts that refer to an part of the AST that contains nested expressions.
+   In such cases (for example the value or body of a let), it makes more sense
+   to generate a more specific astRef within the nested expression.
     *)
 type astRef =
   | ARInteger of id
   | ARBool of id
-  | ARString of id
+  | ARString of id * astStringPart
   | ARFloat of id * astFloatPart
   | ARNull of id
   | ARBlank of id
@@ -535,6 +522,7 @@ type astRef =
   | ARPipe of id * astPipePart
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
+  (* | ARLambda of id * astLambdaPart *)
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
@@ -1407,7 +1395,7 @@ and fluidExpr =
   (* Placeholder that indicates the target of the Thread. May be movable at
    * some point *)
   | EPipeTarget of id
-  (* The 2nd id is for the name *)
+  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
   | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
   | EOldExpr of expr
 
@@ -1418,7 +1406,7 @@ and analysisId = id
 and fluidToken =
   | TInteger of id * string
   | TString of id * string
-  (* multi-line strings, id, segment, full-string, offset *)
+  (* multi-line strings: id, segment, start offset, full-string *)
   | TStringMLStart of id * string * int * string
   | TStringMLMiddle of id * string * int * string
   | TStringMLEnd of id * string * int * string
