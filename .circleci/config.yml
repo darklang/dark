@@ -10,6 +10,7 @@ commands:
       - run:
           # show any file or directory over 50M in size
           # note alpine find doesn't support +50M here
+          name: show large files and directories
           command: |
             find . -size +51200k -exec du -h {} \;
             du -ht 50M
@@ -111,7 +112,11 @@ commands:
           root: "."
           paths: [ << parameters.project >>/target/release/dark-<< parameters.project >> ]
 
-      # https://github.com/rust-lang/cargo/issues/5885
+      # This removes files in the top-level of target/{debug,release}, which include the actual built artifact
+      # and other intermediates that will always be rebuilt on the next build (so there's no sense in caching them).
+      # It also includes our own (dark*) build files from deps, which are likewise always rebuilt.
+      #
+      # See https://github.com/rust-lang/cargo/issues/5885 for discussion and details
       - run:
           name: Cleanup frequently changing rust artifacts
           command: |
