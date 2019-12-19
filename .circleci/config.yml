@@ -10,7 +10,8 @@ commands:
       - run:
           command: |
             # show any file or directory over 50M in size
-            find . -size +50M -exec du -h {} \;
+            # note alpine find doesn't support +50M here
+            find . -size +51200k -exec du -h {} \;
             du -ht 50M
 
   ##########################
