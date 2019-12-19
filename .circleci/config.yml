@@ -388,7 +388,8 @@ jobs:
       - run: scripts/support/test-honeycomb-config.sh
 
   build-client:
-    executor: my-executor
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
       - checkout
       - initialize
