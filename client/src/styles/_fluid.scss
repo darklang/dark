@@ -15,6 +15,19 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 }
 
+.copy-value {
+  position: absolute;
+  top: -4px;
+  right: -$spacing-medium;
+  color: $white1;
+
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
 .fluid-paren-open .fluid-inner {
   border-radius: 8px 0 0 8px;
 }
@@ -22,7 +35,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   border-radius: 0 8px 8px 0;
 }
 
-.fluid-variant .live-values {
+.fluid-variant .live-value {
   display: block;
   position: absolute;
   right: calc(#{"100% + 30px"});
@@ -42,21 +55,40 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   background-color: $live-value-background;
 
   .copy-value {
-    position: absolute;
-    top: -4px;
-    right: -$spacing-medium;
-    color: $white1;
-
-    opacity: 0.7;
-
-    &:hover {
-      opacity: 0.85;
-    }
+    @extend .copy-value;
   }
 
   .jump-src:hover {
     color: $blue;
     cursor: pointer;
+  }
+}
+
+.fluid-variant .return-value {
+  position: absolute;
+  top: calc(100%);
+
+  padding: 4px;
+
+  white-space: pre-wrap;
+  word-break: break-all;
+  word-wrap: break-word;
+
+  font-style: normal;
+  font-size: $code-font-size * 0.85;
+  color: $live-value-foreground;
+
+  background-color: $live-value-background;
+
+  &.refreshed {
+    color: $cyan;
+  }
+
+  .copy-value {
+    @extend .copy-value;
+
+    top: 4px;
+    right: 4px;
   }
 }
 
@@ -396,7 +428,6 @@ since they are essentially both commands just acting upon different things. */
   position: relative;
   width: 20px;
   margin-top: 4px;
-
   border-left: 1px dotted lighten($black3, 20%);
 
   &.show {

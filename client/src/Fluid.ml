@@ -6299,15 +6299,16 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
   |> List.flatten
 
 
+let viewDval tlid dval ~(canCopy : bool) =
+  let text = Runtime.toRepr dval in
+  [Html.text text; (if canCopy then viewCopyButton tlid text else Vdom.noNode)]
+
+
 let viewLiveValue
     ~(tlid : tlid) ~(ast : fluidExpr) ~(vs : viewState) ~(state : fluidState) :
     Types.msg Html.html =
   (* Renders dval*)
-  let renderDval dval canCopy =
-    let text = Runtime.toRepr dval in
-    [ Html.text text
-    ; (if canCopy then viewCopyButton tlid text else Vdom.noNode) ]
-  in
+  let renderDval = viewDval tlid in
   (* Renders live value for token *)
   let renderTokenLv token id =
     let fnLoading =
@@ -6343,9 +6344,9 @@ let viewLiveValue
             [Html.text msg] ]
     | LoadableSuccess (DError _ as dv) | LoadableSuccess (DIncomplete _ as dv)
       ->
-        renderDval dv false
+        renderDval dv ~canCopy:false
     | LoadableSuccess dval ->
-        renderDval dval true
+        renderDval dval ~canCopy:true
     | LoadableNotInitialized | LoadableLoading _ ->
         [ViewUtils.fontAwesome "spinner"]
     | LoadableError err ->
@@ -6358,7 +6359,7 @@ let viewLiveValue
            match AC.highlighted state.ac with
            | Some (FACVariable (_, Some dv)) ->
                (* If autocomplete is open and a variable is highlighted, then show its dval *)
-               Some (renderDval dv true)
+               Some (renderDval dv ~canCopy:true)
            | _ ->
                (* Else show live value of current token *)
                let token = ti.token in
@@ -6370,13 +6371,35 @@ let viewLiveValue
   |> Option.map ~f:(fun (content, row) ->
          let offset = float_of_int row +. 1.5 in
          Html.div
-           [ Html.classList [("live-values", true)]
+           [ Html.class' "live-value"
            ; Html.styles [("top", Js.Float.toString offset ^ "rem")]
            ; Attrs.autofocus false
            ; Vdom.attribute "" "spellcheck" "false" ]
            content )
   (* If there's a failure at any point, we don't render the live-value wrapper *)
   |> Option.withDefault ~default:Vdom.noNode
+
+
+let viewReturnValue (vs : ViewUtils.viewState) (tlid : tlid) (ast : ast) :
+    Types.msg Html.html =
+  if vs.tlid = tlid
+  then
+    let id = eid ast in
+    match Analysis.getLiveValueLoadable vs.analysisStore id with
+    | LoadableSuccess dval ->
+        Html.div
+          [ Html.classList
+              [ ("return-value", true)
+              ; ( "refreshed"
+                , match vs.handlerProp with
+                  | Some {execution = Complete} ->
+                      true
+                  | _ ->
+                      false ) ] ]
+          (viewDval tlid dval ~canCopy:true)
+    | _ ->
+        Vdom.noNode
+  else Vdom.noNode
 
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
@@ -6409,6 +6432,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
+  let returnValue = viewReturnValue vs tlid ast in
   [ liveValue
   ; Html.div
       [ Attrs.id editorID
@@ -6417,6 +6441,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
       ; Vdom.attribute "" "spellcheck" "false"
       ; event ~key:eventKey "keydown" ]
       (toHtml ast ~vs ~tlid ~state)
+  ; returnValue
   ; errorRail ]
 
 
