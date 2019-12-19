@@ -405,13 +405,6 @@ jobs:
       - run: scripts/support/build-server --compile-client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/client/node_modules client
-            time docker cp vols:/home/dark/app/client/lib client
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
