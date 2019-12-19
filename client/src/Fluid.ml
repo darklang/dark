@@ -3842,9 +3842,6 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | TBlank id | TPlaceholder (_, id) ->
         (replaceExpr id ~newExpr ast, AtTarget newTarget)
     (* lists *)
-    | TListOpen id when letter = ',' ->
-        ( insertInList ~index:0 id ~newExpr:(EBlank newID) ast
-        , AtTarget {astRef = ARBlank newID; offset = 0} )
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
