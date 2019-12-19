@@ -302,10 +302,20 @@ RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-int
 USER dark
 ENV TERM=xterm-256color
 
-
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
+RUN DEBIAN_FRONTEND=noninteractive \
+    sudo apt update && \
+    DEBIAN_FRONTEND=noninteractive \
+      sudo apt install \
+        --no-install-recommends \
+        -y \
+      git \
+      openssh-server
+
+
+ 
 
 ############################
 # Finish
