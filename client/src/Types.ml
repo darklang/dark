@@ -522,7 +522,7 @@ type astRef =
   | ARPipe of id * astPipePart
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
-  (* | ARLambda of id * astLambdaPart *)
+  | ARLambda of id * astLambdaPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
