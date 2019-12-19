@@ -331,7 +331,7 @@ jobs:
           root: "."
           paths:
             # Just enough for integration tests and deploy
-            - backend/_build
+            - backend/_build/default/bin
             - backend/static/analysis.js
       - run:
           name: Copy out artifacts
