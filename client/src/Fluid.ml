@@ -3803,20 +3803,31 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     |> Option.withDefault ~default:[""]
     |> List.map ~f:(fun str -> (gid (), str))
   in
-  let newExpr =
+  let newExpr, newTarget =
     if letter = '"'
-    then EString (newID, "")
+    then
+      ( EString (newID, "")
+      , {astRef = ARString (newID, SPOpenQuote); offset = 1} )
     else if letter = '['
-    then EList (newID, [])
+    then (EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
     else if letter = '{'
-    then ERecord (newID, [])
+    then (ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
     else if letter = '\\'
-    then ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+    then
+      ( ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+      , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
+        {astRef = ARLambda (newID, LPKeyword); offset = 1} )
     else if letter = ','
-    then EBlank newID (* new separators *)
+    then
+      (EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
     else if isNumber letterStr
-    then EInteger (newID, letterStr |> coerceStringTo63BitInt)
-    else EPartial (newID, letterStr, EBlank (gid ()))
+    then
+      let intStr = letterStr |> coerceStringTo63BitInt in
+      ( EInteger (newID, intStr)
+      , {astRef = ARInteger newID; offset = String.length intStr} )
+    else
+      ( EPartial (newID, letterStr, EBlank (gid ()))
+      , {astRef = ARPartial newID; offset = String.length letterStr} )
   in
   let newAST, newPosition =
     match ti.token with
@@ -3829,12 +3840,13 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, SamePlace)
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
-        (replaceExpr id ~newExpr ast, RightOne)
+        (replaceExpr id ~newExpr ast, AtTarget newTarget)
     (* lists *)
     | TListOpen id when letter = ',' ->
-        (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
+        ( insertInList ~index:0 id ~newExpr:(EBlank newID) ast
+        , AtTarget {astRef = ARBlank newID; offset = 0} )
     | TListOpen id ->
-        (insertInList ~index:0 id ~newExpr ast, RightOne)
+        (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
