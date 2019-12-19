@@ -89,6 +89,14 @@ commands:
             time docker cp dotcargo/. vols:/home/dark/.cargo
             time rm -Rf dotcargo # don't copy it a second time when we copy-into-container
       - set-ownership: { path: "/home/dark/.cargo" }
+      - run:
+          name: Set up volume for target directory
+          command: |
+            set -x
+            time mkdir -p << parameters.project >>/target
+            time docker cp << parameters.project >>/target/. vols:/home/dark/app/<< parameters.project >>/target
+            time rm -Rf << parameters.project >>/target # don't copy it a second time when we copy-into-container
+      - set-ownership: { path: "/home/dark/<< parameters.project >>/target" }
 
   rust-cache:
     parameters:
