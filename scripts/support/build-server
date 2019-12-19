@@ -196,15 +196,19 @@ def main():
 
     return success
 
-  run("sudo chown dark:dark backend/_build")
-  run("sudo chown dark:dark backend/_esy")
-  run("sudo chown dark:dark backend/node_modules")
-  run("sudo chown dark:dark /home/dark/.esy")
-  run("sudo chown dark:dark client/node_modules")
-  run("sudo chown dark:dark client/lib")
-  run("sudo chown dark:dark /home/dark/.cargo")
-  run("sudo chown dark:dark stroller/target")
-  run("sudo chown dark:dark queue-scheduler/target")
+  def ensure_present(directory):
+    run(f"sudo mkdir -p {directory}")
+    run(f"sudo chown dark:dark {directory}")
+
+  ensure_present("backend/_build")
+  ensure_present("backend/_esy")
+  ensure_present("backend/node_modules")
+  ensure_present("/home/dark/.esy")
+  ensure_present("client/node_modules")
+  ensure_present("client/lib")
+  ensure_present("/home/dark/.cargo")
+  ensure_present("stroller/target")
+  ensure_present("queue-scheduler/target")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   run_or_fail("scripts/support/create-app-directories")
