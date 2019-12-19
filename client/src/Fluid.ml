@@ -1821,6 +1821,8 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
+    | ARLambda (id, LPKeyword), TLambdaSymbol id'
+    | ARLambda (id, LPArrow), TLambdaArrow id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
@@ -1843,6 +1845,8 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
+    | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
+    | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
       when id = id' && idx = idx' ->
         posForTi ti
     (*
@@ -1954,7 +1958,11 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRecord (_, RPClose), _
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _
-    | ARVariable _, _ ->
+    | ARVariable _, _
+    | ARLambda (_, LPKeyword), _
+    | ARLambda (_, LPArrow), _
+    | ARLambda (_, LPVarName _), _
+    | ARLambda (_, LPSeparator _), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
