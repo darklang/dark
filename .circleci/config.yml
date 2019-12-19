@@ -8,9 +8,9 @@ commands:
   show-large-files-and-directories:
     steps:
       - run:
+          # show any file or directory over 50M in size
+          # note alpine find doesn't support +50M here
           command: |
-            # show any file or directory over 50M in size
-            # note alpine find doesn't support +50M here
             find . -size +51200k -exec du -h {} \;
             du -ht 50M
 
@@ -101,7 +101,7 @@ commands:
           command: |
             set -x
             # clean ~./cargo sources before copy
-            time docker run -i --volumes-from vols alpine sh -c 'cargo cache -a'
+            scripts/run-in-docker 'cargo cache -a'
             time docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
             time docker cp vols:/home/dark/.cargo dotcargo
 
@@ -116,9 +116,10 @@ commands:
       - run:
           name: Cleanup frequently changing rust artifacts
           command: |
-            find ./*/target/release -maxdepth 1 -type f -delete
-            rm -rf ./target/release/{deps,.fingerprint}/dark*
-            rm -f  ./target/.rustc_info.json
+            find << parameters.project >>/target/debug -maxdepth 1 -type f -delete
+            find << parameters.project >>/target/release -maxdepth 1 -type f -delete
+            rm -rf << parameters.project >>/target/{debug,release}/{deps,.fingerprint}/dark*
+            rm -f  << parameters.project >>/target/.rustc_info.json
 
       # https://doc.rust-lang.org/nightly/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci
       - save_cache:
