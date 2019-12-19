@@ -40,8 +40,8 @@ RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" 
 RUN echo "deb https://nginx.org/packages/ubuntu/ bionic nginx" > /etc/apt/sources.list.d/nginx.list
 
 # Testcafe needs node >= 11
-RUN echo "deb https://deb.nodesource.com/node_11.x bionic main" > /etc/apt/sources.list.d/nodesource.list
-RUN echo "deb-src https://deb.nodesource.com/node_11.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb https://deb.nodesource.com/node_13.x bionic main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_13.x bionic main" >> /etc/apt/sources.list.d/nodesource.list
 
 RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -cs)" && \
     echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" > /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -90,7 +90,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       chromium-browser \
       firefox \
       gnupg \
-      nodejs \
+      nodejs=13.5.0-1nodesource1 \
       google-chrome-stable \
       dnsmasq \
       cron \
@@ -151,16 +151,10 @@ ENV LC_ALL en_US.UTF-8
 # Frontend
 ############################
 USER root
-# node 11.11 introduced a bug that cased all Jest tests to fail.
-# It is fixed in 11.12, so for now we force our containers to update to 11.12
-#
-# And then nodesource took down 11.13, all that's left is 11.14: https://deb.nodesource.com/node_11.x/dists/bionic/main/binary-amd64/Packages
-# And then 11.14
-RUN apt update && apt install -y nodejs=11.15.0-1nodesource1
 
-RUN npm install -g yarn@1.12.3
+RUN npm install -g yarn@1.21.1
 
-RUN npm install -g esy@0.5.6 --unsafe-perm=true
+RUN npm install -g esy@0.5.7 --unsafe-perm=true
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -211,8 +205,8 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 ############################
 # New authentication for docker - not supported via apt
 user root
-RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
-    | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr \
+RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.0.0/docker-credential-gcr_linux_amd64-2.0.0.tar.gz" \
+    | tar xz --to-stdout ./docker-credential-gcr > /usr/bin/docker-credential-gcr \
     && chmod +x /usr/bin/docker-credential-gcr
 
 RUN docker-credential-gcr config --token-source="gcloud"
