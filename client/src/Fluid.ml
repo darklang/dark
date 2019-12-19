@@ -4828,8 +4828,14 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             {s with actions = newState.actions}
         else (newAST, newState)
     | L (TPartial (id, _), _), _ ->
+        let valid_escape_chars_alist =
+          (* We use this alist for two things: knowing what chars are permitted
+           * after a \, and knowing what to replace them with as we go from a
+           * display string to the real thing *)
+          [("n", "\n"); ("t", "\t"); ("\\", "\\")]
+        in
+        let valid_escape_chars = valid_escape_chars_alist |> List.map ~f:fst in
         let invalid_escapes_in_string (str : string) : string list =
-          let valid_escape_chars = ["n"; "\\"] in
           let captures =
             (* Capture any single character following a '\'. Escaping is
              * terrible here. *)
@@ -4863,26 +4869,27 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         let newAST =
           (* findExpr, because we may have updated the partial above with an
            * insert or delete *)
-          let str =
-            match findExpr id newAST with
-            | Some (EPartial (_, str, _)) ->
-                str
-            | _ ->
-                ""
-            (* TODO can't happen, fail here *)
-          in
-          let invalid_escapes = invalid_escapes_in_string str in
-          if not (List.isEmpty invalid_escapes)
-          then newAST
-          else
-            updateExpr
-              ~f:(function
-                | EPartial (_, _, EString _) ->
-                    EString (id, str)
-                | e ->
-                    e (* no-op *))
-              id
-              ast
+          updateExpr
+            ~f:(function
+              | EPartial (_, str, EString _) as origExpr ->
+                  let processedStr =
+                    valid_escape_chars_alist
+                    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
+                           (* workaround for how "\\" gets escaped *)
+                           let from = if from == "\\" then "\\\\" else from in
+                           Util.Regex.replace
+                             ~re:(Util.Regex.regex ("\\\\" ^ from))
+                             ~repl
+                             acc )
+                  in
+                  let invalid_escapes = invalid_escapes_in_string str in
+                  if not (List.isEmpty invalid_escapes)
+                  then origExpr (* no-op *)
+                  else EString (id, processedStr)
+              | origExpr ->
+                  origExpr (* no-op *))
+            id
+            newAST
         in
         (newAST, newState)
     | _ ->
