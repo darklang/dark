@@ -64,6 +64,9 @@ commands:
       - store_test_results:
           path: artifacts/rundir/test_results
 
+  ##########################
+  # Rust
+  ##########################
   rust-setup:
     parameters:
       project:
