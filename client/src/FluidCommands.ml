@@ -15,15 +15,21 @@ module K = FluidKeyboard
 
 let filterInputID : string = "cmd-filter"
 
+let fluidCommands =
+  Commands.commands
+  |> List.filter ~f:(fun {commandName} ->
+         not (commandName == "add-feature-flag") )
+
+
 let reset : fluidCommandState =
-  {index = 0; commands = Commands.commands; location = None; filter = None}
+  {index = 0; commands = fluidCommands; location = None; filter = None}
 
 
 let commandsFor (tl : toplevel) (id : id) : command list =
   (* NB: do not structurally compare entire Command.command records here, as
    * they contain functions, which BS cannot compare.*)
   let filterForRail rail =
-    Commands.commands
+    fluidCommands
     |> List.filter ~f:(fun c ->
            match rail with
            | Rail ->
@@ -39,14 +45,14 @@ let commandsFor (tl : toplevel) (id : id) : command list =
              Some (filterForRail rail)
          | _ ->
              let cmds =
-               Commands.commands
+               fluidCommands
                |> List.filter ~f:(fun c ->
                       c.commandName <> Commands.putFunctionOnRail.commandName
                       && c.commandName
                          <> Commands.takeFunctionOffRail.commandName )
              in
              Some cmds )
-  |> Option.withDefault ~default:Commands.commands
+  |> Option.withDefault ~default:fluidCommands
 
 
 let show (tl : toplevel) (token : fluidToken) : fluidCommandState =
@@ -135,14 +141,14 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
             commandsFor tl (FluidToken.tid token) )
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
-        Commands.commands
+        fluidCommands
   in
   let filter, commands =
     if String.length query > 0
     then
       let isMatched c = String.contains ~substring:query c.commandName in
       (Some query, List.filter ~f:isMatched allCmds)
-    else (None, Commands.commands)
+    else (None, fluidCommands)
   in
   {cp with filter; commands; index = 0}
 
