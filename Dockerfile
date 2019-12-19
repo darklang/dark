@@ -205,7 +205,7 @@ RUN sudo kubectl completion bash | sudo tee /etc/bash_completion.d/kubectl > /de
 ############################
 # New authentication for docker - not supported via apt
 user root
-RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v2.0.0/docker-credential-gcr_linux_amd64-2.0.0.tar.gz" \
+RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" \
     | tar xz --to-stdout ./docker-credential-gcr > /usr/bin/docker-credential-gcr \
     && chmod +x /usr/bin/docker-credential-gcr
 
