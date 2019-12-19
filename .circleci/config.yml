@@ -237,6 +237,22 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+
+  build-container:
+    executor: my-executor
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      # Save the docker env: type .docker-env when sshing in, then you can
+      # use ./scripts/run-in-docker
+      - run: |
+          env \
+          | grep 'DOCKER\|NO_PROXY' \
+          | sed 's/^/export /' \
+          > /root/docker-env
+      - run: docker build -t dark .
+
   build-stroller:
     executor: my-executor
     steps:
@@ -532,11 +548,6 @@ jobs:
             --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
             --tunnel-image-id=`cat gcr-image-ids/tunnel` \
             --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
-
-  build-container:
-    executor: my-executor
-    steps:
-      - run: echo "hello world"
 
 
 workflows:
