@@ -72,11 +72,13 @@ commands:
       project:
         type: string
     steps:
+
       - restore_cache:
           keys:
-            - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
-            - v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
-            - v12-<< parameters.project >>
+            # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
+            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
+            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
+            - v14-<< parameters.project >>
       - run:
           command: |
             set +e
@@ -121,7 +123,7 @@ commands:
             - dotcargo/registry/index/
             - dotcargo/registry/cache/
             - dotcargo/git/db/
-          key: v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
+          key: v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
 
   ##########################
   # Caches
