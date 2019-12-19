@@ -119,10 +119,11 @@ commands:
             - dotcargo/registry/cache/
             - dotcargo/git/db/
           key: v12-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - << parameters.project>>/target
+      # TODO: we should not be persisting the entire thing. Let's see what's needed
+      # - persist_to_workspace:
+      #     root: "."
+      #     paths:
+      #       - << parameters.project>>/target
 
 
   ##########################
