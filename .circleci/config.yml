@@ -3,6 +3,12 @@ executors:
   my-executor:
     docker:
       - image: docker:stable-git
+  in-container:
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+
 
 commands:
   show-large-files-and-directories:
@@ -263,10 +269,7 @@ jobs:
       - run: docker push 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
 
   build-client:
-    environment:
-      IN_DEV_CONTAINER: true
-    docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+    executor: in-container
     steps:
       - checkout
       - restore_cache:
@@ -305,10 +308,7 @@ jobs:
           path: artifacts/rundir/test_results
 
   build-backend:
-    environment:
-      IN_DEV_CONTAINER: true
-    docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+    executor: in-container
     steps:
       - checkout
       - restore_cache:
