@@ -306,54 +306,27 @@ jobs:
           path: artifacts/rundir/test_results
 
   build-backend:
-    executor: my-executor
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
       - checkout
-      - initialize
       - restore_cache:
           keys:
-            - v12-backend-{{ checksum "rundir/today-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "backend/_build" }
+            - v0d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+            - v0d-backend-{{ checksum "backend/esy.json" }}
+            - v0d-backend
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run:
-          # Everything else is copied in via copy-into-container, but it
-          # doesn't include this because it's not in /home/dark/app.
-          name: Set up volume for dotesy
-          command: |
-            set -x
-            mkdir -p dotesy
-            time docker cp dotesy/. vols:/home/dark/.esy
-            time rm -Rf dotesy # don't copy it a second time
-      - set-ownership:
-          path: "/home/dark/.esy"
-      - copy-into-container
-      - run: scripts/builder --compile-backend --test
-      - run-background-container
-      - wait-for-container
-        # For speed optimization, we could put this in a faster job; it doesn't
-        # need to be run post-build, it just needs the container running. But it
-        # takes <1s to run, so this is the more "logical" location.
-      - run: scripts/ocaml-find-unused backend/test
+      - run: scripts/support/compile backend/esy.json
       - assert-clean-worktree
+      # Doesn't need to be run post-build, but takes <1s to run
+      - run: scripts/ocaml-find-unused backend/test
       - run:
           name: Reduce size of esy cache
-          command: |
-            set -x
-            ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/backend/_build backend/
-            time docker cp vols:/home/dark/app/backend/_esy backend/
-            time docker cp vols:/home/dark/app/backend/node_modules backend/
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
-            time docker cp vols:/home/dark/.esy dotesy
+          command: rm -Rf /home/dark/.esy/3/b
       - show-large-files-and-directories
       - save_cache:
           name: "Save daily backend cache"
@@ -361,9 +334,8 @@ jobs:
             - backend/_build
             - backend/_esy
             - backend/node_modules
-            - backend/static
-            - dotesy
-          key: v12-backend-{{ checksum "rundir/today-timestamp" }}
+            - .esy
+          key: v12-backend-{{ checksum "backend/esy.json" }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -372,19 +344,10 @@ jobs:
             - backend/_build/default/bin/queue_worker.exe
             - backend/_build/default/bin/cron_checker.exe
             - backend/static/analysis.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
       - store_artifacts:
-          path: artifacts
+          path: rundir
       - store_test_results:
           path: artifacts/rundir/test_results
-
-
 
 
   build-stroller:
