@@ -356,7 +356,7 @@ jobs:
     steps:
       - checkout
       - prep-container-creation
-      - run: apk add --update bash python py-pip && pip install yq
+      - run: apk add --update python py-pip && pip install yq
       - run:
           shell: bash
           command: scripts/support/test-honeycomb-config.sh
