@@ -3,7 +3,6 @@ open Types
 open Fluid
 open Fluid_test_data
 open Tester
-module Expression = FluidExpression
 
 (* See docs/fuzzer.md for documentation on how to use this. *)
 
