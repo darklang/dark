@@ -86,17 +86,9 @@ commands:
       - restore_cache:
           keys:
             # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
-            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
-            - v14-<< parameters.project >>
-      - run:
-          name: Set up volume for cargo
-          command: |
-            set -x
-            time mkdir -p dotcargo
-            time docker cp dotcargo/. vols:/home/dark/.cargo
-            time rm -Rf dotcargo # don't copy it a second time when we copy-into-container
-      - set-ownership: { path: "/home/dark/.cargo" }
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
+            - v0d-<< parameters.project >>
 
   rust-finish:
     parameters:
@@ -104,14 +96,8 @@ commands:
         type: string
     steps:
       - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            # clean ~./cargo sources before copy
-            scripts/run-in-docker 'cargo cache -a'
-            time docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
-            time docker cp vols:/home/dark/.cargo dotcargo
-
+          name: Reduce caches
+          command: cargo cache -a
       - show-large-files-and-directories
 
       # must persist to workspace first, as next step will remove built release artifact
@@ -135,36 +121,11 @@ commands:
           name: "Save << parameters.project >> cache"
           paths:
             - << parameters.project >>/target
-            - dotcargo/bin/
-            - dotcargo/registry/index/
-            - dotcargo/registry/cache/
-            - dotcargo/git/db/
-          key: v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
-
-  ##########################
-  # Caches
-  ##########################
-  clean-caches:
-    parameters:
-      path:
-        type: string
-    steps:
-      - run:
-          name: maybe clear caches
-          # since we don't checksum the cache on its contents, it may
-          # continue to grow. as a result, let's clear the cache weekly.
-          # we store the day the cache was built in the cache. if the
-          # cache was built on friday, and today is not friday, then
-          # it's the first build after last week, and clear it.
-          command: |
-            if [[ `date +"%a"` != "friday" && `cat << parameters.path >>/cache_day` == "friday" ]]; then
-              echo "clearing caches"
-              rm -rf << parameters.path >>
-            else
-              echo "not clearing caches"
-            fi
-            mkdir -p << parameters.path >>
-            date +"%a" > << parameters.path >>/cache_day
+            - .cargo/bin/
+            - .cargo/registry/index/
+            - .cargo/registry/cache/
+            - .cargo/git/db/
+          key: v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
 
   ##########################
   # Initializing the containers
@@ -351,29 +312,21 @@ jobs:
 
 
   build-stroller:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
       - rust-setup: { project: "stroller" }
-      - copy-into-container
-      - run: scripts/builder --compile-stroller --test
-      - run-background-container
-      - wait-for-container
+      - run: scripts/support/compile stroller/Cargo.toml --test
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "stroller" }
 
   build-queue-scheduler:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
       - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
-      - run-background-container
-      - wait-for-container
+      - run: scripts/support/compile queue-scheduler/Cargo.toml --test
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler" }
