@@ -222,7 +222,10 @@ jobs:
           shell: bash
           command: |
             if [[ `docker images dark-ci -q` == "" ]]
-            then docker pull 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+            then
+              set -x
+              docker pull 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+              docker images
             fi
       - run: docker build -t dark-ci .
       - run: docker tag dark-ci:latest 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
