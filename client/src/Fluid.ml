@@ -1838,20 +1838,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
     | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
-    | ( ARMatch (id, MPBranchPattern idx)
-      , 
-        (* Seems a bit fishy? *)
-        ( TPatternVariable (id', _, _, idx')
-        | TPatternConstructorName (id', _, _, idx')
-        | TPatternInteger (id', _, _, idx')
-        | TPatternString (id', _, _, idx')
-        | TPatternTrue (id', _, idx')
-        | TPatternFalse (id', _, idx')
-        | TPatternNullToken (id', _, idx')
-        | TPatternFloatWhole (id', _, _, idx')
-        | TPatternFloatPoint (id', _, idx')
-        | TPatternFloatFraction (id', _, _, idx')
-        | TPatternBlank (id', _, idx') ) )
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
@@ -1966,7 +1952,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARList (_, LPSeparator _), _
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchSep _), _
-    | ARMatch (_, MPBranchPattern _), _
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
@@ -2179,7 +2164,60 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         ~debug:astPartId
         {astRef = ARInvalid; offset = 0}
 
+let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
+  match pattern with
+    | FPVariable (_, id, _) ->
+        {astRef = (ARPattern (id, PPVariable)); offset = 0}
+    | FPConstructor (_, id, _, _) ->
+        {astRef = (ARPattern (id, PPConstructor CPName)); offset = 0}
+    | FPInteger (_, id, _) ->
+        {astRef = (ARPattern (id, PPInteger)); offset = 0}
+    | FPBool (_, id, _) ->
+        {astRef = (ARPattern (id, PPBool)); offset = 0}
+    | FPString (_, id, _) ->
+        {astRef = (ARPattern (id, PPString SPOpenQuote)); offset = 0}
+    | FPFloat (_, id, _, _) ->
+        {astRef = (ARPattern (id, PPFloat FPWhole)); offset = 0}
+    | FPNull (_, id) ->
+        {astRef = (ARPattern (id, PPNull)); offset = 0}
+    | FPBlank (_, id) ->
+        {astRef = (ARPattern (id, PPBlank)); offset = 0}
+    | (FPOldPattern _) as p ->
+        recover
+          "unhandled pattern in caretTargetForBeginningOfPattern"
+          ~debug:p
+          {astRef = ARInvalid; offset = 0}
 
+let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
+  match pattern with
+    | FPVariable (_, id, varName) ->
+        {astRef = (ARPattern (id, PPVariable)); offset = (String.length varName)}
+    | FPConstructor (_, id, name, containedPatterns) ->
+    ( match List.last containedPatterns with
+      | Some lastPattern ->
+          (caretTargetForEndOfPattern lastPattern)
+      | None ->
+          ({astRef = (ARPattern (id, PPConstructor CPName)); offset = String.length name}))
+    | FPInteger (_, id, valueStr) ->
+        {astRef = (ARPattern (id, PPInteger)); offset = String.length valueStr}
+    | FPBool (_, id, true) ->
+      {astRef = (ARPattern (id, PPBool)); offset = String.length "true"}
+    | FPBool (_, id, false) ->
+      {astRef = (ARPattern (id, PPBool)); offset = String.length "false"}
+    | FPString (_, id, _) ->
+        {astRef = (ARPattern (id, PPString SPCloseQuote)); offset = 1 (* end of close quote *)}
+    | FPFloat (_, id, _, frac) ->
+        {astRef = (ARPattern (id, PPFloat FPDecimal)); offset = String.length frac}
+    | FPNull (_, id) ->
+        {astRef = (ARPattern (id, PPNull)); offset = String.length "null"}
+    | FPBlank (_, id) ->
+        (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
+        {astRef = (ARPattern (id, PPBlank)); offset = 3}
+    | (FPOldPattern _) as p ->
+        recover
+          "unhandled pattern in caretTargetForEndOfPattern"
+          ~debug:p
+          {astRef = ARInvalid; offset = 0}
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)

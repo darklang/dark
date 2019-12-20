@@ -481,7 +481,6 @@ type astListPart =
 
 type astMatchPart =
   | MPKeyword
-  | MPBranchPattern of (* index of the branch *) int
   | MPBranchSep of (* index of the branch *) int
 [@@deriving show {with_path = false}]
 
