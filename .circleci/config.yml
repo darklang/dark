@@ -262,6 +262,51 @@ jobs:
       - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
       - run: docker push 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
 
+  build-client:
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v0d-client-{{ checksum "client/package.json" }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}
+            - v0d-client
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
+      - run: scripts/support/compile client/package.json client/src/App.ml client/src/styles/app.scss client__tests/ast_test.ml
+      - assert-clean-worktree
+      - run: scripts/support/shellchecker # run here cause its the fastest
+      - show-large-files-and-directories
+      - save_cache:
+          name: "Save packagejson-specific cache"
+          paths: [ "client/node_modules" ]
+          key: v0d-client-{{ checksum "client/package.json" }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - backend/static/app.css
+            - backend/static/app.js
+            - backend/static/appsupport.js
+            - backend/static/fetcher.js
+            - backend/static/analysiswrapper.js
+      - run:
+          name: Prepare artifacts
+          when: always
+          command: |
+            cp backend/static/etags.json rundir
+            ls -la backend/static > rundir/asset-list.txt
+      - store_artifacts:
+          path: /home/dark/app/rundir
+      - store_test_results:
+          path: artifacts/rundir/test_results
+
+
+
   build-stroller:
     executor: my-executor
     steps:
@@ -390,49 +435,6 @@ jobs:
       - run: apk add --update python py-pip && pip install yq
       - run: pip install yq
       - run: scripts/support/test-honeycomb-config.sh
-
-  build-client:
-    environment:
-      IN_DEV_CONTAINER: true
-    docker:
-      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v0d-client-{{ checksum "client/package.json" }}
-            - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
-            - v0d-client-{{ checksum "client/yarn.lock" }}
-            - v0d-client
-      - run: scripts/support/setup-circleci-environment
-      - run: scripts/support/create-cache-directories
-      - run: scripts/support/compile client/package.json client/src/App.ml client/src/styles/app.scss client__tests/ast_test.ml
-      - assert-clean-worktree
-      - run: scripts/support/shellchecker # run here cause its the fastest
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: [ "client/node_modules" ]
-          key: v0d-client-{{ checksum "client/package.json" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/static/app.css
-            - backend/static/app.js
-            - backend/static/appsupport.js
-            - backend/static/fetcher.js
-            - backend/static/analysiswrapper.js
-      - run:
-          name: Prepare artifacts
-          when: always
-          command: |
-            cp backend/static/etags.json rundir
-            ls -la backend/static > rundir/asset-list.txt
-      - store_artifacts:
-          path: /home/dark/app/rundir
-      - store_test_results:
-          path: artifacts/rundir/test_results
 
 
 
