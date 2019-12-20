@@ -133,16 +133,17 @@ jobs:
       - run: apk add --update bash python3 --update-cache
       - run: pip3 install awscli --upgrade --user
       - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
-      - run:
-          name: Pre-fetch docker container
-          shell: bash
-          command: |
-            if [[ `docker images $TAG -q` == "" ]]
-            then
-              set -x
-              docker pull $TAG
-              docker images
-            fi
+      # This is not working, feels like it should. It's downloading, yet still rebuilding.
+      # - run:
+      #     name: Pre-fetch docker container
+      #     shell: bash
+      #     command: |
+      #       if [[ `docker images $TAG -q` == "" ]]
+      #       then
+      #         set -x
+      #         docker pull $TAG
+      #         docker images
+      #       fi
       - run: docker build -t $TAG .
       - run: docker push $TAG
 
