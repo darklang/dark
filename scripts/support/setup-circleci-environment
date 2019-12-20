@@ -7,4 +7,4 @@ set -euo pipefail
 ENV_FILE="config/circleci"
 echo "Using env: $ENV_FILE"
 
-grep DARK_CONFIG "$ENV_FILE" | sed 's/^/export /' >> /home/dark/.bashrc
+grep DARK_CONFIG "$ENV_FILE" | sed 's/^/export /' >> "${BASH_ENV}"
