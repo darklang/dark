@@ -481,8 +481,18 @@ type astListPart =
 
 type astMatchPart =
   | MPKeyword
-  | MPBranchPattern of (* index of the branch *) int
   | MPBranchSep of (* index of the branch *) int
+[@@deriving show {with_path = false}]
+
+type astPatternPart =
+  | PPVariable
+  | PPConstructor of astConstructorPart
+  | PPInteger
+  | PPBool
+  | PPString of astStringPart
+  | PPFloat of astFloatPart
+  | PPNull
+  | PPBlank
 [@@deriving show {with_path = false}]
 
 (* An astRef represents a reference to a specific part of an AST node,
@@ -523,12 +533,12 @@ type astRef =
   | ARConstructor of id * astConstructorPart
   | ARMatch of id * astMatchPart
   | ARLambda of id * astLambdaPart
+  | ARPattern of id * astPatternPart
   (* for use if something that should never happen happened *)
   | ARInvalid
 [@@deriving show {with_path = false}]
 
 (* | ARFeatureFlag is not yet supported *)
-(* | ARPattern is not yet supported *)
 
 (* A caretTarget represents a distinct caret location within the AST.
    By combining a reference to part of the AST and a caret offset
