@@ -2247,14 +2247,9 @@ let maybeCaretTargetForBeginningOfMatchBranch
       |> List.getAt ~index
       |> Option.map ~f:(fun (pattern, _) ->
              caretTargetForBeginningOfPattern pattern )
-  | None ->
-      recover
-        "id of non-match passed to maybeCaretTargetForBeginningOfMatchBranch"
-        ~debug:matchID
-        (Some {astRef = ARInvalid; offset = 0})
   | _ ->
       recover
-        "maybeCaretTargetForBeginningOfMatchBranch got an id outside of the AST"
+        "maybeCaretTargetForBeginningOfMatchBranch"
         ~debug:matchID
         (Some {astRef = ARInvalid; offset = 0})
 
