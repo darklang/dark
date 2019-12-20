@@ -3834,7 +3834,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
         let fieldID = gid () in
-        (exprToFieldAccess id fieldID ast, RightOne)
+        ( exprToFieldAccess id fieldID ast
+        , AtTarget {astRef = ARFieldAccess (fieldID, FAPFieldname); offset = 0}
+        )
     (* Dont add space to blanks *)
     | ti when FluidToken.isBlank ti && letterStr == " " ->
         (ast, SamePlace)
@@ -3846,9 +3848,12 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
-        (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
+        ( insertLambdaVar ~index:0 id ~name:"" ast
+        , AtTarget {astRef = ARLambda (id, LPVarName 0); offset = 0} )
     | TLambdaVar (id, _, index, _) when letter = ',' ->
-        (insertLambdaVar ~index:(index + 1) id ~name:"" ast, TwoAfterEnd)
+        ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
+        , AtTarget {astRef = ARLambda (id, LPVarName (index + 1)); offset = 0}
+        )
     (* Ignore invalid situations *)
     | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
         (ast, SamePlace)
@@ -3927,11 +3932,16 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         let move = if newLength > offset then RightOne else SamePlace in
         (replaceStringToken ~f ti.token ast, move)
     | TFloatWhole (id, str) ->
-        (replaceFloatWhole (f str) id ast, RightOne)
+        ( replaceFloatWhole (f str) id ast
+        , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
     | TFloatFraction (id, str) ->
-        (replaceFloatFraction (f str) id ast, RightOne)
+        ( replaceFloatFraction (f str) id ast
+        , AtTarget {astRef = ARFloat (id, FPDecimal); offset = offset + 1} )
     | TFloatPoint id ->
-        (insertAtFrontOfFloatFraction letterStr id ast, RightOne)
+        ( insertAtFrontOfFloatFraction letterStr id ast
+        , AtTarget
+            {astRef = ARFloat (id, FPDecimal); offset = String.length letterStr}
+        )
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
     | TPatternFloatFraction (mID, id, str, _) ->
