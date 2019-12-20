@@ -1821,6 +1821,8 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
+    | ARLambda (id, LPKeyword), TLambdaSymbol id'
+    | ARLambda (id, LPArrow), TLambdaArrow id'
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
@@ -1843,6 +1845,8 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
+    | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
+    | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
       when id = id' && idx = idx' ->
         posForTi ti
     (*
@@ -1954,7 +1958,11 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARRecord (_, RPClose), _
     | ARRecord (_, RPFieldname _), _
     | ARRecord (_, RPFieldSep _), _
-    | ARVariable _, _ ->
+    | ARVariable _, _
+    | ARLambda (_, LPKeyword), _
+    | ARLambda (_, LPArrow), _
+    | ARLambda (_, LPVarName _), _
+    | ARLambda (_, LPSeparator _), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -2082,49 +2090,61 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : ast) : caretTarget =
 
 (* caretTargetForBeginningOfExpr returns a caretTarget representing the
  * beginning of the expression in `ast` having the given `id`. *)
-let caretTargetForBeginningOfExpr (id : id) (ast : ast) : caretTarget =
-  let expr = findExpr id ast in
-  match expr with
-  | Some (EInteger (id, _)) ->
-      {astRef = ARInteger id; offset = 0}
-  | Some (EBool (id, _)) ->
-      {astRef = ARBool id; offset = 0}
-  | Some (EString (id, _)) ->
-      {astRef = ARString (id, SPOpenQuote); offset = 0}
-  | Some (EFloat (id, _, _)) ->
-      {astRef = ARFloat (id, FPWhole); offset = 0}
-  | Some (ENull id) ->
-      {astRef = ARNull id; offset = 0}
-  | Some (EBlank id) ->
-      {astRef = ARBlank id; offset = 0}
-  | Some (ELet (id, _, _, _, _)) ->
-      {astRef = ARLet (id, LPKeyword); offset = 0}
-  | Some (EIf (id, _, _, _)) ->
-      {astRef = ARIf (id, IPIfKeyword); offset = 0}
-  | Some (EMatch (id, _, _)) ->
-      {astRef = ARMatch (id, MPKeyword); offset = 0}
-  | Some (EBinOp _)
-  | Some (EFnCall _)
-  | Some (ELambda _)
-  | Some (EFieldAccess _)
-  | Some (EVariable _)
-  | Some (EPartial _)
-  | Some (ERightPartial _)
-  | Some (EList _)
-  | Some (ERecord _)
-  | Some (EPipe _)
-  | Some (EConstructor _)
-  | Some (EPipeTarget _)
-  | Some (EFeatureFlag _)
-  | Some (EOldExpr _) ->
-      recover
-        "unhandled expr in caretTargetForBeginningOfExpr"
-        ~debug:(id, expr)
-        {astRef = ARInvalid; offset = 0}
+let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
+  let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
+    | EInteger (id, _) ->
+        {astRef = ARInteger id; offset = 0}
+    | EBool (id, _) ->
+        {astRef = ARBool id; offset = 0}
+    | EString (id, _) ->
+        {astRef = ARString (id, SPOpenQuote); offset = 0}
+    | EFloat (id, _, _) ->
+        {astRef = ARFloat (id, FPWhole); offset = 0}
+    | ENull id ->
+        {astRef = ARNull id; offset = 0}
+    | EBlank id ->
+        {astRef = ARBlank id; offset = 0}
+    | ELet (id, _, _, _, _) ->
+        {astRef = ARLet (id, LPKeyword); offset = 0}
+    | EIf (id, _, _, _) ->
+        {astRef = ARIf (id, IPIfKeyword); offset = 0}
+    | EMatch (id, _, _) ->
+        {astRef = ARMatch (id, MPKeyword); offset = 0}
+    | EBinOp (_, _, lhsExpr, _, _) ->
+        caretTargetForBeginningOfExpr' lhsExpr
+    | EFnCall (id, _, _, _) ->
+        {astRef = ARFnCall (id, FCPFnName); offset = 0}
+    | ELambda (id, _, _) ->
+        {astRef = ARLambda (id, LPKeyword); offset = 0}
+    | EFieldAccess (_, expr, _, _) ->
+        caretTargetForBeginningOfExpr' expr
+    | EVariable (id, _) ->
+        {astRef = ARVariable id; offset = 0}
+    | EPartial (id, _, _) ->
+        {astRef = ARPartial id; offset = 0}
+    | ERightPartial (id, _, _) ->
+        {astRef = ARRightPartial id; offset = 0}
+    | EList (id, _) ->
+        {astRef = ARList (id, LPOpen); offset = 0}
+    | ERecord (id, _) ->
+        {astRef = ARRecord (id, RPOpen); offset = 0}
+    | EPipe (id, _) ->
+        {astRef = ARPipe (id, PPPipeKeyword 0); offset = 0}
+    | EConstructor (id, _, _, _) ->
+        {astRef = ARConstructor (id, CPName); offset = 0}
+    | (EFeatureFlag _ | EPipeTarget _ | EOldExpr _) as expr ->
+        recover
+          "unhandled expr in caretTargetForBeginningOfExpr"
+          ~debug:(astPartId, expr)
+          {astRef = ARInvalid; offset = 0}
+  in
+  match findExpr astPartId ast with
+  | Some expr ->
+      caretTargetForBeginningOfExpr' expr
   | None ->
       recover
-        "expr not found in caretTargetForBeginningOfExpr"
-        ~debug:(id, expr)
+        "caretTargetForBeginningOfExpr got an id outside of the AST"
+        ~debug:astPartId
         {astRef = ARInvalid; offset = 0}
 
 
@@ -3783,20 +3803,31 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     |> Option.withDefault ~default:[""]
     |> List.map ~f:(fun str -> (gid (), str))
   in
-  let newExpr =
+  let newExpr, newTarget =
     if letter = '"'
-    then EString (newID, "")
+    then
+      ( EString (newID, "")
+      , {astRef = ARString (newID, SPOpenQuote); offset = 1} )
     else if letter = '['
-    then EList (newID, [])
+    then (EList (newID, []), {astRef = ARList (newID, LPOpen); offset = 1})
     else if letter = '{'
-    then ERecord (newID, [])
+    then (ERecord (newID, []), {astRef = ARRecord (newID, RPOpen); offset = 1})
     else if letter = '\\'
-    then ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+    then
+      ( ELambda (newID, lambdaArgs ti, EBlank (gid ()))
+      , (* TODO(JULIAN): if lambdaArgs is a populated list, place caret at the end *)
+        {astRef = ARLambda (newID, LPKeyword); offset = 1} )
     else if letter = ','
-    then EBlank newID (* new separators *)
+    then
+      (EBlank newID (* new separators *), {astRef = ARBlank newID; offset = 0})
     else if isNumber letterStr
-    then EInteger (newID, letterStr |> coerceStringTo63BitInt)
-    else EPartial (newID, letterStr, EBlank (gid ()))
+    then
+      let intStr = letterStr |> coerceStringTo63BitInt in
+      ( EInteger (newID, intStr)
+      , {astRef = ARInteger newID; offset = String.length intStr} )
+    else
+      ( EPartial (newID, letterStr, EBlank (gid ()))
+      , {astRef = ARPartial newID; offset = String.length letterStr} )
   in
   let newAST, newPosition =
     match ti.token with
@@ -3809,12 +3840,10 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (ast, SamePlace)
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
-        (replaceExpr id ~newExpr ast, RightOne)
+        (replaceExpr id ~newExpr ast, AtTarget newTarget)
     (* lists *)
-    | TListOpen id when letter = ',' ->
-        (insertInList ~index:0 id ~newExpr:(newB ()) ast, SamePlace)
     | TListOpen id ->
-        (insertInList ~index:0 id ~newExpr ast, RightOne)
+        (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
         (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
