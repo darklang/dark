@@ -93,6 +93,26 @@ type ast = fluidExpr [@@deriving show]
 
 type state = Types.fluidState
 
+let getStringIndexMaybe ti pos : int option =
+  match ti.token with
+  | TString (_, _) ->
+      Some (pos - ti.startPos - 1)
+  | TStringMLStart (_, _, offset, _) ->
+      Some (pos - ti.startPos + offset - 1)
+  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
+      Some (pos - ti.startPos + offset)
+  | _ ->
+      None
+
+
+let getStringIndex ti pos : int =
+  match getStringIndexMaybe ti pos with
+  | Some i ->
+      i
+  | None ->
+      recover "getting index of non-string" ~debug:(ti.token, pos) 0
+
+
 let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     =
   let fns =
@@ -4323,15 +4343,18 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * POV. *)
     match (key, toTheLeft, toTheRight) with
     (* Entering a string escape *)
-    | K.Backslash, L (TString _, _), R (TString (id, _), ti) when pos != 0 ->
+    | K.Backslash, L (TString _, _), R (TString (id, _), ti)
+      when pos - ti.startPos != 0 ->
         (* I think this is correct but depends on how we 'render' strings - that
          * is, it is correct because we display '"', which bumps pos by 1. *)
+        let offset = getStringIndex ti pos in
         let newAst =
           updateExpr
             ~f:(function
               | EString (_, str) as old_expr ->
                   let new_str =
-                    String.splitAt ~index:(pos - 1) str
+                    String.splitAt ~index:offset str
+                    |> (fun (lhs, rhs) -> (lhs, rhs))
                     |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
                   in
                   EPartial (id, new_str, old_expr)
@@ -4340,7 +4363,11 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             id
             ast
         in
-        (newAst, moveOneRight (ti.startPos + pos - 1) s)
+        let newState =
+          let offset = offset + 1 in
+          moveToAstRef s newAst ~offset (ARPartial id)
+        in
+        (newAst, newState)
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
@@ -4828,7 +4855,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
-    | L (TPartial (id, _), _), _ ->
+    | L (TPartial (id, _), ti), _ ->
+        (* Handle moving from a partial back to an EString *)
         let valid_escape_chars_alist =
           (* We use this alist for two things: knowing what chars are permitted
            * after a \, and knowing what to replace them with as we go from a
@@ -4867,22 +4895,24 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           |> List.filter ~f:(fun c ->
                  not (List.member ~value:c valid_escape_chars) )
         in
+        let origExpr = findExpr id newAST in
+        let processStr (str : string) : string =
+          valid_escape_chars_alist
+          |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
+                 (* workaround for how "\\" gets escaped *)
+                 let from = if from == "\\" then "\\\\" else from in
+                 Util.Regex.replace
+                   ~re:(Util.Regex.regex ("\\\\" ^ from))
+                   ~repl
+                   acc )
+        in
         let newAST =
           (* findExpr, because we may have updated the partial above with an
            * insert or delete *)
           updateExpr
             ~f:(function
               | EPartial (_, str, EString _) as origExpr ->
-                  let processedStr =
-                    valid_escape_chars_alist
-                    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
-                           (* workaround for how "\\" gets escaped *)
-                           let from = if from == "\\" then "\\\\" else from in
-                           Util.Regex.replace
-                             ~re:(Util.Regex.regex ("\\\\" ^ from))
-                             ~repl
-                             acc )
-                  in
+                  let processedStr = processStr str in
                   let invalid_escapes = invalid_escapes_in_string str in
                   if not (List.isEmpty invalid_escapes)
                   then origExpr (* no-op *)
@@ -4891,6 +4921,43 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
                   origExpr (* no-op *))
             id
             newAST
+        in
+        let newState =
+          ( match origExpr with
+          | Some (EPartial (_, str, EString _)) ->
+              Some str
+          | _ ->
+              None (* no-op *) )
+          |> Option.map ~f:(fun oldStr ->
+                 let oldOffset = pos - ti.startPos in
+                 (* We might have shortened the string when we processed its
+                  * escapes - but only the ones to the left of the cursor would
+                  * move the cursor *)
+                 let oldlhs, _ = String.splitAt ~index:oldOffset oldStr in
+                 let newlhs = processStr oldlhs in
+                 let newOffset =
+                   oldOffset + (String.length oldlhs - String.length newlhs)
+                 in
+                 let astRef =
+                   match findExpr id newAST with
+                   | Some (EString _) ->
+                       ARString (id, SPOpenQuote)
+                   | Some (EPartial _) ->
+                       ARPartial id
+                   | Some ast ->
+                       reportError "need an ASTRef match for " (ast |> show_ast)
+                       (* TODO this is a failure case, fail better here *) ;
+                       ARPartial id
+                   | _ ->
+                       reportError "no expr found for ID" id
+                       (* TODO this is a failure case, fail better here *) ;
+                       ARPartial id
+                 in
+                 moveToAstRef s newAST ~offset:(newOffset + 1) astRef )
+          (* If origExpr wasn't an EPartial (_, _, Estring _), then we didn't
+           * change the AST in the updateExpr call, so leave the newState as it
+           * was *)
+          |> Option.withDefault ~default:newState
         in
         (newAST, newState)
     | _ ->
@@ -5601,18 +5668,6 @@ let clipboardContentsToString ~state (data : clipboardContents) : string =
       text
   | `None ->
       ""
-
-
-let getStringIndex ti pos : int =
-  match ti.token with
-  | TString (_, _) ->
-      pos - ti.startPos - 1
-  | TStringMLStart (_, _, offset, _) ->
-      pos - ti.startPos + offset - 1
-  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
-      pos - ti.startPos + offset
-  | _ ->
-      recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
 let pasteOverSelection ~state ~ast data : ast * fluidState =
