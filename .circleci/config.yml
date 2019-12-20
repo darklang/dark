@@ -279,7 +279,7 @@ jobs:
             - v0d-client
       - run: scripts/support/setup-circleci-environment
       - run: scripts/support/create-cache-directories
-      - run: scripts/support/compile client/package.json client/src/App.ml client/src/styles/app.scss client__tests/ast_test.ml
+      - run: scripts/support/compile --test client/package.json client/src/styles/app.scss 
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
@@ -319,7 +319,7 @@ jobs:
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
-      - run: scripts/support/compile backend/esy.json
+      - run: scripts/support/compile --test backend/esy.json
       - assert-clean-worktree
       # Doesn't need to be run post-build, but takes <1s to run
       - run: scripts/ocaml-find-unused backend/test
