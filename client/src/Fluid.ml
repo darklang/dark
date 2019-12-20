@@ -2268,11 +2268,11 @@ let maybeCaretTargetForBeginningOfMatchBranch
  *)
 let caretTargetForBeginningOfMatchBranch
     (matchID : id) (index : int) (ast : ast) : caretTarget =
-  recoverOpt
-    "caretTargetForBeginningOfMatchBranch got an index outside of the match"
-    ~debug:(matchID, index)
-    (maybeCaretTargetForBeginningOfMatchBranch matchID index ast)
-    ~default:{astRef = ARInvalid; offset = 0}
+  maybeCaretTargetForBeginningOfMatchBranch matchID index ast
+  |> recoverOpt
+       "caretTargetForBeginningOfMatchBranch got an index outside of the match"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
 
 
 (* ---------------- *)
