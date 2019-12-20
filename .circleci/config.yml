@@ -306,7 +306,6 @@ jobs:
           command: rm -Rf /home/dark/.esy/3/b
       - show-large-files-and-directories
       - save_cache:
-          name: "Save daily backend cache"
           paths:
             - backend/_build
             - backend/_esy
