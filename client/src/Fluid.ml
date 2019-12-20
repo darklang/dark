@@ -2164,60 +2164,120 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         ~debug:astPartId
         {astRef = ARInvalid; offset = 0}
 
+
+(* caretTargetForBeginningOfPattern returns a caretTarget representing caret
+   placement at the very start of the expression in `pattern` *)
 let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
   match pattern with
-    | FPVariable (_, id, _) ->
-        {astRef = (ARPattern (id, PPVariable)); offset = 0}
-    | FPConstructor (_, id, _, _) ->
-        {astRef = (ARPattern (id, PPConstructor CPName)); offset = 0}
-    | FPInteger (_, id, _) ->
-        {astRef = (ARPattern (id, PPInteger)); offset = 0}
-    | FPBool (_, id, _) ->
-        {astRef = (ARPattern (id, PPBool)); offset = 0}
-    | FPString (_, id, _) ->
-        {astRef = (ARPattern (id, PPString SPOpenQuote)); offset = 0}
-    | FPFloat (_, id, _, _) ->
-        {astRef = (ARPattern (id, PPFloat FPWhole)); offset = 0}
-    | FPNull (_, id) ->
-        {astRef = (ARPattern (id, PPNull)); offset = 0}
-    | FPBlank (_, id) ->
-        {astRef = (ARPattern (id, PPBlank)); offset = 0}
-    | (FPOldPattern _) as p ->
-        recover
-          "unhandled pattern in caretTargetForBeginningOfPattern"
-          ~debug:p
-          {astRef = ARInvalid; offset = 0}
+  | FPVariable (_, id, _) ->
+      {astRef = ARPattern (id, PPVariable); offset = 0}
+  | FPConstructor (_, id, _, _) ->
+      {astRef = ARPattern (id, PPConstructor CPName); offset = 0}
+  | FPInteger (_, id, _) ->
+      {astRef = ARPattern (id, PPInteger); offset = 0}
+  | FPBool (_, id, _) ->
+      {astRef = ARPattern (id, PPBool); offset = 0}
+  | FPString (_, id, _) ->
+      {astRef = ARPattern (id, PPString SPOpenQuote); offset = 0}
+  | FPFloat (_, id, _, _) ->
+      {astRef = ARPattern (id, PPFloat FPWhole); offset = 0}
+  | FPNull (_, id) ->
+      {astRef = ARPattern (id, PPNull); offset = 0}
+  | FPBlank (_, id) ->
+      {astRef = ARPattern (id, PPBlank); offset = 0}
+  | FPOldPattern _ as p ->
+      recover
+        "unhandled pattern in caretTargetForBeginningOfPattern"
+        ~debug:p
+        {astRef = ARInvalid; offset = 0}
 
+
+(* caretTargetForEndOfPattern returns a caretTarget representing caret
+ * placement at the very end of the expression in `pattern`.
+ *
+ * The concept of "very end" is related to an understanding of the
+ * tokenization of the ast, even though this function doesn't explicitly depend
+ * on any tokenization functions. *)
 let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
   match pattern with
-    | FPVariable (_, id, varName) ->
-        {astRef = (ARPattern (id, PPVariable)); offset = (String.length varName)}
-    | FPConstructor (_, id, name, containedPatterns) ->
+  | FPVariable (_, id, varName) ->
+      {astRef = ARPattern (id, PPVariable); offset = String.length varName}
+  | FPConstructor (_, id, name, containedPatterns) ->
     ( match List.last containedPatterns with
-      | Some lastPattern ->
-          (caretTargetForEndOfPattern lastPattern)
-      | None ->
-          ({astRef = (ARPattern (id, PPConstructor CPName)); offset = String.length name}))
-    | FPInteger (_, id, valueStr) ->
-        {astRef = (ARPattern (id, PPInteger)); offset = String.length valueStr}
-    | FPBool (_, id, true) ->
-      {astRef = (ARPattern (id, PPBool)); offset = String.length "true"}
-    | FPBool (_, id, false) ->
-      {astRef = (ARPattern (id, PPBool)); offset = String.length "false"}
-    | FPString (_, id, _) ->
-        {astRef = (ARPattern (id, PPString SPCloseQuote)); offset = 1 (* end of close quote *)}
-    | FPFloat (_, id, _, frac) ->
-        {astRef = (ARPattern (id, PPFloat FPDecimal)); offset = String.length frac}
-    | FPNull (_, id) ->
-        {astRef = (ARPattern (id, PPNull)); offset = String.length "null"}
-    | FPBlank (_, id) ->
-        (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
-        {astRef = (ARPattern (id, PPBlank)); offset = 3}
-    | (FPOldPattern _) as p ->
-        recover
-          "unhandled pattern in caretTargetForEndOfPattern"
-          ~debug:p
-          {astRef = ARInvalid; offset = 0}
+    | Some lastPattern ->
+        caretTargetForEndOfPattern lastPattern
+    | None ->
+        { astRef = ARPattern (id, PPConstructor CPName)
+        ; offset = String.length name } )
+  | FPInteger (_, id, valueStr) ->
+      {astRef = ARPattern (id, PPInteger); offset = String.length valueStr}
+  | FPBool (_, id, true) ->
+      {astRef = ARPattern (id, PPBool); offset = String.length "true"}
+  | FPBool (_, id, false) ->
+      {astRef = ARPattern (id, PPBool); offset = String.length "false"}
+  | FPString (_, id, _) ->
+      { astRef = ARPattern (id, PPString SPCloseQuote)
+      ; offset = 1 (* end of close quote *) }
+  | FPFloat (_, id, _, frac) ->
+      {astRef = ARPattern (id, PPFloat FPDecimal); offset = String.length frac}
+  | FPNull (_, id) ->
+      {astRef = ARPattern (id, PPNull); offset = String.length "null"}
+  | FPBlank (_, id) ->
+      (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
+      {astRef = ARPattern (id, PPBlank); offset = 3}
+  | FPOldPattern _ as p ->
+      recover
+        "unhandled pattern in caretTargetForEndOfPattern"
+        ~debug:p
+        {astRef = ARInvalid; offset = 0}
+
+
+(* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
+ * placement at the very start of the match branch identified by `matchID` and `index`
+ * within the `ast`, or None if no match branch with the passed index exists.
+ * It is an error to pass an id of a non-match.
+ *
+ * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ *)
+let maybeCaretTargetForBeginningOfMatchBranch
+    (matchID : id) (index : int) (ast : ast) : caretTarget option =
+  match findExpr matchID ast with
+  | Some (EMatch (_, _, branches)) ->
+      branches
+      |> List.getAt ~index
+      |> Option.map ~f:(fun (pattern, _) ->
+             caretTargetForBeginningOfPattern pattern )
+  | None ->
+      recover
+        "id of non-match passed to maybeCaretTargetForBeginningOfMatchBranch"
+        ~debug:matchID
+        (Some {astRef = ARInvalid; offset = 0})
+  | _ ->
+      recover
+        "maybeCaretTargetForBeginningOfMatchBranch got an id outside of the AST"
+        ~debug:matchID
+        (Some {astRef = ARInvalid; offset = 0})
+
+
+(* maybeCaretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
+ * placement at the very start of the match branch identified by `matchID` and `index`
+ * within the `ast`.
+ * It is an error to pass an id of a non-match or an index outside the match.
+ *
+ * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ *)
+let caretTargetForBeginningOfMatchBranch
+    (matchID : id) (index : int) (ast : ast) : caretTarget =
+  match maybeCaretTargetForBeginningOfMatchBranch matchID index ast with
+  | Some ct ->
+      ct
+  | None ->
+      recover
+        "caretTargetForBeginningOfMatchBranch got an index outside of the match"
+        ~debug:(matchID, index)
+        {astRef = ARInvalid; offset = 0}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -4516,9 +4576,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           (ast, s)
       | Some (EMatch _) ->
           let ast, s = addMatchPatternAt parentId idx ast s in
-          let s =
-            moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
-          in
+          let target = caretTargetForBeginningOfMatchBranch parentId idx ast in
+          let s = moveToCaretTarget s ast target in
           (ast, s)
       | Some (EFnCall _) ->
           (* Pressing enter at the end of an FnCall's expression should just
@@ -4582,8 +4641,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             then addLetAboveRightToken ()
             else
               let ast, s = addMatchPatternAt parentId idx ast s in
-              let ref = ARMatch (parentId, MPBranchPattern (idx + 1)) in
-              let s = moveToAstRef s ast ref in
+              let target =
+                caretTargetForBeginningOfMatchBranch parentId (idx + 1) ast
+              in
+              let s = moveToCaretTarget s ast target in
               (ast, s)
         | Some (EPipe (_, exprs)) ->
             (* exprs[0] is the initial value of the pipeline, but the indexing
