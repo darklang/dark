@@ -196,19 +196,7 @@ def main():
 
     return success
 
-  def ensure_present(directory):
-    run(f"sudo mkdir -p {directory}")
-    run(f"sudo chown dark:dark {directory}")
-
-  ensure_present("backend/_build")
-  ensure_present("backend/_esy")
-  ensure_present("backend/node_modules")
-  ensure_present("/home/dark/.esy")
-  ensure_present("client/node_modules")
-  ensure_present("client/lib")
-  ensure_present("/home/dark/.cargo")
-  ensure_present("stroller/target")
-  ensure_present("queue-scheduler/target")
+  run_or_fail("scripts/support/create-cache-directories")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   run_or_fail("scripts/support/create-app-directories")
