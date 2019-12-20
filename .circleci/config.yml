@@ -57,25 +57,6 @@ commands:
           command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
 
   ##########################
-  # Artifacts
-  ##########################
-  extract-and-save-artifacts:
-    steps:
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-            time docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
-            ls -la backend/static > artifacts/asset-list.txt
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
-
-  ##########################
   # Rust
   ##########################
   rust-setup:
@@ -356,24 +337,17 @@ jobs:
 
 
   integration-tests:
-    executor: my-executor
+    executor: in-container
     parallelism: 4
     steps:
       - checkout
-      - initialize
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+            - v0d-client-{{ checksum "client/yarn.lock" }}
+            - v0d-client
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-
-      - wait-for-server
       - run:
           name: Run integration tests
           shell: bash
@@ -386,10 +360,13 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
-            scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+            integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
+      - store_artifacts:
+          path: rundir
+      - store_test_results:
+          path: rundir/test_results
 
-      - extract-and-save-artifacts
 
   rust-integration-tests:
     executor: my-executor
