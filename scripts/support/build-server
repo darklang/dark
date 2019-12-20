@@ -112,6 +112,7 @@ def process_watchers():
           if f != "":
             try:
               f, _ = f.strip().split(" ")
+              f = f.replace(os.environ["HOST_PWD"], "/home/dark/app")
               files.add(f)
             except:
               print("exception splitting: " + f)
