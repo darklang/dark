@@ -211,6 +211,8 @@ jobs:
 
   build-container:
     executor: my-executor
+    environment:
+      TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
       - checkout
       - prep-container-creation
@@ -221,15 +223,14 @@ jobs:
           name: Pre-fetch docker container
           shell: bash
           command: |
-            if [[ `docker images dark-ci -q` == "" ]]
+            if [[ `docker images $TAG -q` == "" ]]
             then
               set -x
-              docker pull 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+              docker pull $TAG
               docker images
             fi
-      - run: docker build -t dark-ci .
-      - run: docker tag dark-ci:latest 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
-      - run: docker push 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+      - run: docker build -t $TAG .
+      - run: docker push $TAG
 
   build-client:
     executor: in-container
