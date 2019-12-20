@@ -403,7 +403,8 @@ jobs:
             - v0d-client-{{ checksum "client/yarn.lock" }}
             - v0d-client
       - run: scripts/support/setup-circleci-environment
-      - run: scripts/support/build-server --compile-client --test
+      - run: scripts/support/create-cache-directories
+      - run: scripts/support/compile client/package.json client/src/App.ml client/src/styles/app.scss client__tests/ast_test.ml
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
       - show-large-files-and-directories
