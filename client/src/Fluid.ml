@@ -1817,6 +1817,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARMatch (id, MPKeyword), TMatchKeyword id'
     | ARNull id, TNullToken id'
     | ARPartial id, TPartial (id', _)
+    | ARPartial id, TFieldPartial (id', _, _, _)
     | ARRightPartial id, TRightPartial (id', _)
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
@@ -2307,9 +2308,14 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
           recover "not a field in replaceFieldName" ~debug:e e )
 
 
-let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
+let exprToFieldAccessWithPartialId
+    (id : id) ~(partialID : id) ~(fieldID : id) (ast : ast) : ast =
   updateExpr id ast ~f:(fun e ->
-      EPartial (gid (), "", EFieldAccess (fieldID, e, gid (), "")) )
+      EPartial (partialID, "", EFieldAccess (fieldID, e, gid (), "")) )
+
+
+let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
+  exprToFieldAccessWithPartialId id ~partialID:(gid ()) ~fieldID ast
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -3837,10 +3843,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
-        let fieldID = gid () in
-        ( exprToFieldAccess id fieldID ast
-        , AtTarget {astRef = ARFieldAccess (fieldID, FAPFieldname); offset = 0}
-        )
+        let partialID = gid () in
+        ( exprToFieldAccessWithPartialId id ~partialID ~fieldID:(gid ()) ast
+        , AtTarget {astRef = ARPartial partialID; offset = 0} )
     (* Dont add space to blanks *)
     | ti when FluidToken.isBlank ti && letterStr == " " ->
         (ast, SamePlace)
