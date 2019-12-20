@@ -392,6 +392,8 @@ jobs:
       - run: scripts/support/test-honeycomb-config.sh
 
   build-client:
+    environment:
+      IN_DEV_CONTAINER: true
     docker:
       - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
