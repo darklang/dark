@@ -369,19 +369,15 @@ jobs:
 
 
   rust-integration-tests:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run-background-container
-      - wait-for-server
       - run:
           name: Run queue-scheduler tests
-          command: scripts/run-in-docker scripts/run-rust-tests queue-scheduler
+          command: scripts/run-rust-tests queue-scheduler
       - assert-clean-worktree
 
 
