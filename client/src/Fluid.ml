@@ -1824,6 +1824,16 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARVariable id, TVariable (id', _)
     | ARLambda (id, LPKeyword), TLambdaSymbol id'
     | ARLambda (id, LPArrow), TLambdaArrow id'
+    | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
+    | ( ARPattern (id, PPConstructor CPName)
+      , TPatternConstructorName (_, id', _, _) )
+    | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
+    | ( ARPattern (id, PPBool)
+      , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
+    | ARPattern (id, PPFloat FPDecimal), TPatternFloatFraction (_, id', _, _)
+    | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
+    | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
@@ -1853,11 +1863,17 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     (*
     * Single-line Strings
     *)
-    | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
+    | ARString (id, SPOpenQuote), TString (id', _)
+    | ARPattern (id, PPString SPOpenQuote), TPatternString (_, id', _, _)
+      when id = id' ->
         posForTi ti
-    | ARString (id, SPText), TString (id', _) when id = id' ->
+    | ARString (id, SPText), TString (id', _)
+    | ARPattern (id, PPString SPText), TPatternString (_, id', _, _)
+      when id = id' ->
         clampedPosForTi ti (ct.offset + 1)
-    | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
+    | ARString (id, SPCloseQuote), TString (id', str)
+    | ARPattern (id, PPString SPCloseQuote), TPatternString (_, id', str, _)
+      when id = id' ->
         clampedPosForTi ti (ct.offset + String.length str + 1)
     (* 
     * Multi-line Strings
@@ -1963,7 +1979,18 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARLambda (_, LPKeyword), _
     | ARLambda (_, LPArrow), _
     | ARLambda (_, LPVarName _), _
-    | ARLambda (_, LPSeparator _), _ ->
+    | ARLambda (_, LPSeparator _), _
+    | ARPattern (_, PPVariable), _
+    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPFloat FPDecimal), _
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPString SPCloseQuote), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
