@@ -280,7 +280,7 @@ jobs:
             cp backend/static/etags.json rundir
             ls -la backend/static > rundir/asset-list.txt
       - store_artifacts:
-          path: /home/dark/app/rundir
+          path: rundir
       - store_test_results:
           path: rundir/test_results
 
