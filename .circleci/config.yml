@@ -346,7 +346,7 @@ jobs:
       - store_artifacts:
           path: rundir
       - store_test_results:
-          path: artifacts/rundir/test_results
+          path: rundir/test_results
 
 
   build-stroller:
