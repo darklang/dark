@@ -305,36 +305,6 @@ jobs:
       - store_test_results:
           path: artifacts/rundir/test_results
 
-
-
-  build-stroller:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - rust-setup: { project: "stroller" }
-      - copy-into-container
-      - run: scripts/builder --compile-stroller --test
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
-      - assert-clean-worktree
-      - rust-finish: { project: "stroller" }
-
-  build-queue-scheduler:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
-      - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler" }
-
   build-backend:
     executor: my-executor
     steps:
@@ -413,6 +383,37 @@ jobs:
           path: artifacts
       - store_test_results:
           path: artifacts/rundir/test_results
+
+
+
+
+  build-stroller:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - rust-setup: { project: "stroller" }
+      - copy-into-container
+      - run: scripts/builder --compile-stroller --test
+      - run-background-container
+      - wait-for-container
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
+      - assert-clean-worktree
+      - rust-finish: { project: "stroller" }
+
+  build-queue-scheduler:
+    executor: my-executor
+    steps:
+      - checkout
+      - initialize
+      - rust-setup: { project: "queue-scheduler" }
+      - copy-into-container
+      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
+      - run-background-container
+      - wait-for-container
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
+      - assert-clean-worktree
+      - rust-finish: { project: "queue-scheduler" }
 
   build-postgres-honeytail:
     executor: my-executor
