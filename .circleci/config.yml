@@ -233,13 +233,13 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - restore_cache:
           keys:
             - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
             - v0d-client-{{ checksum "client/yarn.lock" }}
             - v0d-client
-      - run: scripts/support/setup-circleci-environment
-      - run: scripts/support/create-cache-directories
       - run: scripts/support/compile --test client/package.json client/src/styles/app.scss 
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
@@ -272,6 +272,8 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - restore_cache:
           keys:
             - v0d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
@@ -314,6 +316,8 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - rust-setup: { project: "stroller" }
       - run: scripts/support/compile stroller/Cargo.toml --test
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
@@ -324,6 +328,8 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - rust-setup: { project: "queue-scheduler" }
       - run: scripts/support/compile queue-scheduler/Cargo.toml --test
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
@@ -352,6 +358,8 @@ jobs:
     parallelism: 4
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
@@ -383,6 +391,8 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: scripts/support/setup-circleci-environment
+      - run: scripts/support/create-cache-directories
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - rust-setup: { project: "queue-scheduler" }
