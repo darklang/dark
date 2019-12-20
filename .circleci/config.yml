@@ -402,6 +402,7 @@ jobs:
             - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
             - v0d-client-{{ checksum "client/yarn.lock" }}
             - v0d-client
+      - run: scripts/support/setup-circleci-environment
       - run: scripts/support/build-server --compile-client --test
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
