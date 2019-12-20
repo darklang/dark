@@ -271,7 +271,6 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v0d-client-{{ checksum "client/package.json" }}
             - v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
             - v0d-client-{{ checksum "client/yarn.lock" }}
             - v0d-client
@@ -284,7 +283,7 @@ jobs:
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
-          key: v0d-client-{{ checksum "client/package.json" }}
+          key: v0d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
