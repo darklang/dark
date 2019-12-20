@@ -197,10 +197,10 @@ def main():
 
     return success
 
-  run_or_fail("scripts/support/create-cache-directories")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   run_or_fail("scripts/support/create-app-directories")
+  run_or_fail("scripts/support/create-cache-directories")
   run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
   if compile:
     if watch or serve:
