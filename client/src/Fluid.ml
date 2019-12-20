@@ -4925,7 +4925,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
         let newState =
           ( match origExpr with
           | Some (EPartial (_, str, EString _)) ->
-              Some str
+              let invalid_escapes = invalid_escapes_in_string str in
+              if not (List.isEmpty invalid_escapes)
+              then None (* no-op *)
+              else Some str
           | _ ->
               None (* no-op *) )
           |> Option.map ~f:(fun oldStr ->
