@@ -315,9 +315,12 @@ jobs:
     executor: in-container
     steps:
       - checkout
+      - run: env
       - run: scripts/support/setup-circleci-environment
+      - run: env
       - run: scripts/support/create-cache-directories
       - rust-setup: { project: "stroller" }
+      - run: env
       - run: scripts/support/compile stroller/Cargo.toml --test
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
