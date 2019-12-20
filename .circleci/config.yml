@@ -4,6 +4,7 @@ executors:
     docker:
       - image: docker:stable-git
   in-container:
+    working_directory: ~/app
     environment:
       IN_DEV_CONTAINER: true
     docker:
