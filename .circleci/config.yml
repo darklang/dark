@@ -47,8 +47,7 @@ commands:
   ##########################
   rust-setup:
     parameters:
-      project:
-        type: string
+      project: { type: string }
     steps:
       - setup-app
       - restore_cache:
@@ -60,8 +59,7 @@ commands:
 
   rust-finish:
     parameters:
-      project:
-        type: string
+      project: { type: string }
     steps:
       - run:
           name: Reduce caches
@@ -100,23 +98,13 @@ commands:
   ##########################
   prep-container-creation:
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker: { docker_layer_caching: true }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
       - run:
           name: Setup docker-env for debugging
-          command: |
-            env \
-              | grep 'DOCKER\|NO_PROXY' \
-              | sed 's/^/export /' \
-              > /root/docker-env
-
-      - run:
-          name: Install outer container utilities
-          # coreutils for gnu date
-          command: apk add --update bash coreutils jq
+          command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
 
   ##########################
@@ -142,7 +130,7 @@ jobs:
     steps:
       - checkout
       - prep-container-creation
-      - run: apk add python3 --update-cache 
+      - run: apk add --update bash python3 --update-cache
       - run: pip3 install awscli --upgrade --user
       - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
       - run:
@@ -185,16 +173,9 @@ jobs:
             - backend/static/appsupport.js
             - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
-      - run:
-          name: Prepare artifacts
-          when: always
-          command: |
-            cp backend/static/etags.json rundir
-            ls -la backend/static > rundir/asset-list.txt
-      - store_artifacts:
-          path: rundir
-      - store_test_results:
-          path: rundir/test_results
+      - store_artifacts: { path: rundir }
+      - store_artifacts: { path: backend/static/etags.json }
+      - store_test_results: { path: rundir/test_results }
 
   build-backend:
     executor: in-container
@@ -232,10 +213,8 @@ jobs:
             - backend/_build/default/bin/queue_worker.exe
             - backend/_build/default/bin/cron_checker.exe
             - backend/static/analysis.js
-      - store_artifacts:
-          path: rundir
-      - store_test_results:
-          path: rundir/test_results
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
 
 
   build-stroller:
@@ -243,10 +222,8 @@ jobs:
     steps:
       - checkout
       - rust-setup: { project: "stroller" }
-      - run: env
       - run: scripts/support/compile stroller/Cargo.toml --test
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - prep-container-creation
       - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
       - assert-clean-worktree
       - rust-finish: { project: "stroller" }
@@ -258,8 +235,7 @@ jobs:
       - rust-setup: { project: "queue-scheduler" }
       # tests are run in rust-integration-tests
       - run: scripts/support/compile queue-scheduler/Cargo.toml
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - prep-container-creation
       - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
       - assert-clean-worktree
       - rust-finish: { project: "queue-scheduler" }
@@ -276,10 +252,8 @@ jobs:
     steps:
       - checkout
       - prep-container-creation
-      - run: apk add --update python py-pip && pip install yq
-      - run:
-          shell: bash
-          command: scripts/support/test-honeycomb-config.sh
+      - run: apk add --update bash jq python py-pip && pip install yq
+      - run: bash -c scripts/support/test-honeycomb-config.sh
 
   integration-tests:
     executor: in-container
@@ -296,7 +270,6 @@ jobs:
       - show-large-files-and-directories
       - run:
           name: Run integration tests
-          shell: bash
           command: |
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
@@ -308,10 +281,8 @@ jobs:
             PATTERN=${PATTERN%?}
             integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
-      - store_artifacts:
-          path: rundir
-      - store_test_results:
-          path: rundir/test_results
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
 
 
   rust-integration-tests:
@@ -335,8 +306,7 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker: { docker_layer_caching: true }
       - run: scripts/gcp-build-containers
       - auth-with-gcp
       - run: scripts/push-assets-to-cdn
