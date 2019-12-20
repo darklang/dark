@@ -23,31 +23,6 @@ commands:
             du -ht 50M
 
   ##########################
-  # Getting into the remote container
-  ##########################
-  copy-into-container:
-    steps:
-      - show-large-files-and-directories
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            time docker cp . vols:/home/dark/app
-      - set-ownership:
-          path: "/home/dark/app"
-
-  set-ownership:
-    parameters:
-      path:
-        type: string
-    steps:
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Set the ownership of copied files
-          command: |
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark << parameters.path >>"
-
-  ##########################
   # Check the worktree
   ##########################
   assert-clean-worktree:
@@ -123,17 +98,6 @@ commands:
   ##########################
   # Initializing the containers
   ##########################
-
-  setup-cache-names:
-    steps:
-      - run:
-          name: "Setup cache names"
-          command: |
-            date +"%F" > rundir/today-timestamp
-            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
-            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
-            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
-
   prep-container-creation:
     steps:
       - setup_remote_docker:
@@ -154,69 +118,17 @@ commands:
           # coreutils for gnu date
           command: apk add --update bash coreutils jq
 
-  initialize:
-    steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-
-      # Save the docker env: type .docker-env when sshing in, then you can
-      # use ./scripts/run-in-docker
-      - run: |
-          env \
-          | grep 'DOCKER\|NO_PROXY' \
-          | sed 's/^/export /' \
-          > /root/docker-env
-
-      - run:
-          name: Prepare dev-container volume (vols)
-          command: |
-            # We list all the directories because volume creation has to be
-            # done on creation afaict.
-            docker create -v /home/dark/app -v /home/dark/.esy -v /home/dark/.cargo -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
-
-      - run:
-          name: Install outer container utilities
-          # coreutils for gnu date
-          command: |
-            apk add --update bash coreutils jq
-      - setup-cache-names
-
 
   ##########################
   # misc
   ##########################
-  run-background-container:
-    steps:
-      - run:
-          name: Build container if necessary
-          command: scripts/builder
-      - run:
-          name: Run background container
-          command: scripts/builder --ci-serve
-          background: true
-  wait-for-container:
-    steps:
-      - run:
-          name: "Wait for container"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 10m scripts/wait-until-container-ready
-  wait-for-server:
-    steps:
-      - wait-for-container
-      - run:
-          name: "Wait for server"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 10m scripts/wait-until-server-ready
   auth-with-gcp:
     steps:
       - run:
           name: Auth with GCP
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            docker cp gcloud-service-key.json dark-dev:/home/dark/app/gcloud-service-key.json
-            scripts/run-in-docker gcloud auth activate-service-account --key-file /home/dark/app/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file gcloud-service-key.json
 
 ##########################
 # Actual workflow
@@ -417,21 +329,18 @@ jobs:
 
 
   push-to-gcp:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: scripts/gcp-build-containers
       - auth-with-gcp
-      - run: scripts/run-in-docker scripts/push-assets-to-cdn
-      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
+      - run: scripts/push-assets-to-cdn
+      - run: scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
       - run:
           name: Save image IDs
@@ -451,18 +360,15 @@ jobs:
 
 
   deploy:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      - wait-for-container
       - auth-with-gcp
       - run: |
-          scripts/run-in-docker scripts/gke-deploy       \
+          scripts/gke-deploy       \
             --server-image-id=`cat gcr-image-ids/server` \
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
