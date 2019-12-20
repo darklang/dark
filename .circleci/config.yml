@@ -434,16 +434,18 @@ jobs:
       - run: scripts/run-in-docker scripts/push-assets-to-cdn
       - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
-      - run: |
-          set -x
-          mkdir gcr-image-ids
-          time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
-          time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+      - run:
+          name: Save image IDs
+          command: |
+            set -x
+            mkdir gcr-image-ids
+            time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
+            time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
           paths: [ gcr-image-ids ]
