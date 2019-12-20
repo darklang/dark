@@ -41,6 +41,7 @@ commands:
       - run: env
       - run: scripts/support/create-app-directories
       - run: scripts/support/create-cache-directories
+      - run: scripts/support/start-background-services dnsmasq postgresql
 
   ##########################
   # Rust
