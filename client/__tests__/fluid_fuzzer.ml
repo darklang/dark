@@ -46,7 +46,7 @@ let pointerToText p : string =
       "not valid here"
 
 
-let debugAST (length : int) (msg : string) (e : fluidExpr) : unit =
+let debugAST (length : int) (msg : string) (e : Expression.t) : unit =
   if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
 
 
@@ -278,17 +278,18 @@ and generateExpr () =
 module FuzzTest = struct
   type t =
     { name : string
-    ; fn : fluidExpr -> fluidExpr * fluidState
-    ; check : testcase:fluidExpr -> newAST:fluidExpr -> fluidState -> bool }
+    ; fn : Expression.t -> Expression.t * fluidState
+    ; check :
+        testcase:Expression.t -> newAST:Expression.t -> fluidState -> bool }
 end
 
 (* ------------------ *)
 (* Test case reduction *)
 (* ------------------ *)
 
-let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
+let rec unwrap (id : id) (expr : Expression.t) : Expression.t =
   let f = unwrap id in
-  let childOr (exprs : fluidExpr list) =
+  let childOr (exprs : Expression.t list) =
     List.find exprs ~f:(fun e -> Expression.id e = id)
   in
   let newExpr =
@@ -325,10 +326,10 @@ let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
         None
   in
   let newExpr = Option.withDefault ~default:expr newExpr in
-  recurse ~f newExpr
+  Expression.walk ~f newExpr
 
 
-let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
+let rec blankVarNames (id : id) (expr : Expression.t) : Expression.t =
   let f = blankVarNames id in
   let fStr strid str = if strid = id then "" else str in
   let newExpr =
@@ -353,10 +354,10 @@ let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
     | _ ->
         expr
   in
-  recurse ~f newExpr
+  Expression.walk ~f newExpr
 
 
-let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
+let rec remove (id : id) (expr : Expression.t) : Expression.t =
   let r e = remove id e in
   let f e = if Expression.id e = id then EBlank id else remove id e in
   let removeFromList exprs =
@@ -421,10 +422,10 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
       | _ ->
           expr
     in
-    recurse ~f newExpr
+    Expression.walk ~f newExpr
 
 
-let reduce (test : FuzzTest.t) (ast : fluidExpr) =
+let reduce (test : FuzzTest.t) (ast : Expression.t) =
   let runThrough msg reducer ast =
     let pointers =
       ast
@@ -505,7 +506,7 @@ let runTest (test : FuzzTest.t) : unit =
             let reduced = reduce test testcase in
             let text = toText reduced in
             Js.log2 "finished program:\n" text ;
-            Js.log2 "structure" (show_fluidExpr reduced) ;
+            Js.log2 "structure" (Expression.show reduced) ;
             fail () )
           else pass () )
     done
