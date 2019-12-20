@@ -3524,4 +3524,11 @@ let run () =
     aStrEscape
     (ins 'f' 3)
     "so\\f~me string" ;
+  (* Not quite a regression, in that I noticed it pre-review, but still a thing
+   * to check *)
+  tp
+    "typing and then deleting an unsupported char after an escape leaves us with a partial with the caret in the right place"
+    aStrEscape
+    (keys [K.Letter 'f'; K.Backspace] 3)
+    "so\\~me string" ;
   ()
