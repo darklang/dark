@@ -204,6 +204,11 @@ let finish () =
     Js.log ("Passed " ^ successCount ^ " tests (" ^ skipCount ^ " skipped)") ;
     exit 0 )
   else (
+    Js.log "Failures:" ;
+    fails
+    |> List.iter ~f:(fun {name} ->
+           Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name ) ;
+    Js.log "" ;
     Js.log
       ( "Failed "
       ^ failCount
