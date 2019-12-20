@@ -3,6 +3,13 @@ executors:
   my-executor:
     docker:
       - image: docker:stable-git
+  linuxgo:
+    parameters:
+    docker:
+      - image: circleci/golang:1.10
+
+orbs:
+  buildevents: honeycombio/buildevents@0.2.6
 
 commands:
   show-large-files-and-directories:
@@ -237,193 +244,216 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+  buildevents-setup:
+    executor: linuxgo
+    steps:
+      - buildevents/start_trace
+
+  buildevents-watch:
+    executor: linuxgo
+    steps:
+      - buildevents/watch_build_and_finish
+
+
   build-stroller:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - rust-setup: { project: "stroller" }
-      - copy-into-container
-      - run: scripts/builder --compile-stroller --test
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
-      - assert-clean-worktree
-      - rust-finish: { project: "stroller" }
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - rust-setup: { project: "stroller" }
+            - copy-into-container
+            - run: scripts/builder --compile-stroller --test
+            - run-background-container
+            - wait-for-container
+            - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
+            - assert-clean-worktree
+            - rust-finish: { project: "stroller" }
 
   build-queue-scheduler:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
-      - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler" }
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - rust-setup: { project: "queue-scheduler" }
+            - copy-into-container
+            - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
+            - run-background-container
+            - wait-for-container
+            - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
+            - assert-clean-worktree
+            - rust-finish: { project: "queue-scheduler" }
 
   build-backend:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v12-backend-{{ checksum "rundir/today-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "backend/_build" }
-      # appsupport is needed for a unit test
-      - run: touch backend/static/appsupport.js
-      - show-large-files-and-directories
-      - run:
-          # Everything else is copied in via copy-into-container, but it
-          # doesn't include this because it's not in /home/dark/app.
-          name: Set up volume for dotesy
-          command: |
-            set -x
-            mkdir -p dotesy
-            time docker cp dotesy/. vols:/home/dark/.esy
-            time rm -Rf dotesy # don't copy it a second time
-      - set-ownership:
-          path: "/home/dark/.esy"
-      - copy-into-container
-      - run: scripts/builder --compile-backend --test
-      - run-background-container
-      - wait-for-container
-        # For speed optimization, we could put this in a faster job; it doesn't
-        # need to be run post-build, it just needs the container running. But it
-        # takes <1s to run, so this is the more "logical" location.
-      - run: scripts/ocaml-find-unused backend/test
-      - assert-clean-worktree
-      - run:
-          name: Reduce size of esy cache
-          command: |
-            set -x
-            ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/backend/_build backend/
-            time docker cp vols:/home/dark/app/backend/_esy backend/
-            time docker cp vols:/home/dark/app/backend/node_modules backend/
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
-            time docker cp vols:/home/dark/.esy dotesy
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save daily backend cache"
-          paths:
-            - backend/_build
-            - backend/_esy
-            - backend/node_modules
-            - backend/static
-            - dotesy
-          key: v12-backend-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/_build/default/bin/server.exe
-            - backend/_build/default/bin/queue_worker.exe
-            - backend/_build/default/bin/cron_checker.exe
-            - backend/static/analysis.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - restore_cache:
+                keys:
+                  - v12-backend-{{ checksum "rundir/today-timestamp" }}
+                  - v12-backend-{{ checksum "rundir/minus1-timestamp" }}
+                  - v12-backend-{{ checksum "rundir/minus2-timestamp" }}
+                  - v12-backend-{{ checksum "rundir/minus3-timestamp" }}
+            - clean-caches: { path: "backend/_build" }
+            # appsupport is needed for a unit test
+            - run: touch backend/static/appsupport.js
+            - show-large-files-and-directories
+            - run:
+                # Everything else is copied in via copy-into-container, but it
+                # doesn't include this because it's not in /home/dark/app.
+                name: Set up volume for dotesy
+                command: |
+                  set -x
+                  mkdir -p dotesy
+                  time docker cp dotesy/. vols:/home/dark/.esy
+                  time rm -Rf dotesy # don't copy it a second time
+            - set-ownership:
+                path: "/home/dark/.esy"
+            - copy-into-container
+            - run: scripts/builder --compile-backend --test
+            - run-background-container
+            - wait-for-container
+              # For speed optimization, we could put this in a faster job; it doesn't
+              # need to be run post-build, it just needs the container running. But it
+              # takes <1s to run, so this is the more "logical" location.
+            - run: scripts/ocaml-find-unused backend/test
+            - assert-clean-worktree
+            - run:
+                name: Reduce size of esy cache
+                command: |
+                  set -x
+                  ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
+            - run:
+                name: Copy out generated files and caches
+                command: |
+                  set -x
+                  time docker cp vols:/home/dark/app/backend/_build backend/
+                  time docker cp vols:/home/dark/app/backend/_esy backend/
+                  time docker cp vols:/home/dark/app/backend/node_modules backend/
+                  time docker cp vols:/home/dark/app/backend/static/. backend/static
+                  time docker cp vols:/home/dark/.esy dotesy
+            - show-large-files-and-directories
+            - save_cache:
+                name: "Save daily backend cache"
+                paths:
+                  - backend/_build
+                  - backend/_esy
+                  - backend/node_modules
+                  - backend/static
+                  - dotesy
+                key: v12-backend-{{ checksum "rundir/today-timestamp" }}
+            - persist_to_workspace:
+                root: "."
+                paths:
+                  # Just enough for integration tests and deploy
+                  - backend/_build/default/bin/server.exe
+                  - backend/_build/default/bin/queue_worker.exe
+                  - backend/_build/default/bin/cron_checker.exe
+                  - backend/static/analysis.js
+            - run:
+                name: Copy out artifacts
+                when: always
+                command: |
+                  set -x
+                  mkdir -p artifacts
+                  time docker cp vols:/home/dark/app/rundir artifacts/rundir
+            - store_artifacts:
+                path: artifacts
+            - store_test_results:
+                path: artifacts/rundir/test_results
 
   build-postgres-honeytail:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
-      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - restore_cache:
+                keys:
+                  - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
+                  - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
+                  - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
+                  - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
+            - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - run: apk add --update python py-pip && pip install yq
-      - run: pip install yq
-      - run: scripts/support/test-honeycomb-config.sh
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - run: apk add --update python py-pip && pip install yq
+            - run: pip install yq
+            - run: scripts/support/test-honeycomb-config.sh
 
   build-client:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "client/node_modules" }
-      - clean-caches: { path: "client/lib" }
-      - copy-into-container
-      - run: scripts/builder --compile-client --test
-      - run-background-container
-      - wait-for-container
-      - assert-clean-worktree
-      - run: scripts/support/shellchecker # run here cause its the fastest
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/client/node_modules client
-            time docker cp vols:/home/dark/app/client/lib client
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save packagejson-specific cache"
-          paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "client/package.json" }}
-      - save_cache:
-          name: "Save daily client cache"
-          paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/static/app.css
-            - backend/static/app.js
-            - backend/static/appsupport.js
-            - backend/static/fetcher.js
-            - backend/static/analysiswrapper.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            time mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-            time cp backend/static/etags.json artifacts
-            ls -la backend/static > artifacts/asset-list.txt
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - restore_cache:
+                keys:
+                  - v9-client-{{ checksum "client/package.json" }}
+                  - v9-client-{{ checksum "rundir/today-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - clean-caches: { path: "client/node_modules" }
+            - clean-caches: { path: "client/lib" }
+            - copy-into-container
+            - run: scripts/builder --compile-client --test
+            - run-background-container
+            - wait-for-container
+            - assert-clean-worktree
+            - run: scripts/support/shellchecker # run here cause its the fastest
+            - run:
+                name: Copy out generated files and caches
+                command: |
+                  set -x
+                  time docker cp vols:/home/dark/app/client/node_modules client
+                  time docker cp vols:/home/dark/app/client/lib client
+                  time docker cp vols:/home/dark/app/backend/static/. backend/static
+            - show-large-files-and-directories
+            - save_cache:
+                name: "Save packagejson-specific cache"
+                paths: [ "client/node_modules" ]
+                key: v9-client-{{ checksum "client/package.json" }}
+            - save_cache:
+                name: "Save daily client cache"
+                paths: [ "client/node_modules" ]
+                key: v9-client-{{ checksum "rundir/today-timestamp" }}
+            - persist_to_workspace:
+                root: "."
+                paths:
+                  # Just enough for integration tests and deploy
+                  - backend/static/app.css
+                  - backend/static/app.js
+                  - backend/static/appsupport.js
+                  - backend/static/fetcher.js
+                  - backend/static/analysiswrapper.js
+            - run:
+                name: Copy out artifacts
+                when: always
+                command: |
+                  set -x
+                  time mkdir -p artifacts
+                  time docker cp vols:/home/dark/app/rundir artifacts/rundir
+                  time cp backend/static/etags.json artifacts
+                  ls -la backend/static > artifacts/asset-list.txt
+            - store_artifacts:
+                path: artifacts
+            - store_test_results:
+                path: artifacts/rundir/test_results
 
 
 
@@ -431,120 +461,129 @@ jobs:
     executor: my-executor
     parallelism: 4
     steps:
-      - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - restore_cache: # get testcafe
-          keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
-      - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-
-      - wait-for-server
-      - run:
-          name: Run integration tests
-          shell: bash
-          command: |
-            # get full list of tests
-            grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
-            # split them using timing info
-            TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
-            # concat them into a pattern (note: $TESTS is deliberately unquoted)
-            PATTERN=$(printf -- "^%s$|" $TESTS)
-            # remove last char
-            PATTERN=${PATTERN%?}
-            scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
-      - assert-clean-worktree
-
-      - extract-and-save-artifacts
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - attach_workspace: { at: "." }
+            - restore_cache: # get testcafe
+                keys:
+                  - v9-client-{{ checksum "client/package.json" }}
+                  - v9-client-{{ checksum "rundir/today-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus1-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus2-timestamp" }}
+                  - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - show-large-files-and-directories
+            - copy-into-container
+            - run-background-container
+            - wait-for-server
+            - run:
+                name: Run integration tests
+                shell: bash
+                command: |
+                  # get full list of tests
+                  grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
+                  # split them using timing info
+                  TESTS=$(circleci tests split --split-by=timings --timings-type=testname rundir/all-tests)
+                  # concat them into a pattern (note: $TESTS is deliberately unquoted)
+                  PATTERN=$(printf -- "^%s$|" $TESTS)
+                  # remove last char
+                  PATTERN=${PATTERN%?}
+                  scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+            - assert-clean-worktree
+            - extract-and-save-artifacts
 
   rust-integration-tests:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run-background-container
-      - wait-for-server
-      - run:
-          name: Run queue-scheduler tests
-          command: scripts/run-in-docker scripts/run-rust-tests queue-scheduler
-      - assert-clean-worktree
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - attach_workspace: { at: "." }
+            - show-large-files-and-directories
+            - rust-setup: { project: "queue-scheduler" }
+            - copy-into-container
+            - run-background-container
+            - wait-for-server
+            - run:
+                name: Run queue-scheduler tests
+                command: scripts/run-in-docker scripts/run-rust-tests queue-scheduler
+            - assert-clean-worktree
 
 
   push-to-gcp:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
-      - auth-with-gcp
-      - run: scripts/run-in-docker scripts/push-assets-to-cdn
-      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
-      # Save the image IDs for deployment later
-      - run: |
-          set -x
-          mkdir gcr-image-ids
-          time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
-          time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
-      - persist_to_workspace:
-          root: "."
-          paths: [ gcr-image-ids ]
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - attach_workspace: { at: "." }
+            - show-large-files-and-directories
+            - copy-into-container
+            - run-background-container
+            # Now that the workspaces have combined, we need to regenerate etags.json
+            - wait-for-server
+            - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
+            - run: scripts/run-in-docker scripts/gcp-build-containers
+            - auth-with-gcp
+            - run: scripts/run-in-docker scripts/push-assets-to-cdn
+            - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
+            # Save the image IDs for deployment later
+            - run: |
+                set -x
+                mkdir gcr-image-ids
+                time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+                time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+                time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+                time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+                time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
+                time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+                time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+            - persist_to_workspace:
+                root: "."
+                paths: [ gcr-image-ids ]
 
 
   deploy:
     executor: my-executor
     steps:
-      - checkout
-      - initialize
-      - attach_workspace: { at: "." }
-      - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      - wait-for-container
-      - auth-with-gcp
-      - run: |
-          scripts/run-in-docker scripts/gke-deploy       \
-            --server-image-id=`cat gcr-image-ids/server` \
-            --qw-image-id=`    cat gcr-image-ids/qw`     \
-            --cron-image-id=`  cat gcr-image-ids/cron`   \
-            --stroller-image-id=`cat gcr-image-ids/stroller` \
-            --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
-            --tunnel-image-id=`cat gcr-image-ids/tunnel` \
-            --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - initialize
+            - attach_workspace: { at: "." }
+            - show-large-files-and-directories
+            - copy-into-container
+            - run-background-container
+            - wait-for-container
+            - auth-with-gcp
+            - run: |
+                scripts/run-in-docker scripts/gke-deploy       \
+                  --server-image-id=`cat gcr-image-ids/server` \
+                  --qw-image-id=`    cat gcr-image-ids/qw`     \
+                  --cron-image-id=`  cat gcr-image-ids/cron`   \
+                  --stroller-image-id=`cat gcr-image-ids/stroller` \
+                  --queue-scheduler-image-id=`cat gcr-image-ids/queue-scheduler` \
+                  --tunnel-image-id=`cat gcr-image-ids/tunnel` \
+                  --postgres-honeytail-image-id=`cat gcr-image-ids/postgres-honeytail`
 
 
 workflows:
   version: 2
   build-and-deploy:
     jobs:
+      - buildevents-setup
+      - buildevents-watch: { requires: [buildevents-setup] }
+
       # initial builds & tests
-      - build-backend
-      - build-client
-      - build-queue-scheduler
-      - build-stroller
-      - build-postgres-honeytail
-      - validate-honeycomb-config
+      - build-backend: { requires: [buildevents-setup] }
+      - build-client: { requires: [buildevents-setup] }
+      - build-queue-scheduler: { requires: [buildevents-setup] }
+      - build-stroller: { requires: [buildevents-setup] }
+      - build-postgres-honeytail: { requires: [buildevents-setup] }
+      - validate-honeycomb-config: { requires: [buildevents-setup] }
 
       # expensive tests
       - rust-integration-tests:
