@@ -122,6 +122,24 @@ commands:
             date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
             date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
 
+  prep-container-creation:
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+      # Save the docker env: type .docker-env when sshing in, then you can
+      # use ./scripts/run-in-docker
+      - run: |
+          env \
+          | grep 'DOCKER\|NO_PROXY' \
+          | sed 's/^/export /' \
+          > /root/docker-env
+
+      - run:
+          name: Install outer container utilities
+          # coreutils for gnu date
+          command: apk add --update bash coreutils jq
+
   initialize:
     steps:
       - setup_remote_docker:
@@ -316,25 +334,18 @@ jobs:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
+      - prep-container-creation
       - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
 
   validate-honeycomb-config:
     executor: my-executor
     steps:
       - checkout
-      - initialize
-      - run: apk add --update python py-pip && pip install yq
-      - run: pip install yq
-      - run: scripts/support/test-honeycomb-config.sh
-
-
+      - prep-container-creation
+      - run: apk add --update bash python py-pip && pip install yq
+      - run:
+          shell: bash
+          command: scripts/support/test-honeycomb-config.sh
 
   integration-tests:
     executor: in-container
