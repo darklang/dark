@@ -129,11 +129,13 @@ commands:
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
-      - run: |
-          env \
-          | grep 'DOCKER\|NO_PROXY' \
-          | sed 's/^/export /' \
-          > /root/docker-env
+      - run:
+          name: Setup docker-env for debugging
+          command: |
+            env \
+              | grep 'DOCKER\|NO_PROXY' \
+              | sed 's/^/export /' \
+              > /root/docker-env
 
       - run:
           name: Install outer container utilities
