@@ -406,8 +406,7 @@ jobs:
     executor: in-container
     steps:
       - checkout
-      - run: scripts/support/setup-circleci-environment
-      - run: scripts/support/create-cache-directories
+      - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
       - rust-setup: { project: "queue-scheduler" }
