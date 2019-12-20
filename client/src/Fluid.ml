@@ -1817,30 +1817,27 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARMatch (id, MPKeyword), TMatchKeyword id'
     | ARNull id, TNullToken id'
     | ARPartial id, TPartial (id', _)
+    | ARPartial id, TFieldPartial (id', _, _, _)
     | ARRightPartial id, TRightPartial (id', _)
     | ARRecord (id, RPOpen), TRecordOpen id'
     | ARRecord (id, RPClose), TRecordClose id'
     | ARVariable id, TVariable (id', _)
     | ARLambda (id, LPKeyword), TLambdaSymbol id'
     | ARLambda (id, LPArrow), TLambdaArrow id'
+    | ARPattern (id, PPVariable), TPatternVariable (_, id', _, _)
+    | ( ARPattern (id, PPConstructor CPName)
+      , TPatternConstructorName (_, id', _, _) )
+    | ARPattern (id, PPInteger), TPatternInteger (_, id', _, _)
+    | ( ARPattern (id, PPBool)
+      , (TPatternTrue (_, id', _) | TPatternFalse (_, id', _)) )
+    | ARPattern (id, PPFloat FPWhole), TPatternFloatWhole (_, id', _, _)
+    | ARPattern (id, PPFloat FPDecimal), TPatternFloatFraction (_, id', _, _)
+    | ARPattern (id, PPBlank), TPatternBlank (_, id', _)
+    | ARPattern (id, PPNull), TPatternNullToken (_, id', _)
       when id = id' ->
         posForTi ti
     | ARList (id, LPSeparator idx), TListSep (id', idx')
     | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
-    | ( ARMatch (id, MPBranchPattern idx)
-      , 
-        (* Seems a bit fishy? *)
-        ( TPatternVariable (id', _, _, idx')
-        | TPatternConstructorName (id', _, _, idx')
-        | TPatternInteger (id', _, _, idx')
-        | TPatternString (id', _, _, idx')
-        | TPatternTrue (id', _, idx')
-        | TPatternFalse (id', _, idx')
-        | TPatternNullToken (id', _, idx')
-        | TPatternFloatWhole (id', _, _, idx')
-        | TPatternFloatPoint (id', _, idx')
-        | TPatternFloatFraction (id', _, _, idx')
-        | TPatternBlank (id', _, idx') ) )
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
       , TRecordFieldname {recordID = id'; index = idx'} )
@@ -1852,11 +1849,17 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     (*
     * Single-line Strings
     *)
-    | ARString (id, SPOpenQuote), TString (id', _) when id = id' ->
+    | ARString (id, SPOpenQuote), TString (id', _)
+    | ARPattern (id, PPString SPOpenQuote), TPatternString (_, id', _, _)
+      when id = id' ->
         posForTi ti
-    | ARString (id, SPText), TString (id', _) when id = id' ->
+    | ARString (id, SPText), TString (id', _)
+    | ARPattern (id, PPString SPText), TPatternString (_, id', _, _)
+      when id = id' ->
         clampedPosForTi ti (ct.offset + 1)
-    | ARString (id, SPCloseQuote), TString (id', str) when id = id' ->
+    | ARString (id, SPCloseQuote), TString (id', str)
+    | ARPattern (id, PPString SPCloseQuote), TPatternString (_, id', str, _)
+      when id = id' ->
         clampedPosForTi ti (ct.offset + String.length str + 1)
     (* 
     * Multi-line Strings
@@ -1949,7 +1952,6 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARList (_, LPSeparator _), _
     | ARMatch (_, MPKeyword), _
     | ARMatch (_, MPBranchSep _), _
-    | ARMatch (_, MPBranchPattern _), _
     | ARNull _, _
     | ARPartial _, _
     | ARRightPartial _, _
@@ -1962,7 +1964,18 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARLambda (_, LPKeyword), _
     | ARLambda (_, LPArrow), _
     | ARLambda (_, LPVarName _), _
-    | ARLambda (_, LPSeparator _), _ ->
+    | ARLambda (_, LPSeparator _), _
+    | ARPattern (_, PPVariable), _
+    | ARPattern (_, PPConstructor CPName), _
+    | ARPattern (_, PPInteger), _
+    | ARPattern (_, PPBool), _
+    | ARPattern (_, PPFloat FPWhole), _
+    | ARPattern (_, PPFloat FPDecimal), _
+    | ARPattern (_, PPBlank), _
+    | ARPattern (_, PPNull), _
+    | ARPattern (_, PPString SPOpenQuote), _
+    | ARPattern (_, PPString SPText), _
+    | ARPattern (_, PPString SPCloseQuote), _ ->
         None
     (* Invalid *)
     | ARInvalid, _ ->
@@ -1975,9 +1988,13 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
   | Some newPos ->
       newPos
   | None ->
+      (*
+        NOTE(JULIAN): This is very useful for fixing issues in dev, but much too large for Rollbar: 
+        Debug.loG ((show_caretTarget ct)^(show_fluidExpr ast)^(eToStructure ~includeIDs:true s ast)) ();
+      *)
       recover
         "We expected to find the given caretTarget in the token stream but couldn't."
-        ~debug:ct
+        ~debug:(show_caretTarget ct)
         s.newPos
 
 
@@ -2148,6 +2165,111 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : ast) : caretTarget =
         {astRef = ARInvalid; offset = 0}
 
 
+(* caretTargetForBeginningOfPattern returns a caretTarget representing caret
+   placement at the very start of the expression in `pattern` *)
+let caretTargetForBeginningOfPattern (pattern : fluidPattern) : caretTarget =
+  match pattern with
+  | FPVariable (_, id, _) ->
+      {astRef = ARPattern (id, PPVariable); offset = 0}
+  | FPConstructor (_, id, _, _) ->
+      {astRef = ARPattern (id, PPConstructor CPName); offset = 0}
+  | FPInteger (_, id, _) ->
+      {astRef = ARPattern (id, PPInteger); offset = 0}
+  | FPBool (_, id, _) ->
+      {astRef = ARPattern (id, PPBool); offset = 0}
+  | FPString (_, id, _) ->
+      {astRef = ARPattern (id, PPString SPOpenQuote); offset = 0}
+  | FPFloat (_, id, _, _) ->
+      {astRef = ARPattern (id, PPFloat FPWhole); offset = 0}
+  | FPNull (_, id) ->
+      {astRef = ARPattern (id, PPNull); offset = 0}
+  | FPBlank (_, id) ->
+      {astRef = ARPattern (id, PPBlank); offset = 0}
+  | FPOldPattern _ as p ->
+      recover
+        "unhandled pattern in caretTargetForBeginningOfPattern"
+        ~debug:p
+        {astRef = ARInvalid; offset = 0}
+
+
+(* caretTargetForEndOfPattern returns a caretTarget representing caret
+ * placement at the very end of the expression in `pattern`.
+ *
+ * The concept of "very end" is related to an understanding of the
+ * tokenization of the ast, even though this function doesn't explicitly depend
+ * on any tokenization functions. *)
+let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
+  match pattern with
+  | FPVariable (_, id, varName) ->
+      {astRef = ARPattern (id, PPVariable); offset = String.length varName}
+  | FPConstructor (_, id, name, containedPatterns) ->
+    ( match List.last containedPatterns with
+    | Some lastPattern ->
+        caretTargetForEndOfPattern lastPattern
+    | None ->
+        { astRef = ARPattern (id, PPConstructor CPName)
+        ; offset = String.length name } )
+  | FPInteger (_, id, valueStr) ->
+      {astRef = ARPattern (id, PPInteger); offset = String.length valueStr}
+  | FPBool (_, id, true) ->
+      {astRef = ARPattern (id, PPBool); offset = String.length "true"}
+  | FPBool (_, id, false) ->
+      {astRef = ARPattern (id, PPBool); offset = String.length "false"}
+  | FPString (_, id, _) ->
+      { astRef = ARPattern (id, PPString SPCloseQuote)
+      ; offset = 1 (* end of close quote *) }
+  | FPFloat (_, id, _, frac) ->
+      {astRef = ARPattern (id, PPFloat FPDecimal); offset = String.length frac}
+  | FPNull (_, id) ->
+      {astRef = ARPattern (id, PPNull); offset = String.length "null"}
+  | FPBlank (_, id) ->
+      (* Consider changing this from 3 to 0 if we don't want blanks to have two spots *)
+      {astRef = ARPattern (id, PPBlank); offset = 3}
+  | FPOldPattern _ as p ->
+      recover
+        "unhandled pattern in caretTargetForEndOfPattern"
+        ~debug:p
+        {astRef = ARInvalid; offset = 0}
+
+
+(* maybeCaretTargetForBeginningOfMatchBranch returns (Some caretTarget) representing caret
+ * placement at the very start of the match branch identified by `matchID` and `index`
+ * within the `ast`, or None if no match branch with the passed index exists.
+ * It is an error to pass an id of a non-match.
+ *
+ * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ *)
+let maybeCaretTargetForBeginningOfMatchBranch
+    (matchID : id) (index : int) (ast : ast) : caretTarget option =
+  match findExpr matchID ast with
+  | Some (EMatch (_, _, branches)) ->
+      branches
+      |> List.getAt ~index
+      |> Option.map ~f:(fun (pattern, _) ->
+             caretTargetForBeginningOfPattern pattern )
+  | _ ->
+      recover
+        "maybeCaretTargetForBeginningOfMatchBranch"
+        ~debug:matchID
+        (Some {astRef = ARInvalid; offset = 0})
+
+
+(* maybeCaretTargetForBeginningOfMatchBranch returns a caretTarget representing caret
+ * placement at the very start of the match branch identified by `matchID` and `index`
+ * within the `ast`.
+ * It is an error to pass an id of a non-match or an index outside the match.
+ *
+ * "very start" is based on the definition of caretTargetForBeginningOfPattern
+ *)
+let caretTargetForBeginningOfMatchBranch
+    (matchID : id) (index : int) (ast : ast) : caretTarget =
+  maybeCaretTargetForBeginningOfMatchBranch matchID index ast
+  |> recoverOpt
+       "caretTargetForBeginningOfMatchBranch got an index outside of the match"
+       ~debug:(matchID, index)
+       ~default:{astRef = ARInvalid; offset = 0}
+
+
 (* ---------------- *)
 (* Patterns *)
 (* ---------------- *)
@@ -2303,9 +2425,13 @@ let replaceFieldName (str : string) (id : id) (ast : ast) : ast =
           recover "not a field in replaceFieldName" ~debug:e e )
 
 
-let exprToFieldAccess (id : id) (fieldID : id) (ast : ast) : ast =
+(* exprToFieldAccess wraps the expression with `id` in the `ast` with a
+   partial-wrapped field access where the partial has partialID and the
+   field access has fieldID *)
+let exprToFieldAccess (id : id) ~(partialID : id) ~(fieldID : id) (ast : ast) :
+    ast =
   updateExpr id ast ~f:(fun e ->
-      EPartial (gid (), "", EFieldAccess (fieldID, e, gid (), "")) )
+      EPartial (partialID, "", EFieldAccess (fieldID, e, gid (), "")) )
 
 
 let removeField (id : id) (ast : ast) : ast =
@@ -3341,7 +3467,9 @@ let acStartField (ti : tokenInfo) (ast : ast) (s : state) : ast * state =
   | Some (FACField fieldname as entry), TFieldName (faID, _, _)
   | Some (FACField fieldname as entry), TFieldPartial (_, faID, _, _) ->
       let ast, s = updateFromACItem entry ti ast s K.Enter in
-      let newAST = exprToFieldAccess faID (gid ()) ast in
+      let newAST =
+        exprToFieldAccess faID ~partialID:(gid ()) ~fieldID:(gid ()) ast
+      in
       let length = String.length fieldname + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
       (newAST, newState)
@@ -3833,8 +3961,9 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
     match ti.token with
     | (TFieldName (id, _, _) | TVariable (id, _))
       when pos = ti.endPos && letter = '.' ->
-        let fieldID = gid () in
-        (exprToFieldAccess id fieldID ast, RightOne)
+        let partialID = gid () in
+        ( exprToFieldAccess id ~partialID ~fieldID:(gid ()) ast
+        , AtTarget {astRef = ARPartial partialID; offset = 0} )
     (* Dont add space to blanks *)
     | ti when FluidToken.isBlank ti && letterStr == " " ->
         (ast, SamePlace)
@@ -3846,9 +3975,12 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
     (* lambda *)
     | TLambdaSymbol id when letter = ',' ->
-        (insertLambdaVar ~index:0 id ~name:"" ast, SamePlace)
+        ( insertLambdaVar ~index:0 id ~name:"" ast
+        , AtTarget {astRef = ARLambda (id, LPVarName 0); offset = 0} )
     | TLambdaVar (id, _, index, _) when letter = ',' ->
-        (insertLambdaVar ~index:(index + 1) id ~name:"" ast, TwoAfterEnd)
+        ( insertLambdaVar ~index:(index + 1) id ~name:"" ast
+        , AtTarget {astRef = ARLambda (id, LPVarName (index + 1)); offset = 0}
+        )
     (* Ignore invalid situations *)
     | (TString _ | TPatternString _ | TStringMLStart _) when offset < 0 ->
         (ast, SamePlace)
@@ -3927,11 +4059,16 @@ let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : ast) (s : state) :
         let move = if newLength > offset then RightOne else SamePlace in
         (replaceStringToken ~f ti.token ast, move)
     | TFloatWhole (id, str) ->
-        (replaceFloatWhole (f str) id ast, RightOne)
+        ( replaceFloatWhole (f str) id ast
+        , AtTarget {astRef = ARFloat (id, FPWhole); offset = offset + 1} )
     | TFloatFraction (id, str) ->
-        (replaceFloatFraction (f str) id ast, RightOne)
+        ( replaceFloatFraction (f str) id ast
+        , AtTarget {astRef = ARFloat (id, FPDecimal); offset = offset + 1} )
     | TFloatPoint id ->
-        (insertAtFrontOfFloatFraction letterStr id ast, RightOne)
+        ( insertAtFrontOfFloatFraction letterStr id ast
+        , AtTarget
+            {astRef = ARFloat (id, FPDecimal); offset = String.length letterStr}
+        )
     | TPatternFloatWhole (mID, id, str, _) ->
         (replacePatternFloatWhole (f str) mID id ast, RightOne)
     | TPatternFloatFraction (mID, id, str, _) ->
@@ -4432,9 +4569,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           (ast, s)
       | Some (EMatch _) ->
           let ast, s = addMatchPatternAt parentId idx ast s in
-          let s =
-            moveToAstRef s ast (ARMatch (parentId, MPBranchPattern idx))
-          in
+          let target = caretTargetForBeginningOfMatchBranch parentId idx ast in
+          let s = moveToCaretTarget s ast target in
           (ast, s)
       | Some (EFnCall _) ->
           (* Pressing enter at the end of an FnCall's expression should just
@@ -4498,8 +4634,10 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             then addLetAboveRightToken ()
             else
               let ast, s = addMatchPatternAt parentId idx ast s in
-              let ref = ARMatch (parentId, MPBranchPattern (idx + 1)) in
-              let s = moveToAstRef s ast ref in
+              let target =
+                caretTargetForBeginningOfMatchBranch parentId (idx + 1) ast
+              in
+              let s = moveToCaretTarget s ast target in
               (ast, s)
         | Some (EPipe (_, exprs)) ->
             (* exprs[0] is the initial value of the pipeline, but the indexing
