@@ -5,7 +5,9 @@ set -euo pipefail
 
 function wait_for {
   test_url="http://${DARK_CONFIG_STATIC_HOST}/$1"
+  count=0
   until curl --output /dev/null --silent --show-error --head --fail "${test_url}"; do
+      ((count++)) && ((count==60)) && exit 1
       printf "waiting for %s\n" "$1"
       sleep 1
   done
