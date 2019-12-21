@@ -6536,9 +6536,9 @@ let viewLiveValue
   |> Option.withDefault ~default:Vdom.noNode
 
 
-let viewReturnValue (vs : ViewUtils.viewState) (tlid : tlid) (ast : ast) :
+let viewReturnValue (vs : ViewUtils.viewState) (ast : ast) :
     Types.msg Html.html =
-  if vs.tlid = tlid
+  if tlidOf vs.cursorState = Some vs.tlid
   then
     let id = eid ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
@@ -6552,7 +6552,7 @@ let viewReturnValue (vs : ViewUtils.viewState) (tlid : tlid) (ast : ast) :
                       true
                   | _ ->
                       false ) ] ]
-          (viewDval tlid dval ~canCopy:true)
+          (viewDval vs.tlid dval ~canCopy:true)
     | _ ->
         Vdom.noNode
   else Vdom.noNode
@@ -6588,7 +6588,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     then viewLiveValue ~tlid ~ast ~vs ~state
     else Vdom.noNode
   in
-  let returnValue = viewReturnValue vs tlid ast in
+  let returnValue = viewReturnValue vs ast in
   [ liveValue
   ; Html.div
       [ Attrs.id editorID
