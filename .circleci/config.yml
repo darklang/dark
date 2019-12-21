@@ -196,7 +196,6 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
             - v2d-backend-{{ checksum "backend/esy.json" }}
             - v2d-backend
       # appsupport is needed for a unit test
@@ -216,7 +215,7 @@ jobs:
             - backend/_esy
             - backend/node_modules
             - /home/dark/.esy
-          key: v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+          key: v2d-backend-{{ checksum "backend/esy.json" }}
       - persist_to_workspace:
           root: "."
           paths:
