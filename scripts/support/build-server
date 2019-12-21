@@ -1,5 +1,10 @@
 #!/usr/bin/env python3.6
 
+# This is used, in concert with scripts/builder, to run Dark inside the dev
+# container. There is a strong connection between these files and
+# .circleci/config.yml. Generally, if you add something to one of these
+# files, there's an equivalent to be added in .circleci/config.yml.
+
 import subprocess
 import sys
 import threading
