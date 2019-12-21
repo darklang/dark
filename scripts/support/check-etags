@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+# Ensure that the etags file has the right entries. Used in CI.
+check_presence () {
+  name=$1
+  echo "Checking $name"
+  grep "$name" backend/static/etags.json
+
+}
+
+check_presence analysis.js
+check_presence fetcher.js
+check_presence appsupport.js
+check_presence analysis.js
+check_presence analysiswrapper.js
+check_presence app.css
+check_presence app.js
+check_presence reset-normalize.css
+
