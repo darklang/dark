@@ -259,22 +259,6 @@ test("enter_changes_state", async t => {
     .ok();
 });
 
-test("field_access", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestdict"))
-    .ok()
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText("bodyfield"))
-    .ok()
-    .pressKey("enter");
-});
-
 test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
