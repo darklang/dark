@@ -17,7 +17,7 @@ let filterInputID : string = "cmd-filter"
 
 let fluidCommands =
   Commands.commands
-  |> List.filter ~f:(fun {commandName} ->
+  |> List.filter ~f:(fun {commandName; _} ->
          not (commandName == "add-feature-flag") )
 
 

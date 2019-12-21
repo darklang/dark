@@ -1,7 +1,7 @@
 (library
   (name libbackend)
   (modes native)
-  (flags (-warn-error +A))
+  (flags (-warn-error +A -w +9))
   (preprocess (pps
                landmarks.ppx
                lwt_ppx

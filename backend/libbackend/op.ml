@@ -201,7 +201,7 @@ let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
 
 let ast_of (op : op) : Types.RuntimeT.expr option =
   match op with
-  | SetFunction {ast} | SetExpr (_, _, ast) | SetHandler (_, _, {ast}) ->
+  | SetFunction {ast; _} | SetExpr (_, _, ast) | SetHandler (_, _, {ast; _}) ->
       Some ast
   | _ ->
       None

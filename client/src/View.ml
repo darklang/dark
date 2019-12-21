@@ -103,11 +103,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
     if m.username = "ellen"
     then
       match tl with
-      | TLHandler {spec}
-        when Blank.toMaybe spec.name = Some "sendDM"
-             || Blank.toMaybe spec.name = Some "sendText" ->
+      | TLHandler h
+        when Blank.toMaybe h.spec.name = Some "sendDM"
+             || Blank.toMaybe h.spec.name = Some "sendText" ->
           "ellenDemoSendDMHack"
-      | TLDB {dbName} when Blank.toMaybe dbName = Some "Visits" ->
+      | TLDB db when Blank.toMaybe db.dbName = Some "Visits" ->
           "ellenDemoSendDMHack"
       | _ ->
           ""
