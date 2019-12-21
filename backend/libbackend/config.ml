@@ -219,12 +219,12 @@ let browser_reload_enabled = bool "DARK_CONFIG_BROWSER_RELOAD_ENABLED"
 let hash_static_filenames = bool "DARK_CONFIG_HASH_STATIC_FILENAMES"
 
 let gcloud_application_credentials =
-  string_option "DARK_GCLOUD_APPLICATION_CREDENTIALS"
+  string_option "DARK_CONFIG_GCLOUD_APPLICATION_CREDENTIALS"
 
 
 let check_tier_one_hosts = bool "DARK_CONFIG_CHECK_TIER_ONE_HOSTS"
 
-let static_assets_bucket = string_option "DARK_STATIC_ASSETS_BUCKET"
+let static_assets_bucket = string_option "DARK_CONFIG_STATIC_ASSETS_BUCKET"
 
 (* If the GIT_COMMIT is in the environment, use that as the build hash.
  * Otherwise, set it to the env name so that it's constant.
