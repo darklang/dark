@@ -6395,7 +6395,7 @@ let viewReturnValue (vs : ViewUtils.viewState) (tlid : tlid) (ast : ast) :
               [ ("return-value", true)
               ; ( "refreshed"
                 , match vs.handlerProp with
-                  | Some {execution = Complete} ->
+                  | Some {execution = Complete; _} ->
                       true
                   | _ ->
                       false ) ] ]
