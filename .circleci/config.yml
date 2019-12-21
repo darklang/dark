@@ -43,12 +43,14 @@ commands:
   ##########################
   setup-app:
     steps:
-      - run: scripts/support/setup-circleci-environment
-      - run: env
-      - run: scripts/support/create-app-directories
-      - run: scripts/support/create-cache-directories
-      - run: scripts/support/setup-hosts
-      - run: scripts/support/start-background-services postgresql
+      - run: |
+          set -x
+          scripts/support/setup-circleci-environment
+          scripts/support/create-app-directories
+          scripts/support/create-cache-directories
+          scripts/support/setup-hosts
+          scripts/support/start-background-services postgresql
+          env
 
   ##########################
   # Rust
@@ -281,7 +283,6 @@ jobs:
       - run:
           name: Run integration tests
           command: |
-            set -x
             scripts/support/runserver
 
             # get full list of tests
@@ -334,7 +335,6 @@ jobs:
       - run:
           name: Save image IDs
           command: |
-            set -x
             mkdir gcr-image-ids
             time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
             time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
@@ -384,11 +384,13 @@ workflows:
       # expensive tests
       - rust-integration-tests:
           requires:
+            - build-container
             - build-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
           requires:
+            - build-container
             - build-backend
             - build-client
 
@@ -398,6 +400,7 @@ workflows:
             branches:
               only: master
           requires:
+            - build-container
             - build-backend
             - build-client
             - build-stroller
@@ -410,6 +413,7 @@ workflows:
             branches:
               only: master
           requires:
+            - build-container
             - validate-honeycomb-config
             - integration-tests
             - rust-integration-tests
