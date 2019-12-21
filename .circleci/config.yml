@@ -184,7 +184,6 @@ jobs:
             - backend/static/appsupport.js
             - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
-            - backend/static/etags.json
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
@@ -282,6 +281,7 @@ jobs:
       - run:
           name: Run integration tests
           command: |
+            scripts/support/generate-etags
             scripts/support/runserver
 
             # get full list of tests
@@ -310,6 +310,7 @@ jobs:
           name: Trigger migrations with runserver
           command: |
             # Run the server long enough to ensure it runs the migrations
+            scripts/support/generate-etags
             scripts/support/runserver
             scripts/wait-until-server-ready
       - run:
@@ -325,6 +326,12 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/support/generate-etags
+            scripts/support/check-etags
+            cp backend/static/etags.json rundir/
       - setup_remote_docker: { docker_layer_caching: true }
       - run: scripts/gcp-build-containers
       - auth-with-gcp
