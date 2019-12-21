@@ -272,14 +272,6 @@ jobs:
       - checkout
       - setup-app
       - attach_workspace: { at: "." }
-      - run:
-          name: Generate ETags
-          command: |
-            scripts/support/generate-etags
-            cp backend/static/etags.json rundir/
-      - persist_to_workspace:
-          root: "."
-          paths: [ backend/static/etags.json ]
       - restore_cache: # get testcafe
           keys:
             - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
@@ -332,6 +324,11 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
+      - run:
+          name: Regenerate combined ETags
+          command: |
+            scripts/support/generate-etags
+            cp backend/static/etags.json rundir/
       - setup_remote_docker: { docker_layer_caching: true }
       - run: scripts/gcp-build-containers
       - auth-with-gcp
