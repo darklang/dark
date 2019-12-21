@@ -289,11 +289,6 @@ RUN cargo install cargo-cache
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-########################
-# DNS for integration tests
-########################
-RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-
 ############################
 # Environment
 ############################
