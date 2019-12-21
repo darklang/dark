@@ -280,6 +280,9 @@ jobs:
       - run:
           name: Run integration tests
           command: |
+            set -x
+            scripts/support/runserver
+
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
             # split them using timing info
@@ -288,6 +291,7 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
+            scripts/wait-until-server-ready
             integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
       - store_artifacts: { path: rundir }
@@ -298,10 +302,15 @@ jobs:
     executor: in-container
     steps:
       - checkout
-      - setup-app
+      - rust-setup: { project: "queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - rust-setup: { project: "queue-scheduler" }
+      - run:
+          name: Trigger migrations with runserver
+          command: |
+            # Run the server long enough to ensure it runs the migrations
+            scripts/support/runserver
+            scripts/wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
           command: scripts/run-rust-tests queue-scheduler
