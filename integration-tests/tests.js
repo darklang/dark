@@ -157,9 +157,7 @@ async function gotoAST(t) {
 }
 
 function user_content_url(t, endpoint) {
-  return (
-    "http://test-" + t.testRun.test.name + ".builtwithdark.localhost:8000" + endpoint
-  );
+  return "http://test-" + t.testRun.test.name + ".builtwithdark.lvh.me:8000" + endpoint;
 }
 
 //********************************
