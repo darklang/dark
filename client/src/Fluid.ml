@@ -2431,6 +2431,37 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
           e )
 
 
+(* -------------------- *)
+(* Strings *)
+(* -------------------- *)
+let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
+    fluidExpr * fluidState =
+  (* I think this is correct but depends on how we 'render' strings - that
+   * is, it is correct because we display '"', which bumps pos by 1. *)
+  let offset = getStringIndex ti pos in
+  let id = Token.tid ti.token in
+  let newAst =
+    updateExpr
+      ~f:(function
+        | EString (_, str) as old_expr ->
+            let new_str =
+              String.splitAt ~index:offset str
+              |> (fun (lhs, rhs) -> (lhs, rhs))
+              |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
+            in
+            EPartial (id, new_str, old_expr)
+        | e ->
+            e (* TODO can't happen *))
+      id
+      ast
+  in
+  let newState =
+    let offset = offset + 1 in
+    moveToAstRef s newAst ~offset (ARPartial id)
+  in
+  (newAst, newState)
+
+
 (* ---------------- *)
 (* Fields *)
 (* ---------------- *)
@@ -4342,31 +4373,9 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * POV. *)
     match (key, toTheLeft, toTheRight) with
     (* Entering a string escape *)
-    | K.Backslash, L (TString _, _), R (TString (id, _), ti)
+    | K.Backslash, L (TString _, _), R (TString _, ti)
       when pos - ti.startPos != 0 ->
-        (* I think this is correct but depends on how we 'render' strings - that
-         * is, it is correct because we display '"', which bumps pos by 1. *)
-        let offset = getStringIndex ti pos in
-        let newAst =
-          updateExpr
-            ~f:(function
-              | EString (_, str) as old_expr ->
-                  let new_str =
-                    String.splitAt ~index:offset str
-                    |> (fun (lhs, rhs) -> (lhs, rhs))
-                    |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
-                  in
-                  EPartial (id, new_str, old_expr)
-              | e ->
-                  e (* TODO can't happen *))
-            id
-            ast
-        in
-        let newState =
-          let offset = offset + 1 in
-          moveToAstRef s newAst ~offset (ARPartial id)
-        in
-        (newAst, newState)
+        startEscapingString pos ti s ast
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
