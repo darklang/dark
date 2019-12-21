@@ -1840,7 +1840,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
-      , TRecordFieldname {recordID = id'; index = idx'} )
+      , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
     | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
     | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
@@ -2888,7 +2888,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str, _) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordFieldname {recordID; index; fieldName; fieldID = _} ->
+  | TRecordFieldname {recordID; index; fieldName; _} ->
       replaceRecordField ~index (f fieldName) recordID ast
   | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
@@ -3616,8 +3616,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
-      ->
+    | TRecordFieldname {recordID; index; fieldName = ""; _}
+      when pos = ti.startPos ->
         let newAst = removeRecordField recordID index ast in
         let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
         let target =
@@ -4957,8 +4957,8 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
   match (exprStartToken, exprEndToken) with
   (* range is from startPos of first token in expr to
     * endPos of last token in expr *)
-  | Some sTok, Some eTok ->
-      Some (sTok.startPos, eTok.endPos)
+  | Some {startPos; _}, Some {endPos; _} ->
+      Some (startPos, endPos)
   | _ ->
       None
 
@@ -5547,8 +5547,8 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting record key (record expression with single key and no value) into string *)
   | ( Some (ERecord (_, [(_, insert, EBlank _)]))
     , Some (EString (_, str))
-    , Some tok ) ->
-      let index = state.newPos - tok.startPos - 1 in
+    , Some {startPos; _} ) ->
+      let index = state.newPos - startPos - 1 in
       let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
       let newAST =
         exprID
@@ -5571,8 +5571,10 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       let newPos = state.newPos + String.length text in
       (newAST, {state with newPos})
   (* inserting integer into another integer *)
-  | Some (EInteger (_, clippedInt)), Some (EInteger (_, pasting)), Some tok ->
-      let index = state.newPos - tok.startPos in
+  | ( Some (EInteger (_, clippedInt))
+    , Some (EInteger (_, pasting))
+    , Some {startPos; _} ) ->
+      let index = state.newPos - startPos in
       let insert = clippedInt in
       let newVal =
         String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
@@ -5585,16 +5587,15 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
   (* inserting float into an integer *)
-  | Some (EFloat (_, whole, fraction)), Some (EInteger (_, pasting)), Some tok
-    ->
+  | ( Some (EFloat (_, whole, fraction))
+    , Some (EInteger (_, pasting))
+    , Some {startPos; _} ) ->
       let whole', fraction' =
         let str = pasting in
         String.
-          ( slice ~from:0 ~to_:(state.newPos - tok.startPos) str
-          , slice
-              ~from:(state.newPos - tok.startPos)
-              ~to_:(String.length str)
-              str )
+          ( slice ~from:0 ~to_:(state.newPos - startPos) str
+          , slice ~from:(state.newPos - startPos) ~to_:(String.length str) str
+          )
       in
       let newExpr = EFloat (gid (), whole' ^ whole, fraction ^ fraction') in
       let newAST =
@@ -5607,8 +5608,10 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
           newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length)
         } )
   (* inserting variable into an integer *)
-  | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some tok ->
-      let index = state.newPos - tok.startPos in
+  | ( Some (EVariable (_, varName))
+    , Some (EInteger (_, intVal))
+    , Some {startPos; _} ) ->
+      let index = state.newPos - startPos in
       let newVal = String.insertAt ~insert:varName ~index intVal in
       let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
       let newAST =
@@ -5618,9 +5621,9 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length varName})
   (* inserting int-only string into an integer *)
-  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some tok
+  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _}
     when String.toInt insert |> Result.toOption <> None ->
-      let index = state.newPos - tok.startPos in
+      let index = state.newPos - startPos in
       let newVal =
         String.insertAt ~insert ~index pasting |> coerceStringTo63BitInt
       in
@@ -5825,7 +5828,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
       when (altKey || metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
         (ast, s)
-    | FluidKeyPress {key; shiftKey; ctrlKey = _; altKey = _; metaKey = _} ->
+    | FluidKeyPress {key; shiftKey; _} ->
         let s = {s with lastKey = key} in
         let newAST, newState = updateKey key ast s in
         let selectionStart =
@@ -5859,17 +5862,14 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidUpdateDropdownIndex index ->
       let newState = acSetIndex index s in
       Types.TweakModel (fun m -> {m with fluidState = newState})
-  | FluidKeyPress {key; shiftKey = _; ctrlKey = _; altKey = _; metaKey = _}
-    when key = K.Undo ->
+  | FluidKeyPress {key = K.Undo; _} ->
       KeyPress.undo_redo m false
-  | FluidKeyPress {key; shiftKey = _; ctrlKey = _; altKey = _; metaKey = _}
-    when key = K.Redo ->
+  | FluidKeyPress {key = K.Redo; _} ->
       KeyPress.undo_redo m true
-  | FluidKeyPress {key; altKey; shiftKey = _; ctrlKey = _; metaKey = _}
-    when altKey && key = K.Letter 'x' ->
+  | FluidKeyPress {key = K.Letter 'x'; altKey = true; _} ->
       maybeOpenCmd m
-  | FluidKeyPress {key; metaKey; ctrlKey; shiftKey = _; altKey = _}
-    when (metaKey || ctrlKey) && key = K.Letter 'k' ->
+  | FluidKeyPress {key = K.Letter 'k'; metaKey; ctrlKey; _}
+    when metaKey || ctrlKey ->
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
@@ -6251,21 +6251,11 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                       {state with newPos = pos; oldPos = state.newPos}
                     in
                     ( match ev with
-                    | { detail = 2
-                      ; altKey = true
-                      ; mePos = _
-                      ; button = _
-                      ; ctrlKey = _
-                      ; shiftKey = _ } ->
+                    | {detail = 2; altKey = true; _} ->
                         FluidMsg
                           (FluidMouseUp
                              (tlid, getExpressionRangeAtCaret state ast))
-                    | { detail = 2
-                      ; altKey = false
-                      ; mePos = _
-                      ; button = _
-                      ; ctrlKey = _
-                      ; shiftKey = _ } ->
+                    | {detail = 2; altKey = false; _} ->
                         FluidMsg
                           (FluidMouseUp (tlid, getTokenRangeAtCaret state ast))
                     | _ ->

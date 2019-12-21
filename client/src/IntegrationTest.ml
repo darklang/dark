@@ -602,9 +602,7 @@ let object_literals_work (m : model) : testResult =
 
 let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
-  | Some
-      {ast = F (_, FnCall (F (_, "hello"), _, _)); spec = _; hTLID = _; pos = _}
-    ->
+  | Some {ast = F (_, FnCall (F (_, "hello"), _, _)); _} ->
       pass
   | other ->
       fail other
