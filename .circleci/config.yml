@@ -330,6 +330,7 @@ jobs:
           name: Regenerate combined ETags
           command: |
             scripts/support/generate-etags
+            scripts/support/check-etags
             cp backend/static/etags.json rundir/
       - setup_remote_docker: { docker_layer_caching: true }
       - run: scripts/gcp-build-containers
