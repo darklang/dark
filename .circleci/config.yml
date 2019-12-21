@@ -281,6 +281,7 @@ jobs:
       - run:
           name: Run integration tests
           command: |
+            scripts/support/generate-etags
             scripts/support/runserver
 
             # get full list of tests
