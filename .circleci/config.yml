@@ -43,14 +43,17 @@ commands:
   ##########################
   setup-app:
     steps:
-      - run: |
-          set -x
-          scripts/support/setup-circleci-environment
-          scripts/support/create-app-directories
-          scripts/support/create-cache-directories
-          scripts/support/setup-hosts
-          scripts/support/start-background-services postgresql
-          env
+      - run:
+          name:
+            Setup build environment
+          command: |
+            set -x
+            scripts/support/setup-circleci-environment
+            scripts/support/create-app-directories
+            scripts/support/create-cache-directories
+            scripts/support/setup-hosts
+            scripts/support/start-background-services postgresql
+            env
 
   ##########################
   # Rust
