@@ -60,8 +60,8 @@ DARK_CONFIG_CURL_TUNNEL_URL=none
 # Other
 DARK_CONFIG_BROWSER_RELOAD_ENABLED=y
 DARK_CONFIG_HASH_STATIC_FILENAMES=n
-DARK_GCLOUD_APPLICATION_CREDENTIALS=none
-DARK_STATIC_ASSETS_BUCKET=dark-static-assets-dev
+DARK_CONFIG_GCLOUD_APPLICATION_CREDENTIALS=none
+DARK_CONFIG_STATIC_ASSETS_BUCKET=dark-static-assets-dev
 
 ######################################
 # XXX: Changes won't take effect until you restart script/builder
