@@ -49,7 +49,7 @@ let tid (t : token) : id =
   | TPipe (id, _, _)
   | TRecordOpen id
   | TRecordClose id
-  | TRecordFieldname {recordID = id}
+  | TRecordFieldname {recordID = id; _}
   | TRecordSep (id, _, _)
   | TConstructorName (id, _)
   | TMatchSep (id, _)
@@ -79,7 +79,7 @@ let analysisID (t : token) : id =
   | TLetLHS (_, id, _)
   | TLetKeyword (_, id)
   | TLetAssignment (_, id)
-  | TRecordFieldname {fieldID = id}
+  | TRecordFieldname {fieldID = id; _}
   | TLambdaVar (_, id, _, _)
   | TRecordSep (_, _, id)
   | TFieldName (_, id, _) ->
@@ -188,7 +188,7 @@ let isBlank t =
   match t with
   | TBlank _
   | TPlaceholder _
-  | TRecordFieldname {fieldName = ""}
+  | TRecordFieldname {fieldName = ""; _}
   | TVariable (_, "")
   | TFieldName (_, _, "")
   | TFieldPartial (_, _, _, "")
@@ -424,7 +424,7 @@ let toIndex (t : token) : int option =
   | TLambdaVar (_, _, index, _)
   | TLambdaSep (_, index)
   | TPipe (_, _, index)
-  | TRecordFieldname {index}
+  | TRecordFieldname {index; _}
   | TRecordSep (_, index, _)
   | TListSep (_, index)
   | TNewline (Some (_, _, Some index)) ->

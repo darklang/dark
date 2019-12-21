@@ -206,7 +206,7 @@ let finish () =
   else (
     Js.log "Failures:" ;
     fails
-    |> List.iter ~f:(fun {name} ->
+    |> List.iter ~f:(fun {name; _} ->
            Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name ) ;
     Js.log "" ;
     Js.log

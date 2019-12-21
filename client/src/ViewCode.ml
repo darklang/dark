@@ -103,16 +103,16 @@ let functionIsExecuting (vs : viewState) (id : id) : bool =
 
 let handlerIsExecuting (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some {execution} ->
-      execution = Executing
+  | Some hp ->
+      hp.execution = Executing
   | None ->
       false
 
 
 let handlerIsExeComplete (vs : viewState) : bool =
   match vs.handlerProp with
-  | Some {execution} ->
-      execution = Complete
+  | Some hp ->
+      hp.execution = Complete
   | None ->
       false
 

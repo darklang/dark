@@ -58,7 +58,7 @@ let viewError (message : string option) : msg Html.html =
       ( match Json_decode_extended.decodeString Decoders.exception_ msg with
       | Error _ ->
           [Html.p [] [Html.text msg]]
-      | Ok {result = Some msg} ->
+      | Ok {result = Some msg; _} ->
           [Html.p [] [Html.text msg]]
       | Ok exc ->
           [Html.p [] [Html.text exc.short]] )

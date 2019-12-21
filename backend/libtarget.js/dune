@@ -3,7 +3,7 @@
   (public_name libtarget.js)
   (implements libtarget)
   (libraries core_kernel js_of_ocaml)
-  (flags (-warn-error +A))
+  (flags (-warn-error +A -w +9))
   (preprocess (pps  js_of_ocaml-ppx
       ))
   (js_of_ocaml

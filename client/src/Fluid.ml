@@ -1840,7 +1840,7 @@ let posFromCaretTarget (s : fluidState) (ast : fluidExpr) (ct : caretTarget) :
     | ARMatch (id, MPBranchSep idx), TMatchSep (id', idx')
     | ARPipe (id, PPPipeKeyword idx), TPipe (id', idx', _)
     | ( ARRecord (id, RPFieldname idx)
-      , TRecordFieldname {recordID = id'; index = idx'} )
+      , TRecordFieldname {recordID = id'; index = idx'; _} )
     | ARRecord (id, RPFieldSep idx), TRecordSep (id', idx', _)
     | ARLambda (id, LPVarName idx), TLambdaVar (id', _, idx', _)
     | ARLambda (id, LPSeparator idx), TLambdaSep (id', idx')
@@ -2888,7 +2888,7 @@ let replaceStringToken ~(f : string -> string) (token : token) (ast : ast) :
       replacePattern mID id ~newPat:newExpr ast
   | TPatternVariable (mID, _, str, _) ->
       replaceVarInPattern mID str (f str) ast
-  | TRecordFieldname {recordID; index; fieldName} ->
+  | TRecordFieldname {recordID; index; fieldName; _} ->
       replaceRecordField ~index (f fieldName) recordID ast
   | TLetLHS (id, _, str) ->
       replaceLetLHS (f str) id ast
@@ -3616,8 +3616,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : ast) (s : state) :
         (removeListSepToken id ast idx, LeftOne)
     | (TRecordOpen id | TListOpen id) when exprIsEmpty id ast ->
         (replaceExpr id ~newExpr:(EBlank newID) ast, LeftOne)
-    | TRecordFieldname {recordID; index; fieldName = ""} when pos = ti.startPos
-      ->
+    | TRecordFieldname {recordID; index; fieldName = ""; _}
+      when pos = ti.startPos ->
         let newAst = removeRecordField recordID index ast in
         let maybeExprID = recordExprIdAtIndex recordID (index - 1) newAst in
         let target =
@@ -4339,7 +4339,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
       when pos = ti.endPos ->
         (* Backspace should move into a string, not delete it *)
         (ast, moveOneLeft pos s)
-    | K.Backspace, _, R (TRecordFieldname {fieldName = ""}, ti) ->
+    | K.Backspace, _, R (TRecordFieldname {fieldName = ""; _}, ti) ->
         doBackspace ~pos ti ast s
     | K.Backspace, _, R (TPatternBlank _, ti) ->
         doBackspace ~pos ti ast s
@@ -4759,7 +4759,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     let text = tokensToString tokens in
     let last = List.last tokens in
     match last with
-    | Some {token = TNewline _} when String.length text = newState.newPos ->
+    | Some {token = TNewline _; _} when String.length text = newState.newPos ->
         (newAST, {newState with newPos = newState.newPos - 1})
     | _ ->
         (newAST, newState)
@@ -4902,7 +4902,7 @@ let updateMouseClick (newPos : int) (ast : ast) (s : fluidState) :
     match getLeftTokenAt newPos tokens with
     | Some current when Token.isBlank current.token ->
         current.startPos
-    | Some ({token = TPipe _} as current) ->
+    | Some ({token = TPipe _; _} as current) ->
         current.endPos
     | _ ->
         newPos
@@ -4957,7 +4957,7 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
   match (exprStartToken, exprEndToken) with
   (* range is from startPos of first token in expr to
     * endPos of last token in expr *)
-  | Some {startPos}, Some {endPos} ->
+  | Some {startPos; _}, Some {endPos; _} ->
       Some (startPos, endPos)
   | _ ->
       None
@@ -5312,7 +5312,8 @@ let reconstructExprFromRange ~state ~ast (range : int * int) : fluidExpr option
           tokensInRange startPos endPos ~state ast
           |> List.filterMap ~f:(fun ti ->
                  match ti.token with
-                 | TRecordFieldname {recordID; index; fieldName = newKey}
+                 | TRecordFieldname
+                     {recordID; index; fieldName = newKey; fieldID = _}
                    when recordID = id (* watch out for nested records *) ->
                      List.getAt ~index entries
                      |> Option.map
@@ -5546,7 +5547,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting record key (record expression with single key and no value) into string *)
   | ( Some (ERecord (_, [(_, insert, EBlank _)]))
     , Some (EString (_, str))
-    , Some {startPos} ) ->
+    , Some {startPos; _} ) ->
       let index = state.newPos - startPos - 1 in
       let newExpr = EString (gid (), String.insertAt ~insert ~index str) in
       let newAST =
@@ -5572,7 +5573,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting integer into another integer *)
   | ( Some (EInteger (_, clippedInt))
     , Some (EInteger (_, pasting))
-    , Some {startPos} ) ->
+    , Some {startPos; _} ) ->
       let index = state.newPos - startPos in
       let insert = clippedInt in
       let newVal =
@@ -5588,7 +5589,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting float into an integer *)
   | ( Some (EFloat (_, whole, fraction))
     , Some (EInteger (_, pasting))
-    , Some {startPos} ) ->
+    , Some {startPos; _} ) ->
       let whole', fraction' =
         let str = pasting in
         String.
@@ -5607,8 +5608,9 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
           newPos = collapsedSelStart + (whole ^ "." ^ fraction |> String.length)
         } )
   (* inserting variable into an integer *)
-  | Some (EVariable (_, varName)), Some (EInteger (_, intVal)), Some {startPos}
-    ->
+  | ( Some (EVariable (_, varName))
+    , Some (EInteger (_, intVal))
+    , Some {startPos; _} ) ->
       let index = state.newPos - startPos in
       let newVal = String.insertAt ~insert:varName ~index intVal in
       let newExpr = EPartial (gid (), newVal, EVariable (gid (), newVal)) in
@@ -5619,7 +5621,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
       in
       (newAST, {state with newPos = collapsedSelStart + String.length varName})
   (* inserting int-only string into an integer *)
-  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos}
+  | Some (EString (_, insert)), Some (EInteger (_, pasting)), Some {startPos; _}
     when String.toInt insert |> Result.toOption <> None ->
       let index = state.newPos - startPos in
       let newVal =
@@ -5635,7 +5637,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting integer into a float whole *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatWhole _} ) ->
+    , Some {startPos; token = TFloatWhole _; _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
         EFloat (gid (), String.insertAt ~index ~insert:intVal whole, fraction)
@@ -5649,7 +5651,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting integer into a float fraction *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
-    , Some {startPos; token = TFloatFraction _} ) ->
+    , Some {startPos; token = TFloatFraction _; _} ) ->
       let index = state.newPos - startPos in
       let newExpr =
         EFloat (gid (), whole, String.insertAt ~index ~insert:intVal fraction)
@@ -5663,7 +5665,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting integer after float point *)
   | ( Some (EInteger (_, intVal))
     , Some (EFloat (_, whole, fraction))
-    , Some {token = TFloatPoint _} ) ->
+    , Some {token = TFloatPoint _; _} ) ->
       let newExpr = EFloat (gid (), whole, intVal ^ fraction) in
       let newAST =
         exprID
@@ -5674,7 +5676,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting variable into let LHS *)
   | ( Some (EVariable (_, varName))
     , Some (ELet (_, _, lhs, rhs, body))
-    , Some {startPos; token = TLetLHS _} ) ->
+    , Some {startPos; token = TLetLHS _; _} ) ->
       let index = state.newPos - startPos in
       let newLhs =
         if lhs <> ""
@@ -5691,7 +5693,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting list expression into another list at separator *)
   | ( Some (EList (_, itemsToPaste) as exprToPaste)
     , Some (EList (_, items))
-    , Some {token = TListSep (_, index)} ) ->
+    , Some {token = TListSep (_, index); _} ) ->
       let newItems =
         let front, back = List.splitAt ~index items in
         front @ itemsToPaste @ back
@@ -5710,7 +5712,7 @@ let pasteOverSelection ~state ~ast data : ast * fluidState =
   (* inserting other expressions into list *)
   | ( Some exprToPaste
     , Some (EList (_, items))
-    , Some {token = TListSep (_, index)} ) ->
+    , Some {token = TListSep (_, index); _} ) ->
       let newItems = List.insertAt ~value:exprToPaste ~index items in
       let newExpr = EList (gid (), newItems) in
       let newAST =
@@ -5792,7 +5794,7 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         (ast, updateAutocomplete m tlid ast state)
     (* handle selection with direction key cases *)
     (* - moving/selecting over expressions or tokens with shift-/alt-direction or shift-/ctrl-direction *)
-    | FluidKeyPress {key; (* altKey; ctrlKey; metaKey; *) shiftKey = true}
+    | FluidKeyPress {key; shiftKey = true; altKey = _; ctrlKey = _; metaKey = _}
       when key = K.Right || key = K.Left || key = K.Up || key = K.Down ->
         (* Ultimately, all we want is for shift to move the end of the selection to where the caret would have been if shift were not held.
          * Since the caret is tracked the same for end of selection and movement, we actually just want to store the start position in selection
@@ -5809,7 +5811,8 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
         | Some pos ->
             (ast, {newS with newPos = newS.newPos; selectionStart = Some pos})
         )
-    | FluidKeyPress {key; (* altKey; ctrlKey; metaKey; *) shiftKey = false}
+    | FluidKeyPress
+        {key; shiftKey = false; altKey = _; ctrlKey = _; metaKey = _}
       when s.selectionStart <> None && (key = K.Right || key = K.Left) ->
         (* Aborting a selection using the left and right arrows should
          place the caret on the side of the selection in the direction
@@ -5821,11 +5824,11 @@ let updateMsg m tlid (ast : ast) (msg : Types.fluidMsg) (s : fluidState) :
           if key = K.Left then left else right
         in
         (ast, {s with lastKey = key; newPos; selectionStart = None})
-    | FluidKeyPress {key; altKey; metaKey; ctrlKey}
+    | FluidKeyPress {key; altKey; metaKey; ctrlKey; shiftKey = _}
       when (altKey || metaKey || ctrlKey) && shouldDoDefaultAction key ->
         (* To make sure no letters are entered if user is doing a browser default action *)
         (ast, s)
-    | FluidKeyPress {key; shiftKey} ->
+    | FluidKeyPress {key; shiftKey; _} ->
         let s = {s with lastKey = key} in
         let newAST, newState = updateKey key ast s in
         let selectionStart =
@@ -5859,14 +5862,14 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
   | FluidUpdateDropdownIndex index ->
       let newState = acSetIndex index s in
       Types.TweakModel (fun m -> {m with fluidState = newState})
-  | FluidKeyPress {key} when key = K.Undo ->
+  | FluidKeyPress {key = K.Undo; _} ->
       KeyPress.undo_redo m false
-  | FluidKeyPress {key} when key = K.Redo ->
+  | FluidKeyPress {key = K.Redo; _} ->
       KeyPress.undo_redo m true
-  | FluidKeyPress {key; altKey} when altKey && key = K.Letter 'x' ->
+  | FluidKeyPress {key = K.Letter 'x'; altKey = true; _} ->
       maybeOpenCmd m
-  | FluidKeyPress {key; metaKey; ctrlKey}
-    when (metaKey || ctrlKey) && key = K.Letter 'k' ->
+  | FluidKeyPress {key = K.Letter 'k'; metaKey; ctrlKey; _}
+    when metaKey || ctrlKey ->
       KeyPress.openOmnibox m
   | FluidKeyPress ke when FluidCommands.isOpened m.fluidState.cp ->
       FluidCommands.updateCmds m ke
@@ -6248,11 +6251,11 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : ast) :
                       {state with newPos = pos; oldPos = state.newPos}
                     in
                     ( match ev with
-                    | {detail = 2; altKey = true} ->
+                    | {detail = 2; altKey = true; _} ->
                         FluidMsg
                           (FluidMouseUp
                              (tlid, getExpressionRangeAtCaret state ast))
-                    | {detail = 2; altKey = false} ->
+                    | {detail = 2; altKey = false; _} ->
                         FluidMsg
                           (FluidMouseUp (tlid, getTokenRangeAtCaret state ast))
                     | _ ->
@@ -6381,7 +6384,7 @@ let viewLiveValue
 
 let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
     =
-  let ({analysisStore; tlid} : ViewUtils.viewState) = vs in
+  let ({analysisStore; tlid; _} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
   let event ~(key : string) (event : string) : Types.msg Vdom.property =

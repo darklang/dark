@@ -275,8 +275,8 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
            match AST.getParamIndex ast id with
            | Some (name, index) ->
              ( match Autocomplete.findFunction vs.ac name with
-             | Some {fnParameters} ->
-                 List.getAt ~index fnParameters
+             | Some fn ->
+                 List.getAt ~index fn.fnParameters
              | None ->
                  None )
            | _ ->

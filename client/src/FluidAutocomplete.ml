@@ -55,8 +55,8 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | FACFunction {fnName} ->
-      fnName
+  | FACFunction fn ->
+      fn.fnName
   | FACField name ->
       name
   | FACVariable (name, _) ->
@@ -193,17 +193,15 @@ let dvalFields (dv : dval) : string list =
   match dv with DObj dict -> StrDict.keys dict | _ -> []
 
 
-let findCompatiblePipeParam ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters
+let findCompatiblePipeParam (fn : function_) (tipe : tipe) : parameter option =
+  fn.fnParameters
   |> List.head
   |> Option.andThen ~f:(fun fst ->
          if RT.isCompatible fst.paramTipe tipe then Some fst else None )
 
 
-let findParamByType ({fnParameters} : function_) (tipe : tipe) :
-    parameter option =
-  fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
+let findParamByType (fn : function_) (tipe : tipe) : parameter option =
+  fn.fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
 
 
 let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
