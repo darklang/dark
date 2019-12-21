@@ -184,7 +184,6 @@ jobs:
             - backend/static/appsupport.js
             - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
-            - backend/static/etags.json
       - store_artifacts: { path: rundir }
       - store_artifacts: { path: backend/static/etags.json }
       - store_test_results: { path: rundir/test_results }
@@ -273,6 +272,14 @@ jobs:
       - checkout
       - setup-app
       - attach_workspace: { at: "." }
+      - run:
+          name: Generate ETags
+          command: |
+            scripts/support/generate-etags
+            cp backend/static/etags.json rundir/
+      - persist_to_workspace:
+          root: "."
+          paths: [ backend/static/etags.json ]
       - restore_cache: # get testcafe
           keys:
             - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
