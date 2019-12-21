@@ -14,7 +14,7 @@ sudo pkill -f server.exe || true
 pkill -f queue_worker.exe || true
 pkill -f cron_checker.exe || true
 
-./scripts/support/wait-for-background-services dnsmasq postgresql
+./scripts/support/wait-for-background-services postgresql
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));

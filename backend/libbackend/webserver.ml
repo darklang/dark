@@ -1819,16 +1819,20 @@ let route_host req =
     |> fun h -> String.split h '.'
   with
   | ["static"; "darklang"; "localhost"]
+  | ["static"; "darklang"; "lvh"; "me"]
   | ["static"; "darklang"; "com"]
   | [_; "ngrok"; "io"] ->
       Some Static
   (* Dark canvases *)
   | [a; "builtwithdark"; "com"]
   | [a; "builtwithdark"; "localhost"]
+  | [a; "builtwithdark"; "lvh"; "me"]
   | [a; "darksingleinstance"; "com"] ->
       Some (Canvas a)
   (* Specific Dark canvas: builtwithdark *)
-  | ["builtwithdark"; "localhost"] | ["builtwithdark"; "com"] ->
+  | ["builtwithdark"; "localhost"]
+  | ["builtwithdark"; "lvh"; "me"]
+  | ["builtwithdark"; "com"] ->
       Some (Canvas "builtwithdark")
   (* Specific Dark canvas: darksingleinstance *)
   | ["darksingleinstance"; "com"] ->
@@ -1843,7 +1847,10 @@ let route_host req =
   | ["www"; "kiksht"; "com"] | ["kiksht"; "com"] ->
       Some (Canvas "alex")
   (* admin interface + outer site, conditionally *)
-  | ["darklang"; "com"] | ["darklang"; "localhost"] | ["dark_dev"; "com"] ->
+  | ["darklang"; "com"]
+  | ["darklang"; "localhost"]
+  | ["darklang"; "lvh"; "me"]
+  | ["dark_dev"; "com"] ->
       Some Admin
   (* Not a match... *)
   | _ ->

@@ -1,5 +1,10 @@
 #!/usr/bin/env python3.6
 
+# This is used, in concert with scripts/builder, to run Dark inside the dev
+# container. There is a strong connection between these files and
+# .circleci/config.yml. Generally, if you add something to one of these
+# files, there's an equivalent to be added in .circleci/config.yml.
+
 import subprocess
 import sys
 import threading
@@ -112,6 +117,7 @@ def process_watchers():
           if f != "":
             try:
               f, _ = f.strip().split(" ")
+              f = f.replace(os.environ["HOST_PWD"], "/home/dark/app")
               files.add(f)
             except:
               print("exception splitting: " + f)
@@ -196,19 +202,12 @@ def main():
 
     return success
 
-  run("sudo chown dark:dark backend/_build")
-  run("sudo chown dark:dark backend/_esy")
-  run("sudo chown dark:dark backend/node_modules")
-  run("sudo chown dark:dark /home/dark/.esy")
-  run("sudo chown dark:dark client/node_modules")
-  run("sudo chown dark:dark client/lib")
-  run("sudo chown dark:dark /home/dark/.cargo")
-  run("sudo chown dark:dark stroller/target")
-  run("sudo chown dark:dark queue-scheduler/target")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   run_or_fail("scripts/support/create-app-directories")
-  run_or_fail("scripts/support/start-background-services dnsmasq postgresql")
+  run_or_fail("scripts/support/create-cache-directories")
+  run_or_fail("scripts/support/setup-hosts")
+  run_or_fail("scripts/support/start-background-services postgresql")
   if compile:
     if watch or serve:
       background_task(initial_compile, "initial_compile")

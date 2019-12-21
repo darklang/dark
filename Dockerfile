@@ -21,7 +21,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       lsb-core \
       less \
       gpg \
-      gpg-agent
+      gpg-agent \
+      && apt clean \
+      && rm -rf /var/lib/apt/lists/*
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
@@ -69,7 +71,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
       --no-install-recommends \
       -y \
       software-properties-common \
-      python3.6 \
       make \
       m4 \
       rsync \
@@ -88,10 +89,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-client-9.6 \
       postgresql-contrib-9.6 \
       chromium-browser \
-      firefox \
       gnupg \
       nodejs=13.5.0-1nodesource1 \
-      google-chrome-stable \
       dnsmasq \
       cron \
       google-cloud-sdk \
@@ -104,11 +103,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       ruby \
       kubectl \
       python3-pip \
-      python-pip \
+      python3-setuptools \
       libsodium-dev \
       gcc \
-      python-dev \
-      python-setuptools \
       pgcli \
       xvfb \
       ffmpeg \
@@ -121,6 +118,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       nginx=1.16.1-1~bionic \
       bash-completion \
       texinfo \
+      openssh-server \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -212,42 +210,42 @@ RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/rele
 RUN docker-credential-gcr config --token-source="gcloud"
 
 # crcmod for gsutil
-RUN pip install -U crcmod
+RUN pip3 install -U --no-cache-dir -U crcmod
 
 ############################
 # Pip packages
 ############################
-RUN pip install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
+RUN pip3 install yq && echo 'PATH=~/.local/bin:$PATH' >> ~/.bashrc
 
 ############################
 # Ocaml
 ############################
 USER dark
 ENV FORCE_OCAML_BUILD 5
-RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
-# disabling sandboxing as it breaks and isn't necessary cause Docker
 
 ENV OCAML_SWITCH ocaml-base-compiler.4.06.1
 # env vars below here replace `eval $(opam env)` in dotfiles; by doing it here,
 # we avoid having to source .bashrc before every command
-RUN opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing
 ENV PATH "/home/dark/.opam/${OCAML_SWITCH}/bin:$PATH"
 ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/${OCAML_SWITCH}/man:"
 ENV PERL5LIB "/home/dark/.opam/${OCAML_SWITCH}/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/${OCAML_SWITCH}/lib/toplevel"
 ENV FORCE_OCAML_UPDATE 5
-RUN opam update
 
-#ENV OPAMDEBUG true
-RUN opam install -y \
-  ppx_deriving.4.3 \
-  dune.1.11.0 \
-  ppx_deriving_yojson.3.4 \
-  merlin.3.2.2 \
-  ocp-indent.1.6.1 \
-  ocamlformat.0.8
+# disabling sandboxing as it breaks and isn't necessary cause Docker
+RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash \
+      && opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing \
+      && opam update \
+      && opam install -y \
+           ppx_deriving.4.3 \
+           dune.1.11.0 \
+           ppx_deriving_yojson.3.4 \
+           merlin.3.2.2 \
+           ocp-indent.1.6.1 \
+           ocamlformat.0.8 \
+      && opam clean --all-switches --download-cache --repo-cache
 
 
 ENV ESY__PROJECT=/home/dark/app/backend
@@ -291,21 +289,16 @@ RUN cargo install cargo-cache
 # reset CARGO_HOME so that we can use it as a project cache directory like normal.
 ENV CARGO_HOME=/home/dark/.cargo
 
-########################
-# DNS for integration tests
-########################
-RUN echo "address=/localhost/127.0.0.1" | sudo tee -a /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-
 ############################
 # Environment
 ############################
 USER dark
 ENV TERM=xterm-256color
 
-
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
+ 
 
 ############################
 # Finish
