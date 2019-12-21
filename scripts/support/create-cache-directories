@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+prepare () {
+  sudo mkdir -p $1
+  sudo chown dark:dark $1
+}
+
+prepare "backend/_build"
+prepare "backend/_esy"
+prepare "backend/node_modules"
+prepare "/home/dark/.esy"
+prepare "client/node_modules"
+prepare "client/lib"
+prepare "/home/dark/.cargo"
+prepare "stroller/target"
+prepare "queue-scheduler/target"

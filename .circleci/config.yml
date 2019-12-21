@@ -1,8 +1,21 @@
 version: 2.1
+
+# There is a strong connection between this file and the equivalent files for
+# running Dark in dev, which are scripts/builder and
+# scripts/support/build-server. Generally, if you add something to this file,
+# there's an equivalent to be added in one of those files.
+
 executors:
   my-executor:
     docker:
       - image: docker:stable-git
+  in-container:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
+
 
 commands:
   show-large-files-and-directories:
@@ -16,31 +29,6 @@ commands:
             du -ht 50M
 
   ##########################
-  # Getting into the remote container
-  ##########################
-  copy-into-container:
-    steps:
-      - show-large-files-and-directories
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Copy app directory into dev container
-          command: |
-            time docker cp . vols:/home/dark/app
-      - set-ownership:
-          path: "/home/dark/app"
-
-  set-ownership:
-    parameters:
-      path:
-        type: string
-    steps:
-      # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
-      - run:
-          name: Set the ownership of copied files
-          command: |
-            docker run -i --volumes-from vols alpine sh -c "adduser -D -u 1000 dark; chown -R dark << parameters.path >>"
-
-  ##########################
   # Check the worktree
   ##########################
   assert-clean-worktree:
@@ -49,62 +37,43 @@ commands:
           name: Assert the worktree is clean
           command: "bash -c '[[ -z $(git status -s) ]] && echo Workdir is clean || { echo Workdir is not clean:; git status -s; $(exit 1); }'"
 
+
   ##########################
-  # Artifacts
+  # Setup app
   ##########################
-  extract-and-save-artifacts:
+  setup-app:
     steps:
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-            time docker cp vols:/home/dark/app/backend/static/etags.json artifacts/
-            ls -la backend/static > artifacts/asset-list.txt
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+      - run: |
+          set -x
+          scripts/support/setup-circleci-environment
+          scripts/support/create-app-directories
+          scripts/support/create-cache-directories
+          scripts/support/setup-hosts
+          scripts/support/start-background-services postgresql
+          env
 
   ##########################
   # Rust
   ##########################
   rust-setup:
     parameters:
-      project:
-        type: string
+      project: { type: string }
     steps:
+      - setup-app
       - restore_cache:
           keys:
             # This cache should be about 500MB or so. It balloons over time and needs to be deleted.
-            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
-            - v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
-            - v14-<< parameters.project >>
-      - run:
-          name: Set up volume for cargo
-          command: |
-            set -x
-            time mkdir -p dotcargo
-            time docker cp dotcargo/. vols:/home/dark/.cargo
-            time rm -Rf dotcargo # don't copy it a second time when we copy-into-container
-      - set-ownership: { path: "/home/dark/.cargo" }
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
+            - v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}
+            - v0d-<< parameters.project >>
 
   rust-finish:
     parameters:
-      project:
-        type: string
+      project: { type: string }
     steps:
       - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            # clean ~./cargo sources before copy
-            scripts/run-in-docker 'cargo cache -a'
-            time docker cp vols:/home/dark/app/<< parameters.project >>/target << parameters.project >>/
-            time docker cp vols:/home/dark/.cargo dotcargo
-
+          name: Reduce caches
+          command: cargo cache -a
       - show-large-files-and-directories
 
       # must persist to workspace first, as next step will remove built release artifact
@@ -128,280 +97,84 @@ commands:
           name: "Save << parameters.project >> cache"
           paths:
             - << parameters.project >>/target
-            - dotcargo/bin/
-            - dotcargo/registry/index/
-            - dotcargo/registry/cache/
-            - dotcargo/git/db/
-          key: v14-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}-{{ .BuildNum }}
-
-  ##########################
-  # Caches
-  ##########################
-  clean-caches:
-    parameters:
-      path:
-        type: string
-    steps:
-      - run:
-          name: maybe clear caches
-          # since we don't checksum the cache on its contents, it may
-          # continue to grow. as a result, let's clear the cache weekly.
-          # we store the day the cache was built in the cache. if the
-          # cache was built on friday, and today is not friday, then
-          # it's the first build after last week, and clear it.
-          command: |
-            if [[ `date +"%a"` != "friday" && `cat << parameters.path >>/cache_day` == "friday" ]]; then
-              echo "clearing caches"
-              rm -rf << parameters.path >>
-            else
-              echo "not clearing caches"
-            fi
-            mkdir -p << parameters.path >>
-            date +"%a" > << parameters.path >>/cache_day
+            - .cargo/bin/
+            - .cargo/registry/index/
+            - .cargo/registry/cache/
+            - .cargo/git/db/
+          key: v0d-<< parameters.project >>-{{ checksum "<< parameters.project >>/Cargo.lock" }}-{{ .Branch }}
 
   ##########################
   # Initializing the containers
   ##########################
-  initialize:
+  prep-container-creation:
     steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker: { docker_layer_caching: true }
 
       # Save the docker env: type .docker-env when sshing in, then you can
       # use ./scripts/run-in-docker
-      - run: |
-          env \
-          | grep 'DOCKER\|NO_PROXY' \
-          | sed 's/^/export /' \
-          > /root/docker-env
-
       - run:
-          name: Prepare dev-container volume (vols)
-          command: |
-            # We list all the directories because volume creation has to be
-            # done on creation afaict.
-            docker create -v /home/dark/app -v /home/dark/.esy -v /home/dark/.cargo -v /usr/local/cargo-home --name vols alpine:3.4 /bin/true
-
-      - run:
-          name: Install outer container utilities
-          # coreutils for gnu date
-          command: |
-            apk add --update bash coreutils jq
-
-      - run:
-          name: "Setup cache names"
-          command: |
-            date +"%F" > rundir/today-timestamp
-            date +"%F" -d "today - 1 days" > rundir/minus1-timestamp
-            date +"%F" -d "today - 2 days" > rundir/minus2-timestamp
-            date +"%F" -d "today - 3 days" > rundir/minus3-timestamp
+          name: Setup docker-env for debugging
+          command: env | grep 'DOCKER\|NO_PROXY' | sed 's/^/export /' > ../docker-env
 
 
   ##########################
   # misc
   ##########################
-  run-background-container:
-    steps:
-      - run:
-          name: Build container if necessary
-          command: scripts/builder
-      - run:
-          name: Run background container
-          command: scripts/builder --ci-serve
-          background: true
-  wait-for-container:
-    steps:
-      - run:
-          name: "Wait for container"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 10m scripts/wait-until-container-ready
-  wait-for-server:
-    steps:
-      - wait-for-container
-      - run:
-          name: "Wait for server"
-          command: |
-            # --foreground because this is run in a script by circle
-            timeout --foreground 10m scripts/wait-until-server-ready
   auth-with-gcp:
     steps:
       - run:
           name: Auth with GCP
           command: |
             echo $GCLOUD_SERVICE_KEY | base64 --decode --ignore-garbage > gcloud-service-key.json
-            docker cp gcloud-service-key.json dark-dev:/home/dark/app/gcloud-service-key.json
-            scripts/run-in-docker gcloud auth activate-service-account --key-file /home/dark/app/gcloud-service-key.json
+            gcloud auth activate-service-account --key-file gcloud-service-key.json
 
 ##########################
 # Actual workflow
 ##########################
 jobs:
-  build-stroller:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - rust-setup: { project: "stroller" }
-      - copy-into-container
-      - run: scripts/builder --compile-stroller --test
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
-      - assert-clean-worktree
-      - rust-finish: { project: "stroller" }
 
-  build-queue-scheduler:
+  build-container:
     executor: my-executor
+    environment:
+      TAG: 500377317163.dkr.ecr.us-east-1.amazonaws.com/dark-ci:latest
     steps:
       - checkout
-      - initialize
-      - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run: scripts/builder --compile-scheduler # tests are run in integration-tests job
-      - run-background-container
-      - wait-for-container
-      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
-      - assert-clean-worktree
-      - rust-finish: { project: "queue-scheduler" }
-
-  build-backend:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v12-backend-{{ checksum "rundir/today-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus1-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus2-timestamp" }}
-            - v12-backend-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "backend/_build" }
-      # appsupport is needed for a unit test
-      - run: touch backend/static/appsupport.js
-      - show-large-files-and-directories
-      - run:
-          # Everything else is copied in via copy-into-container, but it
-          # doesn't include this because it's not in /home/dark/app.
-          name: Set up volume for dotesy
-          command: |
-            set -x
-            mkdir -p dotesy
-            time docker cp dotesy/. vols:/home/dark/.esy
-            time rm -Rf dotesy # don't copy it a second time
-      - set-ownership:
-          path: "/home/dark/.esy"
-      - copy-into-container
-      - run: scripts/builder --compile-backend --test
-      - run-background-container
-      - wait-for-container
-        # For speed optimization, we could put this in a faster job; it doesn't
-        # need to be run post-build, it just needs the container running. But it
-        # takes <1s to run, so this is the more "logical" location.
-      - run: scripts/ocaml-find-unused backend/test
-      - assert-clean-worktree
-      - run:
-          name: Reduce size of esy cache
-          command: |
-            set -x
-            ./scripts/run-in-docker rm -Rf /home/dark/.esy/3/b
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/backend/_build backend/
-            time docker cp vols:/home/dark/app/backend/_esy backend/
-            time docker cp vols:/home/dark/app/backend/node_modules backend/
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
-            time docker cp vols:/home/dark/.esy dotesy
-      - show-large-files-and-directories
-      - save_cache:
-          name: "Save daily backend cache"
-          paths:
-            - backend/_build
-            - backend/_esy
-            - backend/node_modules
-            - backend/static
-            - dotesy
-          key: v12-backend-{{ checksum "rundir/today-timestamp" }}
-      - persist_to_workspace:
-          root: "."
-          paths:
-            # Just enough for integration tests and deploy
-            - backend/_build/default/bin/server.exe
-            - backend/_build/default/bin/queue_worker.exe
-            - backend/_build/default/bin/cron_checker.exe
-            - backend/static/analysis.js
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
-
-  build-postgres-honeytail:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - restore_cache:
-          keys:
-            - v6-postgres-honeytail-{{ checksum "rundir/today-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus1-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus2-timestamp" }}
-            - v6-postgres-honeytail-{{ checksum "rundir/minus3-timestamp" }}
-      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
-
-  validate-honeycomb-config:
-    executor: my-executor
-    steps:
-      - checkout
-      - initialize
-      - run: apk add --update python py-pip && pip install yq
-      - run: pip install yq
-      - run: scripts/support/test-honeycomb-config.sh
+      - prep-container-creation
+      - run: apk add --update bash python3 --update-cache
+      - run: pip3 install awscli --upgrade --user
+      - run: $(/root/.local/bin/aws ecr get-login --no-include-email --region us-east-1)
+      # This is not working, feels like it should. It's downloading, yet still rebuilding.
+      # - run:
+      #     name: Pre-fetch docker container
+      #     shell: bash
+      #     command: |
+      #       if [[ `docker images $TAG -q` == "" ]]
+      #       then
+      #         set -x
+      #         docker pull $TAG
+      #         docker images
+      #       fi
+      - run: docker build -t $TAG .
+      - run: docker push $TAG
 
   build-client:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - setup-app
       - restore_cache:
           keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
-      - clean-caches: { path: "client/node_modules" }
-      - clean-caches: { path: "client/lib" }
-      - copy-into-container
-      - run: scripts/builder --compile-client --test
-      - run-background-container
-      - wait-for-container
+            - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+            - v1d-client-{{ checksum "client/yarn.lock" }}
+            - v1d-client
+      - run: scripts/support/compile --test client/package.json client/src/styles/app.scss 
       - assert-clean-worktree
       - run: scripts/support/shellchecker # run here cause its the fastest
-      - run:
-          name: Copy out generated files and caches
-          command: |
-            set -x
-            time docker cp vols:/home/dark/app/client/node_modules client
-            time docker cp vols:/home/dark/app/client/lib client
-            time docker cp vols:/home/dark/app/backend/static/. backend/static
       - show-large-files-and-directories
       - save_cache:
           name: "Save packagejson-specific cache"
           paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "client/package.json" }}
-      - save_cache:
-          name: "Save daily client cache"
-          paths: [ "client/node_modules" ]
-          key: v9-client-{{ checksum "rundir/today-timestamp" }}
+          key: v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
@@ -411,45 +184,107 @@ jobs:
             - backend/static/appsupport.js
             - backend/static/fetcher.js
             - backend/static/analysiswrapper.js
+            - backend/static/etags.json
+      - store_artifacts: { path: rundir }
+      - store_artifacts: { path: backend/static/etags.json }
+      - store_test_results: { path: rundir/test_results }
+
+  build-backend:
+    executor: in-container
+    steps:
+      - checkout
+      - setup-app
+      - restore_cache:
+          keys:
+            - v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+            - v2d-backend-{{ checksum "backend/esy.json" }}
+            - v2d-backend
+      # appsupport is needed for a unit test
+      - run: touch backend/static/appsupport.js
+      - show-large-files-and-directories
+      - run: scripts/support/compile --test backend/esy.json
+      - assert-clean-worktree
+      # Doesn't need to be run post-build, but takes <1s to run
+      - run: scripts/ocaml-find-unused backend/test
       - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            set -x
-            time mkdir -p artifacts
-            time docker cp vols:/home/dark/app/rundir artifacts/rundir
-            time cp backend/static/etags.json artifacts
-            ls -la backend/static > artifacts/asset-list.txt
-      - store_artifacts:
-          path: artifacts
-      - store_test_results:
-          path: artifacts/rundir/test_results
+          name: Reduce size of esy cache
+          command: rm -Rf /home/dark/.esy/3/b
+      - show-large-files-and-directories
+      - save_cache:
+          paths:
+            - backend/_build
+            - backend/_esy
+            - backend/node_modules
+            - /home/dark/.esy
+          key: v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+      - persist_to_workspace:
+          root: "."
+          paths:
+            # Just enough for integration tests and deploy
+            - backend/_build/default/bin/server.exe
+            - backend/_build/default/bin/queue_worker.exe
+            - backend/_build/default/bin/cron_checker.exe
+            - backend/static/analysis.js
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
 
 
+  build-stroller:
+    executor: in-container
+    steps:
+      - checkout
+      - rust-setup: { project: "stroller" }
+      - run: scripts/support/compile stroller/Cargo.toml --test
+      - prep-container-creation
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-queue-scheduler
+      - assert-clean-worktree
+      - rust-finish: { project: "stroller" }
+
+  build-queue-scheduler:
+    executor: in-container
+    steps:
+      - checkout
+      - rust-setup: { project: "queue-scheduler" }
+      # tests are run in rust-integration-tests
+      - run: scripts/support/compile queue-scheduler/Cargo.toml
+      - prep-container-creation
+      - run: scripts/gcp-build-containers --skip-ocaml --skip-stroller
+      - assert-clean-worktree
+      - rust-finish: { project: "queue-scheduler" }
+
+  build-postgres-honeytail:
+    executor: my-executor
+    steps:
+      - checkout
+      - prep-container-creation
+      - run: cd postgres-honeytail && docker build -t dark-gcp-postgres-honeytail .
+
+  validate-honeycomb-config:
+    executor: my-executor
+    steps:
+      - checkout
+      - prep-container-creation
+      - run: apk add --update bash jq python py-pip && pip install yq
+      - run: bash -c scripts/support/test-honeycomb-config.sh
 
   integration-tests:
-    executor: my-executor
+    executor: in-container
     parallelism: 4
     steps:
       - checkout
-      - initialize
+      - setup-app
       - attach_workspace: { at: "." }
       - restore_cache: # get testcafe
           keys:
-            - v9-client-{{ checksum "client/package.json" }}
-            - v9-client-{{ checksum "rundir/today-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus1-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus2-timestamp" }}
-            - v9-client-{{ checksum "rundir/minus3-timestamp" }}
+            - v1d-client-{{ checksum "client/yarn.lock" }}-{{ .Branch }}
+            - v1d-client-{{ checksum "client/yarn.lock" }}
+            - v1d-client
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-
-      - wait-for-server
       - run:
           name: Run integration tests
-          shell: bash
           command: |
+            scripts/support/runserver
+
             # get full list of tests
             grep ^test integration-tests/tests.js | sed 's/.*"\(.*\)".*/\1/' > rundir/all-tests
             # split them using timing info
@@ -458,73 +293,71 @@ jobs:
             PATTERN=$(printf -- "^%s$|" $TESTS)
             # remove last char
             PATTERN=${PATTERN%?}
-            scripts/run-in-docker integration-tests/run.sh --pattern="$PATTERN"
+            scripts/wait-until-server-ready
+            integration-tests/run.sh --pattern="$PATTERN"
       - assert-clean-worktree
+      - store_artifacts: { path: rundir }
+      - store_test_results: { path: rundir/test_results }
 
-      - extract-and-save-artifacts
 
   rust-integration-tests:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - rust-setup: { project: "queue-scheduler" }
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - rust-setup: { project: "queue-scheduler" }
-      - copy-into-container
-      - run-background-container
-      - wait-for-server
+      - run:
+          name: Trigger migrations with runserver
+          command: |
+            # Run the server long enough to ensure it runs the migrations
+            scripts/support/runserver
+            scripts/wait-until-server-ready
       - run:
           name: Run queue-scheduler tests
-          command: scripts/run-in-docker scripts/run-rust-tests queue-scheduler
+          command: scripts/run-rust-tests queue-scheduler
       - assert-clean-worktree
 
 
   push-to-gcp:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      # Now that the workspaces have combined, we need to regenerate etags.json
-      - wait-for-server
-      - run: docker cp vols:/home/dark/app/backend/static/etags.json backend/static
-      - run: scripts/run-in-docker scripts/gcp-build-containers
+      - setup_remote_docker: { docker_layer_caching: true }
+      - run: scripts/gcp-build-containers
       - auth-with-gcp
-      - run: scripts/run-in-docker scripts/push-assets-to-cdn
-      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
+      - run: scripts/push-assets-to-cdn
+      - run: scripts/gcp-push-images-to-gcr
       # Save the image IDs for deployment later
-      - run: |
-          set -x
-          mkdir gcr-image-ids
-          time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
-          time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
-          time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
+      - run:
+          name: Save image IDs
+          command: |
+            mkdir gcr-image-ids
+            time docker images gcr.io/balmy-ground-195100/dark-gcp -q | head -n 1 > gcr-image-ids/server
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-qw -q | head -n 1 > gcr-image-ids/qw
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-cron -q | head -n 1 > gcr-image-ids/cron
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-stroller -q | head -n 1 > gcr-image-ids/stroller
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-queue-scheduler -q | head -n 1 > gcr-image-ids/queue-scheduler
+            time docker images gcr.io/balmy-ground-195100/tunnel -q | head -n 1 > gcr-image-ids/tunnel
+            time docker images gcr.io/balmy-ground-195100/dark-gcp-postgres-honeytail -q | head -n 1 > gcr-image-ids/postgres-honeytail
       - persist_to_workspace:
           root: "."
           paths: [ gcr-image-ids ]
 
 
   deploy:
-    executor: my-executor
+    executor: in-container
     steps:
       - checkout
-      - initialize
+      - setup-app
       - attach_workspace: { at: "." }
       - show-large-files-and-directories
-      - copy-into-container
-      - run-background-container
-      - wait-for-container
       - auth-with-gcp
       - run: |
-          scripts/run-in-docker scripts/gke-deploy       \
+          scripts/gke-deploy       \
             --server-image-id=`cat gcr-image-ids/server` \
             --qw-image-id=`    cat gcr-image-ids/qw`     \
             --cron-image-id=`  cat gcr-image-ids/cron`   \
@@ -539,21 +372,25 @@ workflows:
   build-and-deploy:
     jobs:
       # initial builds & tests
-      - build-backend
-      - build-client
-      - build-queue-scheduler
-      - build-stroller
+      - build-container
       - build-postgres-honeytail
       - validate-honeycomb-config
+
+      - build-backend: { requires: [ build-container ] }
+      - build-client: { requires: [ build-container ] }
+      - build-stroller: { requires: [ build-container ] }
+      - build-queue-scheduler: { requires: [ build-container ] }
 
       # expensive tests
       - rust-integration-tests:
           requires:
+            - build-container
             - build-backend
             - build-client
             - build-queue-scheduler
       - integration-tests:
           requires:
+            - build-container
             - build-backend
             - build-client
 
@@ -563,6 +400,7 @@ workflows:
             branches:
               only: master
           requires:
+            - build-container
             - build-backend
             - build-client
             - build-stroller
@@ -575,6 +413,7 @@ workflows:
             branches:
               only: master
           requires:
+            - build-container
             - validate-honeycomb-config
             - integration-tests
             - rust-integration-tests

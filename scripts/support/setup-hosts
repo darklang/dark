@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo 127.0.0.1 localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 darklang.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 static.darklang.localhost | sudo tee -a /etc/hosts
+echo 127.0.0.1 builtwithdark.localhost | sudo tee -a /etc/hosts
+
+

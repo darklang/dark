@@ -157,9 +157,7 @@ async function gotoAST(t) {
 }
 
 function user_content_url(t, endpoint) {
-  return (
-    "http://test-" + t.testRun.test.name + ".builtwithdark.localhost:8000" + endpoint
-  );
+  return "http://test-" + t.testRun.test.name + ".builtwithdark.lvh.me:8000" + endpoint;
 }
 
 //********************************
@@ -259,22 +257,6 @@ test("enter_changes_state", async t => {
     .pressKey("enter")
     .expect(entryBoxAvailable())
     .ok();
-});
-
-test("field_access", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestdict"))
-    .ok()
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText("bodyfield"))
-    .ok()
-    .pressKey("enter");
 });
 
 test("field_access_closes", async t => {

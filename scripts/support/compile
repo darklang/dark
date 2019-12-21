@@ -437,7 +437,6 @@ profile = False # Run ocaml stuff under the landmarks profiler
 files = []
 def main():
   for f in sys.argv[1:]:
-    f = f.replace(os.environ["HOST_PWD"], "/home/dark/app")
     if f == "--test":
       global run_tests
       run_tests = True

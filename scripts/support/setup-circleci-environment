@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# build-server does in the dev environment
+
+ENV_FILE="config/circleci"
+echo "Using env: $ENV_FILE"
+
+grep DARK_CONFIG "$ENV_FILE" | sed 's/^/export /' >> "${BASH_ENV}"

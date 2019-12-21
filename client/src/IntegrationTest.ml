@@ -79,14 +79,6 @@ let enter_changes_state (m : model) : testResult =
       fail ~f:show_cursorState m.cursorState
 
 
-let field_access (m : model) : testResult =
-  match onlyExpr m with
-  | FieldAccess (F (_, Variable "request"), F (_, "body")) ->
-      pass
-  | expr ->
-      fail ~f:show_nExpr expr
-
-
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | Entering (Filling (_, _)) ->
@@ -1008,8 +1000,6 @@ let trigger (test_name : string) : integrationTestState =
     ( match name with
     | "enter_changes_state" ->
         enter_changes_state
-    | "field_access" ->
-        field_access
     | "field_access_closes" ->
         field_access_closes
     | "field_access_pipes" ->
