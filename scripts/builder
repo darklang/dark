@@ -145,8 +145,6 @@ $FSWATCH | docker run \
              --init \
              --rm \
              -i \
-             --privileged \
-             --dns 127.0.0.1 \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
              --name dark-dev \
