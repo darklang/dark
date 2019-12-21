@@ -69,7 +69,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --concurrency "$CONCURRENCY" \
     --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
-    "chrome \"--window-size=1600,1200\""  \
+    "$BROWSER \"--window-size=1600,1200\""  \
     integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
