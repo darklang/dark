@@ -194,9 +194,9 @@ jobs:
       - setup-app
       - restore_cache:
           keys:
-            - v0d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
-            - v0d-backend-{{ checksum "backend/esy.json" }}
-            - v0d-backend
+            - v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+            - v2d-backend-{{ checksum "backend/esy.json" }}
+            - v2d-backend
       # appsupport is needed for a unit test
       - run: touch backend/static/appsupport.js
       - show-large-files-and-directories
@@ -213,8 +213,8 @@ jobs:
             - backend/_build
             - backend/_esy
             - backend/node_modules
-            - .esy
-          key: v0d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
+            - /home/dark/.esy
+          key: v2d-backend-{{ checksum "backend/esy.json" }}-{{ .Branch }}
       - persist_to_workspace:
           root: "."
           paths:
