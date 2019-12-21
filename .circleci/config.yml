@@ -309,6 +309,7 @@ jobs:
           name: Trigger migrations with runserver
           command: |
             # Run the server long enough to ensure it runs the migrations
+            scripts/support/generate-etags
             scripts/support/runserver
             scripts/wait-until-server-ready
       - run:
