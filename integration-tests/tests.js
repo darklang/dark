@@ -1066,9 +1066,9 @@ test("fluid_execute_function_shows_live_value", async t => {
     .ok()
     .click(Selector(".id-1045574047.fluid-string"))
     .click(Selector(".id-1334251057 .execution-button"))
-    .expect(available(".selected .live-values"))
+    .expect(available(".selected .live-value"))
     .ok()
-    .expect(Selector(".selected .live-values").innerText)
+    .expect(Selector(".selected .live-value").innerText)
     .eql("<Bytes: length=32>");
 });
 
