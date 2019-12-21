@@ -1418,7 +1418,9 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
 
 (* updateExpr searches `ast` for an expression `e` with the given `id` and when
  * found replaces `e` with `f e`. *)
-let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
+let updateExpr
+    ?(failIfMissing = true) ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast)
+    : ast =
   let found = ref false in
   let rec run e =
     if id = eid e
@@ -1428,10 +1430,12 @@ let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
     else recurse ~f:run e
   in
   let finished = run ast in
-  asserT
-    ~debug:(id, ast)
-    "didn't find the id in the expression to update"
-    !found ;
+  if failIfMissing
+  then
+    asserT
+      ~debug:(id, ast)
+      "didn't find the id in the expression to update"
+      !found ;
   finished
 
 
@@ -2474,78 +2478,68 @@ let maybeCommitStringPartial pos ti newAST newState =
     captures
     |> List.filter ~f:(fun c -> not (List.member ~value:c valid_escape_chars))
   in
-  (* findExpr, because we may have updated the partial above with an
-   * insert or delete, and we want the "new" contents *)
   let origExpr = findExpr id newAST in
-  match origExpr with
-  | None ->
-      (newAST, newState) (* no-op *)
-  | Some _ ->
-      let processStr (str : string) : string =
-        valid_escape_chars_alist
-        |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
-               (* workaround for how "\\" gets escaped *)
-               let from = if from == "\\" then "\\\\" else from in
-               Util.Regex.replace
-                 ~re:(Util.Regex.regex ("\\\\" ^ from))
-                 ~repl
-                 acc )
-      in
-      let newAST =
-        updateExpr
-          ~f:(function
-            | EPartial (_, str, EString _) as origExpr ->
-                let processedStr = processStr str in
-                let invalid_escapes = invalid_escapes_in_string str in
-                if not (List.isEmpty invalid_escapes)
-                then origExpr (* no-op *)
-                else EString (id, processedStr)
-            | origExpr ->
-                origExpr (* no-op *))
-          id
-          newAST
-      in
-      let newState =
-        ( match origExpr with
-        | Some (EPartial (_, str, EString _)) ->
+  let processStr (str : string) : string =
+    valid_escape_chars_alist
+    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
+           (* workaround for how "\\" gets escaped *)
+           let from = if from == "\\" then "\\\\" else from in
+           Util.Regex.replace ~re:(Util.Regex.regex ("\\\\" ^ from)) ~repl acc
+       )
+  in
+  let newAST =
+    updateExpr
+      ~failIfMissing:false
+      ~f:(function
+        | EPartial (_, str, EString _) as origExpr ->
+            let processedStr = processStr str in
             let invalid_escapes = invalid_escapes_in_string str in
             if not (List.isEmpty invalid_escapes)
-            then None (* no-op *)
-            else Some str
-        | _ ->
-            None (* no-op *) )
-        |> Option.map ~f:(fun oldStr ->
-               let oldOffset = pos - ti.startPos in
-               (* We might have shortened the string when we processed its
+            then origExpr (* no-op *)
+            else EString (id, processedStr)
+        | origExpr ->
+            origExpr (* no-op *))
+      id
+      newAST
+  in
+  let newState =
+    ( match origExpr with
+    | Some (EPartial (_, str, EString _)) ->
+        let invalid_escapes = invalid_escapes_in_string str in
+        if invalid_escapes <> [] then None (* no-op *) else Some str
+    | _ ->
+        None (* no-op *) )
+    |> Option.map ~f:(fun oldStr ->
+           let oldOffset = pos - ti.startPos in
+           (* We might have shortened the string when we processed its
             * escapes - but only the ones to the left of the cursor would
             * move the cursor *)
-               let oldlhs, _ = String.splitAt ~index:oldOffset oldStr in
-               let newlhs = processStr oldlhs in
-               let newOffset =
-                 oldOffset + (String.length oldlhs - String.length newlhs)
-               in
-               let astRef =
-                 match findExpr id newAST with
-                 | Some (EString _) ->
-                     ARString (id, SPOpenQuote)
-                 | Some (EPartial _) ->
-                     ARPartial id
-                 | Some ast ->
-                     reportError "need an ASTRef match for " (ast |> show_ast)
-                     (* TODO this is a failure case, fail better here *) ;
-                     ARPartial id
-                 | _ ->
-                     reportError "no expr found for ID" id
-                     (* TODO this is a failure case, fail better here *) ;
-                     ARPartial id
-               in
-               moveToAstRef newState newAST ~offset:(newOffset + 1) astRef )
-        (* If origExpr wasn't an EPartial (_, _, Estring _), then we didn't
+           let oldlhs, _ = String.splitAt ~index:oldOffset oldStr in
+           let newlhs = processStr oldlhs in
+           let newOffset =
+             oldOffset + (String.length oldlhs - String.length newlhs)
+           in
+           let astRef =
+             match findExpr id newAST with
+             | Some (EString _) ->
+                 ARString (id, SPOpenQuote)
+             | Some (EPartial _) ->
+                 ARPartial id
+             | Some expr ->
+                 recover
+                   "need an ASTRef match for "
+                   ~debug:(show_fluidExpr expr)
+                   (ARPartial id)
+             | _ ->
+                 recover "no expr found for ID" ~debug:id (ARPartial id)
+           in
+           moveToAstRef newState newAST ~offset:(newOffset + 1) astRef )
+    (* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
      * change the AST in the updateExpr call, so leave the newState as it
      * was *)
-        |> Option.withDefault ~default:newState
-      in
-      (newAST, newState)
+    |> Option.withDefault ~default:newState
+  in
+  (newAST, newState)
 
 
 let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
