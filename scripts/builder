@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# This is used, in concert with scripts/support/build-server, to run Dark
+# inside the dev container. There is a strong connection between these files
+# and .circleci/config.yml. Generally, if you add something to one of these
+# files, there's an equivalent to be added in .circleci/config.yml.
+
 if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
   # Because we use `-v`
   echo "We require bash >= 4. Assuming you're on a Mac and have homebrew installed,"
