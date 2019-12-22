@@ -154,18 +154,6 @@ let ellen_hello_world_demo (m : model) : testResult =
       fail other
 
 
-let editing_does_not_deselect (m : model) : testResult =
-  match m.cursorState with
-  | Entering (Filling (tlid, id)) ->
-    ( match TL.getPD m tlid id with
-    | Some (PExpr (F (_, Value "\"hello zane\""))) ->
-        pass
-    | other ->
-        fail other )
-  | other ->
-      fail ~f:show_cursorState other
-
-
 let editing_headers (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match (spec.space, spec.name, spec.modifier) with
@@ -933,8 +921,6 @@ let trigger (test_name : string) : integrationTestState =
         deleting_selects_the_blank
     | "ellen_hello_world_demo" ->
         ellen_hello_world_demo
-    | "editing_does_not_deselect" ->
-        editing_does_not_deselect
     | "editing_headers" ->
         editing_headers
     | "switching_from_http_to_cron_space_removes_leading_slash" ->
