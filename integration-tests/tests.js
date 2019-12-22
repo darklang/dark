@@ -423,14 +423,12 @@ test("editing_headers", async t => {
 
     // edit them
     .click(".spec-header > .handler-name")
-    .pressKey("ctrl-a")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
     .click(".spec-header > .handler-type > .modifier")
-    .pressKey("ctrl-a")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
 });
@@ -446,7 +444,7 @@ test("switching_to_http_space_adds_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter");
 });
@@ -456,7 +454,7 @@ test("switching_from_default_repl_space_removes_name", async t => {
   await t
     // edit space
     .click(".spec-header > .handler-type >.space")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
 });
@@ -520,12 +518,7 @@ test("rename_db_fields", async t => {
   await t
     .click(Selector(".name").withText("field1"))
     .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "field6")
     .pressKey("tab")
     .pressKey("esc");
@@ -559,10 +552,7 @@ test("rename_db_type", async t => {
   // rename
   await t
     .click(Selector(".type").withText("Int"))
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "String")
     .pressKey("enter");
 
@@ -776,7 +766,7 @@ test("rename_function", async t => {
     .expect(available(fnNameBlankOr))
     .ok({ timeout: 1000 })
     .click(Selector(fnNameBlankOr))
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "hello")
     .pressKey("enter");
 });
