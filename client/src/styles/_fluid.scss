@@ -66,7 +66,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
 .fluid-variant .return-value {
   position: absolute;
-  top: calc(100%);
+  top: calc(100% + 4px);
 
   padding: 4px;
 
@@ -89,6 +89,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
 
     top: 4px;
     right: 4px;
+    margin-right: -10px;
   }
 }
 
