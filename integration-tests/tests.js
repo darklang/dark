@@ -278,29 +278,6 @@ test("field_access_pipes", async t => {
     .pressKey("shift+enter");
 });
 
-test("pipeline_let_equals", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "3")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "=value")
-    .pressKey("enter");
-});
-
-test("pipe_within_let", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "3")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "=value")
-    .pressKey("enter")
-    .typeText("#entry-box", "value")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "Int::add")
-    .pressKey("enter")
-    .pressKey("esc");
-});
-
 test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
