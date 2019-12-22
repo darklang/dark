@@ -283,13 +283,6 @@ test("tabbing_works", async t => {
   await t.pressKey("i f space tab 5");
 });
 
-test("editing_does_not_deselect", async t => {
-  await t
-    .click(".ast .blankOr > .letrhs > .blankOr")
-    .pressKey("enter")
-    .click("#entry-box");
-});
-
 test("editing_request_edits_request", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
