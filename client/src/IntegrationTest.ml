@@ -198,18 +198,6 @@ let tabbing_through_let (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
-  let tls = TL.all m in
-  match m.cursorState with
-  | Selecting (_, mId) ->
-      if mId
-         = (m |> onlyHandler |> (fun x -> x.ast) |> B.toID |> fun x -> Some x)
-      then pass
-      else fail (showToplevels tls ^ ", " ^ show_cursorState m.cursorState)
-  | _ ->
-      fail (showToplevels tls ^ ", " ^ show_cursorState m.cursorState)
-
-
 let rename_db_fields (m : model) : testResult =
   m.dbs
   |> TD.mapValues ~f:(fun {cols; _} ->
@@ -346,54 +334,6 @@ let simple_tab_ordering (m : model) : testResult =
       fail (show_expr ast, show_cursorState m.cursorState)
 
 
-let variable_extraction (m : model) : testResult =
-  let ast = onlyHandler m |> fun x -> x.ast in
-  match ast with
-  | F
-      ( _
-      , Let
-          ( F (_, "foo")
-          , F (_, Value "1")
-          , F
-              ( _
-              , Let
-                  ( F (_, "bar")
-                  , F (_, Value "2")
-                  , F
-                      ( _
-                      , Let
-                          ( F (_, "new_variable")
-                          , F
-                              ( _
-                              , FnCall
-                                  ( F (_, "+")
-                                  , [ F (_, Variable "foo")
-                                    ; F (_, Variable "bar") ]
-                                  , _ ) )
-                          , F
-                              ( _
-                              , Let
-                                  ( F (_, "baz")
-                                  , F (_, Value "5")
-                                  , F (_, Variable "new_variable") ) ) ) ) ) )
-          ) ) ->
-      pass
-  | _ ->
-      fail (show_expr ast ^ ", " ^ show_cursorState m.cursorState)
-
-
-let invalid_syntax (m : model) : testResult =
-  match onlyHandler m |> fun x -> x.ast with
-  | Blank id ->
-    ( match m.cursorState with
-    | Entering (Filling (_, sid)) ->
-        if id = sid then pass else fail ~f:show_cursorState m.cursorState
-    | _ ->
-        fail ~f:show_cursorState m.cursorState )
-  | other ->
-      fail ~f:show_expr other
-
-
 let editing_stays_in_same_place_with_enter (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
   | Selecting (_, id1), Let (F (id2, "v2"), _, _) ->
@@ -406,10 +346,8 @@ let editing_stays_in_same_place_with_enter (m : model) : testResult =
 
 let editing_goes_to_next_with_tab (m : model) : testResult =
   match (m.cursorState, onlyExpr m) with
-  | Entering (Filling (_, id1)), Let (F (_, "v2"), Blank id2, _) ->
-      if id1 = id2
-      then pass
-      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
+  | FluidEntering _, Let (F (_, "v2"), Blank _, _) ->
+      pass
   | _ ->
       fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
 
@@ -867,8 +805,6 @@ let trigger (test_name : string) : integrationTestState =
         switching_from_default_repl_space_removes_name
     | "tabbing_through_let" ->
         tabbing_through_let
-    | "dont_shift_focus_after_filling_last_blank" ->
-        dont_shift_focus_after_filling_last_blank
     | "rename_db_fields" ->
         rename_db_fields
     | "rename_db_type" ->
@@ -879,10 +815,6 @@ let trigger (test_name : string) : integrationTestState =
         feature_flag_works
     | "simple_tab_ordering" ->
         simple_tab_ordering
-    | "variable_extraction" ->
-        variable_extraction
-    | "invalid_syntax" ->
-        invalid_syntax
     | "editing_stays_in_same_place_with_enter" ->
         editing_stays_in_same_place_with_enter
     | "editing_goes_to_next_with_tab" ->
