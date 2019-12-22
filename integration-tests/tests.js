@@ -285,9 +285,10 @@ test("tabbing_works", async t => {
 
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "nt::add")
-    .expect(acHighlightedText("Int::add"))
+    .pressKey(" n t : : a d d")
+    .expect(fluidAcSelectedText("Int::add"))
     .ok()
     .pressKey("enter");
 });
