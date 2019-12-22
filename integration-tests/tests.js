@@ -171,7 +171,7 @@ function acHighlightedText() {
   return Selector(".autocomplete-item.highlighted").textContent;
 }
 
-function fluidAcSelectedText() {
+function fluidAcHighlightedText() {
   return Selector(".autocomplete-item.fluid-selected").textContent;
 }
 
@@ -255,10 +255,10 @@ test("field_access_closes", async t => {
   await gotoAST(t);
   await t
     .pressKey("r e q")
-    .expect(fluidAcSelectedText("requestdict"))
+    .expect(fluidAcHighlightedText("requestdict"))
     .ok()
     .pressKey(". b o")
-    .expect(fluidAcSelectedText("bodyfield"))
+    .expect(fluidAcHighlightedText("bodyfield"))
     .ok()
     .pressKey("enter");
 });
@@ -268,11 +268,11 @@ test("field_access_pipes", async t => {
   await gotoAST(t);
   await t
     .pressKey("r e q")
-    .expect(fluidAcSelectedText())
+    .expect(fluidAcHighlightedText())
     .contains("request")
 
     .pressKey(". b o")
-    .expect(fluidAcSelectedText())
+    .expect(fluidAcHighlightedText())
     .eql("bodyfield")
     .pressKey("shift+enter");
 });
@@ -288,7 +288,7 @@ test("autocomplete_highlights_on_partial_match", async t => {
   await gotoAST(t);
   await t
     .pressKey(" n t : : a d d")
-    .expect(fluidAcSelectedText("Int::add"))
+    .expect(fluidAcHighlightedText("Int::add"))
     .ok()
     .pressKey("enter");
 });
@@ -297,8 +297,8 @@ test("no_request_global_in_non_http_space", async t => {
   await createWorkerHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "request")
-    .expect(acHighlightedText("Http::badRequest"))
+    .pressKey("r e q u e s t")
+    .expect(fluidAcHighlightedText("Http::badRequest"))
     .ok()
     .pressKey("enter");
 });
