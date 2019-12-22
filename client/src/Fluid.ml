@@ -4482,7 +4482,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
     match (key, toTheLeft, toTheRight) with
     (* Entering a string escape *)
     | K.Backslash, L (TString _, _), R (TString _, ti)
-      when pos - ti.startPos != 0 ->
+      when false (* disable for now *) && pos - ti.startPos != 0 ->
         startEscapingString pos ti s ast
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
@@ -4971,7 +4971,7 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
-    | L (TPartial (_, _), ti), _ ->
+    | L (TPartial (_, _), ti), _ when false (* disable for now *) ->
         maybeCommitStringPartial pos ti newAST newState
     | _ ->
         (newAST, newState)
