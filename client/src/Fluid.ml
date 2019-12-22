@@ -29,8 +29,8 @@ end
 module Attrs = Tea.Html2.Attributes
 module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
-module Token = FluidToken
-module Expression = FluidExpression
+module T = FluidToken
+module E = FluidExpression
 
 type viewState = ViewUtils.viewState
 
@@ -112,8 +112,7 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) :
-    Expression.t =
+let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : E.t =
   let fns =
     assertFn ~f:(( <> ) []) "empty functions passed to fromExpr" s.ac.functions
   in
@@ -271,8 +270,7 @@ let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) :
         ERightPartial (id, str, fromExpr ~inPipe s oldExpr) )
 
 
-let astAndStateFromTLID (m : model) (tlid : tlid) :
-    (Expression.t * state) option =
+let astAndStateFromTLID (m : model) (tlid : tlid) : (E.t * state) option =
   (* TODO(JULIAN): codify removeHandlerTransientState as an external function, make `fromExpr`
     accept only the info it needs, and differentiate between handler-specific and global fluid state. *)
   let removeHandlerTransientState m =
@@ -392,7 +390,7 @@ module Builder = struct
   let empty = {tokens = []; xPos = Some 0; indent = 0}
 
   let add (token : fluidToken) (b : t) : t =
-    let tokenLength = token |> Token.toText |> String.length in
+    let tokenLength = token |> T.toText |> String.length in
     let tokens, xPos =
       if endsInNewline b
       then
@@ -449,7 +447,7 @@ module Builder = struct
   let asTokens (b : t) : fluidToken list = b.tokens
 end
 
-let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
+let rec toTokens' (s : state) (e : E.t) (b : Builder.t) : Builder.t =
   let fns =
     assertFn
       ~f:(( <> ) [])
@@ -465,7 +463,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
   let nest
       ?(placeholderFor : (string * int) option = None)
       ~indent
-      (e : Expression.t)
+      (e : E.t)
       (b : Builder.t) : Builder.t =
     let tokensFn b =
       match (e, placeholderFor) with
@@ -488,8 +486,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
     in
     b |> indentBy ~indent ~f:(addNested ~f:tokensFn)
   in
-  let addArgs
-      (name : string) (id : id) (args : Expression.t list) (b : Builder.t) :
+  let addArgs (name : string) (id : id) (args : E.t list) (b : Builder.t) :
       Builder.t =
     let args, offset =
       match args with EPipeTarget _ :: args -> (args, 1) | _ -> (args, 0)
@@ -503,7 +500,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       in
       let length =
         tokens
-        |> List.map ~f:(Token.toText >> String.length)
+        |> List.map ~f:(T.toText >> String.length)
         |> List.sum
         |> ( + ) (* separators, including at the front *) (List.length args)
         |> ( + ) (Option.withDefault ~default:0 b.xPos)
@@ -530,7 +527,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
              |> nest ~indent:2 ~placeholderFor:(Some (name, offset + i)) e
            else
              b
-             |> add (TSep (Expression.id e))
+             |> add (TSep (E.id e))
              |> nest ~indent:0 ~placeholderFor:(Some (name, offset + i)) e )
   in
   match e with
@@ -554,7 +551,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       |> add (TLetLHS (id, varId, lhs))
       |> add (TLetAssignment (id, varId))
       |> addNested ~f:(fromExpr rhs)
-      |> addNewlineIfNeeded (Some (Expression.id next, id, None))
+      |> addNewlineIfNeeded (Some (E.id next, id, None))
       |> addNested ~f:(fromExpr next)
   | EString (id, str) ->
       let size = 40 in
@@ -586,11 +583,11 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       |> addNested ~f:(fromExpr cond)
       |> addNewlineIfNeeded None
       |> add (TIfThenKeyword id)
-      |> addNewlineIfNeeded (Some (Expression.id if', id, None))
+      |> addNewlineIfNeeded (Some (E.id if', id, None))
       |> nest ~indent:2 if'
       |> addNewlineIfNeeded None
       |> add (TIfElseKeyword id)
-      |> add (TNewline (Some (Expression.id else', id, None)))
+      |> add (TNewline (Some (E.id else', id, None)))
       |> nest ~indent:2 else'
   | EBinOp (id, op, lexpr, rexpr, _ster) ->
       let start b =
@@ -600,7 +597,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (op, 0)) lexpr
-            |> add (TSep (Expression.id lexpr))
+            |> add (TSep (E.id lexpr))
       in
       b
       |> start
@@ -615,7 +612,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
         | _ ->
             b
             |> nest ~indent:0 ~placeholderFor:(Some (oldName, 0)) lexpr
-            |> add (TSep (Expression.id lexpr))
+            |> add (TSep (E.id lexpr))
       in
       b
       |> start
@@ -638,7 +635,7 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       |> addArgs fnName id args
   | EPartial (id, newName, EFnCall (_, oldName, args, _)) ->
       let partial = TPartial (id, newName) in
-      let newText = Token.toText partial in
+      let newText = T.toText partial in
       let oldText = ViewUtils.partialName oldName in
       let ghost = ghostPartial id newText oldText in
       b |> add partial |> addMany ghost |> addArgs oldName id args
@@ -646,23 +643,23 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       b |> add (TConstructorName (id, name)) |> addArgs name id exprs
   | EPartial (id, newName, EConstructor (_, _, oldName, exprs)) ->
       let partial = TPartial (id, newName) in
-      let newText = Token.toText partial in
+      let newText = T.toText partial in
       let ghost = ghostPartial id newText oldName in
       b |> add partial |> addMany ghost |> addArgs oldName id exprs
   | EFieldAccess (id, expr, fieldID, fieldname) ->
       b
       |> addNested ~f:(fromExpr expr)
       |> addMany
-           [ TFieldOp (id, (* lhs *) Expression.id expr)
+           [ TFieldOp (id, (* lhs *) E.id expr)
            ; TFieldName (id, fieldID, fieldname) ]
   | EPartial
       (id, newFieldname, EFieldAccess (faID, expr, fieldID, oldFieldname)) ->
       let partial = TFieldPartial (id, faID, fieldID, newFieldname) in
-      let newText = Token.toText partial in
+      let newText = T.toText partial in
       let ghost = ghostPartial id newText oldFieldname in
       b
       |> addNested ~f:(fromExpr expr)
-      |> addMany [TFieldOp (id, Expression.id expr); partial]
+      |> addMany [TFieldOp (id, E.id expr); partial]
       |> addMany ghost
   | EVariable (id, name) ->
       b |> add (TVariable (id, name))
@@ -714,13 +711,12 @@ let rec toTokens' (s : state) (e : Expression.t) (b : Builder.t) : Builder.t =
       | head :: tail ->
           b
           |> addNested ~f:(fromExpr head)
-          |> addNewlineIfNeeded (Some (Expression.id head, id, Some 0))
+          |> addNewlineIfNeeded (Some (E.id head, id, Some 0))
           |> addIter tail ~f:(fun i e b ->
                  b
                  |> add (TPipe (id, i, length))
                  |> addNested ~f:(fromExpr e)
-                 |> addNewlineIfNeeded
-                      (Some (Expression.id e, id, Some (i + 1))) )
+                 |> addNewlineIfNeeded (Some (E.id e, id, Some (i + 1))) )
           |> addNewlineIfNeeded (Some (id, id, Some (List.length tail))) )
   | EPipeTarget _ ->
       recover "should never be making tokens for EPipeTarget" ~debug:e b
@@ -759,7 +755,7 @@ let infoize ~(pos : int) tokens : tokenInfo list =
     | [] ->
         []
     | token :: rest ->
-        let length = String.length (Token.toText token) in
+        let length = String.length (T.toText token) in
         let ti =
           { token
           ; startRow = !row
@@ -781,7 +777,7 @@ let infoize ~(pos : int) tokens : tokenInfo list =
 
 let validateTokens (tokens : fluidToken list) : fluidToken list =
   List.iter tokens ~f:(fun t ->
-      asserT "invalid token" (String.length (Token.toText t) > 0) ~debug:t ;
+      asserT "invalid token" (String.length (T.toText t) > 0) ~debug:t ;
       () ) ;
   tokens
 
@@ -791,7 +787,7 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let toTokens (s : state) (e : Expression.t) : tokenInfo list =
+let toTokens (s : state) (e : E.t) : tokenInfo list =
   toTokens' s e Builder.empty
   |> Builder.asTokens
   |> tidy
@@ -799,27 +795,26 @@ let toTokens (s : state) (e : Expression.t) : tokenInfo list =
   |> infoize ~pos:0
 
 
-let eToString (s : state) (e : Expression.t) : string =
+let eToString (s : state) (e : E.t) : string =
   e
   |> toTokens s
-  |> List.map ~f:(fun ti -> Token.toTestText ti.token)
+  |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
 
 let tokensToString (tis : tokenInfo list) : string =
-  tis |> List.map ~f:(fun ti -> Token.toText ti.token) |> String.join ~sep:""
+  tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure ?(includeIDs = false) (s : state) (e : Expression.t) : string
-    =
+let eToStructure ?(includeIDs = false) (s : state) (e : E.t) : string =
   e
   |> toTokens s
   |> List.map ~f:(fun ti ->
          "<"
-         ^ Token.toTypeName ti.token
-         ^ (if includeIDs then "(" ^ (Token.tid ti.token |> deID) ^ ")" else "")
+         ^ T.toTypeName ti.token
+         ^ (if includeIDs then "(" ^ (T.tid ti.token |> deID) ^ ")" else "")
          ^ ":"
-         ^ Token.toText ti.token
+         ^ T.toText ti.token
          ^ ">" )
   |> String.join ~sep:""
 
@@ -830,7 +825,7 @@ let eToStructure ?(includeIDs = false) (s : state) (e : Expression.t) : string
 let pToString (p : fluidPattern) : string =
   p
   |> patternToToken ~idx:0
-  |> List.map ~f:(fun t -> Token.toTestText t)
+  |> List.map ~f:(fun t -> T.toTestText t)
   |> String.join ~sep:""
 
 
@@ -839,7 +834,7 @@ let pToStructure (p : fluidPattern) : string =
   |> patternToToken ~idx:0
   |> infoize ~pos:0
   |> List.map ~f:(fun ti ->
-         "<" ^ Token.toTypeName ti.token ^ ":" ^ Token.toText ti.token ^ ">" )
+         "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">" )
   |> String.join ~sep:""
 
 
@@ -890,7 +885,7 @@ let report (e : string) (s : state) =
 (* -------------------- *)
 
 let length (tokens : token list) : int =
-  tokens |> List.map ~f:Token.toText |> List.map ~f:String.length |> List.sum
+  tokens |> List.map ~f:T.toText |> List.map ~f:String.length |> List.sum
 
 
 (* Returns the token to the left and to the right. Ignores indent tokens *)
@@ -912,9 +907,7 @@ let rec getTokensAtPosition
       tokenInfo option * tokenInfo list =
     match infos with
     | ti :: rest ->
-        if Token.isSkippable ti.token
-        then getNextToken rest
-        else (Some ti, rest)
+        if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
     | [] ->
         (None, [])
   in
@@ -1030,10 +1023,8 @@ let adjustedPosFor ~(row : int) ~(col : int) (tokens : tokenInfo list) : int =
 (* ------------- *)
 
 (* Slightly modified version of `AST.uses` (pre-fluid code) *)
-let rec updateVariableUses
-    (oldVarName : string)
-    ~(f : Expression.t -> Expression.t)
-    (ast : Expression.t) : Expression.t =
+let rec updateVariableUses (oldVarName : string) ~(f : E.t -> E.t) (ast : E.t)
+    : E.t =
   let u = updateVariableUses oldVarName ~f in
   match ast with
   | EVariable (_, varName) ->
@@ -1058,12 +1049,11 @@ let rec updateVariableUses
       in
       EMatch (id, u cond, pairs)
   | _ ->
-      Expression.walk ~f:u ast
+      E.walk ~f:u ast
 
 
-let renameVariableUses
-    (oldVarName : string) (newVarName : string) (ast : Expression.t) :
-    Expression.t =
+let renameVariableUses (oldVarName : string) (newVarName : string) (ast : E.t)
+    : E.t =
   let f expr =
     match expr with
     | EVariable (id, _) ->
@@ -1074,8 +1064,7 @@ let renameVariableUses
   updateVariableUses oldVarName ~f ast
 
 
-let removeVariableUse (oldVarName : string) (ast : Expression.t) : Expression.t
-    =
+let removeVariableUse (oldVarName : string) (ast : E.t) : E.t =
   let f _ = EBlank (gid ()) in
   updateVariableUses oldVarName ~f ast
 
@@ -1083,8 +1072,7 @@ let removeVariableUse (oldVarName : string) (ast : Expression.t) : Expression.t
 (* ---------------- *)
 (* Movement *)
 (* ---------------- *)
-let moveToPrevNonWhitespaceToken ~pos (ast : Expression.t) (s : state) : state
-    =
+let moveToPrevNonWhitespaceToken ~pos (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "moveToPrevNonWhitespaceToken" s in
   let rec getNextWS tokens =
     match tokens with
@@ -1101,8 +1089,7 @@ let moveToPrevNonWhitespaceToken ~pos (ast : Expression.t) (s : state) : state
   setPosition ~resetUD:true s newPos
 
 
-let moveToNextNonWhitespaceToken ~pos (ast : Expression.t) (s : state) : state
-    =
+let moveToNextNonWhitespaceToken ~pos (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "moveToNextNonWhitespaceToken" s in
   let rec getNextWS tokens =
     match tokens with
@@ -1121,8 +1108,7 @@ let moveToNextNonWhitespaceToken ~pos (ast : Expression.t) (s : state) : state
 
 (* getStartOfLineCaretPos returns the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given tokenInfo *)
-let getStartOfLineCaretPos (ast : Expression.t) (ti : tokenInfo) (s : state) :
-    int =
+let getStartOfLineCaretPos (ast : E.t) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.find ~f:(fun info ->
@@ -1146,7 +1132,7 @@ let getBegOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
   let nextPos : int ref = ref ti.length in
   let _ =
-    Token.toText ti.token
+    T.toText ti.token
     |> String.split ~on:""
     |> List.reverse
     |> List.find ~f:(fun a ->
@@ -1166,7 +1152,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
   let posInString = pos - ti.startPos in
   let nextPos : int ref = ref 0 in
   let _ =
-    Token.toText ti.token
+    T.toText ti.token
     |> String.split ~on:""
     |> List.find ~f:(fun a ->
            if (a == " " || (a = "\"" && !nextPos > 0) || a = "\n" || a = "\t")
@@ -1181,8 +1167,7 @@ let getEndOfWordInStrCaretPos ~(pos : int) (ti : tokenInfo) : int =
 
 (* getEndOfLineCaretPos returns the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let getEndOfLineCaretPos (ast : Expression.t) (ti : tokenInfo) (s : state) :
-    int =
+let getEndOfLineCaretPos (ast : E.t) (ti : tokenInfo) (s : state) : int =
   let token =
     toTokens s ast
     |> List.reverse
@@ -1202,50 +1187,49 @@ let getEndOfLineCaretPos (ast : Expression.t) (ti : tokenInfo) (s : state) :
 
 (* moveToStartOfLine moves the caret to the first desirable (excluding indents, pipes, and newline tokens)
  caret pos at the start of the line containing the given tokenInfo *)
-let moveToStartOfLine (ast : Expression.t) (ti : tokenInfo) (s : state) : state
-    =
+let moveToStartOfLine (ast : E.t) (ti : tokenInfo) (s : state) : state =
   let s = recordAction "moveToStartOfLine" s in
   setPosition s (getStartOfLineCaretPos ast ti s)
 
 
 (* moveToEndOfLine moves the caret to the last desirable (excluding indents and newline tokens)
  caret pos at the end of the line containing the given tokenInfo *)
-let moveToEndOfLine (ast : Expression.t) (ti : tokenInfo) (s : state) : state =
+let moveToEndOfLine (ast : E.t) (ti : tokenInfo) (s : state) : state =
   let s = recordAction "moveToEndOfLine" s in
   setPosition s (getEndOfLineCaretPos ast ti s)
 
 
-let goToStartOfWord
-    ~(pos : int) (ast : Expression.t) (ti : tokenInfo) (s : state) : state =
+let goToStartOfWord ~(pos : int) (ast : E.t) (ti : tokenInfo) (s : state) :
+    state =
   let s = recordAction "goToStartOfWord" s in
   (* We want to find the closest editable token that is before the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let previousToken =
     toTokens s ast
     |> List.reverse
-    |> List.find ~f:(fun t -> Token.isTextToken t.token && pos > t.startPos)
+    |> List.find ~f:(fun t -> T.isTextToken t.token && pos > t.startPos)
   in
   let newPos =
     let tokenInfo = previousToken |> Option.withDefault ~default:ti in
-    if Token.isStringToken tokenInfo.token && pos != tokenInfo.startPos
+    if T.isStringToken tokenInfo.token && pos != tokenInfo.startPos
     then getBegOfWordInStrCaretPos ~pos tokenInfo
     else tokenInfo.startPos
   in
   setPosition s newPos
 
 
-let goToEndOfWord
-    ~(pos : int) (ast : Expression.t) (ti : tokenInfo) (s : state) : state =
+let goToEndOfWord ~(pos : int) (ast : E.t) (ti : tokenInfo) (s : state) : state
+    =
   let s = recordAction "goToEndOfWord" s in
   (* We want to find the closest editable token that is after the current cursor position
   * so the cursor always lands in a position where a user is able to type *)
   let nextToken =
     toTokens s ast
-    |> List.find ~f:(fun t -> Token.isTextToken t.token && pos < t.endPos)
+    |> List.find ~f:(fun t -> T.isTextToken t.token && pos < t.endPos)
   in
   let newPos =
     let tokenInfo = nextToken |> Option.withDefault ~default:ti in
-    if Token.isStringToken tokenInfo.token && pos != tokenInfo.endPos
+    if T.isStringToken tokenInfo.token && pos != tokenInfo.endPos
     then getEndOfWordInStrCaretPos ~pos tokenInfo
     else tokenInfo.endPos
   in
@@ -1284,7 +1268,7 @@ let moveTo (newPos : int) (s : state) : state =
 
 (* Find first `target` expression (starting at the back), and return a state
  * with its location. If blank, will go to the start of the blank *)
-let moveToEndOfTarget (target : id) (ast : Expression.t) (s : state) : state =
+let moveToEndOfTarget (target : id) (ast : E.t) (s : state) : state =
   let s = recordAction "moveToEndOfTarget" s in
   let tokens = toTokens s ast in
   match
@@ -1304,7 +1288,7 @@ let moveToEndOfTarget (target : id) (ast : Expression.t) (s : state) : state =
 
 let rec getNextBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
   tokens
-  |> List.find ~f:(fun ti -> Token.isBlank ti.token && ti.startPos > pos)
+  |> List.find ~f:(fun ti -> T.isBlank ti.token && ti.startPos > pos)
   |> Option.orElseLazy (fun () ->
          if pos = 0 then None else getNextBlank 0 tokens )
 
@@ -1316,7 +1300,7 @@ let getNextBlankPos (pos : int) (tokens : tokenInfo list) : int =
   |> Option.withDefault ~default:pos
 
 
-let moveToNextBlank ~(pos : int) (ast : Expression.t) (s : state) : state =
+let moveToNextBlank ~(pos : int) (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "moveToNextBlank" s in
   let tokens = toTokens s ast in
   let newPos = getNextBlankPos pos tokens in
@@ -1325,7 +1309,7 @@ let moveToNextBlank ~(pos : int) (ast : Expression.t) (s : state) : state =
 
 let rec getPrevBlank (pos : int) (tokens : tokenInfo list) : tokenInfo option =
   tokens
-  |> List.filter ~f:(fun ti -> Token.isBlank ti.token && ti.endPos < pos)
+  |> List.filter ~f:(fun ti -> T.isBlank ti.token && ti.endPos < pos)
   |> List.last
   |> Option.orElseLazy (fun () ->
          let lastPos =
@@ -1343,7 +1327,7 @@ let getPrevBlankPos (pos : int) (tokens : tokenInfo list) : int =
   |> Option.withDefault ~default:pos
 
 
-let moveToPrevBlank ~(pos : int) (ast : Expression.t) (s : state) : state =
+let moveToPrevBlank ~(pos : int) (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "moveToPrevBlank" s in
   let tokens = toTokens s ast in
   let newPos = getPrevBlankPos pos tokens in
@@ -1352,12 +1336,12 @@ let moveToPrevBlank ~(pos : int) (ast : Expression.t) (s : state) : state =
 
 let doLeft ~(pos : int) (ti : tokenInfo) (s : state) : state =
   let s = recordAction ~ti ~pos "doLeft" s in
-  if Token.isAtom ti.token
+  if T.isAtom ti.token
   then moveToStart ti s
   else moveOneLeft (min pos ti.endPos) s
 
 
-let selectAll ~(pos : int) (ast : Expression.t) (s : state) : state =
+let selectAll ~(pos : int) (ast : E.t) (s : state) : state =
   let tokens = toTokens s ast in
   let last = List.last tokens in
   let lastPos = match last with Some l -> l.endPos | None -> 0 in
@@ -1368,7 +1352,7 @@ let doRight
     ~(pos : int) ~(next : tokenInfo option) (current : tokenInfo) (s : state) :
     state =
   let s = recordAction ~ti:current ~pos "doRight" s in
-  if Token.isAtom current.token
+  if T.isAtom current.token
   then
     match next with
     | None ->
@@ -1386,7 +1370,7 @@ let doRight
         moveOneRight startingPos s
 
 
-let doUp ~(pos : int) (ast : Expression.t) (s : state) : state =
+let doUp ~(pos : int) (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "doUp" s in
   let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
@@ -1398,7 +1382,7 @@ let doUp ~(pos : int) (ast : Expression.t) (s : state) : state =
     moveTo pos {s with upDownCol = Some col}
 
 
-let doDown ~(pos : int) (ast : Expression.t) (s : state) : state =
+let doDown ~(pos : int) (ast : E.t) (s : state) : state =
   let s = recordAction ~pos "doDown" s in
   let tokens = toTokens s ast in
   let {row; col} = gridFor ~pos tokens in
@@ -1418,8 +1402,7 @@ let doDown ~(pos : int) (ast : Expression.t) (s : state) : state =
 
    This is useful for determining the precise position to which the caret should
    jump after a transformation. *)
-let posFromCaretTarget (s : fluidState) (ast : Expression.t) (ct : caretTarget)
-    : int =
+let posFromCaretTarget (s : fluidState) (ast : E.t) (ct : caretTarget) : int =
   let infos = toTokens s ast in
   (* Essentially we're using List.findMap to map a function that
    * matches across astref,token combinations (exhaustively matching astref but not token)
@@ -1654,8 +1637,7 @@ let posFromCaretTarget (s : fluidState) (ast : Expression.t) (ct : caretTarget)
 
 (** moveToCaretTarget returns a modified fluidState with newPos set to reflect
     the caretTarget. *)
-let moveToCaretTarget (s : fluidState) (ast : Expression.t) (ct : caretTarget)
-    =
+let moveToCaretTarget (s : fluidState) (ast : E.t) (ct : caretTarget) =
   {s with newPos = posFromCaretTarget s ast ct}
 
 
@@ -1664,8 +1646,7 @@ let moveToCaretTarget (s : fluidState) (ast : Expression.t) (ct : caretTarget)
 
     If given, offset is the offset of the caretTarget, in characters. Defaults
     to 0, or the beginning of the targeted expression. *)
-let moveToAstRef
-    (s : fluidState) (ast : Expression.t) ?(offset = 0) (astRef : astRef) :
+let moveToAstRef (s : fluidState) (ast : E.t) ?(offset = 0) (astRef : astRef) :
     fluidState =
   moveToCaretTarget s ast {astRef; offset}
 
@@ -1674,8 +1655,7 @@ let moveToAstRef
  * corresponding to the "very end" of that ast. The concept of "very end"
  * is related to an understanding of the tokenization of the ast, even though
  * this function doesn't explicitly depend on any tokenization functions. *)
-let caretTargetForLastPartOfExpr (astPartId : id) (ast : Expression.t) :
-    caretTarget =
+let caretTargetForLastPartOfExpr (astPartId : id) (ast : E.t) : caretTarget =
   let rec caretTargetForLastPartOfExpr' : fluidExpr -> caretTarget = function
     | EVariable (id, str) ->
         {astRef = ARVariable id; offset = String.length str}
@@ -1751,7 +1731,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : Expression.t) :
           ~debug:expr
           {astRef = ARInvalid; offset = 0}
   in
-  match Expression.find astPartId ast with
+  match E.find astPartId ast with
   | Some expr ->
       caretTargetForLastPartOfExpr' expr
   | None ->
@@ -1763,8 +1743,7 @@ let caretTargetForLastPartOfExpr (astPartId : id) (ast : Expression.t) :
 
 (* caretTargetForBeginningOfExpr returns a caretTarget representing the
  * beginning of the expression in `ast` having the given `id`. *)
-let caretTargetForBeginningOfExpr (astPartId : id) (ast : Expression.t) :
-    caretTarget =
+let caretTargetForBeginningOfExpr (astPartId : id) (ast : E.t) : caretTarget =
   let rec caretTargetForBeginningOfExpr' : fluidExpr -> caretTarget = function
     | EInteger (id, _) ->
         {astRef = ARInteger id; offset = 0}
@@ -1812,7 +1791,7 @@ let caretTargetForBeginningOfExpr (astPartId : id) (ast : Expression.t) :
           ~debug:(astPartId, expr)
           {astRef = ARInvalid; offset = 0}
   in
-  match Expression.find astPartId ast with
+  match E.find astPartId ast with
   | Some expr ->
       caretTargetForBeginningOfExpr' expr
   | None ->
@@ -1897,8 +1876,8 @@ let rec caretTargetForEndOfPattern (pattern : fluidPattern) : caretTarget =
  * "very start" is based on the definition of caretTargetForBeginningOfPattern
  *)
 let maybeCaretTargetForBeginningOfMatchBranch
-    (matchID : id) (index : int) (ast : Expression.t) : caretTarget option =
-  match Expression.find matchID ast with
+    (matchID : id) (index : int) (ast : E.t) : caretTarget option =
+  match E.find matchID ast with
   | Some (EMatch (_, _, branches)) ->
       branches
       |> List.getAt ~index
@@ -1919,7 +1898,7 @@ let maybeCaretTargetForBeginningOfMatchBranch
  * "very start" is based on the definition of caretTargetForBeginningOfPattern
  *)
 let caretTargetForBeginningOfMatchBranch
-    (matchID : id) (index : int) (ast : Expression.t) : caretTarget =
+    (matchID : id) (index : int) (ast : E.t) : caretTarget =
   maybeCaretTargetForBeginningOfMatchBranch matchID index ast
   |> recoverOpt
        "caretTargetForBeginningOfMatchBranch got an index outside of the match"
@@ -1949,11 +1928,9 @@ let recursePattern ~(f : fluidPattern -> fluidPattern) (pat : fluidPattern) :
 
 
 let updatePattern
-    ~(f : fluidPattern -> fluidPattern)
-    (matchID : id)
-    (patID : id)
-    (ast : Expression.t) : Expression.t =
-  Expression.update matchID ast ~f:(fun m ->
+    ~(f : fluidPattern -> fluidPattern) (matchID : id) (patID : id) (ast : E.t)
+    : E.t =
+  E.update matchID ast ~f:(fun m ->
       match m with
       | EMatch (matchID, expr, pairs) ->
           let rec run p =
@@ -1968,15 +1945,13 @@ let updatePattern
 
 
 let replacePattern
-    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    ~(newPat : fluidPattern) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun _ -> newPat)
 
 
 let replaceVarInPattern
-    (mID : id) (oldVarName : string) (newVarName : string) (ast : Expression.t)
-    : Expression.t =
-  Expression.update mID ast ~f:(fun e ->
+    (mID : id) (oldVarName : string) (newVarName : string) (ast : E.t) : E.t =
+  E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (mID, cond, cases) ->
           let rec replaceNameInPattern pat =
@@ -2001,8 +1976,8 @@ let replaceVarInPattern
           recover "not a match in replaceVarInPattern" ~debug:e e )
 
 
-let removePatternRow (mID : id) (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update mID ast ~f:(fun e ->
+let removePatternRow (mID : id) (id : id) (ast : E.t) : E.t =
+  E.update mID ast ~f:(fun e ->
       match e with
       | EMatch (_, cond, patterns) ->
           let newPatterns =
@@ -2016,8 +1991,7 @@ let removePatternRow (mID : id) (id : id) (ast : Expression.t) : Expression.t =
 
 
 let replacePatternWithPartial
-    (str : string) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    (str : string) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun p ->
       let str = String.trim str in
       match p with
@@ -2033,15 +2007,14 @@ let replacePatternWithPartial
     with `matchId` at `idx`.
 
     Returns a new ast and fluidState with the action recorded. *)
-let addMatchPatternAt
-    (matchId : id) (idx : int) (ast : Expression.t) (s : fluidState) :
-    Expression.t * fluidState =
+let addMatchPatternAt (matchId : id) (idx : int) (ast : E.t) (s : fluidState) :
+    E.t * fluidState =
   let action =
     Printf.sprintf "addMatchPatternAt(id=%s idx=%d)" (deID matchId) idx
   in
   let s = recordAction action s in
   let ast =
-    Expression.update matchId ast ~f:(function
+    E.update matchId ast ~f:(function
         | EMatch (_, cond, rows) ->
             let newVal = (FPBlank (matchId, gid ()), newB ()) in
             let newRows = List.insertAt rows ~index:idx ~value:newVal in
@@ -2056,8 +2029,8 @@ let addMatchPatternAt
 (* Blanks *)
 (* ---------------- *)
 
-let removeEmptyExpr (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let removeEmptyExpr (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ELet (_, _, "", EBlank _, body) ->
           body
@@ -2078,7 +2051,7 @@ let removeEmptyExpr (id : id) (ast : Expression.t) : Expression.t =
 (* Strings *)
 (* -------------------- *)
 let maybeCommitStringPartial pos ti newAST newState =
-  let id = Token.tid ti.token in
+  let id = T.tid ti.token in
   (* Handle moving from a partial back to an EString *)
   let valid_escape_chars_alist =
     (* We use this alist for two things: knowing what chars are permitted
@@ -2117,7 +2090,7 @@ let maybeCommitStringPartial pos ti newAST newState =
     captures
     |> List.filter ~f:(fun c -> not (List.member ~value:c valid_escape_chars))
   in
-  let origExpr = Expression.find id newAST in
+  let origExpr = E.find id newAST in
   let processStr (str : string) : string =
     valid_escape_chars_alist
     |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
@@ -2127,7 +2100,7 @@ let maybeCommitStringPartial pos ti newAST newState =
        )
   in
   let newAST =
-    Expression.update
+    E.update
       ~failIfMissing:false
       ~f:(function
         | EPartial (_, str, EString _) as origExpr ->
@@ -2159,7 +2132,7 @@ let maybeCommitStringPartial pos ti newAST newState =
              oldOffset + (String.length oldlhs - String.length newlhs)
            in
            let astRef =
-             match Expression.find id newAST with
+             match E.find id newAST with
              | Some (EString _) ->
                  ARString (id, SPOpenQuote)
              | Some (EPartial _) ->
@@ -2186,9 +2159,9 @@ let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
   (* I think this is correct but depends on how we 'render' strings - that
    * is, it is correct because we display '"', which bumps pos by 1. *)
   let offset = getStringIndex ti pos in
-  let id = Token.tid ti.token in
+  let id = T.tid ti.token in
   let newAst =
-    Expression.update
+    E.update
       ~f:(function
         | EString (_, str) as old_expr ->
             let new_str =
@@ -2212,9 +2185,8 @@ let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
 (* ---------------- *)
 (* Fields *)
 (* ---------------- *)
-let replaceFieldName (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceFieldName (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EPartial (id, _, (EFieldAccess _ as fa)) ->
           EPartial (id, str, fa)
@@ -2227,15 +2199,14 @@ let replaceFieldName (str : string) (id : id) (ast : Expression.t) :
 (* exprToFieldAccess wraps the expression with `id` in the `ast` with a
    partial-wrapped field access where the partial has partialID and the
    field access has fieldID *)
-let exprToFieldAccess
-    (id : id) ~(partialID : id) ~(fieldID : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let exprToFieldAccess (id : id) ~(partialID : id) ~(fieldID : id) (ast : E.t) :
+    E.t =
+  E.update id ast ~f:(fun e ->
       EPartial (partialID, "", EFieldAccess (fieldID, e, gid (), "")) )
 
 
-let removeField (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let removeField (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EFieldAccess (_, faExpr, _, _) ->
           faExpr
@@ -2253,8 +2224,8 @@ let replaceLamdaVar
     (oldVarName : string)
     (newVarName : string)
     (id : id)
-    (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+    (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let vars =
@@ -2265,13 +2236,12 @@ let replaceLamdaVar
           recover "not a lamda in replaceLamdaVar" ~debug:e e )
 
 
-let removeLambdaSepToken (id : id) (ast : Expression.t) (index : int) :
-    Expression.t =
+let removeLambdaSepToken (id : id) (ast : E.t) (index : int) : E.t =
   let index =
     (* remove expression in front of sep, not behind it *)
     index + 1
   in
-  Expression.update id ast ~f:(fun e ->
+  E.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let var =
@@ -2284,10 +2254,9 @@ let removeLambdaSepToken (id : id) (ast : Expression.t) (index : int) :
           e )
 
 
-let insertLambdaVar
-    ~(index : int) ~(name : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let insertLambdaVar ~(index : int) ~(name : string) (id : id) (ast : E.t) : E.t
+    =
+  E.update id ast ~f:(fun e ->
       match e with
       | ELambda (id, vars, expr) ->
           let value = (gid (), name) in
@@ -2300,9 +2269,8 @@ let insertLambdaVar
 (* Lets *)
 (* ---------------- *)
 
-let replaceLetLHS (newLHS : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceLetLHS (newLHS : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ELet (id, lhsID, oldLHS, rhs, next) ->
           ELet (id, lhsID, newLHS, rhs, renameVariableUses oldLHS newLHS next)
@@ -2315,13 +2283,12 @@ let replaceLetLHS (newLHS : string) (id : id) (ast : Expression.t) :
 
     Returns a new ast, fluidState, and the id of the newly inserted ELet, which
     may be useful for doing caret placement. *)
-let makeIntoLetBody (id : id) (ast : Expression.t) (s : fluidState) :
-    Expression.t * fluidState * id =
+let makeIntoLetBody (id : id) (ast : E.t) (s : fluidState) :
+    E.t * fluidState * id =
   let s = recordAction (Printf.sprintf "makeIntoLetBody(%s)" (deID id)) s in
   let lid = gid () in
   let ast =
-    Expression.update id ast ~f:(fun expr ->
-        ELet (lid, gid (), "", newB (), expr) )
+    E.update id ast ~f:(fun expr -> ELet (lid, gid (), "", newB (), expr))
   in
   (ast, s, lid)
 
@@ -2329,9 +2296,8 @@ let makeIntoLetBody (id : id) (ast : Expression.t) (s : fluidState) :
 (* ---------------- *)
 (* Records *)
 (* ---------------- *)
-let replaceRecordField ~index (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceRecordField ~index (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           let fields =
@@ -2343,9 +2309,8 @@ let replaceRecordField ~index (str : string) (id : id) (ast : Expression.t) :
           recover "not a record in replaceRecordField" ~debug:e e )
 
 
-let removeRecordField (id : id) (index : int) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let removeRecordField (id : id) (index : int) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, List.removeAt ~index fields)
@@ -2354,9 +2319,8 @@ let removeRecordField (id : id) (index : int) (ast : Expression.t) :
 
 
 (* Add a row to the record *)
-let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : Expression.t)
-    : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord
@@ -2365,8 +2329,8 @@ let addRecordRowAt ?(letter = "") (index : int) (id : id) (ast : Expression.t)
           recover "Not a record in addRecordRowAt" ~debug:e e )
 
 
-let addRecordRowToBack (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let addRecordRowToBack (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | ERecord (id, fields) ->
           ERecord (id, fields @ [(gid (), "", newB ())])
@@ -2376,9 +2340,9 @@ let addRecordRowToBack (id : id) (ast : Expression.t) : Expression.t =
 
 (* recordFieldAtIndex gets the field for the record in the ast with recordID at index,
    or None if the record has no field with that index *)
-let recordFieldAtIndex (recordID : id) (index : int) (ast : Expression.t) :
+let recordFieldAtIndex (recordID : id) (index : int) (ast : E.t) :
     (id * fluidName * fluidExpr) option =
-  Expression.find recordID ast
+  E.find recordID ast
   |> Option.andThen ~f:(fun expr ->
          match expr with ERecord (_, fields) -> Some fields | _ -> None )
   |> Option.andThen ~f:(fun fields -> List.getAt ~index fields)
@@ -2386,11 +2350,10 @@ let recordFieldAtIndex (recordID : id) (index : int) (ast : Expression.t) :
 
 (* recordExprIdAtIndex gets the id of the field value for the record in the ast
    with recordID at index, or None if the record has no field with that index  *)
-let recordExprIdAtIndex (recordID : id) (index : int) (ast : Expression.t) :
-    id option =
+let recordExprIdAtIndex (recordID : id) (index : int) (ast : E.t) : id option =
   match recordFieldAtIndex recordID index ast with
   | Some (_, _, fluidExpr) ->
-      Some (Expression.id fluidExpr)
+      Some (E.id fluidExpr)
   | _ ->
       None
 
@@ -2399,9 +2362,8 @@ let recordExprIdAtIndex (recordID : id) (index : int) (ast : Expression.t) :
 (* Partials *)
 (* ---------------- *)
 
-let replaceWithPartial (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceWithPartial (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       let str = String.trim str in
       if String.startsWith ~prefix:"\"" str && String.endsWith ~suffix:"\"" str
       then EString (gid (), String.slice ~from:1 ~to_:(-1) str)
@@ -2420,11 +2382,10 @@ let replaceWithPartial (str : string) (id : id) (ast : Expression.t) :
             if str = "" then newB () else EPartial (gid (), str, oldVal) )
 
 
-let deletePartial (ti : tokenInfo) (ast : Expression.t) (s : state) :
-    Expression.t * state =
-  let newState = ref (fun (_ : Expression.t) -> s) in
+let deletePartial (ti : tokenInfo) (ast : E.t) (s : state) : E.t * state =
+  let newState = ref (fun (_ : E.t) -> s) in
   let ast =
-    Expression.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | EPartial
             ( _
@@ -2434,11 +2395,11 @@ let deletePartial (ti : tokenInfo) (ast : Expression.t) (s : state) :
             (newState := fun _ -> moveTo (ti.startPos - 2) s) ;
             EString (lhsID, lhsStr ^ rhsStr)
         | EPartial (_, _, EBinOp (_, _, lhs, _, _)) ->
-            (newState := fun ast -> moveToEndOfTarget (Expression.id lhs) ast s) ;
+            (newState := fun ast -> moveToEndOfTarget (E.id lhs) ast s) ;
             lhs
         | EPartial (_, _, _) ->
             let b = newB () in
-            (newState := fun ast -> moveToEndOfTarget (Expression.id b) ast s) ;
+            (newState := fun ast -> moveToEndOfTarget (E.id b) ast s) ;
             b
         | _ ->
             recover "not a partial in deletePartial" ~debug:e e )
@@ -2447,8 +2408,7 @@ let deletePartial (ti : tokenInfo) (ast : Expression.t) (s : state) :
 
 
 let replacePartialWithArguments
-    ~(newExpr : Expression.t) (id : id) (s : state) (ast : Expression.t) :
-    Expression.t =
+    ~(newExpr : E.t) (id : id) (s : state) (ast : E.t) : E.t =
   let fns =
     assertFn
       ~f:(( <> ) [])
@@ -2494,7 +2454,7 @@ let replacePartialWithArguments
     | _, _ ->
         false
   in
-  Expression.update id ast ~f:(fun expr ->
+  E.update id ast ~f:(fun expr ->
       match expr with
       (* preserve partials with arguments *)
       | EPartial (_, _, (EFnCall (_, name, _, _) as inner))
@@ -2560,27 +2520,25 @@ let replacePartialWithArguments
 (* Binops (plus right partials) *)
 (* ---------------- *)
 
-let convertToBinOp (char : char option) (id : id) (ast : Expression.t) :
-    Expression.t =
+let convertToBinOp (char : char option) (id : id) (ast : E.t) : E.t =
   match char with
   | None ->
       ast
   | Some c ->
-      Expression.update id ast ~f:(fun expr ->
+      E.update id ast ~f:(fun expr ->
           ERightPartial (gid (), String.fromChar c, expr) )
 
 
-let deleteRightPartial (ti : tokenInfo) (ast : Expression.t) :
-    Expression.t * id =
+let deleteRightPartial (ti : tokenInfo) (ast : E.t) : E.t * id =
   let id = ref FluidToken.fakeid in
   let ast =
-    Expression.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | ERightPartial (_, _, oldVal) ->
-            id := Expression.id oldVal ;
+            id := E.id oldVal ;
             oldVal
         | oldVal ->
-            id := Expression.id oldVal ;
+            id := E.id oldVal ;
             (* This uses oldval, unlike replaceWithPartial, because when a
            * partial goes to blank you're deleting it, while when a
            * rightPartial goes to blank you've only deleted the rhs *)
@@ -2589,9 +2547,8 @@ let deleteRightPartial (ti : tokenInfo) (ast : Expression.t) :
   (ast, !id)
 
 
-let replaceWithRightPartial (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceWithRightPartial (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       let str = String.trim str in
       if str = ""
       then recover "replacing with empty right partial" ~debug:e e
@@ -2603,16 +2560,16 @@ let replaceWithRightPartial (str : string) (id : id) (ast : Expression.t) :
             ERightPartial (gid (), str, oldVal) )
 
 
-let deleteBinOp (ti : tokenInfo) (ast : Expression.t) : Expression.t * id =
+let deleteBinOp (ti : tokenInfo) (ast : E.t) : E.t * id =
   let id = ref FluidToken.fakeid in
   let ast =
-    Expression.update (FluidToken.tid ti.token) ast ~f:(fun e ->
+    E.update (FluidToken.tid ti.token) ast ~f:(fun e ->
         match e with
         | EBinOp (_, _, EPipeTarget _, rhs, _) ->
-            id := Expression.id rhs ;
+            id := E.id rhs ;
             rhs
         | EBinOp (_, _, lhs, _, _) ->
-            id := Expression.id lhs ;
+            id := E.id lhs ;
             lhs
         | _ ->
             recover "not a binop in deleteBinOp" ~debug:e e )
@@ -2623,12 +2580,12 @@ let deleteBinOp (ti : tokenInfo) (ast : Expression.t) : Expression.t * id =
 (* ---------------- *)
 (* Pipes *)
 (* ---------------- *)
-let removePipe (id : id) (ast : Expression.t) (index : int) : Expression.t =
+let removePipe (id : id) (ast : E.t) (index : int) : E.t =
   let index =
     (* remove expression in front of pipe, not behind it *)
     index + 1
   in
-  Expression.update id ast ~f:(fun e ->
+  E.update id ast ~f:(fun e ->
       match e with
       | EPipe (_, [e1; _]) ->
           e1
@@ -2642,16 +2599,15 @@ let removePipe (id : id) (ast : Expression.t) (index : int) : Expression.t =
 
     Returns a new ast, fluidState with the action recorded, and the id of the
     newly inserted EBlank, which may be useful for doing caret placement. *)
-let addPipeExprAt
-    (pipeId : id) (idx : int) (ast : Expression.t) (s : fluidState) :
-    Expression.t * fluidState * id =
+let addPipeExprAt (pipeId : id) (idx : int) (ast : E.t) (s : fluidState) :
+    E.t * fluidState * id =
   let action =
     Printf.sprintf "addPipeExprAt(id=%s idx=%d)" (deID pipeId) idx
   in
   let s = recordAction action s in
   let bid = gid () in
   let ast =
-    Expression.update pipeId ast ~f:(function
+    E.update pipeId ast ~f:(function
         | EPipe (_, exprs) ->
             let exprs = List.insertAt exprs ~index:idx ~value:(EBlank bid) in
             EPipe (pipeId, exprs)
@@ -2663,15 +2619,14 @@ let addPipeExprAt
 
 (* Supports the various different tokens replacing their string contents.
  * Doesn't do movement. *)
-let replaceStringToken
-    ~(f : string -> string) (token : token) (ast : Expression.t) : Expression.t
-    =
+let replaceStringToken ~(f : string -> string) (token : token) (ast : E.t) :
+    E.t =
   match token with
   | TStringMLStart (id, _, _, str)
   | TStringMLMiddle (id, _, _, str)
   | TStringMLEnd (id, _, _, str)
   | TString (id, str) ->
-      Expression.replace id ~replacement:(EString (id, f str)) ast
+      E.replace id ~replacement:(EString (id, f str)) ast
   | TPatternString (mID, id, str, _) ->
       replacePattern mID id ~newPat:(FPString (mID, id, f str)) ast
   | TInteger (id, str) ->
@@ -2681,7 +2636,7 @@ let replaceStringToken
         then EBlank id
         else EInteger (id, coerceStringTo63BitInt str)
       in
-      Expression.replace id ~replacement ast
+      E.replace id ~replacement ast
   | TPatternInteger (mID, id, str, _) ->
       let str = f str in
       let newPat =
@@ -2736,9 +2691,8 @@ let replaceStringToken
 (* ---------------- *)
 (* Floats  *)
 (* ---------------- *)
-let replaceFloatWhole (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceFloatWhole (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, _, fraction) ->
           EFloat (id, str, fraction)
@@ -2747,8 +2701,7 @@ let replaceFloatWhole (str : string) (id : id) (ast : Expression.t) :
 
 
 let replacePatternFloatWhole
-    (str : string) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    (str : string) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun e ->
       match e with
       | FPFloat (matchID, patID, _, fraction) ->
@@ -2758,8 +2711,7 @@ let replacePatternFloatWhole
 
 
 let replacePatternFloatFraction
-    (str : string) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    (str : string) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun e ->
       match e with
       | FPFloat (matchID, patID, whole, _) ->
@@ -2768,8 +2720,7 @@ let replacePatternFloatFraction
           recover "not a float in replacePatternFloatFraction" ~debug:e e )
 
 
-let removePatternPointFromFloat
-    (matchID : id) (patID : id) (ast : Expression.t) : Expression.t =
+let removePatternPointFromFloat (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun e ->
       match e with
       | FPFloat (matchID, _, whole, fraction) ->
@@ -2779,9 +2730,8 @@ let removePatternPointFromFloat
           recover "Not an int in removePatternPointFromFloat" ~debug:e e )
 
 
-let replaceFloatFraction (str : string) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let replaceFloatFraction (str : string) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, whole, _) ->
           EFloat (id, whole, str)
@@ -2789,9 +2739,9 @@ let replaceFloatFraction (str : string) (id : id) (ast : Expression.t) :
           recover "not a floatin replaceFloatFraction" ~debug:e e )
 
 
-let insertAtFrontOfFloatFraction
-    (letter : string) (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let insertAtFrontOfFloatFraction (letter : string) (id : id) (ast : E.t) : E.t
+    =
+  E.update id ast ~f:(fun e ->
       match e with
       | EFloat (id, whole, fraction) ->
           EFloat (id, whole, letter ^ fraction)
@@ -2800,8 +2750,7 @@ let insertAtFrontOfFloatFraction
 
 
 let insertAtFrontOfPatternFloatFraction
-    (letter : string) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    (letter : string) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun e ->
       match e with
       | FPFloat (matchID, patID, whole, fraction) ->
@@ -2813,9 +2762,8 @@ let insertAtFrontOfPatternFloatFraction
             e )
 
 
-let convertIntToFloat (offset : int) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let convertIntToFloat (offset : int) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EInteger (_, i) ->
           let whole, fraction = String.splitAt ~index:offset i in
@@ -2825,8 +2773,7 @@ let convertIntToFloat (offset : int) (id : id) (ast : Expression.t) :
 
 
 let convertPatternIntToFloat
-    (offset : int) (matchID : id) (patID : id) (ast : Expression.t) :
-    Expression.t =
+    (offset : int) (matchID : id) (patID : id) (ast : E.t) : E.t =
   updatePattern matchID patID ast ~f:(fun e ->
       match e with
       | FPInteger (matchID, _, i) ->
@@ -2836,8 +2783,8 @@ let convertPatternIntToFloat
           recover "Not an int in convertPatternIntToFloat" ~debug:e e )
 
 
-let removePointFromFloat (id : id) (ast : Expression.t) : Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let removePointFromFloat (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EFloat (_, whole, fraction) ->
           let i = coerceStringTo63BitInt (whole ^ fraction) in
@@ -2849,13 +2796,12 @@ let removePointFromFloat (id : id) (ast : Expression.t) : Expression.t =
 (* ---------------- *)
 (* Lists *)
 (* ---------------- *)
-let removeListSepToken (id : id) (ast : Expression.t) (index : int) :
-    Expression.t =
+let removeListSepToken (id : id) (ast : E.t) (index : int) : E.t =
   let index =
     (* remove expression in front of sep, not behind it *)
     index + 1
   in
-  Expression.update id ast ~f:(fun e ->
+  E.update id ast ~f:(fun e ->
       match e with
       | EList (id, exprs) ->
           EList (id, List.removeAt ~index exprs)
@@ -2863,10 +2809,8 @@ let removeListSepToken (id : id) (ast : Expression.t) (index : int) :
           e )
 
 
-let insertInList
-    ~(index : int) ~(newExpr : Expression.t) (id : id) (ast : Expression.t) :
-    Expression.t =
-  Expression.update id ast ~f:(fun e ->
+let insertInList ~(index : int) ~(newExpr : E.t) (id : id) (ast : E.t) : E.t =
+  E.update id ast ~f:(fun e ->
       match e with
       | EList (id, exprs) ->
           EList (id, List.insertAt ~index ~value:newExpr exprs)
@@ -2875,11 +2819,11 @@ let insertInList
 
 
 (* Add a blank after the expr indicated by id, which we presume is in a list *)
-let addBlankToList (id : id) (ast : Expression.t) : Expression.t =
-  let parent = Expression.findParent id ast in
+let addBlankToList (id : id) (ast : E.t) : E.t =
+  let parent = E.findParent id ast in
   match parent with
   | Some (EList (pID, exprs)) ->
-    ( match List.findIndex ~f:(fun e -> Expression.id e = id) exprs with
+    ( match List.findIndex ~f:(fun e -> E.id e = id) exprs with
     | Some index ->
         insertInList ~index:(index + 1) ~newExpr:(EBlank (gid ())) pID ast
     | _ ->
@@ -2892,7 +2836,7 @@ let addBlankToList (id : id) (ast : Expression.t) : Expression.t =
 (* Autocomplete *)
 (* -------------------- *)
 
-let acToExpr (entry : Types.fluidAutocompleteItem) : Expression.t * int =
+let acToExpr (entry : Types.fluidAutocompleteItem) : E.t * int =
   match entry with
   | FACFunction fn ->
       let count = List.length fn.fnParameters in
@@ -2949,7 +2893,7 @@ let acToExpr (entry : Types.fluidAutocompleteItem) : Expression.t * int =
       recover "invalid literal in autocomplete" ~debug:entry (newB (), 0)
 
 
-let rec extractSubexprFromPartial (expr : Expression.t) : Expression.t =
+let rec extractSubexprFromPartial (expr : E.t) : E.t =
   match expr with
   | EPartial (_, _, subExpr) | ERightPartial (_, _, subExpr) ->
       extractSubexprFromPartial subExpr
@@ -2979,7 +2923,7 @@ let acToPattern (entry : Types.fluidAutocompleteItem) : fluidPattern * int =
 let initAC (s : state) (m : Types.model) : state = {s with ac = AC.init m}
 
 let isAutocompleting (ti : tokenInfo) (s : state) : bool =
-  Token.isAutocompletable ti.token
+  T.isAutocompletable ti.token
   && s.upDownCol = None
   && s.ac.index <> None
   && s.newPos <= ti.endPos
@@ -2998,7 +2942,7 @@ let acClear (s : state) : state =
 
 let acMaybeShow (ti : tokenInfo) (s : state) : state =
   let s = recordAction "acShow" s in
-  if Token.isAutocompletable ti.token && s.ac.index = None
+  if T.isAutocompletable ti.token && s.ac.index = None
   then {s with ac = {s.ac with index = Some 0}}
   else s
 
@@ -3038,7 +2982,7 @@ let acMoveBasedOnKey
     (posAtStartOfACedToken : int)
     (offset : int)
     (s : state)
-    (ast : Expression.t) : state =
+    (ast : E.t) : state =
   let tokens = toTokens s ast in
   let posAtEndOfACedToken = posAtStartOfACedToken + offset in
   let newPos =
@@ -3080,10 +3024,9 @@ let acMoveBasedOnKey
  * the end of the line. This function helps us find the whole expression that
  * we would want to perform it on.
 *)
-let rec findAppropriateParentToWrap
-    (oldExpr : Expression.t) (ast : Expression.t) : Expression.t option =
+let rec findAppropriateParentToWrap (oldExpr : E.t) (ast : E.t) : E.t option =
   let child = oldExpr in
-  let parent = Expression.(findParent (id oldExpr) ast) in
+  let parent = E.(findParent (id oldExpr) ast) in
   match parent with
   | Some parent ->
     ( match parent with
@@ -3128,14 +3071,14 @@ let rec findAppropriateParentToWrap
     Returns a new ast, fluidState, and the id of the EBlank created as the
     first pipe expression (if the pipe was successfully added).
     *)
-let createPipe ~(findParent : bool) (id : id) (ast : Expression.t) (s : state)
-    : Expression.t * state * id option =
+let createPipe ~(findParent : bool) (id : id) (ast : E.t) (s : state) :
+    E.t * state * id option =
   let action =
     Printf.sprintf "createPipe(id=%s findParent=%B)" (deID id) findParent
   in
   let s = recordAction action s in
   let exprToReplace =
-    Expression.find id ast
+    E.find id ast
     |> Option.andThen ~f:(fun e ->
            if findParent then findAppropriateParentToWrap e ast else Some e )
     |> Option.map ~f:extractSubexprFromPartial
@@ -3146,20 +3089,20 @@ let createPipe ~(findParent : bool) (id : id) (ast : Expression.t) (s : state)
   | Some expr ->
       let blankId = gid () in
       let replacement = EPipe (gid (), [expr; EBlank blankId]) in
-      let ast = Expression.replace (Expression.id expr) ast ~replacement in
+      let ast = E.replace (E.id expr) ast ~replacement in
       (ast, s, Some blankId)
 
 
 let updateFromACItem
     (entry : fluidAutocompleteItem)
     (ti : tokenInfo)
-    (ast : Expression.t)
+    (ast : E.t)
     (s : state)
-    (key : K.key) : Expression.t * state =
-  let id = Token.tid ti.token in
+    (key : K.key) : E.t * state =
+  let id = T.tid ti.token in
   let newExpr, offset = acToExpr entry in
-  let oldExpr = Expression.find id ast in
-  let parent = Expression.findParent id ast in
+  let oldExpr = E.find id ast in
+  let parent = E.findParent id ast in
   let newAST, offset =
     match (ti.token, oldExpr, parent, newExpr) with
     (* since patterns have no partial but commit as variables
@@ -3191,19 +3134,14 @@ let updateFromACItem
           match exprToReplace with
           | None ->
               let replacement = EPipe (gid (), [subExpr; newB ()]) in
-              Expression.replace (Expression.id oldExpr) ast ~replacement
+              E.replace (E.id oldExpr) ast ~replacement
           | Some expr when expr = subExpr ->
               let replacement = EPipe (gid (), [subExpr; newB ()]) in
-              Expression.replace (Expression.id oldExpr) ast ~replacement
+              E.replace (E.id oldExpr) ast ~replacement
           | Some expr ->
-              let expr =
-                Expression.replace
-                  (Expression.id oldExpr)
-                  expr
-                  ~replacement:subExpr
-              in
+              let expr = E.replace (E.id oldExpr) expr ~replacement:subExpr in
               let replacement = EPipe (gid (), [expr; newB ()]) in
-              Expression.replace (Expression.id expr) ast ~replacement
+              E.replace (E.id expr) ast ~replacement
         in
         let tokens = toTokens s newAST in
         let nextBlank = getNextBlankPos s.newPos tokens in
@@ -3211,7 +3149,7 @@ let updateFromACItem
     | TPartial _, _, Some (EPipe _), EBinOp (bID, name, _, rhs, str) ->
         let replacement = EBinOp (bID, name, EPipeTarget (gid ()), rhs, str) in
         let offset = String.length name + 1 in
-        let newAST = Expression.replace ~replacement id ast in
+        let newAST = E.replace ~replacement id ast in
         (newAST, offset)
     | TPartial _, Some _, Some (EPipe _), EFnCall (fnID, name, _ :: args, str)
       ->
@@ -3226,7 +3164,7 @@ let updateFromACItem
       , _
       , EBinOp (bID, name, _, _, str) ) ->
         let replacement = EBinOp (bID, name, lhs, rhs, str) in
-        let newAST = Expression.replace ~replacement id ast in
+        let newAST = E.replace ~replacement id ast in
         (newAST, String.length name)
     | TPartial _, _, _, _ ->
         let newAST = replacePartialWithArguments ~newExpr id s ast in
@@ -3236,7 +3174,7 @@ let updateFromACItem
       , _
       , EBinOp (bID, name, _, rhs, str) ) ->
         let replacement = EBinOp (bID, name, oldExpr, rhs, str) in
-        let newAST = Expression.replace ~replacement id ast in
+        let newAST = E.replace ~replacement id ast in
         (newAST, String.length name)
     | ( (TFieldName _ | TFieldPartial _ | TBlank _)
       , Some
@@ -3245,17 +3183,17 @@ let updateFromACItem
       , _
       , EFieldAccess (_, _, _, newname) ) ->
         let replacement = EFieldAccess (faID, labelid, expr, newname) in
-        let newAST = Expression.replace ~replacement id ast in
+        let newAST = E.replace ~replacement id ast in
         (newAST, offset)
     | _, _, _, _ ->
-        let newAST = Expression.replace ~replacement:newExpr id ast in
+        let newAST = E.replace ~replacement:newExpr id ast in
         (newAST, offset)
   in
   (newAST, acMoveBasedOnKey key ti.startPos offset s newAST)
 
 
-let acEnter (ti : tokenInfo) (ast : Expression.t) (s : state) (key : K.key) :
-    Expression.t * state =
+let acEnter (ti : tokenInfo) (ast : E.t) (s : state) (key : K.key) :
+    E.t * state =
   let s = recordAction ~ti "acEnter" s in
   match AC.highlighted s.ac with
   | None ->
@@ -3269,29 +3207,24 @@ let acEnter (ti : tokenInfo) (ast : Expression.t) (s : state) (key : K.key) :
 
 
 let acClick
-    (entry : fluidAutocompleteItem)
-    (ti : tokenInfo)
-    (ast : Expression.t)
-    (s : state) =
+    (entry : fluidAutocompleteItem) (ti : tokenInfo) (ast : E.t) (s : state) =
   updateFromACItem entry ti ast s K.Enter
 
 
-let commitIfValid
-    (newPos : int) (ti : tokenInfo) ((ast, s) : Expression.t * fluidState) :
-    Expression.t =
+let commitIfValid (newPos : int) (ti : tokenInfo) ((ast, s) : E.t * fluidState)
+    : E.t =
   let highlightedText = s.ac |> AC.highlighted |> Option.map ~f:AC.asName in
   let isInside = newPos >= ti.startPos && newPos <= ti.endPos in
   (* TODO: if we can't move off because it's the start/end etc of the ast, we
    * may want to commit anyway. *)
-  if (not isInside) && Some (Token.toText ti.token) = highlightedText
+  if (not isInside) && Some (T.toText ti.token) = highlightedText
   then
     let newAST, _ = acEnter ti ast s K.Enter in
     newAST
   else ast
 
 
-let acMaybeCommit (newPos : int) (ast : Expression.t) (s : fluidState) :
-    Expression.t =
+let acMaybeCommit (newPos : int) (ast : E.t) (s : fluidState) : E.t =
   match s.ac.query with
   | Some (_, ti) ->
       commitIfValid newPos ti (ast, s)
@@ -3301,8 +3234,7 @@ let acMaybeCommit (newPos : int) (ast : Expression.t) (s : fluidState) :
 
 (* Convert the expr ti into a FieldAccess, using the currently
  * selected Autocomplete value *)
-let acStartField (ti : tokenInfo) (ast : Expression.t) (s : state) :
-    Expression.t * state =
+let acStartField (ti : tokenInfo) (ast : E.t) (s : state) : E.t * state =
   let s = recordAction ~ti "acStartField" s in
   match (AC.highlighted s.ac, ti.token) with
   | Some (FACField fieldname as entry), TFieldName (faID, _, _)
@@ -3321,7 +3253,7 @@ let acStartField (ti : tokenInfo) (ast : Expression.t) (s : state) :
       in
       let length = length + 1 in
       let newState = s |> moveTo (ti.startPos + length) |> acClear in
-      let newAST = Expression.replace ~replacement (Token.tid ti.token) ast in
+      let newAST = E.replace ~replacement (T.tid ti.token) ast in
       (newAST, newState)
   | _ ->
       (ast, s)
@@ -3347,7 +3279,7 @@ type newPosition =
 
 let adjustPosForReflow
     ~state
-    (newAST : Expression.t)
+    (newAST : E.t)
     (oldTI : tokenInfo)
     (oldPos : int)
     (adjustment : newPosition) : int =
@@ -3362,7 +3294,7 @@ let adjustPosForReflow
    * found them yet. *)
   let newTokens = toTokens state newAST in
   let newTI =
-    List.find newTokens ~f:(fun x -> Token.matches oldTI.token x.token)
+    List.find newTokens ~f:(fun x -> T.matches oldTI.token x.token)
   in
   let diff =
     match newTI with
@@ -3384,7 +3316,7 @@ let adjustPosForReflow
       then oldTI.startPos + diff + 2
       else newPos + 2
   | LeftOne, Some newTI ->
-      if Token.isAtom newTI.token
+      if T.isAtom newTI.token
       then newTI.startPos
       else if newTI.endPos < newPos
       then newTI.endPos
@@ -3404,7 +3336,7 @@ let adjustPosForReflow
   | MoveToTokenEnd (id, offset), _ ->
       newTokens
       |> List.reverse
-      |> List.find ~f:(fun x -> Token.tid x.token = id)
+      |> List.find ~f:(fun x -> T.tid x.token = id)
       |> Option.map ~f:(fun ti ->
              if FluidToken.isBlank ti.token
              then ti.startPos
@@ -3422,8 +3354,8 @@ let adjustPosForReflow
       posFromCaretTarget state newAST target
 
 
-let doBackspace ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state)
-    : Expression.t * state =
+let doBackspace ~(pos : int) (ti : tokenInfo) (ast : E.t) (s : state) :
+    E.t * state =
   let s = recordAction ~pos ~ti "doBackspace" s in
   let offset =
     match ti.token with
@@ -3445,18 +3377,18 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state)
     | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
         (ast, MoveToStart)
     | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-        let newAST = removeEmptyExpr (Token.tid ti.token) ast in
+        let newAST = removeEmptyExpr (T.tid ti.token) ast in
         if newAST = ast then (ast, SamePlace) else (newAST, MoveToStart)
     | TString (id, "") ->
-        (Expression.replace id ~replacement:(EBlank newID) ast, LeftOne)
+        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
     | TPatternString (mID, id, "", _) ->
         (replacePattern mID id ~newPat:(FPBlank (mID, newID)) ast, LeftOne)
     | TLambdaSep (id, idx) ->
         (removeLambdaSepToken id ast idx, LeftOne)
     | TListSep (id, idx) ->
         (removeListSepToken id ast idx, LeftOne)
-    | (TRecordOpen id | TListOpen id) when Expression.hasEmptyWithId id ast ->
-        (Expression.replace id ~replacement:(EBlank newID) ast, LeftOne)
+    | (TRecordOpen id | TListOpen id) when E.hasEmptyWithId id ast ->
+        (E.replace id ~replacement:(EBlank newID) ast, LeftOne)
     | TRecordFieldname {recordID; index; fieldName = ""; _}
       when pos = ti.startPos ->
         let newAst = removeRecordField recordID index ast in
@@ -3574,8 +3506,8 @@ let doBackspace ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state)
   (newAST, {s with newPos})
 
 
-let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
-    Expression.t * state =
+let doDelete ~(pos : int) (ti : tokenInfo) (ast : E.t) (s : state) :
+    E.t * state =
   let s = recordAction ~pos ~ti "doDelete" s in
   let left s = moveOneLeft pos s in
   let offset =
@@ -3593,9 +3525,9 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
   | TIfThenKeyword _ | TIfElseKeyword _ | TLambdaArrow _ | TMatchSep _ ->
       (ast, s)
   | TIfKeyword _ | TLetKeyword _ | TLambdaSymbol _ | TMatchKeyword _ ->
-      (removeEmptyExpr (Token.tid ti.token) ast, s)
-  | (TListOpen id | TRecordOpen id) when Expression.hasEmptyWithId id ast ->
-      (Expression.replace id ~replacement:(newB ()) ast, s)
+      (removeEmptyExpr (T.tid ti.token) ast, s)
+  | (TListOpen id | TRecordOpen id) when E.hasEmptyWithId id ast ->
+      (E.replace id ~replacement:(newB ()) ast, s)
   | TLambdaSep (id, idx) ->
       (removeLambdaSepToken id ast idx, s)
   | TListSep (id, idx) ->
@@ -3629,17 +3561,17 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
         if offset == 0 then s else left s
       in
       if str = ""
-      then (ast |> Expression.replace id ~replacement:(EBlank newID), target s)
+      then (ast |> E.replace id ~replacement:(EBlank newID), target s)
       else
         let str = removeCharAt str (offset - 1) in
-        (Expression.replace id ~replacement:(EString (newID, str)) ast, s)
+        (E.replace id ~replacement:(EString (newID, str)) ast, s)
   | TStringMLStart (id, _, _, str) ->
       let str = removeCharAt str (offset - 1) in
-      (Expression.replace id ~replacement:(EString (newID, str)) ast, s)
+      (E.replace id ~replacement:(EString (newID, str)) ast, s)
   | TStringMLMiddle (id, _, strOffset, str) ->
       let offset = offset + strOffset in
       let str = removeCharAt str offset in
-      (Expression.replace id ~replacement:(EString (newID, str)) ast, s)
+      (E.replace id ~replacement:(EString (newID, str)) ast, s)
   | TStringMLEnd (id, endStr, strOffset, _) ->
       let f str = removeCharAt str (offset + strOffset) in
       let newAST = replaceStringToken ~f ti.token ast in
@@ -3727,9 +3659,8 @@ let doDelete ~(pos : int) (ti : tokenInfo) (ast : Expression.t) (s : state) :
       (newAST, s)
 
 
-let doInsert'
-    ~pos (letter : char) (ti : tokenInfo) (ast : Expression.t) (s : state) :
-    Expression.t * state =
+let doInsert' ~pos (letter : char) (ti : tokenInfo) (ast : E.t) (s : state) :
+    E.t * state =
   let s = recordAction ~ti ~pos "doInsert" s in
   let s = {s with upDownCol = None} in
   let letterStr = String.fromChar letter in
@@ -3757,7 +3688,7 @@ let doInsert'
     in
     let fnname =
       let id = FluidToken.tid ti.token in
-      match Expression.findParent id ast with
+      match E.findParent id ast with
       | Some (EFnCall (_, name, _, _)) ->
           Some name
       | _ ->
@@ -3811,7 +3742,7 @@ let doInsert'
         (ast, SamePlace)
     (* replace blank *)
     | TBlank id | TPlaceholder (_, id) ->
-        (Expression.replace id ~replacement:newExpr ast, AtTarget newTarget)
+        (E.replace id ~replacement:newExpr ast, AtTarget newTarget)
     (* lists *)
     | TListOpen id ->
         (insertInList ~index:0 id ~newExpr ast, AtTarget newTarget)
@@ -3962,11 +3893,8 @@ let doInsert'
 
 
 let doInsert
-    ~pos
-    (letter : char option)
-    (ti : tokenInfo)
-    (ast : Expression.t)
-    (s : state) : Expression.t * state =
+    ~pos (letter : char option) (ti : tokenInfo) (ast : E.t) (s : state) :
+    E.t * state =
   match letter with
   | None ->
       (ast, s)
@@ -3974,11 +3902,10 @@ let doInsert
       doInsert' ~pos letter ti ast s
 
 
-let wrapInLet (ti : tokenInfo) (ast : Expression.t) (s : state) :
-    Expression.t * fluidState =
+let wrapInLet (ti : tokenInfo) (ast : E.t) (s : state) : E.t * fluidState =
   let s = recordAction "wrapInLet" s in
-  let id = Token.tid ti.token in
-  match Expression.find id ast with
+  let id = T.tid ti.token in
+  match E.find id ast with
   | Some expr ->
       let bodyId = gid () in
       let exprToWrap =
@@ -3988,11 +3915,11 @@ let wrapInLet (ti : tokenInfo) (ast : Expression.t) (s : state) :
         | None ->
             expr
       in
-      let eid = Expression.id exprToWrap in
+      let eid = E.id exprToWrap in
       let replacement =
         ELet (gid (), gid (), "_", exprToWrap, EBlank bodyId)
       in
-      let newAST = Expression.replace ~replacement eid ast in
+      let newAST = E.replace ~replacement eid ast in
       let newPos =
         posFromCaretTarget s newAST {astRef = ARBlank bodyId; offset = 0}
       in
@@ -4064,27 +3991,26 @@ let tokensInRange selStartPos selEndPos ~state ast : fluidTokenInfo list =
 
 
 let getTopmostSelectionID startPos endPos ~state ast : id option =
-  let asExpr = Expression.toNexpr ast in
+  let asExpr = E.toNexpr ast in
   (* TODO: if there's multiple topmost IDs, return parent of those IDs *)
   tokensInRange startPos endPos ~state ast
-  |> List.filter ~f:(fun ti -> not (Token.isNewline ti.token))
+  |> List.filter ~f:(fun ti -> not (T.isNewline ti.token))
   |> List.foldl ~init:(None, 0) ~f:(fun ti (topmostID, topmostDepth) ->
-         let curID = Token.parentExprID ti.token in
+         let curID = T.parentExprID ti.token in
          let curDepth = AST.ancestors curID asExpr |> List.length in
          if (* check if current token is higher in the AST than the last token,
              * or if there's no topmost ID yet *)
             (curDepth < topmostDepth || topmostID = None)
             (* account for tokens that don't have ancestors (depth = 0)
              * but are not the topmost expression in the AST *)
-            && not (curDepth = 0 && Expression.find curID ast != Some ast)
+            && not (curDepth = 0 && E.find curID ast != Some ast)
          then (Some curID, curDepth)
          else (topmostID, topmostDepth) )
   |> Tuple2.first
 
 
-let rec updateKey
-    ?(recursing = false) (key : K.key) (ast : Expression.t) (s : state) :
-    Expression.t * state =
+let rec updateKey ?(recursing = false) (key : K.key) (ast : E.t) (s : state) :
+    E.t * state =
   let pos = s.newPos in
   let keyChar = K.toChar key in
   let tokens = toTokens s ast in
@@ -4147,16 +4073,16 @@ let rec updateKey
   let isInIfCondition token =
     let rec recurseUp maybeExpr prevId =
       match maybeExpr with
-      | Some (EIf (_, cond, _, _)) when Expression.id cond = prevId ->
+      | Some (EIf (_, cond, _, _)) when E.id cond = prevId ->
           true
       | Some e ->
-          let id = Expression.id e in
-          recurseUp (Expression.findParent id ast) id
+          let id = E.id e in
+          recurseUp (E.findParent id ast) id
       | None ->
           false
     in
-    let tid = Token.tid token in
-    recurseUp (Expression.findParent tid ast) tid
+    let tid = T.tid token in
+    recurseUp (E.findParent tid ast) tid
   in
   let newAST, newState =
     (* This match drives a big chunk of the change operations, but is
@@ -4334,7 +4260,7 @@ let rec updateKey
           deleteCaretRange ~state:s ~ast selRange
       | None ->
           let rangeStart =
-            if Token.isStringToken ti.token && pos != ti.startPos
+            if T.isStringToken ti.token && pos != ti.startPos
             then getBegOfWordInStrCaretPos ~pos ti
             else ti.startPos
           in
@@ -4355,7 +4281,7 @@ let rec updateKey
         (insertLambdaVar ~index id ~name:"" ast, s)
     | K.Comma, L (t, ti), _ ->
         if onEdge
-        then (addBlankToList (Token.tid t) ast, moveOneRight ti.endPos s)
+        then (addBlankToList (T.tid t) ast, moveOneRight ti.endPos s)
         else doInsert ~pos keyChar ti ast s
     (* list-specific insertions *)
     | K.RightCurlyBrace, _, R (TRecordClose _, ti) when pos = ti.endPos - 1 ->
@@ -4409,7 +4335,7 @@ let rec updateKey
      * Following newline contains a parent and index, meaning we're inside some
      * special construct. Special-case each of those. *)
     | K.Enter, _, R (TNewline (Some (_, parentId, Some idx)), ti) ->
-      ( match Expression.find parentId ast with
+      ( match E.find parentId ast with
       | Some (EPipe _) ->
           let ast, s, blankId = addPipeExprAt parentId (idx + 1) ast s in
           let s =
@@ -4436,8 +4362,7 @@ let rec updateKey
     (*
      * Caret at end of line with nothing in newline. *)
     | K.Enter, L (lt, lti), R (TNewline None, rti)
-      when not (Token.isLet lt || isAutocompleting rti s || isInIfCondition lt)
-      ->
+      when not (T.isLet lt || isAutocompleting rti s || isInIfCondition lt) ->
         wrapInLet lti ast s
     (*
      * Caret at end-of-line with no data in the TNewline.
@@ -4472,7 +4397,7 @@ let rec updateKey
      * Eg, a match with 2 rows will have idx=3 here.
      *)
     | K.Enter, L (TNewline (Some (_, parentId, Some idx)), _), R (rTok, _) ->
-        let addLetAboveRightToken () : Expression.t * state =
+        let addLetAboveRightToken () : E.t * state =
           let id = FluidToken.tid rTok in
           let ast, s, _ = makeIntoLetBody id ast s in
           let s =
@@ -4480,7 +4405,7 @@ let rec updateKey
           in
           (ast, s)
         in
-        ( match Expression.find parentId ast with
+        ( match E.find parentId ast with
         | Some (EMatch (_, _, exprs)) ->
             (* if a match has n rows, the last newline has idx=(n+1) *)
             if idx = List.length exprs
@@ -4526,7 +4451,7 @@ let rec updateKey
         (ast, s)
     (*
      * Caret at very end of tokens where last line is non-let expression. *)
-    | K.Enter, L (token, ti), No when not (Token.isLet token) ->
+    | K.Enter, L (token, ti), No when not (T.isLet token) ->
         wrapInLet ti ast s
     (****************)
     (* Int to float *)
@@ -4554,7 +4479,7 @@ let rec updateKey
         doInsert ~pos keyChar toTheRight ast s
     | _, L (_, toTheLeft), _
       when onEdge && keyIsInfix && wrappableInBinop toTheRight ->
-        ( convertToBinOp keyChar (Token.tid toTheLeft.token) ast
+        ( convertToBinOp keyChar (T.tid toTheLeft.token) ast
         , s |> moveTo (pos + 2) )
     (* Rest of Insertions *)
     | _, L (TListOpen _, toTheLeft), R (TListClose _, _) ->
@@ -4575,7 +4500,7 @@ let rec updateKey
           (ast, s)
       | _ ->
           (ast, s) )
-    | _, L (_, toTheLeft), _ when Token.isAppendable toTheLeft.token ->
+    | _, L (_, toTheLeft), _ when T.isAppendable toTheLeft.token ->
         doInsert ~pos keyChar toTheLeft ast s
     | _, _, R (TListOpen _, _) ->
         (ast, s)
@@ -4671,8 +4596,8 @@ let rec updateKey
    until the caret reaches the smaller of the caret positions or can no longer move.
    XXX(JULIAN): This actually moves the caret to the larger side of the range and backspaces until the
    beginning, which means this hijacks the caret in the state. *)
-and deleteCaretRange ~state ~(ast : Expression.t) (caretRange : int * int) :
-    Expression.t * fluidState =
+and deleteCaretRange ~state ~(ast : E.t) (caretRange : int * int) :
+    E.t * fluidState =
   let rangeStart, rangeEnd = caretRange |> orderRangeFromSmallToBig in
   let state =
     {state with newPos = rangeEnd; oldPos = state.newPos; selectionStart = None}
@@ -4694,11 +4619,11 @@ and deleteCaretRange ~state ~(ast : Expression.t) (caretRange : int * int) :
 
 (* deleteSelection is equivalent to pressing backspace starting from the larger of the two caret positions
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
-and deleteSelection ~state ~(ast : Expression.t) : Expression.t * fluidState =
+and deleteSelection ~state ~(ast : E.t) : E.t * fluidState =
   fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
 
 
-let getToken (s : fluidState) (ast : Expression.t) : tokenInfo option =
+let getToken (s : fluidState) (ast : E.t) : tokenInfo option =
   let tokens = toTokens s ast in
   let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
   (* The algorithm that decides what token on when a certain key is pressed is
@@ -4723,7 +4648,7 @@ let getToken (s : fluidState) (ast : Expression.t) : tokenInfo option =
    * much deeper.
    *)
   match (toTheLeft, toTheRight) with
-  | L (_, ti), _ when Token.isTextToken ti.token ->
+  | L (_, ti), _ when T.isTextToken ti.token ->
       Some ti
   | _, R (_, ti) ->
       Some ti
@@ -4735,16 +4660,16 @@ let getToken (s : fluidState) (ast : Expression.t) : tokenInfo option =
 
 let updateAutocomplete m tlid ast s : fluidState =
   match getToken s ast with
-  | Some ti when Token.isAutocompletable ti.token ->
-      let m = TL.withAST m tlid (Expression.toNexpr ast) in
+  | Some ti when T.isAutocompletable ti.token ->
+      let m = TL.withAST m tlid (E.toNexpr ast) in
       let newAC = AC.regenerate m s.ac (tlid, ti) in
       {s with ac = newAC}
   | _ ->
       s
 
 
-let updateMouseClick (newPos : int) (ast : Expression.t) (s : fluidState) :
-    Expression.t * fluidState =
+let updateMouseClick (newPos : int) (ast : E.t) (s : fluidState) :
+    E.t * fluidState =
   let tokens = toTokens s ast in
   let lastPos =
     tokens
@@ -4756,7 +4681,7 @@ let updateMouseClick (newPos : int) (ast : Expression.t) (s : fluidState) :
   let newPos =
     (* TODO: add tests for clicking in the middle of a pipe (or blank) *)
     match getLeftTokenAt newPos tokens with
-    | Some current when Token.isBlank current.token ->
+    | Some current when T.isBlank current.token ->
         current.startPos
     | Some ({token = TPipe _; _} as current) ->
         current.endPos
@@ -4797,7 +4722,7 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
     * second sub-expr of the FnCall) *)
   let astTokens = toTokens state ast in
   let exprTokens =
-    Expression.find exprID ast
+    E.find exprID ast
     |> Option.map ~f:(toTokens state)
     |> Option.withDefault ~default:[]
   in
@@ -4819,18 +4744,18 @@ let exprRangeInAst ~state ~ast (exprID : id) : (int * int) option =
       None
 
 
-let getTokenRangeAtCaret (state : fluidState) (ast : Expression.t) :
-    (int * int) option =
+let getTokenRangeAtCaret (state : fluidState) (ast : E.t) : (int * int) option
+    =
   getToken state ast |> Option.map ~f:(fun t -> (t.startPos, t.endPos))
 
 
-let getExpressionRangeAtCaret (state : fluidState) (ast : Expression.t) :
+let getExpressionRangeAtCaret (state : fluidState) (ast : E.t) :
     (int * int) option =
   getToken state ast
   (* get token that the cursor is currently on *)
   |> Option.andThen ~f:(fun t ->
          (* get expression that the token belongs to *)
-         let exprID = Token.tid t.token in
+         let exprID = T.tid t.token in
          exprRangeInAst ~state ~ast exprID )
   |> Option.map ~f:(fun (eStartPos, eEndPos) -> (eStartPos, eEndPos))
 
@@ -4843,12 +4768,11 @@ let trimQuotes s : string =
   |> fun v -> if startsWith ~prefix:"\"" v then dropLeft ~count:1 v else v
 
 
-let clone ~(state : state) (ast : Expression.t) : Expression.t =
-  ast |> Expression.toNexpr |> AST.clone |> fromExpr state
+let clone ~(state : state) (ast : E.t) : E.t =
+  ast |> E.toNexpr |> AST.clone |> fromExpr state
 
 
-let reconstructExprFromRange ~state ~ast (range : int * int) :
-    Expression.t option =
+let reconstructExprFromRange ~state ~ast (range : int * int) : E.t option =
   (* prevent duplicates *)
   let ast = clone ~state ast in
   (* a few helpers *)
@@ -4874,10 +4798,10 @@ let reconstructExprFromRange ~state ~ast (range : int * int) :
     * find topmost expression by ID and
     * reconstruct full/subset of expression
     * recurse into children (that remain in subset) to reconstruct those too *)
-  let rec reconstruct ~topmostID (startPos, endPos) : Expression.t option =
+  let rec reconstruct ~topmostID (startPos, endPos) : E.t option =
     let topmostExpr =
       topmostID
-      |> Option.andThen ~f:(fun id -> Expression.find id ast)
+      |> Option.andThen ~f:(fun id -> E.find id ast)
       |> Option.withDefault ~default:(EBlank (gid ()))
     in
     let simplifiedTokens =
@@ -4887,7 +4811,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) :
              let t = ti.token in
              let text =
                (* trim tokens if they're on the edge of the range *)
-               Token.toText t
+               T.toText t
                |> String.dropLeft
                     ~count:
                       ( if ti.startPos < startPos
@@ -4898,19 +4822,15 @@ let reconstructExprFromRange ~state ~ast (range : int * int) :
                       (if ti.endPos > endPos then ti.endPos - endPos else 0)
                |> fun text ->
                (* if string, do extra trim to account for quotes, then re-append quotes *)
-               if Token.toTypeName ti.token = "string"
+               if T.toTypeName ti.token = "string"
                then "\"" ^ trimQuotes text ^ "\""
                else text
              in
-             Token.(tid t, text, toTypeName t) )
+             T.(tid t, text, toTypeName t) )
     in
-    let reconstructExpr expr : Expression.t option =
+    let reconstructExpr expr : E.t option =
       let exprID =
-        match expr with
-        | EPipeTarget _ ->
-            None
-        | _ ->
-            Some (Expression.id expr)
+        match expr with EPipeTarget _ -> None | _ -> Some (E.id expr)
       in
       exprID
       |> Option.andThen ~f:(exprRangeInAst ~state ~ast)
@@ -4921,7 +4841,7 @@ let reconstructExprFromRange ~state ~ast (range : int * int) :
              else Some (max exprStartPos startPos, min exprEndPos endPos) )
       |> Option.andThen ~f:(reconstruct ~topmostID:exprID)
     in
-    let orDefaultExpr : Expression.t option -> Expression.t =
+    let orDefaultExpr : E.t option -> E.t =
       Option.withDefault ~default:(EBlank (gid ()))
     in
     let id = gid () in
@@ -5287,17 +5207,17 @@ let reconstructExprFromRange ~state ~ast (range : int * int) :
   reconstruct ~topmostID (startPos, endPos)
 
 
-let exprToClipboardContents (ast : Expression.t) : clipboardContents =
+let exprToClipboardContents (ast : E.t) : clipboardContents =
   match ast with
   | EString (_, str) ->
       `Text str
   | _ ->
-      `Json (Encoders.pointerData (PExpr (Expression.toNexpr ast)))
+      `Json (Encoders.pointerData (PExpr (E.toNexpr ast)))
 
 
-let jsonToExpr (jsonStr : string) : Expression.t =
+let jsonToExpr (jsonStr : string) : E.t =
   let open Js.Json in
-  let rec jsJsonToExpr (j : t) : Expression.t =
+  let rec jsJsonToExpr (j : t) : E.t =
     match classify j with
     | JSONString str ->
         EString (gid (), str)
@@ -5345,8 +5265,7 @@ let jsonToExpr (jsonStr : string) : Expression.t =
   with _ -> EString (gid (), jsonStr)
 
 
-let clipboardContentsToExpr ~state (data : clipboardContents) :
-    Expression.t option =
+let clipboardContentsToExpr ~state (data : clipboardContents) : E.t option =
   match data with
   | `Json json ->
     ( try
@@ -5390,12 +5309,11 @@ let getStringIndex ti pos : int =
       recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
-let pasteOverSelection ~state ~(ast : Expression.t) data :
-    Expression.t * fluidState =
+let pasteOverSelection ~state ~(ast : E.t) data : E.t * fluidState =
   let ast, state = deleteSelection ~state ~ast in
   let token = getToken state ast in
-  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> Token.tid) in
-  let expr = Option.andThen exprID ~f:(fun id -> Expression.find id ast) in
+  let exprID = token |> Option.map ~f:(fun ti -> ti.token |> T.tid) in
+  let expr = Option.andThen exprID ~f:(fun id -> E.find id ast) in
   let collapsedSelStart = fluidGetCollapsedSelectionStart state in
   let clipboardExpr = clipboardContentsToExpr ~state data in
   let text = clipboardContentsToString ~state data in
@@ -5404,8 +5322,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let newPos =
         (clipboardExpr |> eToString state |> String.length) + collapsedSelStart
       in
-      ( Expression.replace ~replacement:clipboardExpr exprID ast
-      , {state with newPos} )
+      (E.replace ~replacement:clipboardExpr exprID ast, {state with newPos})
   (* inserting record key (record expression with single key and no value) into string *)
   | ( Some (ERecord (_, [(_, insert, EBlank _)]))
     , Some (EString (_, str))
@@ -5414,7 +5331,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EString (gid (), String.insertAt ~insert ~index str) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
@@ -5426,7 +5343,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (* TODO: needs reflow: if the string becomes multi-line, we end up in the wrong place. *)
@@ -5444,7 +5361,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EInteger (gid (), newVal) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
@@ -5464,7 +5381,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       ( newAST
@@ -5482,7 +5399,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length varName})
@@ -5496,7 +5413,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EInteger (gid (), newVal) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length insert})
@@ -5510,7 +5427,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length intVal})
@@ -5524,7 +5441,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length intVal})
@@ -5535,7 +5452,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EFloat (gid (), whole, intVal ^ fraction) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length intVal})
@@ -5552,7 +5469,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = ELet (gid (), gid (), newLhs, rhs, body) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       (newAST, {state with newPos = collapsedSelStart + String.length varName})
@@ -5567,7 +5484,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EList (gid (), newItems) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       ( newAST
@@ -5583,7 +5500,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       let replacement = EList (gid (), newItems) in
       let newAST =
         exprID
-        |> Option.map ~f:(fun id -> Expression.replace ~replacement id ast)
+        |> Option.map ~f:(fun id -> E.replace ~replacement id ast)
         |> Option.withDefault ~default:ast
       in
       ( newAST
@@ -5598,7 +5515,7 @@ let pasteOverSelection ~state ~(ast : Expression.t) data :
       (ast, state)
 
 
-let fluidDataFromModel m : (fluidState * Expression.t) option =
+let fluidDataFromModel m : (fluidState * E.t) option =
   match Toplevel.selectedAST m with
   | Some expr ->
       let s = m.fluidState in
@@ -5618,8 +5535,7 @@ let getCopySelection (m : model) : clipboardContents =
       `None
 
 
-let updateMouseUp
-    (s : state) (ast : Expression.t) (selection : (int * int) option) =
+let updateMouseUp (s : state) (ast : E.t) (selection : (int * int) option) =
   let s = {s with midClick = false} in
   let selection =
     Option.orElseLazy (fun () -> Entry.getFluidSelectionRange ()) selection
@@ -5642,9 +5558,8 @@ let updateMouseUp
   (ast, acClear s)
 
 
-let updateMsg
-    m tlid (ast : Expression.t) (msg : Types.fluidMsg) (s : fluidState) :
-    Expression.t * fluidState =
+let updateMsg m tlid (ast : E.t) (msg : Types.fluidMsg) (s : fluidState) :
+    E.t * fluidState =
   (* TODO: The state should be updated from the last request, and so this
    * shouldn't be necessary, but the tests don't work without it *)
   let s = updateAutocomplete m tlid ast s in
@@ -5840,7 +5755,7 @@ let update (m : Types.model) (msg : Types.fluidMsg) : Types.modification =
           let astMod =
             if ast <> newAST
             then
-              let asExpr = Expression.toNexpr newAST in
+              let asExpr = E.toNexpr newAST in
               let requestAnalysis =
                 match Analysis.getSelectedTraceID m tlid with
                 | Some traceID ->
@@ -5971,17 +5886,16 @@ let fnForToken state token : function_ option =
       None
 
 
-let fnArgExprs (token : token) (ast : Expression.t) (state : state) :
-    Expression.t list =
-  let id = Token.tid token in
+let fnArgExprs (token : token) (ast : E.t) (state : state) : E.t list =
+  let id = T.tid token in
   let previous =
-    Expression.toNexpr ast
+    E.toNexpr ast
     |> AST.threadPrevious id
     |> Option.toList
     |> List.map ~f:(fromExpr state)
   in
   let exprs =
-    match Expression.find id ast with
+    match E.find id ast with
     | Some (EFnCall (_, _, exprs, _)) ->
         exprs
     | Some (EBinOp (_, _, lhs, rhs, _)) ->
@@ -5993,12 +5907,12 @@ let fnArgExprs (token : token) (ast : Expression.t) (state : state) :
 
 
 let viewPlayIcon
-    ~(vs : ViewUtils.viewState) ~state (ast : Expression.t) (ti : tokenInfo) :
+    ~(vs : ViewUtils.viewState) ~state (ast : E.t) (ti : tokenInfo) :
     Types.msg Html.html =
   match fnForToken state ti.token with
   | Some fn ->
       let allExprs = fnArgExprs ti.token ast state in
-      let argIDs = List.map ~f:Expression.id allExprs in
+      let argIDs = List.map ~f:E.id allExprs in
       ( match ti.token with
       | TFnVersion (id, _, _, _) ->
           ViewFnExecution.fnExecutionButton vs fn id argIDs
@@ -6010,7 +5924,7 @@ let viewPlayIcon
       Vdom.noNode
 
 
-let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : Expression.t) :
+let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : E.t) :
     Types.msg Html.html list =
   let l = ast |> toTokens state in
   (* Gets the source of a DIncomplete given an expr id *)
@@ -6030,10 +5944,10 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : Expression.t) :
   let sourceOfCurrentToken onTi =
     currentTokenInfo
     |> Option.andThen ~f:(fun ti ->
-           if Token.isBlank ti.token || onTi.startRow = ti.startRow
+           if T.isBlank ti.token || onTi.startRow = ti.startRow
            then None
            else
-             let someId, _ = Token.analysisID ti.token |> sourceOfExprValue in
+             let someId, _ = T.analysisID ti.token |> sourceOfExprValue in
              someId )
   in
   let nesting = ref 0 in
@@ -6048,12 +5962,12 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : Expression.t) :
             else Vdom.noNode
       in
       let element nested =
-        let tokenId = Token.tid ti.token in
+        let tokenId = T.tid ti.token in
         let idStr = deID tokenId in
-        let content = Token.toText ti.token in
-        let analysisId = Token.analysisID ti.token in
+        let content = T.toText ti.token in
+        let analysisId = T.analysisID ti.token in
         (* Apply CSS classes to token *)
-        let tokenClasses = Token.toCssClasses ti.token in
+        let tokenClasses = T.toCssClasses ti.token in
         let backingNestingClass, innerNestingClass =
           let tokenBackingPrecedence, tokenInnerPrecedence =
             let currNesting = !nesting in
@@ -6089,7 +6003,7 @@ let toHtml ~(vs : ViewUtils.viewState) ~tlid ~state (ast : Expression.t) :
           let sourceId, errorType = sourceOfExprValue analysisId in
           let isError =
             (* Only apply to text tokens (not TSep, TNewlines, etc.) *)
-            Token.isErrorDisplayable ti.token
+            T.isErrorDisplayable ti.token
             && (* This expression is the source of its own incompleteness. We only draw underlines under sources of incompletes, not all propagated occurrences. *)
                sourceId |> Option.isSomeEqualTo ~value:analysisId
           in
@@ -6176,10 +6090,8 @@ let viewDval tlid dval ~(canCopy : bool) =
 
 
 let viewLiveValue
-    ~(tlid : tlid)
-    ~(ast : Expression.t)
-    ~(vs : viewState)
-    ~(state : fluidState) : Types.msg Html.html =
+    ~(tlid : tlid) ~(ast : E.t) ~(vs : viewState) ~(state : fluidState) :
+    Types.msg Html.html =
   (* Renders dval*)
   let renderDval = viewDval tlid in
   (* Renders live value for token *)
@@ -6187,12 +6099,12 @@ let viewLiveValue
     let fnLoading =
       (* If fn needs to be manually executed, check status *)
       let fn = fnForToken state token in
-      let args = fnArgExprs token ast state |> List.map ~f:Expression.id in
+      let args = fnArgExprs token ast state |> List.map ~f:E.id in
       Option.andThen fn ~f:(fun fn ->
           if fn.fnPreviewExecutionSafe
           then None
           else
-            let id = Token.tid token in
+            let id = T.tid token in
             ViewFnExecution.fnExecutionStatus vs fn id args
             |> ViewFnExecution.executionError
             |> Option.some )
@@ -6236,8 +6148,8 @@ let viewLiveValue
            | _ ->
                (* Else show live value of current token *)
                let token = ti.token in
-               let id = Token.analysisID token in
-               if Token.validID id then Some (renderTokenLv token id) else None
+               let id = T.analysisID token in
+               if T.validID id then Some (renderTokenLv token id) else None
          in
          Option.pair content (Some row) )
   (* Render live value to the side *)
@@ -6253,11 +6165,11 @@ let viewLiveValue
   |> Option.withDefault ~default:Vdom.noNode
 
 
-let viewReturnValue (vs : ViewUtils.viewState) (ast : Expression.t) :
+let viewReturnValue (vs : ViewUtils.viewState) (ast : E.t) :
     Types.msg Html.html =
   if tlidOf vs.cursorState = Some vs.tlid
   then
-    let id = Expression.id ast in
+    let id = E.id ast in
     match Analysis.getLiveValueLoadable vs.analysisStore id with
     | LoadableSuccess dval ->
         Html.div
@@ -6275,8 +6187,8 @@ let viewReturnValue (vs : ViewUtils.viewState) (ast : Expression.t) :
   else Vdom.noNode
 
 
-let viewAST ~(vs : ViewUtils.viewState) (ast : Expression.t) :
-    Types.msg Html.html list =
+let viewAST ~(vs : ViewUtils.viewState) (ast : E.t) : Types.msg Html.html list
+    =
   let ({analysisStore; tlid; _} : ViewUtils.viewState) = vs in
   let state = vs.fluidState in
   let cmdOpen = FluidCommands.isOpenOnTL state.cp tlid in
@@ -6318,7 +6230,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : Expression.t) :
   ; errorRail ]
 
 
-let viewStatus (ast : Expression.t) (s : state) : Types.msg Html.html =
+let viewStatus (ast : E.t) (s : state) : Types.msg Html.html =
   let tokens = toTokens s ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
@@ -6383,7 +6295,7 @@ let viewStatus (ast : Expression.t) (s : state) : Types.msg Html.html =
   let tokenData =
     let left, right, next = getNeighbours tokens ~pos:s.newPos in
     let tokenInfo tkn =
-      Html.dd [Attrs.class' "tokenInfo"] [Token.show_tokenInfo tkn]
+      Html.dd [Attrs.class' "tokenInfo"] [T.show_tokenInfo tkn]
     in
     let ddLeft =
       match left with
