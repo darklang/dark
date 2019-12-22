@@ -4211,7 +4211,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           |> Option.withDefault ~default:(ast, s)
         in
         ( match left with
-        | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
+        | (L (TPartial _, ti) | L (TFieldPartial _, ti))
+          when Option.is_some (AC.highlighted s.ac) ->
             let ast, s = acEnter ti ast s K.Enter in
             doPipeline ast s
         | _ ->

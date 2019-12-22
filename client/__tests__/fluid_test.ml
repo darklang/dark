@@ -2992,6 +2992,16 @@ let run () =
         (key K.ShiftEnter 5)
         "List::empty\n|>~___\n" ;
       t
+        "shift enter in a field works correctly"
+        (EPartial
+           ( gid ()
+           , "bo"
+           , EFieldAccess
+               (gid (), EVariable (ID "fake-acdata1", "request"), gid (), "")
+           ))
+        (key ~clone:false K.ShiftEnter 10)
+        "request.body\n|>~___\n" ;
+      t
         "shift enter in pipe autocompletes and creates pipe"
         (pipe (list []) [partial "appe" b])
         (key ~wrap:false K.ShiftEnter 9)
