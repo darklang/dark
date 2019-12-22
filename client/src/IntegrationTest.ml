@@ -102,40 +102,6 @@ let field_access_pipes (m : model) : testResult =
       fail ~f:show_nExpr expr
 
 
-let pipeline_let_equals (m : model) : testResult =
-  (* should be a simple let, not in a pipeline, entering 1 blank *)
-  let astR =
-    match onlyExpr m with
-    | Let (F (_, "value"), F (_, Value "3"), Blank _) ->
-        pass
-    | e ->
-        fail ~f:show_nExpr e
-  in
-  let stateR =
-    match m.cursorState with
-    | Entering _ ->
-        pass
-    | _ ->
-        fail ~f:show_cursorState m.cursorState
-  in
-  Result.map2 ~f:(fun () () -> ()) astR stateR
-
-
-let pipe_within_let (m : model) : testResult =
-  match onlyExpr m with
-  | Let
-      ( F (_, "value")
-      , F (_, Value "3")
-      , F
-          ( _
-          , Thread
-              [ F (_, Variable "value")
-              ; F (_, FnCall (F (_, "Int::add"), [Blank _], _)) ] ) ) ->
-      pass
-  | e ->
-      fail ~f:show_nExpr e
-
-
 let tabbing_works (m : model) : testResult =
   match onlyExpr m with
   | If (Blank _, F (_, Value "5"), Blank _) ->
@@ -969,10 +935,6 @@ let trigger (test_name : string) : integrationTestState =
         field_access_closes
     | "field_access_pipes" ->
         field_access_pipes
-    | "pipeline_let_equals" ->
-        pipeline_let_equals
-    | "pipe_within_let" ->
-        pipe_within_let
     | "tabbing_works" ->
         tabbing_works
     | "varbinds_are_editable" ->
