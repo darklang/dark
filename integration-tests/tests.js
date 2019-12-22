@@ -303,8 +303,6 @@ test("no_request_global_in_non_http_space", async t => {
     .pressKey("enter");
 });
 
-// This is how Ellen demos, and should be kept in sync with that if she
-// changes.
 test("ellen_hello_world_demo", async t => {
   await createHTTPHandler(t);
   await t
@@ -317,7 +315,7 @@ test("ellen_hello_world_demo", async t => {
     .pressKey("enter")
 
     // string
-    .pressKey(' " H e l l o space w o r l d ! " enter');
+    .pressKey(' " H e l l o space w o r l d ! "');
 });
 
 test("editing_headers", async t => {
@@ -386,18 +384,7 @@ test("tabbing_through_let", async t => {
     .pressKey("tab tab 5")
 
     // fill in the var
-    .pressKey("tab m y v a r")
-});
-
-test("dont_shift_focus_after_filling_last_blank", async t => {
-  await createHTTPHandler(t);
-  await t
-    .typeText("#entry-box", "GET")
-    .pressKey("enter")
-    .typeText("#entry-box", "/")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
+    .pressKey("tab m y v a r");
 });
 
 test("rename_db_fields", async t => {
@@ -556,35 +543,12 @@ test("feature_flag_in_function", async t => {
 */
 test("simple_tab_ordering", async t => {
   await createRepl(t);
-  await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .pressKey("tab")
-    .pressKey("4")
-    .pressKey("enter");
-});
-
-test("variable_extraction", async t => {
-  await t
-    .click(Selector(".fnname").withText("+"))
-    .pressKey("ctrl+shift+l")
-    .typeText("#entry-box", "new_variable")
-    .pressKey("enter");
-});
-
-// Entering text with invalid syntax leaves things the same
-test("invalid_syntax", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "in:valid").pressKey("enter");
+  await t.typeText("#entry-box", "let").pressKey("l e t space tab 4");
 });
 
 // When you edit, go to the next blank after pressing Tab
 test("editing_goes_to_next_with_tab", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("tab");
+  await t.click(Selector(".fluid-let-lhs")).pressKey("2 tab");
 });
 
 // When you press shift+enter, start a thread
