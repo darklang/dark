@@ -144,8 +144,7 @@ async function createRepl(t) {
 }
 
 async function gotoAST(t) {
-  await t
-    .click("#fluid-editor")
+  await t.click("#fluid-editor");
 }
 
 function user_content_url(t, endpoint) {
@@ -281,8 +280,7 @@ test("field_access_pipes", async t => {
 test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
-  await t
-    .pressKey("i f space tab 5")
+  await t.pressKey("i f space tab 5");
 });
 
 test("varbinds_are_editable", async t => {
@@ -339,7 +337,6 @@ test("deleting_selects_the_blank", async t => {
     .typeText("#entry-box", "6")
     .pressKey("enter");
 });
-
 
 // This is how Ellen demos, and should be kept in sync with that if she
 // changes.
