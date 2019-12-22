@@ -106,10 +106,6 @@ let pBlank : fluidPattern = FPBlank (gid (), gid ())
 (* ---------------- *)
 let aStr = EString (gid (), "some string")
 
-let aStrEscape =
-  EPartial (gid (), "so\\me string", EString (gid (), "some string"))
-
-
 let emptyStr = EString (gid (), "")
 
 let oneCharStr = EString (gid (), "c")
