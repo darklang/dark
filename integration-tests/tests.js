@@ -1,4 +1,5 @@
 import { ClientFunction, Selector } from "testcafe";
+import fs from 'fs';
 const child_process = require("child_process");
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
@@ -78,9 +79,7 @@ fixture`Integration Tests`
         ["\n\nConsole Infos:"],
         info,
       );
-      for (var l of msgs) {
-        console.error(l);
-      }
+      fs.writeFile(`rundir/integration_test_logs/${testname}.log`, msgs.join("\n"), () => {});
 
       return true;
     };
