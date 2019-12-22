@@ -163,6 +163,9 @@ function user_content_url(t, endpoint) {
 function available(css) {
   return Selector(css).exists;
 }
+function entryBoxAvailable() {
+  return Selector("#entry-box").exists;
+}
 
 // Return the highlighted autocomplete entry
 function acHighlightedText() {
