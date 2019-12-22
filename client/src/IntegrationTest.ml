@@ -110,19 +110,6 @@ let tabbing_works (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let editing_request_edits_request (m : model) : testResult =
-  match onlyExpr m with
-  | FieldAccess (F (_, Variable "request"), Blank _) ->
-    ( match m.complete.completions with
-    | [ ACVariable ("request", Some _)
-      ; ACFunction {fnName = "Http::badRequest"; _} ] ->
-        pass
-    | cs ->
-        fail ~f:(show_list ~f:show_autocompleteItem) cs )
-  | e ->
-      fail ~f:show_nExpr e
-
-
 let autocomplete_highlights_on_partial_match (m : model) : testResult =
   match onlyExpr m with
   | FnCall (F (_, "Int::add"), _, _) ->
@@ -911,8 +898,6 @@ let trigger (test_name : string) : integrationTestState =
         field_access_pipes
     | "tabbing_works" ->
         tabbing_works
-    | "editing_request_edits_request" ->
-        editing_request_edits_request
     | "autocomplete_highlights_on_partial_match" ->
         autocomplete_highlights_on_partial_match
     | "no_request_global_in_non_http_space" ->
