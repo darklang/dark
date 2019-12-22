@@ -145,9 +145,7 @@ async function createRepl(t) {
 
 async function gotoAST(t) {
   await t
-    .doubleClick(".ast .blankOr")
-    .expect(entryBoxAvailable())
-    .ok();
+    .click("#fluid-editor")
 }
 
 function user_content_url(t, endpoint) {
@@ -162,12 +160,6 @@ function user_content_url(t, endpoint) {
 // But we sometimes need to explicitly wait if TestCafe can't tell what
 // we're waiting on.
 
-function astAvailable() {
-  return Selector(".ast").exists;
-}
-function entryBoxAvailable() {
-  return Selector("#entry-box").exists;
-}
 function available(css) {
   return Selector(css).exists;
 }
@@ -203,6 +195,7 @@ test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
@@ -222,6 +215,7 @@ test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -241,6 +235,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -257,13 +252,10 @@ test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "req")
+    .pressKey("r e q")
     .expect(acHighlightedText("requestdict"))
     .ok()
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "b")
-    .typeText("#entry-box", "o")
+    .pressKey(". b o")
     .expect(acHighlightedText("bodyfield"))
     .ok()
     .pressKey("enter");
@@ -1246,7 +1238,7 @@ test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
     .pressKey("tab") // verb -> route
     .pressKey("tab") // route -> ast
     .pressKey("r") // enter AC
-    .expect(fluidAcSelectedText("request"))
+    .expect(acSelectedText("request"))
     .ok();
 });
 
