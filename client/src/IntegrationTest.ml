@@ -102,20 +102,6 @@ let field_access_pipes (m : model) : testResult =
       fail ~f:show_nExpr expr
 
 
-let field_access_nested (m : model) : testResult =
-  match onlyExpr m with
-  | FieldAccess
-      ( F
-          ( _
-          , FieldAccess
-              ( F (_, FieldAccess (F (_, Variable "request"), F (_, "body")))
-              , F (_, "field") ) )
-      , F (_, "field2") ) ->
-      pass
-  | expr ->
-      fail ~f:show_nExpr expr
-
-
 let pipeline_let_equals (m : model) : testResult =
   (* should be a simple let, not in a pipeline, entering 1 blank *)
   let astR =
@@ -983,8 +969,6 @@ let trigger (test_name : string) : integrationTestState =
         field_access_closes
     | "field_access_pipes" ->
         field_access_pipes
-    | "field_access_nested" ->
-        field_access_nested
     | "pipeline_let_equals" ->
         pipeline_let_equals
     | "pipe_within_let" ->

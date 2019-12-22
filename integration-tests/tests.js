@@ -281,27 +281,6 @@ test("field_access_pipes", async t => {
     .pressKey("shift+enter");
 });
 
-test("field_access_nested", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText())
-    .contains("request")
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText())
-    .eql("bodyfield")
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "field.")
-    .typeText("#entry-box", "field2")
-    .pressKey("enter");
-});
-
 test("pipeline_let_equals", async t => {
   await createRepl(t);
   await t
