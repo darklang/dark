@@ -81,7 +81,7 @@ let enter_changes_state (m : model) : testResult =
 
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
-  | Entering (Filling (_, _)) ->
+  | FluidEntering _ ->
       let ast =
         onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
       in
