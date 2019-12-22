@@ -32,8 +32,8 @@
     "html2canvas": "1.0.0-rc.5"
   },
   "scripts": {
-    "clean": "bsb -clean-world",
-    "build:bsb": "bsb -make-world",
+    "clean": "../scripts/bsb-wrapper.sh -clean-world",
+    "build:bsb": "../scripts/bsb-wrapper.sh -make-world",
     "build:js": "browserifyinc --cachefile lib/browserify-cache.json lib/js/src/App.bs.js --standalone app -o ../backend/static/app.js",
     "build:appsupport": "browserifyinc --cachefile lib/browserify-cache.json src/appsupport.js --standalone appsupport -o ../backend/static/appsupport.js",
     "build:fetcher": "browserifyinc --cachefile lib/browserify-cache.json lib/js/workers/Fetcher.bs.js --standalone fetcher -o ../backend/static/fetcher.js",
