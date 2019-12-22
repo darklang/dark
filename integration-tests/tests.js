@@ -30,12 +30,6 @@ fixture`Integration Tests`
     await fixBrowserSize(t);
     startXvfb(testname);
     var url = `${BASE_URL}${testname}?integration-test=true`;
-    /* Quick hack while we have the fluid variant.
-     * All tests that start with fluid_test_name will get the fluid flagged added on to them
-     */
-    if (testname.match(/^fluid_/)) {
-      url += "&fluidv2=1";
-    }
     await t
       .navigateTo(url)
       .typeText("#username", "test")

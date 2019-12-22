@@ -43,8 +43,7 @@ let execute_roundtrip (ast : fluidExpr) =
   let h = Fluid_utils.h ast in
   let m =
     { defaultTestModel with
-      tests = [FluidVariant]
-    ; handlers = Handlers.fromList [h]
+      handlers = Handlers.fromList [h]
     ; cursorState = FluidEntering h.hTLID
     ; fluidState =
         { defaultTestState with
@@ -74,8 +73,7 @@ let run () =
     let h = Fluid_utils.h ast in
     let m =
       { defaultTestModel with
-        tests = [FluidVariant]
-      ; handlers = Handlers.fromList [h]
+        handlers = Handlers.fromList [h]
       ; cursorState = FluidEntering h.hTLID
       ; fluidState =
           { defaultTestState with

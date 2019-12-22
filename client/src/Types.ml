@@ -1291,7 +1291,6 @@ and msg =
 (* just a stub *)
 and variantTest =
   | StubVariant
-  | FluidVariant
   (* Without this libtwitter functions aren't available *)
   | LibtwitterVariant
   | GroupVariant
