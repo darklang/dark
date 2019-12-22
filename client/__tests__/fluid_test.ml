@@ -73,7 +73,7 @@ type modifierKeys =
   ; ctrlKey : bool }
 
 let processMsg
-    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : E.t) :
+    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
     E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
@@ -98,7 +98,7 @@ let process
     (keys : (K.key * modifierKeys) list)
     (selectionStart : int option)
     (pos : int)
-    (ast : E.t) : testResult =
+    (ast : ast) : testResult =
   let s = defaultTestState in
   let ast = if clone then Fluid.clone ~state:s ast else ast in
   let newlinesBefore (pos : int) =
