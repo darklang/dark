@@ -283,20 +283,6 @@ test("tabbing_works", async t => {
   await t.pressKey("i f space tab 5");
 });
 
-test("editing_request_edits_request", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestdict"))
-    .ok()
-    .typeText("#entry-box", ".")
-
-    .pressKey("esc")
-    .pressKey("left")
-    .pressKey("enter");
-});
-
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
   await t
