@@ -46,7 +46,7 @@ let pointerToText p : string =
       "not valid here"
 
 
-let debugAST (length : int) (msg : string) (e : fluidExpr) : unit =
+let debugAST (length : int) (msg : string) (e : E.t) : unit =
   if length < !verbosityThreshold then Js.log (msg ^ ":\n" ^ toText e)
 
 
@@ -278,19 +278,17 @@ and generateExpr () =
 module FuzzTest = struct
   type t =
     { name : string
-    ; fn : fluidExpr -> fluidExpr * fluidState
-    ; check : testcase:fluidExpr -> newAST:fluidExpr -> fluidState -> bool }
+    ; fn : E.t -> E.t * fluidState
+    ; check : testcase:E.t -> newAST:E.t -> fluidState -> bool }
 end
 
 (* ------------------ *)
 (* Test case reduction *)
 (* ------------------ *)
 
-let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
+let rec unwrap (id : id) (expr : E.t) : E.t =
   let f = unwrap id in
-  let childOr (exprs : fluidExpr list) =
-    List.find exprs ~f:(fun e -> eid e = id)
-  in
+  let childOr (exprs : E.t list) = List.find exprs ~f:(fun e -> E.id e = id) in
   let newExpr =
     match expr with
     | ELet (_, _, _, rhs, next) ->
@@ -325,10 +323,10 @@ let rec unwrap (id : id) (expr : fluidExpr) : fluidExpr =
         None
   in
   let newExpr = Option.withDefault ~default:expr newExpr in
-  recurse ~f newExpr
+  E.walk ~f newExpr
 
 
-let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
+let rec blankVarNames (id : id) (expr : E.t) : E.t =
   let f = blankVarNames id in
   let fStr strid str = if strid = id then "" else str in
   let newExpr =
@@ -353,14 +351,14 @@ let rec blankVarNames (id : id) (expr : fluidExpr) : fluidExpr =
     | _ ->
         expr
   in
-  recurse ~f newExpr
+  E.walk ~f newExpr
 
 
-let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
+let rec remove (id : id) (expr : E.t) : E.t =
   let r e = remove id e in
-  let f e = if eid e = id then EBlank id else remove id e in
-  let removeFromList exprs = List.filter exprs ~f:(fun e -> eid e <> id) in
-  if eid expr = id
+  let f e = if E.id e = id then EBlank id else remove id e in
+  let removeFromList exprs = List.filter exprs ~f:(fun e -> E.id e <> id) in
+  if E.id expr = id
   then EBlank id
   else
     let newExpr =
@@ -387,7 +385,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
             , f mexpr
             , List.filterMap
                 ~f:(fun (pattern, expr) ->
-                  if eid expr = id || Fluid.pid pattern = id
+                  if E.id expr = id || Fluid.pid pattern = id
                   then None
                   else Some (pattern, expr) )
                 pairs )
@@ -396,7 +394,7 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
             ( rid
             , List.filterMap
                 ~f:(fun (fid, name, expr) ->
-                  if eid expr = id || fid = id
+                  if E.id expr = id || fid = id
                   then None
                   else Some (fid, name, expr) )
                 fields )
@@ -419,15 +417,15 @@ let rec remove (id : id) (expr : fluidExpr) : fluidExpr =
       | _ ->
           expr
     in
-    recurse ~f newExpr
+    E.walk ~f newExpr
 
 
-let reduce (test : FuzzTest.t) (ast : fluidExpr) =
+let reduce (test : FuzzTest.t) (ast : E.t) =
   let runThrough msg reducer ast =
     let pointers =
       ast
       |> fun x ->
-      Fluid.toExpr x
+      E.toNexpr x
       |> AST.allData
       |> List.uniqueBy ~f:(Pointer.toID >> Prelude.deID)
       |> List.indexedMap ~f:(fun i v -> (i, v))
@@ -503,7 +501,7 @@ let runTest (test : FuzzTest.t) : unit =
             let reduced = reduce test testcase in
             let text = toText reduced in
             Js.log2 "finished program:\n" text ;
-            Js.log2 "structure" (show_fluidExpr reduced) ;
+            Js.log2 "structure" (E.show reduced) ;
             fail () )
           else pass () )
     done
