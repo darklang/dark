@@ -431,18 +431,14 @@ test("editing_headers", async t => {
 
     // edit them
     .click(".spec-header > .handler-name")
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl-a")
     .pressKey("backspace")
     .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
     .click(".spec-header > .handler-type > .modifier")
-    .pressKey("delete")
+    .pressKey("ctrl-a")
+    .pressKey("backspace")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
 });
