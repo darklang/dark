@@ -559,7 +559,7 @@ test("execute_function_works", async t => {
 
   let v1 = await Selector(".selected .live-value").innerText;
 
-  await t.click(Selector(".fa-redo")).click(Selector(".fncall"));
+  await t.click(Selector(".fa-redo"));
 
   let v2 = await Selector(".selected .live-value").innerText;
 
@@ -582,7 +582,7 @@ test("delete_db_col", async t => {
 });
 
 test("cant_delete_locked_col", async t => {
-  await t.click(Selector(".fncall .namegroup")); // this click is required due to caching
+  await t.click(Selector(".fluid-fn-name")); // this click is required due to caching
   await Selector(".execution-button-needed", { timeout: 5000 })();
   await t
     .expect(Selector(".execution-button-needed").exists)
@@ -636,7 +636,7 @@ test("function_analysis_works", async t => {
     .navigateTo("#fn=1039370895")
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
-    .click(Selector(".user-fn-toplevel .ast > div"))
+    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
     .expect(Selector(".selected .live-value").textContent)
     .eql("10", { timeout: 5000 });
 });
@@ -683,9 +683,10 @@ test("fn_page_to_handler_pos", async t => {
 
 test("autocomplete_visible_height", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "r")
-    .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
+    .pressKey("r")
+    .expect(Selector("li.autocomplete-item.fluid-selected.valid").nth(5).visible)
     .ok();
 });
 
@@ -852,11 +853,10 @@ test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
     .click(Selector(".spec-header > .handler-name"))
-    .pressKey("enter")
     .typeText("#entry-box", ":a")
-    .pressKey("enter");
+    .pressKey("tab a enter");
 
-  await t.expect(Selector(".data").textContent).contains("a: <Incomplete>");
+  await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
 });
 
 test("center_toplevel", async t => {
@@ -868,15 +868,11 @@ test("center_toplevel", async t => {
 
 test("max_callstack_bug", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "List::range")
-    .pressKey("enter")
-    .typeText("#entry-box", "0")
-    .pressKey("enter")
-    // I don't know what the threshold is exactly, but 1500 didn't tickle the
-    // bug
-    .typeText("#entry-box", "2000")
-    .pressKey("enter");
+    // I don't know what the threshold is exactly, but 1500 didn't tickle
+    // the bug
+    .pressKey("L i s t : : r a n g e space 0 space 2000 space");
 });
 
 test("sidebar_opens_function", async t => {
@@ -889,12 +885,6 @@ test("sidebar_opens_function", async t => {
     .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
     .expect(getPageUrl())
     .match(/.+#fn=1352039682$/, "Url is incorrect");
-});
-
-// model logic in client/src/IntegrationTest.ml
-test("tobytes_roundtrip", async t => {
-  await t.navigateTo("#handler=1115444997");
-  await t.click(Selector(".fncall"));
 });
 
 // This runs through
@@ -949,7 +939,7 @@ test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
     .pressKey("tab") // verb -> route
     .pressKey("tab") // route -> ast
     .pressKey("r") // enter AC
-    .expect(acSelectedText("request"))
+    .expect(fluidAcHighlightedText("request"))
     .ok();
 });
 
