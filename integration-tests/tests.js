@@ -541,47 +541,6 @@ test("feature_flag_in_function", async t => {
     .expect(available(".tl-180770093")).ok()
 });
 */
-test("simple_tab_ordering", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "let").pressKey("l e t space tab 4");
-});
-
-// When you edit, go to the next blank after pressing Tab
-test("editing_goes_to_next_with_tab", async t => {
-  await t.click(Selector(".fluid-let-lhs")).pressKey("2 tab");
-});
-
-// When you press shift+enter, start a thread
-test("editing_starts_a_thread_with_shift_enter", async t => {
-  await t
-    .click(Selector(".letrhs"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("shift+enter");
-});
-
-test("object_literals_work", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "{")
-    .pressKey("enter")
-    .typeText("#entry-box", "k1")
-    .pressKey("tab")
-    .pressKey("tab")
-    .typeText("#entry-box", "k2")
-    .pressKey("enter")
-    .typeText("#entry-box", "2")
-    .pressKey("tab")
-    .typeText("#entry-box", "k3")
-    .pressKey("enter")
-    .typeText("#entry-box", "3")
-    .pressKey("tab")
-    .typeText("#entry-box", "k4") // Check that this opens a new row
-    .pressKey("tab") // Skip the new stuff
-    .pressKey("tab")
-    .pressKey("tab");
-});
-
 test("rename_function", async t => {
   const fnNameBlankOr = ".fn-name-content";
   await t
@@ -592,38 +551,6 @@ test("rename_function", async t => {
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "hello")
     .pressKey("enter");
-});
-
-test("rename_pattern_variable", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("backspace")
-    .typeText("#entry-box", "foo")
-    .pressKey("enter")
-    .click(
-      Selector(".matchexpr .matchcase")
-        .nth(1)
-        .child(0),
-    )
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .typeText("#entry-box", "bar")
-    .pressKey("enter");
-});
-
-test("taking_off_rail_works", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "List::head_v2")
-    .pressKey("enter")
-    .typeText("#entry-box", "[")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("shift+up")
-    .pressKey("shift+up")
-    .pressKey("alt+shift+e");
 });
 
 test("execute_function_works", async t => {

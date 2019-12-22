@@ -319,96 +319,12 @@ let feature_flag_in_function (m : model) : testResult =
       fail "Cant find function"
 
 
-let simple_tab_ordering (m : model) : testResult =
-  let ast = onlyHandler m |> fun x -> x.ast in
-  match ast with
-  | F (_, Let (Blank _, F (_, Value "4"), Blank id)) ->
-    ( match m.cursorState with
-    | Entering (Filling (_, sid)) ->
-        if id = sid
-        then pass
-        else fail (show_expr ast, show_cursorState m.cursorState, id)
-    | _ ->
-        fail (show_expr ast, show_cursorState m.cursorState, id) )
-  | _ ->
-      fail (show_expr ast, show_cursorState m.cursorState)
-
-
-let editing_stays_in_same_place_with_enter (m : model) : testResult =
-  match (m.cursorState, onlyExpr m) with
-  | Selecting (_, id1), Let (F (id2, "v2"), _, _) ->
-      if id1 = Some id2
-      then pass
-      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-  | _ ->
-      fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-
-
-let editing_goes_to_next_with_tab (m : model) : testResult =
-  match (m.cursorState, onlyExpr m) with
-  | FluidEntering _, Let (F (_, "v2"), Blank _, _) ->
-      pass
-  | _ ->
-      fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-
-
-let editing_starts_a_thread_with_shift_enter (m : model) : testResult =
-  match (m.cursorState, onlyExpr m) with
-  | ( Entering (Filling (_, id1))
-    , Let (_, F (_, Thread [F (_, Value "52"); Blank id2]), _) ) ->
-      if id1 = id2
-      then pass
-      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-  | _ ->
-      fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-
-
-let object_literals_work (m : model) : testResult =
-  match (m.cursorState, onlyExpr m) with
-  | ( Entering (Filling (_, id))
-    , ObjectLiteral
-        [ (F (_, "k1"), Blank _)
-        ; (F (_, "k2"), F (_, Value "2"))
-        ; (F (_, "k3"), F (_, Value "3"))
-        ; (F (_, "k4"), Blank _)
-        ; (Blank _, Blank id2) ] ) ->
-      if id = id2
-      then pass
-      else fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-  | _ ->
-      fail (show_cursorState m.cursorState, show_nExpr (onlyExpr m))
-
-
 let rename_function (m : model) : testResult =
   match m.handlers |> TD.values |> List.head with
   | Some {ast = F (_, FnCall (F (_, "hello"), _, _)); _} ->
       pass
   | other ->
       fail other
-
-
-let rename_pattern_variable (m : model) : testResult =
-  let expr = onlyExpr m in
-  match expr with
-  | Let (_, _, F (_, Match (_, cases))) ->
-    ( match cases with
-    | [ (F (_, PLiteral "1"), F (_, Variable "foo"))
-      ; (F (_, PVariable "bar"), F (_, Variable "bar"))
-      ; (Blank _, Blank _) ] ->
-        pass
-    | _ ->
-        fail ~f:show_nExpr expr )
-  | _ ->
-      fail ~f:show_nExpr expr
-
-
-let taking_off_rail_works (m : model) : testResult =
-  let ast = onlyHandler m |> fun x -> x.ast in
-  match ast with
-  | F (_, FnCall (F (_, "List::head_v2"), _, NoRail)) ->
-      pass
-  | _ ->
-      fail ~f:show_expr ast
 
 
 let execute_function_works (_ : model) : testResult =
@@ -813,22 +729,8 @@ let trigger (test_name : string) : integrationTestState =
         paste_right_number_of_blanks
     | "feature_flag_works" ->
         feature_flag_works
-    | "simple_tab_ordering" ->
-        simple_tab_ordering
-    | "editing_stays_in_same_place_with_enter" ->
-        editing_stays_in_same_place_with_enter
-    | "editing_goes_to_next_with_tab" ->
-        editing_goes_to_next_with_tab
-    | "editing_starts_a_thread_with_shift_enter" ->
-        editing_starts_a_thread_with_shift_enter
-    | "object_literals_work" ->
-        object_literals_work
     | "rename_function" ->
         rename_function
-    | "rename_pattern_variable" ->
-        rename_pattern_variable
-    | "taking_off_rail_works" ->
-        taking_off_rail_works
     | "feature_flag_in_function" ->
         feature_flag_in_function
     | "execute_function_works" ->
