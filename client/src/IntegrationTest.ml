@@ -643,10 +643,6 @@ let sidebar_opens_function (_m : model) : testResult =
   pass
 
 
-let tobytes_roundtrip (m : model) : testResult =
-  match m.error with None -> pass | Some msg -> fail ("Error: " ^ msg)
-
-
 let sha256hmac_for_aws (_m : model) : testResult =
   (* The test logic is in tests.js *)
   pass
@@ -779,8 +775,6 @@ let trigger (test_name : string) : integrationTestState =
         max_callstack_bug
     | "sidebar_opens_function" ->
         sidebar_opens_function
-    | "tobytes_roundtrip" ->
-        tobytes_roundtrip
     | "sha256hmac_for_aws" ->
         sha256hmac_for_aws
     | "fluid_fn_pg_change" ->
