@@ -93,26 +93,6 @@ type ast = fluidExpr [@@deriving show]
 
 type state = Types.fluidState
 
-let getStringIndexMaybe ti pos : int option =
-  match ti.token with
-  | TString (_, _) ->
-      Some (pos - ti.startPos - 1)
-  | TStringMLStart (_, _, offset, _) ->
-      Some (pos - ti.startPos + offset - 1)
-  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
-      Some (pos - ti.startPos + offset)
-  | _ ->
-      None
-
-
-let getStringIndex ti pos : int =
-  match getStringIndexMaybe ti pos with
-  | Some i ->
-      i
-  | None ->
-      recover "getting index of non-string" ~debug:(ti.token, pos) 0
-
-
 let rec fromExpr ?(inPipe = false) (s : state) (expr : Types.expr) : fluidExpr
     =
   let fns =
@@ -1418,9 +1398,7 @@ let removeVariableUse (oldVarName : string) (ast : ast) : ast =
 
 (* updateExpr searches `ast` for an expression `e` with the given `id` and when
  * found replaces `e` with `f e`. *)
-let updateExpr
-    ?(failIfMissing = true) ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast)
-    : ast =
+let updateExpr ~(f : fluidExpr -> fluidExpr) (id : id) (ast : ast) : ast =
   let found = ref false in
   let rec run e =
     if id = eid e
@@ -1430,12 +1408,10 @@ let updateExpr
     else recurse ~f:run e
   in
   let finished = run ast in
-  if failIfMissing
-  then
-    asserT
-      ~debug:(id, ast)
-      "didn't find the id in the expression to update"
-      !found ;
+  asserT
+    ~debug:(id, ast)
+    "didn't find the id in the expression to update"
+    !found ;
   finished
 
 
@@ -2433,141 +2409,6 @@ let removeEmptyExpr (id : id) (ast : ast) : ast =
           newB ()
       | _ ->
           e )
-
-
-(* -------------------- *)
-(* Strings *)
-(* -------------------- *)
-let maybeCommitStringPartial pos ti newAST newState =
-  let id = Token.tid ti.token in
-  (* Handle moving from a partial back to an EString *)
-  let valid_escape_chars_alist =
-    (* We use this alist for two things: knowing what chars are permitted
-     * after a \, and knowing what to replace them with as we go from a
-     * display string to the real thing *)
-    [("n", "\n"); ("t", "\t"); ("\\", "\\")]
-  in
-  let valid_escape_chars = valid_escape_chars_alist |> List.map ~f:fst in
-  let invalid_escapes_in_string (str : string) : string list =
-    let captures =
-      (* Capture any single character following a '\'. Escaping is
-       * terrible here. *)
-      (* takes a unit arg so we create a new re value every time we run -
-       * the re value contains state *)
-      (* Non-capturing group of even number (inc'l 0) of slashes handles
-       * '\\\o' - recognizes that the first pair is a valid sequence
-       * ('\\'), and the second is not ('\o') *)
-      let re () = [%re "/(?:\\\\\\\\)*\\\\(.)/g"] in
-      let rec matches (acc : Js.Re.result list) (re : Js.Re.t) :
-          Js.Re.result list =
-        match Util.Regex.matches ~re str with
-        | None ->
-            acc
-        | Some r ->
-            matches (r :: acc) re
-      in
-      matches [] (re ())
-      |> List.map ~f:Js.Re.captures
-      |> List.filterMap ~f:(function
-             | [|_whole_match; capture|] ->
-                 Some capture
-             | _ ->
-                 None )
-      |> List.filterMap ~f:Js.Nullable.toOption
-    in
-    captures
-    |> List.filter ~f:(fun c -> not (List.member ~value:c valid_escape_chars))
-  in
-  let origExpr = findExpr id newAST in
-  let processStr (str : string) : string =
-    valid_escape_chars_alist
-    |> List.foldl ~init:str ~f:(fun (from, repl) acc ->
-           (* workaround for how "\\" gets escaped *)
-           let from = if from == "\\" then "\\\\" else from in
-           Util.Regex.replace ~re:(Util.Regex.regex ("\\\\" ^ from)) ~repl acc
-       )
-  in
-  let newAST =
-    updateExpr
-      ~failIfMissing:false
-      ~f:(function
-        | EPartial (_, str, EString _) as origExpr ->
-            let processedStr = processStr str in
-            let invalid_escapes = invalid_escapes_in_string str in
-            if not (List.isEmpty invalid_escapes)
-            then origExpr (* no-op *)
-            else EString (id, processedStr)
-        | origExpr ->
-            origExpr (* no-op *))
-      id
-      newAST
-  in
-  let newState =
-    ( match origExpr with
-    | Some (EPartial (_, str, EString _)) ->
-        let invalid_escapes = invalid_escapes_in_string str in
-        if invalid_escapes <> [] then None (* no-op *) else Some str
-    | _ ->
-        None (* no-op *) )
-    |> Option.map ~f:(fun oldStr ->
-           let oldOffset = pos - ti.startPos in
-           (* We might have shortened the string when we processed its
-            * escapes - but only the ones to the left of the cursor would
-            * move the cursor *)
-           let oldlhs, _ = String.splitAt ~index:oldOffset oldStr in
-           let newlhs = processStr oldlhs in
-           let newOffset =
-             oldOffset + (String.length oldlhs - String.length newlhs)
-           in
-           let astRef =
-             match findExpr id newAST with
-             | Some (EString _) ->
-                 ARString (id, SPOpenQuote)
-             | Some (EPartial _) ->
-                 ARPartial id
-             | Some expr ->
-                 recover
-                   "need an ASTRef match for "
-                   ~debug:(show_fluidExpr expr)
-                   (ARPartial id)
-             | _ ->
-                 recover "no expr found for ID" ~debug:id (ARPartial id)
-           in
-           moveToAstRef newState newAST ~offset:(newOffset + 1) astRef )
-    (* If origExpr wasn't an EPartial (_, _, EString _), then we didn't
-     * change the AST in the updateExpr call, so leave the newState as it
-     * was *)
-    |> Option.withDefault ~default:newState
-  in
-  (newAST, newState)
-
-
-let startEscapingString pos ti (s : fluidState) (ast : fluidExpr) :
-    fluidExpr * fluidState =
-  (* I think this is correct but depends on how we 'render' strings - that
-   * is, it is correct because we display '"', which bumps pos by 1. *)
-  let offset = getStringIndex ti pos in
-  let id = Token.tid ti.token in
-  let newAst =
-    updateExpr
-      ~f:(function
-        | EString (_, str) as old_expr ->
-            let new_str =
-              String.splitAt ~index:offset str
-              |> (fun (lhs, rhs) -> (lhs, rhs))
-              |> fun (lhs, rhs) -> lhs ^ "\\" ^ rhs
-            in
-            EPartial (id, new_str, old_expr)
-        | e ->
-            e (* TODO can't happen *))
-      id
-      ast
-  in
-  let newState =
-    let offset = offset + 1 in
-    moveToAstRef s newAst ~offset (ARPartial id)
-  in
-  (newAst, newState)
 
 
 (* ---------------- *)
@@ -4480,10 +4321,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
      * ordering ADD A TEST, even if it's otherwise redundant from a product
      * POV. *)
     match (key, toTheLeft, toTheRight) with
-    (* Entering a string escape *)
-    | K.Backslash, L (TString _, _), R (TString _, ti)
-      when pos - ti.startPos != 0 ->
-        startEscapingString pos ti s ast
     (* Moving through a lambda arrow with '->' *)
     | K.Minus, L (TLambdaVar _, _), R (TLambdaArrow _, ti) ->
         (ast, moveOneRight (ti.startPos + 1) s)
@@ -4971,8 +4808,6 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
             (* keep the actions for debugging *)
             {s with actions = newState.actions}
         else (newAST, newState)
-    | L (TPartial (_, _), ti), _ ->
-        maybeCommitStringPartial pos ti newAST newState
     | _ ->
         (newAST, newState)
 
@@ -5681,6 +5516,18 @@ let clipboardContentsToString ~state (data : clipboardContents) : string =
       text
   | `None ->
       ""
+
+
+let getStringIndex ti pos : int =
+  match ti.token with
+  | TString (_, _) ->
+      pos - ti.startPos - 1
+  | TStringMLStart (_, _, offset, _) ->
+      pos - ti.startPos + offset - 1
+  | TStringMLMiddle (_, _, offset, _) | TStringMLEnd (_, _, offset, _) ->
+      pos - ti.startPos + offset
+  | _ ->
+      recover "getting index of non-string" ~debug:(ti.token, pos) 0
 
 
 let pasteOverSelection ~state ~ast data : ast * fluidState =
