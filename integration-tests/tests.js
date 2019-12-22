@@ -283,10 +283,6 @@ test("tabbing_works", async t => {
   await t.pressKey("i f space tab 5");
 });
 
-test("varbinds_are_editable", async t => {
-  await t.click(".letvarname").pressKey("enter");
-});
-
 test("editing_does_not_deselect", async t => {
   await t
     .click(".ast .blankOr > .letrhs > .blankOr")
