@@ -256,27 +256,24 @@ test("field_access_closes", async t => {
   await gotoAST(t);
   await t
     .pressKey("r e q")
-    .expect(acHighlightedText("requestdict"))
+    .expect(fluidAcSelectedText("requestdict"))
     .ok()
     .pressKey(". b o")
-    .expect(acHighlightedText("bodyfield"))
+    .expect(fluidAcSelectedText("bodyfield"))
     .ok()
     .pressKey("enter");
 });
 
-// This has a race condition somewhere
 test("field_access_pipes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText())
+    .pressKey("r e q")
+    .expect(fluidAcSelectedText())
     .contains("request")
-    .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText())
+    .pressKey(". b o")
+    .expect(fluidAcSelectedText())
     .eql("bodyfield")
     .pressKey("shift+enter");
 });
