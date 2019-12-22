@@ -282,13 +282,7 @@ test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
   await t
-    .typeText("#entry-box", "if")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("tab")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
+    .pressKey("i f space tab 5")
 });
 
 test("varbinds_are_editable", async t => {
