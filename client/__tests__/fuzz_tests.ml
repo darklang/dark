@@ -59,8 +59,8 @@ let noModifiers =
 
 
 let processMsg
-    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : ast) :
-    ast * fluidState =
+    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : E.t) :
+    E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
   List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->

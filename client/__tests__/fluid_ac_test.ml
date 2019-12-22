@@ -58,7 +58,7 @@ let defaultExpr = EBlank defaultID
 
 let defaultToplevel =
   TLHandler
-    { ast = toExpr defaultExpr
+    { ast = E.toNexpr defaultExpr
     ; spec =
         { space = Blank (gid ())
         ; name = Blank (gid ())
@@ -141,7 +141,7 @@ let aHandler
     match space with None -> B.new_ () | Some name -> B.newF name
   in
   let spec = {space; name = B.new_ (); modifier = B.new_ ()} in
-  {ast = toExpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
+  {ast = E.toNexpr expr; spec; hTLID = tlid; pos = {x = 0; y = 0}}
 
 
 let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
@@ -152,7 +152,7 @@ let aFunction ?(tlid = defaultTLID) ?(expr = defaultExpr) () : userFunction =
       ; ufmDescription = ""
       ; ufmReturnTipe = B.newF TStr
       ; ufmInfix = false }
-  ; ufAST = toExpr expr }
+  ; ufAST = E.toNexpr expr }
 
 
 let aDB ?(tlid = defaultTLID) ?(fieldid = defaultID) ?(typeid = defaultID2) ()
