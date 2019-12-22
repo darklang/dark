@@ -93,9 +93,6 @@ module Regex = struct
     Js.String.replaceByRe re repl str
 
 
-  (* WARNING: Js.Re.result contains an array, consisting of the whole match
-   * followed by any substring matches. It does _not_ return every possible
-   * match; for that, you need to call Js.Re.exec_ until it returns None *)
   let matches ~(re : Js.Re.t) (s : string) : Js.Re.result option =
     Js.Re.exec_ re s
 
