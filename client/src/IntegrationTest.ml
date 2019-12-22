@@ -127,10 +127,6 @@ let no_request_global_in_non_http_space (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let deleting_selects_the_blank (m : model) : testResult =
-  match onlyExpr m with Value "6" -> pass | e -> fail ~f:show_nExpr e
-
-
 let ellen_hello_world_demo (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match ((spec.space, spec.name), (spec.modifier, onlyExpr m)) with
@@ -902,8 +898,6 @@ let trigger (test_name : string) : integrationTestState =
         autocomplete_highlights_on_partial_match
     | "no_request_global_in_non_http_space" ->
         no_request_global_in_non_http_space
-    | "deleting_selects_the_blank" ->
-        deleting_selects_the_blank
     | "ellen_hello_world_demo" ->
         ellen_hello_world_demo
     | "editing_headers" ->
