@@ -998,9 +998,9 @@ test("extract_from_function", async t => {
     .navigateTo("#fn=123")
     .expect(available(".tl-123"))
     .ok()
-    .click(Selector(".user-fn-toplevel .ast > div"))
-    .pressKey(":")
-    .typeText("#entry-box", "extract-function")
+    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
+    .pressKey("alt+x")
+    .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
 });
 

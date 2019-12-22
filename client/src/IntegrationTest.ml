@@ -733,7 +733,7 @@ let load_with_unnamed_function (_m : model) : testResult = pass
 
 let extract_from_function (m : model) : testResult =
   match m.cursorState with
-  | Selecting (TLID "123", Some _) ->
+  | FluidEntering (TLID "123") ->
       if TD.count m.userFunctions = 2 then pass else fail m.userFunctions
   | _ ->
       fail (show_cursorState m.cursorState)
