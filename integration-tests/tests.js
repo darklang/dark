@@ -303,17 +303,6 @@ test("no_request_global_in_non_http_space", async t => {
     .pressKey("enter");
 });
 
-test("deleting_selects_the_blank", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
-    .click(".ast .value")
-    .pressKey("delete")
-    .typeText("#entry-box", "6")
-    .pressKey("enter");
-});
-
 // This is how Ellen demos, and should be kept in sync with that if she
 // changes.
 test("ellen_hello_world_demo", async t => {
