@@ -342,11 +342,6 @@ let function_version_renders (_ : model) : testResult =
   pass
 
 
-let only_backspace_out_of_strings_on_last_char (m : model) : testResult =
-  let ast = onlyHandler m |> fun x -> x.ast in
-  if m.complete.value = "" then pass else fail ~f:show_expr ast
-
-
 let delete_db_col (m : model) : testResult =
   let db = onlyDB m in
   match db.cols with
@@ -372,15 +367,6 @@ let cant_delete_locked_col (m : model) : testResult =
       pass
   | cols ->
       fail ~f:(show_list ~f:show_dbColumn) cols
-
-
-let result_ok_roundtrips (m : model) : testResult =
-  let ast = onlyHandler m |> fun x -> x.ast in
-  match ast with
-  | F (_, Constructor (F (_, "Ok"), [Blank _])) ->
-      pass
-  | _ ->
-      fail ~f:show_expr ast
 
 
 let passwords_are_redacted (_m : model) : testResult =
@@ -739,14 +725,10 @@ let trigger (test_name : string) : integrationTestState =
         fluid_execute_function_shows_live_value
     | "function_version_renders" ->
         function_version_renders
-    | "only_backspace_out_of_strings_on_last_char" ->
-        only_backspace_out_of_strings_on_last_char
     | "delete_db_col" ->
         delete_db_col
     | "cant_delete_locked_col" ->
         cant_delete_locked_col
-    | "result_ok_roundtrips" ->
-        result_ok_roundtrips
     | "passwords_are_redacted" ->
         passwords_are_redacted
     | "select_route" ->

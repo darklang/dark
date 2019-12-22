@@ -555,11 +555,7 @@ test("rename_function", async t => {
 
 test("execute_function_works", async t => {
   await createRepl(t);
-  await t
-    .typeText("#entry-box", "Uuid::gen")
-    .pressKey("enter")
-    .click(Selector(".execution-button-needed"))
-    .click(Selector(".fncall"));
+  await t.pressKey("U u i d : : g e n enter").click(Selector(".execution-button-needed"));
 
   let v1 = await Selector(".selected .live-value").innerText;
 
@@ -576,38 +572,13 @@ test("execute_function_works", async t => {
 test("function_version_renders", async t => {
   await createRepl(t);
   await t
-    .typeText("#entry-box", "DB::del")
-    .expect(
-      Selector(".autocomplete-item.highlighted .versioned-function").withText(
-        "DB::deleteAll1",
-      ),
-    )
+    .pressKey("D B : :  d e l")
+    .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
     .ok();
-});
-
-test("only_backspace_out_of_strings_on_last_char", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", '"t')
-    .pressKey("backspace")
-    .pressKey("tab") // moved selection to a different blank
-    // test that it's an empty string. Note this needs to not be selected or
-    // the livevalue will be in textcontent occasionally, breaking the test.
-    .expect(Selector(".ast .tstr").textContent)
-    .eql('""')
-    .click(Selector(".ast .tstr"))
-    .pressKey("enter")
-    .pressKey("backspace");
-  // we should have gone over the backspace - checking in client
 });
 
 test("delete_db_col", async t => {
   await t.click(Selector(".delete-col"));
-});
-
-test("result_ok_roundtrips", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "Ok").pressKey("enter");
 });
 
 test("cant_delete_locked_col", async t => {
