@@ -5,37 +5,10 @@ let variantIsActive (m : model) (vt : variantTest) : bool =
   List.member ~value:vt m.tests
 
 
-(* fluid, but no status box *)
-let isFluidForCustomers (vts : variantTest list) : bool =
-  List.member ~value:FluidVariant vts
-
-
-let isFluid (vts : variantTest list) : bool =
-  List.member ~value:FluidVariant vts || List.member ~value:FluidVariant vts
-
+let isFluid (_ : variantTest list) : bool = true
 
 let libtwitterAvailable (vts : variantTest list) : bool =
   List.member ~value:LibtwitterVariant vts
-
-
-(* This is temporary to force everyone other than existing active users to use fluid while we decide whether to roll out for everyone. *)
-(* To turn off fluid, add the ?fluidv2=0 or ?fluidv2=false *)
-let forceFluid (_isAdmin : bool) (username : string) (vts : variantTest list) :
-    variantTest list =
-  let shouldForceFluid = username <> "test" in
-  if shouldForceFluid
-  then
-    (* Checking to see if fluid is set to false *)
-    (* Checking the url string is not the best way to do this but I dont want to change the existing logic for a temporary thing *)
-    let urlString = (Tea_navigation.getLocation ()).search in
-    let containsFluid =
-      String.contains urlString ~substring:"fluidv2=0"
-      || String.contains urlString ~substring:"fluidv2=false"
-      || String.contains urlString ~substring:"fluid=false"
-      || String.contains urlString ~substring:"fluid=0"
-    in
-    if isFluid vts || containsFluid then vts else vts @ [FluidVariant]
-  else vts
 
 
 let toVariantTest (s : string * bool) : variantTest option =
@@ -46,8 +19,6 @@ let toVariantTest (s : string * bool) : variantTest option =
     ( match String.toLower test with
     | "stub" ->
         Some StubVariant
-    | "fluidv2" | "fluid" ->
-        Some FluidVariant
     | "libtwitter" ->
         Some LibtwitterVariant
     | "groups" ->
@@ -63,8 +34,6 @@ let toCSSClass (vt : variantTest) : string =
     match vt with
     | StubVariant ->
         "stub"
-    | FluidVariant ->
-        "fluid"
     | LibtwitterVariant ->
         "libtwitter"
     | GroupVariant ->
