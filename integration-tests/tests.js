@@ -387,31 +387,6 @@ test("no_request_global_in_non_http_space", async t => {
     .pressKey("enter");
 });
 
-test("hover_values_for_varnames", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .typeText("#entry-box", "myvar")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
-});
-
-test("pressing_up_doesnt_return_to_start", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "Int::")
-    .expect(acHighlightedText("Int::add"))
-    .ok()
-    .pressKey("down")
-    .pressKey("up")
-    .expect(acHighlightedText("Int::add"))
-    .ok()
-    .typeText("#entry-box", "add")
-    .pressKey("enter");
-});
-
 test("deleting_selects_the_blank", async t => {
   await createRepl(t);
   await t
@@ -423,10 +398,6 @@ test("deleting_selects_the_blank", async t => {
     .pressKey("enter");
 });
 
-test("right_number_of_blanks", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "Dict::set").pressKey("enter");
-});
 
 // This is how Ellen demos, and should be kept in sync with that if she
 // changes.
@@ -768,15 +739,6 @@ test("variable_extraction", async t => {
 test("invalid_syntax", async t => {
   await createRepl(t);
   await t.typeText("#entry-box", "in:valid").pressKey("enter");
-});
-
-// When you edit, stay in the same place after pressing Enter
-test("editing_stays_in_same_place_with_enter", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("enter");
 });
 
 // When you edit, go to the next blank after pressing Tab

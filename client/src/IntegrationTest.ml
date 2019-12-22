@@ -202,29 +202,8 @@ let no_request_global_in_non_http_space (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let hover_values_for_varnames (m : model) : testResult =
-  ignore (TL.all m |> TD.values |> List.head |> deOption "test") ;
-  pass
-
-
-let pressing_up_doesnt_return_to_start (m : model) : testResult =
-  match onlyExpr m with
-  | FnCall (F (_, "Int::add"), _, _) ->
-      pass
-  | e ->
-      fail ~f:show_nExpr e
-
-
 let deleting_selects_the_blank (m : model) : testResult =
   match onlyExpr m with Value "6" -> pass | e -> fail ~f:show_nExpr e
-
-
-let right_number_of_blanks (m : model) : testResult =
-  match onlyExpr m with
-  | FnCall (F (_, "Dict::set"), [Blank _; Blank _; Blank _], _) ->
-      pass
-  | e ->
-      fail ~f:show_nExpr e
 
 
 let ellen_hello_world_demo (m : model) : testResult =
@@ -1020,14 +999,8 @@ let trigger (test_name : string) : integrationTestState =
         autocomplete_highlights_on_partial_match
     | "no_request_global_in_non_http_space" ->
         no_request_global_in_non_http_space
-    | "hover_values_for_varnames" ->
-        hover_values_for_varnames
-    | "pressing_up_doesnt_return_to_start" ->
-        pressing_up_doesnt_return_to_start
     | "deleting_selects_the_blank" ->
         deleting_selects_the_blank
-    | "right_number_of_blanks" ->
-        right_number_of_blanks
     | "ellen_hello_world_demo" ->
         ellen_hello_world_demo
     | "editing_does_not_deselect" ->
