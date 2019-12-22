@@ -110,20 +110,6 @@ let tabbing_works (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let varbinds_are_editable (m : model) : testResult =
-  match onlyExpr m with
-  | Let (F (id1, "var"), Blank _, Blank _) as l ->
-    ( match m.cursorState with
-    | Entering (Filling (_, id2)) ->
-        if id1 = id2
-        then pass
-        else fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState)
-    | _ ->
-        fail (show_nExpr l ^ ", " ^ show_cursorState m.cursorState) )
-  | e ->
-      fail ~f:show_nExpr e
-
-
 let editing_request_edits_request (m : model) : testResult =
   match onlyExpr m with
   | FieldAccess (F (_, Variable "request"), Blank _) ->
@@ -937,8 +923,6 @@ let trigger (test_name : string) : integrationTestState =
         field_access_pipes
     | "tabbing_works" ->
         tabbing_works
-    | "varbinds_are_editable" ->
-        varbinds_are_editable
     | "editing_request_edits_request" ->
         editing_request_edits_request
     | "autocomplete_highlights_on_partial_match" ->
