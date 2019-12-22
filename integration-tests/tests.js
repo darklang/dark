@@ -317,8 +317,7 @@ test("ellen_hello_world_demo", async t => {
     .pressKey("enter")
 
     // string
-    .typeText("#entry-box", '"Hello world!')
-    .pressKey("enter");
+    .pressKey(' " H e l l o space w o r l d ! " enter');
 });
 
 test("editing_headers", async t => {
@@ -373,38 +372,21 @@ test("switching_from_default_repl_space_removes_name", async t => {
 
 test("tabbing_through_let", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
+    .pressKey("l e t enter")
 
     // round trip through the let blanks once
-    .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab")
+    .pressKey("tab tab tab")
 
     // go to the body and fill it in
-    .pressKey("tab")
-    .pressKey("tab")
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
+    .pressKey("tab tab 5")
 
     // go to the rhs and fill it in
-    .pressKey("tab")
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
+    .pressKey("tab tab 5")
 
     // fill in the var
-    .typeText("#entry-box", "myvar")
-    .pressKey("enter");
-});
-
-test("focus_on_ast_in_new_empty_tl", async t => {
-  await createRepl(t);
-});
-
-test("focus_on_cond_in_new_tl_with_if", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "if").pressKey("enter");
+    .pressKey("tab m y v a r")
 });
 
 test("dont_shift_focus_after_filling_last_blank", async t => {
@@ -497,41 +479,6 @@ test("paste_right_number_of_blanks", async t => {
     .pressKey("meta+v")
 });
 
-
-test("paste_keeps_focus", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .pressKey("+")
-    .pressKey("enter")
-    .pressKey("3")
-    .pressKey("enter")
-    .pressKey("2")
-
-    .click(Selector('.fnname').withText('+'))
-    .pressKey("enter")
-    .pressKey("meta+c")
-    .pressKey("right")
-    .pressKey("right")
-    .pressKey("meta+v")
-});
-
-test("nochange_for_failed_paste", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .pressKey("x")
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("enter")
-
-    .click('.letrhs')
-    .pressKey("meta+c")
-    .pressKey("left")
-    .pressKey("meta+v")
-});
 */
 
 /* Disable for now, will bring back as command palette fn

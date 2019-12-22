@@ -1,5 +1,4 @@
 open Tc
-open Prelude
 open Types
 
 (* Dark *)
@@ -199,26 +198,6 @@ let tabbing_through_let (m : model) : testResult =
       fail ~f:show_nExpr e
 
 
-let focus_on_ast_in_new_empty_tl (m : model) : testResult =
-  match (onlyHandler m).ast with
-  | Blank id ->
-      if idOf m.cursorState = Some id
-      then pass
-      else fail (show_id id ^ ", " ^ show_cursorState m.cursorState)
-  | e ->
-      fail ~f:show_expr e
-
-
-let focus_on_cond_in_new_tl_with_if (m : model) : testResult =
-  match onlyExpr m with
-  | If (cond, _, _) ->
-      if idOf m.cursorState = Some (B.toID cond)
-      then pass
-      else fail ~f:show_cursorState m.cursorState
-  | e ->
-      fail ~f:show_nExpr e
-
-
 let dont_shift_focus_after_filling_last_blank (m : model) : testResult =
   let tls = TL.all m in
   match m.cursorState with
@@ -286,32 +265,6 @@ let paste_right_number_of_blanks (m : model) : testResult =
              fail ~f:show_expr ast )
   |> Result.combine
   |> Result.map (fun _ -> ())
-
-
-let paste_keeps_focus (m : model) : testResult =
-  match onlyExpr m with
-  | FnCall (F (_, "+"), [F (_, Value "3"); F (id, Value "3")], _) as fn ->
-    ( match m.cursorState with
-    | Selecting (_, sid) ->
-        if Some id = sid
-        then pass
-        else fail (show_nExpr fn ^ ", " ^ show_cursorState m.cursorState)
-    | _ ->
-        fail (show_nExpr fn ^ ", " ^ show_cursorState m.cursorState) )
-  | other ->
-      fail ~f:show_nExpr other
-
-
-let nochange_for_failed_paste (m : model) : testResult =
-  match onlyExpr m with
-  | Let (F (id, "x"), F (_, Value "2"), _) ->
-    ( match m.cursorState with
-    | Selecting (_, sid) ->
-        if Some id = sid then pass else fail ~f:show_cursorState m.cursorState
-    | _ ->
-        fail ~f:show_cursorState m.cursorState )
-  | other ->
-      fail ~f:show_nExpr other
 
 
 let feature_flag_works (m : model) : testResult =
@@ -914,10 +867,6 @@ let trigger (test_name : string) : integrationTestState =
         switching_from_default_repl_space_removes_name
     | "tabbing_through_let" ->
         tabbing_through_let
-    | "focus_on_ast_in_new_empty_tl" ->
-        focus_on_ast_in_new_empty_tl
-    | "focus_on_cond_in_new_tl_with_if" ->
-        focus_on_cond_in_new_tl_with_if
     | "dont_shift_focus_after_filling_last_blank" ->
         dont_shift_focus_after_filling_last_blank
     | "rename_db_fields" ->
@@ -926,10 +875,6 @@ let trigger (test_name : string) : integrationTestState =
         rename_db_type
     | "paste_right_number_of_blanks" ->
         paste_right_number_of_blanks
-    | "paste_keeps_focus" ->
-        paste_keeps_focus
-    | "nochange_for_failed_paste" ->
-        nochange_for_failed_paste
     | "feature_flag_works" ->
         feature_flag_works
     | "simple_tab_ordering" ->
