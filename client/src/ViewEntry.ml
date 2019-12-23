@@ -28,68 +28,6 @@ let defaultPasteHandler =
     (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
 
 
-let stringEntryHtml (ac : autocomplete) (width : stringEntryWidth) :
-    msg Html.html =
-  let maxWidthChars =
-    match width with
-    (* max-width rules from CSS *)
-    | StringEntryNormalWidth ->
-        120
-    | StringEntryShortWidth ->
-        40
-  in
-  let value = ac.value |> RT.stripQuotes in
-  let longestLineLength =
-    value
-    |> String.split ~on:"\n"
-    |> List.map ~f:visualStringLength
-    |> List.foldr ~f:max ~init:1
-    |> min maxWidthChars
-  in
-  let rowCount =
-    value
-    |> String.split ~on:"\n"
-    |> List.map ~f:(fun line ->
-           line
-           |> visualStringLength
-           |> float_of_int
-           |> ( *. ) (1. /. float_of_int longestLineLength)
-           |> ceil
-           |> max 1. )
-    |> List.floatSum
-    |> int_of_float
-  in
-  let input =
-    Html.textarea
-      [ Attributes.id Defaults.entryID
-      ; Events.onInput (fun x ->
-            (* DisplayString can hold things that literals can't (eg naked
-             * backslashes), so don't convert back to literal yet *)
-            EntryInputMsg (RT.addQuotes x) )
-      ; defaultPasteHandler
-      ; Attributes.value value
-      ; Attributes.spellcheck false (* Stop other events firing *)
-      ; nothingMouseEvent "mouseup"
-      ; nothingMouseEvent "click"
-      ; nothingMouseEvent "mousedown"
-      ; Attributes.rows rowCount
-      ; widthInCh longestLineLength
-      ; Attributes.autocomplete false ]
-      []
-  in
-  let sizeClass =
-    if Autocomplete.isSmallStringEntry ac
-    then "small-string"
-    else "large-string"
-  in
-  Html.div
-    [Html.class' "string-entry"]
-    [ Html.form
-        [ onSubmit ~key:"esm" (fun _ -> EntrySubmitMsg)
-        ; Html.class' ("string-container " ^ sizeClass) ]
-        [input] ]
-
-
 let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
     =
   let toList acis class' index =
@@ -165,20 +103,6 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
   wrapper
 
 
-let entryHtml
-    (permission : stringEntryPermission)
-    (width : stringEntryWidth)
-    (placeholder : string)
-    (ac : autocomplete) : msg Html.html =
-  match permission with
-  | StringEntryAllowed ->
-      if Autocomplete.isStringEntry ac
-      then stringEntryHtml ac width
-      else normalEntryHtml placeholder ac
-  | StringEntryNotAllowed ->
-      normalEntryHtml placeholder ac
-
-
 let viewEntry (m : model) : msg Html.html =
   match unwrapCursorState m.cursorState with
   | Entering (Creating pos) ->
@@ -194,6 +118,6 @@ let viewEntry (m : model) : msg Html.html =
       in
       Html.div
         [Html.class' "omnibox"; styleProp]
-        [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
+        [normalEntryHtml "" m.complete]
   | _ ->
       Vdom.noNode
