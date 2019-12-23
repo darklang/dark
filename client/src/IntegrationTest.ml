@@ -406,18 +406,6 @@ let autocomplete_visible_height (_m : model) : testResult =
   pass
 
 
-let return_to_architecture_on_deselect (m : model) : testResult =
-  match m.currentPage with
-  | Architecture ->
-    ( match m.cursorState with
-    | Deselected ->
-        pass
-    | _ ->
-        fail ~f:show_cursorState m.cursorState )
-  | _ ->
-      fail ~f:show_page m.currentPage
-
-
 let fn_page_returns_to_lastpos (m : model) : testResult =
   match TL.get m (TLID "123") with
   | Some tl ->
@@ -733,8 +721,6 @@ let trigger (test_name : string) : integrationTestState =
         function_analysis_works
     | "fourohfours_parse" ->
         fourohfours_parse
-    | "return_to_architecture_on_deselect" ->
-        return_to_architecture_on_deselect
     | "fn_page_returns_to_lastpos" ->
         fn_page_returns_to_lastpos
     | "fn_page_to_handler_pos" ->

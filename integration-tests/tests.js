@@ -666,15 +666,6 @@ test("fourohfours_parse", async t => {
   await sendPushEvent();
 });
 
-test("return_to_architecture_on_deselect", async t => {
-  await t
-    .navigateTo("#handler=123")
-    .expect(available(".tl-123"))
-    .ok({ timeout: 1000 });
-
-  await t.pressKey("esc");
-});
-
 test("fn_page_to_handler_pos", async t => {
   await t
     .navigateTo("#fn=890")
