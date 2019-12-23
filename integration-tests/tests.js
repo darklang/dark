@@ -1,5 +1,5 @@
 import { ClientFunction, Selector } from "testcafe";
-import fs from 'fs';
+import fs from "fs";
 const child_process = require("child_process");
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
@@ -26,7 +26,7 @@ async function fixBrowserSize(t) {
 
 async function setDebugging(t) {
   let key = `editorState-test-${t.testRun.test.name}`;
-  let value = '{"editorSettings":{"showFluidDebugger":true}}'
+  let value = '{"editorSettings":{"showFluidDebugger":true}}';
   const setLocalStorageItem = ClientFunction((key, value) => {
     localStorage.setItem(key, value);
   });
@@ -89,7 +89,11 @@ fixture`Integration Tests`
         ["\n\nConsole Infos:"],
         info,
       );
-      fs.writeFile(`rundir/integration_test_logs/${testname}.log`, msgs.join("\n"), () => {});
+      fs.writeFile(
+        `rundir/integration_test_logs/${testname}.log`,
+        msgs.join("\n"),
+        () => {},
+      );
 
       return true;
     };
@@ -409,7 +413,7 @@ test("rename_db_fields", async t => {
     .click(Selector(".name").withText("field1"))
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "field6")
-    .pressKey("enter")
+    .pressKey("enter");
 
   // add data and check we can't rename again
   await callBackend(user_content_url(t, "/add"));
@@ -852,7 +856,8 @@ test("varnames_are_incomplete", async t => {
     .click(Selector(".spec-header > .handler-name"))
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", ":a")
-    .expect(acHighlightedText("/:a")).ok()
+    .expect(acHighlightedText("/:a"))
+    .ok()
     .pressKey("tab a enter");
 
   await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
