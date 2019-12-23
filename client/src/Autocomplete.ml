@@ -34,16 +34,8 @@ let focusItem (i : int) : msg Tea.Cmd.t =
 (* ---------------------------- *)
 let asName (aci : autocompleteItem) : string =
   match aci with
-  | ACFunction fn ->
-      fn.fnName
-  | ACField name ->
-      name
-  | ACVariable (name, _) ->
-      name
   | ACCommand command ->
       ":" ^ command.commandName
-  | ACLiteral lit ->
-      lit
   | ACOmniAction ac ->
     ( match ac with
     | NewDB maybeName ->
@@ -90,20 +82,6 @@ let asName (aci : autocompleteItem) : string =
           "New group" )
     | Goto (_, _, desc, _) ->
         desc )
-  | ACConstructorName name ->
-      name
-  | ACKeyword k ->
-    ( match k with
-    | KLet ->
-        "let"
-    | KIf ->
-        "if"
-    | KLambda ->
-        "lambda"
-    | KMatch ->
-        "match"
-    | KPipe ->
-        "|>" )
   | ACHTTPModifier name ->
       name
   | ACHTTPRoute name ->
@@ -124,12 +102,8 @@ let asName (aci : autocompleteItem) : string =
       RT.tipe2str tipe
   | ACDBName name ->
       name
-  | ACExpr name
   | ACDBColName name
-  | ACVarBind name
   | ACEventModifier name
-  | ACKey name
-  | ACFFMsg name
   | ACFnName name
   | ACParamName name
   | ACTypeName name
@@ -142,41 +116,10 @@ let asName (aci : autocompleteItem) : string =
 
 let asTypeString (item : autocompleteItem) : string =
   match item with
-  | ACFunction f ->
-      f.fnParameters
-      |> List.map ~f:(fun x -> x.paramTipe)
-      |> List.map ~f:RT.tipe2str
-      |> String.join ~sep:", "
-      |> fun s -> "(" ^ s ^ ") ->  " ^ RT.tipe2str f.fnReturnTipe
-  | ACField _ ->
-      "field"
-  | ACVariable (_, optVal) ->
-      optVal
-      |> Option.map ~f:(fun dv -> dv |> RT.typeOf |> RT.tipe2str)
-      |> Option.withDefault ~default:"variable"
   | ACCommand _ ->
       ""
-  | ACConstructorName name ->
-      if name = "Just"
-      then "(any) -> option"
-      else if name = "Nothing"
-      then "option"
-      else if name = "Ok" || name = "Error"
-      then "(any) -> result"
-      else ""
-  | ACLiteral lit ->
-      let tipe =
-        lit
-        |> Decoders.parseDvalLiteral
-        |> Option.withDefault ~default:(DIncomplete SourceNone)
-        |> RT.typeOf
-        |> RT.tipe2str
-      in
-      tipe ^ " literal"
   | ACOmniAction _ ->
       ""
-  | ACKeyword _ ->
-      "keyword"
   | ACHTTPModifier _ ->
       "method"
   | ACHTTPRoute _ ->
@@ -197,18 +140,10 @@ let asTypeString (item : autocompleteItem) : string =
       "param type"
   | ACDBName _ ->
       "name"
-  | ACExpr _ ->
-      "expression"
   | ACDBColName _ ->
       "column name"
-  | ACVarBind _ ->
-      "var"
   | ACEventModifier _ ->
       "event modifier"
-  | ACKey _ ->
-      "key"
-  | ACFFMsg _ ->
-      "feature flag message"
   | ACFnName _ ->
       "function name"
   | ACParamName _ ->
@@ -268,7 +203,7 @@ let isSmallStringEntry (a : autocomplete) : bool =
 
 (* Return different type if possible *)
 let highlighted (a : autocomplete) : autocompleteItem option =
-  List.getAt ~index:a.index (a.completions @ a.invalidCompletions)
+  List.getAt ~index:a.index a.completions
 
 
 let getValue (a : autocomplete) : string =
@@ -288,97 +223,6 @@ let rec containsOrdered (needle : string) (haystack : string) : bool =
            |> String.join ~sep:char )
   | None ->
       true
-
-
-let dvalFields (dv : dval) : string list =
-  match dv with DObj dict -> StrDict.keys dict | _ -> []
-
-
-let findCompatibleThreadParam (fn : function_) (tipe : tipe) : parameter option
-    =
-  fn.fnParameters
-  |> List.head
-  |> Option.andThen ~f:(fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
-
-
-let findParamByType (fn : function_) (tipe : tipe) : parameter option =
-  fn.fnParameters |> List.find ~f:(fun p -> RT.isCompatible p.paramTipe tipe)
-
-
-let dvalForTarget (m : model) ((tlid, pd) : target) : dval option =
-  let traceID = Analysis.getSelectedTraceID m tlid in
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.andThen ~f:(AST.getValueParent pd)
-  |> Option.map ~f:P.toID
-  |> Option.andThen2 traceID ~f:(fun traceID id ->
-         Analysis.getLiveValue m id traceID )
-  (* don't filter on incomplete values *)
-  |> Option.andThen ~f:(fun dv_ ->
-         match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
-
-
-let isThreadMember (m : model) ((tlid, pd) : target) =
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.andThen ~f:(AST.findParentOfWithin_ (P.toID pd))
-  |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false )
-  |> Option.withDefault ~default:false
-
-
-let paramTipeForTarget (m : model) ((tlid, pd) : target) : tipe option =
-  TL.get m tlid
-  |> Option.andThen ~f:TL.getAST
-  |> Option.andThen ~f:(fun ast -> AST.getParamIndex ast (P.toID pd))
-  |> Option.andThen ~f:(fun (name, index) ->
-         m.complete.functions
-         |> List.find ~f:(fun f -> name = f.fnName)
-         |> Option.map ~f:(fun x -> x.fnParameters)
-         |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe) )
-
-
-let matchesTypes
-    (isThreadMemberVal : bool) (paramTipe : tipe) (dv : dval option) :
-    function_ -> bool =
- fun fn ->
-  let matchesReturnType = RT.isCompatible fn.fnReturnTipe paramTipe in
-  let matchesParamType =
-    match dv with
-    | Some dval ->
-        if isThreadMemberVal
-        then None <> findCompatibleThreadParam fn (RT.typeOf dval)
-        else None <> findParamByType fn (RT.typeOf dval)
-    | None ->
-        true
-  in
-  matchesReturnType && matchesParamType
-
-
-(* ------------------------------------ *)
-(* Dynamic Items *)
-(* ------------------------------------ *)
-
-let qLiteral (s : string) : autocompleteItem option =
-  if Runtime.isStringLiteral s
-  then
-    if Runtime.isValidDisplayString s
-    then Some (ACLiteral (Runtime.convertDisplayStringToLiteral s))
-    else None
-  else if Decoders.isLiteralRepr s
-  then Some (ACLiteral s)
-  else if String.length s > 0
-  then
-    if String.startsWith ~prefix:(String.toLower s) "false"
-    then Some (ACLiteral "false")
-    else if String.startsWith ~prefix:(String.toLower s) "true"
-    then Some (ACLiteral "true")
-    else if String.startsWith ~prefix:(String.toLower s) "null"
-    then Some (ACLiteral "null")
-    else None
-  else None
 
 
 (* ------------------------------------ *)
@@ -656,8 +500,6 @@ let qSearch (m : model) (s : string) : omniAction list =
 
 let isDynamicItem (item : autocompleteItem) : bool =
   match item with
-  | ACLiteral _ ->
-      true
   | ACOmniAction (Goto (_, _, _, dyna)) ->
       dyna
   | ACOmniAction _ ->
@@ -700,10 +542,6 @@ let toDynamicItems
         else standard
       in
       List.map ~f:(fun o -> ACOmniAction o) all
-  | Some (_, PExpr _) ->
-      Option.values [qLiteral q]
-  | Some (_, PField _) ->
-      if q = "" then [] else [ACField q]
   | Some (_, PEventName _) ->
     ( match space with
     | Some HSHTTP ->
@@ -770,32 +608,6 @@ let tlDestinations (m : model) : autocompleteItem list =
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
 
-let matcher
-    (tipeConstraintOnTarget : tipe)
-    (dbnames : string list)
-    (matchTypesOfFn : tipe -> function_ -> bool)
-    (item : autocompleteItem) =
-  match item with
-  | ACFunction fn ->
-      matchTypesOfFn tipeConstraintOnTarget fn
-  | ACVariable (var, _) ->
-      if List.member ~value:var dbnames
-      then match tipeConstraintOnTarget with TDB -> true | _ -> false
-      else true
-  | ACConstructorName name ->
-    ( match tipeConstraintOnTarget with
-    | TOption ->
-        name = "Just" || name = "Nothing"
-    | TResult ->
-        name = "Ok" || name = "Error"
-    | TAny ->
-        true
-    | _ ->
-        false )
-  | _ ->
-      true
-
-
 (* ------------------------------------ *)
 (* Create the list *)
 (* ------------------------------------ *)
@@ -806,40 +618,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
     |> Option.andThen ~f:(TL.get m)
     |> Option.andThen ~f:TL.spaceOf
   in
-  let varnames =
-    a.target
-    |> Option.andThen ~f:(fun (tlid, pd) ->
-           TL.get m tlid |> Option.map ~f:(fun tl -> (tl, Pointer.toID pd)) )
-    |> Option.andThen ~f:(fun (tl, id) ->
-           Analysis.getSelectedTraceID m (TL.id tl)
-           |> Option.map ~f:(Analysis.getAvailableVarnames m tl id) )
-    |> Option.withDefault ~default:[]
-  in
-  let dval = Option.andThen ~f:(dvalForTarget m) a.target in
-  let fields =
-    match dval with
-    | Some dv when RT.typeOf dv = TObj ->
-      ( match a.target with
-      | Some (_, pd) when P.typeOf pd = Field ->
-          List.map ~f:(fun x -> ACField x) (dvalFields dv)
-      | _ ->
-          [] )
-    | _ ->
-        []
-  in
-  let isExpression =
-    match a.target with Some (_, p) -> P.typeOf p = Expr | None -> false
-  in
-  (* functions *)
-  let funcList = if isExpression then a.functions else [] in
-  let functions = List.map ~f:(fun x -> ACFunction x) funcList in
-  let constructors =
-    [ ACConstructorName "Just"
-    ; ACConstructorName "Nothing"
-    ; ACConstructorName "Ok"
-    ; ACConstructorName "Error" ]
-  in
-  let extras =
+  let entries =
     match a.target with
     | Some (_, p) ->
       ( match P.typeOf p with
@@ -921,46 +700,23 @@ let generate (m : model) (a : autocomplete) : autocomplete =
           ; ACTypeFieldTipe TDate
           ; ACTypeFieldTipe TPassword
           ; ACTypeFieldTipe TUuid ]
-      | Pattern ->
-        ( match dval with
-        | Some dv when RT.typeOf dv = TResult ->
-            [ACConstructorName "Ok"; ACConstructorName "Error"]
-        | Some dv when RT.typeOf dv = TOption ->
-            [ACConstructorName "Just"; ACConstructorName "Nothing"]
-        | _ ->
-            constructors )
       | _ ->
           [] )
     | _ ->
         []
-  in
-  let exprs =
-    if isExpression
-    then
-      let varnames =
-        List.map ~f:(fun (name, dv) -> ACVariable (name, dv)) varnames
-      in
-      let keywords =
-        List.map ~f:(fun x -> ACKeyword x) [KLet; KIf; KLambda; KMatch]
-      in
-      varnames @ constructors @ keywords @ functions
-    else []
   in
   let items =
     if a.isCommandMode
     then List.map ~f:(fun x -> ACCommand x) Commands.commands
     else if a.target = None
     then tlDestinations m
-    else extras @ exprs @ fields
+    else entries
   in
-  {a with allCompletions = items; targetDval = dval}
+  {a with allCompletions = items}
 
 
-let filter
-    (m : model)
-    (a : autocomplete)
-    (list : autocompleteItem list)
-    (query : string) : autocompleteItem list * autocompleteItem list =
+let filter (list : autocompleteItem list) (query : string) :
+    autocompleteItem list =
   let lcq = query |> String.toLower in
   let stringify i =
     (if 1 >= String.length lcq then asName i else asString i)
@@ -1005,21 +761,7 @@ let filter
     [dynamic; startsWith; startsWithCI; substring; substringCI; stringMatch]
     |> List.concat
   in
-  (* Now split list by type validity *)
-  let dbnames = TL.allDBNames m.dbs in
-  let isThreadMemberVal =
-    Option.map ~f:(isThreadMember m) a.target
-    |> Option.withDefault ~default:false
-  in
-  let tipeConstraintOnTarget =
-    a.target
-    |> Option.andThen ~f:(paramTipeForTarget m)
-    |> Option.withDefault ~default:TAny
-  in
-  let matchTypesOfFn pt = matchesTypes isThreadMemberVal pt a.targetDval in
-  List.partition
-    ~f:(matcher tipeConstraintOnTarget dbnames matchTypesOfFn)
-    allMatches
+  allMatches
 
 
 let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
@@ -1029,10 +771,8 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
     then List.filter ~f:isStaticItem old.allCompletions
     else withDynamicItems m old.target query old.allCompletions
   in
-  let newCompletions, invalidCompletions =
-    filter m old fudgedCompletions query
-  in
-  let allCompletions = newCompletions @ invalidCompletions in
+  let newCompletions = filter fudgedCompletions query in
+  let allCompletions = newCompletions in
   let newCount = List.length allCompletions in
   let index =
     (* Clear the highlight conditions *)
@@ -1047,11 +787,8 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
     else 0
   in
   { old with
-    index
-  ; completions = newCompletions
-  ; invalidCompletions
-  ; value = query
-  ; prevValue = old.value }
+    index; completions = newCompletions; value = query; prevValue = old.value
+  }
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -1081,9 +818,7 @@ let reset (m : model) : autocomplete =
 
 let init m = reset m
 
-let numCompletions (a : autocomplete) : int =
-  List.length a.completions + List.length a.invalidCompletions
-
+let numCompletions (a : autocomplete) : int = List.length a.completions
 
 let selectDown (a : autocomplete) : autocomplete =
   let max_ = numCompletions a in
@@ -1125,47 +860,8 @@ let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
 
 let documentationForItem (aci : autocompleteItem) : string option =
   match aci with
-  | ACFunction f ->
-      let desc =
-        if String.length f.fnDescription <> 0
-        then f.fnDescription
-        else "Function call with no description"
-      in
-      let desc = if f.fnDeprecated then "DEPRECATED: " ^ desc else desc in
-      Some desc
   | ACCommand c ->
       Some (c.doc ^ " (" ^ c.shortcut ^ ")")
-  | ACConstructorName "Just" ->
-      Some "An Option containing a value"
-  | ACConstructorName "Nothing" ->
-      Some "An Option representing Nothing"
-  | ACConstructorName "Ok" ->
-      Some "A successful Result containing a value"
-  | ACConstructorName "Error" ->
-      Some "A Result representing a failure"
-  | ACConstructorName name ->
-      Some ("TODO: this should never occur: the constructor " ^ name)
-  | ACField fieldname ->
-      Some ("The '" ^ fieldname ^ "' field of the object")
-  | ACVariable (var, _) ->
-      if String.isCapitalized var
-      then Some ("The datastore '" ^ var ^ "'")
-      else Some ("The variable '" ^ var ^ "'")
-  | ACLiteral lit ->
-      Some ("The literal value '" ^ lit ^ "'")
-  | ACKeyword KLet ->
-      Some "A `let` expression allows you assign a variable to an expression"
-  | ACKeyword KIf ->
-      Some "An `if` expression allows you to branch on a boolean condition"
-  | ACKeyword KLambda ->
-      Some
-        "A `lambda` creates an anonymous function. This is most often used for iterating through lists"
-  | ACKeyword KMatch ->
-      Some
-        "A `match` expression allows you to pattern match on a value, and return different expressions based on many possible conditions"
-  | ACKeyword KPipe ->
-      Some
-        "The `|>` (pipe) expression takes the result of this expression, and puts it as the first argument to the next expression. Think of it as method chaining (a.b().c())"
   | ACOmniAction _ ->
       None
   | ACHTTPModifier verb ->
@@ -1183,8 +879,6 @@ let documentationForItem (aci : autocompleteItem) : string option =
   | ACEventSpace _ ->
       Some
         "This handler is deprecated. You should create a new WORKER handler, copy the code over, and change your `emit` calls to point to the new WORKER"
-  | ACExpr _ ->
-      Some "An expression"
   | ACReplName name ->
       Some ("A REPL named " ^ name)
   | ACWorkerName name ->
@@ -1203,14 +897,8 @@ let documentationForItem (aci : autocompleteItem) : string option =
       Some ("This parameter will be a " ^ RT.tipe2str tipe)
   | ACDBColName name ->
       Some ("Set the DB's column name to" ^ name)
-  | ACVarBind str ->
-      Some ("Set variable name to " ^ str)
   | ACEventModifier name ->
       Some ("Set event modifier to " ^ name)
-  | ACKey key ->
-      Some ("Set key to " ^ key)
-  | ACFFMsg msg ->
-      Some ("Set feature flag message to " ^ msg)
   | ACFnName fnName ->
       Some ("Set function name to " ^ fnName)
   | ACParamName paramName ->
@@ -1270,7 +958,4 @@ let isOpened (ac : autocomplete) : bool =
 
 
 let isOmnibox (ac : autocomplete) : bool =
-  ac.target = None
-  && ac.targetDval = None
-  && (not ac.isCommandMode)
-  && ac.visible
+  ac.target = None && (not ac.isCommandMode) && ac.visible
