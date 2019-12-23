@@ -256,11 +256,6 @@ and pointerType =
   | TypeFieldTipe
   | GroupName
 
-and pointerOwner =
-  | POSpecHeader
-  | POAst
-  | PODb
-
 (* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
