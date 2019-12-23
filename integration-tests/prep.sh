@@ -15,7 +15,9 @@ done
 
 # Set up test reporters for CircleCI
 TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
+TEST_LOGS_DIR="${DARK_CONFIG_RUNDIR}/integration_test_logs"
 mkdir -p "${TEST_RESULTS_DIR}"
+mkdir -p "${TEST_LOGS_DIR}"
 
 echo "Clearing old test files"
 rm -f "${DARK_CONFIG_RUNDIR}"/completed_tests/*
@@ -23,6 +25,7 @@ rm -Rf "${DARK_CONFIG_RUNDIR}"/screenshots/*
 rm -f "${DARK_CONFIG_RUNDIR}"/videos/*
 rm -Rf "${DARK_CONFIG_RUNDIR}"/logs/ffmpeg*
 rm -f "${TEST_RESULTS_DIR}"/integration_tests.*
+rm -f "${TEST_LOGS_DIR}"/*
 
 # Clear DBs
 DBLOG="${DARK_CONFIG_RUNDIR}/integration_db.log"
