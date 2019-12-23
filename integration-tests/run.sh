@@ -67,6 +67,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --screenshots-on-fails \
     --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
+    --quarantine-mode \
     --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
     "$BROWSER \"--window-size=1600,1200\""  \
@@ -92,6 +93,7 @@ else
     --screenshots takeOnFails=true \
     --screenshots path=rundir/screenshots/ \
     --concurrency "$CONCURRENCY" \
+    --quarantine-mode \
     --reporter=spec \
     $debugcmd \
     --test-grep "$PATTERN" \

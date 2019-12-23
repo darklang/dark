@@ -35,7 +35,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   border-radius: 0 8px 8px 0;
 }
 
-.fluid-variant .live-value {
+.live-value {
   display: block;
   position: absolute;
   right: calc(#{"100% + 30px"});
@@ -64,7 +64,7 @@ $prec-colors: (#301728, #93385f, #4f3466, #9f6b99);
   }
 }
 
-.fluid-variant .return-value {
+.return-value {
   position: absolute;
   top: calc(100% + 4px);
 

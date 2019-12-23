@@ -1,4 +1,5 @@
 import { ClientFunction, Selector } from "testcafe";
+import fs from "fs";
 const child_process = require("child_process");
 const BASE_URL = "http://darklang.localhost:8000/a/test-";
 const getPageUrl = ClientFunction(() => window.location.href);
@@ -23,6 +24,15 @@ async function fixBrowserSize(t) {
   await t.resizeWindow(1600, 1200);
 }
 
+async function setDebugging(t) {
+  let key = `editorState-test-${t.testRun.test.name}`;
+  let value = '{"editorSettings":{"showFluidDebugger":true}}';
+  const setLocalStorageItem = ClientFunction((key, value) => {
+    localStorage.setItem(key, value);
+  });
+  await setLocalStorageItem(key, value);
+}
+
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
@@ -30,14 +40,9 @@ fixture`Integration Tests`
     await fixBrowserSize(t);
     startXvfb(testname);
     var url = `${BASE_URL}${testname}?integration-test=true`;
-    /* Quick hack while we have the fluid variant.
-     * All tests that start with fluid_test_name will get the fluid flagged added on to them
-     */
-    if (testname.match(/^fluid_/)) {
-      url += "&fluidv2=1";
-    }
+    await t.navigateTo(url);
+    await setDebugging(t);
     await t
-      .navigateTo(url)
       .typeText("#username", "test")
       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
       .pressKey("enter");
@@ -84,9 +89,11 @@ fixture`Integration Tests`
         ["\n\nConsole Infos:"],
         info,
       );
-      for (var l of msgs) {
-        console.error(l);
-      }
+      fs.writeFile(
+        `rundir/integration_test_logs/${testname}.log`,
+        msgs.join("\n"),
+        () => {},
+      );
 
       return true;
     };
@@ -150,10 +157,7 @@ async function createRepl(t) {
 }
 
 async function gotoAST(t) {
-  await t
-    .doubleClick(".ast .blankOr")
-    .expect(entryBoxAvailable())
-    .ok();
+  await t.click("#fluid-editor");
 }
 
 function user_content_url(t, endpoint) {
@@ -168,14 +172,11 @@ function user_content_url(t, endpoint) {
 // But we sometimes need to explicitly wait if TestCafe can't tell what
 // we're waiting on.
 
-function astAvailable() {
-  return Selector(".ast").exists;
+function available(css) {
+  return Selector(css).exists;
 }
 function entryBoxAvailable() {
   return Selector("#entry-box").exists;
-}
-function available(css) {
-  return Selector(css).exists;
 }
 
 // Return the highlighted autocomplete entry
@@ -183,7 +184,7 @@ function acHighlightedText() {
   return Selector(".autocomplete-item.highlighted").textContent;
 }
 
-function fluidAcSelectedText() {
+function fluidAcHighlightedText() {
   return Selector(".autocomplete-item.fluid-selected").textContent;
 }
 
@@ -209,6 +210,7 @@ test("switching_from_http_to_cron_space_removes_leading_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
@@ -228,6 +230,7 @@ test("switching_from_http_to_repl_space_removes_leading_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -247,6 +250,7 @@ test("switching_from_http_space_removes_variable_colons", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
+    .pressKey("ctrl+a")
     .pressKey("backspace")
     .typeText("#entry-box", "REPL")
     .pressKey("enter");
@@ -263,122 +267,41 @@ test("field_access_closes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestdict"))
+    .pressKey("r e q")
+    .expect(fluidAcHighlightedText("requestdict"))
     .ok()
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "b")
-    .typeText("#entry-box", "o")
-    .expect(acHighlightedText("bodyfield"))
+    .pressKey(". b o")
+    .expect(fluidAcHighlightedText("bodyfield"))
     .ok()
     .pressKey("enter");
 });
 
-// This has a race condition somewhere
 test("field_access_pipes", async t => {
   await createHTTPHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText())
+    .pressKey("r e q")
+    .expect(fluidAcHighlightedText())
     .contains("request")
-    .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText())
+    .pressKey(". b o")
+    .expect(fluidAcHighlightedText())
     .eql("bodyfield")
     .pressKey("shift+enter");
-});
-
-test("field_access_nested", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText())
-    .contains("request")
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "bo")
-    .pressKey("down")
-    .expect(acHighlightedText())
-    .eql("bodyfield")
-    .typeText("#entry-box", ".")
-
-    .typeText("#entry-box", "field.")
-    .typeText("#entry-box", "field2")
-    .pressKey("enter");
-});
-
-test("pipeline_let_equals", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "3")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "=value")
-    .pressKey("enter");
-});
-
-test("pipe_within_let", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "3")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "=value")
-    .pressKey("enter")
-    .typeText("#entry-box", "value")
-    .pressKey("shift+enter")
-    .typeText("#entry-box", "Int::add")
-    .pressKey("enter")
-    .pressKey("esc");
 });
 
 test("tabbing_works", async t => {
   await createRepl(t);
   // Fill in "then" box in if stmt
-  await t
-    .typeText("#entry-box", "if")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("tab")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
-});
-
-test("varbinds_are_editable", async t => {
-  await t.click(".letvarname").pressKey("enter");
-});
-
-test("editing_does_not_deselect", async t => {
-  await t
-    .click(".ast .blankOr > .letrhs > .blankOr")
-    .pressKey("enter")
-    .click("#entry-box");
-});
-
-test("editing_request_edits_request", async t => {
-  await createHTTPHandler(t);
-  await gotoAST(t);
-  await t
-    .typeText("#entry-box", "req")
-    .expect(acHighlightedText("requestdict"))
-    .ok()
-    .typeText("#entry-box", ".")
-
-    .pressKey("esc")
-    .pressKey("left")
-    .pressKey("enter");
+  await t.pressKey("i f space tab 5");
 });
 
 test("autocomplete_highlights_on_partial_match", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "nt::add")
-    .expect(acHighlightedText("Int::add"))
+    .pressKey(" n t : : a d d")
+    .expect(fluidAcHighlightedText("Int::add"))
     .ok()
     .pressKey("enter");
 });
@@ -387,55 +310,12 @@ test("no_request_global_in_non_http_space", async t => {
   await createWorkerHandler(t);
   await gotoAST(t);
   await t
-    .typeText("#entry-box", "request")
-    .expect(acHighlightedText("Http::badRequest"))
+    .pressKey("r e q u e s t")
+    .expect(fluidAcHighlightedText("Http::badRequest"))
     .ok()
     .pressKey("enter");
 });
 
-test("hover_values_for_varnames", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .typeText("#entry-box", "myvar")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
-});
-
-test("pressing_up_doesnt_return_to_start", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "Int::")
-    .expect(acHighlightedText("Int::add"))
-    .ok()
-    .pressKey("down")
-    .pressKey("up")
-    .expect(acHighlightedText("Int::add"))
-    .ok()
-    .typeText("#entry-box", "add")
-    .pressKey("enter");
-});
-
-test("deleting_selects_the_blank", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
-    .click(".ast .value")
-    .pressKey("delete")
-    .typeText("#entry-box", "6")
-    .pressKey("enter");
-});
-
-test("right_number_of_blanks", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "Dict::set").pressKey("enter");
-});
-
-// This is how Ellen demos, and should be kept in sync with that if she
-// changes.
 test("ellen_hello_world_demo", async t => {
   await createHTTPHandler(t);
   await t
@@ -448,8 +328,7 @@ test("ellen_hello_world_demo", async t => {
     .pressKey("enter")
 
     // string
-    .typeText("#entry-box", '"Hello world!')
-    .pressKey("enter");
+    .pressKey(' " H e l l o space w o r l d ! "');
 });
 
 test("editing_headers", async t => {
@@ -466,18 +345,12 @@ test("editing_headers", async t => {
 
     // edit them
     .click(".spec-header > .handler-name")
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "/myroute")
     .pressKey("enter")
 
     .click(".spec-header > .handler-type > .modifier")
-    .pressKey("delete")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "GET")
     .pressKey("enter");
 });
@@ -493,7 +366,7 @@ test("switching_to_http_space_adds_slash", async t => {
 
     // edit space
     .click(".spec-header > .handler-type > .space")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "HTTP")
     .pressKey("enter");
 });
@@ -503,56 +376,28 @@ test("switching_from_default_repl_space_removes_name", async t => {
   await t
     // edit space
     .click(".spec-header > .handler-type >.space")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "CRON")
     .pressKey("enter");
 });
 
 test("tabbing_through_let", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
+    .pressKey("l e t enter")
 
     // round trip through the let blanks once
-    .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab")
+    .pressKey("tab tab tab")
 
     // go to the body and fill it in
-    .pressKey("tab")
-    .pressKey("tab")
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
+    .pressKey("tab tab 5")
 
     // go to the rhs and fill it in
-    .pressKey("tab")
-    .typeText("#entry-box", "5")
-    .pressKey("enter")
+    .pressKey("tab tab 5")
 
     // fill in the var
-    .typeText("#entry-box", "myvar")
-    .pressKey("enter");
-});
-
-test("focus_on_ast_in_new_empty_tl", async t => {
-  await createRepl(t);
-});
-
-test("focus_on_cond_in_new_tl_with_if", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "if").pressKey("enter");
-});
-
-test("dont_shift_focus_after_filling_last_blank", async t => {
-  await createHTTPHandler(t);
-  await t
-    .typeText("#entry-box", "GET")
-    .pressKey("enter")
-    .typeText("#entry-box", "/")
-    .pressKey("enter")
-    .typeText("#entry-box", "5")
-    .pressKey("enter");
+    .pressKey("tab m y v a r");
 });
 
 test("rename_db_fields", async t => {
@@ -566,16 +411,9 @@ test("rename_db_fields", async t => {
   // rename
   await t
     .click(Selector(".name").withText("field1"))
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "field6")
-    .pressKey("tab")
-    .pressKey("esc");
+    .pressKey("enter");
 
   // add data and check we can't rename again
   await callBackend(user_content_url(t, "/add"));
@@ -606,10 +444,7 @@ test("rename_db_type", async t => {
   // rename
   await t
     .click(Selector(".type").withText("Int"))
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "String")
     .pressKey("enter");
 
@@ -642,41 +477,6 @@ test("paste_right_number_of_blanks", async t => {
     .pressKey("meta+v")
 });
 
-
-test("paste_keeps_focus", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .pressKey("+")
-    .pressKey("enter")
-    .pressKey("3")
-    .pressKey("enter")
-    .pressKey("2")
-
-    .click(Selector('.fnname').withText('+'))
-    .pressKey("enter")
-    .pressKey("meta+c")
-    .pressKey("right")
-    .pressKey("right")
-    .pressKey("meta+v")
-});
-
-test("nochange_for_failed_paste", async t => {
-  await t
-    .pressKey("enter")
-    .pressKey("enter")
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .pressKey("x")
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("enter")
-
-    .click('.letrhs')
-    .pressKey("meta+c")
-    .pressKey("left")
-    .pressKey("meta+v")
-});
 */
 
 /* Disable for now, will bring back as command palette fn
@@ -752,79 +552,6 @@ test("feature_flag_in_function", async t => {
     .expect(available(".tl-180770093")).ok()
 });
 */
-test("simple_tab_ordering", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .pressKey("tab")
-    .pressKey("4")
-    .pressKey("enter");
-});
-
-test("variable_extraction", async t => {
-  await t
-    .click(Selector(".fnname").withText("+"))
-    .pressKey("ctrl+shift+l")
-    .typeText("#entry-box", "new_variable")
-    .pressKey("enter");
-});
-
-// Entering text with invalid syntax leaves things the same
-test("invalid_syntax", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "in:valid").pressKey("enter");
-});
-
-// When you edit, stay in the same place after pressing Enter
-test("editing_stays_in_same_place_with_enter", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("enter");
-});
-
-// When you edit, go to the next blank after pressing Tab
-test("editing_goes_to_next_with_tab", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("tab");
-});
-
-// When you press shift+enter, start a thread
-test("editing_starts_a_thread_with_shift_enter", async t => {
-  await t
-    .click(Selector(".letrhs"))
-    .pressKey("enter")
-    .pressKey("2")
-    .pressKey("shift+enter");
-});
-
-test("object_literals_work", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "{")
-    .pressKey("enter")
-    .typeText("#entry-box", "k1")
-    .pressKey("tab")
-    .pressKey("tab")
-    .typeText("#entry-box", "k2")
-    .pressKey("enter")
-    .typeText("#entry-box", "2")
-    .pressKey("tab")
-    .typeText("#entry-box", "k3")
-    .pressKey("enter")
-    .typeText("#entry-box", "3")
-    .pressKey("tab")
-    .typeText("#entry-box", "k4") // Check that this opens a new row
-    .pressKey("tab") // Skip the new stuff
-    .pressKey("tab")
-    .pressKey("tab");
-});
-
 test("rename_function", async t => {
   const fnNameBlankOr = ".fn-name-content";
   await t
@@ -832,54 +559,18 @@ test("rename_function", async t => {
     .expect(available(fnNameBlankOr))
     .ok({ timeout: 1000 })
     .click(Selector(fnNameBlankOr))
-    .pressKey("backspace")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "hello")
     .pressKey("enter");
 });
 
-test("rename_pattern_variable", async t => {
-  await t
-    .click(Selector(".letvarname"))
-    .pressKey("backspace")
-    .typeText("#entry-box", "foo")
-    .pressKey("enter")
-    .click(
-      Selector(".matchexpr .matchcase")
-        .nth(1)
-        .child(0),
-    )
-    .pressKey("enter")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .pressKey("backspace")
-    .typeText("#entry-box", "bar")
-    .pressKey("enter");
-});
-
-test("taking_off_rail_works", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", "List::head_v2")
-    .pressKey("enter")
-    .typeText("#entry-box", "[")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("shift+up")
-    .pressKey("shift+up")
-    .pressKey("alt+shift+e");
-});
-
 test("execute_function_works", async t => {
   await createRepl(t);
-  await t
-    .typeText("#entry-box", "Uuid::gen")
-    .pressKey("enter")
-    .click(Selector(".execution-button-needed"))
-    .click(Selector(".fncall"));
+  await t.pressKey("U u i d : : g e n enter").click(Selector(".execution-button-needed"));
 
   let v1 = await Selector(".selected .live-value").innerText;
 
-  await t.click(Selector(".fa-redo")).click(Selector(".fncall"));
+  await t.click(Selector(".fa-redo"));
 
   let v2 = await Selector(".selected .live-value").innerText;
 
@@ -892,42 +583,17 @@ test("execute_function_works", async t => {
 test("function_version_renders", async t => {
   await createRepl(t);
   await t
-    .typeText("#entry-box", "DB::del")
-    .expect(
-      Selector(".autocomplete-item.highlighted .versioned-function").withText(
-        "DB::deleteAll1",
-      ),
-    )
+    .pressKey("D B : :  d e l")
+    .expect(Selector(".autocomplete-item.fluid-selected .version").withText("v1"))
     .ok();
-});
-
-test("only_backspace_out_of_strings_on_last_char", async t => {
-  await createRepl(t);
-  await t
-    .typeText("#entry-box", '"t')
-    .pressKey("backspace")
-    .pressKey("tab") // moved selection to a different blank
-    // test that it's an empty string. Note this needs to not be selected or
-    // the livevalue will be in textcontent occasionally, breaking the test.
-    .expect(Selector(".ast .tstr").textContent)
-    .eql('""')
-    .click(Selector(".ast .tstr"))
-    .pressKey("enter")
-    .pressKey("backspace");
-  // we should have gone over the backspace - checking in client
 });
 
 test("delete_db_col", async t => {
   await t.click(Selector(".delete-col"));
 });
 
-test("result_ok_roundtrips", async t => {
-  await createRepl(t);
-  await t.typeText("#entry-box", "Ok").pressKey("enter");
-});
-
 test("cant_delete_locked_col", async t => {
-  await t.click(Selector(".fncall .namegroup")); // this click is required due to caching
+  await t.click(Selector(".fluid-fn-name")); // this click is required due to caching
   await Selector(".execution-button-needed", { timeout: 5000 })();
   await t
     .expect(Selector(".execution-button-needed").exists)
@@ -981,7 +647,7 @@ test("function_analysis_works", async t => {
     .navigateTo("#fn=1039370895")
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
-    .click(Selector(".user-fn-toplevel .ast > div"))
+    .click(Selector(".user-fn-toplevel #fluid-editor .fluid-binop"))
     .expect(Selector(".selected .live-value").textContent)
     .eql("10", { timeout: 5000 });
 });
@@ -1002,15 +668,6 @@ test("fourohfours_parse", async t => {
   await sendPushEvent();
 });
 
-test("return_to_architecture_on_deselect", async t => {
-  await t
-    .navigateTo("#handler=123")
-    .expect(available(".tl-123"))
-    .ok({ timeout: 1000 });
-
-  await t.pressKey("esc");
-});
-
 test("fn_page_to_handler_pos", async t => {
   await t
     .navigateTo("#fn=890")
@@ -1029,7 +686,7 @@ test("fn_page_to_handler_pos", async t => {
 test("autocomplete_visible_height", async t => {
   await createRepl(t);
   await t
-    .typeText("#entry-box", "r")
+    .pressKey("r")
     .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
     .ok();
 });
@@ -1046,9 +703,9 @@ test("extract_from_function", async t => {
     .navigateTo("#fn=123")
     .expect(available(".tl-123"))
     .ok()
-    .click(Selector(".user-fn-toplevel .ast > div"))
-    .pressKey(":")
-    .typeText("#entry-box", "extract-function")
+    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
+    .pressKey("alt+x")
+    .typeText("#cmd-filter", "extract-function")
     .pressKey("enter");
 });
 
@@ -1197,11 +854,13 @@ test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
     .click(Selector(".spec-header > .handler-name"))
-    .pressKey("enter")
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", ":a")
-    .pressKey("enter");
+    .expect(acHighlightedText("/:a"))
+    .ok()
+    .pressKey("tab a enter");
 
-  await t.expect(Selector(".data").textContent).contains("a: <Incomplete>");
+  await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
 });
 
 test("center_toplevel", async t => {
@@ -1213,15 +872,11 @@ test("center_toplevel", async t => {
 
 test("max_callstack_bug", async t => {
   await createRepl(t);
+  await gotoAST(t);
   await t
-    .typeText("#entry-box", "List::range")
-    .pressKey("enter")
-    .typeText("#entry-box", "0")
-    .pressKey("enter")
-    // I don't know what the threshold is exactly, but 1500 didn't tickle the
-    // bug
-    .typeText("#entry-box", "2000")
-    .pressKey("enter");
+    // I don't know what the threshold is exactly, but 1500 didn't tickle
+    // the bug
+    .pressKey("L i s t : : r a n g e space 0 space 2 0 0 0 space");
 });
 
 test("sidebar_opens_function", async t => {
@@ -1234,12 +889,6 @@ test("sidebar_opens_function", async t => {
     .click(Selector(".sidebar-section.fns a[href='#fn=1352039682']"))
     .expect(getPageUrl())
     .match(/.+#fn=1352039682$/, "Url is incorrect");
-});
-
-// model logic in client/src/IntegrationTest.ml
-test("tobytes_roundtrip", async t => {
-  await t.navigateTo("#handler=1115444997");
-  await t.click(Selector(".fncall"));
 });
 
 // This runs through
@@ -1259,9 +908,8 @@ test("sha256hmac_for_aws", async t => {
     .navigateTo("#handler=1471262983")
     .click(Selector("div.handler-trigger"))
     .click(Selector("div.handler-trigger"));
-  await t.click(Selector(".id-1825632293"));
   await t
-    .expect(Selector("div.live-value").innerText)
+    .expect(Selector(".return-value").innerText)
     .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
 });
 
@@ -1294,7 +942,7 @@ test("fluid_tabbing_from_an_http_handler_spec_to_ast", async t => {
     .pressKey("tab") // verb -> route
     .pressKey("tab") // route -> ast
     .pressKey("r") // enter AC
-    .expect(fluidAcSelectedText("request"))
+    .expect(fluidAcHighlightedText("request"))
     .ok();
 });
 

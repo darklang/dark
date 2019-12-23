@@ -354,19 +354,17 @@ and handlerProp j : handlerProp =
   ; showActions = field "showActions" bool j }
 
 
-and editorSettings j : editorSettings =
-  { runTimers = field "runTimers" bool j
-  ; showFluidDebugger = field "showFluidDebugger" bool j }
-
-
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always use withDefault or optional because the field might be missing due
    * to old editors or new fields.  *)
   { editorSettings =
-      withDefault
-        {runTimers = true; showFluidDebugger = false}
-        (field "editorSettings" editorSettings)
-        j
+      { runTimers =
+          withDefault true (field "editorSettings" (field "runTimers" bool)) j
+      ; showFluidDebugger =
+          withDefault
+            false
+            (field "editorSettings" (field "showFluidDebugger" bool))
+            j }
   ; cursorState = withDefault Deselected (field "cursorState" cursorState) j
   ; routingTableOpenDetails =
       withDefault StrSet.empty (field "routingTableOpenDetails" tcStrSet) j
