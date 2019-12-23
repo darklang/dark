@@ -850,6 +850,7 @@ test("varnames_are_incomplete", async t => {
   await t
     .click(".toplevel")
     .click(Selector(".spec-header > .handler-name"))
+    .pressKey("ctrl+a backspace")
     .typeText("#entry-box", ":a")
     .expect(acHighlightedText("/:a")).ok()
     .pressKey("tab a enter");
