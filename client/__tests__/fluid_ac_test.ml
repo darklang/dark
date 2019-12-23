@@ -234,49 +234,6 @@ let itemPresent (aci : AC.autocompleteItem) (ac : AC.autocomplete) : bool =
   List.member ~value:aci ac.completions
 
 
-let fromFluidACI (aci : fluidAutocompleteItem) : Types.autocompleteItem option
-    =
-  match aci with
-  | FACFunction f ->
-      Some (ACFunction f)
-  | FACConstructorName (name, _) ->
-      Some (ACConstructorName name)
-  | FACField name ->
-      Some (ACField name)
-  | FACVariable (name, dv) ->
-      Some (ACVariable (name, dv))
-  | FACLiteral lit ->
-      Some (ACLiteral lit)
-  | FACKeyword kw ->
-      Some (ACKeyword kw)
-  | FACPattern _ ->
-      None
-
-
-let fromFluidAC (ac : fluidAutocompleteState) : Types.autocomplete =
-  let value =
-    match ac.query with
-    | Some (_, ti) ->
-        FluidToken.toText ti.token
-    | None ->
-        ""
-  in
-  { functions = ac.functions
-  ; admin = false
-  ; completions = ac.completions |> List.map ~f:fromFluidACI |> Option.values
-  ; invalidCompletions =
-      ac.invalidCompletions |> List.map ~f:fromFluidACI |> Option.values
-  ; allCompletions =
-      ac.allCompletions |> List.map ~f:fromFluidACI |> Option.values
-  ; index = (match ac.index with Some x -> x | None -> -1)
-  ; value
-  ; prevValue = ""
-  ; target = None
-  ; targetDval = None
-  ; isCommandMode = false
-  ; visible = ac.index = None }
-
-
 let run () =
   describe "autocomplete" (fun () ->
       describe "validate httpName varnames" (fun () ->
@@ -600,7 +557,7 @@ let run () =
                 && List.member ~value:(FACConstructorName ("Error", 1)) valid
                 )
               |> toEqual true ) ;*)
-          test "Constructors are also available in Any blankOr" (fun () ->
+          test "Constructors are also available in Any expression" (fun () ->
               let m = enteringHandler () in
               let ac = acFor m in
               let valid, _invalid =

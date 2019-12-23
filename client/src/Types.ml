@@ -897,35 +897,33 @@ and omniAction =
   | Goto of page * tlid * displayText * isDynamic
 
 and autocompleteItem =
-  | ACFunction of function_
-  | ACConstructorName of string
-  | ACField of string
-  | ACVariable of varName * dval option
-  | ACLiteral of literal
   | ACOmniAction of omniAction
-  | ACKeyword of keyword
   | ACCommand of command
+  (* HTTP *)
   | ACHTTPModifier of string
   | ACHTTPRoute of string
+  (* Workers *)
   | ACWorkerName of string
+  | ACEventSpace of string
+  | ACEventModifier of string
+  (* Repl *)
   | ACReplName of string
+  (* CRON *)
   | ACCronName of string
   | ACCronTiming of string
-  | ACEventSpace of string
+  (* DBs *)
   | ACDBName of string
   | ACDBColType of string
-  | ACParamTipe of tipe
-  | ACTypeFieldTipe of tipe
   | ACDBColName of string
-  | ACExpr of string
-  | ACVarBind of string
-  | ACEventModifier of string
-  | ACKey of string
-  | ACFFMsg of string
-  | ACFnName of string
+  (* User functions *)
+  | ACFnName of (* This is the name of a user function *) string
   | ACParamName of string
+  | ACParamTipe of tipe
+  (* User types *)
+  | ACTypeFieldTipe of tipe
   | ACTypeName of string
   | ACTypeFieldName of string
+  (* Groups *)
   | ACGroupName of string
 
 and target = tlid * pointerData
@@ -934,13 +932,11 @@ and autocomplete =
   { functions : function_ list
   ; admin : bool
   ; completions : autocompleteItem list
-  ; invalidCompletions : autocompleteItem list
   ; allCompletions : autocompleteItem list
   ; index : int
   ; value : string
   ; prevValue : string
   ; target : target option
-  ; targetDval : dval option
   ; isCommandMode : bool
   ; visible : bool }
 

@@ -97,13 +97,6 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
       ~f:(fun i item ->
         let highlighted = index = i in
         let name = Autocomplete.asName item in
-        let view item =
-          match item with
-          | ACFunction _ ->
-              viewFnName false name
-          | _ ->
-              Html.span [Html.class' "name"] [Html.text name]
-        in
         let typeStr = Autocomplete.asTypeString item in
         let specialClass = Autocomplete.asTypeClass item in
         Html.li
@@ -117,14 +110,11 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
                 AutocompleteClick i ) ]
-          [view item; Html.span [Html.class' "types"] [Html.text typeStr]] )
+          [ Html.span [Html.class' "name"] [Html.text name]
+          ; Html.span [Html.class' "types"] [Html.text typeStr] ] )
       acis
   in
-  let invalidIndex = ac.index - List.length ac.completions in
-  let autocompleteList =
-    toList ac.completions "valid" ac.index
-    @ toList ac.invalidCompletions "invalid" invalidIndex
-  in
+  let autocompleteList = toList ac.completions "valid" ac.index in
   let autocomplete =
     Html.ul [Attributes.id "autocomplete-holder"] autocompleteList
   in

@@ -386,24 +386,10 @@ let viewBlankOr
             else StringEntryNormalWidth
           in
           let placeholder = placeHolderFor vs id pt in
-          let liveValue =
-            let valFor =
-              Autocomplete.highlighted vs.ac
-              |> Option.andThen ~f:(fun aci ->
-                     match aci with ACVariable (_, v) -> v | _ -> None )
-            in
-            let valStr =
-              match valFor with Some v -> Runtime.toRepr v | None -> ""
-            in
-            if vs.ac.visible && Option.isSome valFor
-            then Html.div [Html.class' "live-value ac"] [Html.text valStr]
-            else Vdom.noNode
-          in
           div
             vs
             (c @ wID id)
-            [ liveValue
-            ; ViewEntry.entryHtml
+            [ ViewEntry.entryHtml
                 allowStringEntry
                 stringEntryWidth
                 placeholder
