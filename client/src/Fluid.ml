@@ -6230,7 +6230,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   ; errorRail ]
 
 
-let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
+let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
   let tokens = toTokens s ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
@@ -6329,7 +6329,10 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             (List.map s.actions ~f:(fun txt -> Html.li [] [Html.text txt])) ]
     ]
   in
-  let status = List.concat [posData; error; tokenData; actions] in
+  let cursorState =
+    [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
+  in
+  let status = List.concat [posData; error; tokenData; actions; cursorState] in
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
 
 

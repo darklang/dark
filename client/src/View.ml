@@ -461,7 +461,7 @@ let view (m : model) : msg Html.html =
   let ast = TL.selectedAST m |> Option.withDefault ~default:(Blank.new_ ()) in
   let fluidStatus =
     if m.editorSettings.showFluidDebugger
-    then [Fluid.viewStatus (Fluid.fromExpr m.fluidState ast) m.fluidState]
+    then [Fluid.viewStatus m (Fluid.fromExpr m.fluidState ast) m.fluidState]
     else []
   in
   let viewDocs =
