@@ -413,7 +413,15 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newM =
           let error =
             if ApiError.shouldDisplayToUser apiError
-            then Some (ApiError.msg apiError)
+            then (
+              let msg = ApiError.msg apiError in
+              (* This message is deep in the server code and hard to pull
+               * out, so just ignore for now *)
+              Js.log "Already at latest undo - ignoring server error" ;
+              if msg
+                 = "Bad status: Internal Server Error -  (client): Already at latest redo (RPC)"
+              then None
+              else Some msg )
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
