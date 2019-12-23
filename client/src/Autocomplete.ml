@@ -185,21 +185,6 @@ let asString (aci : autocompleteItem) : string = asName aci ^ asTypeString aci
 (* ---------------------------- *)
 (* External: utils *)
 (* ---------------------------- *)
-let findFunction (a : autocomplete) (name : string) : function_ option =
-  List.find ~f:(fun f -> f.fnName = name) a.functions
-
-
-let isStringEntry (a : autocomplete) : bool =
-  String.startsWith ~prefix:"\"" a.value
-
-
-let isLargeStringEntry (a : autocomplete) : bool =
-  isStringEntry a && String.contains ~substring:"\n" a.value
-
-
-let isSmallStringEntry (a : autocomplete) : bool =
-  isStringEntry a && not (isLargeStringEntry a)
-
 
 (* Return different type if possible *)
 let highlighted (a : autocomplete) : autocompleteItem option =
@@ -850,11 +835,7 @@ let setQuery (m : model) (q : string) (a : autocomplete) : autocomplete =
 
 
 let appendQuery (m : model) (str : string) (a : autocomplete) : autocomplete =
-  let q =
-    if isStringEntry a
-    then String.dropRight ~count:1 a.value ^ str ^ "\""
-    else a.value ^ str
-  in
+  let q = a.value ^ str in
   setQuery m q a
 
 
