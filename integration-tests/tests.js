@@ -24,6 +24,15 @@ async function fixBrowserSize(t) {
   await t.resizeWindow(1600, 1200);
 }
 
+async function setDebugging(t) {
+  let key = `editorState-test-${t.testRun.test.name}`;
+  let value = '{"editorSettings":{"showFluidDebugger":true}}'
+  const setLocalStorageItem = ClientFunction((key, value) => {
+    localStorage.setItem(key, value);
+  });
+  await setLocalStorageItem(key, value);
+}
+
 fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
@@ -31,8 +40,9 @@ fixture`Integration Tests`
     await fixBrowserSize(t);
     startXvfb(testname);
     var url = `${BASE_URL}${testname}?integration-test=true`;
+    await t.navigateTo(url);
+    await setDebugging(t);
     await t
-      .navigateTo(url)
       .typeText("#username", "test")
       .typeText("#password", "fVm2CUePzGKCwoEQQdNJktUQ")
       .pressKey("enter");
