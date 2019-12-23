@@ -407,11 +407,9 @@ test("rename_db_fields", async t => {
   // rename
   await t
     .click(Selector(".name").withText("field1"))
-    .pressKey("enter")
     .pressKey("ctrl+a backspace")
     .typeText("#entry-box", "field6")
-    .pressKey("tab")
-    .pressKey("esc");
+    .pressKey("enter")
 
   // add data and check we can't rename again
   await callBackend(user_content_url(t, "/add"));
@@ -645,7 +643,7 @@ test("function_analysis_works", async t => {
     .navigateTo("#fn=1039370895")
     .expect(available(".user-fn-toplevel"))
     .ok({ timeout: 1000 })
-    .click(Selector(".user-fn-toplevel #fluid-editor > span"))
+    .click(Selector(".user-fn-toplevel #fluid-editor .fluid-binop"))
     .expect(Selector(".selected .live-value").textContent)
     .eql("10", { timeout: 5000 });
 });
@@ -683,10 +681,9 @@ test("fn_page_to_handler_pos", async t => {
 
 test("autocomplete_visible_height", async t => {
   await createRepl(t);
-  await gotoAST(t);
   await t
     .pressKey("r")
-    .expect(Selector("li.autocomplete-item.fluid-selected.valid").nth(5).visible)
+    .expect(Selector("li.autocomplete-item.valid").nth(5).visible)
     .ok();
 });
 
@@ -854,6 +851,7 @@ test("varnames_are_incomplete", async t => {
     .click(".toplevel")
     .click(Selector(".spec-header > .handler-name"))
     .typeText("#entry-box", ":a")
+    .expect(acHighlightedText("/:a")).ok()
     .pressKey("tab a enter");
 
   await t.expect(Selector(".live-value").textContent).contains("<Incomplete>");
@@ -872,7 +870,7 @@ test("max_callstack_bug", async t => {
   await t
     // I don't know what the threshold is exactly, but 1500 didn't tickle
     // the bug
-    .pressKey("L i s t : : r a n g e space 0 space 2000 space");
+    .pressKey("L i s t : : r a n g e space 0 space 2 0 0 0 space");
 });
 
 test("sidebar_opens_function", async t => {
@@ -904,9 +902,8 @@ test("sha256hmac_for_aws", async t => {
     .navigateTo("#handler=1471262983")
     .click(Selector("div.handler-trigger"))
     .click(Selector("div.handler-trigger"));
-  await t.click(Selector(".id-1825632293"));
   await t
-    .expect(Selector("div.live-value").innerText)
+    .expect(Selector(".return-value").innerText)
     .eql('"5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"');
 });
 
