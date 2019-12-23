@@ -822,6 +822,100 @@ let eToStructure ?(includeIDs = false) (s : state) (e : E.t) : string =
   |> String.join ~sep:""
 
 
+type neighbour =
+  | L of token * tokenInfo
+  | R of token * tokenInfo
+  | No
+
+let rec getTokensAtPosition
+    ?(prev = None) ~(pos : int) (tokens : tokenInfo list) :
+    tokenInfo option * tokenInfo option * tokenInfo option =
+  (* Get the next token and the remaining tokens, skipping indents. *)
+  let rec getNextToken (infos : tokenInfo list) :
+      tokenInfo option * tokenInfo list =
+    match infos with
+    | ti :: rest ->
+        if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
+    | [] ->
+        (None, [])
+  in
+  match getNextToken tokens with
+  | None, _remaining ->
+      (prev, None, None)
+  | Some current, remaining ->
+      if current.endPos > pos
+      then
+        let next, _ = getNextToken remaining in
+        (prev, Some current, next)
+      else getTokensAtPosition ~prev:(Some current) ~pos remaining
+
+
+(* -------------------- *)
+(* Nearby tokens *)
+(* -------------------- *)
+let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
+    neighbour * neighbour * tokenInfo option =
+  let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
+  let toTheRight =
+    match mCurrent with Some current -> R (current.token, current) | _ -> No
+  in
+  (* The token directly before the cursor (skipping whitespace) *)
+  let toTheLeft =
+    match (mPrev, mCurrent) with
+    | Some prev, _ when prev.endPos >= pos ->
+        L (prev.token, prev)
+    (* The left might be separated by whitespace *)
+    | Some prev, Some current when current.startPos >= pos ->
+        L (prev.token, prev)
+    | None, Some current when current.startPos < pos ->
+        (* We could be in the middle of a token *)
+        L (current.token, current)
+    | None, _ ->
+        No
+    | _, Some current ->
+        L (current.token, current)
+    | Some prev, None ->
+        (* Last position in the ast *)
+        L (prev.token, prev)
+  in
+  (toTheLeft, toTheRight, mNext)
+
+
+let getToken (s : fluidState) (ast : ast) : tokenInfo option =
+  let tokens = toTokens s ast in
+  let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
+  (* The algorithm that decides what token on when a certain key is pressed is
+   * in updateKey. It's pretty complex and it tells us what token a keystroke
+   * should apply to. For all other places that need to know what token we're
+   * on, this attemps to approximate that.
+
+   * The cursor at newPos is either in a token (eg 3 chars into "myFunction"),
+   * or between two tokens (eg 1 char into "4 + 2").
+
+   * If we're between two tokens, we decide by looking at whether the left
+   * token is a text token. If it is, it's likely that we're just typing.
+   * Otherwise, the important token is probably the right token.
+   *
+   * Example: `4 + 2`, when the cursor is at position: 0): 4 is to the right,
+   * nothing to the left. Choose 4 1): 4 is a text token to the left, choose 4
+   * 2): the token to the left is not a text token (it's a TSep), so choose +
+   * 3): + is a text token to the left, choose + 4): 2 is to the right, nothing
+   * to the left. Choose 2 5): 2 is a text token to the left, choose 2
+   *
+   * Reminder that this is an approximation. If we find bugs we may need to go
+   * much deeper.
+   *)
+  match (toTheLeft, toTheRight) with
+  | L (_, ti), _ when T.isTextToken ti.token ->
+      Some ti
+  | _, R (_, ti) ->
+      Some ti
+  | L (_, ti), _ ->
+      Some ti
+  | _ ->
+      None
+
+
 (* -------------------- *)
 (* Patterns *)
 (* -------------------- *)
@@ -895,62 +989,6 @@ let length (tokens : token list) : int =
 
 let getLeftTokenAt (newPos : int) (tis : tokenInfo list) : tokenInfo option =
   List.find ~f:(fun ti -> newPos <= ti.endPos && newPos >= ti.startPos) tis
-
-
-type neighbour =
-  | L of token * tokenInfo
-  | R of token * tokenInfo
-  | No
-
-let rec getTokensAtPosition
-    ?(prev = None) ~(pos : int) (tokens : tokenInfo list) :
-    tokenInfo option * tokenInfo option * tokenInfo option =
-  (* Get the next token and the remaining tokens, skipping indents. *)
-  let rec getNextToken (infos : tokenInfo list) :
-      tokenInfo option * tokenInfo list =
-    match infos with
-    | ti :: rest ->
-        if T.isSkippable ti.token then getNextToken rest else (Some ti, rest)
-    | [] ->
-        (None, [])
-  in
-  match getNextToken tokens with
-  | None, _remaining ->
-      (prev, None, None)
-  | Some current, remaining ->
-      if current.endPos > pos
-      then
-        let next, _ = getNextToken remaining in
-        (prev, Some current, next)
-      else getTokensAtPosition ~prev:(Some current) ~pos remaining
-
-
-let getNeighbours ~(pos : int) (tokens : tokenInfo list) :
-    neighbour * neighbour * tokenInfo option =
-  let mPrev, mCurrent, mNext = getTokensAtPosition ~pos tokens in
-  let toTheRight =
-    match mCurrent with Some current -> R (current.token, current) | _ -> No
-  in
-  (* The token directly before the cursor (skipping whitespace) *)
-  let toTheLeft =
-    match (mPrev, mCurrent) with
-    | Some prev, _ when prev.endPos >= pos ->
-        L (prev.token, prev)
-    (* The left might be separated by whitespace *)
-    | Some prev, Some current when current.startPos >= pos ->
-        L (prev.token, prev)
-    | None, Some current when current.startPos < pos ->
-        (* We could be in the middle of a token *)
-        L (current.token, current)
-    | None, _ ->
-        No
-    | _, Some current ->
-        L (current.token, current)
-    | Some prev, None ->
-        (* Last position in the ast *)
-        L (prev.token, prev)
-  in
-  (toTheLeft, toTheRight, mNext)
 
 
 type gridPos =
@@ -3932,19 +3970,12 @@ let wrapInLet (ti : tokenInfo) (ast : ast) (s : state) : E.t * fluidState =
 
 
 let maybeOpenCmd (m : Types.model) : Types.modification =
-  let getCurrentToken tokens =
-    let _, mCurrent, _ = getTokensAtPosition tokens ~pos:m.fluidState.newPos in
-    mCurrent
-  in
   Toplevel.selected m
   |> Option.andThen ~f:(fun tl ->
          TL.rootExpr tl
-         |> Option.andThen ~f:(fun ast -> Some (fromExpr m.fluidState ast))
-         |> Option.andThen ~f:(fun ast -> Some (toTokens m.fluidState ast))
-         |> Option.withDefault ~default:[]
-         |> getCurrentToken
-         |> Option.andThen ~f:(fun ti ->
-                Some (FluidCommandsShow (TL.id tl, ti.token)) ) )
+         |> Option.map ~f:(fromExpr m.fluidState)
+         |> Option.andThen ~f:(getToken m.fluidState)
+         |> Option.map ~f:(fun ti -> FluidCommandsShow (TL.id tl, ti.token)) )
   |> Option.withDefault ~default:NoChange
 
 
@@ -4180,7 +4211,8 @@ let rec updateKey ?(recursing = false) (key : K.key) (ast : ast) (s : state) :
           |> Option.withDefault ~default:(ast, s)
         in
         ( match left with
-        | L (TPartial _, ti) when Option.is_some (AC.highlighted s.ac) ->
+        | (L (TPartial _, ti) | L (TFieldPartial _, ti))
+          when Option.is_some (AC.highlighted s.ac) ->
             let ast, s = acEnter ti ast s K.Enter in
             doPipeline ast s
         | _ ->
@@ -4624,41 +4656,6 @@ and deleteCaretRange ~state ~(ast : ast) (caretRange : int * int) :
    forming the selection until the caret reaches the smaller of the caret positions or can no longer move. *)
 and deleteSelection ~state ~(ast : ast) : E.t * fluidState =
   fluidGetSelectionRange state |> deleteCaretRange ~state ~ast
-
-
-let getToken (s : fluidState) (ast : ast) : tokenInfo option =
-  let tokens = toTokens s ast in
-  let toTheLeft, toTheRight, _ = getNeighbours ~pos:s.newPos tokens in
-  (* The algorithm that decides what token on when a certain key is pressed is
-   * in updateKey. It's pretty complex and it tells us what token a keystroke
-   * should apply to. For all other places that need to know what token we're
-   * on, this attemps to approximate that.
-
-   * The cursor at newPos is either in a token (eg 3 chars into "myFunction"),
-   * or between two tokens (eg 1 char into "4 + 2").
-
-   * If we're between two tokens, we decide by looking at whether the left
-   * token is a text token. If it is, it's likely that we're just typing.
-   * Otherwise, the important token is probably the right token.
-   *
-   * Example: `4 + 2`, when the cursor is at position: 0): 4 is to the right,
-   * nothing to the left. Choose 4 1): 4 is a text token to the left, choose 4
-   * 2): the token to the left is not a text token (it's a TSep), so choose +
-   * 3): + is a text token to the left, choose + 4): 2 is to the right, nothing
-   * to the left. Choose 2 5): 2 is a text token to the left, choose 2
-   *
-   * Reminder that this is an approximation. If we find bugs we may need to go
-   * much deeper.
-   *)
-  match (toTheLeft, toTheRight) with
-  | L (_, ti), _ when T.isTextToken ti.token ->
-      Some ti
-  | _, R (_, ti) ->
-      Some ti
-  | L (_, ti), _ ->
-      Some ti
-  | _ ->
-      None
 
 
 let updateAutocomplete m tlid ast s : fluidState =
@@ -6233,7 +6230,7 @@ let viewAST ~(vs : ViewUtils.viewState) (ast : ast) : Types.msg Html.html list
   ; errorRail ]
 
 
-let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
+let viewStatus (m : model) (ast : ast) (s : state) : Types.msg Html.html =
   let tokens = toTokens s ast in
   let ddText txt = Html.dd [] [Html.text txt] in
   let dtText txt = Html.dt [] [Html.text txt] in
@@ -6332,7 +6329,10 @@ let viewStatus (ast : ast) (s : state) : Types.msg Html.html =
             (List.map s.actions ~f:(fun txt -> Html.li [] [Html.text txt])) ]
     ]
   in
-  let status = List.concat [posData; error; tokenData; actions] in
+  let cursorState =
+    [dtText "cursorState"; ddText (show_cursorState m.cursorState)]
+  in
+  let status = List.concat [posData; error; tokenData; actions; cursorState] in
   Html.div [Attrs.id "fluid-status"] [Html.dl [] status]
 
 
