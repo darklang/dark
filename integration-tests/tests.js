@@ -78,7 +78,6 @@ fixture`Integration Tests`
     const signal = Selector("#integrationTestSignal");
     let flushLogs = async () => {
       const { log, warn, error, info } = await t.getBrowserConsoleMessages();
-      console.error("msg/mod logs for: " + testname);
       const msgs = Array.concat(
         ["Console Logs:"],
         log,
