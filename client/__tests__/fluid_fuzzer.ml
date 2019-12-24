@@ -236,8 +236,7 @@ and generateExpr () =
   | 4 ->
       float' (Int.toString (range 5000000)) (Int.toString (range 500000))
   | 5 ->
-      record
-        (generateList () ~f:(fun () -> (generateName (), generateExpr ())))
+      record (generateList () ~f:(fun () -> (generateName (), generateExpr ())))
   | 6 ->
       list (generateList () ~f:generateExpr)
   | 7 ->
@@ -338,7 +337,7 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
     | ELambda (id, names, expr) ->
         let names =
           List.map names ~f:(fun (nid, name) ->
-              if nid = id then (nid, "") else (nid, name) )
+              if nid = id then (nid, "") else (nid, name))
         in
         ELambda (id, names, expr)
     | ERecord (rid, fields) ->
@@ -346,7 +345,7 @@ let rec blankVarNames (id : id) (expr : E.t) : E.t =
           ( rid
           , List.map
               ~f:(fun (fid, name, expr) ->
-                if fid = id then (fid, "", expr) else (fid, name, expr) )
+                if fid = id then (fid, "", expr) else (fid, name, expr))
               fields )
     | _ ->
         expr
@@ -373,7 +372,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
           let names =
             names
             |> List.filterMap ~f:(fun (nid, name) ->
-                   if nid = id then None else Some (nid, name) )
+                   if nid = id then None else Some (nid, name))
             |> fun x -> if x = [] then List.take ~count:1 names else x
           in
           ELambda (id, names, f expr)
@@ -387,7 +386,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
                 ~f:(fun (pattern, expr) ->
                   if E.id expr = id || Fluid.pid pattern = id
                   then None
-                  else Some (pattern, expr) )
+                  else Some (pattern, expr))
                 pairs )
       | ERecord (rid, fields) ->
           ERecord
@@ -396,7 +395,7 @@ let rec remove (id : id) (expr : E.t) : E.t =
                 ~f:(fun (fid, name, expr) ->
                   if E.id expr = id || fid = id
                   then None
-                  else Some (fid, name, expr) )
+                  else Some (fid, name, expr))
                 fields )
       | EPipe (id, exprs) ->
         ( match removeFromList exprs with
@@ -459,7 +458,7 @@ let reduce (test : FuzzTest.t) (ast : E.t) =
                 then Js.log2 "pos is" newState.newPos ;
                 latestAST := reducedAST )
           with e -> Js.log2 "Exception, let's skip this one" e ) ;
-        Js.log "\n" ) ;
+        Js.log "\n") ;
     !latestAST
   in
   let sentinel = Fluid_test_data.int "56756756" in
@@ -503,6 +502,6 @@ let runTest (test : FuzzTest.t) : unit =
             Js.log2 "finished program:\n" text ;
             Js.log2 "structure" (E.show reduced) ;
             fail () )
-          else pass () )
+          else pass ())
     done
   with _ -> ()

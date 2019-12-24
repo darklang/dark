@@ -204,7 +204,7 @@ let fns : Lib.shortfn list =
                          y
                          |> Dval.to_developer_repr_v0
                          |> Format.sprintf "Unknown set-cookie param: %s: %s" x
-                         |> Exception.code )
+                         |> Exception.code)
               (* Combine it into a set-cookie header *)
               |> String.concat ~sep:"; "
               |> Format.sprintf

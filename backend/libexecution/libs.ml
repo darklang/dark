@@ -15,7 +15,7 @@ let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
           | Some v ->
               Exception.internal ("duplicate library function: " ^ n)
           | None ->
-              f ) )
+              f))
     ~init:m
     (f.prefix_names @ f.infix_names)
 
@@ -48,8 +48,8 @@ let get_fn ~(user_fns : RuntimeT.user_fn list) (name : string) :
   FnMap.find (fns user_fns) name
 
 
-let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) :
-    RuntimeT.fn =
+let get_fn_exn ~(user_fns : RuntimeT.user_fn list) (name : string) : RuntimeT.fn
+    =
   match get_fn ~user_fns name with
   | Some fn ->
       fn

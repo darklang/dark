@@ -107,7 +107,7 @@ let ast_for (ast : string) : expr =
      * quotes as \"\\\", so let's "'" instead. (The ocaml parser demands
      * we insert a " here smdh) *)
        Re2.replace_exn quotes s ~f:(fun m ->
-           "\"\\\"" ^ Re2.Match.get_exn ~sub:(`Index 1) m ^ "\\\"\"" ) )
+           "\"\\\"" ^ Re2.Match.get_exn ~sub:(`Index 1) m ^ "\\\"\""))
   |> Sexp.of_string
   (* |> (fun s -> *)
   (*       let b = Buffer.create 16000 in *)

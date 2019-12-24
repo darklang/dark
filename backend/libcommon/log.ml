@@ -282,18 +282,17 @@ let pP
                    [ ( "timer"
                      , `Float ((Unix.gettimeofday () *. 1000.0) -. start) ) ]
                | _ ->
-                   [] )
+                   [])
         |> Option.value ~default:[]
       in
       let params =
         time
         @ thread_params
         @ [ ("name", `String name)
-          (* operation time *)
-          (* timestamp *)
-          (* slow request *)
-          (* ip address *)
-           ]
+            (* operation time *)
+            (* timestamp *)
+            (* slow request *)
+            (* ip address *) ]
         @ data_param
         @ jsonparams
         @ List.map params (fun (k, v) -> (k, `String v))

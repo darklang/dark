@@ -26,7 +26,7 @@ let fail_fn (fnname : string) (fn : fn) (args : dval list) ?msg () : dval =
   let all = List.zip_exn fn.parameters args in
   let invalid =
     List.filter all ~f:(fun (p, a) ->
-        Dval.tipe_of a <> p.tipe && p.tipe <> TAny )
+        Dval.tipe_of a <> p.tipe && p.tipe <> TAny)
   in
   match invalid with
   | [] ->

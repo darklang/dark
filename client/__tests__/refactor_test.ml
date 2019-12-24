@@ -28,7 +28,8 @@ let run () =
       in
       let model hs =
         { D.defaultModel with
-          builtInFunctions = [f1; f2]; handlers = Handlers.fromList hs }
+          builtInFunctions = [f1; f2]
+        ; handlers = Handlers.fromList hs }
       in
       let handlerWithPointer fnName fnRail =
         let ast = F (ID "ast1", FnCall (B.newF fnName, [], fnRail)) in
@@ -60,7 +61,7 @@ let run () =
             | _ ->
                 false
           in
-          expect res |> toEqual true ) ;
+          expect res |> toEqual true) ;
       test "toggles error-rail-y function onto rail" (fun () ->
           let m, h, pd = init "Result::resulty" NoRail in
           let op = Refactor.putOnRail m (TLHandler h) pd in
@@ -75,12 +76,12 @@ let run () =
             | _ ->
                 false
           in
-          expect res |> toEqual true ) ;
+          expect res |> toEqual true) ;
       test "does not put non-error-rail-y function onto rail" (fun () ->
           let m, h, pd = init "Int::notResulty" NoRail in
           let op = Refactor.putOnRail m (TLHandler h) pd in
           let res = match op with NoChange -> true | _ -> false in
-          expect res |> toEqual true ) ) ;
+          expect res |> toEqual true)) ;
   describe "renameDBReferences" (fun () ->
       let db0 =
         { dbTLID = TLID "db0"
@@ -129,7 +130,7 @@ let run () =
             | _ ->
                 false
           in
-          expect res |> toEqual true ) ;
+          expect res |> toEqual true) ;
       test "datastore renamed, handler does not change" (fun () ->
           let h =
             { ast = F (ID "ast1", Variable "request")
@@ -142,11 +143,12 @@ let run () =
           in
           let model =
             { D.defaultModel with
-              dbs = DB.fromList [db0]; handlers = Handlers.fromList [h] }
+              dbs = DB.fromList [db0]
+            ; handlers = Handlers.fromList [h] }
           in
           let ops = R.renameDBReferences model "ElmCode" "WeirdCode" in
-          expect ops |> toEqual [] ) ;
-      () ) ;
+          expect ops |> toEqual []) ;
+      ()) ;
   describe "generateUserType" (fun () ->
       test "with None input" (fun () ->
           expect
@@ -155,7 +157,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true ) ;
+          |> toBe true) ;
       test "with Some non-DObj input" (fun () ->
           expect
             ( match R.generateUserType (Some (DStr "foo")) with
@@ -163,7 +165,7 @@ let run () =
                 false
             | Error _ ->
                 true )
-          |> toBe true ) ;
+          |> toBe true) ;
       test "with Some DObj input" (fun () ->
           let dobj =
             DObj
@@ -189,9 +191,9 @@ let run () =
                                    TDate *)
             ; ("uuid", TUuid)
             ; ("uuidstr", TStr)
-            (* for now, TStr; in future, maybe we coerce to
+              (* for now, TStr; in future, maybe we coerce to
                                    TUuid *)
-             ]
+            ]
             |> List.map ~f:(fun (k, v) -> (Some k, Some v))
             (* sortBy here because the dobj gets sorted - not sure exactly
                where, but order doesn't matter except in this test *)
@@ -204,13 +206,14 @@ let run () =
             | Error _ ->
                 []
             | Ok ut ->
-              ( match ut.utDefinition with UTRecord utr ->
+              ( match ut.utDefinition with
+              | UTRecord utr ->
                   utr
                   |> List.map ~f:(fun urf ->
                          ( urf.urfName |> Blank.toMaybe
-                         , urf.urfTipe |> Blank.toMaybe ) ) )
+                         , urf.urfTipe |> Blank.toMaybe )) )
           in
-          expect fields |> toEqual expectedFields ) ) ;
+          expect fields |> toEqual expectedFields)) ;
   describe "extractVarInAst" (fun () ->
       let par
           ?(paramDescription = "")
@@ -261,7 +264,8 @@ let run () =
         in
         let m =
           { D.defaultModel with
-            builtInFunctions; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
+            builtInFunctions
+          ; handlers = [(hTLID, tl)] |> TLIDDict.fromList }
         in
         let m =
           { m with
@@ -282,7 +286,7 @@ let run () =
           let ast = expr in
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
-          |> toEqual "let var = 4\nvar" ) ;
+          |> toEqual "let var = 4\nvar") ;
       test "with expression inside let" (fun () ->
           let expr =
             B.newF
@@ -294,7 +298,7 @@ let run () =
           let ast = Let (B.newF "b", B.newF (Value "5"), expr) |> B.newF in
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
-          |> toEqual "let b = 5\nlet var = Int::add b 4\nvar" ) ;
+          |> toEqual "let b = 5\nlet var = Int::add b 4\nvar") ;
       test "with expression inside thread inside let" (fun () ->
           let expr =
             FnCall
@@ -302,8 +306,7 @@ let run () =
               , [ B.newF
                     (FieldAccess (B.newF (Variable "request"), B.newF "body"))
                 ; B.newF
-                    (FnCall
-                       (B.newF "toString", [B.newF (Variable "id")], NoRail))
+                    (FnCall (B.newF "toString", [B.newF (Variable "id")], NoRail))
                 ; B.new_ () ]
               , NoRail )
             |> B.newF
@@ -326,5 +329,4 @@ let run () =
           let m, tl = modelAndTl ast in
           expect (R.extractVarInAst m tl expr ast "var" |> exprToString m)
           |> toEqual
-               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"
-      ) )
+               "let id = Uuid::generate\nlet var = DB::setv1 request.body toString id ___________________\nvar\n|>Dict::set \"id\" id\n"))

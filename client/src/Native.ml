@@ -70,8 +70,7 @@ module Ext = struct
   external astPositions : string -> jsRectArr = "positions"
     [@@bs.val] [@@bs.scope "window", "Dark", "ast"]
 
-  external _querySelector :
-    string -> Dom.element Js.Nullable.t
+  external _querySelector : string -> Dom.element Js.Nullable.t
     = "querySelector"
     [@@bs.val] [@@bs.scope "document"]
 
@@ -81,8 +80,7 @@ module Ext = struct
 
   external clientHeight : Dom.element -> int = "clientHeight" [@@bs.get]
 
-  external getBoundingClientRect :
-    Dom.element -> Dom.domRect
+  external getBoundingClientRect : Dom.element -> Dom.domRect
     = "getBoundingClientRect"
     [@@bs.send]
 
@@ -129,7 +127,7 @@ module OffsetEstimator = struct
    *
    * TODO: It's a super hacky estimate based on our common screen size at Dark and the default
    * font size and should be replaced with a proper implementation. But it's done us
-   * okay so far.  *)
+   * okay so far. *)
   let estimateClickOffset (elementID : string) (event : Types.mouseEvent) :
       int option =
     match Js.Nullable.toOption (Web_document.getElementById elementID) with
@@ -160,7 +158,7 @@ module Size = struct
            ; top = int_of_string (Js.Dict.unsafeGet jsRect "top")
            ; left = int_of_string (Js.Dict.unsafeGet jsRect "left")
            ; right = int_of_string (Js.Dict.unsafeGet jsRect "right")
-           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom") } )
+           ; bottom = int_of_string (Js.Dict.unsafeGet jsRect "bottom") })
 
 
   let positions (tlid : string) : list_pos =
@@ -184,8 +182,7 @@ end
 module Window = struct
   external viewportWidth : int = "innerWidth" [@@bs.val] [@@bs.scope "window"]
 
-  external viewportHeight : int = "innerHeight"
-    [@@bs.val] [@@bs.scope "window"]
+  external viewportHeight : int = "innerHeight" [@@bs.val] [@@bs.scope "window"]
 
   external pageWidth : int = "outerWidth" [@@bs.val] [@@bs.scope "window"]
 
@@ -287,7 +284,7 @@ module Decoder = struct
                   Error ("tuple2[1] -> " ^ e2)
             else Error "tuple2 expected array with 2 elements"
         | _ ->
-            Error "tuple2 expected array" )
+            Error "tuple2 expected array")
 
 
   let pair = tuple2
@@ -315,7 +312,7 @@ module Decoder = struct
                   Error ("tuple3[2] -> " ^ e3)
             else Error "tuple3 expected array with 3 elements"
         | _ ->
-            Error "tuple3 expected array" )
+            Error "tuple3 expected array")
 
 
   let triple = tuple3
@@ -346,7 +343,7 @@ module Decoder = struct
                   Error ("tuple4[3] -> " ^ e4)
             else Error "tuple4 expected array with 4 elements"
         | _ ->
-            Error "tuple4 expected array" )
+            Error "tuple4 expected array")
 
 
   let wireIdentifier =
@@ -357,7 +354,7 @@ module Decoder = struct
         | Ok s ->
             Ok s
         | Error _ ->
-            Ok (Js.Json.stringify j) )
+            Ok (Js.Json.stringify j))
 end
 
 module Rollbar = struct

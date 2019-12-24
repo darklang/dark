@@ -34,7 +34,7 @@ let t_redirect_to () =
          x
          |> Uri.of_string
          |> Webserver.redirect_to
-         |> Option.map ~f:Uri.to_string )
+         |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
        ; "https://builtwithdark.com"
@@ -77,7 +77,7 @@ let t_canonicalize_maintains_schemes () =
   |> List.map ~f:(fun (url, (e1, e2, e3)) ->
          [ (url, Header.init (), e1)
          ; (url, Header.init_with "x-forwarded-proto" "http", e2)
-         ; (url, Header.init_with "x-forwarded-proto" "https", e3) ] )
+         ; (url, Header.init_with "x-forwarded-proto" "https", e3) ])
   |> List.concat
   |> List.iter ~f:(fun (url, headers, expected) ->
          AT.check
@@ -87,7 +87,7 @@ let t_canonicalize_maintains_schemes () =
            ( Req.make ~meth:`GET ~headers (Uri.of_string url)
            |> Webserver.canonicalize_request
            |> Req.uri
-           |> Uri.to_string ) )
+           |> Uri.to_string ))
 
 
 let t_bad_ssl_cert _ =
@@ -137,7 +137,7 @@ let t_head_and_get_requests_are_coalesced () =
             | None ->
                 0
             | Some h ->
-                int_of_string h )
+                int_of_string h)
        |> fun content_length -> return (code, (content_length, body_string)))
   in
   let expected_body = "\"test_body\"" in
@@ -156,8 +156,7 @@ let t_head_and_get_requests_are_coalesced () =
        ; Req.make
            ?meth:(Some `HEAD)
            (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-       ])
+              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test")) ])
     [ (200, (expected_content_length, expected_body))
     ; (200, (expected_content_length, "")) ]
 
@@ -180,7 +179,7 @@ let t_authenticate_then_handle_code_and_cookie () =
          Webserver.authenticate_then_handle
            ~execution_id:test_id
            (fun ~session ~csrf_token req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler" )
+             Webserver.respond ~execution_id:test_id `OK "test handler")
            req
            body
        in
@@ -196,9 +195,7 @@ let t_authenticate_then_handle_code_and_cookie () =
                 let first, params = String.lsplit2_exn ~on:';' sc in
                 let name, value = String.lsplit2_exn ~on:'=' first in
                 (* make sure some other cookie isn't getting set *)
-                if name = "__session"
-                then Some (String.lstrip params)
-                else None ) )
+                if name = "__session" then Some (String.lstrip params) else None))
        |> fun x -> return (code, (x, redirect)))
   in
   AT.check
@@ -213,16 +210,16 @@ let t_authenticate_then_handle_code_and_cookie () =
              ~headers:form_encoding
              (Uri.of_string "http://darklang.com/login")
          , form_encoded
-             [ ("username", ["test"])
-             ; ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"]) ] )
+             [("username", ["test"]); ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"])]
+         )
          (* valid basic auth login on localhost *)
        ; ( Req.make
              ~meth:`POST
              ~headers:form_encoding
              (Uri.of_string "http://darklang.localhost/login")
          , form_encoded
-             [ ("username", ["test"])
-             ; ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"]) ] )
+             [("username", ["test"]); ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"])]
+         )
          (* invalid basic auth logins *)
        ; ( Req.make
              ~headers:form_encoding
@@ -234,8 +231,7 @@ let t_authenticate_then_handle_code_and_cookie () =
              ~headers:form_encoding
              (Uri.of_string "http://darklang.com/login")
          , form_encoded
-             [("username", [""]); ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"])]
-         )
+             [("username", [""]); ("password", ["fVm2CUePzGKCwoEQQdNJktUQ"])] )
          (* plain request, no auth *)
        ; (Req.make (Uri.of_string "http://darklang.localhost/a/test"), "")
          (* login form loads *)
@@ -246,10 +242,8 @@ let t_authenticate_then_handle_code_and_cookie () =
     ; ( 302
       , ( Some "Max-Age=604800; domain=darklang.localhost; path=/; httponly"
         , Some "/a/test" ) )
-    ; ( 302
-      , (None, Some "/login?error=Invalid%2520username%2520or%2520password") )
-    ; ( 302
-      , (None, Some "/login?error=Invalid%2520username%2520or%2520password") )
+    ; (302, (None, Some "/login?error=Invalid%2520username%2520or%2520password"))
+    ; (302, (None, Some "/login?error=Invalid%2520username%2520or%2520password"))
     ; ( 302
       , ( None
         , Some "/login?redirect=%252F%252Fdarklang.localhost%252Fa%252Ftest" )
@@ -274,7 +268,7 @@ let t_check_csrf_then_handle () =
            ~execution_id:test_id
            ~session:test_session
            (fun req ->
-             Webserver.respond ~execution_id:test_id `OK "test handler" )
+             Webserver.respond ~execution_id:test_id `OK "test handler")
            req
        in
        resp |> Resp.status |> Code.code_of_status |> return)
@@ -385,7 +379,7 @@ let t_head_and_get_requests_are_coalesced () =
             | None ->
                 0
             | Some h ->
-                int_of_string h )
+                int_of_string h)
        |> fun content_length -> return (code, (content_length, body_string)))
   in
   let expected_body = "\"test_body\"" in
@@ -404,8 +398,7 @@ let t_head_and_get_requests_are_coalesced () =
        ; Req.make
            ?meth:(Some `HEAD)
            (Uri.of_string
-              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test"))
-       ])
+              ("http://" ^ test_name ^ ".builtwithdark.localhost:8000/test")) ])
     [ (200, (expected_content_length, expected_body))
     ; (200, (expected_content_length, "")) ]
 
@@ -429,7 +422,7 @@ let t_http_request_redirects () =
              Cohttp_lwt_unix.Server.respond_string
                ~status:(Cohttp.Code.status_of_code 911)
                ~body:""
-               () )
+               ())
            ""
            req
            ""

@@ -71,8 +71,8 @@ let delete_function (tlid : tlid) (c : canvas) : canvas =
   | Some user_fn ->
       { c with
         user_functions = IDMap.remove c.user_functions tlid
-      ; deleted_user_functions =
-          IDMap.set c.deleted_user_functions tlid user_fn }
+      ; deleted_user_functions = IDMap.set c.deleted_user_functions tlid user_fn
+      }
 
 
 let delete_function_forever (tlid : tlid) (c : canvas) : canvas =
@@ -190,7 +190,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
                 | Partial _ as b ->
                     (n, b)
                 | Blank _ as b ->
-                    (n, b) )
+                    (n, b))
           in
           apply_to_db ~f:(User_db.create_migration rbid rfid typed_cols) tlid
       | AddDBColToDBMigration (tlid, colid, typeid) ->
@@ -199,8 +199,7 @@ let apply_op (is_new : bool) (op : Op.op) (c : canvas ref) : unit =
           apply_to_db ~f:(User_db.set_col_name_in_migration id name) tlid
       | SetDBColTypeInDBMigration (tlid, id, tipe) ->
           apply_to_db
-            ~f:
-              (User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe))
+            ~f:(User_db.set_col_type_in_migration id (Dval.tipe_of_string tipe))
             tlid
       | AbandonDBMigration tlid ->
           apply_to_db ~f:User_db.abandon_migration tlid
@@ -261,7 +260,7 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
     |> List.filter_map ~f:(fun db ->
            Option.map
              ~f:(fun name -> (db.tlid, name))
-             (Ast.blank_to_option db.name) )
+             (Ast.blank_to_option db.name))
     |> List.group ~break:(fun (_, name1) (_, name2) -> name1 <> name2)
     |> List.filter ~f:(fun g -> List.length g > 1)
     |> List.map ~f:(fun gs ->
@@ -271,7 +270,7 @@ let verify (c : canvas ref) : (unit, string list) Result.t =
            let string_of_pairs ps =
              String.concat ~sep:", " (List.map ~f:string_of_pair ps)
            in
-           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs) )
+           Printf.sprintf "Duplicate DB names: %s" (string_of_pairs gs))
   in
   match duped_db_names with [] -> Ok () | dupes -> Error dupes
 
@@ -306,13 +305,12 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
                           s
                       | _ ->
                           Exception.internal
-                            "CORS setting from DB is a list containing a non-string"
-                  )
+                            "CORS setting from DB is a list containing a non-string")
                |> Origins
                |> Some
            | _ ->
                Exception.internal
-                 "CORS setting from DB is neither a string or a list." )
+                 "CORS setting from DB is neither a string or a list.")
   in
   Db.fetch_one
     ~name:"fetch_cors_setting"
@@ -322,8 +320,8 @@ let fetch_cors_setting (id : Uuidm.t) : cors_setting option =
   |> cors_setting_of_db_string
 
 
-let init (host : string) (ops : Op.op list) :
-    (canvas ref, string list) Result.t =
+let init (host : string) (ops : Op.op list) : (canvas ref, string list) Result.t
+    =
   let owner = Account.for_host_exn host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let cors = fetch_cors_setting canvas_id in
@@ -441,8 +439,8 @@ let load_only_tlids ~tlids host (newops : Op.op list) :
   load_from ~f:(Serialize.load_only_tlids ~tlids) host owner newops
 
 
-let load_all_dbs host (newops : Op.op list) :
-    (canvas ref, string list) Result.t =
+let load_all_dbs host (newops : Op.op list) : (canvas ref, string list) Result.t
+    =
   let owner = Account.for_host_exn host in
   load_from ~f:Serialize.load_all_dbs host owner newops
 
@@ -542,7 +540,7 @@ let serialize_only (tlids : tlid list) (c : canvas) : unit =
             ~module_
             ~modifier
             ~tipe
-        else () )
+        else ())
   with e -> Libexecution.Exception.reraise_as_pageable e
 
 
@@ -626,7 +624,7 @@ let check_tier_one_hosts () : unit =
       | Error errs ->
           Exception.internal
             ~info:[("errors", String.concat ~sep:", " errs); ("host", host)]
-            "Bad canvas state" )
+            "Bad canvas state")
 
 
 let migrate_all_hosts () : unit =

@@ -1,7 +1,6 @@
 let literalToString
-    (v :
-      [> `Bool of bool | `Int of string | `Null | `Float of string * string]) :
-    string =
+    (v : [> `Bool of bool | `Int of string | `Null | `Float of string * string])
+    : string =
   match v with
   | `Int i ->
       i

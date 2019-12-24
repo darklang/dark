@@ -33,7 +33,7 @@ let internal_fn (f : exec_state * dval list -> dval) =
             username
             |> Format.sprintf
                  "User executed an internal function but isn't an admin: %s"
-            |> Exception.code )
+            |> Exception.code)
 
 
 let modify_schedule fn =
@@ -47,7 +47,7 @@ let modify_schedule fn =
             s ;
           DNull
       | args ->
-          fail args )
+          fail args)
 
 
 let fns : Lib.shortfn list =
@@ -79,10 +79,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                            Dval.dstr_of_string_exn email
                        | _ ->
                            Exception.internal
-                             "Wrong number of fields from db query" )
+                             "Wrong number of fields from db query")
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::checkAllCanvases"]
@@ -101,7 +101,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
     ; f =
         internal_fn (fun _ ->
             Canvas.migrate_all_hosts () ;
-            DNull )
+            DNull)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::cleanupOldTraces"]
@@ -122,7 +122,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
             | state, [] ->
                 DFloat (Canvas.cleanup_old_traces ())
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::checkCanvas"]
@@ -138,7 +138,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   DBool true
                 with _ -> DBool false )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::upsertUser"]
@@ -160,7 +160,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     Exception.code msg )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = true }
   ; { pns = ["DarkInternal::upsertUser_v1"]
@@ -179,7 +179,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   Account.upsert_user ~username ~email ~name ()
                   |> Result.map ~f:(fun r ->
                          Stroller.segment_identify_user username ;
-                         r )
+                         r)
                 in
                 ( match result with
                 | Ok password ->
@@ -187,7 +187,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Error msg ->
                     DResult (ResError (Dval.dstr_of_string_exn msg)) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getUser"]
@@ -212,7 +212,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                             ; ("name", Dval.dstr_of_string_exn name)
                             ; ("email", Dval.dstr_of_string_exn email) ])) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = true }
   ; { pns = ["DarkInternal::getUser_v1"]
@@ -238,7 +238,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getUserByEmail"]
@@ -264,7 +264,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                             ; ("email", Dval.dstr_of_string_exn email)
                             ; ("admin", DBool admin) ])) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::setAdmin"]
@@ -280,7 +280,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 Stroller.segment_identify_user username ;
                 DNull
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getUsers"]
@@ -295,7 +295,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> List.map ~f:Dval.dstr_of_string_exn
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getAllCanvases"]
@@ -307,7 +307,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
         internal_fn (fun _ ->
             Serialize.current_hosts ()
             |> List.map ~f:Dval.dstr_of_string_exn
-            |> DList )
+            |> DList)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::schema"]
@@ -326,15 +326,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     canvas_name
                     []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error"
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 let db =
                   !c.dbs
                   |> IDMap.data
                   |> List.filter_map ~f:Libexecution.Toplevel.as_db
                   |> List.find ~f:(fun d ->
-                         Libexecution.Types.string_of_id d.tlid = tlid )
+                         Libexecution.Types.string_of_id d.tlid = tlid)
                 in
                 ( match db with
                 | Some db ->
@@ -345,13 +344,12 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                              ^ Ast.blank_to_string db.name
                              ^ "-"
                              ^ k
-                           , Dval.dstr_of_string_exn (Dval.tipe_to_string v) )
-                       )
+                           , Dval.dstr_of_string_exn (Dval.tipe_to_string v) ))
                     |> Dval.to_dobj_exn
                 | None ->
                     Dval.to_dobj_exn [] )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::canvasAsText"]
@@ -365,7 +363,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 Dval.dstr_of_string_exn
                   (Canvas.to_string (Unicode_string.to_string host))
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::handlers"]
@@ -379,18 +377,17 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let c =
                   Canvas.load_all (Unicode_string.to_string host) []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error"
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !c.handlers
                 |> IDMap.data
                 |> List.filter_map ~f:Libexecution.Toplevel.as_handler
                 |> List.map ~f:(fun h ->
                        Dval.dstr_of_string_exn
-                         (Libexecution.Types.string_of_id h.tlid) )
+                         (Libexecution.Types.string_of_id h.tlid))
                 |> fun l -> DList l
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::functions"]
@@ -404,17 +401,16 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let c =
                   Canvas.load_all (Unicode_string.to_string host) []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error"
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !c.user_functions
                 |> IDMap.data
                 |> List.map ~f:(fun fn ->
                        Dval.dstr_of_string_exn
-                         (Libexecution.Types.string_of_id fn.tlid) )
+                         (Libexecution.Types.string_of_id fn.tlid))
                 |> fun l -> DList l
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::canLoadTraces"]
@@ -444,7 +440,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     |> List.map ~f:Toplevel.as_handler
                     |> List.map ~f:(fun h -> Option.value_exn h)
                     |> List.find_exn ~f:(fun h ->
-                           h.tlid = Types.id_of_string tlid )
+                           h.tlid = Types.id_of_string tlid)
                   in
                   Analysis.traceids_for_handler !c handler
                   |> List.map ~f:(Analysis.handler_trace !c handler)
@@ -452,7 +448,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   DBool true
                 with _ -> DBool false )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getCORSSetting"]
@@ -481,12 +477,11 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 let canvas =
                   Canvas.load_without_tls (Unicode.to_string host)
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error"
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 !canvas.cors_setting |> cors_setting_to_dval
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::setCORSSetting"]
@@ -534,7 +529,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Canvas.update_cors_setting canvas settings ;
                     s |> DOption |> ResOk |> DResult )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::dbs"]
@@ -559,7 +554,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> List.map ~f:(fun s -> DStr (Unicode_string.of_string_exn s))
                 |> fun l -> DList l
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::oplistInfo"]
@@ -615,14 +610,14 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                           |> Db.date_of_sqlstring
                           |> fun d -> Some (DDate d)
                       | _ ->
-                          None )
+                          None)
                 in
                 zipped
                 |> convert_to_date "created_at"
                 |> convert_to_date "updated_at"
                 |> fun o -> DObj o
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::storedEvents"]
@@ -643,8 +638,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     (Unicode_string.to_string host)
                     []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error"
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
                 in
                 let desc =
                   !canvas.handlers
@@ -667,12 +661,12 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                              ; ("time", DDate time)
                              ; ("event", data) ]
                              |> DvalMap.from_list
-                             |> fun o -> DObj o )
+                             |> fun o -> DObj o)
                       |> fun l -> DList l
                     in
                     DOption (OptJust event_list) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::pushStrollerEvent"]
@@ -697,10 +691,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 with e ->
                   DResult
                     (ResError
-                       (e |> Exception.to_string |> Dval.dstr_of_string_exn))
-              )
+                       (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = true }
   ; { pns = ["DarkInternal::pushStrollerEvent_v1"]
@@ -725,10 +718,9 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 with e ->
                   DResult
                     (ResError
-                       (e |> Exception.to_string |> Dval.dstr_of_string_exn))
-              )
+                       (e |> Exception.to_string |> Dval.dstr_of_string_exn)) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::sessionKeyToUsername"]
@@ -748,7 +740,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | Some username ->
                     DResult (ResOk (Dval.dstr_of_string_exn username)) )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::canvasIdOfCanvasName"]
@@ -770,7 +762,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 | None | _ ->
                     DOption OptNothing)
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::usernameToUserInfo"]
@@ -795,7 +787,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     |> OptJust
                     |> DOption )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::grant"]
@@ -844,7 +836,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     Error e )
                 |> result_to_dval
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::grantsFor"]
@@ -868,10 +860,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                            ( perm
                            |> Authorization.permission_to_string
                            |> Dval.dstr_of_string_exn )
-                         map )
+                         map)
                 |> fun obj -> DObj obj
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::orgsFor"]
@@ -895,10 +887,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                            ( perm
                            |> Authorization.permission_to_string
                            |> Dval.dstr_of_string_exn )
-                         map )
+                         map)
                 |> fun obj -> DObj obj
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::checkPermission"]
@@ -920,7 +912,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                     "" )
                 |> Dval.dstr_of_string_exn
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::log"]
@@ -956,7 +948,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                   |> DvalMap.to_yojson (fun v ->
                          v
                          |> Dval.to_pretty_machine_json_v1
-                         |> Yojson.Safe.from_string )
+                         |> Yojson.Safe.from_string)
                   |> function
                   | `Assoc jsonparams ->
                       jsonparams
@@ -978,7 +970,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 Log.pP ~level name ~jsonparams ;
                 DObj log
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::fnsUsed"]
@@ -1006,10 +998,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                        |> Internal_analysis.find_functions
                        |> List.map ~f:Dval.dstr_of_string_exn
                        |> DList
-                       |> Some )
+                       |> Some)
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::fieldNamesUsed"]
@@ -1037,10 +1029,10 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                        |> Internal_analysis.find_fields
                        |> List.map ~f:Dval.dstr_of_string_exn
                        |> DList
-                       |> Some )
+                       |> Some)
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::fnMetadata"]
@@ -1068,7 +1060,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                       (ResError (Dval.dstr_of_string_exn "function not found"))
                 )
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::allFunctions"]
@@ -1099,7 +1091,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                                      [ ("name", Dval.dstr_of_string_exn p.name)
                                      ; ( "type"
                                        , Dval.dstr_of_string_exn
-                                           (Dval.tipe_to_string p.tipe) ) ] )
+                                           (Dval.tipe_to_string p.tipe) ) ])
                           in
                           [ ("name", Dval.dstr_of_string_exn key)
                           ; ( "documentation"
@@ -1108,12 +1100,12 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                           ; ("returnType", Dval.dstr_of_string_exn returnType)
                           ]
                         in
-                        Dval.to_dobj_exn alist :: acc )
+                        Dval.to_dobj_exn alist :: acc)
                     !Libexecution.Libs.static_fns
                 in
                 DList fns
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::clearStaticAssets"]
@@ -1131,7 +1123,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 Static_assets.delete_assets_for_ellens_demo canvas_id ;
                 DNull
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getAllSchedulingRules"]
@@ -1146,7 +1138,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> List.map ~f:Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::getSchedulingRulesForCanvas"]
@@ -1162,7 +1154,7 @@ LIKE '%@darklang.com' AND email NOT LIKE '%@example.com'"
                 |> List.map ~f:Event_queue.Scheduling_rule.to_dval
                 |> DList
             | args ->
-                fail args )
+                fail args)
     ; ps = false
     ; dep = false }
   ; { pns = ["DarkInternal::addWorkerSchedulingBlock"]

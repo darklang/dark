@@ -12,12 +12,12 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    (* with module StrSet := Tablecloth.StrSet *)
-    (*  and module IntSet := Tablecloth.IntSet *)
-    with module StrDict := Tablecloth.StrDict
-    (* with module Option := Tablecloth.Option *)
-    (* with module String := Tablecloth.String *)
-     and module Result := Tablecloth.Result
+      (* with module StrSet := Tablecloth.StrSet *)
+      (*  and module IntSet := Tablecloth.IntSet *)
+      with module StrDict := Tablecloth.StrDict
+      (* with module Option := Tablecloth.Option *)
+      (* with module String := Tablecloth.String *)
+       and module Result := Tablecloth.Result
     (* and module List := Tablecloth.List  *) )
 
 module Result = struct
@@ -72,8 +72,7 @@ module StrDict = struct
     Base.Map.of_alist_exn (module Base.String) l
 
 
-  let from_list_unique (l : (key * 'value) list) : (string, 'value t) Result.t
-      =
+  let from_list_unique (l : (key * 'value) list) : (string, 'value t) Result.t =
     match Base.Map.of_alist (module Base.String) l with
     | `Duplicate_key k ->
         Result.fail ("Duplicate key: " ^ k)
@@ -96,7 +95,7 @@ module StrDict = struct
   let insert_no_override ~(key : key) ~(value : 'value) (dict : 'value t) :
       'value t =
     Base.Map.change dict key ~f:(fun old ->
-        if old = None then Some value else old )
+        if old = None then Some value else old)
 
 
   let singleton k v = from_list [(k, v)]

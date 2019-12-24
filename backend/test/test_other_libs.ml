@@ -67,9 +67,7 @@ let t_option_stdlibs_work () =
   AT.check
     AT.bool
     "andThen wrong type"
-    ( match
-        exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))"
-      with
+    ( match exec_ast "(Option::andThen (Just 8) (\\x -> (Int::divide x 2)))" with
     | DError (_, msg) ->
         Prelude.String.contains
           ~substring:"Expected `f` to return an option"
@@ -156,15 +154,13 @@ let t_result_stdlibs_work () =
   check_condition
     "andThen_v1 propogates errors"
     (exec_ast "(Result::andThen_v1 (Ok 5) (\\x -> (_)))")
-    ~f:(fun x -> match x with DError _ -> true | _ -> false ) ;
+    ~f:(fun x -> match x with DError _ -> true | _ -> false) ;
   AT.check
     AT.bool
     "andThen wrong type"
     ( match exec_ast "(Result::andThen (Ok 8) (\\x -> (Int::divide x 2)))" with
     | DError (_, msg) ->
-        Prelude.String.contains
-          ~substring:"Expected `f` to return a result"
-          msg
+        Prelude.String.contains ~substring:"Expected `f` to return a result" msg
     | _ ->
         false )
     true ;
@@ -198,7 +194,8 @@ let t_dict_stdlibs_work () =
     (exec_ast
        "(Dict::map (obj (key1 'val1') (key2 'val2')) (\\k x -> (++ k x)))")
     (DObj
-       (DvalMap.from_list [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
+       (DvalMap.from_list
+          [("key1", dstr "key1val1"); ("key2", dstr "key2val2")])) ;
   check_dval "dict empty" (exec_ast "(Dict::empty)") (DObj DvalMap.empty) ;
   check_dval
     "dict merge"
@@ -476,10 +473,10 @@ let t_old_functions_deprecated () =
       then
         counts :=
           StrDict.update !counts ~key ~f:(fun count ->
-              count |> Option.withDefault ~default:0 |> ( + ) 1 |> Some ) ;
-      () ) ;
+              count |> Option.withDefault ~default:0 |> ( + ) 1 |> Some) ;
+      ()) ;
   StrDict.iter !counts ~f:(fun name count ->
-      AT.check AT.int (name ^ " only has one undeprecated fn") 1 count ) ;
+      AT.check AT.int (name ^ " only has one undeprecated fn") 1 count) ;
   ()
 
 

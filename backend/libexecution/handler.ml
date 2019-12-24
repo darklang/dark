@@ -75,11 +75,7 @@ let event_name_for_exn (h : handler) : string =
 
 
 let modifier_for (h : handler) : string option =
-  match h.spec.modifier with
-  | Filled (_, modifier) ->
-      Some modifier
-  | _ ->
-      None
+  match h.spec.modifier with Filled (_, modifier) -> Some modifier | _ -> None
 
 
 let modifier_for_exn (h : handler) : string =

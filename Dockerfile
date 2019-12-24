@@ -119,6 +119,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
+      x11-utils \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -239,12 +240,11 @@ RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.
       && opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing \
       && opam update \
       && opam install -y \
-           ppx_deriving.4.3 \
-           dune.1.11.0 \
-           ppx_deriving_yojson.3.4 \
-           merlin.3.2.2 \
-           ocp-indent.1.6.1 \
-           ocamlformat.0.8 \
+           ppx_deriving.4.4 \
+           dune.2.0.1 \
+           merlin.3.3.3 \
+           ocp-indent.1.8.1 \
+           ocamlformat.0.12 \
       && opam clean --all-switches --download-cache --repo-cache
 
 
@@ -257,7 +257,7 @@ ENV ESY__PROJECT=/home/dark/app/backend
 ############################
 
 RUN \
-  VERSION=v0.6.0 \
+  VERSION=v0.7.0 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
@@ -298,18 +298,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-USER root
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt update && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt install \
-      -y \
-      --no-install-recommends \
-      x11-utils \
-      && apt clean \
-      && rm -rf /var/lib/apt/lists/*
-
-
 
 ############################
 # Finish

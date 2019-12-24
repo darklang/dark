@@ -18,12 +18,10 @@ let rec rec_con depth =
         ()
     in
     c#set_notice_processor (fun notice ->
-        Log.warN "postgres_notice" ~data:notice ) ;
+        Log.warN "postgres_notice" ~data:notice) ;
     c
   with e ->
-    Log.infO
-      "Couldn't connect to postgres"
-      ~jsonparams:[("attempt", `Int depth)] ;
+    Log.infO "Couldn't connect to postgres" ~jsonparams:[("attempt", `Int depth)] ;
     if depth < 10
     then (
       (* It takes the CloudSQL proxy ~30 seconds to go from 'started' to 'ready'

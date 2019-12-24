@@ -110,8 +110,8 @@ let fns : shortfn list =
                   keys
               in
               User_db.get_many ~state db skeys
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -167,8 +167,8 @@ let fns : shortfn list =
                   keys
               in
               User_db.get_many_with_keys ~state db skeys
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -248,8 +248,8 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query ~state db obj
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -304,8 +304,8 @@ let fns : shortfn list =
           | state, [(DObj _ as obj); DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.query ~state db obj
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -433,8 +433,8 @@ let fns : shortfn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -487,8 +487,8 @@ let fns : shortfn list =
           | state, [DDB dbname] ->
               let db = find_db state.dbs dbname in
               User_db.get_all ~state db
-              |> List.map ~f:(fun (k, v) -> DList [Dval.dstr_of_string_exn k; v]
-                 )
+              |> List.map ~f:(fun (k, v) ->
+                     DList [Dval.dstr_of_string_exn k; v])
               |> DList
           | args ->
               fail args)
@@ -555,7 +555,7 @@ let fns : shortfn list =
               let db = find_db state.dbs dbname in
               User_db.cols_for db
               |> List.map ~f:(fun (k, v) ->
-                     (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)) )
+                     (k, Dval.dstr_of_string_exn (Dval.tipe_to_string v)))
               |> Dval.to_dobj_exn
           | args ->
               fail args)

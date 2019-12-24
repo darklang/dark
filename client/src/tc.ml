@@ -12,15 +12,15 @@ end
 include (
   Tablecloth :
     module type of Tablecloth
-    with module StrSet := Tablecloth.StrSet
-    (* with module IntSet := Tablecloth.IntSet *)
-    with module StrDict := Tablecloth.StrDict
-    with module Option := Tablecloth.Option
-    with module Int := Tablecloth.Int
-    with module String := Tablecloth.String
-    with module Array := Tablecloth.Array
-     and module Result := Tablecloth.Result
-     and module List := Tablecloth.List )
+      with module StrSet := Tablecloth.StrSet
+      (* with module IntSet := Tablecloth.IntSet *)
+      with module StrDict := Tablecloth.StrDict
+      with module Option := Tablecloth.Option
+      with module Int := Tablecloth.Int
+      with module String := Tablecloth.String
+      with module Array := Tablecloth.Array
+       and module Result := Tablecloth.Result
+       and module List := Tablecloth.List )
 
 module Array = struct
   include Tablecloth.Array
@@ -67,8 +67,7 @@ end
 module Result = struct
   include Tablecloth.Result
 
-  let isOk (v : ('err, 'ok) t) : bool =
-    match v with Ok _ -> true | _ -> false
+  let isOk (v : ('err, 'ok) t) : bool = match v with Ok _ -> true | _ -> false
 end
 
 module List = struct
@@ -87,8 +86,7 @@ module List = struct
 
   let findWithIndex ~(f : int -> 'a -> bool) (l : 'a list) : int option =
     let rec findIndexHelper
-        ~(i : int) ~(predicate : int -> 'a -> bool) (l : 'a list) : int option
-        =
+        ~(i : int) ~(predicate : int -> 'a -> bool) (l : 'a list) : int option =
       match l with
       | [] ->
           None
@@ -146,8 +144,8 @@ module String = struct
     if back = "" then [front] else front :: segment ~size back
 
 
-  let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s :
-      string =
+  let replaceChunk ~(from : int) ~(to_ : int) ~(replacement : string) s : string
+      =
     slice ~from:0 ~to_:from s ^ replacement ^ slice ~from:to_ ~to_:(length s) s
 
 
@@ -177,7 +175,7 @@ module StrDict = struct
   let mergeLeft (dict1 : 'v t) (dict2 : 'v t) : 'v t =
     Tablecloth.StrDict.merge
       ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
-        match (v1, v2) with Some _, _ -> v1 | None, _ -> v2 )
+        match (v1, v2) with Some _, _ -> v1 | None, _ -> v2)
       dict1
       dict2
 
@@ -185,7 +183,7 @@ module StrDict = struct
   let mergeRight (dict1 : 'v t) (dict2 : 'v t) : 'v t =
     Tablecloth.StrDict.merge
       ~f:(fun (_key : string) (v1 : 'v option) (v2 : 'v option) ->
-        match (v1, v2) with _, Some _ -> v2 | _, None -> v1 )
+        match (v1, v2) with _, Some _ -> v2 | _, None -> v1)
       dict1
       dict2
 
@@ -204,9 +202,7 @@ module StrDict = struct
     Belt.Map.String.mapWithKey dict (fun key v -> f ~key v)
 
 
-  let remove (dict : 'v t) ~(key : key) : 'v t =
-    Belt.Map.String.remove dict key
-
+  let remove (dict : 'v t) ~(key : key) : 'v t = Belt.Map.String.remove dict key
 
   let removeMany (dict : 'v t) ~(keys : key list) : 'v t =
     Belt.Map.String.removeMany dict (Belt.List.toArray keys)

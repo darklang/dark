@@ -11,8 +11,7 @@ let init () =
 
 type handler_list = HandlerT.handler list [@@deriving yojson]
 
-type input_vars = (string * dval) list (* list of vars *)
-[@@deriving of_yojson]
+type input_vars = (string * dval) list (* list of vars *) [@@deriving of_yojson]
 
 (* We bring in our own definition because the deserializer is in Dval but the
  * definition is in Types, and that's challenging *)
@@ -64,8 +63,8 @@ let convert_db (db : our_db) : DbT.db =
 type handler_analysis_param =
   { handler : HandlerT.handler
   ; trace_id : Analysis_types.traceid
-  ; trace_data :
-      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
+  ; trace_data : Analysis_types.trace_data
+        (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
   ; user_tipes : user_tipe list }
@@ -74,8 +73,8 @@ type handler_analysis_param =
 type function_analysis_param =
   { func : user_fn
   ; trace_id : Analysis_types.traceid
-  ; trace_data :
-      Analysis_types.trace_data (* dont use a trace as this isn't optional *)
+  ; trace_data : Analysis_types.trace_data
+        (* dont use a trace as this isn't optional *)
   ; dbs : our_db list
   ; user_fns : user_fn list
   ; user_tipes : user_tipe list }
@@ -98,7 +97,7 @@ let load_from_trace
             && caller_id = rcaller_id
             && hash = IDMap.find_exn hashes (id_of_int hash_version)
          then Some dval
-         else None )
+         else None)
   |> List.hd
   (* We don't use the time, so just hack it to get the interface right. *)
   |> Option.map ~f:(fun dv -> (dv, Time.now ()))
@@ -133,7 +132,7 @@ let perform_analysis
           ~load_fn_result:(load_from_trace trace_data.function_results)
           ~load_fn_arguments:Execution.load_no_arguments )
       |> analysis_envelope_to_yojson
-      |> Yojson.Safe.to_string )
+      |> Yojson.Safe.to_string)
 
 
 let perform_handler_analysis (str : string) : string =
@@ -180,7 +179,7 @@ let () =
     "darkAnalysis"
     (object%js
        method performHandlerAnalysis
-             (stringified_handler_analysis_param : js_string)
+           (stringified_handler_analysis_param : js_string)
            : js_string Js.js_array Js.t =
          try
            stringified_handler_analysis_param
@@ -192,7 +191,7 @@ let () =
            Js.array [|Js.string "failure"; Js.string error|]
 
        method performFunctionAnalysis
-             (stringified_function_analysis_param : js_string)
+           (stringified_function_analysis_param : js_string)
            : js_string Js.js_array Js.t =
          try
            stringified_function_analysis_param

@@ -39,9 +39,7 @@ let pageLeft (m : model) : modification =
 
 let pageRight (m : model) : modification = moveCanvasBy m Defaults.pageWidth 0
 
-let moveUp (m : model) : modification =
-  moveCanvasBy m 0 (-1 * Defaults.moveSize)
-
+let moveUp (m : model) : modification = moveCanvasBy m 0 (-1 * Defaults.moveSize)
 
 let moveDown (m : model) : modification = moveCanvasBy m 0 Defaults.moveSize
 
@@ -100,7 +98,7 @@ let moveToToken (id : id) (tl : toplevel) : int option * int option =
       let tlBox =
         Native.Ext.querySelector tlSelector
         |> Option.map ~f:(fun dom ->
-               Native.Ext.getBoundingClient dom tlSelector )
+               Native.Ext.getBoundingClient dom tlSelector)
         |> Option.valueExn
       in
       let tlPos = TL.pos tl in

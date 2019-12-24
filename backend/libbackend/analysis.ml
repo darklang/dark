@@ -41,7 +41,7 @@ let db_stats (c : canvas) (tlids : tlid list) : db_stat_map =
           let example = User_db.stats_pluck ~account_id ~canvas_id db in
           IDMap.add_exn ~data:{count; example} ~key:tlid map
       | _ ->
-          map )
+          map)
     tlids
 
 
@@ -84,7 +84,7 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
            | [modu; n; modi] ->
                (modu, n, modi)
            | _ ->
-               Exception.internal "Bad DB format for get404s" )
+               Exception.internal "Bad DB format for get404s")
   in
   let match_event h event : bool =
     let space, request_path, modifier, _ts, _ = event in
@@ -95,7 +95,7 @@ let get_404s ~(since : RTT.time) (c : canvas) : SE.four_oh_four list =
   in
   events
   |> List.filter ~f:(fun e ->
-         not (List.exists handlers ~f:(fun h -> match_event h e)) )
+         not (List.exists handlers ~f:(fun h -> match_event h e)))
 
 
 let delete_404s
@@ -146,8 +146,8 @@ let saved_input_vars
       []
 
 
-let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
-    : trace =
+let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid) :
+    trace =
   let event = SE.load_event_for_trace ~canvas_id:c.id trace_id in
   let ivs, timestamp =
     match event with
@@ -162,13 +162,9 @@ let handler_trace (c : canvas) (h : RTT.HandlerT.handler) (trace_id : traceid)
   (trace_id, Some {input = ivs; timestamp; function_results})
 
 
-let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace
-    =
+let user_fn_trace (c : canvas) (fn : RTT.user_fn) (trace_id : traceid) : trace =
   let event =
-    Stored_function_arguments.load_for_analysis
-      ~canvas_id:c.id
-      fn.tlid
-      trace_id
+    Stored_function_arguments.load_for_analysis ~canvas_id:c.id fn.tlid trace_id
   in
   let ivs, timestamp =
     match event with
@@ -200,10 +196,10 @@ let traceids_for_handler (c : canvas) (h : RTT.HandlerT.handler) : traceid list
                |> Http.filter_matching_handlers path
                |> List.hd
                |> Option.bind ~f:(fun matching ->
-                      if matching.tlid = h.tlid then Some trace_id else None )
+                      if matching.tlid = h.tlid then Some trace_id else None)
              else
                (* Don't use HTTP filtering stack for non-HTTP traces *)
-               Some trace_id )
+               Some trace_id)
       (* If there's no matching traces, add the default trace *)
       |> (function [] -> [Uuidm.v5 Uuidm.nil (string_of_id h.tlid)] | x -> x)
   | None ->
@@ -303,8 +299,8 @@ type add_op_rpc_result =
   ; user_functions : RTT.user_fn list (* replace *)
   ; deleted_user_functions : RTT.user_fn list
   ; user_tipes : RTT.user_tipe list
-  ; deleted_user_tipes : RTT.user_tipe list
-  (* replace, see deleted_toplevels *) }
+  ; deleted_user_tipes : RTT.user_tipe list (* replace, see deleted_toplevels *)
+  }
 [@@deriving to_yojson]
 
 let empty_to_add_op_rpc_result =
@@ -323,8 +319,7 @@ type add_op_stroller_msg =
 
 let to_add_op_rpc_result (c : canvas) : add_op_rpc_result =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
-  ; deleted_toplevels =
-      IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+  ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
   ; deleted_user_functions = IDMap.data c.deleted_user_functions
   ; user_tipes = IDMap.data c.user_tipes
@@ -360,8 +355,7 @@ let to_initial_load_rpc_result
     (account : Account.user_info)
     (worker_schedules : Event_queue.Worker_states.t) : string =
   { toplevels = IDMap.data c.dbs @ IDMap.data c.handlers
-  ; deleted_toplevels =
-      IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
+  ; deleted_toplevels = IDMap.data c.deleted_handlers @ IDMap.data c.deleted_dbs
   ; user_functions = IDMap.data c.user_functions
   ; deleted_user_functions = IDMap.data c.deleted_user_functions
   ; user_tipes = IDMap.data c.user_tipes

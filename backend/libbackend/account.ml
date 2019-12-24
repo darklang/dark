@@ -46,7 +46,7 @@ let banned_usernames : string list =
   ; "webmaster"
   ; "wpad" ]
   @ (* original to us *)
-    ["billing"; "dev"]
+  ["billing"; "dev"]
 
 
 type username = string [@@deriving yojson]
@@ -121,7 +121,7 @@ let upsert_account ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String (Password.to_bytes account.password) ] )
+          ; String (Password.to_bytes account.password) ])
 
 
 let upsert_account_exn ?(validate : bool = true) (account : account) : unit =
@@ -149,7 +149,7 @@ let upsert_admin ?(validate : bool = true) (account : account) :
           ; String account.username
           ; String account.name
           ; String account.email
-          ; String (Password.to_bytes account.password) ] )
+          ; String (Password.to_bytes account.password) ])
 
 
 let upsert_admin_exn ?(validate : bool = true) (account : account) : unit =
@@ -192,7 +192,7 @@ let get_user username =
          | [name; email; admin] ->
              Some {username; name; admin = admin = "t"; email}
          | _ ->
-             None )
+             None)
 
 
 let get_user_and_created_at username =
@@ -212,10 +212,10 @@ let get_user_and_created_at username =
                ; created_at =
                    created_at
                    |> Db.date_of_sqlstring
-                   |> Core.Time.to_string_iso8601_basic
-                        ~zone:Core.Time.Zone.utc }
+                   |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
+               }
          | _ ->
-             None )
+             None)
 
 
 let get_user_by_email email =
@@ -229,7 +229,7 @@ let get_user_by_email email =
          | [name; username; admin] ->
              Some {username; name; admin = admin = "t"; email}
          | _ ->
-             None )
+             None)
 
 
 let get_users () =
@@ -278,8 +278,7 @@ let authenticate ~(username_or_email : username) ~(password : string) :
       if password
          |> Bytes.of_string
          |> Hash.wipe_to_password
-         |> Hash.verify_password_hash
-              (Bytes.of_string (B64.decode db_password))
+         |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
       then Some db_username
       else None
   | None | _ ->
@@ -307,9 +306,7 @@ let auth_domain_for host : string =
   match String.split host '-' with d :: _ -> d | _ -> host
 
 
-let for_host (host : string) : Uuidm.t option =
-  host |> auth_domain_for |> owner
-
+let for_host (host : string) : Uuidm.t option = host |> auth_domain_for |> owner
 
 let for_host_exn (host : string) : Uuidm.t =
   host
@@ -444,7 +441,7 @@ let upsert_banned_accounts () : unit =
              { username
              ; password = Password.invalid
              ; email = "ops+" ^ username ^ "@darklang.com"
-             ; name = "Disallowed account" } ) ) ;
+             ; name = "Disallowed account" }) ) ;
   ()
 
 

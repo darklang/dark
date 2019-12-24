@@ -17,12 +17,8 @@ let report =
 
 
 let report_lwt =
-  Libservice.Rollbar.report_lwt
-    ~pp:exn_to_string
-    ~inspect:Exception.exn_to_info
+  Libservice.Rollbar.report_lwt ~pp:exn_to_string ~inspect:Exception.exn_to_info
 
 
 let last_ditch =
-  Libservice.Rollbar.last_ditch
-    ~pp:exn_to_string
-    ~inspect:Exception.exn_to_info
+  Libservice.Rollbar.last_ditch ~pp:exn_to_string ~inspect:Exception.exn_to_info

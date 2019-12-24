@@ -266,7 +266,7 @@ let t_typechecker_error_isnt_wrapped_by_errorail () =
       | DError _ ->
           true
       | _ ->
-          false )
+          false)
 
 
 let t_int_functions_works () =
@@ -278,7 +278,7 @@ let t_int_functions_works () =
       | DInt i ->
         (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
       | _ ->
-          false ) ;
+          false) ;
   check_condition
     "Int::random_v1 3 0, will swap 3 0 and returns a number between [0,3]"
     (exec_ast "(Int::random_v1 3 0)")
@@ -287,7 +287,7 @@ let t_int_functions_works () =
       | DInt i ->
         (match Dint.to_int i with Some r -> 0 <= r && r <= 3 | None -> false)
       | _ ->
-          false )
+          false)
 
 
 (* ---------------- *)

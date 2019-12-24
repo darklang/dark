@@ -75,9 +75,8 @@ let viewKey (vs : viewState) (c : htmlConfig list) (k : string blankOr) :
   ViewBlankOr.viewBlankOr text Key vs configs k
 
 
-let rec viewNPattern
-    (vs : viewState) (config : htmlConfig list) (np : nPattern) : msg Html.html
-    =
+let rec viewNPattern (vs : viewState) (config : htmlConfig list) (np : nPattern)
+    : msg Html.html =
   match np with
   | PLiteral l ->
       text vs (enterable :: config) l
@@ -110,11 +109,7 @@ let handlerIsExecuting (vs : viewState) : bool =
 
 
 let handlerIsExeComplete (vs : viewState) : bool =
-  match vs.handlerProp with
-  | Some hp ->
-      hp.execution = Complete
-  | None ->
-      false
+  match vs.handlerProp with Some hp -> hp.execution = Complete | None -> false
 
 
 (* If a handler's execution has failed, we want to display an X instead of a
@@ -137,7 +132,7 @@ let handlerIsExeFail (vs : viewState) : bool =
            | DIncomplete _ | DError _ | DErrorRail _ ->
                true
            | _ ->
-               false )
+               false)
     |> Option.withDefault ~default:false
 
 
@@ -149,9 +144,8 @@ type ('a, 'b, 'c, 'd) x =
 
 let depthString (n : int) : string = "precedence-" ^ string_of_int n
 
-let rec viewExpr
-    (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr) :
-    msg Html.html =
+let rec viewExpr (depth : int) (vs : viewState) (c : htmlConfig list) (e : expr)
+    : msg Html.html =
   let width = ViewUtils.approxWidth e in
   let widthClass =
     [wc ("width-" ^ string_of_int width)]
@@ -210,9 +204,7 @@ and viewNExpr
       let showRHSInstead =
         B.isBlank body && idOf vs.cursorState = Some bodyID
       in
-      let rhsConfig =
-        if showRHSInstead then [wc "display-livevalue"] else []
-      in
+      let rhsConfig = if showRHSInstead then [wc "display-livevalue"] else [] in
       let bodyViewState =
         if showRHSInstead then {vs with showLivevalue = false} else vs
       in
@@ -236,9 +228,7 @@ and viewNExpr
   | FnCall ((F (_, name) as nameBo), exprs, sendToRail) ->
       let width = ViewUtils.approxNWidth e in
       let viewTooWideArg p d_ e_ =
-        let c =
-          [wc "arg-on-new-line"; ViewBlankOr.WithParamName p.paramName]
-        in
+        let c = [wc "arg-on-new-line"; ViewBlankOr.WithParamName p.paramName] in
         viewExpr d_ {vs with tooWide = true} c e_
       in
       let ve p = if width > 120 then viewTooWideArg p else vExpr in
@@ -447,8 +437,7 @@ and viewNExpr
             (if condResult then b_ else a_)
         ; fontAwesome "flag"
         ; Html.div
-            [ Html.class'
-                ("feature-flag" ^ if isExpanded then " expand" else "") ]
+            [Html.class' ("feature-flag" ^ if isExpanded then " expand" else "")]
             [titleBar; blockCondition; expressions] ]
       (* Don't care, we're switching to fluid *)
   | FluidPartial (str, _) ->
@@ -473,8 +462,7 @@ let view (vs : viewState) (e : expr) =
     [ast; errorRail]
 
 
-let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
-    =
+let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
   match (spec.space, spec.name, spec.modifier) with
   (* Hide button if spec is not filled out because trace id
    is needed to recover handler traces on refresh. *)
@@ -488,7 +476,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
           Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
           |> Option.andThen ~f:(fun trace_id ->
                  List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-                 |> Option.andThen ~f:(fun (_, data) -> data) )
+                 |> Option.andThen ~f:(fun (_, data) -> data))
           |> Option.is_some
         in
         let classes =
@@ -512,7 +500,7 @@ let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html
                 ~listener:(fun name ->
                   if name = "fadeIn"
                   then SetHandlerExeIdle vs.tlid
-                  else IgnoreMsg ) ]
+                  else IgnoreMsg) ]
           else [Html.title "Need input data to replay execution"]
         in
         Html.div (classes :: attrs) [fontAwesome "redo"]
@@ -527,12 +515,11 @@ let externalLink (vs : viewState) (name : string) =
       Analysis.selectedTrace vs.tlTraceIDs vs.traces vs.tlid
       |> Option.andThen ~f:(fun trace_id ->
              List.find ~f:(fun (id, _) -> id = trace_id) vs.traces
-             |> Option.andThen ~f:(fun (_, data) -> data) )
+             |> Option.andThen ~f:(fun (_, data) -> data))
     in
     match currentTraceData with
     | Some data ->
-        Runtime.pathFromInputVars data.input
-        |> Option.withDefault ~default:name
+        Runtime.pathFromInputVars data.input |> Option.withDefault ~default:name
     | None ->
         name
   in
@@ -563,7 +550,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
           [ ViewUtils.eventNoPropagation
               ~key:("del-tl-" ^ strTLID)
               "click"
-              (fun _ -> ToplevelDelete vs.tlid ) ]
+              (fun _ -> ToplevelDelete vs.tlid) ]
           [fontAwesome "times"; Html.text "Delete handler"] ]
     in
     match (spec.space, spec.modifier, spec.name) with
@@ -573,7 +560,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
             [ ViewUtils.eventNoPropagation
                 ~key:("del-tl-" ^ strTLID)
                 "click"
-                (fun m -> CopyCurl (vs.tlid, m.mePos) ) ]
+                (fun m -> CopyCurl (vs.tlid, m.mePos)) ]
             [fontAwesome "copy"; Html.text "Copy request as cURL"]
         in
         let httpActions = curlAction :: commonActions in
@@ -600,7 +587,7 @@ let viewMenu (vs : viewState) (spec : handlerSpec) : msg Html.html =
         ; ViewUtils.eventNoPropagation
             ~key:("hide-tl-opts" ^ strTLID)
             "mouseleave"
-            (fun _ -> SetHandlerActionsMenu (vs.tlid, false) ) ]
+            (fun _ -> SetHandlerActionsMenu (vs.tlid, false)) ]
         actions ]
 
 
@@ -658,8 +645,7 @@ let viewEventSpec
     [viewType; viewEventName; viewActions]
 
 
-let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
-    =
+let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
   let sid = showTLID tlid in
   let codeHeight id =
     let e =
@@ -675,7 +661,7 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       ; ViewUtils.onTransitionEnd ~key:("hdlexp-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerExpanded)
-            else IgnoreMsg ) ]
+            else IgnoreMsg) ]
   | HandlerExpanded ->
       [ Html.class' "handler-body expand"
       ; Html.style "height" "auto"
@@ -684,12 +670,10 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
       let h = inUnit (codeHeight sid) "px" in
       [ Html.class' "handler-body"
       ; Html.style "height" h
-      ; ViewUtils.onTransitionEnd
-          ~key:("hdlpcol-" ^ sid)
-          ~listener:(fun prop ->
+      ; ViewUtils.onTransitionEnd ~key:("hdlpcol-" ^ sid) ~listener:(fun prop ->
             if prop = "opacity"
             then UpdateHandlerState (tlid, HandlerCollapsing)
-            else IgnoreMsg ) ]
+            else IgnoreMsg) ]
   | HandlerCollapsing ->
       [ Html.class' "handler-body"
       ; Html.style "height" "0"
@@ -698,7 +682,7 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list
           ~listener:(fun prop ->
             if prop = "height"
             then UpdateHandlerState (tlid, HandlerCollapsed)
-            else IgnoreMsg ) ]
+            else IgnoreMsg) ]
   | HandlerCollapsed ->
       [Html.class' "handler-body"; Html.style "height" "0"; Vdom.noProp]
 

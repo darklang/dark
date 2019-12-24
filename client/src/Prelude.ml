@@ -101,8 +101,8 @@ let recover ?(debug : 'd option) (msg : string) (recoveryVal : 'r) : 'r =
   recoveryVal
 
 
-let recoverOpt
-    ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option) : 'r =
+let recoverOpt ?(debug : 'd option) (msg : 'msg) ~(default : 'r) (x : 'r option)
+    : 'r =
   match x with
   | Some y ->
       y
@@ -111,16 +111,16 @@ let recoverOpt
 
 
 (* Assert `cond`, returning val either way.  All assertion functions report
- * to rollbar if they fail.  *)
-let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r)
-    : 'r =
+ * to rollbar if they fail. *)
+let assert_ ?(debug : 'd option) (msg : string) (cond : bool) (returnVal : 'r) :
+    'r =
   if cond
   then returnVal
   else recover ("Assertion failure: " ^ msg) ~debug returnVal
 
 
 (* Assert `cond` as a statement.  All assertion functions report to rollbar
- * if they fail.  *)
+ * if they fail. *)
 let asserT ?(debug : 'd option) (msg : 'msg) (cond : bool) : unit =
   assert_ ~debug msg cond ()
 

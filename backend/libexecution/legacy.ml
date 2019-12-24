@@ -60,9 +60,7 @@ module PrettyResponseJsonV0 = struct
     | DResult res ->
       ( match res with
       | ResOk dv ->
-          wrap_constructed_type
-            (`String "Ok")
-            [unsafe_dval_to_yojson ~redact dv]
+          wrap_constructed_type (`String "Ok") [unsafe_dval_to_yojson ~redact dv]
       | ResError dv ->
           wrap_constructed_type
             (`String "Error")
@@ -196,7 +194,7 @@ module PrettyRequestJsonV0 = struct
           else
             let strs =
               DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-                  (key ^ ": " ^ to_repr_ indent pp value) :: l )
+                  (key ^ ": " ^ to_repr_ indent pp value) :: l)
             in
             "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
       | DOption OptNothing ->

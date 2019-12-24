@@ -7,9 +7,8 @@ type oplist = Op.op list [@@deriving yojson]
 
 type add_op_rpc_params =
   { ops : oplist
-  ; opCtr :
-      int
-      (* option means that we can still deserialize if this field is null, as doc'd
+  ; opCtr : int
+        (* option means that we can still deserialize if this field is null, as doc'd
 * at https://github.com/ocaml-ppx/ppx_deriving_yojson *)
   ; clientOpCtrId : string option }
 [@@deriving yojson]
@@ -138,7 +137,7 @@ let functions ~username =
   |> String.Map.to_alist
   |> List.filter ~f:(fun (k, _) ->
          Account.can_access_operations username
-         || not (String.is_prefix ~prefix:"DarkInternal::" k) )
+         || not (String.is_prefix ~prefix:"DarkInternal::" k))
   |> List.map ~f:(fun (k, (v : RuntimeT.fn)) ->
          { name = k
          ; parameters =
@@ -149,13 +148,13 @@ let functions ~username =
                    ; block_args = p.block_args
                    ; optional = p.optional
                    ; description = p.description }
-                   : param_metadata ) )
+                   : param_metadata ))
                v.parameters
          ; description = v.description
          ; return_type = Dval.tipe_to_string v.return_type
          ; preview_execution_safe = v.preview_execution_safe
          ; infix = List.mem ~equal:( = ) v.infix_names k
-         ; deprecated = v.deprecated } )
+         ; deprecated = v.deprecated })
   |> fun l ->
   `List (List.map ~f:function_metadata_to_yojson l)
   |> Yojson.Safe.pretty_to_string

@@ -39,8 +39,7 @@ let getStoredAnalysis (m : model) (traceID : traceID) : analysisStore =
   |> Option.withDefault ~default:LoadableNotInitialized
 
 
-let record (old : analyses) (id : traceID) (result : analysisStore) : analyses
-    =
+let record (old : analyses) (id : traceID) (result : analysisStore) : analyses =
   StrDict.insert ~key:id ~value:result old
 
 
@@ -77,10 +76,10 @@ let replaceFunctionResult
                     ( tid
                     , Option.map tdata ~f:(fun tdata ->
                           { tdata with
-                            functionResults =
-                              newResult :: tdata.functionResults } ) )
-                  else t )
-           |> fun x -> Some x )
+                            functionResults = newResult :: tdata.functionResults
+                          }) )
+                  else t)
+           |> fun x -> Some x)
   in
   {m with traces}
 
@@ -123,9 +122,8 @@ let getTipeOf (m : model) (id : id) (traceID : traceID) : tipe option =
   getLiveValue m id traceID |> Option.map ~f:RT.typeOf
 
 
-let getArguments
-    (m : model) (tl : toplevel) (callerID : id) (traceID : traceID) :
-    dval list option =
+let getArguments (m : model) (tl : toplevel) (callerID : id) (traceID : traceID)
+    : dval list option =
   let caller = TL.find tl callerID in
   let threadPrevious =
     match TL.rootOf tl with
@@ -173,7 +171,7 @@ let getAvailableVarnames
   let inputVariables =
     RT.inputVariables tl
     |> List.map ~f:(fun varname ->
-           (varname, traceDict |> StrDict.get ~key:varname) )
+           (varname, traceDict |> StrDict.get ~key:varname))
   in
   match tl with
   | TLHandler h ->
@@ -281,9 +279,7 @@ end
 module WorkerStatePush = struct
   let decode =
     let open Tea.Json.Decoder in
-    field
-      "detail"
-      (Decoders.wrapDecoder Decoders.updateWorkerScheduleRPCResult)
+    field "detail" (Decoders.wrapDecoder Decoders.updateWorkerScheduleRPCResult)
 
 
   let listen ~key tagger =
@@ -301,8 +297,7 @@ module Fetcher = struct
     [@@bs.val] [@@bs.scope "window", "Dark", "fetcher"]
 end
 
-external origin : string = "origin"
-  [@@bs.val] [@@bs.scope "window", "location"]
+external origin : string = "origin" [@@bs.val] [@@bs.scope "window", "location"]
 
 external prefix : string = "testcafeInjectedPrefix"
   [@@bs.val] [@@bs.scope "window"]
@@ -317,7 +312,7 @@ let updateDBStats m (TLID tlid) =
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]}) ))
+           (contextFromModel m, DbStatsFetch {dbStatsTlids = [TLID tlid]})))
 
 
 let getWorkerStats m (TLID tlid) =
@@ -326,8 +321,7 @@ let getWorkerStats m (TLID tlid) =
     m
     (Tea_cmd.call (fun _ ->
          Fetcher.request
-           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})
-     ))
+           (contextFromModel m, WorkerStatsFetch {workerStatsTlid = TLID tlid})))
 
 
 let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
@@ -352,11 +346,11 @@ let mergeTraces ~(onConflict : trace -> trace -> trace) oldTraces newTraces :
                        then (
                          found := true ;
                          onConflict old new_ )
-                       else (oldID, oldData) )
+                       else (oldID, oldData))
                  in
                  if !found (* deref, not "not" *)
                  then updated
-                 else (newID, newData) :: acc )) )
+                 else (newID, newData) :: acc)))
 
 
 let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
@@ -364,7 +358,7 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
     (* DBs + Types dont have traces *)
     TL.get m tlid
     |> Option.map ~f:(fun tl ->
-           not (TL.isDB tl || TL.isUserTipe tl || TL.isGroup tl) )
+           not (TL.isDB tl || TL.isUserTipe tl || TL.isGroup tl))
     |> Option.withDefault ~default:false
   in
   if should
@@ -376,7 +370,7 @@ let requestTrace ?(force = false) m tlid traceID : model * msg Cmd.t =
       (Tea_cmd.call (fun _ ->
            Fetcher.request
              ( contextFromModel m
-             , TraceFetch {gtdrpTlid = tlid; gtdrpTraceID = traceID} ) ))
+             , TraceFetch {gtdrpTlid = tlid; gtdrpTraceID = traceID} )))
   else (m, Cmd.none)
 
 
@@ -391,12 +385,12 @@ let requestAnalysis m tlid traceID : msg Cmd.t =
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeHandler
-               {handler = h; traceID; traceData; dbs; userFns; userTipes}) )
+               {handler = h; traceID; traceData; dbs; userFns; userTipes}))
   | Some (TLFunc f), Some (_, Some traceData) ->
       Tea_cmd.call (fun _ ->
           RequestAnalysis.send
             (AnalyzeFunction
-               {func = f; traceID; traceData; dbs; userFns; userTipes}) )
+               {func = f; traceID; traceData; dbs; userFns; userTipes}))
   | _ ->
       Cmd.none
 

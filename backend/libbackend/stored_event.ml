@@ -5,8 +5,7 @@ open Libcommon
 
 type event_desc = string * string * string [@@deriving show, yojson]
 
-type event_record =
-  string * string * string * RTT.time * Analysis_types.traceid
+type event_record = string * string * string * RTT.time * Analysis_types.traceid
 [@@deriving show, yojson]
 
 type four_oh_four = event_record [@@deriving show, yojson]
@@ -36,9 +35,8 @@ let store_event
   |> Util.date_of_isostring
 
 
-let list_events
-    ~(limit : [`All | `Since of RTT.time]) ~(canvas_id : Uuidm.t) () :
-    event_record list =
+let list_events ~(limit : [`All | `Since of RTT.time]) ~(canvas_id : Uuidm.t) ()
+    : event_record list =
   let timestamp_constraint =
     match limit with
     | `All ->
@@ -76,12 +74,11 @@ let list_events
              , Util.date_of_isostring timestamp
              , trace_id )
          | out ->
-             Exception.internal "Bad DB format for stored_events" )
+             Exception.internal "Bad DB format for stored_events")
 
 
-let load_events
-    ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc) :
-    (string * Uuidm.t * RTT.time * RTT.dval) list =
+let load_events ~(canvas_id : Uuidm.t) ((module_, route, modifier) : event_desc)
+    : (string * Uuidm.t * RTT.time * RTT.dval) list =
   let route = Http.route_to_postgres_pattern route in
   Db.fetch
     ~name:"load_events"
@@ -101,7 +98,7 @@ let load_events
              , Util.date_of_isostring ts
              , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
-             Exception.internal "Bad DB format for load_events" )
+             Exception.internal "Bad DB format for load_events")
 
 
 let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
@@ -120,7 +117,7 @@ let load_event_for_trace ~(canvas_id : Uuidm.t) (trace_id : Uuidm.t) :
              , Util.date_of_isostring timestamp
              , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
-             Exception.internal "Bad DB format for load_event_for_trace" )
+             Exception.internal "Bad DB format for load_event_for_trace")
 
 
 let load_event_ids
@@ -152,7 +149,7 @@ let load_event_ids
          | [trace_id; path] ->
              (Util.uuid_of_string trace_id, path)
          | _ ->
-             Exception.internal "Bad DB format for stored_events" )
+             Exception.internal "Bad DB format for stored_events")
 
 
 let clear_all_events ~(canvas_id : Uuidm.t) () : unit =
@@ -177,11 +174,9 @@ let get_recent_event_traceids ~(canvas_id : Uuidm.t) event_rec =
     ~params:[Uuid canvas_id; String module_; String path; String modifier]
   |> List.filter_map ~f:(function
          | [trace_id] ->
-             if trace_id = ""
-             then None
-             else Some (Util.uuid_of_string trace_id)
+             if trace_id = "" then None else Some (Util.uuid_of_string trace_id)
          | _ ->
-             Exception.internal "Bad DB format for stored_events" )
+             Exception.internal "Bad DB format for stored_events")
 
 
 (* see comment on Stored_event.trim_results for why this query *)

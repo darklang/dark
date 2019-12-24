@@ -17,7 +17,7 @@ let current_dark_version = 0
 
 let find_db (tables : db list) (table_name : string) : db option =
   List.find tables ~f:(fun (d : db) ->
-      Ast.blank_to_string d.name = String.capitalize table_name )
+      Ast.blank_to_string d.name = String.capitalize table_name)
 
 
 (* ------------------------- *)
@@ -41,7 +41,7 @@ let cols_for (db : db) : (string * tipe) list =
          | Filled (_, name), Filled (_, tipe) ->
              Some (name, tipe)
          | _ ->
-             None )
+             None)
 
 
 let rec query ~state db query_obj : (string * dval) list =
@@ -69,14 +69,15 @@ let rec query ~state db query_obj : (string * dval) list =
          | [key; data] ->
              (key, to_obj db [data])
          | _ ->
-             Exception.internal "bad format received in fetch_all" )
+             Exception.internal "bad format received in fetch_all")
 
 
 and query_by_one ~state db (col : string) (dv : dval) : (string * dval) list =
   query ~state db (DObj (DvalMap.singleton col dv))
 
 
-and (* PG returns lists of strings. This converts them to types using the
+and
+    (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
     to_obj db (db_strings : string list) : dval =
   match db_strings with
@@ -155,7 +156,7 @@ and type_check db (obj : dval_map) : dval_map =
             value (* allow nulls for now *)
         | expected_type, value_of_actual_type ->
             Exception.code
-              (type_error_msg key expected_type value_of_actual_type) )
+              (type_error_msg key expected_type value_of_actual_type))
       obj
   else
     let missing_keys = String.Set.diff tipe_keys obj_keys in
@@ -259,7 +260,7 @@ and get_many ~state (db : db) (keys : string list) : (string * dval) list =
          | [key; data] ->
              (key, to_obj db [data])
          | _ ->
-             Exception.internal "bad format received in get_many" )
+             Exception.internal "bad format received in get_many")
 
 
 and get_many_with_keys ~state (db : db) (keys : string list) :
@@ -288,7 +289,7 @@ and get_many_with_keys ~state (db : db) (keys : string list) :
          | [key; data] ->
              (key, to_obj db [data])
          | _ ->
-             Exception.internal "bad format received in get_many_with_keys" )
+             Exception.internal "bad format received in get_many_with_keys")
 
 
 let get_all ~state (db : db) : (string * dval) list =
@@ -313,7 +314,7 @@ let get_all ~state (db : db) : (string * dval) list =
          | [key; data] ->
              (key, to_obj db [data])
          | _ ->
-             Exception.internal "bad format received in get_all" )
+             Exception.internal "bad format received in get_all")
 
 
 let get_all_keys ~state (db : db) : string list =
@@ -337,7 +338,7 @@ let get_all_keys ~state (db : db) : string list =
          | [key] ->
              key
          | _ ->
-             Exception.internal "bad format received in get_all_keys" )
+             Exception.internal "bad format received in get_all_keys")
 
 
 let count ~state (db : db) : int =
@@ -565,7 +566,7 @@ let delete_col id db =
         | Filled (nid, _), _ when nid = id ->
             false
         | _ ->
-            true )
+            true)
   in
   {db with cols = newcols}
 
@@ -665,7 +666,7 @@ let delete_col_in_migration id db =
             | Filled (nid, _), _ when nid = id ->
                 false
             | _ ->
-                true )
+                true)
       in
       let mutated_migration = {migration with cols = newcols} in
       {db with active_migration = Some mutated_migration}

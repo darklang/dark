@@ -122,10 +122,7 @@ let t_account_validation_works () =
     (Ok ())
     (Account.Testing.validate_username "myusername09") ;
   check_result "paul" (Ok ()) (Account.Testing.validate_username "paul") ;
-  check_result
-    "email"
-    (Ok ())
-    (Account.Testing.validate_email "me@example.com") ;
+  check_result "email" (Ok ()) (Account.Testing.validate_email "me@example.com") ;
   ()
 
 

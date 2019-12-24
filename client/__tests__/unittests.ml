@@ -25,7 +25,7 @@ let process_cmdline_args () =
           (* ignore *)
           ()
       | _ ->
-          Js.log ("Unsupported command line argument: " ^ str) )
+          Js.log ("Unsupported command line argument: " ^ str))
 
 
 (* See docs/unittests.md for documentation on how to use this. *)

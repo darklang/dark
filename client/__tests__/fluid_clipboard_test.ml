@@ -47,7 +47,9 @@ let execute_roundtrip (ast : fluidExpr) =
     ; cursorState = FluidEntering h.hTLID
     ; fluidState =
         { defaultTestState with
-          selectionStart = Some 0; oldPos = pos; newPos = pos } }
+          selectionStart = Some 0
+        ; oldPos = pos
+        ; newPos = pos } }
   in
   let mod_ = App.update_ (ClipboardCutEvent e) m in
   let newM, _cmd = App.updateMod mod_ (m, Cmd.none) in
@@ -77,7 +79,9 @@ let run () =
       ; cursorState = FluidEntering h.hTLID
       ; fluidState =
           { defaultTestState with
-            selectionStart = Some start; oldPos = pos; newPos = pos } }
+            selectionStart = Some start
+          ; oldPos = pos
+          ; newPos = pos } }
     in
     if debug
     then (
@@ -105,8 +109,7 @@ let run () =
     let e = clipboardEvent () in
     process ~debug e range expr (ClipboardCopyEvent e)
   in
-  let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult
-      =
+  let cut ?(debug = false) (range : int * int) (expr : fluidExpr) : testResult =
     let e = clipboardEvent () in
     process ~debug e range expr (ClipboardCutEvent e)
   in
@@ -136,7 +139,8 @@ let run () =
       (expected : string * string * int) =
     let insertCursor (str, clipboardStr, pos) : string * string * int =
       let cursorString = "~" in
-      ( match str |> String.splitAt ~index:pos with a, b ->
+      ( match str |> String.splitAt ~index:pos with
+      | a, b ->
           [a; b] |> String.join ~sep:cursorString )
       |> fun s -> (s, clipboardStr, pos)
     in
@@ -147,8 +151,7 @@ let run () =
         |> Regex.replace ~re:(Regex.regex "\n") ~repl:" " )
       ^ "`" )
       (fun () ->
-        expect (fn initial |> insertCursor)
-        |> toEqual (expected |> insertCursor) )
+        expect (fn initial |> insertCursor) |> toEqual (expected |> insertCursor))
   in
   let roundtrip ?(debug = false) (ast : fluidExpr) =
     let name = "roundtripping: " in
@@ -162,7 +165,7 @@ let run () =
       (fun () ->
         if debug then Js.log2 "ast before" (eToStructure defaultTestState ast) ;
         let newAST, newState = execute_roundtrip ast in
-        expect expectedString |> toEqual (eToString newState newAST) )
+        expect expectedString |> toEqual (eToString newState newAST))
   in
   let pipeOn expr fns = EPipe (gid (), expr :: fns) in
   let emptyList = EList (gid (), []) in
@@ -170,9 +173,7 @@ let run () =
   let listFn args =
     EFnCall (gid (), "List::append", EPipeTarget (gid ()) :: args, NoRail)
   in
-  let aPipe =
-    pipeOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]]
-  in
+  let aPipe = pipeOn emptyList [listFn [aListNum "5"]; listFn [aListNum "5"]] in
   describe "Booleans" (fun () ->
       t
         "copying a bool adds an EBool to clipboard"
@@ -199,7 +200,7 @@ let run () =
         (EBlank (gid ()))
         (paste ~clipboard:(EBool (gid (), true)) (0, 0))
         ("true", "true", 4) ;
-      () ) ;
+      ()) ;
   describe "Nulls" (fun () ->
       t
         "copying a null adds an ENull to clipboard"
@@ -226,7 +227,7 @@ let run () =
         (EBlank (gid ()))
         (paste ~clipboard:(ENull (gid ())) (0, 0))
         ("null", "null", 4) ;
-      () ) ;
+      ()) ;
   describe "Integers" (fun () ->
       t
         "copying an int adds an EInteger to clipboard"
@@ -313,7 +314,7 @@ let run () =
         (EInteger (gid (), "5678"))
         (paste ~clipboard:(EString (gid (), "1234")) (1, 3))
         ("512348", "1234", 5) ;
-      () ) ;
+      ()) ;
   describe "Strings" (fun () ->
       t
         "copying a string adds an EString to clipboard"
@@ -424,7 +425,7 @@ let run () =
              (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "9876"))]))
            (11, 15))
         ("\"abcd EFGH {\n  key1 : 9876\n} 1234\"", "{\n  key1 : 9876\n}", 28) ;
-      () ) ;
+      ()) ;
   describe "Floats" (fun () ->
       t
         "copying a float adds an EFloat to clipboard"
@@ -538,7 +539,7 @@ let run () =
         (EFloat (gid (), "1234", "5678"))
         (paste ~clipboard:(EInteger (gid (), "9000")) (3, 6))
         ("1239000678", "9000", 7) ;
-      () ) ;
+      ()) ;
   describe "Variables" (fun () ->
       t
         "copying adds an EVariable to clipboard"
@@ -580,7 +581,7 @@ let run () =
         (ELet (gid (), gid (), "oldLetLhs", EBlank (gid ()), EBlank (gid ())))
         (paste ~clipboard:(EVariable (gid (), "varName")) (7, 13))
         ("let oldvarName = ___\n___", "varName", 14) ;
-      () ) ;
+      ()) ;
   describe "Field Accesses" (fun () ->
       t
         "copying adds an EFieldAccess to clipboard"
@@ -613,7 +614,7 @@ let run () =
         (EFieldAccess (gid (), EVariable (gid (), "request"), gid (), "body"))
         (cut (8, 12))
         ("request.***", "___.body", 8) ; *)
-      () ) ;
+      ()) ;
   describe "If conditions" (fun () ->
       t
         "copying the whole expression adds an EIf to clipboard"
@@ -803,7 +804,7 @@ let run () =
         ( "if true\nthen\n  \"then body\"\nelse\n  ___"
         , "if ___\nthen\n  ___\nelse\n  \"else body\""
         , 27 ) ;
-      () ) ;
+      ()) ;
   describe "Bin-ops" (fun () ->
       (* NOT WORKING YET
       t
@@ -833,7 +834,7 @@ let run () =
         (copy (4, 5))
         ("123 == 456", "_________ =@ _________", 4) ;
  *)
-      () ) ;
+      ()) ;
   describe "Functions" (fun () ->
       t
         "copying a function name adds an EFnCall w blank arguments to clipboard"
@@ -870,7 +871,7 @@ let run () =
         (fn "Int::sqrt" [int "122"])
         (cut (10, 13))
         ("Int::sqrt _________", "122", 10) ;
-      () ) ;
+      ()) ;
   describe "Pipes" (fun () ->
       t
         "copying first expression of pipe adds it to clipboard"
@@ -884,7 +885,7 @@ let run () =
         ( "[]\n|>List::append [5]\n|>List::append [5]\n"
         , "[]\n|>List::append [5]\n|>List::append [5]\n"
         , 41 ) ;
-      () ) ;
+      ()) ;
   describe "Lists" (fun () ->
       (* NOT WORKING YET
       t
@@ -921,7 +922,7 @@ let run () =
              ; EInteger (gid (), "789") ] ))
         (paste ~clipboard:(EInteger (gid (), "9000")) (4, 5))
         ("[123,9000,456,789]", "9000", 9) ;
-        *)
+       *)
       t
         "pasting an expression over subset of list expr works"
         (EList
@@ -931,7 +932,7 @@ let run () =
              ; EInteger (gid (), "789") ] ))
         (paste ~clipboard:(EInteger (gid (), "9000")) (5, 12))
         ("[123,9000]", "9000", 9) ;
-      () ) ;
+      ()) ;
   describe "Records" (fun () ->
       t
         "copying opening bracket adds empty record expr to clipboard"
@@ -953,7 +954,7 @@ let run () =
         (ERecord (gid (), [(gid (), "key1", EInteger (gid (), "1234"))]))
         (copy (2, 15))
         ("{\n  key1 : 1234\n}", "{\n  key1 : 1234\n}", 15) ;
-      () ) ;
+      ()) ;
   describe "Constructors" (fun () ->
       t
         "copying adds EConstructor to clipboard"
@@ -975,10 +976,10 @@ let run () =
         (EConstructor (gid (), gid (), "Just", [EInteger (gid (), "100")]))
         (cut (0, 3))
         ("t@s@ 100", "Jus@ ___", 0) ;
-      () ) ;
+      ()) ;
   describe "Match" (fun () ->
       (* TODO: test match statements, implementation is slightly inconsistent*)
-      () ) ;
+      ()) ;
   describe "json" (fun () ->
       t
         "pasting a json int makes an int"
@@ -1011,9 +1012,9 @@ let run () =
         ( "\"[ 1 , 5 ]\""
         , (* this is wrong due to how the test works *) "[1,5]"
         , 10 ) ;
-      () ) ;
+      ()) ;
   describe "Feature Flags" (fun () ->
-      (* TODO: test feature flags, not yet in fluid *) () ) ;
+      (* TODO: test feature flags, not yet in fluid *) ()) ;
   describe "Copy/paste roundtrip" (fun () ->
       let longString =
         str
@@ -1030,4 +1031,4 @@ let run () =
       roundtrip longString ;
       roundtrip (let' "myVariable" longString b) ;
       roundtrip (record [("a", record [("b", str "c")])]) ;
-      () )
+      ())

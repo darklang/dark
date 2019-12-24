@@ -61,5 +61,5 @@ value @> '{\"type\": \"id\"}' LIMIT 100"
             (* AND data = $2 to guard against race conditions *)
             "UPDATE user_data SET data = $3 WHERE key = $1 AND data = $2"
       | _ ->
-          Exception.internal "Bad db result" ) ;
+          Exception.internal "Bad db result") ;
   ()

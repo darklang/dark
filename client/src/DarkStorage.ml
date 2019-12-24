@@ -16,8 +16,7 @@ module NewStaticDeployPush = struct
     let decodeDeploy =
       map4
         (fun deployHash url lastUpdate status ->
-          {deployHash; url; lastUpdate = Js.Date.fromString lastUpdate; status}
-          )
+          {deployHash; url; lastUpdate = Js.Date.fromString lastUpdate; status})
         (field "deploy_hash" string)
         (field "url" string)
         (field "last_update" string)
@@ -51,4 +50,4 @@ let appendDeploy
           then if prev.status = Deployed then prev :: rest else d :: rest
           else d :: prev :: rest
       | _ ->
-          d :: accum )
+          d :: accum)

@@ -145,8 +145,7 @@ let replace ~search ~replace t =
 
 (* See the above comment for replace *)
 let regexp_replace ~pattern ~replacement t =
-  Libtarget.regexp_replace ~pattern ~replacement t
-  |> of_utf8_encoded_string_exn
+  Libtarget.regexp_replace ~pattern ~replacement t |> of_utf8_encoded_string_exn
 
 
 (* See the above comment for replace. Similar issue here, are all parts of the split string still

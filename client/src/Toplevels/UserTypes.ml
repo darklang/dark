@@ -11,12 +11,13 @@ module TD = TLIDDict
 let allData (t : userTipe) : pointerData list =
   let namePointer = PTypeName t.utName in
   let definitionPointers =
-    match t.utDefinition with UTRecord fields ->
-      List.foldl
-        ~init:[]
-        ~f:(fun f acc ->
-          acc @ [PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe] )
-        fields
+    match t.utDefinition with
+    | UTRecord fields ->
+        List.foldl
+          ~init:[]
+          ~f:(fun f acc ->
+            acc @ [PTypeFieldName f.urfName; PTypeFieldTipe f.urfTipe])
+          fields
   in
   namePointer :: definitionPointers
 
@@ -52,32 +53,33 @@ let toTUserType (tipe : userTipe) : tipe option =
 let replaceDefinitionElement
     (old : pointerData) (new_ : pointerData) (tipe : userTipe) : userTipe =
   let sId = P.toID old in
-  match tipe.utDefinition with UTRecord fields ->
-    let newFields =
-      List.map
-        ~f:(fun f ->
-          if B.toID f.urfName = sId
-          then
-            match new_ with
-            | PTypeFieldName new_ ->
-                {f with urfName = B.replace sId new_ f.urfName}
-            | _ ->
-                f
-          else if B.toID f.urfTipe = sId
-          then
-            match new_ with
-            | PTypeFieldTipe new_ ->
-                {f with urfTipe = B.replace sId new_ f.urfTipe}
-            | _ ->
-                f
-          else f )
-        fields
-    in
-    {tipe with utDefinition = UTRecord newFields}
+  match tipe.utDefinition with
+  | UTRecord fields ->
+      let newFields =
+        List.map
+          ~f:(fun f ->
+            if B.toID f.urfName = sId
+            then
+              match new_ with
+              | PTypeFieldName new_ ->
+                  {f with urfName = B.replace sId new_ f.urfName}
+              | _ ->
+                  f
+            else if B.toID f.urfTipe = sId
+            then
+              match new_ with
+              | PTypeFieldTipe new_ ->
+                  {f with urfTipe = B.replace sId new_ f.urfTipe}
+              | _ ->
+                  f
+            else f)
+          fields
+      in
+      {tipe with utDefinition = UTRecord newFields}
 
 
-let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe)
-    : userTipe =
+let replaceTypeName (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
+    userTipe =
   let sId = P.toID old in
   if B.toID tipe.utName = sId
   then
@@ -95,12 +97,14 @@ let replace (old : pointerData) (new_ : pointerData) (tipe : userTipe) :
 
 
 let extend (tipe : userTipe) : userTipe =
-  match tipe.utDefinition with UTRecord fields ->
-    let newFields = fields @ [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
-    {tipe with utDefinition = UTRecord newFields}
+  match tipe.utDefinition with
+  | UTRecord fields ->
+      let newFields = fields @ [{urfName = B.new_ (); urfTipe = B.new_ ()}] in
+      {tipe with utDefinition = UTRecord newFields}
 
 
 let removeField (tipe : userTipe) (field : userRecordField) : userTipe =
-  match tipe.utDefinition with UTRecord fields ->
-    let newFields = List.filter ~f:(fun f -> field <> f) fields in
-    {tipe with utDefinition = UTRecord newFields}
+  match tipe.utDefinition with
+  | UTRecord fields ->
+      let newFields = List.filter ~f:(fun f -> field <> f) fields in
+      {tipe with utDefinition = UTRecord newFields}
