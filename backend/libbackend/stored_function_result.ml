@@ -50,7 +50,7 @@ let load ~canvas_id ~trace_id tlid : function_result list =
              , Dval.of_internal_roundtrippable_v0 dval )
          | _ ->
              Exception.internal
-               "Bad DB format for stored_functions_results.load" )
+               "Bad DB format for stored_functions_results.load")
 
 
 (* in the previous iteration of this, we did two queries:

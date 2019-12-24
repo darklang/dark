@@ -216,9 +216,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DDate date] ->
-              let time =
-                date |> Time.to_span_since_epoch |> Time.Span.to_sec
-              in
+              let time = date |> Time.to_span_since_epoch |> Time.Span.to_sec in
               let msPerMinute = 60.0 *. 1000.0 in
               let msPerHour = msPerMinute *. 60.0 in
               let msPerDay = msPerHour *. 24.0 in

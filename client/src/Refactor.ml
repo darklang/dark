@@ -12,9 +12,7 @@ let generateFnName (_ : unit) : string =
   "fn_" ^ (() |> Util.random |> string_of_int)
 
 
-let generateTipeName () : string =
-  "Type_" ^ (() |> Util.random |> string_of_int)
-
+let generateTipeName () : string = "Type_" ^ (() |> Util.random |> string_of_int)
 
 let convertTipe (tipe : tipe) : tipe =
   match tipe with TIncomplete -> TAny | TError -> TAny | _ -> tipe
@@ -104,7 +102,7 @@ let putOnRail (m : model) (tl : toplevel) (p : pointerData) : modification =
         |> Option.map ~f:(fun t ->
                if t = TOption || t = TResult
                then PExpr (F (id, FnCall (F (nid, name), exprs, Rail)))
-               else p )
+               else p)
         |> Option.withDefault ~default:p
     | _ ->
         p
@@ -141,15 +139,13 @@ let extractVarInAst
              |> StrSet.toList
              |> List.all ~f:(not << fun v -> AST.isDefinitionOf v elem)
            in
-           allRequiredVariablesAvailable && noVariablesAreRedefined )
+           allRequiredVariablesAvailable && noVariablesAreRedefined)
     |> List.last
   in
   let newVar = B.newF varname in
   match lastPlaceWithSameVarsAndValues with
   | Some p ->
-      let nbody =
-        AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
-      in
+      let nbody = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p in
       let nlet = B.newF (Let (newVar, e, nbody)) in
       (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
   | None ->
@@ -161,8 +157,8 @@ let extractVarInAst
       (B.newF (Let (newVar, e, newAST)), B.toID newVar)
 
 
-let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
-    modification =
+let extractVariable (m : model) (tl : toplevel) (p : pointerData) : modification
+    =
   let tlid = TL.id tl in
   let varname = "var" ^ string_of_int (Util.random ()) in
   match (p, tl) with
@@ -182,8 +178,8 @@ let extractVariable (m : model) (tl : toplevel) (p : pointerData) :
       NoChange
 
 
-let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
-    modification =
+let extractFunction (m : model) (tl : toplevel) (p : pointerData) : modification
+    =
   let tlid = TL.id tl in
   if not (TL.isValidID tl (P.toID p))
   then NoChange
@@ -217,7 +213,7 @@ let extractFunction (m : model) (tl : toplevel) (p : pointerData) :
               ; ufpTipe = F (gid (), tipe)
               ; ufpBlock_args = []
               ; ufpOptional = false
-              ; ufpDescription = "" } )
+              ; ufpDescription = "" })
         in
         let metadata =
           { ufmName = F (gid (), name)
@@ -276,7 +272,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
            let newAst = renameFnCalls h.ast old new_ in
            if newAst <> h.ast
            then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None )
+           else None)
   in
   let newFunctions =
     m.userFunctions
@@ -284,7 +280,7 @@ let renameFunction (m : model) (old : userFunction) (new_ : userFunction) :
            let newAst = renameFnCalls uf.ufAST old new_ in
            if newAst <> uf.ufAST
            then Some (SetFunction {uf with ufAST = newAst})
-           else None )
+           else None)
   in
   newHandlers @ newFunctions
 
@@ -361,7 +357,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     | Some _, Some newName ->
         List.foldr
           ~f:(fun use accfn ->
-            Functions.replaceParamTipe use (transformUse newName use) accfn )
+            Functions.replaceParamTipe use (transformUse newName use) accfn)
           ~init:fn
           uses
     | _ ->
@@ -371,7 +367,7 @@ let renameUserTipe (m : model) (old : userTipe) (new_ : userTipe) : op list =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun uf ->
            let newFn = renameUserTipeInFnParameters uf old new_ in
-           if newFn <> uf then Some (SetFunction newFn) else None )
+           if newFn <> uf then Some (SetFunction newFn) else None)
   in
   newFunctions
 
@@ -404,7 +400,7 @@ let updateUsageCounts (m : model) : model =
             | Some count ->
                 Some (count + 1)
             | None ->
-                Some 1 ) )
+                Some 1))
   in
   let usedFns =
     all
@@ -412,7 +408,7 @@ let updateUsageCounts (m : model) : model =
            | PFnCallName (F (_, name)) ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
   let usedDBs =
@@ -421,7 +417,7 @@ let updateUsageCounts (m : model) : model =
            | PExpr (F (_, Variable name)) when String.isCapitalized name ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
   let usedTipes =
@@ -433,7 +429,7 @@ let updateUsageCounts (m : model) : model =
            | PParamTipe (F (_, TUserType (name, _))) ->
                Some name
            | _ ->
-               None )
+               None)
     |> countFromList
   in
   {m with usedDBs; usedFns; usedTipes}
@@ -474,7 +470,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
            let newAst = transformCallsInAst f h.ast uf in
            if newAst <> h.ast
            then Some (SetHandler (h.hTLID, h.pos, {h with ast = newAst}))
-           else None )
+           else None)
   in
   let newFunctions =
     m.userFunctions
@@ -482,7 +478,7 @@ let transformFnCalls (m : model) (uf : userFunction) (f : nExpr -> nExpr) :
            let newAst = transformCallsInAst f uf_.ufAST uf_ in
            if newAst <> uf_.ufAST
            then Some (SetFunction {uf_ with ufAST = newAst})
-           else None )
+           else None)
   in
   newHandlers @ newFunctions
 
@@ -599,8 +595,8 @@ let generateUserType (dv : dval option) : (string, userTipe) Result.t =
                 * discussion at
                 * https://dark-inc.slack.com/archives/C7MFHVDDW/p1562878578176700
                 * let tipe = v |> coerceType in
-                  *)
-               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF} )
+                *)
+               {urfName = k |> Blank.newF; urfTipe = tipe |> Blank.newF})
       in
       Ok
         { (generateEmptyUserType ()) with
@@ -640,4 +636,4 @@ let renameDBReferences (m : model) (oldName : dbName) (newName : dbName) :
          | TLDB _ ->
              None
          | TLGroup _ ->
-             None )
+             None)

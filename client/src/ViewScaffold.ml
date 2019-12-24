@@ -21,14 +21,14 @@ let debuggerLinkLoc m =
     loc.hash
 
 
-let viewIntegrationTestButton (testState : integrationTestState) :
-    msg Html.html =
+let viewIntegrationTestButton (testState : integrationTestState) : msg Html.html
+    =
   let integrationTestButton =
     match testState with
     | IntegrationTestExpectation _ ->
         [ Html.a
             [ ViewUtils.eventNoPropagation ~key:"fit" "mouseup" (fun _ ->
-                  FinishIntegrationTest )
+                  FinishIntegrationTest)
             ; Html.src ""
             ; Html.id "finishIntegrationTest"
             ; Html.class' "specialButton" ]
@@ -67,7 +67,7 @@ let viewError (message : string option) : msg Html.html =
     [ Html.p
         [ Html.class' "dismissBtn"
         ; ViewUtils.eventNoPropagation "click" ~key:"dismiss-error" (fun _ ->
-              DismissErrorBar ) ]
+              DismissErrorBar) ]
         [Html.text "Dismiss"] ]
   in
   Html.div

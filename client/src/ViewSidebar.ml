@@ -33,9 +33,8 @@ type entry =
   ; uses : int option
   ; minusButton : msg option
   ; plusButton : msg option
-  ; killAction :
-      msg option
-      (* if this is in the deleted section, what does minus do? *)
+  ; killAction : msg option
+        (* if this is in the deleted section, what does minus do? *)
   ; verb : string option }
 
 and category =
@@ -120,7 +119,7 @@ let handlerCategory
             ; verb =
                 ( if TL.isHTTPHandler (TLHandler h)
                 then B.toMaybe h.spec.modifier
-                else None ) } ) }
+                else None ) }) }
 
 
 let httpCategory (handlers : handler list) : category =
@@ -150,7 +149,7 @@ let workerCategory (handlers : handler list) : category =
     (fun tl ->
       TL.isWorkerHandler tl
       || (* Show the old workers here for now *)
-         TL.isDeprecatedCustomHandler tl )
+      TL.isDeprecatedCustomHandler tl)
     "WORKER"
     (NewWorkerHandler None)
     (Some GoToArchitecturalView)
@@ -180,7 +179,7 @@ let dbCategory (m : model) (dbs : db list) : category =
           ; minusButton
           ; killAction = Some (ToplevelDeleteForever db.dbTLID)
           ; verb = None
-          ; plusButton = None } )
+          ; plusButton = None })
   in
   { count = List.length dbs
   ; name = "Datastores"
@@ -209,7 +208,7 @@ let f404Category (m : model) : category =
             ; minusButton = Some (Delete404RPC fof)
             ; killAction = None
             ; plusButton = Some (CreateHandlerFrom404 fof)
-            ; verb = (if space = "WORKER" then None else Some modifier) } ) }
+            ; verb = (if space = "WORKER" then None else Some modifier) }) }
 
 
 let userFunctionCategory (m : model) (ufs : userFunction list) : category =
@@ -230,7 +229,7 @@ let userFunctionCategory (m : model) (ufs : userFunction list) : category =
               ; killAction = Some (DeleteUserFunctionForever fn.ufTLID)
               ; destination = Some (FocusedFn fn.ufTLID)
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None }))
   in
   { count = List.length fns
   ; name = "Functions"
@@ -258,7 +257,7 @@ let userTipeCategory (m : model) (tipes : userTipe list) : category =
               ; killAction = Some (DeleteUserTypeForever tipe.utTLID)
               ; destination = Some (FocusedType tipe.utTLID)
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None }))
   in
   { count = List.length tipes
   ; name = "Types"
@@ -285,7 +284,7 @@ let groupCategory (groups : group list) : category =
               ; killAction = Some (DeleteGroupForever group.gTLID)
               ; destination = Some (FocusedGroup (group.gTLID, true))
               ; plusButton = None
-              ; verb = None } ) )
+              ; verb = None }))
   in
   { count = List.length groups
   ; name = "Groups"
@@ -353,8 +352,7 @@ let deletedCategory (m : model) : category =
       m.deletedGroups
     |> List.map ~f:(fun c ->
            { c with
-             plusButton =
-               None (* only allow new entries on the main category *)
+             plusButton = None (* only allow new entries on the main category *)
            ; classname =
                (* dont open/close in lockstep with parent *)
                "deleted-" ^ c.classname
@@ -371,7 +369,7 @@ let deletedCategory (m : model) : category =
                          ; minusButton = e.killAction
                          ; destination = None }
                    | c ->
-                       c ) } )
+                       c) })
   in
   { count = cats |> List.map ~f:(fun c -> count (Category c)) |> List.sum
   ; name = "Deleted"
@@ -508,9 +506,7 @@ let categoryOpenCloseHelpers (m : model) (classname : string) (count : int) :
 let deployStats2html (m : model) : msg Html.html =
   let entries = m.staticDeploys in
   let count = List.length entries in
-  let openEventHandler, openAttr =
-    categoryOpenCloseHelpers m "deploys" count
-  in
+  let openEventHandler, openAttr = categoryOpenCloseHelpers m "deploys" count in
   let header =
     let title = categoryTitle "Static Assets" "static" in
     let deployLatest =
@@ -603,7 +599,7 @@ let closedCategory2html (m : model) (c : category) : msg Html.html =
     match c.iconAction with
     | Some ev ->
         [ ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              ev ) ]
+              ev) ]
     | None ->
         []
   in
@@ -646,7 +642,7 @@ let closedDeployStats2html (m : model) : msg Html.html =
 let toggleSidebar (m : model) : msg Html.html =
   let event =
     ViewUtils.eventNeither ~key:"toggle-sidebar" "click" (fun _ ->
-        ToggleSideBar )
+        ToggleSideBar)
   in
   let button icon tooltip =
     Html.a [Html.class' "button-link"; Html.title tooltip] [icon; icon]
@@ -717,7 +713,7 @@ let adminDebuggerView (m : model) : msg Html.html =
     Html.div
       [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
             ToggleEditorSetting
-              (fun es -> {es with runTimers = not es.runTimers}) )
+              (fun es -> {es with runTimers = not es.runTimers}))
       ; Html.class' "checkbox-row" ]
       [ Html.input'
           [Html.type' "checkbox"; Html.checked m.editorSettings.runTimers]
@@ -728,8 +724,7 @@ let adminDebuggerView (m : model) : msg Html.html =
     Html.div
       [ ViewUtils.eventNoPropagation ~key:"tt" "mouseup" (fun _ ->
             ToggleEditorSetting
-              (fun es -> {es with showFluidDebugger = not es.showFluidDebugger})
-        )
+              (fun es -> {es with showFluidDebugger = not es.showFluidDebugger}))
       ; Html.class' "checkbox-row" ]
       [ Html.input'
           [ Html.type' "checkbox"
@@ -749,7 +744,7 @@ let adminDebuggerView (m : model) : msg Html.html =
   let saveTestButton =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"stb" "mouseup" (fun _ ->
-            SaveTestButton )
+            SaveTestButton)
       ; Html.class' "state-info-row save-state" ]
       [Html.text "SAVE STATE FOR INTEGRATION TEST"]
   in
@@ -800,7 +795,7 @@ let viewSidebar_ (m : model) : msg Html.html =
               ; ViewUtils.eventNoPropagation
                   ~key:(string_of_bool true)
                   "mouseup"
-                  (fun _ -> DismissErrorBar ) ]
+                  (fun _ -> DismissErrorBar) ]
               [Html.text "Hide details"] ]
     | _ ->
         Html.noNode
@@ -810,9 +805,9 @@ let viewSidebar_ (m : model) : msg Html.html =
       [ Html.classList [("viewing-table", true); ("isClosed", isClosed)]
       ; nothingMouseEvent "mouseup"
       ; ViewUtils.eventNoPropagation ~key:"ept" "mouseenter" (fun _ ->
-            EnablePanning false )
+            EnablePanning false)
       ; ViewUtils.eventNoPropagation ~key:"epf" "mouseleave" (fun _ ->
-            EnablePanning true ) ]
+            EnablePanning true) ]
       ( [toggleSidebar m]
       @ [ Html.div
             [Html.classList [("groups", true); ("groups-closed", isClosed)]]

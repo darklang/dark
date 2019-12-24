@@ -25,19 +25,18 @@ let () =
   Account.init_testing () ;
   let wrapped_suites =
     let wrap f () =
-      try f () with e ->
+      try f ()
+      with e ->
         Exception.reraise_after e (fun bt ->
             print_endline (Exception.to_string e) ;
-            print_endline (Exception.backtrace_to_string bt) )
+            print_endline (Exception.backtrace_to_string bt))
     in
     List.map suites ~f:(fun (n, ts) ->
-        (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))) )
+        (n, List.map ts ~f:(fun (n, m, t) -> (n, m, wrap t))))
   in
   let suite, exit = Junit_alcotest.run_and_report "all" wrapped_suites in
   let report = Junit.make [suite] in
   File.mkdir ~root:Testresults "" ;
-  let file =
-    File.check_filename ~mode:`Write ~root:Testresults "backend.xml"
-  in
+  let file = File.check_filename ~mode:`Write ~root:Testresults "backend.xml" in
   Junit.to_file report file ;
   exit ()

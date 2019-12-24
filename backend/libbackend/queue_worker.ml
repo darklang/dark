@@ -10,7 +10,8 @@ let dequeue_and_process execution_id :
     (RTT.dval option, Exception.captured) Result.t =
   Event_queue.with_transaction (fun transaction ->
       let event =
-        try Ok (Event_queue.dequeue transaction) with e ->
+        try Ok (Event_queue.dequeue transaction)
+        with e ->
           (* exception occurred while dequeuing,
          * no item to put back *)
           let bt = Exception.get_backtrace () in
@@ -106,8 +107,8 @@ let dequeue_and_process execution_id :
                                       [ ("event", Log.dump desc)
                                       ; ("host", host)
                                       ; ("event_id", string_of_int event.id)
-                                      ; ( "handler_id"
-                                        , Types.string_of_id h.tlid ) ] ;
+                                      ; ("handler_id", Types.string_of_id h.tlid)
+                                      ] ;
                                   let result, touched_tlids =
                                     Execution.execute_handler
                                       h
@@ -116,8 +117,7 @@ let dequeue_and_process execution_id :
                                       ~input_vars:[("event", event.value)]
                                       ~dbs:(TL.dbs !c.dbs)
                                       ~user_tipes:(!c.user_tipes |> IDMap.data)
-                                      ~user_fns:
-                                        (!c.user_functions |> IDMap.data)
+                                      ~user_fns:(!c.user_functions |> IDMap.data)
                                       ~account_id:!c.owner
                                       ~store_fn_arguments:
                                         (Stored_function_arguments.store
@@ -145,9 +145,7 @@ let dequeue_and_process execution_id :
                                     | DOption OptNothing ->
                                         "OptNothing"
                                     | _ ->
-                                        r
-                                        |> Dval.tipe_of
-                                        |> Dval.tipe_to_string
+                                        r |> Dval.tipe_of |> Dval.tipe_to_string
                                   in
                                   Log.infO
                                     "queue_worker"
@@ -156,8 +154,7 @@ let dequeue_and_process execution_id :
                                       [ ("host", host)
                                       ; ("event", Log.dump desc)
                                       ; ("event_id", string_of_int event.id)
-                                      ; ( "handler_id"
-                                        , Types.string_of_id h.tlid )
+                                      ; ("handler_id", Types.string_of_id h.tlid)
                                       ; ("result_type", result_tipe result) ] ;
                                   Event_queue.finish transaction event ;
                                   Ok (Some result)
@@ -170,7 +167,7 @@ let dequeue_and_process execution_id :
                                    transaction
                                    event
                                    ~status:`Err) ;
-                              Error (bt, e) ) ) ) )
+                              Error (bt, e)))))
 
 
 let run (execution_id : Types.id) :

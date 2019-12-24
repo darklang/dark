@@ -196,7 +196,8 @@ let create_request
 let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
   let rollbar_link_of_curl_buffer (r : Buffer.t) : string option =
     let body =
-      try Some (Yojson.Safe.from_string (Buffer.contents r)) with e ->
+      try Some (Yojson.Safe.from_string (Buffer.contents r))
+      with e ->
         (* shouldn't happen *)
         Log.erroR "no body from rollbar response" ;
         None
@@ -218,9 +219,9 @@ let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
              Log.erroR
                "rollbar response had no .result.uuid"
                ~params:[("message", message)] ;
-             None )
+             None)
     |> Option.bind ~f:(fun uuid ->
-           Some ("https://rollbar.com/item/uuid/?uuid=" ^ uuid) )
+           Some ("https://rollbar.com/item/uuid/?uuid=" ^ uuid))
   in
   let payload =
     match payload with
@@ -236,7 +237,7 @@ let log_rollbar (r : Buffer.t) (payload : Yojson.Safe.t) (e : exn) : unit =
   let payload =
     payload
     |> List.map ~f:(fun (k, v) ->
-           match k with "request" -> ("request_obj", v) | _ -> (k, v) )
+           match k with "request" -> ("request_obj", v) | _ -> (k, v))
   in
   let payload =
     match rollbar_link_of_curl_buffer r with
@@ -272,31 +273,31 @@ let report_lwt
     (ctx : err_ctx)
     (execution_id : string) : result Lwt.t =
   try%lwt
-        if not Config.rollbar_enabled
-        then return `Disabled
-        else
-          let c, r, p = create_request ~pp ~inspect e bt ctx execution_id in
-          ( try%lwt
-                  Curl_lwt.perform c
-                  >|= function
-                  | CURLE_OK ->
-                      log_rollbar r p e ;
-                      `Success
-                  | other ->
-                      Log.erroR
-                        "Rollbar err"
-                        ~data:(Curl.strerror other)
-                        ~params:[("execution_id", Log.dump execution_id)] ;
-                      `Failure
-            with err ->
+    if not Config.rollbar_enabled
+    then return `Disabled
+    else
+      let c, r, p = create_request ~pp ~inspect e bt ctx execution_id in
+      ( try%lwt
+          Curl_lwt.perform c
+          >|= function
+          | CURLE_OK ->
+              log_rollbar r p e ;
+              `Success
+          | other ->
               Log.erroR
                 "Rollbar err"
-                ~data:(Log.dump err)
+                ~data:(Curl.strerror other)
                 ~params:[("execution_id", Log.dump execution_id)] ;
-              Lwt.fail err )
-            [%lwt.finally
-              Curl.cleanup c ;
-              return ()]
+              `Failure
+        with err ->
+          Log.erroR
+            "Rollbar err"
+            ~data:(Log.dump err)
+            ~params:[("execution_id", Log.dump execution_id)] ;
+          Lwt.fail err )
+        [%lwt.finally
+          Curl.cleanup c ;
+          return ()]
   with err ->
     Caml.print_endline "UNHANDLED ERROR: rollbar.report_lwt" ;
     Lwt.fail err

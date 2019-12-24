@@ -28,8 +28,7 @@ let defaultPasteHandler =
     (Decoders.wrapDecoder (fun _ -> IgnoreMsg))
 
 
-let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
-    =
+let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html =
   let toList acis class' index =
     List.indexedMap
       ~f:(fun i item ->
@@ -47,9 +46,9 @@ let normalEntryHtml (placeholder : string) (ac : autocomplete) : msg Html.html
           ; defaultPasteHandler
           ; nothingMouseEvent "mousedown"
           ; eventNoPropagation ~key:("ac-" ^ name) "click" (fun _ ->
-                AutocompleteClick i ) ]
+                AutocompleteClick i) ]
           [ Html.span [Html.class' "name"] [Html.text name]
-          ; Html.span [Html.class' "types"] [Html.text typeStr] ] )
+          ; Html.span [Html.class' "types"] [Html.text typeStr] ])
       acis
   in
   let autocompleteList = toList ac.completions "valid" ac.index in
@@ -116,8 +115,6 @@ let viewEntry (m : model) : msg Html.html =
             [ ("left", string_of_int loc.x ^ "px")
             ; ("top", string_of_int loc.y ^ "px") ]
       in
-      Html.div
-        [Html.class' "omnibox"; styleProp]
-        [normalEntryHtml "" m.complete]
+      Html.div [Html.class' "omnibox"; styleProp] [normalEntryHtml "" m.complete]
   | _ ->
       Vdom.noNode

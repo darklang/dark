@@ -25,7 +25,7 @@ let validate_row (table : string) (values : string list) : unit =
         [("table", table); ("canvas", canvas_name); ("trace_id", trace_id)]
       in
       ( try
-          let _ : RTT.dval = Dval.of_internal_roundtrippable_v0 value in
+          let (_ : RTT.dval) = Dval.of_internal_roundtrippable_v0 value in
           Log.infO "successful roundtrip" ~params
         with _ ->
           let params = ("value", value) :: params in
@@ -83,11 +83,10 @@ let () =
               ~params:
                 [ ("host", h)
                 ; ("exn", Exception.to_string e)
-                ; ( "bt"
-                  , Base.Backtrace.to_string (Backtrace.Exn.most_recent ()) )
+                ; ("bt", Base.Backtrace.to_string (Backtrace.Exn.most_recent ()))
                 ] )
       | _ ->
-          Exception.internal "wrong # of fields in db resultset" ) ;
+          Exception.internal "wrong # of fields in db resultset") ;
   Log.infO "Next: get_all_user_data" ;
   Db.iter_with_cursor
     ~name:"get all canvases"
@@ -133,7 +132,7 @@ let () =
                      ~params:
                        [ ("db", dbname)
                        ; ("host", host)
-                       ; ("exn", Exception.to_string e) ] )
+                       ; ("exn", Exception.to_string e) ])
       | _ ->
-          Exception.internal "bad db result" ) ;
+          Exception.internal "bad db result") ;
   ()

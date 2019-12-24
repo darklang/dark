@@ -4,7 +4,7 @@ open Types
 
 let testRoundtrip decoder encoder (name : string) (v : 'a) =
   test ("roundtrip " ^ name) (fun () ->
-      expect v |> toEqual (v |> encoder |> decoder) )
+      expect v |> toEqual (v |> encoder |> decoder))
 
 
 let rtDval = testRoundtrip Decoders.dval Encoders.dval
@@ -16,13 +16,13 @@ let run () =
           |> toEqual
                ( DObj (StrDict.fromList [("foo", DInt 5)])
                |> Encoders.dval
-               |> Js.Json.stringify ) ) ;
+               |> Js.Json.stringify )) ;
       test "dresp shape" (fun () ->
           expect "[\"DResp\",[[\"Response\",401,[]],[\"DNull\"]]]"
           |> toEqual
                ( DResp (Response (401, []), DNull)
                |> Encoders.dval
-               |> Js.Json.stringify ) ) ;
+               |> Js.Json.stringify )) ;
       describe "roundtrips" (fun () ->
           rtDval "int" (DInt 5) ;
           rtDval "obj" (DObj (StrDict.fromList [("foo", DInt 5)])) ;
@@ -38,6 +38,6 @@ let run () =
           rtDval "list" (DList [|DDB "Visitors"; DInt 4|]) ;
           rtDval "redirect" (DResp (Redirect "/home", DNull)) ;
           rtDval "httpresponse" (DResp (Response (200, []), DStr "success")) ;
-          () ) ;
-      () ) ;
+          ()) ;
+      ()) ;
   ()

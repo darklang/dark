@@ -35,7 +35,7 @@ let focusWithOffset id offset =
       let cb _ignored = ignore (Web.Window.requestAnimationFrame ecb) in
       (* And another to properly focus *)
       ignore (Web.Window.requestAnimationFrame cb) ;
-      () )
+      ())
 
 
 (* selection *)
@@ -61,14 +61,11 @@ type selection =
 external getSelection : unit -> selection = "getSelection"
   [@@bs.val] [@@bs.scope "window"]
 
-external jsGetFluidSelectionRange :
-  unit -> int array Js.Nullable.t
+external jsGetFluidSelectionRange : unit -> int array Js.Nullable.t
   = "getFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
-external jsSetFluidSelectionRange :
-  int array -> unit
-  = "setFluidSelectionRange"
+external jsSetFluidSelectionRange : int array -> unit = "setFluidSelectionRange"
   [@@bs.val] [@@bs.scope "window"]
 
 let getFluidSelectionRange () : (int * int) option =
@@ -107,8 +104,7 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
-external jsGetBrowserPlatform :
-  unit -> browserPlatform Js.Nullable.t
+external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -136,9 +132,7 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
 
 let newHandler m space name modifier pos =
   let tlid =
-    if VariantTesting.variantIsActive m GridLayout
-    then gtlidDT ()
-    else gtlid ()
+    if VariantTesting.variantIsActive m GridLayout then gtlidDT () else gtlid ()
   in
   let spaceid = gid () in
   let handler =
@@ -261,8 +255,8 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let validate (tl : toplevel) (pd : pointerData) (value : string) :
-    string option =
+let validate (tl : toplevel) (pd : pointerData) (value : string) : string option
+    =
   let v pattern name =
     if Regex.exactly ~re:pattern value
     then None
@@ -520,8 +514,7 @@ let submitACItem
                 let newPD = PFnName (B.newF value) in
                 let new_ =
                   { old with
-                    ufMetadata = {old.ufMetadata with ufmName = B.newF value}
-                  }
+                    ufMetadata = {old.ufMetadata with ufmName = B.newF value} }
                 in
                 let changedNames = Refactor.renameFunction m old new_ in
                 wrapNew (SetFunction new_ :: changedNames) newPD
@@ -555,8 +548,7 @@ let submitACItem
         recover "Missing tl/pd" ~debug:cursor NoChange )
 
 
-let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
-    =
+let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification =
   match cursor with
   | Creating pos ->
     ( match AC.highlighted m.complete with

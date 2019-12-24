@@ -9,8 +9,7 @@ let fns =
     ; p = []
     ; r = TObj
     ; d = "Return an empty object"
-    ; f =
-        InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
+    ; f = InProcess (function _, [] -> DObj DvalMap.empty | args -> fail args)
     ; ps = true
     ; dep = true }
   ; { pns = ["Object::merge"]

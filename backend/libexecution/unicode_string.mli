@@ -27,47 +27,47 @@ module Character : sig
   val of_yojson : Yojson.Safe.t -> (t, string) Result.t
 end
 
-val of_utf8_encoded_string : string -> t option
 (** Creates a `t` from an OCaml `string`, which is required to be encoded in UTF-8.
  ** Returns `None` if the passed string is not valid UTF-8 **)
+val of_utf8_encoded_string : string -> t option
 
-val of_string : string -> t option
 (** alias of `of_utf8_encoded_string` **)
+val of_string : string -> t option
 
-val of_utf8_encoded_string_exn : ?message:string -> string -> t
 (** Creates a `t` from an OCaml `string`, which is required to be encoded in UTF-8
  ** Throws an exception with `?message` as the message if the passed string
  ** is not valid UTF-8. The exception has a default message if no message
  ** is provided**)
+val of_utf8_encoded_string_exn : ?message:string -> string -> t
 
-val of_string_exn : ?message:string -> string -> t
 (** alias of `of_utf8_encoded_string_exn` **)
+val of_string_exn : ?message:string -> string -> t
 
 val to_utf8_encoded_string : t -> string
 
-val to_string : t -> string
 (** alias of `to_utf8_encoded_string` **)
+val to_string : t -> string
 
-val to_utf8_bytes : t -> Bytes.t
 (** get the bytes of the string, using utf8 encoding **)
+val to_utf8_bytes : t -> Bytes.t
 
-val uppercase : t -> t
 (** Maps the casing of the characters of the String to their defined
  ** uppercase equivalent.
  ** Note: `length a != length (uppercase a)` in the general case as
  ** some characters become multiple characters when their case is changed **)
+val uppercase : t -> t
 
-val lowercase : t -> t
 (** Maps the casing of the characters of the String to their defined
  ** lowercase equivalent.
  ** Note: `length a != length (lowercase a)` in the general case as
  ** some characters become multiple characters ** when their case is changed **)
+val lowercase : t -> t
 
-val append : t -> t -> t
 (** `append a b` returns the concatenation of `a` and `b` **)
+val append : t -> t -> t
 
-val characters : t -> Character.t list
 (** Returns a list of the user-perceived Characters in the Unicode_string.t **)
+val characters : t -> Character.t list
 
 val map_characters : f:(Character.t -> 'a) -> t -> 'a list
 
@@ -85,17 +85,17 @@ val split : sep:t -> t -> t list
 
 val concat : sep:t -> t list -> t
 
-val rev : t -> t
 (** Returns the `t`, with the characters reversed **)
+val rev : t -> t
 
-val length : t -> int
 (** Returns the number of user-perceived Characters in `t` **)
+val length : t -> int
 
-val trim : t -> t
 (** Removes whitespace from the front and end of a string.
  * 'Whitespace' is defined according to the terms of the Unicode Derived Core Property White_Space
  * https://en.wikipedia.org/wiki/Unicode_character_property#Whitespace
  * *)
+val trim : t -> t
 
 val compare : t -> t -> int
 

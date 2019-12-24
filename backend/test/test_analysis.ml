@@ -58,7 +58,7 @@ let t_list_literals () =
       | DIncomplete _ ->
           true
       | _ ->
-          false )
+          false)
 
 
 let suite =

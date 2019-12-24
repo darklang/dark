@@ -355,11 +355,11 @@ let rec unsafe_dval_of_yojson_v0 (json : Yojson.Safe.t) : dval =
       | "result", "Ok" ->
           vs
           |> expectOne ~f:(fun v ->
-                 DResult (ResOk (unsafe_dval_of_yojson_v0 v)) )
+                 DResult (ResOk (unsafe_dval_of_yojson_v0 v)))
       | "result", "Error" ->
           vs
           |> expectOne ~f:(fun v ->
-                 DResult (ResError (unsafe_dval_of_yojson_v0 v)) )
+                 DResult (ResError (unsafe_dval_of_yojson_v0 v)))
       | _ ->
           DObj (unsafe_dvalmap_of_yojson_v0 json) )
   | `Assoc [("type", `String tipe); ("value", `Null)] ->
@@ -410,7 +410,7 @@ and unsafe_dvalmap_of_yojson_v0 (json : Yojson.Safe.t) : dval_map =
       List.fold_left
         alist
         ~f:(fun m (k, v) ->
-          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v0 v) )
+          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v0 v))
         ~init:DvalMap.empty
   | _ ->
       Exception.internal "Not a json object"
@@ -457,11 +457,11 @@ let rec unsafe_dval_of_yojson_v1 (json : Yojson.Safe.t) : dval =
       | "result", "Ok" ->
           vs
           |> expectOne ~f:(fun v ->
-                 DResult (ResOk (unsafe_dval_of_yojson_v1 v)) )
+                 DResult (ResOk (unsafe_dval_of_yojson_v1 v)))
       | "result", "Error" ->
           vs
           |> expectOne ~f:(fun v ->
-                 DResult (ResError (unsafe_dval_of_yojson_v1 v)) )
+                 DResult (ResError (unsafe_dval_of_yojson_v1 v)))
       | _ ->
           DObj (unsafe_dvalmap_of_yojson_v1 json) )
   | `Assoc [("type", `String "incomplete"); ("value", `Null)] ->
@@ -499,7 +499,7 @@ and unsafe_dvalmap_of_yojson_v1 (json : Yojson.Safe.t) : dval_map =
       List.fold_left
         alist
         ~f:(fun m (k, v) ->
-          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v1 v) )
+          DvalMap.insert m ~key:k ~value:(unsafe_dval_of_yojson_v1 v))
         ~init:DvalMap.empty
   | _ ->
       Exception.internal "Not a json object"
@@ -619,7 +619,7 @@ let rec to_nested_string ~(reprfn : dval -> string) (dv : dval) : string =
         else
           let strs =
             DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-                (key ^ ": " ^ recurse value) :: l )
+                (key ^ ": " ^ recurse value) :: l)
           in
           "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
     | _ ->
@@ -842,7 +842,7 @@ let rec to_developer_repr_v0 (dv : dval) : string =
         else
           let strs =
             DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-                (key ^ ": " ^ to_repr_ indent value) :: l )
+                (key ^ ": " ^ to_repr_ indent value) :: l)
           in
           "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
     | DOption OptNothing ->
@@ -919,7 +919,8 @@ let to_pretty_machine_json_v1 dval =
 
 
 let of_unknown_json_v0 str =
-  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0 with e ->
+  try str |> Yojson.Safe.from_string |> unsafe_dval_of_yojson_v0
+  with e ->
     Exception.code ~actual:str ("Invalid json: " ^ Exception.to_string e)
 
 
@@ -1038,7 +1039,8 @@ let parse_literal (str : string) : dval option =
   else if str = "false"
   then Some (DBool false)
   else
-    try Some (DInt (Dint.of_string_exn str)) with _ ->
+    try Some (DInt (Dint.of_string_exn str))
+    with _ ->
       ( match float_of_string_opt str with
       | Some v ->
           Some (DFloat v)
@@ -1129,7 +1131,7 @@ let rec to_url_string_exn (dv : dval) : string =
   | DObj o ->
       let strs =
         DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-            (key ^ ": " ^ to_url_string_exn value) :: l )
+            (key ^ ": " ^ to_url_string_exn value) :: l)
       in
       "{ " ^ String.concat ~sep:", " strs ^ " }"
   | DOption OptNothing ->
@@ -1160,7 +1162,7 @@ let query_to_dval (query : (string * string list) list) : dval =
            | vals ->
                DList (List.map ~f:(fun x -> dstr_of_string_exn x) vals)
          in
-         (key, dval) )
+         (key, dval))
   |> DvalMap.from_list
   |> DObj
 
@@ -1177,7 +1179,7 @@ let dval_to_query (dv : dval) : (string * string list) list =
              | DList l ->
                  (k, List.map ~f:to_url_string_exn l)
              | _ ->
-                 (k, [to_url_string_exn value]) )
+                 (k, [to_url_string_exn value]))
   | _ ->
       Exception.code "attempting to use non-object as query param"
 
@@ -1198,8 +1200,8 @@ let of_form_encoding (f : string) : dval =
  * amenable to change without a migration. Don't change ANYTHING for existing
  * values, but continue to add representations for new values. Also, inline
  * everything! *)
-let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) :
-    string =
+let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) : string
+    =
   let nl = "\n" ^ String.make indent ' ' in
   let inl = "\n" ^ String.make (indent + 2) ' ' in
   let indent = indent + 2 in
@@ -1263,7 +1265,7 @@ let rec to_hashable_repr ?(indent = 0) ?(old_bytes = false) (dv : dval) :
       else
         let strs =
           DvalMap.foldl o ~init:[] ~f:(fun ~key ~value l ->
-              (key ^ ": " ^ to_hashable_repr ~indent value) :: l )
+              (key ^ ": " ^ to_hashable_repr ~indent value) :: l)
         in
         "{ " ^ inl ^ String.concat ~sep:("," ^ inl) strs ^ nl ^ "}"
   | DOption OptNothing ->

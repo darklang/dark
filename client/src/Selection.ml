@@ -127,12 +127,11 @@ let moveUpDown (direction : udDirection) (sizes : htmlSizing list) (id : id) :
   | [this] ->
       sizes
       |> List.filter ~f:(fun o ->
-             o.centerY <> this.centerY
-             && dir *. this.centerY < dir *. o.centerY )
+             o.centerY <> this.centerY && dir *. this.centerY < dir *. o.centerY)
       |> List.minimumBy ~f:(fun o ->
              let majorDist = dir *. (o.centerY -. this.centerY) in
              let minorDist = abs_float (o.centerX -. this.centerX) in
-             (majorDist *. 100000.0) +. minorDist )
+             (majorDist *. 100000.0) +. minorDist)
       |> Option.withDefault ~default:this
       |> (fun x -> x.id)
       |> fun x -> Some x
@@ -153,8 +152,7 @@ let moveLeftRight (direction : lrDirection) (sizes : htmlSizing list) (id : id)
   | [this] ->
       sizes
       |> List.filter ~f:(fun o ->
-             o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX
-         )
+             o.centerY = this.centerY && dir *. this.centerX > dir *. o.centerX)
       |> List.minimumBy ~f:(fun o -> dir *. (this.centerX -. o.centerX))
       |> Option.withDefault ~default:this
       |> (fun x -> x.id)
@@ -193,8 +191,7 @@ let move
       Select (tlid, STTopLevelRoot)
 
 
-let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification
-    =
+let selectDownLevel (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
       NoChange
@@ -257,8 +254,7 @@ let enterWithOffset (m : model) (tlid : tlid) (id : id) (offset : int option) :
         Many
           [ enterMod
           ; AutocompleteMod
-              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
-          ]
+              (ACSetQuery (P.toContent pd |> Option.withDefault ~default:"")) ]
   | _ ->
       recover "Entering invalid tl" ~debug:(tlid, id) NoChange
 
@@ -380,8 +376,7 @@ let maybeEnterFluid
   else nonFluidCursorMod
 
 
-let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification
-    =
+let selectNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
@@ -420,8 +415,7 @@ let enterNextBlank (m : model) (tlid : tlid) (cur : id option) : modification =
         nextBlankPd
 
 
-let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification
-    =
+let selectPrevBlank (m : model) (tlid : tlid) (cur : id option) : modification =
   match TL.get m tlid with
   | None ->
       recover "selecting no TL" ~debug:(tlid, cur) NoChange
@@ -500,7 +494,6 @@ let delete (m : model) (tlid : tlid) (mId : id option) : modification =
             | TLGroup _ ->
                 NoChange
             | TLDB _ ->
-                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange )
-        )
+                recover "pointer type mismatch" ~debug:(newTL, pd) NoChange ) )
       | _ ->
           recover "deleting from non-existant pd" ~debug:id NoChange )

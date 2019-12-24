@@ -13,7 +13,7 @@ let serverVersionOf (e : apiError) : string option =
       let module StringMap = Map.Make (Caml.String) in
       response.headers
       |> StringMap.find_first_opt (fun key ->
-             String.toLower key = "x-darklang-server-version" )
+             String.toLower key = "x-darklang-server-version")
       |> Option.map ~f:Tuple2.second
 
 
@@ -34,9 +34,7 @@ let shouldDisplayToUser (e : apiError) : bool =
   | Http.Timeout | Http.NetworkError | Http.Aborted ->
       e.importance = ImportantError
   | Http.BadStatus response ->
-      if response.status.code = 502
-      then e.importance = ImportantError
-      else true
+      if response.status.code = 502 then e.importance = ImportantError else true
 
 
 let shouldRollbar (e : apiError) : bool =
@@ -91,7 +89,7 @@ let parseResponse (body : Http.responseBody) : string =
                ; resultType
                ; info
                ; workarounds }
-          ->
+               ->
          " ("
          ^ exceptionTipe
          ^ "): "
@@ -108,7 +106,7 @@ let parseResponse (body : Http.responseBody) : string =
          ^
          if workarounds = []
          then ""
-         else ", workarounds: [" ^ String.concat workarounds ^ "]" )
+         else ", workarounds: [" ^ String.concat workarounds ^ "]")
   |> Option.withDefault ~default:str
 
 

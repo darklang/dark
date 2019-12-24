@@ -8,8 +8,7 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
-         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv)
-     )
+         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
   |> Result.all
 
 
@@ -103,8 +102,7 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is greater than or equal to b"
     ; f =
         InProcess
-          (function
-          | _, [DInt a; DInt b] -> DBool (a >= b) | args -> fail args)
+          (function _, [DInt a; DInt b] -> DBool (a >= b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::lessThan"]
@@ -124,8 +122,7 @@ let fns : Lib.shortfn list =
     ; d = "Returns true if a is less than or equal to b"
     ; f =
         InProcess
-          (function
-          | _, [DInt a; DInt b] -> DBool (a <= b) | args -> fail args)
+          (function _, [DInt a; DInt b] -> DBool (a <= b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Int::random"]
@@ -155,9 +152,7 @@ let fns : Lib.shortfn list =
           | _, [DInt a; DInt b] ->
               let open Dint in
               (* upper+1 because as Random.int is exclusive *)
-              let lower, upper =
-                if a > b then (b, a + one) else (a, b + one)
-              in
+              let lower, upper = if a > b then (b, a + one) else (a, b + one) in
               DInt (lower + Dint.random (upper - lower))
           | args ->
               fail args)
@@ -208,7 +203,7 @@ let fns : Lib.shortfn list =
                          ^ " is a "
                          ^ Dval.tipename example_value )
                        ~expected:"every list item to be an int "
-                       "Sum expects you to pass a list of ints" )
+                       "Sum expects you to pass a list of ints")
               |> Result.ok_exn
           | args ->
               fail args)

@@ -88,6 +88,6 @@ let commands : command list =
               let nameId = Blank.toID tipe.utName in
               RPC ([SetType tipe], FocusNext (tipe.utTLID, Some nameId))
           | Error s ->
-              DisplayError ("Can't create-type: " ^ s) )
+              DisplayError ("Can't create-type: " ^ s))
     ; doc = "Create a type from a live value"
     ; shortcut = "" } ]

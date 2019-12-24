@@ -38,7 +38,7 @@ let navigateTo (page : page) : msg Cmd.t = Navigation.newUrl (urlFor page)
 let updateUrl (page : page) : msg Cmd.t =
   Tea_cmd.call (fun _enqueue ->
       let () = Navigation.pushState (urlFor page) in
-      () )
+      ())
 
 
 let linkFor (page : page) (class_ : string) (content : msg Html.html list) :
@@ -53,7 +53,7 @@ let parseLocation (loc : Web.Location.location) : page option =
     |> String.split ~on:"&"
     |> List.map ~f:(String.split ~on:"=")
     |> List.filterMap ~f:(fun arr ->
-           match arr with [a; b] -> Some (String.toLower a, b) | _ -> None )
+           match arr with [a; b] -> Some (String.toLower a, b) | _ -> None)
     |> StrDict.fromList
   in
   let architecture () = Some Architecture in

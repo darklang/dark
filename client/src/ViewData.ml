@@ -6,8 +6,8 @@ open Types
 module B = Blank
 module TL = Toplevel
 
-let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
-    msg Html.html =
+let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) : msg Html.html
+    =
   let strTLID = showTLID vs.tlid in
   let schedule =
     vs.workerStats
@@ -18,7 +18,7 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
   | "pause" ->
       Html.div
         [ ViewUtils.eventNoPropagation ~key:("run-" ^ strTLID) "click" (fun _ ->
-              RunWorker name )
+              RunWorker name)
         ; Html.class' "restart-worker"
         ; Html.title "Run worker" ]
         [ViewUtils.fontAwesome "play-circle"]
@@ -33,7 +33,7 @@ let pauseWorkerButton (vs : ViewUtils.viewState) (name : string) :
         [ ViewUtils.eventNoPropagation
             ~key:("pause-" ^ strTLID)
             "click"
-            (fun _ -> PauseWorker name )
+            (fun _ -> PauseWorker name)
         ; Html.class' "pause-worker"
         ; Html.title "Pause worker" ]
         [ViewUtils.fontAwesome "pause-circle"]
@@ -59,11 +59,11 @@ let viewInput
   in
   let events =
     [ ViewUtils.eventNoPropagation ~key:(eventKey "dc") "click" (fun x ->
-          TraceClick (tlid, traceID, x) )
+          TraceClick (tlid, traceID, x))
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dme") "mouseenter" (fun x ->
-          TraceMouseEnter (tlid, traceID, x) )
+          TraceMouseEnter (tlid, traceID, x))
     ; ViewUtils.eventNoPropagation ~key:(eventKey "dml") "mouseleave" (fun x ->
-          TraceMouseLeave (tlid, traceID, x) ) ]
+          TraceMouseLeave (tlid, traceID, x)) ]
   in
   let valueDiv, valueStr =
     match value with
@@ -72,9 +72,7 @@ let viewInput
     | Some v ->
         let asString = Runtime.inputValueAsString tl v in
         let asString =
-          if String.length asString = 0
-          then "No input parameters"
-          else asString
+          if String.length asString = 0 then "No input parameters" else asString
         in
         (Html.div [Vdom.noProp] [Html.text asString], "")
   in
@@ -177,7 +175,7 @@ let viewData (vs : ViewUtils.viewState) (ast : expr) : msg Html.html list =
            | F (_, "WORKER"), F (_, name) ->
                Some (pauseWorkerButton vs name)
            | _ ->
-               None )
+               None)
     |> Option.withDefault ~default:Vdom.noNode
   in
   [ Html.div

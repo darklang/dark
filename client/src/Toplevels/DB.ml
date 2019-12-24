@@ -36,8 +36,8 @@ let allData (db : db) : pointerData list =
     match db.activeMigration with
     | Some migra ->
         ( db.cols @ migra.cols
-        , List.concat
-            [AST.allData migra.rollforward; AST.allData migra.rollback] )
+        , List.concat [AST.allData migra.rollforward; AST.allData migra.rollback]
+        )
     | None ->
         (db.cols, [])
   in
@@ -53,7 +53,7 @@ let allData (db : db) : pointerData list =
 let hasCol (db : db) (name : string) : bool =
   db.cols
   |> List.any ~f:(fun (colname, _) ->
-         match colname with Blank _ -> false | F (_, n) -> name = n )
+         match colname with Blank _ -> false | F (_, n) -> name = n)
 
 
 let isLocked (m : model) (TLID tlid : tlid) : bool =

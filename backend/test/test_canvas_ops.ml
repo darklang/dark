@@ -44,8 +44,7 @@ let t_undo () =
   (* First undo *)
   execute_ops (List.concat [ops; [u]]) |> check_dval "t_undo_3" (Dval.dint 4) ;
   (* Second undo *)
-  execute_ops (List.concat [ops; [u; u]])
-  |> check_dval "t_undo_4" (Dval.dint 3) ;
+  execute_ops (List.concat [ops; [u; u]]) |> check_dval "t_undo_4" (Dval.dint 3) ;
   (* First redo *)
   execute_ops (List.concat [ops; [u; u; r]])
   |> check_dval "t_undo_5" (Dval.dint 4) ;
@@ -182,9 +181,7 @@ let t_set_after_delete () =
   let op1 = Op.SetFunction h1 in
   let op2 = Op.DeleteFunction tlid in
   let op3 = Op.SetFunction h2 in
-  check_empty
-    "deleted not in fns"
-    !(ops2c_exn "test" [op1; op2]).user_functions ;
+  check_empty "deleted not in fns" !(ops2c_exn "test" [op1; op2]).user_functions ;
   check_single
     "delete in deleted"
     !(ops2c_exn "test" [op1; op2]).deleted_user_functions ;
@@ -210,9 +207,7 @@ let t_load_for_context_only_loads_relevant_data () =
   Canvas.serialize_only [dbid; tlid; tlid2] !c1 ;
   (* c2 *)
   let host2 = "test-load_for_context_two" in
-  let c2 =
-    ops2c_exn host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist)
-  in
+  let c2 = ops2c_exn host2 (Op.CreateDB (dbid2, pos, "Lol") :: shared_oplist) in
   Canvas.serialize_only [dbid; tlid; dbid2] !c2 ;
   (* test *)
   let owner = Account.for_host_exn host1 in
@@ -225,7 +220,7 @@ let t_load_for_context_only_loads_relevant_data () =
       ()
     |> Op.tlid_oplists2oplist
     |> List.sort ~compare:(fun tl1 tl2 ->
-           compare (Op.tlidOf tl1) (Op.tlidOf tl2) )
+           compare (Op.tlidOf tl1) (Op.tlidOf tl2))
     |> List.rev
   in
   check_oplist "only loads relevant data from same canvas" shared_oplist ops

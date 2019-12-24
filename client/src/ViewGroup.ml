@@ -22,9 +22,7 @@ let wc = ViewBlankOr.wc
 
 (* Spec for group views: https://docs.google.com/document/d/19dcGeRZ4c7PW9hYNTJ9A7GsXkS2wggH2h2ABqUw7R6A/edit#heading=h.isw58ukngvvf *)
 
-let blankOr2String (name : string blankOr) : string =
-  B.valueWithDefault "" name
-
+let blankOr2String (name : string blankOr) : string = B.valueWithDefault "" name
 
 let viewGroupName (vs : viewState) (g : group) (preview : bool) : msg Html.html
     =
@@ -60,8 +58,7 @@ let previewMembers (gTLID : tlid) (tl : toplevel) : msg Html.html =
         let name = blankOr2String db.dbName in
         [ Html.div
             [Html.class' "member"]
-            [Html.p [Html.class' "member-text"] [Html.text ("DB:  " ^ name)]]
-        ]
+            [Html.p [Html.class' "member-text"] [Html.text ("DB:  " ^ name)]] ]
     | _ ->
         []
   in
@@ -119,7 +116,7 @@ let viewGroupMembers
              | Some tl ->
                  if preview then previewMembers gTLID tl else viewMember vs tl
              | None ->
-                 Html.noNode )
+                 Html.noNode)
     in
     Html.div
       [Html.classList [("member-list", true); ("preview", preview)]]

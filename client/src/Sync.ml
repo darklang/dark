@@ -15,8 +15,8 @@ let inFlight ~(key : string) (m : model) : bool =
   StrSet.has m.syncState ~value:key
 
 
-let attempt ?(force = false) ~(key : string) (m : model) (cmd : msg Tea.Cmd.t)
-    : model * msg Tea.Cmd.t =
+let attempt ?(force = false) ~(key : string) (m : model) (cmd : msg Tea.Cmd.t) :
+    model * msg Tea.Cmd.t =
   if inFlight m ~key && not force
   then (m, Tea.Cmd.none)
   else (markRequestInModel m ~key, cmd)

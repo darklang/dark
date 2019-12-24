@@ -23,13 +23,18 @@ let t_case_insensitive_db_roundtrip () =
   in
   match exec_handler ~ops ast with
   | DList [DObj v] ->
-      AT.(check bool)
+      (let open AT in
+      check bool)
         "matched"
         true
         (List.mem ~equal:( = ) (DvalMap.values v) value)
   | other ->
       Log.erroR "error" ~data:(Dval.to_developer_repr_v0 other) ;
-      AT.(check bool) "failed" true false
+      (let open AT in
+      check bool)
+        "failed"
+        true
+        false
 
 
 let t_nulls_allowed_in_db () =
@@ -79,8 +84,8 @@ let t_nulls_added_to_missing_column () =
     (DList
        [ Dval.dstr_of_string_exn "i"
        ; DObj
-           (DvalMap.from_list [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)])
-       ])
+           (DvalMap.from_list
+              [("x", Dval.dstr_of_string_exn "v"); ("y", DNull)]) ])
     (exec_handler ~ops "(List::head (DB::getAllWithKeys_v1 MyDB))")
 
 

@@ -73,7 +73,7 @@ let run () : unit =
       else (
         Log.infO "new migration" ~data:name ;
         let sql = File.readfile ~root:Migrations name in
-        run_system_migration name sql ) ) ;
+        run_system_migration name sql )) ;
   ()
 
 

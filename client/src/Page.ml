@@ -38,7 +38,7 @@ let offsetForGrid (tlid : tlid) (offset : pos) : pos =
          (* We probably want to check for partial containment, but for the case of Ellen's demo which this vflag is used for, full containment should be alright because unlike listo it does not have huge handlers *)
          if topCheck + leftCheck + rightCheck + bottomCheck != 4
          then Some {x = offset.x + r.left - 360; y = offset.y + r.top - 100}
-         else None )
+         else None)
   |> Option.withDefault ~default:offset
 
 
@@ -100,7 +100,8 @@ let setPage (m : model) (oldPage : page) (newPage : page) : model =
         currentPage = newPage
       ; canvasProps =
           { m.canvasProps with
-            lastOffset = Some m.canvasProps.offset; offset = Defaults.origin }
+            lastOffset = Some m.canvasProps.offset
+          ; offset = Defaults.origin }
       ; cursorState = Selecting (tlid, None) }
   | FocusedFn oldtlid, FocusedFn newtlid
   | FocusedType oldtlid, FocusedFn newtlid

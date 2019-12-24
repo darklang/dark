@@ -12,15 +12,13 @@ let status () =
   | Some port ->
       let uri = Uri.make () ~scheme:"http" ~host:"127.0.0.1" ~port ~path:"/" in
       ( try%lwt
-              let%lwt resp, _ = Clu.Client.get uri in
-              let code =
-                resp |> CResponse.status |> Cohttp.Code.code_of_status
-              in
-              match code with
-              | 200 ->
-                  Lwt.return `Healthy
-              | _ ->
-                  Lwt.return (`Unhealthy (string_of_int code))
+          let%lwt resp, _ = Clu.Client.get uri in
+          let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
+          match code with
+          | 200 ->
+              Lwt.return `Healthy
+          | _ ->
+              Lwt.return (`Unhealthy (string_of_int code))
         with e ->
           let bt = Exception.get_backtrace () in
           let%lwt _ =
@@ -42,8 +40,7 @@ let show_segment_type (st : segment_type) : string =
 
 
 let _payload_for_segment_event
-    ~execution_id ~canvas ~canvas_id (payload : Yojson.Safe.t) : Yojson.Safe.t
-    =
+    ~execution_id ~canvas ~canvas_id (payload : Yojson.Safe.t) : Yojson.Safe.t =
   let timestamp =
     Time.now () |> Core.Time.to_string_iso8601_basic ~zone:Core.Time.Zone.utc
   in
@@ -56,11 +53,11 @@ let _payload_for_segment_event
           |> Option.value ~default:[] )
         @ ( canvas_id
           |> Option.map ~f:(fun c ->
-                 [("canvas_id", `String (c |> Uuidm.to_string))] )
+                 [("canvas_id", `String (c |> Uuidm.to_string))])
           |> Option.value ~default:[] )
         @ ( execution_id
           |> Option.map ~f:(fun eid ->
-                 [("execution_id", `String (eid |> Types.string_of_id))] )
+                 [("execution_id", `String (eid |> Types.string_of_id))])
           |> Option.value ~default:[] )
         @ [("timestamp", `String timestamp)] )
   | _ ->
@@ -75,7 +72,7 @@ let _log_params_for_segment ~canvas ~canvas_id ~event ~username :
   ; ("event", event)
   ; ("username", Some username) ]
   |> List.filter_map ~f:(fun (k, v) ->
-         match v with Some v -> Some (k, v) | _ -> None )
+         match v with Some v -> Some (k, v) | _ -> None)
 
 
 let _segment_event
@@ -112,18 +109,16 @@ let _segment_event
                (event |> Option.value ~default:(msg_type |> show_segment_type)))
       in
       ( try%lwt
-              let%lwt resp, _ =
-                let payload = payload |> Yojson.Safe.to_string in
-                Clu.Client.post uri ~body:(Cl.Body.of_string payload)
-              in
-              let code =
-                resp |> CResponse.status |> Cohttp.Code.code_of_status
-              in
-              Log.infO
-                "pushed to segment via stroller"
-                ~jsonparams:[("status", `Int code)]
-                ~params:log_params ;
-              Lwt.return ()
+          let%lwt resp, _ =
+            let payload = payload |> Yojson.Safe.to_string in
+            Clu.Client.post uri ~body:(Cl.Body.of_string payload)
+          in
+          let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
+          Log.infO
+            "pushed to segment via stroller"
+            ~jsonparams:[("status", `Int code)]
+            ~params:log_params ;
+          Lwt.return ()
         with e ->
           let bt = Exception.get_backtrace () in
           let%lwt _ =
@@ -131,8 +126,7 @@ let _segment_event
               e
               bt
               (Segment
-                 ( event
-                 |> Option.value ~default:(msg_type |> show_segment_type) ))
+                 (event |> Option.value ~default:(msg_type |> show_segment_type)))
               ( execution_id
               |> Option.map ~f:Types.show_id
               |> Option.value ~default:"no execution_id" )
@@ -244,7 +238,7 @@ let segment_identify_user (username : string) : unit =
   in
   payload
   |> Option.map ~f:(fun payload ->
-         segment_event_blocking ~username Identify payload )
+         segment_event_blocking ~username Identify payload)
   |> Option.value ~default:()
 
 
@@ -272,17 +266,15 @@ let push
       in
       Lwt.async (fun () ->
           try%lwt
-                let%lwt resp, _ =
-                  Clu.Client.post uri ~body:(Cl.Body.of_string payload)
-                in
-                let code =
-                  resp |> CResponse.status |> Cohttp.Code.code_of_status
-                in
-                Log.infO
-                  "pushed via stroller"
-                  ~jsonparams:[("status", `Int code)]
-                  ~params:log_params ;
-                Lwt.return ()
+            let%lwt resp, _ =
+              Clu.Client.post uri ~body:(Cl.Body.of_string payload)
+            in
+            let code = resp |> CResponse.status |> Cohttp.Code.code_of_status in
+            Log.infO
+              "pushed via stroller"
+              ~jsonparams:[("status", `Int code)]
+              ~params:log_params ;
+            Lwt.return ()
           with e ->
             let bt = Exception.get_backtrace () in
             let%lwt _ =
@@ -294,7 +286,7 @@ let push
                 |> Option.map ~f:Types.show_id
                 |> Option.value ~default:"not in execution" )
             in
-            Lwt.return () )
+            Lwt.return ())
 
 
 let push_new_trace_id

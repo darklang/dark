@@ -8,8 +8,7 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
-         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv)
-     )
+         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
   |> Result.all
 
 

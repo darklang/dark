@@ -30,8 +30,7 @@ let bool name : bool =
 let lowercase name v =
   if v = String.lowercase v
   then v
-  else
-    failwith ("Env vars must be lowercased but " ^ name ^ "=" ^ v ^ " is not")
+  else failwith ("Env vars must be lowercased but " ^ name ^ "=" ^ v ^ " is not")
 
 
 let string name : string = Sys.getenv_exn name |> lowercase name

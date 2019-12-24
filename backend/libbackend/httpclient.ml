@@ -52,7 +52,7 @@ let charset (headers : (string * string) list) : [> `Latin1 | `Other | `Utf8] =
            | _ ->
                None )
          | _ ->
-             None )
+             None)
   |> List.hd
   |> Option.value ~default:`Other
 

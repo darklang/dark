@@ -241,7 +241,7 @@ let isValidDisplayString (str : string) : bool =
          else if sawSlash
          then
            (false, List.member ~value:c (Obj.magic ["t"; "r"; "n"; "\\"; "\""]))
-         else (c = Obj.magic "\\", true) )
+         else (c = Obj.magic "\\", true))
   |> fun (lastCharSlash, valid) -> valid && not lastCharSlash
 
 
@@ -349,11 +349,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
         ; workarounds = field "workarounds" (list string) j }
       in
       let maybe name m =
-        match m with
-        | Some "" | None ->
-            ""
-        | Some s ->
-            "\n  " ^ name ^ ": " ^ s
+        match m with Some "" | None -> "" | Some s -> "\n  " ^ name ^ ": " ^ s
       in
       ( try
           s
@@ -378,7 +374,7 @@ let rec toRepr_ (oldIndent : int) (dv : dval) : string =
                  ^
                  if e.exceptionTipe = "code"
                  then ""
-                 else "\n  error type: " ^ e.exceptionTipe )
+                 else "\n  error type: " ^ e.exceptionTipe)
           |> Option.withDefault ~default:(wrap s)
         with _ -> wrap s )
   | DPassword s ->
@@ -497,7 +493,7 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
         | None, Some v ->
             Some v
         | Some _sample, Some trace ->
-            Some trace )
+            Some trace)
       (sampleInputValue tl)
       iv
     |> fun dict -> DObj dict
@@ -515,7 +511,7 @@ let inputValueAsString (tl : toplevel) (iv : inputValueDict) : string =
 let pathFromInputVars (iv : inputValueDict) : string option =
   StrDict.get ~key:"request" iv
   |> Option.andThen ~f:(fun obj ->
-         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None )
+         match obj with DObj r -> r |> StrDict.get ~key:"url" | _ -> None)
   |> Option.andThen ~f:(fun dv -> match dv with DStr s -> Some s | _ -> None)
   |> Option.andThen ~f:WebURL.make
   |> Option.map ~f:(fun url -> url##pathname ^ url##search)
@@ -529,4 +525,4 @@ let setHandlerExeState
          let p =
            old |> Option.withDefault ~default:Defaults.defaultHandlerProp
          in
-         Some {p with execution = state} )
+         Some {p with execution = state})

@@ -18,7 +18,7 @@ let filterInputID : string = "cmd-filter"
 let fluidCommands =
   Commands.commands
   |> List.filter ~f:(fun {commandName; _} ->
-         not (commandName == "add-feature-flag") )
+         not (commandName == "add-feature-flag"))
 
 
 let reset : fluidCommandState =
@@ -35,7 +35,7 @@ let commandsFor (tl : toplevel) (id : id) : command list =
            | Rail ->
                c.commandName <> Commands.putFunctionOnRail.commandName
            | NoRail ->
-               c.commandName <> Commands.takeFunctionOffRail.commandName )
+               c.commandName <> Commands.takeFunctionOffRail.commandName)
   in
   Toplevel.getAST tl
   |> Option.andThen ~f:(fun x -> AST.find id x)
@@ -49,9 +49,9 @@ let commandsFor (tl : toplevel) (id : id) : command list =
                |> List.filter ~f:(fun c ->
                       c.commandName <> Commands.putFunctionOnRail.commandName
                       && c.commandName
-                         <> Commands.takeFunctionOffRail.commandName )
+                         <> Commands.takeFunctionOffRail.commandName)
              in
-             Some cmds )
+             Some cmds)
   |> Option.withDefault ~default:fluidCommands
 
 
@@ -129,7 +129,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
                Element.setScrollTop el (offset -. liHeight)
              else ()
          | _, _ ->
-             () ))
+             ()))
 
 
 let filter (m : model) (query : string) (cp : fluidCommandState) :
@@ -138,7 +138,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
     match cp.location with
     | Some (tlid, token) ->
         Option.map (TL.get m tlid) ~f:(fun tl ->
-            commandsFor tl (FluidToken.tid token) )
+            commandsFor tl (FluidToken.tid token))
         |> recoverOpt "no tl for location" ~default:[]
     | _ ->
         fluidCommands
@@ -154,11 +154,7 @@ let filter (m : model) (query : string) (cp : fluidCommandState) :
 
 
 let isOpenOnTL (s : fluidCommandState) (tlid : tlid) : bool =
-  match s.location with
-  | Some (ltlid, _) when tlid = ltlid ->
-      true
-  | _ ->
-      false
+  match s.location with Some (ltlid, _) when tlid = ltlid -> true | _ -> false
 
 
 let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
@@ -174,9 +170,9 @@ let viewCommandPalette (cp : Types.fluidCommandState) : Types.msg Html.html =
       ; ViewEntry.defaultPasteHandler
       ; ViewUtils.nothingMouseEvent "mousedown"
       ; ViewUtils.eventNoPropagation ~key:("cp-" ^ name) "click" (fun _ ->
-            FluidMsg (FluidCommandsClick item) )
+            FluidMsg (FluidCommandsClick item))
       ; ViewUtils.eventBoth ~key:("-mousemove" ^ name) "mousemove" (fun _ ->
-            FluidMsg (FluidUpdateDropdownIndex i) ) ]
+            FluidMsg (FluidUpdateDropdownIndex i)) ]
       [Html.text name]
   in
   let filterInput =
