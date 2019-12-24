@@ -57,10 +57,17 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   export DISPLAY=:99.0
   # shellcheck disable=SC2024
-  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1600x1200x24 > "${XVFB_LOG}" 2>&1 &
+  echo "Starting Xvfb"
+  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1600x1200x24 | sudo tee "${XVFB_LOG}" 2>&1 &
+  echo "Waiting for Xvfb to be ready..."
+  while ! xdpyinfo -display ${DISPLAY} > /dev/null ; do
+    echo -n ''
+    sleep 1
+  done
 
   set +e # Dont fail immediately so that the sed is run
 
+  echo "Starting testcafe"
   unbuffer client/node_modules/.bin/testcafe \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
