@@ -261,33 +261,8 @@ let withROP (rail : sendToRail) : htmlConfig list =
   if rail = Rail then [WithROP] else []
 
 
-let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
-    string =
-  let paramPlaceholder =
-    ( match vs.tl with
-    | TLHandler h ->
-        Some h.ast
-    | TLFunc f ->
-        Some f.ufAST
-    | TLDB _ | TLTipe _ | TLGroup _ ->
-        None )
-    |> Option.andThen ~f:(fun ast ->
-           match AST.getParamIndex ast id with
-           | Some (name, index) ->
-             ( match Autocomplete.findFunction vs.ac name with
-             | Some fn ->
-                 List.getAt ~index fn.fnParameters
-             | None ->
-                 None )
-           | _ ->
-               None )
-    |> Option.map ~f:(fun p ->
-           p.paramName ^ ": " ^ Runtime.tipe2str p.paramTipe ^ "" )
-    |> Option.withDefault ~default:""
-  in
+let placeHolderFor (vs : ViewUtils.viewState) (pt : pointerType) : string =
   match pt with
-  | VarBind ->
-      "varname"
   | EventName ->
     ( match
         TL.spaceOf vs.tl |> Option.withDefault ~default:HSDeprecatedOther
@@ -308,32 +283,18 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
         "modifier" )
   | EventSpace ->
       "event space"
-  | Expr ->
-      paramPlaceholder
-  | Field ->
-      "fieldname"
-  | Key ->
-      "keyname"
   | DBName ->
       "db name"
   | DBColName ->
       "db field name"
   | DBColType ->
       "db type"
-  | FFMsg ->
-      "flag name"
   | FnName ->
       "function name"
   | ParamName ->
       "param name"
   | ParamTipe ->
       "param type"
-  | Pattern ->
-      "pattern"
-  | ConstructorName ->
-      "constructor name"
-  | FnCallName ->
-      "function name"
   | TypeName ->
       "type name"
   | TypeFieldName ->
@@ -342,6 +303,15 @@ let placeHolderFor (vs : ViewUtils.viewState) (id : id) (pt : pointerType) :
       "field type"
   | GroupName ->
       "group name"
+  | FFMsg
+  | Pattern
+  | ConstructorName
+  | FnCallName
+  | VarBind
+  | Expr
+  | Field
+  | Key ->
+      ""
 
 
 let viewBlankOr
@@ -355,9 +325,7 @@ let viewBlankOr
     div
       vs
       ([WithClass "blank"] @ c @ wID id)
-      [ Html.div
-          [Html.class' "blank-entry"]
-          [Html.text (placeHolderFor vs id pt)] ]
+      [Html.div [Html.class' "blank-entry"] [Html.text (placeHolderFor vs pt)]]
   in
   let drawFilled id fill =
     let configs = wID id @ c in
@@ -377,37 +345,8 @@ let viewBlankOr
       then
         if vs.showEntry
         then
-          let allowStringEntry =
-            if pt = Expr then StringEntryAllowed else StringEntryNotAllowed
-          in
-          let stringEntryWidth =
-            if vs.tooWide
-            then StringEntryShortWidth
-            else StringEntryNormalWidth
-          in
-          let placeholder = placeHolderFor vs id pt in
-          let liveValue =
-            let valFor =
-              Autocomplete.highlighted vs.ac
-              |> Option.andThen ~f:(fun aci ->
-                     match aci with ACVariable (_, v) -> v | _ -> None )
-            in
-            let valStr =
-              match valFor with Some v -> Runtime.toRepr v | None -> ""
-            in
-            if vs.ac.visible && Option.isSome valFor
-            then Html.div [Html.class' "live-value ac"] [Html.text valStr]
-            else Vdom.noNode
-          in
-          div
-            vs
-            (c @ wID id)
-            [ liveValue
-            ; ViewEntry.entryHtml
-                allowStringEntry
-                stringEntryWidth
-                placeholder
-                vs.ac ]
+          let placeholder = placeHolderFor vs pt in
+          div vs (c @ wID id) [ViewEntry.normalEntryHtml placeholder vs.ac]
         else Html.text vs.ac.value
       else thisText
   | SelectingCommand (_, id) ->
@@ -415,12 +354,7 @@ let viewBlankOr
       then
         Html.div
           [Html.class' "selecting-command"]
-          [ thisText
-          ; ViewEntry.entryHtml
-              StringEntryNotAllowed
-              StringEntryNormalWidth
-              "command"
-              vs.ac ]
+          [thisText; ViewEntry.normalEntryHtml "command" vs.ac]
       else thisText
   | _ ->
       thisText

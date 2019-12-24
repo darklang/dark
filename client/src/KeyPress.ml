@@ -333,15 +333,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
               AutocompleteMod ACSelectUp
           | Key.N ->
               AutocompleteMod ACSelectDown
-          | Key.Enter ->
-              if AC.isSmallStringEntry m.complete
-              then
-                Many
-                  [ AutocompleteMod (ACAppendQuery "\n")
-                  ; MakeCmd (Entry.focusEntry m) ]
-              else if AC.isLargeStringEntry m.complete
-              then Entry.submit m cursor Entry.StayHere
-              else NoChange
           | _ ->
               NoChange
         else if event.shiftKey && event.keyCode = Key.Enter
@@ -386,36 +377,20 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
             | _ ->
                 NoChange )
           | Key.Enter ->
-              if AC.isLargeStringEntry m.complete
-              then AutocompleteMod (ACSetQuery m.complete.value)
-              else Entry.submit m cursor Entry.StayHere
+              Entry.submit m cursor Entry.StayHere
           | Key.Tab ->
             ( match cursor with
             | Filling (tlid, p) ->
-                if AC.isLargeStringEntry m.complete
+                let content = AC.getValue m.complete in
+                let hasContent = content |> String.length |> ( < ) 0 in
+                if event.shiftKey
                 then
-                  match event.targetSelectionStart with
-                  | Some idx ->
-                      let newQ =
-                        String.insertAt
-                          ~insert:"\t"
-                          ~index:(idx + 1)
-                          m.complete.value
-                      in
-                      AutocompleteMod (ACSetQuery newQ)
-                  | None ->
-                      NoChange
-                else
-                  let content = AC.getValue m.complete in
-                  let hasContent = content |> String.length |> ( < ) 0 in
-                  if event.shiftKey
-                  then
-                    if hasContent
-                    then NoChange
-                    else Selection.enterPrevBlank m tlid (Some p)
-                  else if hasContent
-                  then Entry.submit m cursor Entry.GotoNext
-                  else Selection.enterNextBlank m tlid (Some p)
+                  if hasContent
+                  then NoChange
+                  else Selection.enterPrevBlank m tlid (Some p)
+                else if hasContent
+                then Entry.submit m cursor Entry.GotoNext
+                else Selection.enterNextBlank m tlid (Some p)
             | Creating _ ->
                 NoChange )
           | Key.Unknown _ ->

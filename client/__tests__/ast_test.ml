@@ -150,23 +150,6 @@ let run () =
              let expr = B.newF (FnCall (B.newF "test", [l], NoRail)) in
              usesRail expr)
           |> toEqual false ) ;
-      test "parseAst completes lambda in blank Ast" (fun () ->
-          expect
-            (let initAst = B.new_ () in
-             let finalAst =
-               Entry.parseAst initAst completion (ACKeyword KLambda) "lambda"
-             in
-             match finalAst with
-             | Some (F (_, Lambda ([F (_, "var")], Blank _))) ->
-                 Pass
-             | _ ->
-                 Fail (initAst, finalAst))
-          |> toEqual Pass ) ;
-      test
-        "parseAst completes lambda in function argument inside thread"
-        (fun () ->
-          (* This doesn't really work in non-fluid because so, instead the operation just returns a lambda with a single default "var" binding*)
-          expect Pass |> toEqual Pass ) ;
       test
         "variablesIn correctly identifies available vars in let RHS with incomplete LHS"
         (fun () ->
