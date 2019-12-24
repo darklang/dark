@@ -35,7 +35,7 @@ BROWSER='unknown'
       BROWSER='chrome --window-size="1600,1200"'
     fi
   else
-    BROWSER='chromium --window-size="1600,1200"'
+    BROWSER='chromium:headless --window-size="1600,1200"'
   fi
 }
 
@@ -48,8 +48,12 @@ BROWSER='unknown'
 # Set up concurrency
 ######################
 CONCURRENCY=3
-if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
+if [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
+elif [[ -v IN_DEV_CONTAINER ]]; then
+  # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
+  # Though perhaps with a larger machine 3x might work better.
+  CONCURRENCY=2
 fi
 
 ######################
