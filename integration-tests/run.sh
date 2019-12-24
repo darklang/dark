@@ -100,6 +100,7 @@ else
     --concurrency "$CONCURRENCY" \
     $debugcmd \
     --test-grep "$PATTERN" \
+    --video rundir/videos \
     "$BROWSER" \
     integration-tests/tests.js
 fi
