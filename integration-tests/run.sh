@@ -36,17 +36,6 @@ do
 done
 
 ######################
-# Check the version (matters when running outside the container)
-######################
-version=$(testcafe --version)
-expected_version=$(grep testcafe client/package.json | sed 's/\s*"testcafe": "//' | sed 's/",\s*//')
-if [[ "$version" != "$expected_version" ]]
-then
-  echo "Incorrect version of testcafe: $version (expected $expected_version)"
-  exit 1
-fi
-
-######################
 # Prep (in the container)
 ######################
 ./integration-tests/prep.sh
@@ -85,6 +74,16 @@ if [[ -v IN_DEV_CONTAINER ]]; then
 
   exit $RESULT
 else
+
+  # Check the version (matters when running outside the container)
+  version=$(testcafe --version)
+  expected_version=$(grep testcafe client/package.json | sed 's/\s*"testcafe": "//' | sed 's/",\s*//')
+  if [[ "$version" != "$expected_version" ]]
+  then
+    echo "Incorrect version of testcafe: $version (expected $expected_version)"
+    exit 1
+  fi
+
   if [[ "$DEBUG" == "true" ]]; then
     debugcmd="--debug-mode --inspect"
   else
