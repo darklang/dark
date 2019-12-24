@@ -298,7 +298,8 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
- RUN DEBIAN_FRONTEND=noninteractive \
+USER root
+RUN DEBIAN_FRONTEND=noninteractive \
     apt update && \
     DEBIAN_FRONTEND=noninteractive \
     apt install \
