@@ -11,9 +11,9 @@ BROWSER='unknown'
 {
   PLATFORM=$(uname -s)
   if [[ $PLATFORM == "Darwin" ]]; then
-    BROWSER="chrome"
+    BROWSER='chrome --window-size="1600,1200"'
   else
-    BROWSER="chromium"
+    BROWSER='chromium --window-size="1600,1200"'
   fi
 }
 
@@ -64,7 +64,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   unbuffer client/node_modules/.bin/testcafe \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
-    "$BROWSER \"--window-size=1600,1200\""  \
+    "${BROWSER}"
     integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
@@ -93,6 +93,6 @@ else
     --concurrency "$CONCURRENCY" \
     $debugcmd \
     --test-grep "$PATTERN" \
-    $BROWSER \
+    "$BROWSER" \
     integration-tests/tests.js
 fi
