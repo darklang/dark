@@ -342,10 +342,8 @@ let fromKeyboardEvent
       but CMD+Y on Mac is the history shortcut in Chrome (since CMD+H is taken for hide)
       See https://support.google.com/chrome/answer/157179?hl=en *)
       Redo
-  (* Redo appears to be broken: every time we try to redo the server gives
-   * a "Already at latest redo" error. So disable for now. *)
-  (* | ("Z" | "z") when shift && osCmdKeyHeld -> *)
-  (*     Redo *)
+  | ("Z" | "z") when shift && osCmdKeyHeld ->
+      Redo
   | ("Z" | "z") when (not shift) && osCmdKeyHeld ->
       Undo
   | "Backspace" when isMacCmdHeld ->
