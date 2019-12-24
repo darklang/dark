@@ -17,6 +17,12 @@
     pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.png",
     takeOnFails: true
   },
+  // Testcafe's video support is so slow and unreliable that xvfb is much better
+  //videoPath: "rundir/videos",
+  //videoOptions: {
+  //  failedOnly: true,
+  //  pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.mp4"
+  //},
   quarantineMode: true,
   appInitDelay: 0,
   selectorTimeout: 50,
