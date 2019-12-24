@@ -64,13 +64,13 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   unbuffer client/node_modules/.bin/testcafe \
     --concurrency "$CONCURRENCY" \
     --test-grep "$PATTERN" \
-    "${BROWSER}"
+    "${BROWSER}" \
     integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
 
   # Fix xunit output for CircleCI flaky-tests stats
-  sed -i 's/ (screenshots: .*)"/"/' "${TEST_RESULTS_XML}"
+  sed -i 's/ (screenshots: .*)"/"/' "rundir/test_results/integration_tests.xml"
 
   exit $RESULT
 else
