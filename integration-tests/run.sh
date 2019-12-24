@@ -7,16 +7,6 @@ set -euo pipefail
 PATTERN=".*"
 DEBUG=false
 
-BROWSER='unknown'
-{
-  PLATFORM=$(uname -s)
-  if [[ $PLATFORM == "Darwin" ]]; then
-    BROWSER='chrome:headless --window-size="1600,1200"'
-  else
-    BROWSER='chromium --window-size="1600,1200"'
-  fi
-}
-
 for i in "$@"
 do
   case "${i}" in
@@ -34,6 +24,20 @@ do
     ;;
   esac
 done
+
+BROWSER='unknown'
+{
+  PLATFORM=$(uname -s)
+  if [[ $PLATFORM == "Darwin" ]]; then
+    if [[ "$DEBUG" == "true" ]]; then
+      BROWSER='chrome:headless --window-size="1600,1200"'
+    else
+      BROWSER='chrome --window-size="1600,1200"'
+    fi
+  else
+    BROWSER='chromium --window-size="1600,1200"'
+  fi
+}
 
 ######################
 # Prep (in the container)
