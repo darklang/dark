@@ -239,12 +239,11 @@ RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.
       && opam init --comp ${OCAML_SWITCH} --auto-setup --disable-sandboxing \
       && opam update \
       && opam install -y \
-           ppx_deriving.4.3 \
-           dune.1.11.0 \
-           ppx_deriving_yojson.3.4 \
-           merlin.3.2.2 \
-           ocp-indent.1.6.1 \
-           ocamlformat.0.8 \
+           ppx_deriving.4.4 \
+           dune.2.0.1 \
+           merlin.3.3.3 \
+           ocp-indent.1.8.1 \
+           ocamlformat.0.12 \
       && opam clean --all-switches --download-cache --repo-cache
 
 
