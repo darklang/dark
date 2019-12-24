@@ -1,0 +1,25 @@
+{
+  reporter: [
+    {
+      name: "xunit",
+      output: "rundir/test_results/integration_tests.xml"
+    },
+    {
+      name: "json",
+      output: "rundir/test_results/integration_tests.json"
+    },
+    {
+      name: "spec"
+    }
+  ],
+  screenshots: {
+    path: "rundir/screenshots",
+    pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.png",
+    takeOnFails: true
+  },
+  quarantineMode: true,
+  appInitDelay: 0,
+  selectorTimeout: 50,
+  assertionTimeout: 50,
+  pageLoadTimeout: 200
+}

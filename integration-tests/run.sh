@@ -64,12 +64,6 @@ fi
 ######################
 if [[ -v IN_DEV_CONTAINER ]]; then
   # Set up test reporters for CircleCI
-  TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
-  TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
-  TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
-  REPORTERS=spec
-  REPORTERS+=,json:${TEST_RESULTS_JSON}
-  REPORTERS+=,xunit:${TEST_RESULTS_XML}
   XVFB_LOG="${DARK_CONFIG_RUNDIR}/logs/xvfb.log"
 
   export DISPLAY=:99.0
@@ -79,15 +73,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
   set +e # Dont fail immediately so that the sed is run
 
   unbuffer client/node_modules/.bin/testcafe \
-    --selector-timeout 50 \
-    --assertion-timeout 50 \
-    --app-init-delay 0 \
-    --pageload-timeout 200 \
-    --screenshots-on-fails \
-    --screenshots path=r"${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
-    --quarantine-mode \
-    --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
     "$BROWSER \"--window-size=1600,1200\""  \
     integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
@@ -105,15 +91,7 @@ else
     debugcmd=
   fi
   testcafe \
-    --selector-timeout 50 \
-    --assertion-timeout 50 \
-    --app-init-delay 0 \
-    --pageload-timeout 200 \
-    --screenshots takeOnFails=true \
-    --screenshots path=rundir/screenshots/ \
     --concurrency "$CONCURRENCY" \
-    --quarantine-mode \
-    --reporter=spec \
     $debugcmd \
     --test-grep "$PATTERN" \
     $BROWSER \
