@@ -28,7 +28,8 @@ fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
-    startXvfb(testname);
+    const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
+    startXvfb(sessionName);
     var url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
     await setDebugging(t);
@@ -63,7 +64,8 @@ fixture`Integration Tests`
   })
   .afterEach(async t => {
     const testname = t.testRun.test.name;
-    stopXvfb(testname);
+    const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
+    stopXvfb(sessionName);
     const finish = Selector("#finishIntegrationTest");
     const signal = Selector("#integrationTestSignal");
     let flushLogs = async () => {
