@@ -11,7 +11,7 @@ BROWSER='unknown'
 {
   PLATFORM=$(uname -s)
   if [[ $PLATFORM == "Darwin" ]]; then
-    BROWSER='chrome --window-size="1600,1200"'
+    BROWSER='chrome:headless --window-size="1600,1200"'
   else
     BROWSER='chromium --window-size="1600,1200"'
   fi
@@ -43,7 +43,7 @@ done
 ######################
 # Set up concurrency
 ######################
-CONCURRENCY=1
+CONCURRENCY=3
 if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
 fi
