@@ -265,8 +265,7 @@ let t_db_queryWithKey_v2_works_with_many () =
     "equal_after_roundtrip"
     (DObj
        (DvalMap.from_list
-          [ ( "two"
-            , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) )
+          [ ("two", DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")))
           ; ( "three"
             , DObj (DvalMap.singleton "x" (Dval.dstr_of_string_exn "bar")) ) ]))
     (exec_handler ~ops ast)
@@ -568,9 +567,7 @@ let suite =
   ; ( "DB::queryWithKey_v1 works with many items"
     , `Quick
     , t_db_queryWithKey_works_with_many )
-  ; ( "DB::get_v1 returns Nothing if not found"
-    , `Quick
-    , t_db_get_returns_nothing )
+  ; ("DB::get_v1 returns Nothing if not found", `Quick, t_db_get_returns_nothing)
   ; ("DB::queryOne returns Some obj if found", `Quick, t_db_queryOne_works)
   ; ( "DB::queryOne returns Nothing if not found"
     , `Quick
@@ -596,6 +593,5 @@ let suite =
   ; ( "DB::queryOneWithKey_v2 returns Nothing if more than one found"
     , `Quick
     , t_db_queryOneWithKey_v2_returns_nothing_multiple )
-  ; ( "t_db_getAllKeys_works returns List of keys"
-    , `Quick
-    , t_db_getAllKeys_works ) ]
+  ; ("t_db_getAllKeys_works returns List of keys", `Quick, t_db_getAllKeys_works)
+  ]

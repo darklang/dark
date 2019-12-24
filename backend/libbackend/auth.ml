@@ -27,8 +27,9 @@ module Session = struct
                does internally *)
            ; ( "csrf_token"
              , `String
-                 (Cstruct.to_string Nocrypto.(Base64.encode (Rng.generate 30)))
-             ) ]))
+                 (Cstruct.to_string
+                    (let open Nocrypto in
+                    Base64.encode (Rng.generate 30))) ) ]))
 
 
   let username_for session =
@@ -57,5 +58,5 @@ module Session = struct
            session_data
            |> Yojson.Basic.from_string
            |> Yojson.Basic.Util.member "username"
-           |> Yojson.Basic.Util.to_string )
+           |> Yojson.Basic.Util.to_string)
 end

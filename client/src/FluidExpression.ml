@@ -154,26 +154,19 @@ let toNexpr (expr : t) : Types.expr =
     | EFnCall (id, name, args, ster) ->
       ( match args with
       | EPipeTarget _ :: _ when not inPipe ->
-          recover
-            "fn has a pipe target but no pipe"
-            ~debug:expr
-            (Blank.new_ ())
+          recover "fn has a pipe target but no pipe" ~debug:expr (Blank.new_ ())
       | EPipeTarget _ :: args when inPipe ->
           F
             ( id
-            , FnCall
-                (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster) )
+            , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
+            )
       | _nonPipeTarget :: _ when inPipe ->
-          recover
-            "fn has a pipe but no pipe target"
-            ~debug:expr
-            (Blank.new_ ())
+          recover "fn has a pipe but no pipe target" ~debug:expr (Blank.new_ ())
       | args ->
           F
             ( id
-            , FnCall
-                (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster) )
-      )
+            , FnCall (F (ID (deID id ^ "_name"), name), List.map ~f:r args, ster)
+            ) )
     | EBinOp (id, name, arg1, arg2, ster) ->
       ( match arg1 with
       | EPipeTarget _ when not inPipe ->
@@ -221,7 +214,7 @@ let toNexpr (expr : t) : Types.expr =
           ( id
           , ObjectLiteral
               (List.map pairs ~f:(fun (id, k, v) ->
-                   (Types.F (id, k), toNexpr' v) )) )
+                   (Types.F (id, k), toNexpr' v))) )
     | EPipe (id, exprs) ->
       ( match exprs with
       | head :: tail ->
@@ -233,7 +226,7 @@ let toNexpr (expr : t) : Types.expr =
     | EMatch (id, mexpr, pairs) ->
         let pairs =
           List.map pairs ~f:(fun (p, e) ->
-              (FluidPattern.toPattern p, toNexpr' e) )
+              (FluidPattern.toPattern p, toNexpr' e))
         in
         F (id, Match (toNexpr' mexpr, pairs))
     | EPipeTarget _ ->
@@ -322,8 +315,8 @@ let walk ~(f : t -> t) (expr : t) : t =
       EFeatureFlag (id, msg, msgid, f cond, f casea, f caseb)
 
 
-let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t)
-    : t =
+let update ?(failIfMissing = true) ~(f : t -> t) (target : Types.id) (ast : t) :
+    t =
   let found = ref false in
   let rec run e =
     if target = id e

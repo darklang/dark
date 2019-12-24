@@ -68,7 +68,7 @@ let usagesOfBindingAtCursor (tl : toplevel) (cs : cursorState) : id list =
         let relatedVariableIds (p, body) =
           Pattern.variableNames p
           |> List.map ~f:(fun var ->
-                 AST.uses var body |> List.map ~f:Blank.toID )
+                 AST.uses var body |> List.map ~f:Blank.toID)
           |> List.concat
         in
         ( match parent with
@@ -103,7 +103,7 @@ let createVS (m : model) (tl : toplevel) : viewState =
              | Some cur ->
                  if cur = i then None else Some res
              | _ ->
-                 Some res )
+                 Some res)
   ; ac = m.complete
   ; showEntry = true
   ; showLivevalue = false
@@ -195,9 +195,8 @@ let decodeAnimEvent (fn : string -> 'a) j : 'a =
   fn (JSD.field "animationName" JSD.string j)
 
 
-let eventBoth
-    ~(key : string) (event : string) (constructor : mouseEvent -> msg) :
-    msg Vdom.property =
+let eventBoth ~(key : string) (event : string) (constructor : mouseEvent -> msg)
+    : msg Vdom.property =
   Patched_tea_html.onWithOptions
     ~key
     event
@@ -303,8 +302,7 @@ and approxNWidth (ne : nExpr) : int =
       String.length name
   | Let (lhs, rhs, body) ->
       max
-        (strBlankOrLength lhs + approxWidth rhs + 4 (* "let" *)
-        + 3)
+        (strBlankOrLength lhs + approxWidth rhs + 4 (* "let" *) + 3)
         (* " = " *)
         (approxWidth body)
   | If (cond, ifbody, elsebody) ->
@@ -331,9 +329,8 @@ and approxNWidth (ne : nExpr) : int =
       + 1
       + List.length exprs
   | Lambda (_, expr) ->
-      max (approxWidth expr) 7
-      (* "| var -->" *)
-      (* TODO: deal with more vars *)
+      max (approxWidth expr) 7 (* "| var -->" *)
+                               (* TODO: deal with more vars *)
   | Thread exprs ->
       exprs
       |> List.map ~f:approxWidth
@@ -342,8 +339,7 @@ and approxNWidth (ne : nExpr) : int =
       |> ( + ) 1
       (* the pipe *)
   | FieldAccess (obj, field) ->
-      approxWidth obj + 1 (* "." *)
-      + strBlankOrLength field
+      approxWidth obj + 1 (* "." *) + strBlankOrLength field
   | ListLiteral exprs ->
       exprs
       |> List.map ~f:approxWidth
@@ -454,8 +450,9 @@ let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
     ( modHtml
     @ [ Html.div
           [ Html.class'
-              (String.join ~sep:" " (classes @ ["versioned-function"; "fnname"]))
-          ]
+              (String.join
+                 ~sep:" "
+                 (classes @ ["versioned-function"; "fnname"])) ]
           [ Html.span [Html.class' "name"] [Html.text name]
           ; Html.span [Html.class' "version"] [Html.text versionTxt] ] ] )
 

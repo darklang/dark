@@ -309,7 +309,7 @@ let fns =
           | _, [DList l; DBlock fn] ->
               DList
                 (List.dedup_and_sort l ~compare:(fun a b ->
-                     compare_dval (fn [a]) (fn [b]) ))
+                     compare_dval (fn [a]) (fn [b])))
           | args ->
               fail args)
     ; ps = true

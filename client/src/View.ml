@@ -56,7 +56,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                 ToplevelClick (tlid, x)
             | Some range ->
                 (* Persist fluid selection when clicking in handler *)
-                FluidMsg (FluidMouseUp (tlid, Some range)) ) ]
+                FluidMsg (FluidMouseUp (tlid, Some range))) ]
     else
       [ ViewUtils.eventNoPropagation
           ~key:("tlmd-" ^ showTLID tlid)
@@ -152,7 +152,7 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
           Option.map desc ~f:(fun desc ->
               [ Html.div
                   [Html.class' "documentation-box"]
-                  [Html.p [] [Html.text desc]] ] )
+                  [Html.p [] [Html.text desc]] ])
         in
         let selectedFnDocString =
           let fn =
@@ -164,10 +164,10 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    | PFnCallName (F (_, name)) ->
                        Some name
                    | _ ->
-                       None )
+                       None)
             |> Option.andThen ~f:(fun name ->
                    m.complete.functions
-                   |> List.find ~f:(fun f -> name = f.fnName) )
+                   |> List.find ~f:(fun f -> name = f.fnName))
           in
           match fn with
           | Some fn ->
@@ -187,13 +187,11 @@ let viewTL_ (m : model) (tl : toplevel) : msg Html.html =
                    m.complete.functions
                    |> List.find ~f:(fun f -> name = f.fnName)
                    |> Option.map ~f:(fun x -> x.fnParameters)
-                   |> Option.andThen ~f:(List.getAt ~index) )
+                   |> Option.andThen ~f:(List.getAt ~index))
           in
           match param with
           | Some p ->
-              let header =
-                p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe
-              in
+              let header = p.paramName ^ " : " ^ Runtime.tipe2str p.paramTipe in
               Some
                 [ Html.div
                     [Html.class' "documentation-box"]
@@ -378,7 +376,7 @@ let viewCanvas (m : model) : msg Html.html =
     ; Html.class' pageClass
     ; Html.styles styles
     ; ViewUtils.onTransitionEnd ~key:"canvas-pan-anim" ~listener:(fun prop ->
-          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg ) ]
+          if prop = "transform" then CanvasPanAnimationEnd else IgnoreMsg) ]
     (overlay :: allDivs)
 
 
@@ -389,7 +387,7 @@ let viewMinimap (data : string option) : msg Html.html =
         [ Html.id "minimap"
         ; Html.class' "minimap"
         ; ViewUtils.eventNoPropagation ~key:"return-to-arch" "click" (fun _ ->
-              GoToArchitecturalView ) ]
+              GoToArchitecturalView) ]
         [Html.img [Html.src src; Vdom.prop "alt" "architecture preview"] []]
   | None ->
       Vdom.noNode
@@ -420,7 +418,7 @@ let accountView (m : model) : msg Html.html =
   let logout =
     Html.a
       [ ViewUtils.eventNoPropagation ~key:"logout" "mouseup" (fun _ ->
-            LogoutOfDark )
+            LogoutOfDark)
       ; Html.class' "action-link" ]
       [Html.text "Logout"]
   in

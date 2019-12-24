@@ -23,7 +23,7 @@ let incOpCtr (m : model) : model =
           | Some v ->
               Some (v + 1)
           | None ->
-              Some 1 ) }
+              Some 1) }
 
 
 let opCtr (m : model) : int =
@@ -83,7 +83,7 @@ let init (flagString : string) (location : Web.Location.location) =
     List.filter complete ~f:(fun fn ->
         if String.contains ~substring:"Twitter::" fn.fnName
         then VariantTesting.libtwitterAvailable variants
-        else true )
+        else true)
   in
   let m =
     { m with
@@ -185,8 +185,7 @@ let processFocus (m : model) (focus : focus) : modification =
           in
           Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->
-          Many
-            [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]
+          Many [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]
       | _, _ ->
           NoChange )
   | FocusNothing ->
@@ -292,7 +291,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                    (* call RPC on the new model *)
                    [RPC.addOp newM FocusSame params]
              | TLDB _ | TLTipe _ | TLGroup _ ->
-                 [] )
+                 [])
       |> Option.withDefault ~default:[]
       |> fun rpc ->
       if tlidOf newM.cursorState = tlidOf m.cursorState then [] else rpc
@@ -331,7 +330,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             | SetType _ ->
                 false
             | _ ->
-                true )
+                true)
           params.ops
       in
       if hasNonHandlers
@@ -348,7 +347,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | SetType t ->
                   UserTypes.upsert m t
               | _ ->
-                  m )
+                  m)
             ~init:m
             params.ops
         in
@@ -406,7 +405,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
              * only the first got called, unclear why. *)
             Cmd.call (fun _ ->
                 Editor.serialize m ;
-                Native.Location.reload true )
+                Native.Location.reload true)
           else if (not ignore) && ApiError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
           else Cmd.none
@@ -447,12 +446,12 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               recover
                 "Attempted to end integration test but one ran + was already finished"
                 ~debug:m.integrationTestState
-                (fun _ -> IntegrationTest.fail "Already finished" )
+                (fun _ -> IntegrationTest.fail "Already finished")
           | NoIntegrationTest ->
               recover
                 "Attempted to end integration test but none was running"
                 ~debug:m.integrationTestState
-                (fun _ -> IntegrationTest.fail "Not running" )
+                (fun _ -> IntegrationTest.fail "Not running")
         in
         let result = expectationFn m in
         ( {m with integrationTestState = IntegrationTestFinished result}
@@ -482,8 +481,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           let cmds = Cmd.batch (RPC.sendPresence m avMessage :: cap) in
           (Page.setPage m m.currentPage page, cmds)
         else
-          ( Page.setPage m m.currentPage Architecture
-          , Url.updateUrl Architecture )
+          (Page.setPage m m.currentPage Architecture, Url.updateUrl Architecture)
     | Select (tlid, p) ->
         let ( (cursorState : cursorState)
             , (maybeNewFluidState : fluidState option) ) =
@@ -619,8 +617,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let m, afCmd = Analysis.analyzeFocused m in
         ( m
         , Cmd.batch
-            ( closeBlanks m
-            @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset] ) )
+            (closeBlanks m @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
+        )
     | SelectCommand (tlid, id) ->
         let m = {m with cursorState = SelectingCommand (tlid, id)} in
         let m, acCmd =
@@ -715,7 +713,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               | None, Some r ->
                   Some r
               | Some _, Some r ->
-                  Some r )
+                  Some r)
             m.dbStats
             statsStore
         in
@@ -734,7 +732,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let newTraces =
           Analysis.mergeTraces
             ~onConflict:(fun (oldID, oldData) (newID, newData) ->
-              if newData <> None then (newID, newData) else (oldID, oldData) )
+              if newData <> None then (newID, newData) else (oldID, oldData))
             m.traces
             traces
         in
@@ -850,7 +848,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
          * If your assumption is wrong, it'll be blown away by the next SetUnlockedDBs
          * operation regardless -- so as long as that interim period doesn't result
          * in the potential for dangerous operations, you should be fine.
-        *)
+         *)
         ({m with unlockedDBs = StrSet.union m.unlockedDBs newDBs}, Cmd.none)
     | Delete404 f404 ->
         ( { m with
@@ -858,7 +856,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               List.filter
                 ~f:(fun f ->
                   f.space ^ f.path ^ f.modifier
-                  <> f404.space ^ f404.path ^ f404.modifier )
+                  <> f404.space ^ f404.path ^ f404.modifier)
                 m.f404s }
         , Cmd.none )
     | Append404s f404s ->
@@ -869,7 +867,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
                  ^ f404.path
                  ^ f404.modifier
                  ^ f404.timestamp
-                 ^ f404.traceID )
+                 ^ f404.traceID)
         in
         ({m with f404s = new404s}, Cmd.none)
     | ExpireAvatars ->
@@ -878,7 +876,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         let updatedAvatars =
           avatarsList
           |> List.filter ~f:(fun (avatar : Types.avatar) ->
-                 avatar.browserId != m.browserId )
+                 avatar.browserId != m.browserId)
           |> expireAvatars
         in
         ({m with avatarsList = updatedAvatars}, Cmd.none)
@@ -948,8 +946,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
               |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
       | None ->
           (* Attempted to execute a function in a toplevel that we just deleted! *)
-          (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)])
-      )
+          (m, Cmd.none) |> updateMod (ExecutingFunctionComplete [(tlid, id)]) )
     | ExecutingFunctionComplete targets ->
         let isComplete target = not <| List.member ~value:target targets in
         let nexecutingFunctions =
@@ -959,7 +956,9 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
     | MoveCanvasTo (offset, panAnimation) ->
         let newCanvasProps =
           { m.canvasProps with
-            offset; panAnimation; lastOffset = Some m.canvasProps.offset }
+            offset
+          ; panAnimation
+          ; lastOffset = Some m.canvasProps.offset }
         in
         ({m with canvasProps = newCanvasProps}, Cmd.none)
     | CenterCanvasOn tlid ->
@@ -1041,13 +1040,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->
                  let value = exprToString h.ast in
-                 cache |> TLIDDict.insert ~tlid:h.hTLID ~value )
+                 cache |> TLIDDict.insert ~tlid:h.hTLID ~value)
         in
         let searchCache =
           userFunctions
           |> List.foldl ~init:hcache ~f:(fun f cache ->
                  let value = exprToString f.ufAST in
-                 cache |> TLIDDict.insert ~tlid:f.ufTLID ~value )
+                 cache |> TLIDDict.insert ~tlid:f.ufTLID ~value)
         in
         ({m with searchCache}, Cmd.none)
     | FluidSetState fluidState ->
@@ -1221,8 +1220,7 @@ let update_ (msg : msg) (m : model) : modification =
                   | None ->
                       Many
                         [ SetCursorState origCursorState
-                        ; RPC
-                            ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
+                        ; RPC ([MoveTL (draggingTLID, TL.pos tl)], FocusNoChange)
                         ]
                 else SetCursorState origCursorState
               else
@@ -1403,7 +1401,7 @@ let update_ (msg : msg) (m : model) : modification =
   | ToplevelDelete tlid ->
       let tl = TL.get m tlid in
       Option.map tl ~f:(fun tl ->
-          Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)] )
+          Many [RemoveToplevel tl; RPC ([DeleteTL (TL.id tl)], FocusSame)])
       |> Option.withDefault ~default:NoChange
   | ToplevelDeleteForever tlid ->
       Many
@@ -1412,7 +1410,7 @@ let update_ (msg : msg) (m : model) : modification =
             (fun m ->
               { m with
                 deletedHandlers = TD.remove ~tlid m.deletedHandlers
-              ; deletedDBs = TD.remove ~tlid m.deletedDBs } ) ]
+              ; deletedDBs = TD.remove ~tlid m.deletedDBs }) ]
   | DeleteUserFunction tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (RPC ([DeleteFunction tlid], FocusSame) :: page)
@@ -1430,8 +1428,8 @@ let update_ (msg : msg) (m : model) : modification =
         ; TweakModel
             (fun m ->
               { m with
-                deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions
-              } ) ]
+                deletedUserFunctions = TD.remove ~tlid m.deletedUserFunctions })
+        ]
   | DeleteUserType tlid ->
       let page = Page.maybeChangeFromPage tlid m.currentPage in
       Many (RPC ([DeleteType tlid], FocusSame) :: page)
@@ -1475,8 +1473,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ RPC ([DeleteTypeForever tlid], FocusSame)
         ; TweakModel
             (fun m ->
-              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes} )
-        ]
+              {m with deletedUserTipes = TD.remove ~tlid m.deletedUserTipes}) ]
   | DeleteGroupForever tlid ->
       (* TODO: Add RPC *)
       Many
@@ -1507,7 +1504,7 @@ let update_ (msg : msg) (m : model) : modification =
             { m with
               opCtrs =
                 StrDict.update m.opCtrs ~key:params.clientOpCtrId ~f:(fun _ ->
-                    params.opCtr )
+                    params.opCtr)
             ; handlers =
                 TD.mergeRight m.handlers (Handlers.fromList r.result.handlers)
             ; dbs = TD.mergeRight m.dbs (DB.fromList r.result.dbs)
@@ -1561,7 +1558,7 @@ let update_ (msg : msg) (m : model) : modification =
                 | Some existing ->
                     Some (existing @ [trace])
                 | None ->
-                    Some [trace] ) )
+                    Some [trace]))
       in
       Many
         [ TweakModel (fun m -> {m with opCtrs = r.opCtrs; account = r.account})
@@ -1616,7 +1613,7 @@ let update_ (msg : msg) (m : model) : modification =
               let handlerProps =
                 RT.setHandlerExeState params.thTLID Complete m.handlerProps
               in
-              {m with handlerProps} ) ]
+              {m with handlerProps}) ]
   | GetUnlockedDBsRPCCallback (Ok unlockedDBs) ->
       Many
         [ TweakModel (Sync.markResponseInModel ~key:"unlocked")
@@ -1674,7 +1671,8 @@ let update_ (msg : msg) (m : model) : modification =
   | ReceiveFetch (TraceFetchFailure (params, url, error)) ->
       Many
         [ TweakModel
-            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+            (Sync.markResponseInModel
+               ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; DisplayAndReportError ("Error fetching trace", Some url, Some error)
         ]
   | ReceiveFetch (TraceFetchSuccess (params, result)) ->
@@ -1683,16 +1681,13 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ TweakModel
-            (Sync.markResponseInModel ~key:("tracefetch-" ^ params.gtdrpTraceID))
+            (Sync.markResponseInModel
+               ~key:("tracefetch-" ^ params.gtdrpTraceID))
         ; UpdateTraces traces ]
   | ReceiveFetch (TraceFetchMissing params) ->
       (* We'll force it so no need to update syncState *)
       let _, cmd =
-        Analysis.requestTrace
-          ~force:true
-          m
-          params.gtdrpTlid
-          params.gtdrpTraceID
+        Analysis.requestTrace ~force:true m params.gtdrpTlid params.gtdrpTraceID
       in
       MakeCmd cmd
   | ReceiveFetch (DbStatsFetchFailure (params, _, "Bad credentials")) ->
@@ -1711,8 +1706,8 @@ let update_ (msg : msg) (m : model) : modification =
       in
       Many
         [ TweakModel (Sync.markResponseInModel ~key:("update-db-stats-" ^ key))
-        ; DisplayAndReportError
-            ("Error fetching db stats", Some url, Some error) ]
+        ; DisplayAndReportError ("Error fetching db stats", Some url, Some error)
+        ]
   | ReceiveFetch (DbStatsFetchMissing params) ->
       let key =
         params.dbStatsTlids |> List.map ~f:deTLID |> String.join ~sep:","
@@ -1740,8 +1735,8 @@ let update_ (msg : msg) (m : model) : modification =
         [ TweakModel
             (Sync.markResponseInModel
                ~key:("get-worker-stats-" ^ deTLID params.workerStatsTlid))
-        ; DisplayAndReportError
-            ("Error fetching db stats", Some url, Some error) ]
+        ; DisplayAndReportError ("Error fetching db stats", Some url, Some error)
+        ]
   | ReceiveFetch (WorkerStatsFetchMissing params) ->
       TweakModel
         (Sync.markResponseInModel
@@ -1844,7 +1839,7 @@ let update_ (msg : msg) (m : model) : modification =
                && search.path = fof.path
                && search.modifier = fof.modifier
             then (search.traceID, None) :: acc
-            else acc )
+            else acc)
           m.f404s
       in
       let traceMods =
@@ -1865,8 +1860,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         ( traceMods
         @ [ RPC
-              ( [SetHandler (tlid, pos, aHandler)]
-              , FocusExact (tlid, B.toID ast) )
+              ([SetHandler (tlid, pos, aHandler)], FocusExact (tlid, B.toID ast))
           ; Delete404 fof ] )
   | MarkRoutingTableOpen (shouldOpen, key) ->
       TweakModel
@@ -1875,7 +1869,7 @@ let update_ (msg : msg) (m : model) : modification =
             routingTableOpenDetails =
               ( if shouldOpen
               then StrSet.add ~value:key m.routingTableOpenDetails
-              else StrSet.remove ~value:key m.routingTableOpenDetails ) } )
+              else StrSet.remove ~value:key m.routingTableOpenDetails ) })
   | ToggleSideBar ->
       TweakModel (fun m -> {m with sidebarOpen = not m.sidebarOpen})
   | CreateRouteHandler action ->
@@ -1907,7 +1901,7 @@ let update_ (msg : msg) (m : model) : modification =
       let toast =
         TweakModel
           (fun m ->
-            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let clipboardData =
         if VariantTesting.isFluid m.tests
@@ -1924,12 +1918,11 @@ let update_ (msg : msg) (m : model) : modification =
       let toast =
         TweakModel
           (fun m ->
-            {m with toast = {m.toast with toastMessage = Some "Copied!"}} )
+            {m with toast = {m.toast with toastMessage = Some "Copied!"}})
       in
       let copyData, mod_ =
         if VariantTesting.isFluid m.tests
-        then
-          (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
+        then (Fluid.getCopySelection m, Apply (fun m -> Fluid.update m FluidCut))
         else Clipboard.cut m
       in
       Many [SetClipboardContents (copyData, e); mod_; toast]
@@ -1937,8 +1930,7 @@ let update_ (msg : msg) (m : model) : modification =
       Native.Clipboard.copyToClipboard lv ;
       TweakModel
         (fun m ->
-          {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}}
-          )
+          {m with toast = {toastMessage = Some "Copied!"; toastPos = Some pos}})
   | EventDecoderError (name, key, error) ->
       (* Consider rollbar'ing here, but consider the following before doing so:
        *    - old clients after a deploy
@@ -1959,7 +1951,7 @@ let update_ (msg : msg) (m : model) : modification =
         (fun m ->
           { m with
             canvasProps =
-              {m.canvasProps with panAnimation = DontAnimateTransition} } )
+              {m.canvasProps with panAnimation = DontAnimateTransition} })
   | GoTo page ->
       MakeCmd (Url.navigateTo page)
   | SetHoveringReferences (tlid, ids) ->
@@ -1979,7 +1971,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           let cp = FluidCommands.filter m query m.fluidState.cp in
-          {m with fluidState = {m.fluidState with cp}} )
+          {m with fluidState = {m.fluidState with cp}})
   | FluidMsg (FluidCommandsClick cmd) ->
       Many [FluidCommands.runCommand m cmd; FluidCommandsClose]
   | TakeOffErrorRail (tlid, id) ->
@@ -1992,7 +1984,7 @@ let update_ (msg : msg) (m : model) : modification =
       TweakModel
         (fun m ->
           let handlerProps = RT.setHandlerExeState tlid Idle m.handlerProps in
-          {m with handlerProps} )
+          {m with handlerProps})
   | CopyCurl (tlid, pos) ->
       Curl.copyCurlMod m tlid pos
   | SetHandlerActionsMenu (tlid, show) ->
@@ -2027,8 +2019,7 @@ let update_ (msg : msg) (m : model) : modification =
         [ MakeCmd (RPC.logout m)
         ; TweakModel
             (fun m ->
-              { m with
-                editorSettings = {m.editorSettings with runTimers = false} } )
+              {m with editorSettings = {m.editorSettings with runTimers = false}})
         ]
   | LogoutRPCCallback ->
       (* For some reason the Tea.Navigation.modifyUrl and .newUrl doesn't work *)
@@ -2038,7 +2029,7 @@ let update_ (msg : msg) (m : model) : modification =
       Many
         [ TweakModel
             (fun m ->
-              {m with canvasProps = {m.canvasProps with minimap = None}} )
+              {m with canvasProps = {m.canvasProps with minimap = None}})
         ; Deselect
         ; MakeCmd (Url.navigateTo Architecture) ]
   | DismissErrorBar ->
@@ -2082,7 +2073,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
       match m.cursorState with
       | FluidEntering _ ->
           [ FluidKeyboard.downs ~key:"fluid" (fun x ->
-                FluidMsg (FluidKeyPress x) ) ]
+                FluidMsg (FluidKeyPress x)) ]
       | _ ->
           []
     else []
@@ -2093,8 +2084,7 @@ let subscriptions (m : model) : msg Tea.Sub.t =
     (* before they're triggered *)
     | Dragging (id, _, _, _) ->
         let listenerKey = "mouse_moves_" ^ deTLID id in
-        [ Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x)
-          ) ]
+        [Native.DarkMouse.moves ~key:listenerKey (fun x -> DragToplevel (id, x))]
     | _ ->
         []
   in
@@ -2108,22 +2098,22 @@ let subscriptions (m : model) : msg Tea.Sub.t =
           [ Patched_tea_time.every
               ~key:"refresh_analysis"
               Tea.Time.second
-              (fun f -> TimerFire (RefreshAnalysis, f) ) ]
+              (fun f -> TimerFire (RefreshAnalysis, f)) ]
           @ [ Patched_tea_time.every
                 ~key:"refresh_avatars"
                 Tea.Time.second
-                (fun f -> TimerFire (RefreshAvatars, f) ) ]
+                (fun f -> TimerFire (RefreshAvatars, f)) ]
     else []
   in
   let onError =
     [ Native.DisplayClientError.listen ~key:"display_client_error" (fun s ->
-          JSError s ) ]
+          JSError s) ]
   in
   let visibility =
     [ Native.Window.OnFocusChange.listen ~key:"window_on_focus_change" (fun v ->
           if v
           then PageVisibilityChange Visible
-          else PageVisibilityChange Hidden ) ]
+          else PageVisibilityChange Hidden) ]
   in
   let mousewheelSubs =
     if (m.canvasProps.enablePan && not (isACOpened m))
@@ -2133,37 +2123,37 @@ let subscriptions (m : model) : msg Tea.Sub.t =
        || VariantTesting.variantIsActive m GridLayout
     then
       [ Native.OnWheel.listen ~key:"on_wheel" (fun (dx, dy) ->
-            MouseWheel (dx, dy) ) ]
+            MouseWheel (dx, dy)) ]
     else []
   in
   let analysisSubs =
     [ Analysis.ReceiveAnalysis.listen ~key:"receive_analysis" (fun s ->
-          ReceiveAnalysis s )
+          ReceiveAnalysis s)
     ; Analysis.NewTracePush.listen ~key:"new_trace_push" (fun s ->
-          NewTracePush s )
+          NewTracePush s)
     ; Analysis.New404Push.listen ~key:"new_404_push" (fun s -> New404Push s)
     ; DarkStorage.NewStaticDeployPush.listen ~key:"new_static_deploy" (fun s ->
-          NewStaticDeployPush s )
+          NewStaticDeployPush s)
     ; Analysis.ReceiveFetch.listen ~key:"receive_fetch" (fun s ->
-          ReceiveFetch s )
+          ReceiveFetch s)
     ; Analysis.NewPresencePush.listen ~key:"new_presence_push" (fun s ->
-          NewPresencePush s )
+          NewPresencePush s)
     ; Analysis.AddOp.listen ~key:"add_op" (fun s -> AddOpStrollerMsg s)
     ; Analysis.WorkerStatePush.listen ~key:"worker_state_push" (fun s ->
-          WorkerStatePush s ) ]
+          WorkerStatePush s) ]
   in
   let clipboardSubs =
     [ Native.Clipboard.copyListener ~key:"copy_event" (fun e ->
-          ClipboardCopyEvent e )
+          ClipboardCopyEvent e)
     ; Native.Clipboard.cutListener ~key:"cut_event" (fun e ->
-          ClipboardCutEvent e )
+          ClipboardCutEvent e)
     ; Native.Clipboard.pasteListener ~key:"paste_event" (fun e ->
           e##preventDefault () ;
-          ClipboardPasteEvent e ) ]
+          ClipboardPasteEvent e) ]
   in
   let onCaptureView =
     [ Native.OnCaptureView.listen ~key:"capture_view" (fun s ->
-          UpdateMinimap (Some s) ) ]
+          UpdateMinimap (Some s)) ]
   in
   Tea.Sub.batch
     (List.concat

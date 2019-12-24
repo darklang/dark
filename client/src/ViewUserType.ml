@@ -52,10 +52,8 @@ let viewKillFieldBtn (t : userTipe) (field : userRecordField) : msg Html.html =
 
 
 let viewTipeField
-    (vs : viewState)
-    (t : userTipe)
-    (fieldCount : int)
-    (field : userRecordField) : msg Html.html =
+    (vs : viewState) (t : userTipe) (fieldCount : int) (field : userRecordField)
+    : msg Html.html =
   let button =
     if fieldCount > 1 && vs.permission = Some ReadWrite
     then viewKillFieldBtn t field
@@ -70,12 +68,13 @@ let viewTipeField
 
 
 let viewUserTipe (vs : viewState) (t : userTipe) : msg Html.html =
-  match t.utDefinition with UTRecord fields ->
-    let nameDiv = viewTipeName vs t in
-    let fieldDivs =
-      let fieldCount = List.length fields in
-      Html.div
-        [Html.class' "fields"]
-        (List.map ~f:(viewTipeField vs t fieldCount) fields)
-    in
-    Html.div [Html.class' "user-type"] [nameDiv; fieldDivs]
+  match t.utDefinition with
+  | UTRecord fields ->
+      let nameDiv = viewTipeName vs t in
+      let fieldDivs =
+        let fieldCount = List.length fields in
+        Html.div
+          [Html.class' "fields"]
+          (List.map ~f:(viewTipeField vs t fieldCount) fields)
+      in
+      Html.div [Html.class' "user-type"] [nameDiv; fieldDivs]

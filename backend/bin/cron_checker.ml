@@ -22,13 +22,12 @@ let cron_checker execution_id =
               e
               bt
               CronChecker
-              (Libexecution.Types.string_of_id execution_id) ) ;
+              (Libexecution.Types.string_of_id execution_id)) ;
         if not !shutdown then (cron_checker [@tailcall]) () else Lwt.return ()
   in
   Lwt_main.run
     (Log.add_log_annotations
-       [ ( "execution_id"
-         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+       [("execution_id", `String (Libexecution.Types.string_of_id execution_id))]
        (fun _ -> Nocrypto_entropy_lwt.initialize () >>= cron_checker))
 
 

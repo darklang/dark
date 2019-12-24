@@ -50,13 +50,12 @@ let run () =
       in
       test "dbsByName" (fun () ->
           expect (dbsByName dbs)
-          |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)
-      ) ;
+          |> toEqual (StrDict.insert ~key:"Books" ~value:dbtlid StrDict.empty)) ;
       test "handlersByName" (fun () ->
           let v =
             handlers |> handlersByName |> StrDict.get ~key:"JOB:processOrder"
           in
-          expect v |> toEqual (Some h1tlid) ) ;
+          expect v |> toEqual (Some h1tlid)) ;
       test "findUsagesInAST" (fun () ->
           let handlers = handlersByName handlers in
           let datastores = dbsByName dbs in
@@ -70,7 +69,7 @@ let run () =
             | _ ->
                 false
           in
-          expect usages |> toEqual true ) ;
+          expect usages |> toEqual true) ;
       test "tlidsToUpdateUsage" (fun () ->
           let fntlid = gtlid () in
           let ops =
@@ -86,6 +85,6 @@ let run () =
                     ; ufmInfix = false }
                 ; ufAST = B.new_ () } ]
           in
-          expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid] ) ;
-      () ) ;
+          expect (tlidsToUpdateUsage ops) |> toEqual [h1tlid; fntlid]) ;
+      ()) ;
   ()

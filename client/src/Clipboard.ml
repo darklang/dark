@@ -23,7 +23,7 @@ let getCurrentPointer (m : model) : (toplevel * pointerData) option =
   | Some tlid, Some id ->
       TL.get m tlid
       |> Option.andThen ~f:(fun tl ->
-             Option.map (TL.find tl id) ~f:(fun pd -> (tl, pd)) )
+             Option.map (TL.find tl id) ~f:(fun pd -> (tl, pd)))
   | _ ->
       None
 
@@ -102,7 +102,8 @@ let getData (e : clipboardEvent) : clipboardContents =
   let json = e##clipboardData##getData "application/json" in
   if json <> ""
   then (
-    try `Json (Json.parseOrRaise json) with _ ->
+    try `Json (Json.parseOrRaise json)
+    with _ ->
       reportError "could not parse clipboard data" json ;
       `None )
   else

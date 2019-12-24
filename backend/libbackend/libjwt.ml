@@ -121,11 +121,10 @@ let verify_and_extract_v1 ~(key : Rsa.pub) ~(token : string) :
 
 
 let handle_error (fn : unit -> dval) =
-  try DResult (ResOk (fn ())) with Invalid_argument msg ->
+  try DResult (ResOk (fn ()))
+  with Invalid_argument msg ->
     let msg =
-      if msg = "No RSA keys"
-      then "Invalid private key: not an RSA key"
-      else msg
+      if msg = "No RSA keys" then "Invalid private key: not an RSA key" else msg
     in
     DResult (ResError (Dval.dstr_of_string_exn msg))
 
@@ -201,7 +200,7 @@ let fns =
                   in
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:[] ~payload
-                  |> Dval.dstr_of_string_exn )
+                  |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
     ; ps = false
@@ -230,7 +229,7 @@ let fns =
                   in
                   let payload = Dval.to_pretty_machine_yojson_v1 payload in
                   sign_and_encode ~key ~extra_headers:json_hdrs ~payload
-                  |> Dval.dstr_of_string_exn )
+                  |> Dval.dstr_of_string_exn)
           | args ->
               fail args)
     ; ps = false

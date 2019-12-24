@@ -9,11 +9,7 @@ val variant4 :
   -> 'a decoder
 
 val variant3 :
-     ('b -> 'c -> 'd -> 'a)
-  -> 'b decoder
-  -> 'c decoder
-  -> 'd decoder
-  -> 'a decoder
+  ('b -> 'c -> 'd -> 'a) -> 'b decoder -> 'c decoder -> 'd decoder -> 'a decoder
 
 val variant2 : ('b -> 'c -> 'a) -> 'b decoder -> 'c decoder -> 'a decoder
 

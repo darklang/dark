@@ -194,8 +194,7 @@ let rec expr j : expr =
   let blankOrExpr =
     variants
       [ ("Filled", variant2 (fun id v -> F (id, v)) id nExpr)
-      ; ("Blank", variant1 (fun id -> Blank id) id)
-        (* We're phasing this out *)
+      ; ("Blank", variant1 (fun id -> Blank id) id) (* We're phasing this out *)
       ; ( "Partial"
         , variant2
             (fun id name -> F (id, FluidPartial (name, Blank.new_ ())))
@@ -220,10 +219,8 @@ and nExpr j : nExpr =
     ; ("Value", dv1 (fun x -> Value x) string)
     ; ("If", dv3 (fun a b c -> If (a, b, c)) de de de)
     ; ( "FnCall"
-      , dv2
-          (fun a b -> FnCall (F (ID "fncall", a), b, NoRail))
-          string
-          (list de) )
+      , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, NoRail)) string (list de)
+      )
     ; ( "FnCallSendToRail"
       , dv2 (fun a b -> FnCall (F (ID "fncall", a), b, Rail)) string (list de)
       )
@@ -303,9 +300,8 @@ let rec dval j : dval =
     ; ( "DIncomplete"
         (* catch decoding errors for backwards compatibility. if you see this
          * comment in master, the withDefault can be removed *)
-      , withDefault
-          (DIncomplete SourceNone)
-          (dv1 (fun x -> DIncomplete x) srcT) )
+      , withDefault (DIncomplete SourceNone) (dv1 (fun x -> DIncomplete x) srcT)
+      )
     ; ( "DError"
       , tryDecode2
           (dv1 (fun x -> DError (SourceNone, x)) string)
@@ -323,7 +319,7 @@ let rec dval j : dval =
       , dv1
           (fun x ->
             let x = x |> bytes_from_base64url in
-            DBytes x )
+            DBytes x)
           string ) ]
     j
 
@@ -356,7 +352,7 @@ and handlerProp j : handlerProp =
 
 and serializableEditor (j : Js.Json.t) : serializableEditor =
   (* always use withDefault or optional because the field might be missing due
-   * to old editors or new fields.  *)
+   * to old editors or new fields. *)
   { editorSettings =
       { runTimers =
           withDefault true (field "editorSettings" (field "runTimers" bool)) j
@@ -382,10 +378,8 @@ and serializableEditor (j : Js.Json.t) : serializableEditor =
         (field "sidebarOpen" bool)
         j
   ; showTopbar =
-      withDefault
-        Defaults.defaultEditor.showTopbar
-        (field "showTopbar1" bool)
-        j }
+      withDefault Defaults.defaultEditor.showTopbar (field "showTopbar1" bool) j
+  }
 
 
 and cursorState j =
@@ -397,8 +391,7 @@ and cursorState j =
     [ ("Selecting", dv2 (fun a b -> Selecting (a, b)) tlid (optional id))
     ; ("Entering", dv1 (fun a -> Entering a) entering)
     ; ( "Dragging"
-      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState
-      )
+      , dv4 (fun a b c d -> Dragging (a, b, c, d)) tlid vPos bool cursorState )
     ; ("Deselected", dv0 Deselected)
     ; ("SelectingCommand", dv2 (fun a b -> SelectingCommand (a, b)) tlid id)
     ; ("FluidEntering", dv1 (fun a -> FluidEntering a) tlid)
@@ -629,7 +622,7 @@ let op j : op =
     ; ( "AddDBColToDBMigration"
       , variant3
           (fun t colnameid coltypeid ->
-            AddDBColToDBMigration (t, colnameid, coltypeid) )
+            AddDBColToDBMigration (t, colnameid, coltypeid))
           tlid
           id
           id )
@@ -665,8 +658,7 @@ let op j : op =
           pos
           id
           string )
-    ; ( "DeleteFunctionForever"
-      , variant1 (fun t -> DeleteFunctionForever t) tlid )
+    ; ("DeleteFunctionForever", variant1 (fun t -> DeleteFunctionForever t) tlid)
     ; ("DeleteTLForever", variant1 (fun t -> DeleteTLForever t) tlid)
     ; ("SetType", variant1 (fun t -> SetType t) userTipe)
     ; ("DeleteType", variant1 (fun t -> DeleteType t) tlid)
@@ -693,7 +685,7 @@ let addOpRPCParams j : addOpRPCParams =
   let opCtr = try Some (field "opCtr" int j) with _ -> None in
   { ops = field "ops" (list op) j
   ; opCtr
-      (* withDefault in case we roll back and have an old server that doesn't send
+    (* withDefault in case we roll back and have an old server that doesn't send
 * us this field *)
   ; clientOpCtrId = withDefault "" (field "clientOpCtrId" string) j }
 
@@ -840,7 +832,8 @@ let exception_ j : exception_ =
 (* Wrap JSON decoders using bs-json's format, into TEA's HTTP expectation format *)
 let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
  fun j ->
-  try Ok (fn (Json.parseOrRaise j)) with e ->
+  try Ok (fn (Json.parseOrRaise j))
+  with e ->
     reportError "unexpected json" j ;
     ( match e with
     | DecodeError e | Json.ParseError e ->
@@ -853,10 +846,11 @@ let wrapExpect (fn : Js.Json.t -> 'a) : string -> ('ok, string) Tea.Result.t =
 let wrapDecoder (fn : Js.Json.t -> 'a) : (Js.Json.t, 'a) Tea.Json.Decoder.t =
   Decoder
     (fun value ->
-      try Tea_result.Ok (fn value) with e ->
+      try Tea_result.Ok (fn value)
+      with e ->
         reportError "undecodable json" value ;
         ( match e with
         | DecodeError e | Json.ParseError e ->
             Tea_result.Error e
         | e ->
-            Tea_result.Error ("Json error: " ^ Printexc.to_string e) ) )
+            Tea_result.Error ("Json error: " ^ Printexc.to_string e) ))

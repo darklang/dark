@@ -26,7 +26,7 @@ let collect_params (params : (string * string) list) : string =
 (* TODO: no body? *)
 let sign consumer_secret access_token_secret uri verb params =
   (* https://dev.twitter.com/oauth/overview/creating-signatures *)
-  
+
   (* Collecting parameters *)
   let collected = collect_params params in
   (* Creating the signature base string - #1-5 *)

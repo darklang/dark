@@ -98,9 +98,7 @@ module TLIDDict = struct
     update ~key:tlid ~f dict
 
 
-  let remove ~(tlid : tlid) (dict : 'value t) : 'value t =
-    remove ~key:tlid dict
-
+  let remove ~(tlid : tlid) (dict : 'value t) : 'value t = remove ~key:tlid dict
 
   let removeMany ~(tlids : tlid list) (dict : 'value t) : 'value t =
     removeMany ~keys:tlids dict
@@ -963,11 +961,13 @@ and stringEntryWidth =
 and clipboardData =
   (< setData : string -> string -> unit [@bs.meth]
    ; getData : string -> string [@bs.meth] >
-   Js.t[@opaque])
+   Js.t
+  [@opaque])
 
 and clipboardEvent =
   (< preventDefault : unit -> unit [@bs.meth] ; clipboardData : clipboardData >
-   Js.t[@opaque])
+   Js.t
+  [@opaque])
 
 and clipboardContents =
   [ `Text of string
@@ -1516,9 +1516,9 @@ and fluidAutocompleteState =
   ; query :
       (* We need to refer back to the previous one *)
       (tlid * fluidTokenInfo) option
-      (* ------------------------------- *)
-      (* Cached results *)
-      (* ------------------------------- *)
+        (* ------------------------------- *)
+        (* Cached results *)
+        (* ------------------------------- *)
   ; completions : fluidAutocompleteItem list
   ; invalidCompletions : fluidAutocompleteItem list
   ; allCompletions : fluidAutocompleteItem list }
@@ -1534,9 +1534,8 @@ and fluidState =
   ; actions : string list
   ; oldPos : int
   ; newPos : int
-  ; upDownCol :
-      int option
-      (* When moving up or down, and going through whitespace, track
+  ; upDownCol : int option
+        (* When moving up or down, and going through whitespace, track
          * the column so we can go back to it *)
   ; lastKey : FluidKeyboard.key
   ; ac : fluidAutocompleteState
@@ -1547,7 +1546,7 @@ and fluidState =
        * lose the information we're trying to get from the click. *)
       bool
   ; errorDvSrc : dval_source
-  (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
+        (* The source id of an error-dval of where the cursor is on and we might have recently jumped to *)
   }
 
 (* Avatars *)
@@ -1610,18 +1609,16 @@ and model =
   ; usedFns : int StrDict.t
   ; usedTipes : int StrDict.t
   ; handlerProps : handlerProp TLIDDict.t
-  ; staticDeploys :
-      staticDeploy list
-      (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
+  ; staticDeploys : staticDeploy list
+        (* tlRefersTo : to answer the question "what TLs does this TL refer to". eg
    * if myFunc was called in Repl2 at id, then the dict would be:
    *
    *   { repl2.tlid: { (myFunc.tlid, id) } }
    *
    * which you can read as "repl2 refersTo myfunc". So a tlid points to the TLs
    * it uses. *)
-  ; tlRefersTo :
-      IDPairSet.t TLIDDict.t
-      (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
+  ; tlRefersTo : IDPairSet.t TLIDDict.t
+        (* tlUsedIn: to answer the question "what TLs is this TL's name used in".  eg
    * if myFunc was called in Repl2, the dict would
    *
    *   { myfunc.tlid: { repl2.tlid }}

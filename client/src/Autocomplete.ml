@@ -26,7 +26,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
          | Some el ->
              Element.setScrollTop el (i |> height |> float_of_int)
          | None ->
-             () ))
+             ()))
 
 
 (* ---------------------------- *)
@@ -475,7 +475,7 @@ let qSearch (m : model) (s : string) : omniAction list =
                |> Option.orElse
                     ( TLIDDict.get ~tlid m.userFunctions
                     |> Option.map ~f:foundFnOmniAction )
-             else None )
+             else None)
     in
     if List.length results > maxResults
     then List.take ~count:maxResults results
@@ -582,13 +582,13 @@ let tlDestinations (m : model) : autocompleteItem list =
     |> TD.values
     |> List.sortBy ~f:tlGotoName
     |> List.map ~f:(fun tl ->
-           Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false) )
+           Goto (TL.asPage tl true, TL.id tl, tlGotoName tl, false))
   in
   let ufs =
     m.userFunctions
     |> TD.filterMapValues ~f:(fun fn ->
            let name = "Jump to function: " ^ fnDisplayName fn in
-           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)) )
+           Some (Goto (FocusedFn fn.ufTLID, fn.ufTLID, name, false)))
   in
   List.map ~f:(fun x -> ACOmniAction x) (tls @ ufs)
 
@@ -635,7 +635,7 @@ let generate (m : model) (a : autocomplete) : autocomplete =
               |> List.filterMap ~f:(fun f404 ->
                      if f404.path != "/"
                      then Some (ACHTTPRoute (cleanHTTPname f404.path))
-                     else None )
+                     else None)
             in
             fourOhFourList
         | _ ->
@@ -713,7 +713,7 @@ let filter (list : autocompleteItem list) (query : string) :
         | ACOmniAction (Goto _) ->
             query <> ""
         | _ ->
-            true )
+            true)
   in
   (* split into different lists *)
   let dynamic, candidates0 = List.partition ~f:isDynamicItem list in
@@ -723,9 +723,7 @@ let filter (list : autocompleteItem list) (query : string) :
       candidates0
   in
   let startsWith, candidates2 =
-    List.partition
-      ~f:(stringify >> String.startsWith ~prefix:query)
-      candidates1
+    List.partition ~f:(stringify >> String.startsWith ~prefix:query) candidates1
   in
   let startsWithCI, candidates3 =
     List.partition
@@ -772,8 +770,10 @@ let refilter (m : model) (query : string) (old : autocomplete) : autocomplete =
     else 0
   in
   { old with
-    index; completions = newCompletions; value = query; prevValue = old.value
-  }
+    index
+  ; completions = newCompletions
+  ; value = query
+  ; prevValue = old.value }
 
 
 let regenerate (m : model) (a : autocomplete) : autocomplete =
@@ -792,12 +792,14 @@ let reset (m : model) : autocomplete =
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
   in
   let admin = m.isAdmin in
   let functions = functions @ userFunctionMetadata in
   { Defaults.defaultModel.complete with
-    admin; functions; visible = VariantTesting.defaultAutocompleteVisible m }
+    admin
+  ; functions
+  ; visible = VariantTesting.defaultAutocompleteVisible m }
   |> regenerate m
 
 
@@ -933,7 +935,7 @@ let update (m : model) (mod_ : autocompleteMod) (a : autocomplete) :
 
 (* Checks to see if autocomplete or command palette is opened
  * but not omnibox since it's not scrollable
-*)
+ *)
 let isOpened (ac : autocomplete) : bool =
   Option.isSome ac.target || ac.isCommandMode
 

@@ -96,8 +96,7 @@ let should_execute (canvas_id : Uuidm.t) (h : handler) execution_id : bool =
 modifier>" ) ]
             ~jsonparams:
               [ ( "delay_ms"
-                , `Float (Time.Span.to_ms (Time.diff now should_run_after)) )
-              ] ;
+                , `Float (Time.Span.to_ms (Time.diff now should_run_after)) ) ] ;
           now >= should_run_after )
 
 
@@ -160,7 +159,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                  ; ("exn", Log.dump e)
                  ; ("execution_id", Types.string_of_id execution_id) ] ;
              ignore (Rollbar.report e bt CronChecker (Log.dump execution_id)) ;
-             None )
+             None)
     |> List.iter ~f:(fun (endp, c) ->
            let crons =
              !c.handlers
@@ -205,8 +204,8 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                          ; ("host", endp)
                          ; ("tlid", Types.string_of_id cr.tlid)
                          ; ("event_name", name)
-                         ; ("cron_freq", modifier) ] ) )
-             crons )
+                         ; ("cron_freq", modifier) ]))
+             crons)
     |> (fun x ->
          Log.infO
            "cron_checker"
@@ -217,7 +216,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
              ; ("canvas.errors", `Int !stat_canvas_errors)
              ; ("cron.checked", `Int !stat_crons)
              ; ("cron.queued", `Int !stat_events) ] ;
-         x )
+         x)
     |> Ok
   with e ->
     let bt = Exception.get_backtrace () in

@@ -42,7 +42,7 @@ module IDMap = struct
         Format.pp_print_string fmt (string_of_id key) ;
         Format.pp_print_string fmt ": " ;
         valueFormatter fmt data ;
-        Format.pp_print_string fmt ",  " ) ;
+        Format.pp_print_string fmt ",  ") ;
     Format.pp_print_string fmt "}" ;
     ()
 
@@ -52,7 +52,7 @@ module IDMap = struct
     | `Assoc l ->
         l
         |> List.map ~f:(fun (k, v) ->
-               Result.map (fn v) ~f:(fun v -> (id_of_string k, v)) )
+               Result.map (fn v) ~f:(fun v -> (id_of_string k, v)))
         |> Result.combine_errors
         |> Result.map_error ~f:(String.concat ~sep:", ")
         |> Result.bind ~f:(fun l ->
@@ -60,7 +60,7 @@ module IDMap = struct
                | `Duplicate_key k ->
                    Error ("duplicate key: " ^ string_of_id k)
                | `Ok m ->
-                   Ok m )
+                   Ok m)
     | _ ->
         Error "Expected an object"
 end
@@ -130,8 +130,7 @@ module RuntimeT = struct
   type varbinding = varname or_blank
   [@@deriving eq, compare, yojson, show, bin_io]
 
-  type field = fieldname or_blank
-  [@@deriving eq, compare, yojson, show, bin_io]
+  type field = fieldname or_blank [@@deriving eq, compare, yojson, show, bin_io]
 
   type key = keyname or_blank [@@deriving eq, compare, yojson, show, bin_io]
 
@@ -140,8 +139,7 @@ module RuntimeT = struct
     | PLiteral of string
     | PConstructor of string * pattern list
 
-  and pattern = npattern or_blank
-  [@@deriving eq, compare, yojson, show, bin_io]
+  and pattern = npattern or_blank [@@deriving eq, compare, yojson, show, bin_io]
 
   type nexpr =
     | If of expr * expr * expr
@@ -380,8 +378,8 @@ module RuntimeT = struct
       match json with
       | `Assoc l ->
           l
-          |> List.map ~f:(fun (k, v) -> Result.map (fn v) ~f:(fun dv -> (k, dv))
-             )
+          |> List.map ~f:(fun (k, v) ->
+                 Result.map (fn v) ~f:(fun dv -> (k, dv)))
           |> Result.combine_errors
           |> Result.map_error ~f:(String.concat ~sep:", ")
           |> Result.bind ~f:T.from_list_unique
@@ -556,9 +554,7 @@ module RuntimeT = struct
     let rt =
       match uf.metadata.return_type with Filled (_, t) -> Some t | _ -> None
     in
-    let params =
-      List.filter_map ~f:ufn_param_to_param uf.metadata.parameters
-    in
+    let params = List.filter_map ~f:ufn_param_to_param uf.metadata.parameters in
     let params_all_filled =
       List.length params = List.length uf.metadata.parameters
     in

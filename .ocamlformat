@@ -1,3 +1,14 @@
 profile = sparse
 break-string-literals = never
 escape-strings = preserve
+single-case = compact
+space-around-lists = false
+space-around-records = false
+space-around-variants = false
+space-around-arrays = false
+sequence-blank-line = compact
+doc-comments = before
+dock-collection-brackets = false
+let-and = sparse
+let-open = long
+type-decl = sparse

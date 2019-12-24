@@ -54,7 +54,7 @@ let viewFeatureFlag : msg Html.html =
     [ Html.class' "flag"
     ; Html.title "Clone and feature flag this expression"
     ; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ ->
-          StartFeatureFlag ) ]
+          StartFeatureFlag) ]
     [ViewUtils.fontAwesome "flag"]
 
 
@@ -113,7 +113,7 @@ let div
         | ClickSelect ->
             thisID
         | _ ->
-            None )
+            None)
   in
   let mouseoverAs =
     getFirst (fun a ->
@@ -123,12 +123,12 @@ let div
         | Mouseover ->
             thisID
         | _ ->
-            None )
+            None)
   in
   let classes =
     configs
     |> List.filterMap ~f:(fun a ->
-           match a with WithClass c -> Some c | _ -> None )
+           match a with WithClass c -> Some c | _ -> None)
   in
   let showROP = List.member ~value:WithROP configs in
   let isCommandTarget =
@@ -145,8 +145,7 @@ let div
   let showParamName =
     configs
     |> List.filterMap ~f:(fun a ->
-           match a with WithParamName v -> Some (viewParamName v) | _ -> None
-       )
+           match a with WithParamName v -> Some (viewParamName v) | _ -> None)
   in
   let mouseoverClass =
     let targetted =

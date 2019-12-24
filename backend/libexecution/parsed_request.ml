@@ -17,7 +17,7 @@ let body_parser_type headers =
   let ct_is ct =
     List.exists headers ~f:(fun (k, v) ->
         String.Caseless.equal k "content-type"
-        && String.is_substring ~substring:ct v )
+        && String.is_substring ~substring:ct v)
   in
   if ct_is "application/json"
   then Json
@@ -29,12 +29,13 @@ let body_parser_type headers =
 let parser_fn p (str : string) : dval =
   match p with
   | Json ->
-    ( try Dval.of_unknown_json_v0 str with e ->
-        Exception.enduser ~actual:str ("Invalid json: " ^ str) )
+    ( try Dval.of_unknown_json_v0 str
+      with e -> Exception.enduser ~actual:str ("Invalid json: " ^ str) )
   | Form ->
       Dval.of_form_encoding str
   | Unknown ->
-    ( try Dval.of_unknown_json_v0 str with e ->
+    ( try Dval.of_unknown_json_v0 str
+      with e ->
         Exception.enduser
           ~actual:str
           "Unknown Content-type -- we assumed application/json but invalid JSON was sent"
@@ -89,7 +90,7 @@ let parsed_cookies cookies =
   |> List.map ~f:(String.lsplit2 ~on:'=')
   |> List.filter_opt
   |> List.map ~f:(fun (k, v) ->
-         (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)) )
+         (Uri.pct_decode k, Dval.dstr_of_string_exn (Uri.pct_decode v)))
   |> Dval.to_dobj_exn
 
 
@@ -122,16 +123,16 @@ let from_request
     (query : query_val list)
     rbody =
   let parsed_body =
-    try parsed_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try parsed_body headers rbody
+    with e -> if allow_unparseable then DNull else raise e
   in
   let json_body =
-    try json_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try json_body headers rbody
+    with e -> if allow_unparseable then DNull else raise e
   in
   let form_body =
-    try form_body headers rbody with e ->
-      if allow_unparseable then DNull else raise e
+    try form_body headers rbody
+    with e -> if allow_unparseable then DNull else raise e
   in
   let parts =
     [ parsed_body

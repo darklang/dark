@@ -65,9 +65,7 @@ let t_route_variables_work () =
 let t_concrete_over_wild () =
   let wild = http_route_handler ~route:"/:foo" () in
   let concrete = http_route_handler ~tlid:tlid2 ~route:"/a" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [concrete; wild]
-  in
+  let ordered = Http.filter_matching_handlers_by_specificity [concrete; wild] in
   AT.check (AT.list testable_handler) "concrete over wild" [concrete] ordered
 
 
@@ -81,9 +79,7 @@ let t_wild_over_nothing () =
 let t_differing_wildcards () =
   let single = http_route_handler ~route:"/:first" () in
   let double = http_route_handler ~tlid:tlid2 ~route:"/:first/:second" () in
-  let ordered =
-    Http.filter_matching_handlers_by_specificity [single; double]
-  in
+  let ordered = Http.filter_matching_handlers_by_specificity [single; double] in
   AT.check (AT.list testable_handler) "differing wildcards" [double] ordered
 
 
@@ -142,9 +138,7 @@ let t_mismatch_is_filtered () =
 let t_mismatch_filtering_leaves_root () =
   let single = http_route_handler ~route:"/:first" () in
   let root = http_route_handler ~tlid:tlid2 ~route:"/" () in
-  let filtered =
-    Http.filter_invalid_handler_matches ~path:"/" [single; root]
-  in
+  let filtered = Http.filter_invalid_handler_matches ~path:"/" [single; root] in
   AT.check
     (AT.list testable_handler)
     "mismatch is filtered out but root is left"

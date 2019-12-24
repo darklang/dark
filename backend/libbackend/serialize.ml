@@ -51,10 +51,11 @@ let try_multiple ~(fs : (string * ('a -> 'b)) list) (value : 'a) : 'b =
         | Some r ->
             result
         | None ->
-          ( try Some (f value) with e ->
+          ( try Some (f value)
+            with e ->
               let bt = Exception.get_backtrace () in
               Log.debuG ~bt name ~data:(Exception.exn_to_string e) ;
-              None ) )
+              None ))
   in
   match result with Some r -> r | None -> Exception.internal "No fn worked"
 
@@ -81,14 +82,14 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
          | [data] ->
              data
          | _ ->
-             Exception.internal "Shape of per_tlid oplists" )
+             Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
          let ops : Op.oplist =
            try_multiple str ~fs:[("oplist", Op.oplist_of_string)]
          in
          (* there must be at least one op *)
          let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
-         (tlid, ops) )
+         (tlid, ops))
 
 
 let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
@@ -101,8 +102,8 @@ let load_all_from_db ~host ~(canvas_id : Uuidm.t) () : Op.tlid_oplists =
   |> strs2tlid_oplists
 
 
-let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
-    : Op.tlid_oplists =
+let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
+    Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_only_tlids"
@@ -114,9 +115,8 @@ let load_only_tlids ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
   |> strs2tlid_oplists
 
 
-let load_with_context
-    ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) () :
-    Op.tlid_oplists =
+let load_with_context ~host ~(canvas_id : Uuidm.t) ~(tlids : Types.tlid list) ()
+    : Op.tlid_oplists =
   let tlid_params = List.map ~f:(fun x -> Db.ID x) tlids in
   Db.fetch
     ~name:"load_with_context"
@@ -238,8 +238,7 @@ let load_json_from_disk
   |> Option.value ~default:[]
 
 
-let save_json_to_disk ~root (filename : string) (ops : Op.tlid_oplists) : unit
-    =
+let save_json_to_disk ~root (filename : string) (ops : Op.tlid_oplists) : unit =
   Log.infO
     "serialization"
     ~params:[("save_to", "disk"); ("format", "json"); ("filename", filename)] ;

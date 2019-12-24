@@ -29,8 +29,8 @@ let keyword = ViewBlankOr.keyword
 
 let enterable = ViewBlankOr.Enterable
 
-let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr)
-    : msg Html.html =
+let viewUserFnName (vs : viewState) (c : htmlConfig list) (v : string blankOr) :
+    msg Html.html =
   viewText FnName vs ((enterable :: idConfigs) @ c) v
 
 
@@ -46,9 +46,7 @@ let viewParamTipe (vs : viewState) (c : htmlConfig list) (v : tipe blankOr) :
 
 let viewKillParameterBtn (uf : userFunction) (p : userFunctionParameter) :
     msg Html.html =
-  let freeVariables =
-    AST.freeVariables uf.ufAST |> List.map ~f:Tuple2.second
-  in
+  let freeVariables = AST.freeVariables uf.ufAST |> List.map ~f:Tuple2.second in
   let canDeleteParameter pname =
     List.member ~value:pname freeVariables |> not
   in
@@ -108,7 +106,7 @@ let viewMetadata (vs : viewState) (fn : userFunction) : msg Html.html =
                else [] )
              @ [ viewParamName vs [wc "name"] p.ufpName
                ; Html.div [Html.class' "param-divider"] [Html.text ":"]
-               ; viewParamTipe vs [wc "type"] p.ufpTipe ] ) )
+               ; viewParamTipe vs [wc "type"] p.ufpTipe ] ))
   in
   Html.div
     [Html.class' "user-fn"]

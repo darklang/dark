@@ -16,8 +16,7 @@ let toID (uf : userFunction) : tlid = uf.ufTLID
 let upsert (m : model) (userFunction : userFunction) : model =
   { m with
     userFunctions =
-      TD.insert ~tlid:userFunction.ufTLID ~value:userFunction m.userFunctions
-  }
+      TD.insert ~tlid:userFunction.ufTLID ~value:userFunction m.userFunctions }
 
 
 let update (m : model) ~(tlid : tlid) ~(f : userFunction -> userFunction) :
@@ -105,7 +104,7 @@ let allParamNames (uf : userFunction) : string list =
   uf
   |> allParamData
   |> List.filterMap ~f:(fun p ->
-         match p with PParamName (F (_, n)) -> Some n | _ -> None )
+         match p with PParamName (F (_, n)) -> Some n | _ -> None)
 
 
 let replaceParamName
@@ -117,7 +116,7 @@ let replaceParamName
     uf
     |> allParamData
     |> List.filterMap ~f:(fun p ->
-           match p with PParamName n -> Some n | _ -> None )
+           match p with PParamName n -> Some n | _ -> None)
   in
   if List.any ~f:(fun p -> B.toID p = sId) paramNames
   then
@@ -127,7 +126,7 @@ let replaceParamName
           let newP =
             metadata.ufmParameters
             |> List.map ~f:(fun p ->
-                   {p with ufpName = B.replace sId new_ p.ufpName} )
+                   {p with ufpName = B.replace sId new_ p.ufpName})
           in
           {metadata with ufmParameters = newP}
       | _ ->
@@ -178,7 +177,7 @@ let replaceParamTipe
     uf
     |> allParamData
     |> List.filterMap ~f:(fun p ->
-           match p with PParamTipe t -> Some t | _ -> None )
+           match p with PParamTipe t -> Some t | _ -> None)
   in
   if List.any ~f:(fun p -> B.toID p = sId) paramTipes
   then
@@ -188,7 +187,7 @@ let replaceParamTipe
           let newP =
             metadata.ufmParameters
             |> List.map ~f:(fun p ->
-                   {p with ufpTipe = B.replace sId new_ p.ufpTipe} )
+                   {p with ufpTipe = B.replace sId new_ p.ufpTipe})
           in
           {metadata with ufmParameters = newP}
       | _ ->
@@ -208,7 +207,7 @@ let usesOfTipe (tipename : string) (version : int) (uf : userFunction) :
            when n = tipename && v = version ->
              Some pd
          | _ ->
-             None )
+             None)
 
 
 let replaceMetadataField

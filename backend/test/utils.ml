@@ -21,8 +21,7 @@ module AT = Alcotest
 (* ------------------- *)
 
 (* Allows us to mock analysis *)
-let test_fn_results : ((function_desc * dval list) * (dval * Time.t)) list ref
-    =
+let test_fn_results : ((function_desc * dval list) * (dval * Time.t)) list ref =
   ref []
 
 
@@ -109,7 +108,7 @@ let check_error msg dval expected =
         | DError (_, msg1), DError (_, msg2) ->
             msg1 = msg2
         | _ ->
-            false )
+            false)
   in
   AT.check at_error msg (DError (SourceNone, expected)) dval
 
@@ -119,7 +118,7 @@ let check_incomplete msg dval =
     AT.testable
       (fun fmt dv -> Fmt.pf fmt "%s" (Dval.show dv))
       (fun a b ->
-        match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false )
+        match (a, b) with DIncomplete _, DIncomplete _ -> true | _ -> false)
   in
   AT.check at_incomplete msg (DIncomplete SourceNone) dval
 
@@ -158,7 +157,8 @@ let _ = check_exception
 
 let check_error_contains (name : string) (result : dval) (substring : string) =
   let strresult = Dval.to_developer_repr_v0 result in
-  AT.(check bool)
+  (let open AT in
+  check bool)
     (name ^ ": (\"" ^ strresult ^ "\" contains \"" ^ substring ^ "\"")
     true
     (String.is_substring ~substring strresult)
@@ -286,7 +286,7 @@ let user_fn name params ast : user_fn =
               ; tipe = f TAny
               ; block_args = []
               ; optional = false
-              ; description = "test" } )
+              ; description = "test" })
       ; return_type = f TAny
       ; description = "test user fn"
       ; infix = false } }
@@ -325,7 +325,7 @@ let add_test_fn_result
 let load_test_fn_results (desc : function_desc) (args : dval list) :
     (dval * Time.t) option =
   List.find !test_fn_results ~f:(fun ((desc', args'), result) ->
-      (desc, args) = (desc', args') )
+      (desc, args) = (desc', args'))
   |> Option.map ~f:Tuple2.get2
 
 
@@ -356,9 +356,8 @@ let test_execution_data
 
 
 let execute_ops
-    ?(trace_id = Util.create_uuid ())
-    ?(canvas_name = "test")
-    (ops : Op.op list) : dval =
+    ?(trace_id = Util.create_uuid ()) ?(canvas_name = "test") (ops : Op.op list)
+    : dval =
   let ( c
       , { tlid
         ; load_fn_result

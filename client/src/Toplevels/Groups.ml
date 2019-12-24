@@ -44,7 +44,7 @@ let isGroupNameUnique (group : group) (groups : group TLIDDict.t) : bool =
   let allNames =
     groups
     |> TD.filterMapValues ~f:(fun g ->
-           match g.gName with Blank _ -> None | F (_, name) -> Some name )
+           match g.gName with Blank _ -> None | F (_, name) -> Some name)
   in
   List.member
     ~value:(group.gName |> Blank.toMaybe |> Option.withDefault ~default:"")
@@ -93,7 +93,7 @@ let posInGroup (mePos : pos) (groups : group TLIDDict.t) : tlid list =
              then true
              else false
          | None ->
-             false )
+             false)
   |> fromList
   |> TD.tlids
 
@@ -102,7 +102,7 @@ let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
   match
     Native.Ext.querySelector (".tl-" ^ deTLID tlid)
     |> Option.andThen ~f:(fun e ->
-           Some (Native.Ext.getBoundingClient e ("tl-" ^ deTLID tlid)) )
+           Some (Native.Ext.getBoundingClient e ("tl-" ^ deTLID tlid)))
   with
   | Some tlPos ->
       groups
@@ -121,7 +121,7 @@ let landedInGroup (tlid : tlid) (groups : group TLIDDict.t) : tlid list =
                  then false
                  else true
              | None ->
-                 false )
+                 false)
       |> fromList
       |> TD.tlids
   | None ->

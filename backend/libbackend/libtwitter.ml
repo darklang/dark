@@ -121,7 +121,7 @@ let fns =
           * they can't actually be called correctly, and the presence of "{"
           * made it impossible to create objects in the autocomplete, so we
           * disabled them for now *)
-         not (String.contains ~substring:"{" api.path) )
+         not (String.contains ~substring:"{" api.path))
   |> List.filter_map ~f:(fun (api : Swagger.api) ->
          api.operations
          |> List.head
@@ -133,4 +133,4 @@ let fns =
                 ; p = auth_param :: List.map ~f:param2param op.parameters
                 ; d = Base.Option.value ~default:"" op.summary
                 ; ps = false
-                ; dep = false } ) )
+                ; dep = false }))

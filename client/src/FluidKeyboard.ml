@@ -6,8 +6,7 @@ type browserPlatform =
   | Windows
   | UnknownPlatform
 
-external jsGetBrowserPlatform :
-  unit -> browserPlatform Js.Nullable.t
+external jsGetBrowserPlatform : unit -> browserPlatform Js.Nullable.t
   = "getBrowserPlatform"
   [@@bs.val] [@@bs.scope "window"]
 
@@ -320,8 +319,8 @@ let fromChar (c : char) : key =
 
 
 let fromKeyboardEvent
-    (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) :
-    key =
+    (key : string) (shift : bool) (ctrl : bool) (meta : bool) (alt : bool) : key
+    =
   let isMac = getBrowserPlatform () = Mac in
   let osCmdKeyHeld = if isMac then meta else ctrl in
   let isMacCmdHeld = isMac && meta in

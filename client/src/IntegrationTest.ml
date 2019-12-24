@@ -27,8 +27,7 @@ let testIntOption ~(errMsg : string) ~(expected : int) ~(actual : int option) :
         ^ string_of_int expected
         ^ ")" )
   | None ->
-      fail
-        (errMsg ^ " (Actual: None, Expected: " ^ string_of_int expected ^ ")")
+      fail (errMsg ^ " (Actual: None, Expected: " ^ string_of_int expected ^ ")")
 
 
 let testInt ~(errMsg : string) ~(expected : int) ~(actual : int) : testResult =
@@ -81,9 +80,7 @@ let enter_changes_state (m : model) : testResult =
 let field_access_closes (m : model) : testResult =
   match m.cursorState with
   | FluidEntering _ ->
-      let ast =
-        onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast
-      in
+      let ast = onlyTL m |> TL.asHandler |> deOption "test" |> fun x -> x.ast in
       if AST.allData ast |> List.filter ~f:P.isBlank = []
       then pass
       else fail ~f:(show_list ~f:show_pointerData) (TL.allBlanks (onlyTL m))
@@ -162,8 +159,7 @@ let switching_from_http_to_repl_space_removes_leading_slash =
   switching_from_http_space_removes_leading_slash
 
 
-let switching_from_http_space_removes_variable_colons (m : model) : testResult
-    =
+let switching_from_http_space_removes_variable_colons (m : model) : testResult =
   let spec = onlyTL m |> TL.asHandler |> deOption "hw2" |> fun x -> x.spec in
   match (spec.space, spec.name, spec.modifier) with
   | F (_, newSpace), F (_, "spec_name/variable"), _ when newSpace != "HTTP" ->
@@ -211,7 +207,7 @@ let rename_db_fields (m : model) : testResult =
            | _ ->
                fail ~f:show_cursorState m.cursorState )
          | _ ->
-             fail ~f:(show_list ~f:show_dbColumn) cols )
+             fail ~f:(show_list ~f:show_dbColumn) cols)
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -236,7 +232,7 @@ let rename_db_type (m : model) : testResult =
            | _ ->
                fail ~f:show_cursorState m.cursorState )
          | _ ->
-             fail ~f:(show_list ~f:show_dbColumn) cols )
+             fail ~f:(show_list ~f:show_dbColumn) cols)
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -250,7 +246,7 @@ let paste_right_number_of_blanks (m : model) : testResult =
          | F (_, FnCall (F (_, "-"), [Blank _; Blank _], _)) ->
              pass (* ignore this TL *)
          | _ ->
-             fail ~f:show_expr ast )
+             fail ~f:show_expr ast)
   |> Result.combine
   |> Result.map (fun _ -> ())
 
@@ -654,8 +650,8 @@ let fluid_tabbing_from_handler_spec_past_ast_back_to_verb (_m : model) :
   pass
 
 
-let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) :
-    testResult =
+let fluid_shift_tabbing_from_handler_ast_back_to_route (_m : model) : testResult
+    =
   pass
 
 

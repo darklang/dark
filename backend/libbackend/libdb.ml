@@ -11,7 +11,7 @@ let find_db (dbs : DbT.db list) (name : string) : DbT.db =
          | Partial _ | Blank _ ->
              false
          | Filled (_, dbname) ->
-             dbname = name )
+             dbname = name)
   |> List.hd_exn
 
 

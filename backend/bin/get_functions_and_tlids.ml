@@ -105,7 +105,7 @@ let process_canvas (canvas : Canvas.canvas ref) : fn list =
                   { host = !canvas.host
                   ; handler = handler_name handler
                   ; tlid = Types.string_of_id handler.tlid
-                  ; fnname } ) ) )
+                  ; fnname }) ))
 
 
 (*
@@ -133,11 +133,7 @@ let filterFunction _ = true
 
 let () =
   let fnNames =
-    match Array.to_list Sys.argv with
-    | _ :: fnNames ->
-        fnNames
-    | [] ->
-        usage ()
+    match Array.to_list Sys.argv with _ :: fnNames -> fnNames | [] -> usage ()
   in
   if List.is_empty fnNames then usage () else Libs.init [] ;
   ignore
@@ -149,8 +145,8 @@ let () =
                 Some
                   ( Canvas.load_all host []
                   |> Result.map_error ~f:(String.concat ~sep:", ")
-                  |> Prelude.Result.ok_or_internal_exception
-                       "Canvas load error" )
+                  |> Prelude.Result.ok_or_internal_exception "Canvas load error"
+                  )
               with Pageable.PageableExn e ->
                 Log.erroR
                   "Can't load canvas"
@@ -161,7 +157,7 @@ let () =
             |> Option.map ~f:process_canvas
             |> Option.value ~default:[]
             |> List.filter ~f:(fun fn ->
-                   List.mem ~equal:( = ) fnNames fn.fnname )
+                   List.mem ~equal:( = ) fnNames fn.fnname)
             |> List.map ~f:(fun fn ->
-                   Log.infO "function" ~params:(pairs_of_fn fn) ) )) ;
+                   Log.infO "function" ~params:(pairs_of_fn fn)))) ;
   ()

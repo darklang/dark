@@ -229,8 +229,8 @@ let execute
             "Caught DarkException in DB, reraising"
             ~params:
               [ ( "exn"
-                , Exception.exception_data_to_yojson de
-                  |> Yojson.Safe.to_string ) ] ;
+                , Exception.exception_data_to_yojson de |> Yojson.Safe.to_string
+                ) ] ;
           Caml.Printexc.raise_with_backtrace e bt
       | e ->
           Exception.exn_to_string e
@@ -375,7 +375,7 @@ let fetch
     ~r:(fun res ->
       let result = res#get_all_lst in
       let length = List.length result |> string_of_int in
-      (length ^ " cols", result) )
+      (length ^ " cols", result))
 
 
 let fetch_one
@@ -401,7 +401,7 @@ let fetch_one
       | [] ->
           Exception.storage "Expected one result, got none"
       | _ ->
-          Exception.storage "Expected exactly one result, got many" )
+          Exception.storage "Expected exactly one result, got many")
 
 
 let fetch_one_option
@@ -427,7 +427,7 @@ let fetch_one_option
       | [] ->
           ("none", None)
       | _ ->
-          Exception.storage "Expected exactly one result, got many" )
+          Exception.storage "Expected exactly one result, got many")
 
 
 let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
@@ -447,7 +447,7 @@ let exists ~(params : param list) ~(name : string) ?subject (sql : string) :
       | [] ->
           ("false", false)
       | r ->
-          Exception.storage "Unexpected result" ~actual:(Log.dump r) )
+          Exception.storage "Unexpected result" ~actual:(Log.dump r))
 
 
 let delete_benchmarking_data () : unit =

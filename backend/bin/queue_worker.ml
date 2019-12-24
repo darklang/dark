@@ -30,7 +30,7 @@ let queue_worker execution_id =
               e
               bt
               EventQueue
-              (Libexecution.Types.string_of_id execution_id) ) ;
+              (Libexecution.Types.string_of_id execution_id)) ;
         Thread.yield () ;
         if not !shutdown
         then (queue_worker [@tailcall]) ()
@@ -40,8 +40,7 @@ let queue_worker execution_id =
   in
   Lwt_main.run
     (Log.add_log_annotations
-       [ ( "execution_id"
-         , `String (Libexecution.Types.string_of_id execution_id) ) ]
+       [("execution_id", `String (Libexecution.Types.string_of_id execution_id))]
        (fun _ -> Nocrypto_entropy_lwt.initialize () >>= queue_worker))
 
 

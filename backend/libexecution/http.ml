@@ -20,7 +20,7 @@ let route_to_postgres_pattern (route : string) : string =
   |> Util.string_replace "_" "\\_"
   |> split_uri_path
   |> List.map ~f:(fun segment ->
-         if String.is_prefix ~prefix:":" segment then "%" else segment )
+         if String.is_prefix ~prefix:":" segment then "%" else segment)
   |> String.concat ~sep:"/"
   |> ( ^ ) "/"
 
@@ -52,7 +52,7 @@ let bind_route_variables ~(route : string) (request_path : string) :
                     *
                     * Otherwise, this route/path do not match and should fail
                     * *)
-                   if r = p || r = "%" then Some acc else None ) )
+                   if r = p || r = "%" then Some acc else None))
   in
   let split_route = split_uri_path route in
   let split_path = split_uri_path request_path in
@@ -109,7 +109,7 @@ let filter_invalid_handler_matches
   List.filter
     ~f:(fun h ->
       let route = Handler.event_name_for_exn h in
-      request_path_matches_route ~route path )
+      request_path_matches_route ~route path)
     handlers
 
 
@@ -147,12 +147,12 @@ let compare_page_route_specificity
  * It looks purely at the handler's definition for its specificity relation.
  *
  * *)
-let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
-    : RT.HandlerT.handler list =
+let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list) :
+    RT.HandlerT.handler list =
   let ordered_pages =
     pages
     |> List.sort ~compare:(fun left right ->
-           compare_page_route_specificity left right )
+           compare_page_route_specificity left right)
     (* we intentionally sort in least specific to most specific order
      * because it's much easier to define orderings from 'least-to-most'.
      *
@@ -177,15 +177,14 @@ let filter_matching_handlers_by_specificity (pages : RT.HandlerT.handler list)
         List.filter
           ~f:(fun b ->
             let comparison = compare_page_route_specificity a b in
-            comparison = 0 )
+            comparison = 0)
           rest
       in
       a :: same_specificity
 
 
-let filter_matching_handlers
-    ~(path : string) (pages : RT.HandlerT.handler list) :
-    RT.HandlerT.handler list =
+let filter_matching_handlers ~(path : string) (pages : RT.HandlerT.handler list)
+    : RT.HandlerT.handler list =
   pages
   |> List.filter ~f:Handler.is_complete
   |> filter_invalid_handler_matches ~path

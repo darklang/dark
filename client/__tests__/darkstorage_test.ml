@@ -30,7 +30,7 @@ let run () =
   describe "appendDeploy" (fun () ->
       test "sort by lastUpdate timestamp" (fun () ->
           let sortedList = [d3; d2; d1] in
-          expect (Ds.appendDeploy [] originalList) |> toEqual sortedList ) ;
+          expect (Ds.appendDeploy [] originalList) |> toEqual sortedList) ;
       test
         "de-dup by deployHash and choose the one with most recent lastUpdate"
         (fun () ->
@@ -42,6 +42,6 @@ let run () =
           in
           let mergedList = [newDeploy; d2; d1] in
           expect (Ds.appendDeploy [newDeploy] originalList)
-          |> toEqual mergedList ) ;
-      () ) ;
+          |> toEqual mergedList) ;
+      ()) ;
   ()

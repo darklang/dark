@@ -19,7 +19,7 @@ let sampleFunctions : function_ list =
          ; fnPreviewExecutionSafe = false
          ; fnDescription = ""
          ; fnInfix = true
-         ; fnDeprecated = fnName = "Some::deprecated" } )
+         ; fnDeprecated = fnName = "Some::deprecated" })
 
 
 let defaultTLID = gtlid ()
@@ -53,8 +53,7 @@ let defaultModel
   ; cursorState
   ; fluidState =
       { Defaults.defaultFluidState with
-        ac = {Defaults.defaultFluidState.ac with functions = sampleFunctions}
-      }
+        ac = {Defaults.defaultFluidState.ac with functions = sampleFunctions} }
   ; builtInFunctions = [] }
 
 
@@ -188,38 +187,37 @@ let run () =
                 |> fun x ->
                 acFor x |> ignore ;
                 pass ()
-              with _ -> fail () ) ;
-          () ) ;
+              with _ -> fail ()) ;
+          ()) ;
       describe "validate httpName varnames" (fun () ->
           let space = Some "HTTP" in
           let tl = TLHandler (aHandler ~space ()) in
           let pd = PEventName (Types.F (ID "0", "foo")) in
           test "/foo/bar is valid, no variables" (fun () ->
               let value = "/foo/bar" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test "/:some/:variableNames/:here_1 is valid" (fun () ->
               let value = "/:some/:variableNames/:here_1" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test
             "/:here-1 is not valid, no hyphens allowed in varnames"
             (fun () ->
               let value = "/:here-1" in
               expect (Entry.validate tl pd value)
               |> toEqual
-                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/") )
-      ) ;
+                   (Some "route variables must match /[a-z_][a-zA-Z0-9_]*/"))) ;
       describe "validate CRON intervals" (fun () ->
           let space = Some "CRON" in
           let tl = TLHandler (aHandler ~space ()) in
           let pd = PEventModifier (Types.F (ID "0", "5mins")) in
           test "Every 1hr is valid" (fun () ->
               let value = "Every 1hr" in
-              expect (Entry.validate tl pd value) |> toEqual None ) ;
+              expect (Entry.validate tl pd value) |> toEqual None) ;
           test "Every 5mins is not valid" (fun () ->
               let value = "Every 5mins" in
               expect (Entry.validate tl pd value)
-              |> toEqual (Some "Every 5mins is an invalid CRON interval") ) ;
-          () ) ;
+              |> toEqual (Some "Every 5mins is an invalid CRON interval")) ;
+          ()) ;
       describe "validate functions" (fun () ->
           let fnAsTL =
             aFunction
@@ -239,15 +237,13 @@ let run () =
           in
           test "don't allow duplicate param names" (fun () ->
               expect (validateFnParamNameFree fnAsTL "title")
-              |> toEqual
-                   (Some "`title` is already declared. Use another name.") ) ;
+              |> toEqual (Some "`title` is already declared. Use another name.")) ;
           test "allow unused names" (fun () ->
-              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None
-          ) ) ;
+              expect (validateFnParamNameFree fnAsTL "rating") |> toEqual None)) ;
       describe "queryWhenEntering" (fun () ->
           let m = enteringHandler () in
           test "empty autocomplete doesn't highlight" (fun () ->
-              expect (acFor m |> fun x -> x.index) |> toEqual (-1) ) ;
+              expect (acFor m |> fun x -> x.index) |> toEqual (-1)) ;
           test
             "pressing a letter from the selected entry resets the entry selected"
             (fun () ->
@@ -257,18 +253,18 @@ let run () =
                 |> setQuery m "String]"
                 |> highlighted
                 |> Option.map ~f:asName )
-              |> toEqual (Some "[String]") ) ;
+              |> toEqual (Some "[String]")) ;
           test "Returning to empty unselects" (fun () ->
               expect
                 (acFor m |> setQuery m "String" |> setQuery m "" |> highlighted)
-              |> toEqual None ) ;
+              |> toEqual None) ;
           test "lowercase search still finds uppercase results" (fun () ->
               expect
                 ( acForDB ()
                 |> setQuery m "uuid"
                 |> (fun x -> x.completions)
                 |> List.map ~f:asName )
-              |> toEqual ["UUID"; "[UUID]"] ) ;
+              |> toEqual ["UUID"; "[UUID]"]) ;
           test "search works anywhere in term" (fun () ->
               expect
                 ( acForDB ()
@@ -276,7 +272,7 @@ let run () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual ["Password"; "[Password]"] ) ;
+              |> toEqual ["Password"; "[Password]"]) ;
           test "show results when the only option is the setQuery m" (fun () ->
               expect
                 ( acForDB ()
@@ -285,7 +281,7 @@ let run () =
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName
                 |> List.length )
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test "scrolling down a bit works" (fun () ->
               expect
                 ( acForDB ()
@@ -293,7 +289,7 @@ let run () =
                 |> selectDown
                 |> selectDown
                 |> fun x -> x.index )
-              |> toEqual 2 ) ;
+              |> toEqual 2) ;
           test "scrolling loops one way" (fun () ->
               expect
                 ( acForDB ()
@@ -301,7 +297,7 @@ let run () =
                 |> selectDown
                 |> selectDown
                 |> fun x -> x.index )
-              |> toEqual 0 ) ;
+              |> toEqual 0) ;
           test "scrolling loops the other way" (fun () ->
               expect
                 ( acForDB ()
@@ -310,16 +306,16 @@ let run () =
                 |> selectUp
                 |> selectUp
                 |> fun x -> x.index )
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test
             "scrolling loops the other way without going forward first"
             (fun () ->
               expect
                 (acForDB () |> setQuery m "f" |> selectUp |> fun x -> x.index)
-              |> toEqual 1 ) ;
+              |> toEqual 1) ;
           test "scrolling backward works if we haven't searched yet" (fun () ->
               expect (acForDB () |> selectUp |> selectUp |> fun x -> x.index)
-              |> toBe 14 ) ;
+              |> toBe 14) ;
           test "Don't highlight when the list is empty" (fun () ->
               expect
                 ( acForDB ()
@@ -328,7 +324,7 @@ let run () =
                 |> selectDown
                 |> setQuery m "Twit::1334xxx"
                 |> fun x -> x.index )
-              |> toEqual (-1) ) ;
+              |> toEqual (-1)) ;
           test "By default the list shows results" (fun () ->
               expect
                 ( acForDB ()
@@ -336,7 +332,7 @@ let run () =
                 |> (fun x -> x.completions)
                 |> List.length
                 |> ( <> ) 0 )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test
             "ordering = startsWith then case match then case insensitive match"
             (fun () ->
@@ -346,7 +342,7 @@ let run () =
                 |> (fun x -> x.completions)
                 |> List.filter ~f:isStaticItem
                 |> List.map ~f:asName )
-              |> toEqual ["String"; "[String]"; "Password"; "[Password]"] ) ;
+              |> toEqual ["String"; "[String]"; "Password"; "[Password]"]) ;
           test
             "autocomplete does not have slash when handler is not HTTP"
             (fun () ->
@@ -356,7 +352,7 @@ let run () =
                 |> setQuery m ""
                 |> itemPresent (ACHTTPRoute "/")
                 |> not )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "autocomplete supports password type" (fun () ->
               let m = enteringDBType () in
               expect
@@ -364,8 +360,8 @@ let run () =
                 |> setQuery m "Pass"
                 |> itemPresent (ACDBColType "Password")
                 |> not )
-              |> toEqual true ) ;
-          () ) ;
+              |> toEqual true) ;
+          ()) ;
       describe "omnibox completion" (fun () ->
           let m = creatingOmni in
           test "entering a DB name that used to be invalid works" (fun () ->
@@ -373,152 +369,150 @@ let run () =
                 ( acFor ~target:None m
                 |> setQuery m "HTTP"
                 |> itemPresent (ACOmniAction (NewDB (Some "HTTP"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering an invalid DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m ":[]'/31234myDB[]"
                 |> itemPresent (ACOmniAction (NewDB (Some "MyDB"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering a DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "Mydbname"
                 |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering a short DB name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "me"
                 |> itemPresent (ACOmniAction (NewDB (Some "Me"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "db names can be multicase" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "MyDBnaMe"
                 |> itemPresent (ACOmniAction (NewDB (Some "MyDBnaMe"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "alphabetical only DB names #1" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "dbname1234::"
                 |> itemPresent (ACOmniAction (NewDB (Some "Dbname1234"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "alphabetical only DB names #2" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "db_name::"
                 |> itemPresent (ACOmniAction (NewDB (Some "Db_name"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "add capital for DB names" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "mydbname"
                 |> itemPresent (ACOmniAction (NewDB (Some "Mydbname"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "General HTTP handler" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "asdkkasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asdkkasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #1 (base case)" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/"
                 |> itemPresent (ACOmniAction (NewHTTPHandler (Some "/"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #2 (normal)" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/asasdasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create routes #3 (parameterized)" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/user/:userid/card/:cardid"
                 |> itemPresent
                      (ACOmniAction
-                        (NewHTTPHandler (Some "/user/:userid/card/:cardid")))
-                )
-              |> toEqual true ) ;
+                        (NewHTTPHandler (Some "/user/:userid/card/:cardid"))) )
+              |> toEqual true) ;
           test "entering an invalid route name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "[]/31234myDB[]"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/31234myDB"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "fix names for routes" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "asasdasd"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/asasdasd"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "fix slashes for routes" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "//12//////345/6789//12/"
                 |> itemPresent
-                     (ACOmniAction (NewHTTPHandler (Some "/12/345/6789/12")))
-                )
-              |> toEqual true ) ;
+                     (ACOmniAction (NewHTTPHandler (Some "/12/345/6789/12"))) )
+              |> toEqual true) ;
           test "fix route name " (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "^hello/[]world"
                 |> itemPresent
                      (ACOmniAction (NewHTTPHandler (Some "/hello/world"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "create DB from route name" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "/route"
                 |> itemPresent (ACOmniAction (NewDB (Some "Route"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "entering an invalid function name works" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m ":[]'/31234MyFn[]"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myFn"))) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new worker option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewWorkerHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new repl option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewReplHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new cron option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewCronHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new function option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewFunction None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "new HTTP option available by default" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> itemPresent (ACOmniAction (NewHTTPHandler None)) )
-              |> toEqual true ) ;
+              |> toEqual true) ;
           test "can create function with name from query" (fun () ->
               expect
                 ( acFor ~target:None m
                 |> setQuery m "myfunction"
                 |> itemPresent (ACOmniAction (NewFunction (Some "myfunction")))
                 )
-              |> toEqual true ) ;
-          () ) ;
+              |> toEqual true) ;
+          ()) ;
       describe "code search" (fun () ->
           let http =
             aHandler
@@ -578,7 +572,7 @@ let run () =
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find string literal" (fun () ->
               let foundActions =
                 match qSearch m "hello" with
@@ -588,7 +582,7 @@ let run () =
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find field access" (fun () ->
               let foundActions =
                 match qSearch m "request.query" with
@@ -602,7 +596,7 @@ let run () =
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ;
+              expect foundActions |> toEqual true) ;
           test "find function call" (fun () ->
               let foundActions =
                 match qSearch m "Int::add" with
@@ -616,6 +610,6 @@ let run () =
                 | _ ->
                     false
               in
-              expect foundActions |> toEqual true ) ) ;
-      () ) ;
+              expect foundActions |> toEqual true)) ;
+      ()) ;
   ()

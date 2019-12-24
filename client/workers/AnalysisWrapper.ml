@@ -12,8 +12,7 @@ external self : self = "self" [@@bs.val]
 
 external onmessage : self -> (event -> unit) -> unit = "onmessage" [@@bs.set]
 
-external postMessage :
-  self -> Types.performAnalysisResult -> unit
+external postMessage : self -> Types.performAnalysisResult -> unit
   = "postMessage"
   [@@bs.send]
 
@@ -70,8 +69,7 @@ let () =
                 (Types.AnalysisExecutionError (event##data, msg))
         | AnalyzeFunction fParams ->
             let encoded =
-              Js.Json.stringify
-                (Encoders.performFunctionAnalysisParams fParams)
+              Js.Json.stringify (Encoders.performFunctionAnalysisParams fParams)
             in
             let success, msg = darkAnalysis##performFunctionAnalysis encoded in
             if success = "success"
@@ -85,8 +83,7 @@ let () =
         Tc.Result.andThen
           ~f:(fun res ->
             try
-              Belt.Result.Ok
-                (Decoders.analysisEnvelope (Json.parseOrRaise res))
+              Belt.Result.Ok (Decoders.analysisEnvelope (Json.parseOrRaise res))
             with Js.Exn.Error err ->
               let msg =
                 err
@@ -94,14 +91,12 @@ let () =
                 |> Tc.Option.withDefault ~default:"Unknown parse error"
               in
               reportError "Parse error in analysisWrapper" msg ;
-              Belt.Result.Error (Types.AnalysisParseError msg) )
+              Belt.Result.Error (Types.AnalysisParseError msg))
           result
       in
-      postMessage self decoded )
+      postMessage self decoded)
 
 
-[%%raw
-"var sha2 = require('sha2')"]
+[%%raw "var sha2 = require('sha2')"]
 
-[%%raw
-"module.exports = { sha2: sha2 }"]
+[%%raw "module.exports = { sha2: sha2 }"]

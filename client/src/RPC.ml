@@ -66,8 +66,7 @@ let addOp (m : model) (focus : focus) (params : addOpRPCParams) : msg Tea.Cmd.t
 let executeFunction (m : model) (params : executeFunctionRPCParams) :
     msg Tea.Cmd.t =
   let url =
-    String.concat
-      ["/api/"; Tea.Http.encodeUri m.canvasName; "/execute_function"]
+    String.concat ["/api/"; Tea.Http.encodeUri m.canvasName; "/execute_function"]
   in
   let request =
     postJson
@@ -152,7 +151,7 @@ let integration (m : model) (name : string) : msg Tea.Cmd.t =
   let request = postEmptyJson Decoders.initialLoadRPCResult m.csrfToken url in
   Tea.Http.send
     (fun x ->
-      InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x) )
+      InitialLoadRPCCallback (FocusNothing, TriggerIntegrationTest name, x))
     request
 
 
@@ -200,7 +199,7 @@ let filterOpsAndResult
         | Some oldCtr, Some paramsOpCtr ->
             Some (max oldCtr paramsOpCtr)
         | _ ->
-            params.opCtr )
+            params.opCtr)
   in
   let m2 = {m with opCtrs = newOpCtrs} in
   (* if the new opCtrs map was updated by params.opCtr, then this msg was the
@@ -249,7 +248,7 @@ let filterOpsAndResult
           | DeleteFunctionForever _
           | DeleteType _
           | DeleteTypeForever _ ->
-              true )
+              true)
     in
     let ops = params.ops |> filter_ops_received_out_of_order in
     let opTlids = ops |> List.map ~f:(fun op -> Encoders.tlidOf op) in
@@ -266,6 +265,6 @@ let filterOpsAndResult
           ; userTipes =
               result.userTipes
               |> List.filter ~f:(fun ut -> List.member ~value:ut.utTLID opTlids)
-          } )
+          })
     in
     (m2, ops, result)

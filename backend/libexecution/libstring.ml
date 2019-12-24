@@ -8,8 +8,7 @@ let list_coerce ~(f : dval -> 'a option) (l : dval list) :
     ('a list, dval list * dval) Result.t =
   l
   |> List.map ~f:(fun dv ->
-         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv)
-     )
+         match f dv with Some v -> Result.Ok v | None -> Result.Error (l, dv))
   |> Result.all
 
 
@@ -62,7 +61,7 @@ let fns : Lib.shortfn list =
                              ^ " is a "
                              ^ Dval.tipename example_value )
                            ~expected:"every value to be a char"
-                           "foreach expects you to return chars" )
+                           "foreach expects you to return chars")
                   |> Result.ok_exn )
           | args ->
               fail args)
@@ -93,8 +92,7 @@ let fns : Lib.shortfn list =
         InProcess
           (function
           | _, [DStr s] ->
-              DList
-                (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
+              DList (Unicode_string.map_characters ~f:(fun c -> DCharacter c) s)
           | args ->
               fail args)
     ; ps = true
@@ -123,7 +121,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DInt (Dint.of_string_exn utf8) with e ->
+              ( try DInt (Dint.of_string_exn utf8)
+                with e ->
                   Exception.code
                     ~actual:utf8
                     ~expected:"\\d+"
@@ -161,7 +160,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DFloat (float_of_string utf8) with e ->
+              ( try DFloat (float_of_string utf8)
+                with e ->
                   Exception.code
                     ~actual:utf8
                     "Expected a string representation of an IEEE float" )
@@ -179,7 +179,8 @@ let fns : Lib.shortfn list =
           (function
           | _, [DStr s] ->
               let utf8 = Unicode_string.to_string s in
-              ( try DResult (ResOk (DFloat (float_of_string utf8))) with e ->
+              ( try DResult (ResOk (DFloat (float_of_string utf8)))
+                with e ->
                   error_result
                     "Expected a string representation of an IEEE float" )
           | args ->
@@ -209,10 +210,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] ->
-              DStr (Unicode_string.uppercase s)
-          | args ->
-              fail args)
+          | _, [DStr s] -> DStr (Unicode_string.uppercase s) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["String::toLowercase"]
@@ -238,10 +236,7 @@ let fns : Lib.shortfn list =
     ; f =
         InProcess
           (function
-          | _, [DStr s] ->
-              DStr (Unicode_string.lowercase s)
-          | args ->
-              fail args)
+          | _, [DStr s] -> DStr (Unicode_string.lowercase s) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["String::length"]
@@ -360,7 +355,7 @@ let fns : Lib.shortfn list =
                     | DStr st ->
                         st
                     | _ ->
-                        Exception.code "Expected string" )
+                        Exception.code "Expected string")
                   l
               in
               DStr (Unicode_string.concat ~sep s)
@@ -391,7 +386,7 @@ let fns : Lib.shortfn list =
                        | DCharacter c ->
                            c
                        | dv ->
-                           RT.error ~actual:dv "expected a char" )
+                           RT.error ~actual:dv "expected a char")
                 |> Unicode_string.of_characters )
           | args ->
               fail args)
@@ -453,19 +448,17 @@ let fns : Lib.shortfn list =
                   (B64.decode
                      ~alphabet:B64.uri_safe_alphabet
                      (Unicode_string.to_string s))
-              with
-            | Not_found_s _ | Caml.Not_found ->
-              ( try
-                  Dval.dstr_of_string_exn
-                    (B64.decode
-                       ~alphabet:B64.default_alphabet
-                       (Unicode_string.to_string s))
-                with
-              | Not_found_s _ | Caml.Not_found ->
-                  RT.error
-                    ~actual:
-                      (Dval.dstr_of_string_exn (Unicode_string.to_string s))
-                    "Not a valid base64 string" ) )
+              with Not_found_s _ | Caml.Not_found ->
+                ( try
+                    Dval.dstr_of_string_exn
+                      (B64.decode
+                         ~alphabet:B64.default_alphabet
+                         (Unicode_string.to_string s))
+                  with Not_found_s _ | Caml.Not_found ->
+                    RT.error
+                      ~actual:
+                        (Dval.dstr_of_string_exn (Unicode_string.to_string s))
+                      "Not a valid base64 string" ) )
           | args ->
               fail args)
     ; ps = true
@@ -531,8 +524,7 @@ let fns : Lib.shortfn list =
               if l < Dint.zero
               then Exception.code "l should be a positive integer"
               else
-                Dval.dstr_of_string_exn
-                  (Util.random_string (Dint.to_int_exn l))
+                Dval.dstr_of_string_exn (Util.random_string (Dint.to_int_exn l))
           | args ->
               fail args)
     ; ps = false

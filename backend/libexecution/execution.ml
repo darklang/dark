@@ -22,7 +22,7 @@ let dbs_as_input_vars (dbs : DbT.db list) : (string * dval) list =
       | Filled (_, name) ->
           Some (name, DDB name)
       | Partial _ | Blank _ ->
-          None )
+          None)
 
 
 let http_route_input_vars (h : HandlerT.handler) (request_path : string) :
@@ -66,9 +66,7 @@ let sample_route_input_vars (h : HandlerT.handler) : input_vars =
       []
 
 
-let sample_input_vars h =
-  sample_module_input_vars h @ sample_route_input_vars h
-
+let sample_input_vars h = sample_module_input_vars h @ sample_route_input_vars h
 
 let sample_function_input_vars f =
   f |> input_vars_for_user_fn |> DvalMap.to_list

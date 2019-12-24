@@ -119,7 +119,7 @@ let find (id : id) (expr : expr) : pointerData option =
   |> allData
   |> List.filter ~f:(fun d -> id = P.toID d)
   |> assertFn "no data with ID found" ~debug:(expr, id) ~f:(fun list ->
-         List.length list > 0 || id = FluidToken.fakeid )
+         List.length list > 0 || id = FluidToken.fakeid)
   (* guard against dups *)
   |> List.head
 
@@ -277,7 +277,7 @@ let rec replace_
         pairs
         |> List.map ~f:(fun (k, v) ->
                let newK = if B.toID k = sId then replacement_ else k in
-               (newK, r v) )
+               (newK, r v))
         |> (fun x -> ObjectLiteral x)
         |> fun e -> F (id, e)
     | F (id, Match (matchExpr, cases)), PPattern newPattern ->
@@ -304,7 +304,7 @@ let rec replace_
                      in
                      (Pattern.replace search replacement p, newBody)
                  | None ->
-                     (p, r e) )
+                     (p, r e))
         in
         F (id, Match (r matchExpr, newCases))
     | _ ->
@@ -358,7 +358,7 @@ let children (expr : expr) : pointerData list =
           cases
           |> List.map ~f:(fun (p, e) ->
                  let ps = Pattern.allData p in
-                 ps @ [PExpr e] )
+                 ps @ [PExpr e])
           |> List.concat
         in
         PExpr matchExpr :: casePointers
@@ -558,7 +558,7 @@ let rec closeObjectLiterals (expr : expr) : expr =
       |> List.filterMap ~f:(fun (k, v) ->
              if B.isBlank k && B.isBlank v
              then None
-             else Some (k, closeObjectLiterals v) )
+             else Some (k, closeObjectLiterals v))
       |> (fun l -> if l <> [] then l else [(B.new_ (), B.new_ ())])
       |> (fun x -> ObjectLiteral x)
       |> fun x -> F (id, x)
@@ -583,7 +583,7 @@ let rec closeMatchPatterns (expr : expr) : expr =
       |> List.filterMap ~f:(fun (p, e) ->
              if B.isBlank p && B.isBlank e
              then None
-             else Some (p, closeMatchPatterns e) )
+             else Some (p, closeMatchPatterns e))
       |> (fun l -> if l <> [] then l else [(B.new_ (), B.new_ ())])
       |> (fun l -> Match (closeMatchPatterns cond, l))
       |> fun m -> F (id, m)
@@ -790,7 +790,7 @@ let grandparentIsThread (expr : expr) (parent : expr option) : bool =
              |> Option.map ~f:(( <> ) p)
              |> Option.withDefault ~default:true
          | _ ->
-             false )
+             false)
   |> Option.withDefault ~default:false
 
 
@@ -828,13 +828,13 @@ let allCallsToFn (s : string) (e : expr) : expr list =
              then Some (F (id, FnCall (F (fnid, name), params, r)))
              else None
          | _ ->
-             None )
+             None)
 
 
 let usesRail (ast : expr) : bool =
   List.any
     ~f:(fun e ->
-      match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false )
+      match e with PExpr (F (_, FnCall (_, _, Rail))) -> true | _ -> false)
     (allData ast)
 
 
@@ -895,7 +895,7 @@ let ancestorsWhere (id : id) (expr : expr) (fn : expr -> bool) : expr list =
 
 let threadAncestors (id : id) (expr : expr) : expr list =
   ancestorsWhere id expr (fun e ->
-      match e with F (_, Thread _) -> true | _ -> false )
+      match e with F (_, Thread _) -> true | _ -> false)
 
 
 let getValueParent (p : pointerData) (expr : expr) : pointerData option =
@@ -981,7 +981,7 @@ let isDefinitionOf (var : varName) (exp : expr) : bool =
     | Lambda (vars, _) ->
         vars
         |> List.any ~f:(fun v ->
-               match v with Blank _ -> false | F (_, vb) -> vb = var )
+               match v with Blank _ -> false | F (_, vb) -> vb = var)
     | _ ->
         false )
 
@@ -1017,14 +1017,14 @@ let freeVariables (ast : expr) : (id * varName) list =
                     * in the `body` of each match case *)
                    |> List.map ~f:(fun (pattern, body) ->
                           let vars = Pattern.variableNames pattern in
-                          List.map ~f:(fun v -> uses v body) vars )
+                          List.map ~f:(fun v -> uses v body) vars)
                    |> List.concat
                    |> List.concat
                    |> fun x -> Some x
                | _ ->
                    None ) )
            | _ ->
-               None )
+               None)
     |> List.concat
     |> List.map ~f:(B.toID >> deID)
     |> StrSet.fromList
@@ -1048,7 +1048,7 @@ let freeVariables (ast : expr) : (id * varName) list =
              | _ ->
                  None ) )
          | _ ->
-             None )
+             None)
   |> List.uniqueBy ~f:(fun (_, name) -> name)
 
 
@@ -1059,8 +1059,8 @@ type sym_set = id VarDict.t
 
 type sym_store = sym_set IDTable.t
 
-let rec sym_exec
-    ~(trace : expr -> sym_set -> unit) (st : sym_set) (expr : expr) : unit =
+let rec sym_exec ~(trace : expr -> sym_set -> unit) (st : sym_set) (expr : expr)
+    : unit =
   let sexe = sym_exec ~trace in
   ignore
     ( match expr with
@@ -1095,7 +1095,7 @@ let rec sym_exec
                  | F (id, varname) ->
                      VarDict.update ~key:varname ~f:(fun _v -> Some id) d
                  | Blank _ ->
-                     d )
+                     d)
         in
         sexe new_st body
     | F (_, Thread exprs) ->
@@ -1123,9 +1123,9 @@ let rec sym_exec
               |> variables_in_pattern
               |> List.foldl ~init:st ~f:(fun v d ->
                      let id, varname = v in
-                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d )
+                     VarDict.update ~key:varname ~f:(fun _v -> Some id) d)
             in
-            sexe new_st caseExpr )
+            sexe new_st caseExpr)
     | F (_, ObjectLiteral exprs) ->
         exprs |> List.map ~f:Tuple2.second |> List.iter ~f:(sexe st)
     | F (_, Constructor (_, args)) ->
@@ -1211,7 +1211,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
               then "(" ^ es ~indent arg ^ ")"
               else es ~indent arg
             in
-            old ^ " " ^ argstr )
+            old ^ " " ^ argstr)
     | FnCall (name, exprs, Rail) ->
         let name = bs name in
         nexpr_to_string
@@ -1244,7 +1244,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
               then "(" ^ expr_to_string ~indent arg ^ "), "
               else expr_to_string ~indent arg ^ ", "
             in
-            old ^ " " ^ argstr )
+            old ^ " " ^ argstr)
     | ObjectLiteral pairs ->
         "{"
         ^ String.join
@@ -1253,7 +1253,7 @@ let rec expr_to_string ~(indent : int) (e : expr) : string =
                  nli
                  ^ bs k
                  ^ ": "
-                 ^ es ~indent:(indent + 2 + String.length (bs k)) v ))
+                 ^ es ~indent:(indent + 2 + String.length (bs k)) v))
         ^ nl
         ^ "}"
     | FeatureFlag (msg, cond, a, b) ->
