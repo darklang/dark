@@ -65,7 +65,7 @@ if [[ -v IN_DEV_CONTAINER ]]; then
     --app-init-delay 0 \
     --pageload-timeout 200 \
     --screenshots-on-fails \
-    --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
+    --screenshots path=r"${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
     --quarantine-mode \
     --reporter "$REPORTERS" \
