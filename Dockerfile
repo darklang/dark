@@ -298,7 +298,17 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
- 
+ RUN DEBIAN_FRONTEND=noninteractive \
+    apt update && \
+    DEBIAN_FRONTEND=noninteractive \
+    apt install \
+      -y \
+      --no-install-recommends \
+      x11-utils \
+      && apt clean \
+      && rm -rf /var/lib/apt/lists/*
+
+
 
 ############################
 # Finish
