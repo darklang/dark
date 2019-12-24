@@ -397,6 +397,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           (* Reload if it's an auth failure or the frontend is out of date *)
           ApiError.isBadAuth apiError || (buildHashMismatch && reloadAllowed)
         in
+        let ignore =
+          (* This message is deep in the server code and hard to pull
+               * out, so just ignore for now *)
+          Js.log "Already at latest redo - ignoring server error" ;
+          String.contains
+            (ApiError.msg apiError)
+            ~substring:"(client): Already at latest redo (RPC)"
+        in
         let cmd =
           if shouldReload
           then
@@ -406,22 +414,14 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             Cmd.call (fun _ ->
                 Editor.serialize m ;
                 Native.Location.reload true )
-          else if ApiError.shouldRollbar apiError
+          else if (not ignore) && ApiError.shouldRollbar apiError
           then Cmd.call (fun _ -> Rollbar.sendApiError m apiError)
           else Cmd.none
         in
         let newM =
           let error =
-            if ApiError.shouldDisplayToUser apiError
-            then (
-              let msg = ApiError.msg apiError in
-              (* This message is deep in the server code and hard to pull
-               * out, so just ignore for now *)
-              Js.log "Already at latest undo - ignoring server error" ;
-              if msg
-                 = "Bad status: Internal Server Error -  (client): Already at latest redo (RPC)"
-              then None
-              else Some msg )
+            if ApiError.shouldDisplayToUser apiError && not ignore
+            then Some (ApiError.msg apiError)
             else m.error
           in
           let lastReload = if shouldReload then Some now else m.lastReload in
