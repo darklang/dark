@@ -22,9 +22,9 @@
   // that xvfb is much better
   //videoPath: "rundir/videos",
   // Options are used outside the container
-  videoOptions: {
-    pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.mp4"
-  },
+  //videoOptions: {
+  //  pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.mp4"
+  //},
   quarantineMode: true,
   appInitDelay: 0,
   selectorTimeout: 50,

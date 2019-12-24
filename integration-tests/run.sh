@@ -100,11 +100,13 @@ else
   else
     debugcmd=
   fi
+  # shellcheck disable=SC2016
   testcafe \
     --concurrency "$CONCURRENCY" \
     $debugcmd \
     --test-grep "$PATTERN" \
     --video rundir/videos \
+    --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
     "$BROWSER" \
     integration-tests/tests.js
 fi
