@@ -142,7 +142,7 @@ let testAll (name : string) (items : 'a list) (testFn : 'a -> Private.t) : unit
   items
   |> List.iter ~f:(fun item ->
          let name' = {j|$name  - $item|j} in
-         test name' (fun () -> testFn item) )
+         test name' (fun () -> testFn item))
 
 
 (* ------------------ *)
@@ -207,7 +207,7 @@ let finish () =
     Js.log "Failures:" ;
     fails
     |> List.iter ~f:(fun {name; _} ->
-           Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name ) ;
+           Js.log @@ testIndent () ^ {j|❌|j} ^ " " ^ name) ;
     Js.log "" ;
     Js.log
       ( "Failed "

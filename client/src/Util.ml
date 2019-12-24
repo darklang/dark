@@ -56,10 +56,7 @@ let humanReadableTimeElapsed (time : float) : string =
     else if time /. msPerDay > 1.0
     then
       let suffix = if time /. msPerDay > 2.0 then "days" else "day" in
-      ( (time /. msPerDay |> int_of_float |> string_of_int)
-      ^ " "
-      ^ suffix
-      ^ ", " )
+      ((time /. msPerDay |> int_of_float |> string_of_int) ^ " " ^ suffix ^ ", ")
       ^ f (mod_float time msPerDay)
     else if time /. msPerHour > 1.0
     then

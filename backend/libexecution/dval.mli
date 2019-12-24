@@ -85,13 +85,13 @@ val to_developer_repr_v0 : Types.RuntimeT.dval -> string
 
 (* For passing to Dark functions that operate on JSON, such as the JWT fns.
  * This turns Option and Result into plain values, or null/error. String-like
- * values are rendered as string. Redacts passwords.  *)
+ * values are rendered as string. Redacts passwords. *)
 val to_pretty_machine_yojson_v1 : Types.RuntimeT.dval -> Yojson.Safe.t
 
 (* When sending json back to the user, or via a HTTP API, attempt to convert
  * everything into reasonable json, in the absence of a schema. This turns
  * Option and Result into plain values, or null/error. String-like values are
- * rendered as string. Redacts passwords.  *)
+ * rendered as string. Redacts passwords. *)
 val to_pretty_machine_json_v1 : Types.RuntimeT.dval -> string
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
@@ -100,7 +100,7 @@ val to_pretty_machine_json_v1 : Types.RuntimeT.dval -> string
 val of_unknown_json_v0 : string -> Types.RuntimeT.dval
 
 (* When receiving unknown json from the user, or via a HTTP API, attempt to
- * convert everything into reasonable types, in the absense of a schema.  *)
+ * convert everything into reasonable types, in the absense of a schema. *)
 val of_unknown_json_v1 : string -> Types.RuntimeT.dval
 
 (* For debugging internally, redacts passwords. Never throws. *)

@@ -159,9 +159,7 @@ let viewDBMigration (migra : dbMigration) (db : db) (vs : viewState) :
       [Html.text "cancel"]
   in
   let migrateBtn =
-    Html.button
-      [Html.Attributes.disabled (not lockReady)]
-      [Html.text "activate"]
+    Html.button [Html.Attributes.disabled (not lockReady)] [Html.text "activate"]
   in
   let actions =
     [Html.div [Html.class' "col actions"] [cancelBtn; migrateBtn]]
@@ -183,7 +181,7 @@ let viewDB (vs : viewState) (db : db) (dragEvents : domEventList) :
         (*     ~key:("sm-" ^ showTLID db.dbTLID) *)
         (*     "click" *)
         (*     (fun _ -> StartMigration db.dbTLID) ] *)
-          []
+        []
         [fontAwesome "lock"]
     else fontAwesome "unlock"
   in

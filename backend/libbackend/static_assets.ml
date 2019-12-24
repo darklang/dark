@@ -90,9 +90,8 @@ let url (canvas_id : Uuidm.t) (deploy_hash : string) variant : string =
 
 (* TODO [polish] could instrument this to error on bad deploy hash, maybe also
  * unknown file *)
-let url_for
-    (canvas_id : Uuidm.t) (deploy_hash : string) variant (file : string) :
-    string =
+let url_for (canvas_id : Uuidm.t) (deploy_hash : string) variant (file : string)
+    : string =
   url canvas_id deploy_hash variant ^ "/" ^ file
 
 
@@ -126,8 +125,7 @@ let upload_to_bucket
       ~query:
         [ ("uploadType", ["multipart"])
         ; ("contentEncoding", ["gzip"])
-        ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename])
-        ]
+        ; ("name", [app_hash canvas_id ^ "/" ^ deploy_hash ^ "/" ^ filename]) ]
   in
   let ct = Magic_mime.lookup filename in
   let cl = String.length body |> string_of_int in
@@ -175,7 +173,7 @@ Content-type: %s
         Cohttp_lwt_unix.Client.post
           uri
           ~headers
-          ~body:(body |> Cohttp_lwt.Body.of_string) )
+          ~body:(body |> Cohttp_lwt.Body.of_string))
   >>= fun x ->
   Lwt.bind x (fun (resp, _) ->
       match resp.status with
@@ -185,7 +183,7 @@ Content-type: %s
           Lwt_result.fail
             (`FailureUploadingStaticAsset
               ( "Failure uploading static asset: "
-              ^ Cohttp.Code.string_of_status s )) )
+              ^ Cohttp.Code.string_of_status s )))
 
 
 let start_static_asset_deploy
@@ -242,10 +240,10 @@ let delete_static_asset_deploy
     (username : string)
     (deploy_hash : string) : unit =
   let account_id =
-    try Account.id_of_username username |> Option.value_exn with e ->
+    try Account.id_of_username username |> Option.value_exn
+    with e ->
       Log.infO ("NO ACCOUNT ID FOR USERNAME " ^ username) ;
-      Uuidm.of_string "cb0b287e-92d6-4f51-919d-681705e2ade2"
-      |> Option.value_exn
+      Uuidm.of_string "cb0b287e-92d6-4f51-919d-681705e2ade2" |> Option.value_exn
   in
   Db.run
     ~name:"delete static_asset_deploy record"
@@ -290,4 +288,4 @@ let all_deploys_in_canvas (canvas_id : Uuidm.t) : static_deploy list =
              let url = url canvas_id deploy_hash `Short in
              {deploy_hash; url; last_update; status}
          | _ ->
-             Exception.internal "Bad DB format for static assets deploys" )
+             Exception.internal "Bad DB format for static assets deploys")

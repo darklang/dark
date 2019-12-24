@@ -31,7 +31,7 @@ let isFieldAccessDot (m : model) (baseStr : string) : bool =
   | Entering (Filling (tlid, id)) ->
       TL.getPD m tlid id
       |> Option.map ~f:(fun pd ->
-             (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString )
+             (P.typeOf pd = Expr || P.typeOf pd = Field) && not intOrString)
       |> Option.withDefault ~default:false
   | _ ->
       false
@@ -527,7 +527,7 @@ let handler (event : Keyboard.keyEvent) (m : model) : modification =
   [optionDefaultHandler]
   |> List.foldl
        ~f:(fun h (acc : modification option) ->
-         match acc with None -> h event m | Some _ -> acc )
+         match acc with None -> h event m | Some _ -> acc)
        ~init:None
   |> fun modification ->
   match modification with Some m -> m | None -> NoChange

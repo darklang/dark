@@ -12,8 +12,7 @@ val set :
 
 val get : state:exec_state -> DbT.db -> string -> dval
 
-val get_many :
-  state:exec_state -> DbT.db -> string list -> (string * dval) list
+val get_many : state:exec_state -> DbT.db -> string list -> (string * dval) list
 
 val get_many_with_keys :
   state:exec_state -> DbT.db -> string list -> (string * dval) list

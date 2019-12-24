@@ -42,7 +42,7 @@ let process_cmdline_args () =
           (* ignore *)
           ()
       | _ ->
-          Js.log ("Unsupported command line argument: " ^ str) )
+          Js.log ("Unsupported command line argument: " ^ str))
 
 
 (* ------------------ *)
@@ -58,9 +58,8 @@ let noModifiers =
   {shiftKey = false; altKey = false; metaKey = false; ctrlKey = false}
 
 
-let processMsg
-    (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : E.t) :
-    E.t * fluidState =
+let processMsg (keys : (K.key * modifierKeys) list) (s : fluidState) (ast : E.t)
+    : E.t * fluidState =
   let h = Fluid_utils.h ast in
   let m = {defaultTestModel with handlers = Handlers.fromList [h]} in
   List.foldl keys ~init:(ast, s) ~f:(fun (key, modifierKeys) (ast, s) ->
@@ -74,7 +73,7 @@ let processMsg
            ; altKey = modifierKeys.altKey
            ; metaKey = modifierKeys.metaKey
            ; ctrlKey = modifierKeys.ctrlKey })
-        s )
+        s)
 
 
 (* ------------------ *)
@@ -84,14 +83,14 @@ let deleteAllTest : FuzzTest.t =
   { name = "delete-all deletes all"
   ; check =
       (fun ~testcase:_ ~newAST newState ->
-        toText newAST = "___" && newState.newPos = 0 )
+        toText newAST = "___" && newState.newPos = 0)
   ; fn =
       (fun testcase ->
         processMsg
           [ (K.SelectAll, {noModifiers with shiftKey = true})
           ; (K.Backspace, noModifiers) ]
           defaultTestState
-          testcase ) }
+          testcase) }
 
 
 let copyPasteTest : FuzzTest.t =

@@ -233,7 +233,7 @@ let rec exec
         exprs
         |> List.filter_map ~f:(fun e ->
                (* exe each list item to store their values, but don't count the incompletes as list items *)
-               match exe st e with DIncomplete _ -> None | dv -> Some dv )
+               match exe st e with DIncomplete _ -> None | dv -> Some dv)
         |> fun l -> find_derrorrail l |> Option.value ~default:(DList l)
     | Filled (_, ObjectLiteral pairs) ->
         pairs
@@ -249,7 +249,7 @@ let rec exec
                        Some (keyname, value) )
                | _, v ->
                    ignore (exe st v) ;
-                   None )
+                   None)
         |> fun ps ->
         ps
         |> List.map ~f:Tuple.T2.get2
@@ -403,7 +403,7 @@ let rec exec
                       ^ string_of_int (List.length args) )
                 else (
                   List.iter (List.zip_exn filled args) ~f:(fun (var, dv) ->
-                      trace_blank var dv st ) ;
+                      trace_blank var dv st) ;
                   let new_st =
                     filled
                     |> List.filter_map ~f:blank_to_option
@@ -411,7 +411,7 @@ let rec exec
                     |> Symtable.from_list_exn
                     |> fun bindings -> Util.merge_left bindings st
                   in
-                  exe new_st body ) )
+                  exe new_st body ))
     | Filled (id, Thread exprs) ->
       (* For each expr, execute it, and then thread the previous result thru *)
       ( match exprs with
@@ -425,7 +425,7 @@ let rec exec
               (* let execution through *)
               (* DErrorRail is handled by inject_param_and_execute *)
               | _ ->
-                  result )
+                  result)
       | [] ->
           DIncomplete (SourceId id) )
     | Filled (id, Match (matchExpr, cases)) ->
@@ -443,11 +443,7 @@ let rec exec
               | _ ->
                   None )
             | Filled (_, PConstructor ("Ok", [p])) ->
-              ( match dv with
-              | DResult (ResOk v) ->
-                  matches v (p, e)
-              | _ ->
-                  None )
+              (match dv with DResult (ResOk v) -> matches v (p, e) | _ -> None)
             | Filled (_, PConstructor ("Error", [p])) ->
               ( match dv with
               | DResult (ResError v) ->
@@ -597,7 +593,7 @@ and exec_fn
         | DError _ | DIncomplete _ ->
             true
         | _ ->
-            false )
+            false)
   in
   match badArg with
   | Some (DIncomplete src) ->
@@ -651,7 +647,7 @@ and exec_fn
                      | Filled (_, name) ->
                          Some (name, DDB name)
                      | Partial _ | Blank _ ->
-                         None )
+                         None)
               |> DvalMap.from_list
             in
             Util.merge_left db_dvals args
@@ -741,9 +737,8 @@ let execute_ast ~input_vars (state : exec_state) expr : dval * tlid list =
   (result, Hashtbl.keys tlid_store)
 
 
-let execute_fn
-    (state : exec_state) (name : string) (id : id) (args : dval list) :
-    dval * tlid list =
+let execute_fn (state : exec_state) (name : string) (id : id) (args : dval list)
+    : dval * tlid list =
   let tlid_store = TLIDTable.create () in
   let engine = server_execution_engine tlid_store in
   let result = call_fn name id args false ~engine ~state in

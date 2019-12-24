@@ -9,7 +9,7 @@ let filterAvatarsByTlid (avatars : avatar list) (tlid : tlid) : avatar list =
          | None ->
              false
          | Some avTlid ->
-             avTlid == (tlid |> deTLID) )
+             avTlid == (tlid |> deTLID))
 
 
 let avatarUrl (email : string) (name : string option) : string =

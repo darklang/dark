@@ -192,7 +192,7 @@ let oplist2tlid_oplists (oplist : oplist) : tlid_oplists =
   |> List.map ~f:(fun op -> tlidOf op |> Option.value_exn)
   |> List.stable_dedup
   |> List.map ~f:(fun tlid ->
-         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = Some tlid)) )
+         (tlid, List.filter oplist ~f:(fun op -> tlidOf op = Some tlid)))
 
 
 let tlid_oplists2oplist (tos : tlid_oplists) : oplist =
@@ -279,4 +279,4 @@ let filter_ops_received_out_of_order (ops : op list) : op list =
          | DeleteFunctionForever _
          | DeleteType _
          | DeleteTypeForever _ ->
-             true )
+             true)

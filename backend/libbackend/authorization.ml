@@ -74,7 +74,7 @@ let grants_for ~auth_domain : (Account.username * permission) list =
              (username, permission_of_db db_perm)
          | _ ->
              Exception.internal
-               "bad format from Authorization.grants_for#fetch_grants" )
+               "bad format from Authorization.grants_for#fetch_grants")
 
 
 (* Returns a list of (organization name, permission) pairs for a given username,
@@ -94,7 +94,7 @@ let orgs_for ~(username : Account.username) : (string * permission) list =
              (org, permission_of_db db_perm)
          | _ ->
              Exception.internal
-               "bad format from Authorization.grants_for#fetch_orgs" )
+               "bad format from Authorization.grants_for#fetch_orgs")
 
 
 (* If a user has a DB row indicating granted access to this auth_domain,
@@ -131,7 +131,7 @@ let special_case_permission
     ~(username : Account.username) ~(auth_domain : string) =
   if Tablecloth.List.any special_cases ~f:(fun (dom, user) ->
          String.Caseless.equal dom auth_domain
-         && String.Caseless.equal user username )
+         && String.Caseless.equal user username)
   then Some ReadWrite
   else None
 
@@ -154,7 +154,7 @@ let permission ~(auth_domain : string) ~(username : Account.username) =
    `permission option`, lazily, so we don't hit the db unnecessarily *)
   let max_permission_f fs =
     List.fold_left fs ~init:None ~f:(fun p f ->
-        match p with Some ReadWrite -> p | _ -> max p (f ()) )
+        match p with Some ReadWrite -> p | _ -> max p (f ()))
   in
   max_permission_f
     (* These first three don't hit the db, so do them first. *)

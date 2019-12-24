@@ -424,8 +424,8 @@ and executeFunctionRPCParams (params : Types.executeFunctionRPCParams) :
     ; ("fnname", string params.efpFnName) ]
 
 
-and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) :
-    Js.Json.t =
+and triggerHandlerRPCParams (params : Types.triggerHandlerRPCParams) : Js.Json.t
+    =
   object_
     [ ("tlid", tlid params.thTLID)
     ; ("trace_id", string params.thTraceID)
@@ -453,14 +453,14 @@ and workerStatsRPCParams (params : Types.workerStatsRPCParams) : Js.Json.t =
   object_ [("tlid", tlid params.workerStatsTlid)]
 
 
-and updateWorkerScheduleRPCParams
-    (params : Types.updateWorkerScheduleRPCParams) : Js.Json.t =
+and updateWorkerScheduleRPCParams (params : Types.updateWorkerScheduleRPCParams)
+    : Js.Json.t =
   object_
     [("name", string params.workerName); ("schedule", string params.schedule)]
 
 
-and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
-    : Js.Json.t =
+and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams) :
+    Js.Json.t =
   object_
     [ ("handler", handler params.handler)
     ; ("trace_id", traceID params.traceID)
@@ -470,8 +470,8 @@ and performHandlerAnalysisParams (params : Types.performHandlerAnalysisParams)
     ; ("user_tipes", list userTipe params.userTipes) ]
 
 
-and performFunctionAnalysisParams
-    (params : Types.performFunctionAnalysisParams) : Js.Json.t =
+and performFunctionAnalysisParams (params : Types.performFunctionAnalysisParams)
+    : Js.Json.t =
   object_
     [ ("func", userFunction params.func)
     ; ("trace_id", traceID params.traceID)
@@ -507,8 +507,9 @@ and userTipe (ut : Types.userTipe) : Js.Json.t =
 
 and userTipeDefinition (utd : Types.userTipeDefinition) : Js.Json.t =
   let ev = variant in
-  match utd with UTRecord fields ->
-    ev "UTRecord" [(list userRecordField) fields]
+  match utd with
+  | UTRecord fields ->
+      ev "UTRecord" [(list userRecordField) fields]
 
 
 and userRecordField (urf : Types.userRecordField) : Js.Json.t =

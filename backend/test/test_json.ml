@@ -40,21 +40,21 @@ let t_dval_yojson_roundtrips () =
     List.iter
       checks
       ~f:(fun (test_name, (encode : dval -> string), (decode : string -> dval))
-         ->
+              ->
         check_dval (test_name ^ ": " ^ name) v (v |> encode |> decode) ;
         AT.check
           AT.string
           (test_name ^ " as string: " ^ name)
           (v |> encode)
           (v |> encode |> decode |> encode) ;
-        () )
+        ())
   in
   sample_dvals
   |> List.filter ~f:(function
          | _, DBlock _ | _, DPassword _ ->
              false
          | _ ->
-             true )
+             true)
   |> List.iter ~f:(fun (name, dv) -> check name dv)
 
 
@@ -104,7 +104,7 @@ let t_dval_user_db_v1_migration () =
              ; TDate
              ; TPassword
              ; TUuid
-             ; TObj ] )
+             ; TObj ])
   in
   check "regular old object" (Dval.to_dobj_exn fields)
 
@@ -135,7 +135,7 @@ let t_result_to_response_works () =
          |> Webserver.respond_or_redirect
          |> Lwt_main.run
          |> fst
-         |> check )
+         |> check)
        [ ( exec_ast "(obj)"
          , req
          , None

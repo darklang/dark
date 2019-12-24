@@ -124,7 +124,7 @@ let merge_left =
       | `Right v ->
           Some v
       | `Both (v1, v2) ->
-          Some v1 )
+          Some v1)
 
 
 let merge_right =
@@ -135,7 +135,7 @@ let merge_right =
       | `Right v ->
           Some v
       | `Both (v1, v2) ->
-          Some v2 )
+          Some v2)
 
 
 let int_sum (l : int list) : int = List.fold_left ~f:( + ) ~init:0 l
@@ -169,4 +169,4 @@ let html_escape (html : string) : string =
       | '\'' ->
           "&#x27;"
       | _ ->
-          String.of_char c )
+          String.of_char c)

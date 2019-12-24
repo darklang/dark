@@ -45,8 +45,7 @@ let fnParamsView (params : userFunctionParameter list) : msg Html.html =
   Html.div [Html.class' "fields"] (List.map ~f:paramView params)
 
 
-let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string)
-    =
+let hoveringRefProps (originTLID : tlid) (originIDs : id list) ~(key : string) =
   [ ViewUtils.eventNoPropagation
       ~key:(key ^ "-in_" ^ showTLID originTLID)
       "mouseenter"
@@ -131,8 +130,7 @@ let renderView originalTLID direction (tl, originalIDs) =
   | TLDB {dbTLID; dbName = F (_, name); cols; _} ->
       dbView originalTLID originalIDs dbTLID name cols direction
   | TLHandler
-      {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}; _}
-    ->
+      {hTLID; spec = {space = F (_, space); name = F (_, name); modifier}; _} ->
       handlerView
         originalTLID
         originalIDs
@@ -142,9 +140,8 @@ let renderView originalTLID direction (tl, originalIDs) =
         (B.toMaybe modifier)
         direction
   | TLFunc
-      { ufTLID
-      ; ufMetadata = {ufmName = F (_, name); ufmParameters; _}
-      ; ufAST = _ } ->
+      {ufTLID; ufMetadata = {ufmName = F (_, name); ufmParameters; _}; ufAST = _}
+    ->
       fnView originalTLID originalIDs ufTLID name ufmParameters direction
   | _ ->
       Vdom.noNode

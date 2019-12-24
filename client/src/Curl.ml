@@ -9,9 +9,7 @@ module TL = Toplevel
 let strAsBodyCurl (dv : dval) : string option =
   match dv with
   | DStr s ->
-      let body =
-        s |> Util.Regex.replace ~re:(Util.Regex.regex "\n") ~repl:""
-      in
+      let body = s |> Util.Regex.replace ~re:(Util.Regex.regex "\n") ~repl:"" in
       Some ("-d '" ^ body ^ "'")
   | _ ->
       None
@@ -26,7 +24,7 @@ let objAsHeaderCurl (dv : dval) : string option =
        * the request without changing the value of this header *)
       |> List.filter ~f:(fun (k, _) -> k != "content-length")
       |> List.map ~f:(fun (k, v) ->
-             "-H '" ^ k ^ ":" ^ (RT.toRepr v |> RT.stripQuotes) ^ "'" )
+             "-H '" ^ k ^ ":" ^ (RT.toRepr v |> RT.stripQuotes) ^ "'")
       |> String.join ~sep:" "
       |> fun s -> Some s
   | _ ->
@@ -56,7 +54,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
                    ^ " -H 'Content-Type: application/json' "
                    ^ route ) )
          | _ ->
-             None )
+             None)
 
 
 (* Constructs curl command from analysis dict.
@@ -66,9 +64,7 @@ let curlFromSpec (m : model) (tlid : tlid) : string option =
 *)
 let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   let wrapInList o =
-    o
-    |> Option.andThen ~f:(fun v -> Some [v])
-    |> Option.withDefault ~default:[]
+    o |> Option.andThen ~f:(fun v -> Some [v]) |> Option.withDefault ~default:[]
   in
   let trace =
     Analysis.getSelectedTraceID m tlid
@@ -78,7 +74,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
   | Some (_, Some td) ->
       StrDict.get ~key:"request" td.input
       |> Option.andThen ~f:(fun obj ->
-             match obj with DObj r -> Some r | _ -> None )
+             match obj with DObj r -> Some r | _ -> None)
       |> Option.andThen ~f:(fun r ->
              match StrDict.get ~key:"url" r with
              | Some (DStr url) ->
@@ -103,7 +99,7 @@ let curlFromCurrentTrace (m : model) (tlid : tlid) : string option =
                  |> String.join ~sep:" "
                  |> Option.some
              | _ ->
-                 None )
+                 None)
   | _ ->
       None
 

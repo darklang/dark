@@ -30,8 +30,8 @@ let fns : Libexecution.Lib.shortfn list =
               let encoding = "application/x-www-form-urlencoded" in
               let headers =
                 [ ("Authorization", DStr basic_auth_string)
-                ; ( "Content-Type"
-                  , Libexecution.Dval.dstr_of_string_exn encoding ) ]
+                ; ("Content-Type", Libexecution.Dval.dstr_of_string_exn encoding)
+                ]
                 |> DvalMap.from_list
                 |> DObj
               in

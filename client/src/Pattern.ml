@@ -18,9 +18,8 @@ let rec allData (p : pattern) : pointerData list =
       PPattern p :: (inner |> List.map ~f:allData |> List.concat)
 
 
-let rec replace
-    (search : pointerData) (replacement : pointerData) (p : pattern) : pattern
-    =
+let rec replace (search : pointerData) (replacement : pointerData) (p : pattern)
+    : pattern =
   if P.toID search = B.toID p
   then
     match replacement with

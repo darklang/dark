@@ -11,19 +11,19 @@ type op_with_newness = bool * Op.op
 let preprocess (ops : op_with_newness list) : op_with_newness list =
   (* The client can add undopoints when it chooses. When we get an undo,
    * we go back to the previous undopoint for that TL. *)
-  
+
   (* When we get a redo, we ignore the undo immediately preceding it.
    * If there are multiple redos, they'll gradually eliminate the
    * previous undos. *)
-  
+
   (* undo algorithm: *)
-  
+
   (*   - Step 1: go through the list and remove all undo-redo pairs.
    *   After removing one pair, reprocess the list to remove others. *)
-  
+
   (*   - Step 2: A redo without an undo just before it is pointless, but
    *   the client might allow it. Error. *)
-  
+
   (*   - Step 3: there should now only be undos. Going from the front,
    *   each time there is an undo, drop the undo and all the ops going
    *   back to the previous savepoint, including the savepoint. Use the
@@ -46,7 +46,7 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
          | _ :: (_, Op.RedoTL _) :: rest ->
              Exception.client "Already at latest redo"
          | ops ->
-             ops )
+             ops)
   (* Step 3: remove undos and all the ops up to the savepoint. *)
   (* Go from the front and build the list up. If we hit an undo, drop *)
   (* back until the last savepoint. *)
@@ -71,7 +71,7 @@ let preprocess (ops : op_with_newness list) : op_with_newness list =
              (* drop savepoint *)
              new_before @ new_after
          | _ ->
-             op :: ops )
+             op :: ops)
   |> List.rev
 
 

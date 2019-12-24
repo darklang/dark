@@ -12,7 +12,7 @@ let find_functions (expr : expr) : string list =
       | Filled (_, FnCall (name, _)) ->
           fns := name :: !fns
       | _ ->
-          () ) ;
+          ()) ;
   !fns
 
 
@@ -23,5 +23,5 @@ let find_fields (expr : expr) : string list =
       | Filled (_, FieldAccess (_, Filled (_, fieldname))) ->
           fieldnames := fieldname :: !fieldnames
       | _ ->
-          () ) ;
+          ()) ;
   !fieldnames

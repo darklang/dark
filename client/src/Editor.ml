@@ -11,7 +11,8 @@ let fromString (json : string option) : serializableEditor =
       Debug.loG "no serialized editor" None ;
       Defaults.defaultEditor
   | Some json ->
-    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor with e ->
+    ( try json |> Json.parseOrRaise |> Decoders.serializableEditor
+      with e ->
         Debug.loG "error parsing serialized editor" e ;
         Defaults.defaultEditor )
 
@@ -41,7 +42,7 @@ let editor2model (e : serializableEditor) : model =
                | HandlerCollapsed ->
                    HandlerCollapsed
                | HandlerExpanding ->
-                   HandlerExpanded ) } )
+                   HandlerExpanded ) })
   in
   { m with
     editorSettings = e.editorSettings

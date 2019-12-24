@@ -9,5 +9,5 @@ let run () =
         (List.range 32 126)
         (fun i ->
           let c = Char.fromCode i |> Option.valueExn in
-          expect (fromChar c |> toChar) |> toEqual (Some c) ) ) ;
+          expect (fromChar c |> toChar) |> toEqual (Some c))) ;
   ()

@@ -84,7 +84,7 @@ let t_event_queue_is_fifo () =
         check_dequeue tx 2 "apple" ;
         check_dequeue tx 3 "banana" ;
         check_dequeue tx 4 "apple" ;
-        Ok (Some DNull) )
+        Ok (Some DNull))
   in
   ()
 

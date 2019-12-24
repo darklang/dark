@@ -98,13 +98,13 @@ let move (tlid : tlid) (xOffset : int) (yOffset : int) (m : model) : model =
   { m with
     handlers =
       TD.updateIfPresent m.handlers ~tlid ~f:(fun (h : handler) ->
-          {h with pos = newPos h.pos} )
+          {h with pos = newPos h.pos})
   ; dbs =
       TD.updateIfPresent m.dbs ~tlid ~f:(fun (db : db) ->
-          {db with pos = newPos db.pos} )
+          {db with pos = newPos db.pos})
   ; groups =
       TD.updateIfPresent m.groups ~tlid ~f:(fun (group : group) ->
-          {group with pos = newPos group.pos} ) }
+          {group with pos = newPos group.pos}) }
 
 
 let ufToTL (uf : userFunction) : toplevel = TLFunc uf
@@ -191,8 +191,7 @@ let customEventSpaceNames (handlers : handler TD.t) : string list =
     |> TD.mapValues ~f:(fun h -> TLHandler h)
     |> List.filter ~f:isDeprecatedCustomHandler
     |> List.filterMap ~f:(fun tl ->
-           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space)
-       )
+           asHandler tl |> Option.andThen ~f:(fun h -> B.toMaybe h.spec.space))
   in
   otherSpaces
 
@@ -411,7 +410,7 @@ let withAST (m : model) (tlid : tlid) (ast : expr) : model =
     handlers = TD.updateIfPresent m.handlers ~tlid ~f:(fun h -> {h with ast})
   ; userFunctions =
       TD.updateIfPresent m.userFunctions ~tlid ~f:(fun uf ->
-          {uf with ufAST = ast} ) }
+          {uf with ufAST = ast}) }
 
 
 (* TODO(match) *)
@@ -458,10 +457,8 @@ let replace (p : pointerData) (replacement : pointerData) (tl : toplevel) :
         let newSpec = SpecHeaders.replace id bo h.spec in
         TLHandler {h with spec = newSpec}
     | _ ->
-        recover
-          "Changing handler metadata on non-handler"
-          ~debug:replacement
-          tl )
+        recover "Changing handler metadata on non-handler" ~debug:replacement tl
+    )
   | PDBName _ | PDBColType _ | PDBColName _ | PFnCallName _ ->
       tl
   | PFnName _ | PParamName _ | PParamTipe _ ->
@@ -567,7 +564,7 @@ let getTLAndPD (m : model) (tlid : tlid) (id : id) :
 let allDBNames (dbs : db TD.t) : string list =
   dbs
   |> TD.filterMapValues ~f:(fun db ->
-         match db.dbName with F (_, name) -> Some name | Blank _ -> None )
+         match db.dbName with F (_, name) -> Some name | Blank _ -> None)
 
 
 let allGloballyScopedVarnames (dbs : db TD.t) : string list = allDBNames dbs

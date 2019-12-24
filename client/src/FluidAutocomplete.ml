@@ -47,7 +47,7 @@ let focusItem (i : int) : msg Tea.Cmd.t =
                Element.setScrollTop el (offset -. liHeight)
              else ()
          | _, _ ->
-             () ))
+             ()))
 
 
 (* ---------------------------- *)
@@ -156,11 +156,11 @@ let allFunctions (m : model) : function_ list =
   let functions =
     m.builtInFunctions
     |> List.filter ~f:(fun f ->
-           (not f.fnDeprecated) || Refactor.usedFn m f.fnName )
+           (not f.fnDeprecated) || Refactor.usedFn m f.fnName)
     |> List.sortBy ~f:(fun f ->
            (* don't call List.head here - if we have DB::getAll_v1 and
             * DB::getAll_v2, we want those to sort accordingly! *)
-           f.fnName |> String.to_lower |> String.split ~on:"_v" )
+           f.fnName |> String.to_lower |> String.split ~on:"_v")
   in
   functions @ userFunctionMetadata
 
@@ -197,7 +197,7 @@ let findCompatiblePipeParam (fn : function_) (tipe : tipe) : parameter option =
   fn.fnParameters
   |> List.head
   |> Option.andThen ~f:(fun fst ->
-         if RT.isCompatible fst.paramTipe tipe then Some fst else None )
+         if RT.isCompatible fst.paramTipe tipe then Some fst else None)
 
 
 let findParamByType (fn : function_) (tipe : tipe) : parameter option =
@@ -221,10 +221,10 @@ let dvalForToken (m : model) (tl : toplevel) (ti : tokenInfo) : dval option =
       |> Option.andThen ~f:(fun pd -> AST.getValueParent pd ast)
       |> Option.map ~f:P.toID
       |> Option.andThen2 traceID ~f:(fun traceID id ->
-             Analysis.getLiveValue m id traceID )
+             Analysis.getLiveValue m id traceID)
       (* don't filter on incomplete values *)
       |> Option.andThen ~f:(fun dv_ ->
-             match dv_ with DIncomplete _ -> None | _ -> Some dv_ )
+             match dv_ with DIncomplete _ -> None | _ -> Some dv_)
   | None ->
       None
 
@@ -234,7 +234,7 @@ let isPipeMember (tl : toplevel) (ti : tokenInfo) =
   TL.getAST tl
   |> Option.andThen ~f:(AST.findParentOfWithin_ id)
   |> Option.map ~f:(fun e ->
-         match e with F (_, Thread _) -> true | _ -> false )
+         match e with F (_, Thread _) -> true | _ -> false)
   |> Option.withDefault ~default:false
 
 
@@ -248,7 +248,7 @@ let paramTipeForTarget (a : autocomplete) (tl : toplevel) (ti : tokenInfo) :
          |> List.find ~f:(fun f -> name = f.fnName)
          |> Option.map ~f:(fun x -> x.fnParameters)
          |> Option.andThen ~f:(List.getAt ~index)
-         |> Option.map ~f:(fun x -> x.paramTipe) )
+         |> Option.map ~f:(fun x -> x.paramTipe))
   |> Option.withDefault ~default:TAny
 
 
@@ -385,7 +385,7 @@ let generatePatterns ti a queryString =
       |> List.map ~f:(fun p -> FACPattern p) )
     |> List.filter ~f:(fun c ->
            (* filter out old query string variable *)
-           match c with FACPattern (FPAVariable _) -> false | _ -> true )
+           match c with FACPattern (FPAVariable _) -> false | _ -> true)
   in
   let isInvalidPatternVar str =
     [""; "Just"; "Nothing"; "Ok"; "Error"; "true"; "false"; "null"]

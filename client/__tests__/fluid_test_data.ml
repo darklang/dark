@@ -31,8 +31,8 @@ let fn ?(ster = NoRail) (name : string) (args : fluidExpr list) =
   EFnCall (gid (), name, args, ster)
 
 
-let binop
-    ?(ster = NoRail) (name : string) (arg0 : fluidExpr) (arg1 : fluidExpr) =
+let binop ?(ster = NoRail) (name : string) (arg0 : fluidExpr) (arg1 : fluidExpr)
+    =
   EBinOp (gid (), name, arg0, arg1, ster)
 
 
@@ -50,8 +50,7 @@ let fieldAccess (expr : fluidExpr) (fieldName : string) : fluidExpr =
   EFieldAccess (gid (), expr, gid (), fieldName)
 
 
-let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr
-    =
+let if' (cond : fluidExpr) (then' : fluidExpr) (else' : fluidExpr) : fluidExpr =
   EIf (gid (), cond, then', else')
 
 
@@ -80,8 +79,7 @@ let pInt (int : string) : fluidPattern = FPInteger (gid (), gid (), int)
 
 let pVar (name : string) : fluidPattern = FPVariable (gid (), gid (), name)
 
-let pConstructor (name : string) (patterns : fluidPattern list) : fluidPattern
-    =
+let pConstructor (name : string) (patterns : fluidPattern list) : fluidPattern =
   FPConstructor (gid (), gid (), name, patterns)
 
 
@@ -286,8 +284,7 @@ let matchWithTwoLets =
             , gid ()
             , "x"
             , EInteger (gid (), "5")
-            , ELet
-                (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
+            , ELet (gid (), gid (), "y", EInteger (gid (), "6"), EBlank (gid ()))
             ) ) ] )
 
 

@@ -11,8 +11,7 @@ let fns : Lib.shortfn list =
     ; d =
         "Returns the inverse of `b`: true is `b` is false and false if `b` is true"
     ; f =
-        InProcess
-          (function _, [DBool b] -> DBool (not b) | args -> fail args)
+        InProcess (function _, [DBool b] -> DBool (not b) | args -> fail args)
     ; ps = true
     ; dep = false }
   ; { pns = ["Bool::and"]

@@ -40,9 +40,7 @@ module Scheduling_rule = struct
     match r with "block" -> Some Block | "pause" -> Some Pause | _ -> None
 
 
-  let rule_type_to_string r =
-    match r with Block -> "block" | Pause -> "pause"
-
+  let rule_type_to_string r = match r with Block -> "block" | Pause -> "pause"
 
   type t =
     { id : int
@@ -316,7 +314,7 @@ let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
          AND module = 'WORKER'"
       ~params:[Uuid canvas_id]
     |> List.fold ~init:Worker_states.empty ~f:(fun states row ->
-           Map.set states ~key:(List.hd_exn row) ~data:Running )
+           Map.set states ~key:(List.hd_exn row) ~data:Running)
   in
   (* get scheduling overrides for canvas, partitioned *)
   let blocks, pauses =
@@ -328,7 +326,7 @@ let get_worker_schedules_for_canvas canvas_id : Worker_states.t =
   pauses @ blocks
   |> List.fold ~init:states ~f:(fun states r ->
          let v = match r.rule_type with Block -> Blocked | Pause -> Paused in
-         Map.set states ~key:r.handler_name ~data:v )
+         Map.set states ~key:r.handler_name ~data:v)
 
 
 (* Keeps the given worker from executing by inserting a scheduling rule of the passed type.
@@ -442,5 +440,4 @@ let put_back transaction (item : t) ~status : unit =
         ~params:[Int item.id]
 
 
-let finish transaction (item : t) : unit =
-  put_back transaction ~status:`OK item
+let finish transaction (item : t) : unit = put_back transaction ~status:`OK item
