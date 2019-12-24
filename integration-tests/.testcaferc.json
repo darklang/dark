@@ -1,0 +1,33 @@
+{
+  reporter: [
+    {
+      name: "xunit",
+      output: "rundir/test_results/integration_tests.xml"
+    },
+    {
+      name: "json",
+      output: "rundir/test_results/integration_tests.json"
+    },
+    {
+      name: "spec"
+    }
+  ],
+  screenshots: {
+    path: "rundir/screenshots",
+    pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.png",
+    takeOnFails: true
+  },
+
+  // Testcafe's video support is so slow and unreliable in the container
+  // that xvfb is much better
+  //videoPath: "rundir/videos",
+  // Options are used outside the container
+  //videoOptions: {
+  //  pathPattern: "${TEST}-${FILE_INDEX}-${QUARANTINE_ATTEMPT}.mp4"
+  //},
+  quarantineMode: true,
+  appInitDelay: 0,
+  selectorTimeout: 50,
+  assertionTimeout: 50,
+  pageLoadTimeout: 200
+}

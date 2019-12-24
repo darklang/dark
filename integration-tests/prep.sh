@@ -22,7 +22,7 @@ mkdir -p "${TEST_LOGS_DIR}"
 echo "Clearing old test files"
 rm -f "${DARK_CONFIG_RUNDIR}"/completed_tests/*
 rm -Rf "${DARK_CONFIG_RUNDIR}"/screenshots/*
-rm -f "${DARK_CONFIG_RUNDIR}"/videos/*
+rm -Rf "${DARK_CONFIG_RUNDIR}"/videos/*
 rm -Rf "${DARK_CONFIG_RUNDIR}"/logs/ffmpeg*
 rm -f "${TEST_RESULTS_DIR}"/integration_tests.*
 rm -f "${TEST_LOGS_DIR}"/*

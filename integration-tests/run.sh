@@ -7,16 +7,6 @@ set -euo pipefail
 PATTERN=".*"
 DEBUG=false
 
-BROWSER='unknown'
-{
-  PLATFORM=$(uname -s)
-  if [[ $PLATFORM == "Darwin" ]]; then
-    BROWSER="chrome"
-  else
-    BROWSER="chromium"
-  fi
-}
-
 for i in "$@"
 do
   case "${i}" in
@@ -35,68 +25,92 @@ do
   esac
 done
 
+BROWSER='unknown'
+{
+  PLATFORM=$(uname -s)
+  if [[ $PLATFORM == "Darwin" ]]; then
+    if [[ "$DEBUG" == "true" ]]; then
+      BROWSER='chrome:headless --window-size="1600,1200"'
+    else
+      BROWSER='chrome --window-size="1600,1200"'
+    fi
+  else
+    BROWSER='chromium:headless --window-size="1600,1200"'
+  fi
+}
+
+######################
 # Prep (in the container)
+######################
 ./integration-tests/prep.sh
 
-CONCURRENCY=1
-if [[ -v IN_DEV_CONTAINER ]] || [[ "$DEBUG" == "true" ]]; then
+######################
+# Set up concurrency
+######################
+CONCURRENCY=3
+if [[ "$DEBUG" == "true" ]]; then
   CONCURRENCY=1
+elif [[ -v IN_DEV_CONTAINER ]]; then
+  # This was caarefully measured in CI. 1x is much slower, 3x fails a lot.
+  # Though perhaps with a larger machine 3x might work better.
+  CONCURRENCY=2
 fi
 
+######################
+# Run testcafe
+######################
 if [[ -v IN_DEV_CONTAINER ]]; then
   # Set up test reporters for CircleCI
-  TEST_RESULTS_DIR="${DARK_CONFIG_RUNDIR}/test_results"
-  TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
-  TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
-  REPORTERS=spec
-  REPORTERS+=,json:${TEST_RESULTS_JSON}
-  REPORTERS+=,xunit:${TEST_RESULTS_XML}
   XVFB_LOG="${DARK_CONFIG_RUNDIR}/logs/xvfb.log"
 
   export DISPLAY=:99.0
   # shellcheck disable=SC2024
-  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1600x1200x24 > "${XVFB_LOG}" 2>&1 &
+  echo "Starting Xvfb"
+  pgrep Xvfb > /dev/null || sudo Xvfb -ac :99 -screen 0 1600x1200x24 | sudo tee "${XVFB_LOG}" 2>&1 &
+  echo "Waiting for Xvfb to be ready..."
+  while ! xdpyinfo -display ${DISPLAY} > /dev/null ; do
+    echo -n ''
+    sleep 1
+  done
 
   set +e # Dont fail immediately so that the sed is run
 
+  echo "Starting testcafe"
   unbuffer client/node_modules/.bin/testcafe \
-    --selector-timeout 50 \
-    --assertion-timeout 50 \
-    --app-init-delay 0 \
-    --pageload-timeout 200 \
-    --screenshots-on-fails \
-    --screenshots "${DARK_CONFIG_RUNDIR}/screenshots/" \
     --concurrency "$CONCURRENCY" \
-    --quarantine-mode \
-    --reporter "$REPORTERS" \
     --test-grep "$PATTERN" \
-    "$BROWSER \"--window-size=1600,1200\""  \
+    "${BROWSER}" \
     integration-tests/tests.js 2>&1 | tee "${DARK_CONFIG_RUNDIR}/integration_error.log"
 
   RESULT=$?
 
   # Fix xunit output for CircleCI flaky-tests stats
-  sed -i 's/ (screenshots: .*)"/"/' "${TEST_RESULTS_XML}"
+  sed -i 's/ (screenshots: .*)"/"/' "rundir/test_results/integration_tests.xml"
 
   exit $RESULT
 else
+
+  # Check the version (matters when running outside the container)
+  version=$(testcafe --version)
+  expected_version=$(grep testcafe client/package.json | sed 's/\s*"testcafe": "//' | sed 's/",\s*//')
+  if [[ "$version" != "$expected_version" ]]
+  then
+    echo "Incorrect version of testcafe: $version (expected $expected_version)"
+    exit 1
+  fi
+
   if [[ "$DEBUG" == "true" ]]; then
     debugcmd="--debug-mode --inspect"
   else
     debugcmd=
   fi
+  # shellcheck disable=SC2016
   testcafe \
-    --selector-timeout 50 \
-    --assertion-timeout 50 \
-    --app-init-delay 0 \
-    --pageload-timeout 200 \
-    --screenshots takeOnFails=true \
-    --screenshots path=rundir/screenshots/ \
     --concurrency "$CONCURRENCY" \
-    --quarantine-mode \
-    --reporter=spec \
     $debugcmd \
     --test-grep "$PATTERN" \
-    $BROWSER \
+    --video rundir/videos \
+    --video-options pathPattern='${TEST}-${QUARANTINE_ATTEMPT}.mp4' \
+    "$BROWSER" \
     integration-tests/tests.js
 fi
