@@ -15,15 +15,6 @@ function stopXvfb(testname) {
   child_process.execFileSync(script, [testname]);
 }
 
-async function fixBrowserSize(t) {
-  // We need the browser window to be 1600x1200 to see everything. In the
-  // container, the browser starts at the right size, but when run outside the
-  // container we need to set it. The resizeWindow doesn't work inside the
-  // container though.
-  if (process.env.IN_DEV_CONTAINER == "true") return;
-  await t.resizeWindow(1600, 1200);
-}
-
 async function setDebugging(t) {
   let key = `editorState-test-${t.testRun.test.name}`;
   let value = '{"editorSettings":{"showFluidDebugger":true}}';
@@ -37,8 +28,8 @@ fixture`Integration Tests`
   // To add this user, run the backend tests
   .beforeEach(async t => {
     const testname = t.testRun.test.name;
-    await fixBrowserSize(t);
-    startXvfb(testname);
+    const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
+    startXvfb(sessionName);
     var url = `${BASE_URL}${testname}?integration-test=true`;
     await t.navigateTo(url);
     await setDebugging(t);
@@ -73,12 +64,12 @@ fixture`Integration Tests`
   })
   .afterEach(async t => {
     const testname = t.testRun.test.name;
-    stopXvfb(testname);
+    const sessionName = `${testname}-${t.testRun.quarantine.attempts.length}`;
+    stopXvfb(sessionName);
     const finish = Selector("#finishIntegrationTest");
     const signal = Selector("#integrationTestSignal");
     let flushLogs = async () => {
       const { log, warn, error, info } = await t.getBrowserConsoleMessages();
-      console.error("msg/mod logs for: " + testname);
       const msgs = Array.concat(
         ["Console Logs:"],
         log,
