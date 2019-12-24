@@ -119,6 +119,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       texinfo \
       openssh-server \
+      x11-utils \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -256,7 +257,7 @@ ENV ESY__PROJECT=/home/dark/app/backend
 ############################
 
 RUN \
-  VERSION=v0.6.0 \
+  VERSION=v0.7.0 \
   && FILENAME=shellcheck-$VERSION.linux.x86_64.tar.xz  \
   && wget -P tmp_install_folder/ https://shellcheck.storage.googleapis.com/$FILENAME \
   && tar xvf tmp_install_folder/$FILENAME -C tmp_install_folder \
@@ -297,18 +298,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-USER root
-RUN DEBIAN_FRONTEND=noninteractive \
-    apt update && \
-    DEBIAN_FRONTEND=noninteractive \
-    apt install \
-      -y \
-      --no-install-recommends \
-      x11-utils \
-      && apt clean \
-      && rm -rf /var/lib/apt/lists/*
-
-
 
 ############################
 # Finish
