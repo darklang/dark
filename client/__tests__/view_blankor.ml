@@ -35,13 +35,11 @@ let run () =
                 { functions = []
                 ; admin = false
                 ; completions = []
-                ; invalidCompletions = []
                 ; allCompletions = []
                 ; index = -1
                 ; value = ""
                 ; prevValue = ""
                 ; target = None
-                ; targetDval = None
                 ; isCommandMode = false
                 ; visible = true }
             ; showEntry = false
@@ -68,6 +66,6 @@ let run () =
             ; permission = Some ReadWrite
             ; workerStats = None }
           in
-          expect (placeHolderFor vs id ParamName) |> toBe "param name" ) ;
+          expect (placeHolderFor vs ParamName) |> toBe "param name" ) ;
       () ) ;
   ()

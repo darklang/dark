@@ -134,22 +134,6 @@ let focusEntryWithOffset (m : model) (offset : int) : msg Tea.Cmd.t =
       Tea.Cmd.none
 
 
-let createFunction (fn : function_) : expr =
-  let blanks count = List.initialize count (fun _ -> B.new_ ()) in
-  let r =
-    if List.member ~value:fn.fnReturnTipe Runtime.errorRailTypes
-    then Rail
-    else NoRail
-  in
-  let (ID id) = gid () in
-  F
-    ( ID id
-    , FnCall
-        ( F (ID (id ^ "_name"), fn.fnName)
-        , blanks (List.length fn.fnParameters)
-        , r ) )
-
-
 let newHandler m space name modifier pos =
   let tlid =
     if VariantTesting.variantIsActive m GridLayout
@@ -277,175 +261,6 @@ type nextMove =
   | StayHere
   | GotoNext
 
-let parseAst
-    (ast : expr)
-    (complete : autocomplete)
-    (item : autocompleteItem)
-    (str : string) : expr option =
-  let eid = gid () in
-  let b1 = B.new_ () in
-  let b2 = B.new_ () in
-  let b3 = B.new_ () in
-  match item with
-  | ACConstructorName "Just" ->
-      Some (F (eid, Constructor (B.newF "Just", [b1])))
-  | ACConstructorName "Nothing" ->
-      Some (F (eid, Constructor (B.newF "Nothing", [])))
-  | ACConstructorName "Ok" ->
-      Some (F (eid, Constructor (B.newF "Ok", [b1])))
-  | ACConstructorName "Error" ->
-      Some (F (eid, Constructor (B.newF "Error", [b1])))
-  | ACKeyword KIf ->
-      Some (F (eid, If (b1, b2, b3)))
-  | ACKeyword KLet ->
-      Some (F (eid, Let (b1, b2, b3)))
-  | ACKeyword KLambda ->
-    ( match (complete.target, ast) with
-    | _, Blank _ | None, _ ->
-        Some (F (eid, Lambda ([B.newF "var"], b2)))
-    | Some (_, pd), _ ->
-        let parent = ast |> AST.findParentOfWithin (P.toID pd) in
-        (* Function name and param index *)
-        let fnname, index =
-          match parent with
-          | F (_, FnCall (name, exprs, _)) ->
-              let paramIndex =
-                List.findIndex ~f:(fun e -> B.toID e = P.toID pd) exprs
-                |> Option.withDefault ~default:(-1)
-              in
-              (B.toMaybe name, paramIndex)
-          | _ ->
-              (None, -1)
-        in
-        let lambdaArgs =
-          complete.functions
-          |> List.find ~f:(fun f -> Some f.fnName = fnname)
-          |> Option.andThen ~f:(fun fn -> List.getAt ~index fn.fnParameters)
-          |> (function
-               | None | Some {paramBlock_args = []; _} ->
-                   (* add default value if empty or not found*)
-                   ["var"]
-               | Some params ->
-                   params.paramBlock_args)
-          |> List.map ~f:(fun str -> B.newF str)
-        in
-        Some (F (eid, Lambda (lambdaArgs, b2))) )
-  | ACKeyword KMatch ->
-      Some (F (eid, Match (b1, [(b2, b3)])))
-  | ACLiteral str ->
-      Some (F (eid, Value str))
-  | ACFunction fn ->
-      Some (createFunction fn)
-  | ACVariable (varname, _) ->
-      Some (B.newF (Variable varname))
-  | _ ->
-      (* TODO: remove all these cases, replacing them with autocomplete options *)
-      let firstWord = String.split ~on:" " str in
-      ( match firstWord with
-      | [""] ->
-          Some b1
-      | ["[]"] ->
-          Some (F (eid, ListLiteral [B.new_ ()]))
-      | ["["] ->
-          Some (F (eid, ListLiteral [B.new_ ()]))
-      | ["{}"] ->
-          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
-      | ["{"] ->
-          Some (F (eid, ObjectLiteral [(B.new_ (), B.new_ ())]))
-      | _ ->
-          None )
-
-
-(* Assumes PD is within AST. Returns (new AST, new Expr) *)
-let replaceExpr
-    (m : model)
-    (ast : expr)
-    (old_ : expr)
-    (move : nextMove)
-    (item : autocompleteItem) : expr * expr =
-  let value = AC.getValue m.complete in
-  let id = B.toID old_ in
-  let old, new_ =
-    (* assign thread to variable *)
-    if Regex.exactly ~re:"=[a-zA-Z].*" value
-    then
-      match AST.threadAncestors id ast with
-      (* turn the current thread into a let-assignment to this *)
-      (* name, and close the thread *)
-      | (F (_, Thread _) as thread) :: _ ->
-          let bindName = value |> String.dropLeft ~count:1 |> String.trim in
-          ( thread
-          , B.newF (Let (B.newF bindName, AST.closeThreads thread, B.new_ ()))
-          )
-      | _ ->
-          (old_, old_)
-      (* field access *)
-    else if String.endsWith ~suffix:"." value
-    then
-      ( old_
-      , B.newF
-          (FieldAccess
-             (B.newF (Variable (String.dropRight ~count:1 value)), B.new_ ()))
-      )
-    else
-      ( old_
-      , parseAst ast m.complete item value |> Option.withDefault ~default:old_
-      )
-  in
-  let newAst =
-    match move with
-    | StartThread ->
-        ast
-        |> AST.replace (PExpr old) (PExpr new_)
-        |> AST.wrapInThread (B.toID new_)
-    | _ ->
-        ast
-        |> AST.replace (PExpr old) (PExpr new_)
-        |> AST.maybeExtendThreadAt (B.toID new_) (B.new_ ())
-        |> AST.maybeExtendListLiteralAt (PExpr new_)
-  in
-  (newAst, new_)
-
-
-let parsePattern (str : string) : pattern option =
-  match str with
-  | "Nothing" ->
-      Some (B.newF (PConstructor ("Nothing", [])))
-  | "Just" ->
-      Some (B.newF (PConstructor ("Just", [B.new_ ()])))
-  | "Ok" ->
-      Some (B.newF (PConstructor ("Ok", [B.new_ ()])))
-  | "Error" ->
-      Some (B.newF (PConstructor ("Error", [B.new_ ()])))
-  | _ ->
-      let variablePattern = "[a-z_][a-zA-Z0-9_]*" in
-      if Runtime.isStringLiteral str
-      then
-        if Runtime.isValidDisplayString str
-        then
-          Some (B.newF (PLiteral (Runtime.convertDisplayStringToLiteral str)))
-        else None
-      else if Decoders.isLiteralRepr str
-      then Some (B.newF (PLiteral str))
-      else if Regex.exactly ~re:variablePattern str
-      then Some (B.newF (PVariable str))
-      else None
-
-
-let getAstFromTopLevel tl : expr =
-  match tl with
-  | TLHandler h ->
-      h.ast
-  | TLFunc f ->
-      f.ufAST
-  | TLGroup _ ->
-      recover "No ASTs in Groups" ~debug:tl (B.new_ ())
-  | TLDB _ ->
-      recover "No ASTs in DBs" ~debug:tl (B.new_ ())
-  | TLTipe _ ->
-      recover "No ASTs in Types" ~debug:tl (B.new_ ())
-
-
 let validate (tl : toplevel) (pd : pointerData) (value : string) :
     string option =
   let v pattern name =
@@ -464,8 +279,6 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
         Some
           "The field name 'id' was reserved when IDs were implicit. We are transitioning to allowing it, but we're not there just yet. Sorry!"
       else v AC.dbColNameValidator "DB column name"
-  | PVarBind _ ->
-      v AC.varnameValidator "variable name"
   | PEventName _ ->
       if TL.isHTTPHandler tl
       then
@@ -481,20 +294,8 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       else v AC.eventModifierValidator "event modifier"
   | PEventSpace _ ->
       v AC.eventSpaceValidator "event space"
-  | PField _ ->
-      v AC.fieldNameValidator "fieldname"
-  | PKey _ ->
-      v AC.keynameValidator "key"
-  | PExpr _ ->
-      None (* Done elsewhere *)
-  | PFFMsg _ ->
-      None
   | PFnName _ ->
       v AC.fnNameValidator "function name"
-  | PFnCallName _ ->
-      None
-  | PConstructorName _ ->
-      v AC.constructorNameValidator "constructor name"
   | PParamName _ ->
       v AC.paramNameValidator "param name"
       |> Option.orElse (AC.validateFnParamNameFree tl value)
@@ -508,53 +309,16 @@ let validate (tl : toplevel) (pd : pointerData) (value : string) :
       v AC.paramTypeValidator "type field type"
   | PGroupName _ ->
       v AC.groupNameValidator "group name"
-  | PPattern currentPattern ->
-      let validPattern value =
-        Decoders.isLiteralRepr value
-        || v AC.varnamePatternValidator "variable pattern" = None
-        || v AC.constructorPatternValidator "constructor pattern" = None
-      in
-      let body =
-        let ast = getAstFromTopLevel tl in
-        let parent =
-          if B.toID ast = P.toID pd
-          then ast
-          else AST.findParentOfWithin (P.toID pd) ast
-        in
-        ( match parent with
-        | F (_, Match (_, cases)) ->
-            cases
-            |> List.find ~f:(fun (p, _) ->
-                   Pattern.extractById p (B.toID currentPattern)
-                   |> Option.isSome )
-        | _ ->
-            None )
-        |> Option.map ~f:Tuple2.second
-        |> AST.recoverBlank "validate: recover! pattern without parent match"
-      in
-      ( match parsePattern value with
-      | Some newPattern ->
-        ( match (currentPattern, newPattern) with
-        | Blank _, _ | F (_, PLiteral _), _ ->
-            if validPattern value
-            then None
-            else Some "pattern must be literal or variable or constructor"
-        | F (_, PVariable _), F (_, PVariable _) ->
-            None
-        | _ ->
-            let noUses =
-              Pattern.variableNames currentPattern
-              |> List.map ~f:(fun v -> AST.uses v body)
-              |> List.all ~f:List.isEmpty
-            in
-            if not noUses
-            then
-              Some "Unsafe pattern replacement, remove RHS variable uses first"
-            else if not (validPattern value)
-            then Some "pattern must be literal or variable or constructor"
-            else None )
-      | _ ->
-          Some "Invalid Pattern" )
+  | PPattern _ ->
+      None
+  | PVarBind _
+  | PExpr _
+  | PField _
+  | PKey _
+  | PFnCallName _
+  | PFFMsg _
+  | PConstructorName _ ->
+      None
 
 
 let submitACItem
@@ -609,19 +373,6 @@ let submitACItem
                   recover "no vars in DBs" ~debug:tl NoChange
           in
           let saveH h next = save (TLHandler h) next in
-          let saveAst ast next =
-            match tl with
-            | TLHandler h ->
-                saveH {h with ast} next
-            | TLFunc f ->
-                save (TLFunc {f with ufAST = ast}) next
-            | TLDB _ ->
-                recover "no ASTs in DBs" ~debug:tl NoChange
-            | TLTipe _ ->
-                recover "no ASTs in Tipes" ~debug:tl NoChange
-            | TLGroup _ ->
-                recover "no ASTs in Groups" ~debug:tl NoChange
-          in
           let replace new_ =
             tl |> TL.replace pd new_ |> fun tl_ -> save tl_ new_
           in
@@ -670,8 +421,6 @@ let submitACItem
               else if B.isBlank cn
               then wrapID [SetDBColName (tlid, id, value)]
               else wrapID [ChangeDBColName (tlid, id, value)]
-          | PVarBind _, ACVarBind varName, _ ->
-              replace (PVarBind (B.newF varName))
           | PEventName _, ACCronName value, _
           | PEventName _, ACReplName value, _
           | PEventName _, ACWorkerName value, _ ->
@@ -764,65 +513,6 @@ let submitACItem
                     replacedModifier
               in
               saveH {h with spec = replacedName} (PEventSpace new_)
-          | PField _, ACField fieldname, _ ->
-              let fieldname =
-                if String.startsWith ~prefix:"." fieldname
-                then String.dropLeft ~count:1 fieldname
-                else fieldname
-              in
-              let fieldname =
-                if String.endsWith ~suffix:"." fieldname
-                then String.dropRight ~count:1 fieldname
-                else fieldname
-              in
-              let ast = getAstFromTopLevel tl in
-              let parent = AST.findParentOfWithin id ast in
-              (* Nested field? *)
-              if String.endsWith ~suffix:"." m.complete.value
-              then
-                (* wrap the field access with another field access *)
-                (* get the parent ID from the old AST, cause it has the blank.
-                 Then get the parent structure from the new ID *)
-                let wrapped =
-                  match parent with
-                  | F (id_, FieldAccess (lhs, _)) ->
-                      B.newF
-                        (FieldAccess
-                           ( F (id_, FieldAccess (lhs, B.newF fieldname))
-                           , B.new_ () ))
-                  | _ ->
-                      recover "should be a field" ~debug:parent parent
-                in
-                let new_ = PExpr wrapped in
-                let replacement = TL.replace (PExpr parent) new_ tl in
-                save replacement new_
-              else if move = StartThread
-              then
-                (* Starting a new thread from the field *)
-                let replacement =
-                  AST.replace pd (PField (B.newF fieldname)) ast
-                in
-                let newAst = AST.wrapInThread (B.toID parent) replacement in
-                saveAst newAst (PExpr parent)
-              else (* Changing a field *)
-                replace (PField (B.newF fieldname))
-          | PKey _, ACKey value, _ ->
-              let new_ = PKey (B.newF value) in
-              getAstFromTopLevel tl
-              |> AST.replace pd new_
-              |> AST.maybeExtendObjectLiteralAt new_
-              |> fun ast_ -> saveAst ast_ new_
-          | PExpr e, ACExpr _, _
-          | PExpr e, ACFunction _, _
-          | PExpr e, ACLiteral _, _
-          | PExpr e, ACKeyword _, _
-          | PExpr e, ACConstructorName _, _
-          | PExpr e, ACVariable _, _ ->
-              let ast = getAstFromTopLevel tl in
-              let newast, newexpr = replaceExpr m ast e move item in
-              saveAst newast (PExpr newexpr)
-          | PFFMsg _, ACFFMsg value, _ ->
-              replace (PFFMsg (B.newF value))
           | PFnName _, ACFnName value, TLFunc old ->
               if List.member ~value (Functions.allNames m.userFunctions)
               then DisplayError ("There is already a Function named " ^ value)
@@ -835,22 +525,10 @@ let submitACItem
                 in
                 let changedNames = Refactor.renameFunction m old new_ in
                 wrapNew (SetFunction new_ :: changedNames) newPD
-          | PConstructorName _, ACConstructorName value, _ ->
-              replace (PConstructorName (B.newF value))
           | PParamName _, ACParamName value, _ ->
               replace (PParamName (B.newF value))
           | PParamTipe _, ACParamTipe tipe, _ ->
               replace (PParamTipe (B.newF tipe))
-          | PPattern _, ACConstructorName value, _ ->
-            ( match parsePattern value with
-            | None ->
-                DisplayError "not a pattern"
-            | Some p ->
-                let new_ = PPattern p in
-                getAstFromTopLevel tl
-                |> AST.replace pd new_
-                |> AST.maybeExtendPatternAt new_
-                |. saveAst new_ )
           | PTypeName _, ACTypeName value, TLTipe old ->
               if List.member ~value (UserTypes.allNames m.userTipes)
               then DisplayError ("There is already a Type named " ^ value)
@@ -903,25 +581,12 @@ let submit (m : model) (cursor : entryCursor) (move : nextMove) : modification
           match m.complete.target with
           | Some (_, p) ->
             ( match P.typeOf p with
-            | Expr ->
-                (* We need ACExpr so that PExpr still works until we switch to fluid *)
-                Some (ACExpr value)
             | DBColName ->
                 Some (ACDBColName value)
-            | VarBind ->
-                Some (ACVarBind value)
-            | Field ->
-                Some (ACField value)
-            | Key ->
-                Some (ACKey value)
-            | FFMsg ->
-                Some (ACFFMsg value)
             | FnName ->
                 Some (ACFnName value)
             | ParamName ->
                 Some (ACParamName value)
-            | Pattern ->
-                Some (ACConstructorName value)
             | TypeName ->
                 Some (ACTypeName value)
             | TypeFieldName ->

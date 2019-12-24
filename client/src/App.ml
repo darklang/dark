@@ -183,17 +183,10 @@ let processFocus (m : model) (focus : focus) : modification =
             AutocompleteMod
               (ACSetQuery (P.toContent pd |> Option.withDefault ~default:""))
           in
-          Many
-            [ SetPage page
-            ; SetCursorState cs
-            ; AutocompleteMod (ACSetTarget (Some (TL.id tl, pd)))
-            ; query ]
+          Many [SetPage page; SetCursorState cs; query]
       | Some _, Some None | Some _, None ->
           Many
-            [ SetPage page
-            ; SetCursorState cs
-            ; AutocompleteMod (ACSetTarget None)
-            ; AutocompleteMod (ACSetQuery "") ]
+            [SetPage page; SetCursorState cs; AutocompleteMod (ACSetQuery "")]
       | _, _ ->
           NoChange )
   | FocusNothing ->
@@ -549,12 +542,8 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           match p with
           | STTopLevelRoot ->
               processAutocompleteMods m [ACReset]
-          | STID id ->
-            ( match TL.getPD m tlid id with
-            | Some pd ->
-                processAutocompleteMods m [ACSetTarget (Some (tlid, pd))]
-            | None ->
-                processAutocompleteMods m [ACReset] )
+          | STID _ ->
+              processAutocompleteMods m []
           | STCaret _ ->
               processAutocompleteMods m [ACReset]
         in
