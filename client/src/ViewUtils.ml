@@ -270,31 +270,6 @@ let partialName (name : fnName) : string =
   name ^ version
 
 
-let viewFnName (parens : bool) (fnName : fnName) : msg Html.html =
-  let mod_, name, version = splitFnName fnName in
-  let name = if parens then "(" ^ name ^ ")" else name in
-  let classes = if mod_ = None then ["atom"] else [] in
-  let versionTxt = if version = "0" then "" else version in
-  let modHtml =
-    match mod_ with
-    | Some name ->
-        [ Html.div [Html.class' "module"] [Html.text name]
-        ; Html.div [Html.class' "moduleseparator"] [Html.text "::"] ]
-    | _ ->
-        []
-  in
-  Html.div
-    [Html.class' "namegroup atom"]
-    ( modHtml
-    @ [ Html.div
-          [ Html.class'
-              (String.join
-                 ~sep:" "
-                 (classes @ ["versioned-function"; "fnname"])) ]
-          [ Html.span [Html.class' "name"] [Html.text name]
-          ; Html.span [Html.class' "version"] [Html.text versionTxt] ] ] )
-
-
 let svgIconFn (color : string) : msg Html.html =
   Svg.svg
     [ Svg.Attributes.viewBox "0 0 16 16"
