@@ -210,15 +210,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           if event.shiftKey
           then Selection.selectPrevBlank m tlid mId
           else Selection.selectNextBlank m tlid mId
-      (* Disabled to make room for Windows keyboards *)
-      (* | Key.O -> *)
-      (*   if event.ctrlKey *)
-      (*   then Selection.selectUpLevel m tlid mId *)
-      (*   else NoChange *)
-      (* |  Key.I -> *)
-      (*   if event.ctrlKey *)
-      (*   then Selection.selectDownLevel m tlid mId *)
-      (*   else NoChange *)
       | Key.C, Some tl ->
           if event.ctrlKey && event.altKey
           then
