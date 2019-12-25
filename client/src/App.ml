@@ -619,12 +619,6 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         , Cmd.batch
             (closeBlanks m @ [afCmd; acCmd; Entry.focusEntryWithOffset m offset])
         )
-    | SelectCommand (tlid, id) ->
-        let m = {m with cursorState = SelectingCommand (tlid, id)} in
-        let m, acCmd =
-          processAutocompleteMods m [ACEnableCommandMode; ACRegenerate]
-        in
-        (m, Cmd.batch (closeBlanks m @ [acCmd; Entry.focusEntry m]))
     | RemoveToplevel tl ->
         (Toplevel.remove m tl, Cmd.none)
     | RemoveGroup tl ->

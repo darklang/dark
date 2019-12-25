@@ -1044,7 +1044,6 @@ and modification =
   | DisplayError of string
   | ClearError
   | Select of tlid * tlidSelectTarget
-  | SelectCommand of tlid * id
   | SetHover of tlid * id
   | ClearHover of tlid * id
   | Deselect
