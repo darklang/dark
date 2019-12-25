@@ -496,15 +496,13 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
           ; tlid = Some tlid
           ; timestamp = timeStamp }
         in
-        let commands =
-          [hashcmd] @ [acCmd; afCmd] @ [RPC.sendPresence m avMessage]
-        in
+        let commands = [hashcmd; acCmd; afCmd; RPC.sendPresence m avMessage] in
         (m, Cmd.batch commands)
     | Deselect ->
         if m.cursorState <> Deselected
         then
           let m = Editor.closeMenu m in
-          let hashcmd = [Url.updateUrl Architecture] in
+          let hashcmd = Url.updateUrl Architecture in
           let m = Page.setPage m m.currentPage Architecture in
           let m, acCmd = processAutocompleteMods m [ACReset] in
           let m = {m with cursorState = Deselected} in
@@ -515,7 +513,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
             ; tlid = None
             ; timestamp = timeStamp }
           in
-          let commands = hashcmd @ [acCmd] @ [RPC.sendPresence m avMessage] in
+          let commands = [hashcmd; acCmd; RPC.sendPresence m avMessage] in
           (m, Cmd.batch commands)
         else (m, Cmd.none)
     | Enter entry ->
