@@ -181,25 +181,9 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           | Key.Down ->
               AutocompleteMod ACSelectDown (* NB: see `stopKeys` in ui.html *)
           | Key.Backspace ->
-              (* This was the case in Elm, unclear about bucklescript  *)
-              (* NB: when we backspace, we _almost_ always get an *)
-              (* EntryInputMsg first. I believe the only time we don't *)
-              (* get one when we backspace over '""'. That means that *)
-              (* we'll get \""' if the previous value was '"a"' (cause *)
-              (* EntryInputMsg will have run, and m.c.v will already be *)
-              (* set to the new value '""') or the previous value was *)
-              (* '""' (in which case EntryInputMsg will not have run so *)
-              (* m.c.v will not have changed. *)
-              (* The way we can tell the difference is based on *)
-              (* m.c.prevValue. If m.c.pv is '""' or longer, that means *)
-              (* EntryInputMsg was run and we are coming from a longer *)
-              (* string. *)
-              let v =
-                if m.complete.value = "\"\""
-                   && String.length m.complete.prevValue <= 2
-                then ""
-                else m.complete.value
-              in
+              (* This was an old hack for strings in the AST of the old editor.
+               * Unclear if it still is needed. *)
+              let v = m.complete.value in
               Many
                 [ AutocompleteMod (ACSetVisible true)
                 ; AutocompleteMod (ACSetQuery v)
