@@ -5,7 +5,7 @@ open Prelude
 (* ---------------- *)
 (* Shortcuts *)
 (* ---------------- *)
-let b = Fluid.newB ()
+let b = FluidExpression.newB ()
 
 let str (str : string) : fluidExpr = EString (gid (), str)
 

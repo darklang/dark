@@ -462,8 +462,8 @@ let dbMigration j : dbMigration =
   ; version = field "version" int j
   ; state = field "state" dbMigrationState j
   ; cols = field "cols" dbColList j
-  ; rollforward = field "rollforward" expr j
-  ; rollback = field "rollback" expr j }
+  ; rollforward = field "rollforward" expr j |> FluidExpression.fromNExpr
+  ; rollback = field "rollback" expr j |> FluidExpression.fromNExpr }
 
 
 let db pos j : db =
