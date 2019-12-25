@@ -1,4 +1,36 @@
+open Types
+
 type t = Types.fluidPattern
+
+let id (p : t) : id =
+  match p with
+  | FPVariable (_, id, _)
+  | FPConstructor (_, id, _, _)
+  | FPInteger (_, id, _)
+  | FPBool (_, id, _)
+  | FPString (_, id, _)
+  | FPFloat (_, id, _, _)
+  | FPNull (_, id)
+  | FPBlank (_, id) ->
+      id
+  | FPOldPattern (_, p) ->
+      Blank.toID p
+
+
+let matchID (p : t) : id =
+  match p with
+  | FPVariable (mid, _, _)
+  | FPConstructor (mid, _, _, _)
+  | FPInteger (mid, _, _)
+  | FPBool (mid, _, _)
+  | FPString (mid, _, _)
+  | FPFloat (mid, _, _, _)
+  | FPNull (mid, _)
+  | FPBlank (mid, _) ->
+      mid
+  | FPOldPattern (mid, _) ->
+      mid
+
 
 let rec toPattern (p : t) : Types.pattern =
   match p with

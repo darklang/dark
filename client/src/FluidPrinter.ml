@@ -20,6 +20,7 @@ module Events = Tea.Html2.Events
 module AC = FluidAutocomplete
 module T = FluidToken
 module E = FluidExpression
+module Pattern = FluidPattern
 module Util = FluidUtil
 
 type token = Types.fluidToken
@@ -418,8 +419,8 @@ let rec toTokens' (e : E.t) (b : Builder.t) : Builder.t =
                     |> addMany (patternToToken pattern ~idx:i)
                     |> addMany
                          [ TSep id
-                         ; TMatchSep (pid pattern, i)
-                         ; TSep (pid pattern) ]
+                         ; TMatchSep (Pattern.id pattern, i)
+                         ; TSep (Pattern.id pattern) ]
                     |> addNested ~f:(fromExpr expr))
              |> addNewlineIfNeeded (Some (id, id, Some (List.length pairs))))
   | EOldExpr expr ->
@@ -503,3 +504,23 @@ let eToStructure ?(includeIDs = false) (s : state) (e : E.t) : string =
          ^ T.toText ti.token
          ^ ">")
   |> String.join ~sep:""
+
+
+let pToString (p : fluidPattern) : string =
+  p
+  |> patternToToken ~idx:0
+  |> List.map ~f:(fun t -> T.toTestText t)
+  |> String.join ~sep:""
+
+
+let pToStructure (p : fluidPattern) : string =
+  p
+  |> patternToToken ~idx:0
+  |> infoize ~pos:0
+  |> List.map ~f:(fun ti ->
+         "<" ^ T.toTypeName ti.token ^ ":" ^ T.toText ti.token ^ ">")
+  |> String.join ~sep:""
+
+
+let nexprToString (e : Types.expr) : string =
+  e |> FluidExpression.fromNExpr |> eToString
