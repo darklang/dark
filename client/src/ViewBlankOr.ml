@@ -32,10 +32,6 @@ let wc (s : string) : htmlConfig = WithClass s
 
 let idConfigs : htmlConfig list = [ClickSelect; Mouseover]
 
-let atom : htmlConfig = wc "atom"
-
-let nested : htmlConfig = wc "nested"
-
 let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
   let liveValue =
     Option.andThen id ~f:(Analysis.getLiveValue' vs.analysisStore)
@@ -49,15 +45,6 @@ let renderLiveValue (vs : ViewUtils.viewState) (id : id option) : string =
       "<loading>"
 
 
-let viewFeatureFlag : msg Html.html =
-  Html.div
-    [ Html.class' "flag"
-    ; Html.title "Clone and feature flag this expression"
-    ; ViewUtils.eventNoPropagation ~key:"sff" "click" (fun _ ->
-          StartFeatureFlag) ]
-    [ViewUtils.fontAwesome "flag"]
-
-
 let viewCopyButton tlid value : msg Html.html =
   Html.div
     ~key:value
@@ -68,16 +55,6 @@ let viewCopyButton tlid value : msg Html.html =
         ~key:("copylivevalue-" ^ showTLID tlid)
         (fun m -> ClipboardCopyLivevalue (value, m.mePos)) ]
     [ViewUtils.fontAwesome "copy"]
-
-
-let viewEditFn (tlid : tlid) (hasFlagAlso : bool) : msg Html.html =
-  let rightOffset = if hasFlagAlso then "-34px" else "-16px" in
-  Html.a
-    [ Html.class' "edit-fn"
-    ; Html.title "Extract this expression into a function"
-    ; Vdom.styles [("right", rightOffset)]
-    ; Html.href (Url.urlFor (FocusedFn tlid)) ]
-    [ViewUtils.fontAwesome "edit"]
 
 
 let viewCreateFn : msg Html.html =
