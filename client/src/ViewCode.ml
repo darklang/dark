@@ -68,10 +68,8 @@ let handlerIsExeFail (vs : viewState) : bool =
     |> Option.withDefault ~default:false
 
 
-let view (vs : viewState) (e : expr) =
-  [ Html.div
-      [Html.class' "fluid-ast"]
-      (Fluid.viewAST ~vs (Fluid.fromExpr vs.fluidState e)) ]
+let view (vs : viewState) (e : fluidExpr) =
+  [Html.div [Html.class' "fluid-ast"] (Fluid.viewAST ~vs e)]
 
 
 let triggerHandlerButton (vs : viewState) (spec : handlerSpec) : msg Html.html =
@@ -302,6 +300,6 @@ let handlerAttrs (tlid : tlid) (state : handlerState) : msg Vdom.property list =
 let viewHandler (vs : viewState) (h : handler) (dragEvents : domEventList) :
     msg Html.html list =
   let attrs = handlerAttrs vs.tlid (ViewUtils.getHandlerState vs) in
-  let ast = Html.div attrs (view vs h.ast) in
+  let ast = Html.div attrs (view vs (FluidExpression.fromNExpr h.ast)) in
   let header = viewEventSpec vs h.spec dragEvents in
   [header; ast]

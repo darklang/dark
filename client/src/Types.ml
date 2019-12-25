@@ -255,6 +255,66 @@ and pointerType =
   | GroupName
 
 (* ---------------------- *)
+(* Fluid *)
+(* ---------------------- *)
+and fluidName = string
+
+(* match id, then the pattern id. We have a pattern id cause they can be
+ * nested. *)
+and fluidPattern =
+  | FPVariable of id * id * fluidName
+  | FPConstructor of id * id * fluidName * fluidPattern list
+  (* TODO: support char *)
+  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  | FPInteger of id * id * string
+  | FPBool of id * id * bool
+  | FPString of id * id * string
+  | FPFloat of id * id * string * string
+  | FPNull of id * id
+  | FPBlank of id * id
+  | FPOldPattern of id * pattern
+
+and fluidExpr =
+  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
+  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
+  | EInteger of id * string
+  | EBool of id * bool
+  | EString of id * string
+  | EFloat of id * string * string
+  | ENull of id
+  | EBlank of id
+  (* The 2nd id is extra for the LHS blank. *)
+  | ELet of id * id * fluidName * fluidExpr * fluidExpr
+  | EIf of id * fluidExpr * fluidExpr * fluidExpr
+  | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
+  (* the id in the varname list is extra *)
+  | ELambda of id * (id * fluidName) list * fluidExpr
+  (* The 2nd ID is extra for the fieldname blank *)
+  | EFieldAccess of id * fluidExpr * id * fluidName
+  | EVariable of id * string
+  | EFnCall of id * fluidName * fluidExpr list * sendToRail
+  | EPartial of id * string * fluidExpr
+  | ERightPartial of id * string * fluidExpr
+  | EList of id * fluidExpr list
+  (* The ID in the list is extra for the fieldname *)
+  | ERecord of id * (id * fluidName * fluidExpr) list
+  | EPipe of id * fluidExpr list
+  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
+    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
+    length 0 (for `Nothing`).
+    The 2nd ID here is the id of the blankOr for the constructor's name.
+   *)
+  | EConstructor of id * id * fluidName * fluidExpr list
+  (* TODO: add ID for fluidPattern *)
+  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
+  (* Placeholder that indicates the target of the Thread. May be movable at
+   * some point *)
+  | EPipeTarget of id
+  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
+  | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
+  | EOldExpr of expr
+
+(* ---------------------- *)
 (* Toplevels *)
 (* ---------------------- *)
 and handlerSpaceName = string
@@ -315,8 +375,8 @@ and dbMigration =
   { startingVersion : int
   ; version : int
   ; state : dbMigrationState
-  ; rollforward : expr
-  ; rollback : expr
+  ; rollforward : fluidExpr
+  ; rollback : fluidExpr
   ; cols : dbColumn list }
 
 and db =
@@ -1321,69 +1381,6 @@ and integrationTestState =
   | NoIntegrationTest
 
 (* Fluid *)
-and fluidName = string
-
-(* match id, then the pattern id. We have a pattern id cause they can be
- * nested. *)
-and fluidPattern =
-  | FPVariable of id * id * fluidName
-  | FPConstructor of id * id * fluidName * fluidPattern list
-  (* TODO: support char *)
-  (* Currently we support u62s; we will support s63s. ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
-  | FPInteger of id * id * string
-  | FPBool of id * id * bool
-  | FPString of id * id * string
-  | FPFloat of id * id * string * string
-  | FPNull of id * id
-  | FPBlank of id * id
-  | FPOldPattern of id * pattern
-
-and fluidPatternAutocomplete =
-  | FPAVariable of id * id * fluidName
-  | FPAConstructor of id * id * fluidName * fluidPattern list
-  | FPANull of id * id
-  | FPABool of id * id * bool
-
-and fluidExpr =
-  (* Several of these expressions have extra IDs for roundtripping to the old expr *)
-  (* ints in Bucklescript only support 32 bit ints but we want 63 bit int support *)
-  | EInteger of id * string
-  | EBool of id * bool
-  | EString of id * string
-  | EFloat of id * string * string
-  | ENull of id
-  | EBlank of id
-  (* The 2nd id is extra for the LHS blank. *)
-  | ELet of id * id * fluidName * fluidExpr * fluidExpr
-  | EIf of id * fluidExpr * fluidExpr * fluidExpr
-  | EBinOp of id * fluidName * fluidExpr * fluidExpr * sendToRail
-  (* the id in the varname list is extra *)
-  | ELambda of id * (id * fluidName) list * fluidExpr
-  (* The 2nd ID is extra for the fieldname blank *)
-  | EFieldAccess of id * fluidExpr * id * fluidName
-  | EVariable of id * string
-  | EFnCall of id * fluidName * fluidExpr list * sendToRail
-  | EPartial of id * string * fluidExpr
-  | ERightPartial of id * string * fluidExpr
-  | EList of id * fluidExpr list
-  (* The ID in the list is extra for the fieldname *)
-  | ERecord of id * (id * fluidName * fluidExpr) list
-  | EPipe of id * fluidExpr list
-  (* Constructors include `Just`, `Nothing`, `Error`, `Ok`.
-    In practice the expr list is currently always length 1 (for `Just`, `Error`, and `Ok`) or
-    length 0 (for `Nothing`).
-    The 2nd ID here is the id of the blankOr for the constructor's name.
-   *)
-  | EConstructor of id * id * fluidName * fluidExpr list
-  (* TODO: add ID for fluidPattern *)
-  | EMatch of id * fluidExpr * (fluidPattern * fluidExpr) list
-  (* Placeholder that indicates the target of the Thread. May be movable at
-   * some point *)
-  | EPipeTarget of id
-  (* EFeatureFlag: id, flagName, flagNameId, condExpr, caseAExpr, caseBExpr *)
-  | EFeatureFlag of id * string * id * fluidExpr * fluidExpr * fluidExpr
-  | EOldExpr of expr
-
 and placeholder = string * string
 
 and analysisId = id
@@ -1482,6 +1479,12 @@ and fluidTokenInfo =
   ; endPos : int
   ; length : int
   ; token : fluidToken }
+
+and fluidPatternAutocomplete =
+  | FPAVariable of id * id * fluidName
+  | FPAConstructor of id * id * fluidName * fluidPattern list
+  | FPANull of id * id
+  | FPABool of id * id * bool
 
 and fluidAutocompleteItem =
   | FACFunction of function_
