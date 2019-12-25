@@ -944,17 +944,6 @@ and autocompleteMod =
   | ACEnableCommandMode
   | ACSetVisible of bool
 
-(* | ACFilterByParamType of tipe nodeList *)
-
-(* string entry *)
-and stringEntryPermission =
-  | StringEntryAllowed
-  | StringEntryNotAllowed
-
-and stringEntryWidth =
-  | StringEntryNormalWidth
-  | StringEntryShortWidth
-
 (* ------------------- *)
 (* Clipboard *)
 (* ------------------- *)
