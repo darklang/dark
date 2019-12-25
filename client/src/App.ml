@@ -85,6 +85,7 @@ let init (flagString : string) (location : Web.Location.location) =
         then VariantTesting.libtwitterAvailable variants
         else true)
   in
+  FluidExpression.functions := functions ;
   let m =
     { m with
       cursorState =
@@ -952,7 +953,7 @@ let rec updateMod (mod_ : modification) ((m, cmd) : model * msg Cmd.t) :
         in
         ({m with searchCache}, Cmd.none)
     | InitASTCache (handlers, userFunctions) ->
-        let exprToString ast = Fluid.exprToStr m.fluidState ast in
+        let exprToString ast = FluidPrinter.nexprToString ast in
         let hcache =
           handlers
           |> List.foldl ~init:m.searchCache ~f:(fun h cache ->

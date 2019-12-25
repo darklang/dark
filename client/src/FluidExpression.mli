@@ -1,7 +1,13 @@
 type t = Types.fluidExpr
 
-(** [toNexpr e] recursively converts [e] to the corresponding [nExpr blankOr] *)
-val toNexpr : t -> Types.expr
+(** Generate a new EBlank *)
+val newB : unit -> t
+
+(** [toNExpr e] recursively converts [e] to the corresponding [nExpr blankOr] *)
+val toNExpr : t -> Types.expr
+
+(** [fromNExpr e] recursively converts a corresponding [nExpr blankOr] to [e] *)
+val fromNExpr : Types.expr -> t
 
 (** [id e] returns the id of [e] *)
 val id : t -> Types.id
@@ -42,3 +48,9 @@ val update : ?failIfMissing:bool -> f:(t -> t) -> Types.id -> t -> t
 
 (** [replace replacement target ast] finds the expression with id of [target] in the [ast] and replaces it with [replacement]. *)
 val replace : replacement:t -> Types.id -> t -> t
+
+(** to convert between NExprs and `t`, this
+ * file need to know all the functions. This
+ * is nasty to pass around as state so we use
+ * global state. *)
+val functions : Types.function_ list ref

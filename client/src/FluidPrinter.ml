@@ -474,17 +474,17 @@ let tidy (tokens : fluidToken list) : fluidToken list =
   tokens |> List.filter ~f:(function TIndent 0 -> false | _ -> true)
 
 
-let toTokens (s : state) (e : E.t) : tokenInfo list =
-  toTokens' s e Builder.empty
+let toTokens (e : E.t) : tokenInfo list =
+  toTokens' e Builder.empty
   |> Builder.asTokens
   |> tidy
   |> validateTokens
   |> infoize ~pos:0
 
 
-let eToString (s : state) (e : E.t) : string =
+let eToString (e : E.t) : string =
   e
-  |> toTokens s
+  |> toTokens
   |> List.map ~f:(fun ti -> T.toTestText ti.token)
   |> String.join ~sep:""
 
@@ -493,9 +493,9 @@ let tokensToString (tis : tokenInfo list) : string =
   tis |> List.map ~f:(fun ti -> T.toText ti.token) |> String.join ~sep:""
 
 
-let eToStructure ?(includeIDs = false) (s : state) (e : E.t) : string =
+let eToStructure ?(includeIDs = false) (e : E.t) : string =
   e
-  |> toTokens s
+  |> toTokens
   |> List.map ~f:(fun ti ->
          "<"
          ^ T.toTypeName ti.token
