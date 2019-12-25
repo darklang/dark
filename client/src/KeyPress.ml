@@ -214,19 +214,6 @@ let defaultHandler (event : Keyboard.keyEvent) (m : model) : modification =
           if event.altKey then CenterCanvasOn tlid else NoChange
       | Key.K, Some _ ->
           if osCmdKeyHeld then openOmnibox m else NoChange
-      | Key.Unknown _, Some _ ->
-        ( (* colon *)
-        match mId with
-        | None ->
-            NoChange
-        | Some id ->
-            if event.key = Some ":"
-            then
-              Many
-                [ SelectCommand (tlid, id)
-                ; AutocompleteMod (ACSetVisible true)
-                ; AutocompleteMod (ACSetQuery ":") ]
-            else NoChange )
       | _ ->
           NoChange )
     | Entering cursor ->
